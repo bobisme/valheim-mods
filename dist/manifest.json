@@ -1,0 +1,17 @@
+{
+  "mods": [
+    {
+      "guid": "com.bobisme.farmhand",
+      "name": "Farmhand",
+      "version": "0.1.0",
+      "description": "Plant spaced rows and harvest/replant nearby crops with your cultivator. See why unhealthy plants cannot grow.\n\nEquip a cultivator and select a crop. Hold Right Alt to preview a row, and press J to plant it. Hold Right Alt and press U to harvest nearby mature crops and replant the same types; also hold Shift to harvest without replanting.\n\nEvery planted crop uses normal seeds/materials, stamina, and cultivator durability. Normal placement reach, cultivated soil, biome, sunlight, spacing, and protected areas still apply. Harvested drops remain normal world items; bring seeds before replanting. BuildFromChests can supply seeds while the cultivator is equipped.\n\nSupports crop and seed-crop pieces in the cultivator, not trees, vines, wild berries, or respawning plants. New controls and batch sizes are configurable through the mod manager. Turn off BuildOrders plan mode before using batch actions. Peers and the host do not need Farmhand.",
+      "notes": "0.1.0: First release. Spaced crop rows with a reach preview, bounded nearby harvesting and replanting using real seeds, and unhealthy-crop labels. Native Linux builds and hot reload support.",
+      "restart": "",
+      "cover": "",
+      "files": [
+        "Farmhand.dll",
+        "Farmhand.pdb"
+      ]
+    }
+  ]
+}
