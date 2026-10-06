@@ -27,6 +27,7 @@ Method("Player", "PieceRayTest", "System.Boolean", "UnityEngine.Vector3&", "Unit
 Method("Player", "UpdatePlacementGhost", "System.Void", "System.Boolean");
 Method("Player", "UpdatePlacement", "System.Void", "System.Boolean", "System.Single");
 Method("Menu", "Update", "System.Void");
+Method("ZNetView", "IsValid", "System.Boolean");
 Method("Piece", "GetSnapPoints", "System.Void", "System.Collections.Generic.List`1<UnityEngine.Transform>");
 Method("Plant", "UpdateHealth", "System.Void", "System.Double");
 Method("Plant", "GetStatus", "Plant/Status");
@@ -94,6 +95,8 @@ if (args.Length == 3)
     }
     Api("TryCreateGhostPlan", "Player", "System.String", "System.String[]", "UnityEngine.Vector3[]", "UnityEngine.Quaternion[]", "System.String&", "System.String&");
     Api("TryRemoveGhostPlan", "Player", "System.String", "System.Int32&", "System.String&");
+    Api("IsPlanningInputAvailable", "Player");
+    Api("TryGetGhostAtRay", "Player", "UnityEngine.Vector3", "UnityEngine.Vector3", "System.String&", "System.String&", "UnityEngine.Vector3&", "UnityEngine.Quaternion&", "System.Single&");
     Console.WriteLine("BuildOrders: public planning API and symbols verified; BuildShapes has no planner assembly binding.");
 }
 Console.WriteLine("All native crop/terrain APIs, private members, and Harmony targets match the installed game.");

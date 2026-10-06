@@ -35,6 +35,67 @@ Reject(() => Curve.Plan(new V3(0,0,0),new V3(40,0,0),new V3(80,0,0),0.25), "Piec
 Reject(() => Curve.Plan(new V3(0,0,0),new V3(100,50,0),new V3(150,0,0),1), "Curve length budget");
 Reject(() => Curve.Plan(new V3(0,0,0),new V3(1000,0,0),new V3(8,0,0),1), "Oversized control polygon rejected");
 
+// Mirror positions and orthonormal frames at translated, oblique planes and tilted source orientations.
+V3 Unit(V3 a) => a*(1/a.Length);
+foreach(double shift in new[]{0.0,-10000,10000})
+foreach(V3 line in new[]{new V3(0,0,8),new V3(8,0,0),new V3(6,3,8)})
+{
+ V3 origin=new V3(shift,3,shift), end=origin+line;
+ var mirror=new Mirror(origin,end);
+ V3 right=Unit(new V3(1,2,3)), up=Unit(V3.Cross(new V3(-2,1,4),right)), forward=V3.Cross(right,up);
+ V3 point=origin+new V3(5,4,-7), reflected=mirror.Point(point);
+ Check(Near(mirror.Point(reflected),point),"Mirror point involution at world coordinates");
+ Check(Math.Abs(reflected.Y-point.Y)<1e-8,"Vertical mirror preserves height");
+ Check(Near(mirror.Point(origin),origin)&&Near(mirror.Point(end),end),"Mirror line points fixed regardless of marker heights");
+ V3 r=mirror.Right(right),u=mirror.Up(up),f=mirror.Forward(forward);
+ Check(Near(V3.Cross(r,u),f)&&Math.Abs(r.Length-1)<1e-8&&Math.Abs(u.Length-1)<1e-8,"Mirrored frame has positive handedness and unit axes");
+ Check(Near(mirror.Right(r),right)&&Near(mirror.Up(u),up)&&Near(mirror.Forward(f),forward),"Tilted orientation mirror involution");
+ V3 local=new V3(2,5,-3);
+ Check(Near(mirror.Point(point+right*local.X+up*local.Y+forward*local.Z),reflected+r*(-local.X)+u*local.Y+f*local.Z),"Offset-pivot transform agrees with reflection plus local-X flip");
+ // A beam spanning local x=0..4 has its symmetry centre at x=2, not at its root.
+ V3 offsetRoot=mirror.Origin(point,right,2);
+ Check(Near(offsetRoot+r*4,mirror.Point(point))&&Near(offsetRoot,mirror.Point(point+right*4)),"Offset-pivot beam endpoints mirror exactly with root compensation");
+ Check(Near(mirror.Origin(offsetRoot,r,2),point),"Offset-pivot mirror root compensation is an involution");
+ Check(Math.Abs((reflected-mirror.Point(origin+new V3(2,1,0))).Length-(point-(origin+new V3(2,1,0))).Length)<1e-7,"Reflection preserves distances");
+}
+Reject(()=>new Mirror(new V3(),new V3(0,5,0)),"Vertical-only mirror line rejected");
+Reject(()=>new Mirror(new V3(),new V3(double.NaN,0,1)),"Nonfinite mirror line rejected");
+Reject(()=>new Mirror(new V3(),new V3(129,0,0)),"Oversized mirror line rejected");
+
+var row=Curve.Repeat(new V3(),new V3(5,0,0),new V3(10,0,0),3);
+Check(row.Count==5,"Repeat fits both ends with bounded maximum spacing");
+for(int i=0;i<row.Count;i++)
+ Check(Near(row[i].Position,new V3(i*2.5,0,0))&&Math.Abs(row[i].Yaw-90)<1e-8,"Straight repeat evenly spaced with tangent yaw");
+// Integrate the analytic derivative independently; X=12t lets us recover each station's parameter.
+double ArcBetween(double lo,double hi)
+{
+ double total=0;const int slices=1000;
+ double Speed(double t)=>Math.Sqrt(144+Math.Pow(16-32*t,2)+Math.Pow(12-24*t,2));
+ for(int i=0;i<slices;i++){double a=lo+(hi-lo)*i/slices,b=lo+(hi-lo)*(i+1)/slices;total+=(b-a)/6*(Speed(a)+4*Speed((a+b)/2)+Speed(b));}
+ return total;
+}
+foreach(double spacing in new[]{0.25,1.0,2.0,16.0})
+{
+ var stations=Curve.Repeat(new V3(),new V3(6,4,3),new V3(12,0,0),spacing);
+ Check(Near(stations[0].Position,new V3())&&Near(stations[^1].Position,new V3(12,0,0)),"Curved repeat preserves both native-root anchors");
+ double desired=ArcBetween(0,1)/(stations.Count-1);
+ for(int i=1;i<stations.Count;i++)
+ {
+  double previous=stations[i-1].Position.X/12,t=stations[i].Position.X/12;
+  Check(Math.Abs(ArcBetween(previous,t)-desired)<0.0001,"Repeat uniform in arc distance, checked with independent integration");
+  Check((stations[i].Position-stations[i-1].Position).Length<=spacing+1e-7,"Repeat chord never exceeds chosen maximum spacing");
+  Check(Math.Abs(stations[i].Yaw-Math.Atan2(12,12-24*t)*180/Math.PI)<0.0001,"Repeat uses analytic projected tangent yaw");
+ }
+}
+var posts=Curve.Repeat(new V3(),new V3(0,4,0),new V3(0,8,0),2);
+Check(posts.Count==5&&posts.All(s=>s.Yaw==0),"Vertical path has stable yaw fallback without tipping posts");
+var cusp=Curve.Repeat(new V3(),new V3(0,5,2),new V3(0,10,0),1);
+Check(cusp.All(s=>!double.IsNaN(s.Yaw)&&!double.IsInfinity(s.Yaw)),"Vanishing horizontal tangent retains finite yaw");
+Reject(()=>Curve.Repeat(new V3(),new V3(64,0,0),new V3(128,0,0),0.25),"Repeat rejects station budget before output");
+Reject(()=>Curve.Repeat(new V3(),new V3(100,0,0),new V3(200,0,0),2),"Repeat path bound");
+Reject(()=>Curve.Repeat(new V3(),new V3(1,0,0),new V3(2,0,0),double.NaN),"Repeat nonfinite spacing");
+Reject(()=>Curve.Repeat(new V3(),new V3(1,0,0),new V3(),2),"Repeat coincident ends");
+
 // Exercise the real reflection bridge through reloads, missing/old dependencies, and failure replies.
 var link = new Planner(); var player = new Player();
 Check(!link.Ready(), "Missing planner is harmless");
@@ -53,6 +114,14 @@ Chainloader.PluginInfos[Planner.Guid].Instance = new WrongSchemaPlanner();
 Check(!link.Ready(), "Changed method signature rejected");
 Chainloader.PluginInfos[Planner.Guid].Instance = new ThrowingPlanner();
 Check(link.Ready() && !link.Create(player,"wood_beam",new Vector3[1],new Quaternion[1],out _,out error) && error == "world changed", "Reflection invocation exceptions become useful failures");
+var extended=new ExtendedPlanner();Chainloader.PluginInfos[Planner.Guid].Instance=extended;
+Check(link.Extended&&link.Available(player),"Optional extended API discovered on independently reloaded planner");
+Check(link.AtRay(player,new Vector3(),new Vector3(),out string ghostId,out string prefab,out _,out _,out float hit)&&ghostId=="ghost"&&prefab=="wood_beam"&&hit==3,"Ghost selection uses live public ray API");
+Check(link.Create(player,"Mirror",new[]{"wood_beam","wood_pole"},new Vector3[2],new Quaternion[2],out _,out _)&&extended.Title=="Mirror"&&extended.Names[1]=="wood_pole","Mixed-piece shape title and prefabs preserved");
+extended.InputAvailable=false;Check(!link.Available(player),"Concurrent planner placement blocks shape input");
+extended.InputAvailable=true;Check(link.Available(player),"Input resumes after planner placement ends");
+Chainloader.PluginInfos[Planner.Guid].Instance=new MockPlanner();
+Check(link.Ready()&&!link.Extended&&link.Available(player)&&!link.AtRay(player,new Vector3(),new Vector3(),out _,out _,out _,out _,out _),"Original v1 planner retains Curve support without stale extended calls");
 Console.WriteLine($"Passed {checks} curve geometry and planner reload/dependency checks.");
 
 class OldPlanner : BepInEx.BaseUnityPlugin { }
@@ -70,4 +139,15 @@ class ThrowingPlanner : MockPlanner
     public new const int PlanningApiVersion = 1;
     public override bool TryCreateGhostPlan(Player p,string title,string[] names,Vector3[] poses,Quaternion[] rotations,out string key,out string error)
     { key=null; error=null; throw new InvalidOperationException("world changed"); }
+}
+
+class ExtendedPlanner : MockPlanner
+{
+ public new const int PlanningApiVersion=1;
+ public bool InputAvailable=true;public string Title;public string[] Names;
+ public bool IsPlanningInputAvailable(Player p)=>InputAvailable;
+ public bool TryGetGhostAtRay(Player p,Vector3 o,Vector3 d,out string id,out string prefab,out Vector3 pos,out Quaternion rot,out float distance)
+ {id="ghost";prefab="wood_beam";pos=default;rot=default;distance=3;return InputAvailable;}
+ public override bool TryCreateGhostPlan(Player p,string title,string[] names,Vector3[] poses,Quaternion[] rotations,out string key,out string error)
+ {Title=title;Names=names;return base.TryCreateGhostPlan(p,title,names,poses,rotations,out key,out error);}
 }

@@ -14,6 +14,7 @@ namespace BuildShapes
         public static V3 operator -(V3 a, V3 b) => new V3(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
         public static V3 operator *(V3 a, double k) => new V3(a.X * k, a.Y * k, a.Z * k);
         internal static double Dot(V3 a, V3 b) => a.X * b.X + a.Y * b.Y + a.Z * b.Z;
+        internal static V3 Cross(V3 a, V3 b) => new V3(a.Y*b.Z-a.Z*b.Y, a.Z*b.X-a.X*b.Z, a.X*b.Y-a.Y*b.X);
     }
     internal readonly struct Segment
     {
@@ -36,32 +37,16 @@ namespace BuildShapes
                 throw new ArgumentException("Invalid curve or beam length.");
             if ((start - end).Length < 0.1 || (start - middle).Length > 128 || (middle - end).Length > 128)
                 throw new ArgumentException("Place distinct ends within 128 metres of the bend.");
-            var points = new V3[Samples + 1]; var distance = new double[Samples + 1];
-            points[0] = start;
-            for (int i = 1; i <= Samples; i++)
-            {
-                points[i] = At(start, middle, end, (double)i / Samples);
-                distance[i] = distance[i - 1] + (points[i] - points[i - 1]).Length;
-            }
-            double total = distance[Samples];
+            var arc = new Arc(start, middle, end);
+            double total = arc.Total;
             if (total < length - 0.0001) throw new ArgumentException("Choose a shorter beam or mark a longer curve.");
             if (total > 128 || total / length > MaximumPieces) throw new ArgumentException("Curve exceeds 128 metres or 256 pieces.");
             int count = Math.Max(1, (int)Math.Ceiling(total / length - 1e-9));
-            V3 Sample(double d)
-            {
-                int hi = Array.BinarySearch(distance, d);
-                if (hi >= 0) return points[hi];
-                hi = ~hi;
-                if (hi >= distance.Length) return end;
-                int lo = hi - 1;
-                double part = (d - distance[lo]) / (distance[hi] - distance[lo]);
-                return points[lo] + (points[hi] - points[lo]) * part;
-            }
             var result = new List<Segment>(count);
             V3 previousDirection = default;
             for (int i = 0; i < count; i++)
             {
-                V3 a = Sample(total * i / count), b = Sample(total * (i + 1) / count);
+                V3 a = arc.Sample(total * i / count), b = arc.Sample(total * (i + 1) / count);
                 double chord = (b - a).Length;
                 if (chord < 0.01 || (count == 1 && Math.Abs(chord - length) > 0.001))
                     throw new ArgumentException("Choose a shorter beam or a gentler bend.");
@@ -69,13 +54,74 @@ namespace BuildShapes
                 if (i > 0 && V3.Dot(previousDirection, direction) < 0.25)
                     throw new ArgumentException("Bend is too tight for this beam. Choose a shorter beam.");
                 V3 centre = (a + b) * 0.5;
-                // Real pieces keep their native length; small overlaps avoid gaps. Preserve the outer ends.
+                // Real pieces keep their native length; overlaps avoid gaps. Preserve the outer ends.
                 if (i == 0) centre = start + direction * (length * 0.5);
                 if (i == count - 1) centre = end - direction * (length * 0.5);
                 result.Add(new Segment(centre - direction * (length * 0.5), centre + direction * (length * 0.5)));
                 previousDirection = direction;
             }
             return result;
+        }
+
+        internal readonly struct Station
+        {
+            internal readonly V3 Position;
+            internal readonly double Yaw;
+            internal Station(V3 position, double yaw) { Position = position; Yaw = yaw; }
+        }
+        // Maximum desired spacing is adjusted evenly to include both ends. Only yaw follows the path;
+        // a vertical tangent retains the previous yaw, so upright posts never tip over.
+        internal static List<Station> Repeat(V3 start, V3 middle, V3 end, double spacing)
+        {
+            if (!start.Finite || !middle.Finite || !end.Finite || double.IsNaN(spacing) || double.IsInfinity(spacing) || spacing < 0.25 || spacing > 16)
+                throw new ArgumentException("Choose spacing from 0.25 to 16 metres.");
+            if ((start-end).Length < 0.1 || (start-middle).Length > 128 || (middle-end).Length > 128)
+                throw new ArgumentException("Place distinct ends within 128 metres of the bend.");
+            var arc = new Arc(start, middle, end);
+            if (arc.Total > 128 || arc.Total < 0.1 || Math.Ceiling(arc.Total / spacing) + 1 > MaximumPieces)
+                throw new ArgumentException("Repeat exceeds 128 metres or 256 pieces. Increase spacing.");
+            int intervals = Math.Max(1, (int)Math.Ceiling(arc.Total / spacing));
+            var result = new List<Station>(intervals + 1);
+            V3 control = middle * 2 - (start+end)*0.5;
+            double yaw = 0;
+            for (int i = 0; i <= intervals; i++)
+            {
+                double d = arc.Total*i/intervals, t = arc.Parameter(d);
+                V3 tangent = (control-start)*(2*(1-t)) + (end-control)*(2*t);
+                if (Math.Sqrt(tangent.X*tangent.X+tangent.Z*tangent.Z) > 0.00001)
+                    yaw = Math.Atan2(tangent.X,tangent.Z)*180/Math.PI;
+                result.Add(new Station(arc.Sample(d), yaw));
+            }
+            return result;
+        }
+
+        private sealed class Arc
+        {
+            private readonly V3[] _points = new V3[Samples+1];
+            private readonly double[] _distance = new double[Samples+1];
+            internal double Total => _distance[Samples];
+            internal Arc(V3 start, V3 middle, V3 end)
+            {
+                _points[0] = start;
+                for (int i=1; i<=Samples; i++)
+                { _points[i]=At(start,middle,end,(double)i/Samples); _distance[i]=_distance[i-1]+(_points[i]-_points[i-1]).Length; }
+            }
+            internal double Parameter(double d)
+            {
+                if (d <= 0) return 0;
+                if (d >= Total) return 1;
+                int hi=Array.BinarySearch(_distance,d);
+                if (hi >= 0) return (double)hi/Samples;
+                hi=~hi; int lo=hi-1;
+                return (lo+(d-_distance[lo])/(_distance[hi]-_distance[lo]))/Samples;
+            }
+            internal V3 Sample(double d)
+            {
+                double sample=Parameter(d)*Samples;
+                int lo=(int)sample;
+                if (lo>=Samples) return _points[Samples];
+                return _points[lo]+(_points[lo+1]-_points[lo])*(sample-lo);
+            }
         }
     }
 }

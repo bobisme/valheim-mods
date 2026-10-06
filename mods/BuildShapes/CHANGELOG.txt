@@ -1,1 +1,3 @@
+0.2.0: Mirror selected built pieces/ghosts across a marked line, and Repeat any building piece along a three-point curve. Adjustable spacing, yaw and fixed/follow orientation; offset-pivot compensation; shared shape undo; planner input-conflict guards and hot-reload-safe ghost selection. Shift+F4 Mirror, Ctrl+F4 Repeat; original F4 Curve remains.
+
 0.1.0: First Curve tool. F4 with a selected beam/pole, Shift + click three points, L plans a three-dimensional curve, U removes the last curve's unbuilt ghosts. Native piece lengths, snap-point markers, bounded previews, shared BuildOrders plans, and runtime dependency/reload checks. Requires BuildOrders with the new ghost-only planning interface.

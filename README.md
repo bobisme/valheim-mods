@@ -4,49 +4,73 @@ Bob's Valheim mods, built for native Linux and Windows and packaged for the in-g
 
 ## BuildShapes
 
-A small add-on for **BuildOrders**, starting with a three-dimensional Curve tool. It requires BuildOrders with the new planning API;
-the API change is available in [upstream PR #2](https://github.com/HardHeadHackerHead/valheim-mods/pull/2). Until it is merged, use the patched BuildOrders DLL from that branch. An older planner safely refuses activation. The add-on discovers the current planner instance
-again after F6 or individual mod reloads, so it can update independently.
+Curve, Mirror, and Repeat tools for **BuildOrders**, using normal pieces, materials, and support rules. The original Curve API has been
+merged upstream. Mirror/Repeat also need the new ghost-selection/input API; use the patched planner from [upstream PR #3](https://github.com/HardHeadHackerHead/valheim-mods/pull/3) until it merges. Curve still works with the original API release (BuildOrders 1.9.3 or newer).
+The add-on reconnects to the live planner after F6 or individual reloads, without referencing its assembly.
 
-Equip a **hammer**, select a **beam or pole**, and close the piece menu:
+Equip a **hammer**, select a building piece, and close the piece menu:
 
 | Controls | Action |
 | --- | --- |
-| **F4** | Enter/exit Curve mode |
-| **Left Shift + left click** | Mark the **start**, **bend**, then **end** |
+| **F4** | Enter/exit Curve mode (select a beam/pole first) |
+| **Left Shift + F4** | Enter/exit Mirror mode |
+| **Left Ctrl + F4** | Enter/exit Repeat mode |
+| **Left Shift + left click** | Mark curve points or the mirror line |
+| **Left Ctrl + left click** | Mirror: toggle a source piece/ghost; Repeat: copy a source piece/ghost and its orientation |
 | **L** | Submit the preview as shared BuildOrders ghosts |
+| **U** in any shape mode | Remove the last submitted shape's unbuilt ghosts |
 | **Backspace** | Remove the last marker |
-| **U** in Curve mode | Remove the unbuilt ghosts from your last curve |
-| **Escape** | Exit and clear the local preview |
+| **Left Ctrl + Backspace** | Mirror: remove the last source selection |
+| **F4** or **Escape** | Exit the current shape mode and clear its preview |
 
-Markers can be placed on terrain or buildings; nearby building snap points are used automatically. The turquoise strokes show the pieces'
-center lines. The fitted curve goes through the bend marker and works in any orientation, including vertical arches. Shorter beams follow
-tighter bends. Pieces keep their native length, with overlaps at joints, and the outer ends meet the first/last markers. Beams and
-poles must have their original prefab scale and exactly two endpoint snap points, with a span from 0.25 to 8 metres. Curves are bounded to 128 metres and 256 pieces;
-degenerate or excessively tight bends are rejected before planning.
+**Curve:** select a beam/pole and press F4. Mark **start, bend, end**; the curve passes through the bend marker and works in 3D,
+including vertical arches. The turquoise strokes show piece center lines. Pieces keep their native lengths with overlapping joints;
+the first/last endpoints meet your markers. Shorter beams follow tighter bends. Beams/poles need exactly two endpoint snap points,
+original prefab scale, and a span of 0.25–8 metres. Tight or degenerate bends are rejected before planning.
 
-Build the ghosts with the planner's usual **E** controls and normal materials. Only the designer needs BuildShapes; participating players should use
-BuildOrders with the new add-on API and the chosen piece prefabs. Older planners can build the ghosts but still expose blueprint terrain actions. Curve mode reserves normal hammer placement; exit with F4 to select another piece or build
-normally. The planner's Plans window also lists the generated group. Its blueprint Move/Level actions are disabled for add-on shapes,
-which should be redrawn with the shape tool rather than moved through terrain leveling.
+**Mirror:** press Shift+F4. Mark **two points** to define a vertical mirror plane; only their horizontal direction matters. Ctrl+click
+built pieces or visible planner ghosts to select a group; click again to deselect. Thin wire boxes show the source selection, and heavier
+boxes preview the copies. L submits the mirrored group; original pieces/ghosts stay intact. You can mark the line and select pieces in
+either order. Offset pivots are compensated using each prefab's local mesh bounds. Native rotations mirror pieces that are symmetric
+across local X through that bounds centre, such as ordinary beams and roofs. Asymmetric carvings, lettering, or handed decorations
+remain their original meshes: inspect the resulting ghosts before building those.
 
-U removes only remaining ghosts: already built pieces and terrain stay intact. Undo is one step in the current session and clears on F6,
-death/respawn, or world changes. Planned ghosts remain in BuildOrders' ordinary saved/shared plans after the add-on unloads. Settings are
-in `BepInEx/config/com.bobisme.buildshapes.cfg`. Repeat, symmetry, and ornament tools are future additions.
+**Repeat:** select a post, decoration, or other building piece and press Ctrl+F4. Mark **start, bend, end** for its path. Wire boxes show
+the repeated pieces. **[ / ]** change spacing by 0.25 m, **Page Up / Page Down** change the yaw offset by 15°, and **Home** toggles following
+the curve versus keeping a fixed orientation. Spacing is a maximum, adjusted evenly along the curve to include both endpoints. Ctrl+click
+an existing piece/ghost to copy its prefab and orientation instead of the hammer selection. Each piece's native placement origin sits
+on the path; this does not bury or raise posts automatically. Following applies the change in horizontal tangent heading relative to the
+first point while preserving the seed's original tilt and initial heading. An upright post stays upright, and a vertical tangent keeps
+the previous heading. Mark a horizontal curve for a palisade, or an arch to repeat ribs/decorations in three dimensions.
 
-BuildShapes checks cover native-length curve geometry, endpoint alignment, invalid/tight curves, and reflection dispatch across missing,
-old, independently reloaded, and failing planner instances. The upstream API has separate batch/undo/world tests. Rendering, real
-multiplayer delivery, save/reload, and fresh-launch behavior still need game playtests:
+Curves are bounded to 128 metres and all shapes to 256 output pieces. Markers and selected source origins must be within 40 metres;
+BuildOrders checks every output pose against its 80-metre reach, unlocks, wards, and no-build rules before accepting anything. Ghost
+selection uses visible ghost bounding boxes and respects nearer physical hits; it is approximate rather than precise mesh picking.
+Selections are pose snapshots: moving/removing a source afterward does not alter your preview. Scaled and terrain-operation pieces
+are excluded. No shape operation alters terrain or builds pieces for free.
 
-1. With a 1m or 2m wood beam selected, mark a horizontal curve and a vertical arch. Confirm turquoise center lines align with the full
-   ghosts after L, normal materials are needed to build, and native support/stability rules apply.
-2. Build one piece, then press U in Curve mode: its real piece should remain while the rest of the curve ghosts disappear.
-3. Repeat with an offset-pivot beam, a tight bend, too-short span, protected area, and an unsupported multi-snap piece.
-4. Independently reload/disable/re-enable BuildOrders, then F6 both mods, and switch worlds. Confirm no stale calls, markers, or undo keys.
-5. Have another player view and build a curve with BuildOrders alone. Save/restart and confirm the generated ghosts remain.
+Exit shape mode with F4 before selecting another hammer piece or building normally with **E**. Modes reserve normal hammer placement,
+and yield to planner blueprint/bridge placement and menus. The Plans window lists generated groups with Move/Level disabled.
+Only the designer needs BuildShapes; participating players should use the updated BuildOrders and chosen piece prefabs. Older planners
+can receive/build ghosts but still expose terrain actions on add-on groups.
 
-For developers, `mise run verify -- --planner-assembly /path/to/BuildOrders.dll` checks the compiled public planning interface alongside
-the game signatures, published mod metadata, hot-reload dependency declaration, and loader-readable symbols.
+U removes only remaining ghosts; built pieces and terrain stay intact. Undo is one step across all shape tools in the current session,
+and clears on death/respawn, F6, or world changes. Saved/shared ghosts remain after the add-on unloads. Settings are in
+`BepInEx/config/com.bobisme.buildshapes.cfg`. Radial repeat and ornament presets are future additions.
+
+Automated checks cover curve/station geometry, independently integrated arc spacing, reflected tilted frames, offset pivots, repeat
+bounds and vertical heading, plus reflection dispatch across original/extended/missing/reloaded planners. The upstream API has separate
+batch, ghost-ray, input-conflict, undo, and world tests. Rendering, multiplayer delivery, and fresh-launch behavior still need playtests:
+
+1. Curve a 1m/2m wood beam horizontally and vertically; compare center lines to submitted ghosts and normal support/material costs.
+2. Mirror a roof wing and offset-pivot beam across an oblique line. Check end positions, pitch, and copied versus original pieces.
+3. Repeat upright posts along a curve; adjust spacing/yaw/follow, then sample a tilted decoration with Ctrl+click.
+4. Build one output piece, then U: only its remaining ghosts disappear. Try protected, distant, scaled, and terrain-operation pieces.
+5. F6, reload the planner independently, switch worlds, open inventory/F11, or begin a blueprint/bridge. Check input/preview cleanup.
+6. Have another player view/build shapes with the updated planner alone. Save/restart and confirm ghosts persist.
+
+For developers, `mise run verify -- --planner-assembly /path/to/BuildOrders.dll` checks the compiled public planning/query interface,
+game targets, dependency declaration, catalog metadata, and loader-readable symbols.
 
 ## PolygonLeveler
 
