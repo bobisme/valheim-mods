@@ -25,4 +25,4 @@ for project in sorted((root / "mods").glob("*/*.csproj")):
     mods.append(dict(guid=fields["Guid"], name=name, version=fields["Version"], description=description,
                      notes=notes, restart="", cover="", files=files))
 (dist / "manifest.json").write_text(json.dumps({"mods": mods}, indent=2) + "\n")
-print("Published Farmhand feed to", dist)
+print("Published", len(mods), "mods to", dist)

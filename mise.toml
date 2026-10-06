@@ -2,12 +2,12 @@
 dotnet = "10.0.300"
 
 [tasks.build]
-description = "Build Farmhand without changing the game"
-run = "dotnet build mods/Farmhand -c Release -p:DeployToGame=false"
+description = "Build every mod without changing the game"
+run = "python3 scripts/build.py"
 
 [tasks.test]
-description = "Check row geometry and harvest acknowledgement rules"
-run = "dotnet run --project tests/Farmhand.Tests -c Release"
+description = "Check farming and terrain geometry algorithms"
+run = "python3 scripts/test.py"
 
 [tasks.publish]
 description = "Build DLL, symbols, and mod-manager catalog"
@@ -18,5 +18,5 @@ description = "Verify game patch targets and published ScriptEngine symbols"
 run = "python3 scripts/verify.py"
 
 [tasks.install]
-description = "Build and copy Farmhand into the local game's ScriptEngine folder"
-run = "dotnet build mods/Farmhand -c Release -p:DeployToGame=true"
+description = "Build and copy all local mods into the game's ScriptEngine folder"
+run = "python3 scripts/build.py --install"

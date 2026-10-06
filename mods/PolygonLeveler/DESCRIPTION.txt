@@ -1,0 +1,7 @@
+Mark a convex polygon with your hoe and flatten its terrain to the first marker's height.
+
+Hold a hoe. Right Alt + left click places a marker; the convex outline shows the target plane. L flattens it. Backspace removes the last marker and Delete clears the outline. All keys are configurable.
+
+Uses normal terrain saving and network ownership, checks wards and the game's height limits, preserves ground paint, and edits only terrain-grid vertices inside the convex boundary. The visible edge follows the terrain's triangles. Costs one hoe use per polygon, with no stone cost.
+
+Install on the host and participating players for multiplayer. Markers are local previews and disappear on reload. Changes to the ground persist normally. The first release needs an in-game playtest.

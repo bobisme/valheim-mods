@@ -1,0 +1,296 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using HarmonyLib;
+using UnityEngine;
+
+namespace PolygonLeveler
+{
+    internal static class TerrainAccess
+    {
+        private const string RequestRpc = "Bobisme_PolygonLeveler_Request_v1";
+        private const string ReplyRpc = "Bobisme_PolygonLeveler_Reply_v1";
+        private static readonly FieldInfo Right = AccessTools.Field(typeof(Humanoid), "m_rightItem");
+        private static readonly MethodInfo InputMethod = AccessTools.Method(typeof(Player), "TakeInput");
+        private static readonly MethodInfo Wear = AccessTools.Method(typeof(Player), "GetPlaceDurability");
+        private static readonly MethodInfo InternalOperation = AccessTools.Method(typeof(TerrainComp), "InternalDoOperation");
+        private static readonly MethodInfo Save = AccessTools.Method(typeof(TerrainComp), "Save");
+        private static readonly MethodInfo Load = AccessTools.Method(typeof(TerrainComp), "CheckLoad");
+        private static readonly FieldInfo HMap = AccessTools.Field(typeof(TerrainComp), "m_hmap");
+        private static readonly FieldInfo Levels = AccessTools.Field(typeof(TerrainComp), "m_levelDelta");
+        private static readonly FieldInfo Smooth = AccessTools.Field(typeof(TerrainComp), "m_smoothDelta");
+        private static readonly FieldInfo Modified = AccessTools.Field(typeof(TerrainComp), "m_modifiedHeight");
+        private static readonly FieldInfo Operations = AccessTools.Field(typeof(TerrainComp), "m_operations");
+        private static readonly FieldInfo LastPoint = AccessTools.Field(typeof(TerrainComp), "m_lastOpPoint");
+        private static readonly FieldInfo LastRadius = AccessTools.Field(typeof(TerrainComp), "m_lastOpRadius");
+        private static readonly FieldInfo Areas = AccessTools.Field(typeof(PrivateArea), "m_allAreas");
+        private static readonly MethodInfo AreaEnabled = AccessTools.Method(typeof(PrivateArea), "IsEnabled");
+        private static readonly MethodInfo AreaInside = AccessTools.Method(typeof(PrivateArea), "IsInside");
+        private static readonly MethodInfo AreaPermitted = AccessTools.Method(typeof(PrivateArea), "IsPermitted");
+        private static readonly HashSet<ZNetView> Views = new HashSet<ZNetView>();
+        private static readonly Dictionary<string, Action<bool, string>> Callbacks = new Dictionary<string, Action<bool, string>>();
+        private static readonly Dictionary<string, Prepared> Requests = new Dictionary<string, Prepared>();
+        private static TerrainComp _captureCompiler;
+        private static float[] _underlying, _limitBase;
+
+        internal sealed class Batch
+        {
+            internal TerrainComp Compiler;
+            internal Heightmap Map;
+            internal float Height;
+            internal float[] Deltas;
+            internal readonly List<Vector2Int> Cells = new List<Vector2Int>();
+        }
+        private sealed class Prepared
+        {
+            internal Batch Batch;
+            internal ZDOID Player;
+            internal long Sender;
+            internal float Expires;
+            internal bool Applied;
+        }
+        internal static ItemDrop.ItemData RightItem(Player p) => Right.GetValue(p) as ItemDrop.ItemData;
+        internal static bool TakeInput(Player p) => (bool)InputMethod.Invoke(p, null);
+        internal static float Durability(Player p, ItemDrop.ItemData hoe) => (float)Wear.Invoke(p, new object[] { hoe });
+
+        internal static List<Batch> Plan(Player player, IReadOnlyList<Point> hull, float height, float distance)
+        {
+            var batches = new List<Batch>();
+            int count = 0;
+            double minX = hull.Min(p => p.X), maxX = hull.Max(p => p.X), minZ = hull.Min(p => p.Z), maxZ = hull.Max(p => p.Z);
+            if (maxX - minX > 60 || maxZ - minZ > 60) throw new Exception("Polygon is too wide.");
+            foreach (Heightmap map in Heightmap.GetAllHeightmaps())
+            {
+                if (map == null || map.IsDistantLod || !map.IsPointInside(new Vector3((float)((minX + maxX) / 2), height, (float)((minZ + maxZ) / 2)), 45f)) continue;
+                float scale = map.m_scale;
+                if (!(scale > 0) || !Geometry.Finite(scale)) throw new Exception("Invalid terrain grid.");
+                Vector3 origin = map.transform.position;
+                int half = map.m_width / 2;
+                int x0 = Mathf.Max(0, Mathf.CeilToInt((float)((minX - origin.x) / scale) + half));
+                int x1 = Mathf.Min(map.m_width, Mathf.FloorToInt((float)((maxX - origin.x) / scale) + half));
+                int z0 = Mathf.Max(0, Mathf.CeilToInt((float)((minZ - origin.z) / scale) + half));
+                int z1 = Mathf.Min(map.m_width, Mathf.FloorToInt((float)((maxZ - origin.z) / scale) + half));
+                if ((long)Math.Max(0, x1 - x0 + 1) * Math.Max(0, z1 - z0 + 1) > 8192) throw new Exception("Terrain grid is too dense for this polygon.");
+                var batch = new Batch { Map = map, Height = height };
+                for (int z = z0; z <= z1; z++)
+                for (int x = x0; x <= x1; x++)
+                {
+                    Vector3 pos = Vertex(map, x, z, height);
+                    if (!Geometry.Contains(hull, new Point(pos.x, pos.z))) continue;
+                    Vector3 delta = pos - player.transform.position; delta.y = 0;
+                    if (delta.magnitude > distance) throw new Exception("Move closer: part of the polygon is out of reach.");
+                    if (!PrivateArea.CheckAccess(pos, 0f, false) || Location.IsInsideNoBuildLocation(pos)) throw new Exception("Polygon includes protected ground.");
+                    if (++count > Geometry.MaxVertices) throw new Exception("Polygon covers too many terrain vertices.");
+                    batch.Cells.Add(new Vector2Int(x, z));
+                }
+                if (batch.Cells.Count > 0) batches.Add(batch);
+            }
+            if (count == 0) throw new Exception("No loaded terrain vertices inside the polygon.");
+            // Reject uncovered/unloaded boundary before creating any terrain compilers.
+            foreach (Point p in hull)
+                if (Heightmap.FindHeightmap(new Vector3((float)p.X, height, (float)p.Z)) == null) throw new Exception("Some polygon terrain is not loaded.");
+            for (double z = Math.Ceiling(minZ); z <= maxZ; z++)
+            for (double x = Math.Ceiling(minX); x <= maxX; x++)
+                if (Geometry.Contains(hull, new Point(x, z)) && Heightmap.FindHeightmap(new Vector3((float)x, height, (float)z)) == null)
+                    throw new Exception("Some polygon terrain is not loaded.");
+            foreach (Batch batch in batches) { batch.Compiler = batch.Map.GetAndCreateTerrainCompiler(); Register(batch.Compiler); }
+            return batches;
+        }
+
+        private static Vector3 Vertex(Heightmap map, int x, int z, float height) =>
+            new Vector3(map.transform.position.x + (x - map.m_width / 2) * map.m_scale, height,
+                map.transform.position.z + (z - map.m_width / 2) * map.m_scale);
+
+        internal static void Register(TerrainComp compiler)
+        {
+            if (compiler == null || Plugin.Instance == null) return;
+            ZNetView view = compiler.GetComponent<ZNetView>();
+            if (view == null || !view.IsValid() || !Views.Add(view)) return;
+            view.Register<ZPackage>(RequestRpc, (sender, pkg) => Handle(compiler, view, sender, pkg));
+            view.Register<ZPackage>(ReplyRpc, (sender, pkg) => Reply(view, sender, pkg));
+        }
+
+        internal static void Send(Batch batch, Player player, long id, int phase, Action<bool, string> callback)
+        {
+            if (batch.Compiler == null || player == null) { callback(false, "Terrain or player unloaded."); return; }
+            ZNetView view = batch.Compiler.GetComponent<ZNetView>();
+            if (view == null || !view.IsValid()) { callback(false, "Terrain owner is unavailable."); return; }
+            string key = view.GetZDO().m_uid + ":" + id + ":" + phase;
+            Callbacks[key] = callback;
+            var pkg = new ZPackage();
+            pkg.Write(id); pkg.Write(phase);
+            if (phase == 1)
+            {
+                pkg.Write(player.GetZDOID()); pkg.Write(batch.Height); pkg.Write(batch.Cells.Count);
+                foreach (Vector2Int cell in batch.Cells) { pkg.Write(cell.x); pkg.Write(cell.y); }
+            }
+            try { view.InvokeRPC(RequestRpc, pkg); }
+            catch (Exception ex) { Callbacks.Remove(key); callback(false, ex.GetBaseException().Message); }
+        }
+
+        private static void Handle(TerrainComp compiler, ZNetView view, long sender, ZPackage pkg)
+        {
+            if (!view.IsOwner() || Plugin.Instance == null || !Plugin.Instance.Enabled.Value) return;
+            long id = 0; int phase = 0;
+            try
+            {
+                if (pkg.Size() > 20000 || pkg.Size() < 12) return;
+                id = pkg.ReadLong(); phase = pkg.ReadInt();
+                string key = view.GetZDO().m_uid + ":" + sender + ":" + id;
+                PruneRequests();
+                if (phase == 1)
+                {
+                    ZDOID player = pkg.ReadZDOID(); float height = pkg.ReadSingle(); int count = pkg.ReadInt();
+                    if (!Geometry.Finite(height) || count < 1 || count > Geometry.MaxVertices || pkg.Size() - pkg.GetPos() != count * 8)
+                        throw new Exception("Invalid terrain request.");
+                    if (Requests.Count >= 64 && !Requests.ContainsKey(key)) throw new Exception("Too many pending terrain requests.");
+                    if (Requests.TryGetValue(key, out Prepared prior))
+                    { Respond(view, sender, id, phase, true, "Ready"); return; }
+                    var batch = new Batch { Compiler = compiler, Map = HMap.GetValue(compiler) as Heightmap, Height = height };
+                    var seen = new HashSet<Vector2Int>();
+                    for (int i = 0; i < count; i++)
+                    {
+                        var cell = new Vector2Int(pkg.ReadInt(), pkg.ReadInt());
+                        if (!seen.Add(cell)) throw new Exception("Duplicate terrain vertex.");
+                        batch.Cells.Add(cell);
+                    }
+                    var prepared = new Prepared { Batch = batch, Player = player, Sender = sender, Expires = Time.unscaledTime + 60f };
+                    Validate(prepared, view);
+                    Requests[key] = prepared;
+                    Respond(view, sender, id, phase, true, "Ready");
+                }
+                else if (phase == 2)
+                {
+                    if (!Requests.TryGetValue(key, out Prepared prepared)) throw new Exception("Terrain request expired or owner changed.");
+                    if (!prepared.Applied)
+                    {
+                        Validate(prepared, view);
+                        Apply(prepared.Batch);
+                        prepared.Applied = true;
+                    }
+                    Respond(view, sender, id, phase, true, "Leveled");
+                }
+            }
+            catch (Exception ex) { Respond(view, sender, id, phase, false, ex.GetBaseException().Message); }
+        }
+
+        private static void Validate(Prepared request, ZNetView view)
+        {
+            if (!view.IsOwner()) throw new Exception("Terrain owner changed.");
+            ZDO actor = ZDOMan.instance.GetZDO(request.Player);
+            Player player = Player.GetAllPlayers().FirstOrDefault(p => p.GetZDOID() == request.Player);
+            if (actor == null || actor.GetOwner() != request.Sender || player == null) throw new Exception("Player is not available on the terrain owner.");
+            Batch batch = request.Batch;
+            Heightmap map = batch.Map;
+            if (map == null || map.IsDistantLod) throw new Exception("Terrain is not loaded.");
+            Load.Invoke(batch.Compiler, null);
+            // Capture actual native heights BEFORE compiler deltas/clamping. This also handles legacy modifiers.
+            _captureCompiler = batch.Compiler;
+            _underlying = _limitBase = null;
+            try { map.Poke(); }
+            finally { _captureCompiler = null; }
+            if (_underlying == null || _limitBase == null) throw new Exception("Terrain compiler changed during preparation.");
+            batch.Deltas = new float[batch.Cells.Count];
+            for (int i = 0; i < batch.Cells.Count; i++)
+            {
+                Vector2Int cell = batch.Cells[i];
+                if (cell.x < 0 || cell.y < 0 || cell.x > map.m_width || cell.y > map.m_width) throw new Exception("Invalid terrain vertex.");
+                Vector3 pos = Vertex(map, cell.x, cell.y, batch.Height);
+                Vector3 delta = pos - actor.GetPosition(); delta.y = 0;
+                if (delta.magnitude > Plugin.Instance.Distance || !AccessFor(player.GetPlayerID(), pos) || Location.IsInsideNoBuildLocation(pos))
+                    throw new Exception("Terrain is out of reach or protected.");
+                int index = cell.y * (map.m_width + 1) + cell.x;
+                if (!Geometry.LevelDelta(_underlying[index] + map.transform.position.y, _limitBase[index] + map.transform.position.y,
+                    batch.Height, out double levelDelta)) throw new Exception("Target exceeds the game's terrain height limits. Choose a closer height.");
+                batch.Deltas[i] = (float)levelDelta;
+            }
+            _underlying = _limitBase = null;
+        }
+
+        internal static void Capture(TerrainComp compiler, List<float> heights, float[] baseHeights)
+        {
+            if (compiler != _captureCompiler) return;
+            _underlying = heights.ToArray();
+            _limitBase = (float[])baseHeights.Clone();
+        }
+
+        private static bool AccessFor(long playerId, Vector3 point)
+        {
+            bool blocked = false, allowed = false;
+            foreach (PrivateArea area in (List<PrivateArea>)Areas.GetValue(null))
+            {
+                if (area == null || !(bool)AreaEnabled.Invoke(area, null) || !(bool)AreaInside.Invoke(area, new object[] { point, 0f })) continue;
+                blocked = true;
+                Piece piece = area.GetComponent<Piece>();
+                if ((piece != null && piece.GetCreator() == playerId) || (bool)AreaPermitted.Invoke(area, new object[] { playerId })) allowed = true;
+            }
+            return !blocked || allowed;
+        }
+
+        private static void Apply(Batch batch)
+        {
+            var settings = new TerrainOp.Settings { m_level = true, m_levelRadius = 0f, m_square = false,
+                m_levelOffset = 0f, m_raise = false, m_smooth = false, m_paintCleared = false };
+            float[] levels = (float[])Levels.GetValue(batch.Compiler), smooth = (float[])Smooth.GetValue(batch.Compiler);
+            bool[] modified = (bool[])Modified.GetValue(batch.Compiler);
+            int[] indices = batch.Cells.Select(c => c.y * (batch.Map.m_width + 1) + c.x).ToArray();
+            float[] oldLevels = indices.Select(i => levels[i]).ToArray(), oldSmooth = indices.Select(i => smooth[i]).ToArray();
+            bool[] oldModified = indices.Select(i => modified[i]).ToArray();
+            object operations = Operations.GetValue(batch.Compiler), point = LastPoint.GetValue(batch.Compiler), radius = LastRadius.GetValue(batch.Compiler);
+            try
+            {
+                for (int i = 0; i < batch.Cells.Count; i++)
+                {
+                    Vector2Int cell = batch.Cells[i];
+                    InternalOperation.Invoke(batch.Compiler, new object[] { Vertex(batch.Map, cell.x, cell.y, batch.Height), Vector3.zero, settings });
+                    // Correct hidden clamping offsets using the captured underlying terrain rather than displayed height.
+                    levels[indices[i]] = batch.Deltas[i];
+                    smooth[indices[i]] = 0f;
+                }
+                batch.Map.Poke();
+                foreach (Vector2Int cell in batch.Cells)
+                    if (Mathf.Abs(batch.Map.GetHeight(cell.x, cell.y) + batch.Map.transform.position.y - batch.Height) > 0.02f)
+                        throw new Exception("Terrain did not reach the requested plane; tile was restored.");
+                Save.Invoke(batch.Compiler, new object[] { false });
+            }
+            catch
+            {
+                for (int i = 0; i < indices.Length; i++) { levels[indices[i]] = oldLevels[i]; smooth[indices[i]] = oldSmooth[i]; modified[indices[i]] = oldModified[i]; }
+                Operations.SetValue(batch.Compiler, operations); LastPoint.SetValue(batch.Compiler, point); LastRadius.SetValue(batch.Compiler, radius);
+                batch.Map.Poke();
+                throw;
+            }
+            if (ClutterSystem.instance != null) ClutterSystem.instance.ResetGrass(batch.Map.transform.position, batch.Map.m_width * batch.Map.m_scale / 2f);
+        }
+
+        private static void Respond(ZNetView view, long sender, long id, int phase, bool ok, string text)
+        {
+            var pkg = new ZPackage(); pkg.Write(id); pkg.Write(phase); pkg.Write(ok); pkg.Write(text);
+            view.InvokeRPC(sender, ReplyRpc, pkg);
+        }
+        private static void Reply(ZNetView view, long sender, ZPackage pkg)
+        {
+            if (pkg.Size() > 2048 || pkg.Size() < 13 || !view.IsValid() || sender != view.GetZDO().GetOwner()) return;
+            long id = pkg.ReadLong(); int phase = pkg.ReadInt(); bool ok = pkg.ReadBool(); string text = pkg.ReadString();
+            string key = view.GetZDO().m_uid + ":" + id + ":" + phase;
+            if (Callbacks.TryGetValue(key, out Action<bool, string> callback)) { Callbacks.Remove(key); callback(ok, text); }
+        }
+        internal static void PruneRequests()
+        {
+            foreach (string key in Requests.Where(p => p.Value.Expires < Time.unscaledTime || p.Value.Batch.Compiler == null).Select(p => p.Key).ToArray()) Requests.Remove(key);
+            Views.RemoveWhere(v => v == null);
+        }
+        internal static void Forget(long id)
+        {
+            foreach (string key in Callbacks.Keys.Where(k => k.Contains(":" + id + ":")).ToArray()) Callbacks.Remove(key);
+        }
+        internal static void ClearCallbacks() => Callbacks.Clear();
+        internal static void UnregisterAll()
+        {
+            foreach (ZNetView view in Views) if (view != null) { view.Unregister(RequestRpc); view.Unregister(ReplyRpc); }
+            Views.Clear(); Callbacks.Clear(); Requests.Clear();
+            _captureCompiler = null; _underlying = _limitBase = null;
+        }
+    }
+}

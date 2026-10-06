@@ -12,6 +12,19 @@
         "Farmhand.dll",
         "Farmhand.pdb"
       ]
+    },
+    {
+      "guid": "com.bobisme.polygonleveler",
+      "name": "PolygonLeveler",
+      "version": "0.1.0",
+      "description": "Mark a convex polygon with your hoe and flatten its terrain to the first marker's height.\n\nHold a hoe. Right Alt + left click places a marker; the convex outline shows the target plane. L flattens it. Backspace removes the last marker and Delete clears the outline. All keys are configurable.\n\nUses normal terrain saving and network ownership, checks wards and the game's height limits, preserves ground paint, and edits only terrain-grid vertices inside the convex boundary. The visible edge follows the terrain's triangles. Costs one hoe use per polygon, with no stone cost.\n\nInstall on the host and participating players for multiplayer. Markers are local previews and disappear on reload. Changes to the ground persist normally. The first release needs an in-game playtest.",
+      "notes": "0.1.0: First release. Convex marker outline, first-marker target height, L to flatten, protected-ground and terrain-limit checks, native terrain persistence, bounded owner-acknowledged multiplayer edits, and hot reload cleanup.",
+      "restart": "",
+      "cover": "",
+      "files": [
+        "PolygonLeveler.dll",
+        "PolygonLeveler.pdb"
+      ]
     }
   ]
 }

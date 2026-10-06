@@ -16,5 +16,4 @@ game = next((p.resolve() for p in candidates if (p / "valheim_Data/Managed/assem
 if game is None:
     raise SystemExit("Set VALHEIM_DIR to the installed game directory.")
 subprocess.run(["dotnet", "run", "--project", str(root / "tests/Farmhand.ApiCheck"), "-c", "Release",
-                "-p:ValheimDir=" + str(game), "--", str(game), str(root / "dist/Farmhand.dll"),
-                str(root / "dist/manifest.json")], check=True)
+                "-p:ValheimDir=" + str(game), "--", str(game), str(root / "dist/manifest.json")], check=True)

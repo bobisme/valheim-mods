@@ -1,6 +1,36 @@
 # Valheim mods
 
-Bob's Valheim mods, built for native Linux and Windows and packaged for the in-game mod manager. Farmhand is the first mod.
+Bob's Valheim mods, built for native Linux and Windows and packaged for the in-game mod manager.
+
+## PolygonLeveler
+
+Mark out a building pad and flatten its ground to one height. Equip a **hoe**:
+
+| Controls | Action |
+| --- | --- |
+| **Right Alt + left click** | Put a marker on the ground you aim at |
+| **L** | Flatten the convex polygon to the **first marker's height** |
+| **Backspace** | Remove the last marker |
+| **Delete** | Clear the markers |
+| **Escape** or put away the hoe | Stop sending edits to further terrain tiles |
+
+Markers can be placed in any order; their convex hull forms the boundary, so interior markers do not create dents. The turquoise outline shows the target plane. Put the first marker at the height you want, then add at least two more corners. The HUD shows the area and height before you press L. While Right Alt is held, the normal hoe action is suppressed so placing a marker does not alter the ground. L is only handled during normal play with a hoe; it does not replace QualityOfLife's inventory item-lock key.
+
+The default limit is 400 m², with all selected vertices within 30 metres of you, at most 16 markers, and 2,048 grid vertices across terrain tiles. Leveling costs one normal hoe use in stamina and durability, with no stone cost. It preserves ground paint and cultivation and honors wards, no-build areas, and the game's normal ±8-metre terrain limits. A tile that fails to rebuild at the requested height is restored before saving.
+
+The mod edits grid vertices inside the boundary, including the matching vertices on both sides of tile seams. Ground triangles blend to unchanged vertices outside the polygon, so the visible edge follows the terrain grid. Local marker previews disappear on reload; the actual terrain changes persist in the ordinary world save. There is no terrain undo in this first version. Canceling or losing a multiplayer connection stops further tiles and leaves any completed tile edits in place.
+
+For multiplayer, install PolygonLeveler on the host and participating players: a terrain tile's network owner performs and acknowledges its edit. Every owner must confirm preparation before edits begin; an owner without the mod times out without being sent a commit. Terrain ownership is not forcibly taken. Plain game saves contain only normal terrain data, so the flattened ground remains after removing the mod.
+
+Settings and controls are in F7 → Mod settings, or `BepInEx/config/com.bobisme.polygonleveler.cfg`. Farmhand and PolygonLeveler can be installed independently through the manager.
+
+PolygonLeveler playtest checks:
+
+1. Mark a triangle and rectangle on sloping ground. Press L and verify the interior becomes a plane at the first marker's height, while outside vertices and cultivated/painted ground are preserved.
+2. Level across a terrain-tile seam. Confirm both copies of the seam vertices match and the result survives save/reload.
+3. Try collinear markers, an oversized area, protected ground, excessive height changes, and an unloaded region. Each should be rejected before edits begin.
+4. Have another player own a terrain tile. With the mod installed on both sides, confirm owner replies and persistent edits; without it on the owner, confirm preparation times out without applying the polygon.
+5. Press F6, change tools, or disconnect during preparation/application. Confirm local markers and RPC callbacks clean up and normal hoe controls work afterward. Already completed edits remain.
 
 ## Farmhand
 
@@ -44,7 +74,7 @@ mise run publish
 export VALHEIM_DIR="/path/to/Steam/steamapps/common/Valheim"
 ```
 
-Builds and publishing leave your game untouched by default. To deploy Farmhand's DLL and PDB to your own installed ScriptEngine:
+Builds and publishing leave your game untouched by default. To deploy both mods' DLLs and PDBs to your own installed ScriptEngine:
 
 ```bash
 mise run install
@@ -54,7 +84,7 @@ Press F6 in game afterward, or restart Valheim. BepInEx and ScriptEngine must al
 
 ## Validation
 
-`mise run test` exercises centered row geometry, minimum growth spacing, invalid configuration, batch bounds, and harvest acknowledgement/timeout rules. Builds verify public API usage against the installed game. `mise run verify` additionally checks the private fields/methods and Harmony targets against the installed assembly, and checks that the published symbols are readable by the installed ScriptEngine's Cecil.
+`mise run test` exercises centered crop-row geometry, minimum growth spacing, harvest acknowledgement/timeouts, convex hulls, polygon grid containment, degenerate markers, and native terrain-height limits including hidden saturation and legacy-modifier offsets. Builds verify public API usage against the installed game. `mise run verify` checks the private fields/methods and Harmony targets against the installed assembly, and checks all published symbols with the installed ScriptEngine's Cecil.
 
 Manual checks for a first playtest:
 

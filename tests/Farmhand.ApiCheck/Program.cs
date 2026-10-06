@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Mono.Cecil;
 
-if (args.Length != 3) throw new Exception("Expected game directory, Farmhand.dll, manifest.json");
+if (args.Length != 2) throw new Exception("Expected game directory and manifest.json");
 using var game = AssemblyDefinition.ReadAssembly(Path.Combine(args[0], "valheim_Data/Managed/assembly_valheim.dll"));
 void Method(string type, string name, string result, params string[] parameters)
 {
@@ -34,18 +34,37 @@ Field("Player", "m_placementStatus", "Player/PlacementStatus");
 Field("Player", "m_lastToolUseTime", "System.Single");
 Field("Player", "m_buildRemoveDebt", "System.Int32");
 Field("Humanoid", "m_rightItem", "ItemDrop/ItemData");
+Method("TerrainComp", "Awake", "System.Void");
+Method("TerrainComp", "CheckLoad", "System.Void");
+Method("TerrainComp", "InternalDoOperation", "System.Void", "UnityEngine.Vector3", "UnityEngine.Vector3", "TerrainOp/Settings");
+Method("TerrainComp", "Save", "System.Void", "System.Boolean");
+Method("TerrainComp", "ApplyToHeightmap", "System.Void", "UnityEngine.Texture2D", "System.Collections.Generic.List`1<System.Single>", "System.Single[]", "System.Single[]", "Heightmap");
+Method("PrivateArea", "IsEnabled", "System.Boolean");
+Method("PrivateArea", "IsInside", "System.Boolean", "UnityEngine.Vector3", "System.Single");
+Method("PrivateArea", "IsPermitted", "System.Boolean", "System.Int64");
+Field("PrivateArea", "m_allAreas", "System.Collections.Generic.List`1<PrivateArea>");
+Field("TerrainComp", "m_hmap", "Heightmap");
+Field("TerrainComp", "m_levelDelta", "System.Single[]");
+Field("TerrainComp", "m_smoothDelta", "System.Single[]");
+Field("TerrainComp", "m_modifiedHeight", "System.Boolean[]");
+Field("TerrainComp", "m_operations", "System.Int32");
+Field("TerrainComp", "m_lastOpPoint", "UnityEngine.Vector3");
+Field("TerrainComp", "m_lastOpRadius", "System.Single");
 
-using var mod = AssemblyDefinition.ReadAssembly(args[1], new ReaderParameters { ReadSymbols = true });
-if (!mod.MainModule.HasSymbols) throw new Exception("ScriptEngine symbols not readable");
-var plugin = mod.MainModule.Types.Single(t => t.FullName == "Farmhand.Plugin");
-var attribute = plugin.CustomAttributes.Single(a => a.AttributeType.FullName == "BepInEx.BepInPlugin");
-using var catalog = JsonDocument.Parse(File.ReadAllText(args[2]));
-var entry = catalog.RootElement.GetProperty("mods").EnumerateArray().Single();
-foreach (var (key, index) in new[] { ("guid", 0), ("name", 1), ("version", 2) })
-    if (entry.GetProperty(key).GetString() != (string)attribute.ConstructorArguments[index].Value)
-        throw new Exception("Published metadata mismatch: " + key);
-foreach (string? file in entry.GetProperty("files").EnumerateArray().Select(e => e.GetString()))
-    if (file == null || !File.Exists(Path.Combine(Path.GetDirectoryName(args[1])!, file)))
-        throw new Exception("Published file missing: " + file);
-Console.WriteLine("All native crop APIs, private members, and Harmony targets match the installed game.");
+using var catalog = JsonDocument.Parse(File.ReadAllText(args[1]));
+foreach (var entry in catalog.RootElement.GetProperty("mods").EnumerateArray())
+{
+    string name = entry.GetProperty("name").GetString()!;
+    string directory = Path.GetDirectoryName(args[1])!;
+    using var mod = AssemblyDefinition.ReadAssembly(Path.Combine(directory, name + ".dll"), new ReaderParameters { ReadSymbols = true });
+    if (!mod.MainModule.HasSymbols) throw new Exception("ScriptEngine symbols not readable: " + name);
+    var attribute = mod.MainModule.Types.SelectMany(t => t.CustomAttributes).Single(a => a.AttributeType.FullName == "BepInEx.BepInPlugin");
+    foreach (var (key, index) in new[] { ("guid", 0), ("name", 1), ("version", 2) })
+        if (entry.GetProperty(key).GetString() != (string)attribute.ConstructorArguments[index].Value)
+            throw new Exception("Published metadata mismatch: " + name + ":" + key);
+    foreach (string? file in entry.GetProperty("files").EnumerateArray().Select(e => e.GetString()))
+        if (file == null || !File.Exists(Path.Combine(directory, file))) throw new Exception("Published file missing: " + file);
+    Console.WriteLine(name + ": metadata and symbols verified");
+}
+Console.WriteLine("All native crop/terrain APIs, private members, and Harmony targets match the installed game.");
 Console.WriteLine("Published plugin metadata matches its catalog; DLL/PDB symbols are readable by the installed Cecil.");
