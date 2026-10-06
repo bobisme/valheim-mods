@@ -62,6 +62,31 @@ Reject(()=>new Mirror(new V3(),new V3(0,5,0)),"Vertical-only mirror line rejecte
 Reject(()=>new Mirror(new V3(),new V3(double.NaN,0,1)),"Nonfinite mirror line rejected");
 Reject(()=>new Mirror(new V3(),new V3(129,0,0)),"Oversized mirror line rejected");
 
+// Recorded native snaps for roof wedges/roofs/beams, captured from the installed game's piece catalog.
+using(var fixtures=System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"Fixtures/structural-snaps.json"))))
+foreach(var fixture in fixtures.RootElement.EnumerateArray())
+{
+ string fixtureName=fixture.GetProperty("prefab").GetString()!;
+ var snaps=fixture.GetProperty("snaps").EnumerateArray().Select(p=>new V3(p[0].GetDouble(),p[1].GetDouble(),p[2].GetDouble())).ToArray();
+ var profile=MirrorProfile.Choose(snaps,new V3(0.03,0.2,0.002));
+ Check(profile.FlipZ==fixture.GetProperty("flipZ").GetBoolean(),fixtureName+": native structural symmetry axis");
+ // An oblique world plane and tilted source frame make wrong axis/sign/pivot changes visible.
+ var mirror=new Mirror(new V3(3,4,1),new V3(8,5,7));
+ V3 source=new V3(12,9,6),r=Unit(new V3(1,2,3)),u=Unit(V3.Cross(new V3(3,1,-2),r)),f=V3.Cross(r,u);
+ V3 root=mirror.Origin(source,profile.FlipZ?f:r,profile.Centre);
+ V3 mr=mirror.Right(r,profile.FlipZ),mu=mirror.Up(u),mf=mirror.Forward(f,profile.FlipZ);
+ Check(Near(V3.Cross(mr,mu),mf),fixtureName+": proper-handed mirrored frame");
+ foreach(V3 point in snaps)
+ {
+  V3 expected=mirror.Point(source+r*point.X+u*point.Y+f*point.Z);
+  Check(snaps.Any(q=>Near(root+mr*q.X+mu*q.Y+mf*q.Z,expected)),fixtureName+": every reflected native snap lands correctly");
+ }
+}
+var offsetProfile=MirrorProfile.Choose(new[]{new V3(0,0,0),new V3(4,0,0)},new V3(2.1,0,0));
+Check(!offsetProfile.FlipZ&&offsetProfile.Centre==2,"Snap-derived origin compensation avoids decorative mesh-bound drift");
+var fallback=MirrorProfile.Choose(Array.Empty<V3>(),new V3(2.1,0,0));
+Check(!fallback.FlipZ&&fallback.Centre==2.1,"Pieces without snaps retain bounded mesh-centre fallback");
+
 var row=Curve.Repeat(new V3(),new V3(5,0,0),new V3(10,0,0),3);
 Check(row.Count==5,"Repeat fits both ends with bounded maximum spacing");
 for(int i=0;i<row.Count;i++)

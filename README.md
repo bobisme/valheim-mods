@@ -17,7 +17,7 @@ Equip a **hammer**, select a building piece, and close the piece menu:
 | **Left Ctrl + F4** | Enter/exit Repeat mode |
 | **Left Shift + left click** | Mark curve points or the mirror line |
 | **Left Ctrl + left click** | Mirror: toggle a source piece/ghost; Repeat: copy a source piece/ghost and its orientation |
-| **L** | Submit the preview as shared BuildOrders ghosts |
+| **L** | Curve/Mirror: submit ghosts; Repeat: open/confirm options |
 | **U** in any shape mode | Remove the last submitted shape's unbuilt ghosts |
 | **Backspace** | Remove the last marker |
 | **Left Ctrl + Backspace** | Mirror: remove the last source selection |
@@ -31,17 +31,22 @@ original prefab scale, and a span of 0.25–8 metres. Tight or degenerate bends 
 **Mirror:** press Shift+F4. Mark **two points** to define a vertical mirror plane; only their horizontal direction matters. Ctrl+click
 built pieces or visible planner ghosts to select a group; click again to deselect. Thin wire boxes show the source selection, and heavier
 boxes preview the copies. L submits the mirrored group; original pieces/ghosts stay intact. You can mark the line and select pieces in
-either order. Offset pivots are compensated using each prefab's local mesh bounds. Native rotations mirror pieces that are symmetric
-across local X through that bounds centre, such as ordinary beams and roofs. Asymmetric carvings, lettering, or handed decorations
+either order. The reflection axis and pivot compensation are chosen from each piece's native snap layout, with mesh bounds as a fallback.
+Triangular under-roof walls and sloped beams use their thickness axis; ordinary roofs keep their width axis, so wedge slopes and roof
+pitches mirror correctly. Asymmetric carvings, lettering, or handed decorations
 remain their original meshes: inspect the resulting ghosts before building those.
 
-**Repeat:** select a post, decoration, or other building piece and press Ctrl+F4. Mark **start, bend, end** for its path. Wire boxes show
-the repeated pieces. **[ / ]** change spacing by 0.25 m, **Page Up / Page Down** change the yaw offset by 15°, and **Home** toggles following
-the curve versus keeping a fixed orientation. Spacing is a maximum, adjusted evenly along the curve to include both endpoints. Ctrl+click
-an existing piece/ghost to copy its prefab and orientation instead of the hammer selection. Each piece's native placement origin sits
-on the path; this does not bury or raise posts automatically. Following applies the change in horizontal tangent heading relative to the
-first point while preserving the seed's original tilt and initial heading. An upright post stays upright, and a vertical tangent keeps
-the previous heading. Mark a horizontal curve for a palisade, or an arch to repeat ribs/decorations in three dimensions.
+**Repeat:** select a post, decoration, or other building piece and press Ctrl+F4. Mark **start, bend, end** for its path. After the third
+point, an options panel opens beside the wire preview with a free mouse cursor. Adjust **spacing**, **yaw**, **pitch**, **roll**, and whether
+pieces **turn with the curve**; the preview updates immediately. **Confirm** submits shared ghosts, **Edit path** lets you replace the end
+point, and **Cancel** exits. Escape closes the options while keeping the path; L reopens them. F4 exits the tool.
+
+Spacing is a maximum, adjusted evenly along the curve to include both endpoints. Curve-following applies the change in horizontal
+heading relative to the first point; seed tilt and initial heading are preserved, then the chosen yaw/pitch/roll offsets are applied.
+An upright post stays upright with zero tilt offsets. A vertical tangent keeps the previous heading. Native placement origins sit on the
+path without automatic terrain alignment. The keyboard shortcuts **[ / ]**, **Page Up / Down**, and **Home** still work outside the panel.
+Ctrl+click a built piece/visible ghost outside the panel to copy its prefab and orientation; completed paths reopen the options afterward.
+Mark a horizontal curve for a palisade, or an arch to repeat ribs/decorations in three dimensions.
 
 Curves are bounded to 128 metres and all shapes to 256 output pieces. Markers and selected source origins must be within 40 metres;
 BuildOrders checks every output pose against its 80-metre reach, unlocks, wards, and no-build rules before accepting anything. Ghost
@@ -58,13 +63,15 @@ U removes only remaining ghosts; built pieces and terrain stay intact. Undo is o
 and clears on death/respawn, F6, or world changes. Saved/shared ghosts remain after the add-on unloads. Settings are in
 `BepInEx/config/com.bobisme.buildshapes.cfg`. Radial repeat and ornament presets are future additions.
 
-Automated checks cover curve/station geometry, independently integrated arc spacing, reflected tilted frames, offset pivots, repeat
+Automated checks cover curve/station geometry, independently integrated arc spacing, reflected tilted frames, offset pivots, 33 captured native snap layouts (including triangular gables), repeat
 bounds and vertical heading, plus reflection dispatch across original/extended/missing/reloaded planners. The upstream API has separate
 batch, ghost-ray, input-conflict, undo, and world tests. Rendering, multiplayer delivery, and fresh-launch behavior still need playtests:
 
 1. Curve a 1m/2m wood beam horizontally and vertically; compare center lines to submitted ghosts and normal support/material costs.
-2. Mirror a roof wing and offset-pivot beam across an oblique line. Check end positions, pitch, and copied versus original pieces.
-3. Repeat upright posts along a curve; adjust spacing/yaw/follow, then sample a tilted decoration with Ctrl+click.
+2. Mirror a roof wing, triangular under-roof wall (including inverted variants), sloped beam, and offset-pivot beam across an oblique
+   line. Check native snaps, wedge slopes, roof pitch, and copied versus original pieces.
+3. Repeat upright posts along a curve. Confirm the options open automatically, cursor is free, spacing/yaw/pitch/roll/follow change the
+   preview, and slider clicks never move/look/attack/place. Try Edit path, Escape/L, Cancel/F4, then F6 with the panel open.
 4. Build one output piece, then U: only its remaining ghosts disappear. Try protected, distant, scaled, and terrain-operation pieces.
 5. F6, reload the planner independently, switch worlds, open inventory/F11, or begin a blueprint/bridge. Check input/preview cleanup.
 6. Have another player view/build shapes with the updated planner alone. Save/restart and confirm ghosts persist.

@@ -6,9 +6,10 @@ using var resolver = new DefaultAssemblyResolver();
 resolver.AddSearchDirectory(Path.Combine(args[0], "BepInEx/core"));
 resolver.AddSearchDirectory(Path.Combine(args[0], "valheim_Data/Managed"));
 using var game = AssemblyDefinition.ReadAssembly(Path.Combine(args[0], "valheim_Data/Managed/assembly_valheim.dll"), new ReaderParameters { AssemblyResolver = resolver });
+using var utils = AssemblyDefinition.ReadAssembly(Path.Combine(args[0], "valheim_Data/Managed/assembly_utils.dll"), new ReaderParameters { AssemblyResolver = resolver });
 void Method(string type, string name, string result, params string[] parameters)
 {
-    TypeDefinition target = game.MainModule.Types.Single(t => t.FullName == type);
+    TypeDefinition target = game.MainModule.Types.Concat(utils.MainModule.Types).Single(t => t.FullName == type);
     if (!target.Methods.Any(m => m.Name == name && m.ReturnType.FullName == result &&
         m.Parameters.Select(p => p.ParameterType.FullName).SequenceEqual(parameters)))
         throw new Exception($"Game API mismatch: {type}.{name}");
@@ -27,6 +28,10 @@ Method("Player", "PieceRayTest", "System.Boolean", "UnityEngine.Vector3&", "Unit
 Method("Player", "UpdatePlacementGhost", "System.Void", "System.Boolean");
 Method("Player", "UpdatePlacement", "System.Void", "System.Boolean", "System.Single");
 Method("Menu", "Update", "System.Void");
+Method("PlayerController", "TakeInput", "System.Boolean", "System.Boolean");
+Method("GameCamera", "UpdateMouseCapture", "System.Void");
+Method("ZInput", "GetMouseScrollWheel", "System.Single");
+Method("Humanoid", "StartAttack", "System.Boolean", "Character", "System.Boolean");
 Method("ZNetView", "IsValid", "System.Boolean");
 Method("Piece", "GetSnapPoints", "System.Void", "System.Collections.Generic.List`1<UnityEngine.Transform>");
 Method("Plant", "UpdateHealth", "System.Void", "System.Double");

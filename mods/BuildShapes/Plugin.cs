@@ -11,11 +11,11 @@ namespace BuildShapes
 {
     [BepInPlugin(Guid, Name, Version)]
     [BepInDependency(Planner.Guid)]
-    public sealed class Plugin : BaseUnityPlugin
+    public sealed partial class Plugin : BaseUnityPlugin
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.2.0";
+        public const string Version = "0.2.1";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
@@ -32,11 +32,12 @@ namespace BuildShapes
         private readonly List<PiecePose> _output = new List<PiecePose>();
         private readonly List<GameObject> _visuals = new List<GameObject>();
         private readonly Dictionary<string, Bounds> _bounds = new Dictionary<string, Bounds>();
+        private readonly Dictionary<string, MirrorProfile> _mirrorProfiles = new Dictionary<string, MirrorProfile>();
         private Material _material;
         private string _selected, _lastPlan, _previewError;
         private PiecePose _seed;
         private Vector3 _localStart, _localEnd;
-        private float _yaw;
+        private float _yaw, _pitch, _roll;
         private float _previewSpacing;
         private bool _previewFollow;
         private Player _player;
@@ -54,7 +55,10 @@ namespace BuildShapes
             { Id = id; Prefab = prefab; Position = position; Rotation = rotation; }
         }
         internal bool ReservesHammer => _tool != Tool.None && _enabled.Value && HoldingHammer(Player.m_localPlayer);
+        internal static bool RepeatMenuOpen => Instance != null && Instance._repeatMenu && Instance.ReservesHammer;
+        internal static bool ProbingInput => Instance?._probingInput == true;
         internal static bool ReservesEscape => _escapeFrame == Time.frameCount || _escapeFrame == Time.frameCount - 1 ||
+            RepeatMenuOpen ||
             (Instance?.ReservesHammer == true && Instance.Ready(Player.m_localPlayer) && Instance._planner.Available(Player.m_localPlayer) && Input.GetKeyDown(KeyCode.Escape));
 
         private void Awake()
@@ -76,8 +80,13 @@ namespace BuildShapes
 
         private static bool HoldingHammer(Player player) => player != null &&
             (RightItem.GetValue(player) as ItemDrop.ItemData)?.m_shared.m_name == "$item_hammer";
-        private bool Ready(Player player) => _enabled.Value && HoldingHammer(player) && !player.IsDead() &&
-            !Hud.IsPieceSelectionVisible() && !Hud.InRadial() && (bool)TakeInput.Invoke(player, null);
+        private bool _probingInput;
+        private bool Ready(Player player)
+        {
+            if (!_enabled.Value || !HoldingHammer(player) || player.IsDead() || Hud.IsPieceSelectionVisible() || Hud.InRadial()) return false;
+            try { _probingInput=true; return (bool)TakeInput.Invoke(player,null); }
+            finally { _probingInput=false; }
+        }
 
         private void Update()
         {
@@ -87,12 +96,12 @@ namespace BuildShapes
             { Stop(); _lastPlan = null; _bounds.Clear(); _player = player; _session = ZNet.instance; _world = world; }
             if (!_enabled.Value || !HoldingHammer(player) || player.IsDead())
             { if (_tool != Tool.None) Stop(); if (player != null && player.IsDead()) _lastPlan = null; return; }
-            if (!Ready(player)) return;
             if (!_planner.Ready()) { if (_tool != Tool.None) Stop(); return; }
             if ((_tool == Tool.Mirror || _tool == Tool.Repeat) && !_planner.Extended)
             { Stop(); Say("Mirror/Repeat canceled: update BuildOrders with the ghost-selection API."); return; }
             if (!_planner.Available(player))
             { if (_tool != Tool.None) { Stop(); Say("Finish or cancel the planner's blueprint/bridge first."); } return; }
+            if (!Ready(player)) { CloseRepeatMenu(); return; }
             if (Input.GetKeyDown(_toggle.Value))
             {
                 Tool requested = Input.GetKey(KeyCode.LeftControl) ? Tool.Repeat : Input.GetKey(KeyCode.LeftShift) ? Tool.Mirror : Tool.Curve;
@@ -101,10 +110,19 @@ namespace BuildShapes
                 return;
             }
             if (_tool == Tool.None) return;
-            if (Input.GetKeyDown(KeyCode.Escape)) { _escapeFrame = Time.frameCount; Stop(); return; }
+            if (Input.GetKeyDown(KeyCode.Escape))
+            { _escapeFrame = Time.frameCount; if (_repeatMenu) CloseRepeatMenu(); else Stop(); return; }
             Piece selected = player.GetSelectedPiece();
             if (selected == null || Utils.GetPrefabName(selected.gameObject) != _selected)
             { Stop(); Say("Shape canceled: hammer selection changed."); return; }
+            if (_tool==Tool.Repeat && (_previewSpacing!=SafeSpacing() || _previewFollow!=_follow.Value)) Preview();
+            if (_repeatMenu)
+            {
+                if (Time.frameCount > _menuOpenedFrame+1 && Input.GetKeyDown(_plan.Value)) Submit(player);
+                else if (Time.unscaledTime-_lastAction>0.5f && Input.GetKeyDown(_undo.Value))
+                {_lastAction=Time.unscaledTime;UndoShape(player);}
+                return; // Menu mouse/keyboard input must never select pieces or mark the world.
+            }
             if (_tool == Tool.Repeat)
             {
                 bool changed = _previewSpacing != SafeSpacing() || _previewFollow != _follow.Value;
@@ -124,15 +142,19 @@ namespace BuildShapes
             else if (_tool != Tool.Curve && Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(_mark.Value)) SelectSource(player);
             else if (Input.GetKey(_modifier.Value) && Input.GetKeyDown(_mark.Value)) Mark(player);
             else if (Time.unscaledTime - _lastAction > 0.5f && Input.GetKeyDown(_plan.Value))
-            { _lastAction = Time.unscaledTime; Submit(player); }
+            { _lastAction = Time.unscaledTime; if (_tool==Tool.Repeat && _markers.Count==3) OpenRepeatMenu(); else Submit(player); }
             else if (Time.unscaledTime - _lastAction > 0.5f && Input.GetKeyDown(_undo.Value))
             {
                 _lastAction = Time.unscaledTime;
-                if (_lastPlan == null) Say("No shape to undo in this session.");
-                else if (_planner.Remove(player, _lastPlan, out int removed, out string error))
-                { _lastPlan = null; Say($"Removed {removed} unbuilt shape pieces. Built pieces stay."); }
-                else Say(error);
+                UndoShape(player);
             }
+        }
+        private void UndoShape(Player player)
+        {
+            if (_lastPlan == null) Say("No shape to undo in this session.");
+            else if (_planner.Remove(player,_lastPlan,out int removed,out string error))
+            {_lastPlan=null;Say($"Removed {removed} unbuilt shape pieces. Built pieces stay.");}
+            else Say(error);
         }
 
         private void Begin(Player player, Tool requested)
@@ -210,6 +232,7 @@ namespace BuildShapes
                 else { Say("Select at most 256 pieces."); return; }
             }
             Preview();
+            if (_tool==Tool.Repeat && _markers.Count==3) OpenRepeatMenu();
         }
         private void Mark(Player player)
         {
@@ -227,6 +250,7 @@ namespace BuildShapes
             if (Vector3.Distance(point, player.transform.position) > 40f) { Say("Move within 40 metres of that point."); return; }
             if (_markers.Any(p => Vector3.Distance(p, point) < 0.1f)) { Say("Place distinct markers."); return; }
             _markers.Add(point); Preview();
+            if (_tool==Tool.Repeat && _markers.Count==3) OpenRepeatMenu();
         }
         private static V3 V(Vector3 p) => new V3(p.x, p.y, p.z);
         private static Vector3 V(V3 p) => new Vector3((float)p.X, (float)p.Y, (float)p.Z);
@@ -252,10 +276,11 @@ namespace BuildShapes
                     var mirror = new Mirror(V(_markers[0]), V(_markers[1]));
                     foreach (PiecePose source in _sources)
                     {
-                        Vector3 forward = V(mirror.Forward(V(source.Rotation * Vector3.forward)));
+                        MirrorProfile profile = Profile(source.Prefab);
+                        Vector3 forward = V(mirror.Forward(V(source.Rotation * Vector3.forward),profile.FlipZ));
                         Vector3 up = V(mirror.Up(V(source.Rotation * Vector3.up)));
-                        Bounds geometry = LocalBounds(source.Prefab);
-                        Vector3 position = V(mirror.Origin(V(source.Position), V(source.Rotation * Vector3.right), geometry.center.x));
+                        Vector3 axis=source.Rotation*(profile.FlipZ?Vector3.forward:Vector3.right);
+                        Vector3 position = V(mirror.Origin(V(source.Position), V(axis), profile.Centre));
                         Quaternion rotation = Quaternion.LookRotation(forward, up);
                         if ((position-source.Position).sqrMagnitude > 0.000001f || Quaternion.Angle(rotation, source.Rotation) > 0.01f)
                             _output.Add(new PiecePose(null, source.Prefab, position, rotation));
@@ -269,7 +294,8 @@ namespace BuildShapes
                     foreach (Curve.Station station in stations)
                     {
                         float turn = _yaw + (_follow.Value ? (float)(station.Yaw - stations[0].Yaw) : 0);
-                        _output.Add(new PiecePose(null, _seed.Prefab, V(station.Position), Quaternion.AngleAxis(turn, Vector3.up) * _seed.Rotation));
+                        Quaternion tilt=Quaternion.AngleAxis(_pitch,Vector3.right)*Quaternion.AngleAxis(_roll,Vector3.forward);
+                        _output.Add(new PiecePose(null, _seed.Prefab, V(station.Position), Quaternion.AngleAxis(turn, Vector3.up) * _seed.Rotation * tilt));
                     }
                 }
             }
@@ -313,6 +339,14 @@ namespace BuildShapes
             _bounds[name] = box;
             return box;
         }
+        private MirrorProfile Profile(string name)
+        {
+            if (_mirrorProfiles.TryGetValue(name,out MirrorProfile profile)) return profile;
+            Piece piece=ZNetScene.instance?.GetPrefab(name)?.GetComponent<Piece>();
+            var snaps=new List<Transform>();piece?.GetSnapPoints(snaps);
+            profile=MirrorProfile.Choose(snaps.Where(s=>s!=null).Select(s=>V(piece.transform.InverseTransformPoint(s.position))).ToArray(),V(LocalBounds(name).center));
+            _mirrorProfiles[name]=profile;return profile;
+        }
         private static Vector3[] Corners(Bounds box)
         {
             var result = new Vector3[8];
@@ -344,6 +378,7 @@ namespace BuildShapes
         private void OnGUI()
         {
             if (_tool == Tool.None || !Ready(Player.m_localPlayer) || !_planner.Available(Player.m_localPlayer)) return;
+            if (_repeatMenu) { DrawRepeatMenu(); return; }
             string detail = _tool == Tool.Mirror ? $"{_sources.Count} selected; Ctrl+click toggles pieces/ghosts; Ctrl+Backspace removes last selection." :
                 _tool == Tool.Repeat ? $"Spacing {SafeSpacing():0.##} m ([ / ]); yaw {_yaw:0}° (PgUp/PgDn); {(_follow.Value ? "follow curve" : "fixed orientation")} (Home); Ctrl+click copies a piece." : "Native-length beams; joints overlap.";
             string status = _previewError ?? (_output.Count > 0 ? $"{_output.Count} ghosts ready." : $"{_markers.Count}/{(_tool == Tool.Mirror ? 2 : 3)} markers.");
@@ -351,8 +386,8 @@ namespace BuildShapes
                 $"BuildShapes {_tool}: {_modifier.Value}+click: marker | {_plan.Value}: plan | {_undo.Value}: undo | {_back.Value}: remove marker | {_toggle.Value}/Escape: exit\n{detail}\n{status}");
         }
         private void ClearVisuals() { foreach (GameObject go in _visuals) if (go != null) Destroy(go); _visuals.Clear(); }
-        private void ClearShape() { _markers.Clear(); _sources.Clear(); _output.Clear(); _previewError = null; ClearVisuals(); }
-        private void Stop() { _tool = Tool.None; _yaw = 0; _seed = default; _bounds.Clear(); ClearShape(); }
+        private void ClearShape() { CloseRepeatMenu(); _markers.Clear(); _sources.Clear(); _output.Clear(); _previewError = null; ClearVisuals(); }
+        private void Stop() { _tool = Tool.None; _yaw = _pitch = _roll = 0; _seed = default; _bounds.Clear(); _mirrorProfiles.Clear(); ClearShape(); }
         private static void Say(string text) { Player.m_localPlayer?.Message(MessageHud.MessageType.Center, "BuildShapes: " + (text ?? "Planner unavailable.")); }
         private void OnDestroy()
         {
