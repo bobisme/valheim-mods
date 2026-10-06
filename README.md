@@ -10,6 +10,7 @@ Mark out a building pad and flatten its ground to one height. Equip a **hoe**:
 | --- | --- |
 | **Left Shift + left click** | Put a marker on the ground you aim at |
 | **L** | Flatten the convex polygon to the **first marker's height** |
+| **U** | Undo the last polygon, restoring the previous terrain |
 | **Backspace** | Remove the last marker |
 | **Delete** | Clear the markers |
 | **Escape** or put away the hoe | Stop sending edits to further terrain tiles |
@@ -18,9 +19,13 @@ Markers can be placed in any order; their convex hull forms the boundary, so int
 
 The default limit is 400 m², with all selected vertices within 30 metres of you, at most 16 markers, and 2,048 grid vertices across terrain tiles. Leveling costs one normal hoe use in stamina and durability, with no stone cost. It preserves ground paint and cultivation and honors wards, no-build areas, and the game's normal ±8-metre terrain limits. A tile that fails to rebuild at the requested height is restored before saving.
 
-The mod edits grid vertices inside the boundary, including the matching vertices on both sides of tile seams. Ground triangles blend to unchanged vertices outside the polygon, so the visible edge follows the terrain grid. Local marker previews disappear on reload; the actual terrain changes persist in the ordinary world save. There is no terrain undo in this first version. Canceling or losing a multiplayer connection stops further tiles and leaves any completed tile edits in place.
+The mod edits grid vertices inside the boundary, including the matching vertices on both sides of tile seams. Ground triangles blend to unchanged vertices outside the polygon, so the visible edge follows the terrain grid. Local marker previews disappear on reload; the actual terrain changes persist in the ordinary world save. Canceling or losing a multiplayer connection stops further tiles and leaves any completed tile edits in place.
 
-For multiplayer, install PolygonLeveler on the host and participating players: a terrain tile's network owner performs and acknowledges its edit. Every owner must confirm preparation before edits begin; an owner without the mod times out without being sent a commit. Terrain ownership is not forcibly taken. Plain game saves contain only normal terrain data, so the flattened ground remains after removing the mod.
+**U** restores the heights, smoothing, and height-modification flags from before your last polygon, including a partially completed polygon. It preserves paint/cultivation and edits outside the selected vertices, and refuses undo if any selected vertex's height data has changed since leveling. You must still be within reach and have ward permission. Undo costs no additional stamina or durability and does not refund the original hoe use. It provides one step, with no redo; a new polygon replaces the previous undo. History is kept in memory for ten minutes after each tile is leveled, with at most 64 retained tile requests per owner. F6/reload, unloaded terrain, disconnecting, or a terrain ownership change can make undo unavailable. Ground leveled with an older version has no undo snapshot.
+
+Undo checks all tiles first, then rechecks and restores each tile before saving. Ownership, permissions, or terrain can change between replies, so a multi-tile undo can stop partway through. Press U again to retry; completed undo tiles are acknowledged without overwriting subsequent edits.
+
+For multiplayer, install PolygonLeveler **0.1.2 or newer** on the host and participating players: a terrain tile's network owner performs and acknowledges its edit. Every owner must confirm preparation before edits begin; an owner without the matching protocol times out without being sent a commit. Terrain ownership is not forcibly taken. Plain game saves contain only normal terrain data, so the flattened ground remains after removing the mod.
 
 Settings and controls are in F7 → Mod settings, or `BepInEx/config/com.bobisme.polygonleveler.cfg`. Farmhand and PolygonLeveler can be installed independently through the manager.
 
@@ -31,6 +36,7 @@ PolygonLeveler playtest checks:
 3. Try collinear markers, an oversized area, protected ground, excessive height changes, and an unloaded region. Each should be rejected before edits begin.
 4. Have another player own a terrain tile. With the mod installed on both sides, confirm owner replies and persistent edits; without it on the owner, confirm preparation times out without applying the polygon.
 5. Press F6, change tools, or disconnect during preparation/application. Confirm local markers and RPC callbacks clean up and normal hoe controls work afterward. Already completed edits remain.
+6. Level cultivated ground, then press U: verify original heights/smoothing return and cultivation stays. Change an inside vertex with a normal hoe before U and verify undo refuses; change an outside vertex and verify it remains after undo. Test interrupted undo, repeated U after a lost reply, and undo across a tile seam with another player owning a tile.
 
 ## Farmhand
 
@@ -84,7 +90,7 @@ Press F6 in game afterward, or restart Valheim. BepInEx and ScriptEngine must al
 
 ## Validation
 
-`mise run test` exercises centered crop-row geometry, minimum growth spacing, harvest acknowledgement/timeouts, convex hulls, polygon grid containment, degenerate markers, and native terrain-height limits including hidden saturation and legacy-modifier offsets. Builds verify public API usage against the installed game. `mise run verify` checks the private fields/methods and Harmony targets against the installed assembly, and checks all published symbols with the installed ScriptEngine's Cecil.
+`mise run test` exercises centered crop-row geometry, minimum growth spacing, harvest acknowledgement/timeouts, convex hulls, polygon grid containment, degenerate markers, native terrain-height limits including hidden saturation and legacy-modifier offsets, and selected-vertex undo snapshots/conflict detection. Builds verify public API usage against the installed game. `mise run verify` checks the private fields/methods and Harmony targets against the installed assembly, and checks all published symbols with the installed ScriptEngine's Cecil. Live multiplayer RPCs and terrain persistence still require the playtests above.
 
 Manual checks for a first playtest:
 

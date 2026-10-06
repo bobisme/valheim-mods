@@ -1,3 +1,5 @@
+0.1.2: U undoes the last polygon while holding a hoe. Restores prior heights and smoothing, preserves paint and unrelated edits, checks for conflicting terrain changes, and retains retryable owner-side history for ten minutes. Reload clears undo history. Multiplayer terrain owners need this version.
+
 0.1.1: Place markers with Left Shift + left click by default; no Right Alt key needed. L still flattens the marked polygon.
 
 0.1.0: First release. Convex marker outline, first-marker target height, L to flatten, protected-ground and terrain-limit checks, native terrain persistence, bounded owner-acknowledged multiplayer edits, and hot reload cleanup.

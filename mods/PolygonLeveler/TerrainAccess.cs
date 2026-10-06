@@ -9,8 +9,8 @@ namespace PolygonLeveler
 {
     internal static class TerrainAccess
     {
-        private const string RequestRpc = "Bobisme_PolygonLeveler_Request_v1";
-        private const string ReplyRpc = "Bobisme_PolygonLeveler_Reply_v1";
+        private const string RequestRpc = "Bobisme_PolygonLeveler_Request_v2";
+        private const string ReplyRpc = "Bobisme_PolygonLeveler_Reply_v2";
         private static readonly FieldInfo Right = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly MethodInfo InputMethod = AccessTools.Method(typeof(Player), "TakeInput");
         private static readonly MethodInfo Wear = AccessTools.Method(typeof(Player), "GetPlaceDurability");
@@ -49,6 +49,8 @@ namespace PolygonLeveler
             internal long Sender;
             internal float Expires;
             internal bool Applied;
+            internal bool UndoRequested, Undone;
+            internal TerrainSnapshot Before, After;
         }
         internal static ItemDrop.ItemData RightItem(Player p) => Right.GetValue(p) as ItemDrop.ItemData;
         internal static bool TakeInput(Player p) => (bool)InputMethod.Invoke(p, null);
@@ -137,6 +139,7 @@ namespace PolygonLeveler
             {
                 if (pkg.Size() > 20000 || pkg.Size() < 12) return;
                 id = pkg.ReadLong(); phase = pkg.ReadInt();
+                if (phase != 1 && pkg.GetPos() != pkg.Size()) throw new Exception("Invalid terrain request.");
                 string key = view.GetZDO().m_uid + ":" + sender + ":" + id;
                 PruneRequests();
                 if (phase == 1)
@@ -163,19 +166,41 @@ namespace PolygonLeveler
                 else if (phase == 2)
                 {
                     if (!Requests.TryGetValue(key, out Prepared prepared)) throw new Exception("Terrain request expired or owner changed.");
+                    if (prepared.UndoRequested) throw new Exception("This operation has been canceled for undo.");
                     if (!prepared.Applied)
                     {
                         Validate(prepared, view);
-                        Apply(prepared.Batch);
+                        Apply(prepared);
                         prepared.Applied = true;
+                        prepared.Expires = Time.unscaledTime + 600f;
                     }
                     Respond(view, sender, id, phase, true, "Leveled");
                 }
+                else if (phase == 3 || phase == 4)
+                {
+                    if (!Requests.TryGetValue(key, out Prepared prepared)) throw new Exception("Undo history expired, terrain unloaded, or owner changed.");
+                    Validate(prepared, view, true);
+                    if (!prepared.Undone)
+                    {
+                        if (prepared.Applied && !Matches(prepared.After, prepared.Batch))
+                            throw new Exception("Ground has changed since leveling; undo would overwrite another edit.");
+                        if (phase == 3) prepared.UndoRequested = true;
+                        else
+                        {
+                            if (!prepared.UndoRequested) throw new Exception("Undo was not prepared.");
+                            if (prepared.Applied) Restore(prepared);
+                            prepared.Undone = true;
+                        }
+                        prepared.Expires = Time.unscaledTime + 600f;
+                    }
+                    Respond(view, sender, id, phase, true, phase == 3 ? "Undo ready" : "Restored");
+                }
+                else throw new Exception("Unknown terrain request.");
             }
             catch (Exception ex) { Respond(view, sender, id, phase, false, ex.GetBaseException().Message); }
         }
 
-        private static void Validate(Prepared request, ZNetView view)
+        private static void Validate(Prepared request, ZNetView view, bool undo = false)
         {
             if (!view.IsOwner()) throw new Exception("Terrain owner changed.");
             ZDO actor = ZDOMan.instance.GetZDO(request.Player);
@@ -185,6 +210,15 @@ namespace PolygonLeveler
             Heightmap map = batch.Map;
             if (map == null || map.IsDistantLod) throw new Exception("Terrain is not loaded.");
             Load.Invoke(batch.Compiler, null);
+            foreach (Vector2Int cell in batch.Cells)
+            {
+                if (cell.x < 0 || cell.y < 0 || cell.x > map.m_width || cell.y > map.m_width) throw new Exception("Invalid terrain vertex.");
+                Vector3 pos = Vertex(map, cell.x, cell.y, batch.Height);
+                Vector3 delta = pos - actor.GetPosition(); delta.y = 0;
+                if (delta.magnitude > Plugin.Instance.Distance || !AccessFor(player.GetPlayerID(), pos) || Location.IsInsideNoBuildLocation(pos))
+                    throw new Exception("Terrain is out of reach or protected.");
+            }
+            if (undo) return;
             // Capture actual native heights BEFORE compiler deltas/clamping. This also handles legacy modifiers.
             _captureCompiler = batch.Compiler;
             _underlying = _limitBase = null;
@@ -195,11 +229,6 @@ namespace PolygonLeveler
             for (int i = 0; i < batch.Cells.Count; i++)
             {
                 Vector2Int cell = batch.Cells[i];
-                if (cell.x < 0 || cell.y < 0 || cell.x > map.m_width || cell.y > map.m_width) throw new Exception("Invalid terrain vertex.");
-                Vector3 pos = Vertex(map, cell.x, cell.y, batch.Height);
-                Vector3 delta = pos - actor.GetPosition(); delta.y = 0;
-                if (delta.magnitude > Plugin.Instance.Distance || !AccessFor(player.GetPlayerID(), pos) || Location.IsInsideNoBuildLocation(pos))
-                    throw new Exception("Terrain is out of reach or protected.");
                 int index = cell.y * (map.m_width + 1) + cell.x;
                 if (!Geometry.LevelDelta(_underlying[index] + map.transform.position.y, _limitBase[index] + map.transform.position.y,
                     batch.Height, out double levelDelta)) throw new Exception("Target exceeds the game's terrain height limits. Choose a closer height.");
@@ -228,15 +257,15 @@ namespace PolygonLeveler
             return !blocked || allowed;
         }
 
-        private static void Apply(Batch batch)
+        private static void Apply(Prepared request)
         {
+            Batch batch = request.Batch;
             var settings = new TerrainOp.Settings { m_level = true, m_levelRadius = 0f, m_square = false,
                 m_levelOffset = 0f, m_raise = false, m_smooth = false, m_paintCleared = false };
             float[] levels = (float[])Levels.GetValue(batch.Compiler), smooth = (float[])Smooth.GetValue(batch.Compiler);
             bool[] modified = (bool[])Modified.GetValue(batch.Compiler);
             int[] indices = batch.Cells.Select(c => c.y * (batch.Map.m_width + 1) + c.x).ToArray();
-            float[] oldLevels = indices.Select(i => levels[i]).ToArray(), oldSmooth = indices.Select(i => smooth[i]).ToArray();
-            bool[] oldModified = indices.Select(i => modified[i]).ToArray();
+            var before = new TerrainSnapshot(indices, levels, smooth, modified);
             object operations = Operations.GetValue(batch.Compiler), point = LastPoint.GetValue(batch.Compiler), radius = LastRadius.GetValue(batch.Compiler);
             try
             {
@@ -252,16 +281,55 @@ namespace PolygonLeveler
                 foreach (Vector2Int cell in batch.Cells)
                     if (Mathf.Abs(batch.Map.GetHeight(cell.x, cell.y) + batch.Map.transform.position.y - batch.Height) > 0.02f)
                         throw new Exception("Terrain did not reach the requested plane; tile was restored.");
+                var after = new TerrainSnapshot(indices, levels, smooth, modified);
                 Save.Invoke(batch.Compiler, new object[] { false });
+                request.Before = before;
+                request.After = after;
             }
             catch
             {
-                for (int i = 0; i < indices.Length; i++) { levels[indices[i]] = oldLevels[i]; smooth[indices[i]] = oldSmooth[i]; modified[indices[i]] = oldModified[i]; }
+                before.Restore(levels, smooth, modified);
                 Operations.SetValue(batch.Compiler, operations); LastPoint.SetValue(batch.Compiler, point); LastRadius.SetValue(batch.Compiler, radius);
                 batch.Map.Poke();
                 throw;
             }
-            if (ClutterSystem.instance != null) ClutterSystem.instance.ResetGrass(batch.Map.transform.position, batch.Map.m_width * batch.Map.m_scale / 2f);
+            RefreshGrass(batch);
+        }
+
+        private static bool Matches(TerrainSnapshot snapshot, Batch batch) => snapshot != null &&
+            snapshot.Matches((float[])Levels.GetValue(batch.Compiler), (float[])Smooth.GetValue(batch.Compiler), (bool[])Modified.GetValue(batch.Compiler));
+
+        private static void Restore(Prepared request)
+        {
+            Batch batch = request.Batch;
+            float[] levels = (float[])Levels.GetValue(batch.Compiler), smooth = (float[])Smooth.GetValue(batch.Compiler);
+            bool[] modified = (bool[])Modified.GetValue(batch.Compiler);
+            object operations = Operations.GetValue(batch.Compiler), point = LastPoint.GetValue(batch.Compiler), radius = LastRadius.GetValue(batch.Compiler);
+            try
+            {
+                request.Before.Restore(levels, smooth, modified);
+                // A new operation retains the accounting for unrelated edits made in this tile.
+                Operations.SetValue(batch.Compiler, (int)operations + 1);
+                LastPoint.SetValue(batch.Compiler, batch.Map.transform.position);
+                LastRadius.SetValue(batch.Compiler, batch.Map.m_width * batch.Map.m_scale / 2f);
+                batch.Map.Poke();
+                Save.Invoke(batch.Compiler, new object[] { false });
+            }
+            catch
+            {
+                request.After.Restore(levels, smooth, modified);
+                Operations.SetValue(batch.Compiler, operations); LastPoint.SetValue(batch.Compiler, point); LastRadius.SetValue(batch.Compiler, radius);
+                batch.Map.Poke();
+                throw;
+            }
+            RefreshGrass(batch);
+        }
+
+        private static void RefreshGrass(Batch batch)
+        {
+            // Cosmetic refresh cannot turn an already saved operation into a failed acknowledgement.
+            try { if (ClutterSystem.instance != null) ClutterSystem.instance.ResetGrass(batch.Map.transform.position, batch.Map.m_width * batch.Map.m_scale / 2f); }
+            catch (Exception ex) { Debug.LogWarning("PolygonLeveler grass refresh: " + ex.Message); }
         }
 
         private static void Respond(ZNetView view, long sender, long id, int phase, bool ok, string text)

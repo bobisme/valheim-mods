@@ -14,10 +14,10 @@ namespace PolygonLeveler
     {
         public const string Guid = "com.bobisme.polygonleveler";
         public const string Name = "PolygonLeveler";
-        public const string Version = "0.1.1";
+        public const string Version = "0.1.2";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled;
-        private ConfigEntry<KeyCode> _modifier, _markerKey, _levelKey, _removeKey, _clearKey;
+        private ConfigEntry<KeyCode> _modifier, _markerKey, _levelKey, _undoKey, _removeKey, _clearKey;
         private ConfigEntry<float> _areaLimit, _distance;
         private Harmony _harmony;
         private readonly List<Vector3> _markers = new List<Vector3>();
@@ -30,7 +30,11 @@ namespace PolygonLeveler
         internal bool Marking => Input.GetKey(_modifier.Value);
         internal float Distance => Mathf.Clamp(_distance.Value, 5f, 30f);
         internal bool LevelPressed => Input.GetKeyDown(_levelKey.Value);
+        internal bool UndoPressed => Input.GetKeyDown(_undoKey.Value);
         private float _lastUse;
+        private long _undoId;
+        private ZDOID _undoPlayer;
+        private readonly List<TerrainAccess.Batch> _undoBatches = new List<TerrainAccess.Batch>();
 
         private void Awake()
         {
@@ -39,6 +43,7 @@ namespace PolygonLeveler
             _modifier = Config.Bind("Controls", "MarkerModifier", KeyCode.LeftShift, "Hold with marker key to place markers instead of using the hoe.");
             _markerKey = Config.Bind("Controls", "PlaceMarker", KeyCode.Mouse0, "Place a marker on the aimed ground.");
             _levelKey = Config.Bind("Controls", "LevelPolygon", KeyCode.L, "Flatten the polygon to the first marker's height while holding a hoe.");
+            _undoKey = Config.Bind("Controls", "UndoPolygon", KeyCode.U, "Undo the last polygon while holding a hoe. History lasts ten minutes and clears on reload.");
             _removeKey = Config.Bind("Controls", "RemoveMarker", KeyCode.Backspace, "Remove the last marker.");
             _clearKey = Config.Bind("Controls", "ClearMarkers", KeyCode.Delete, "Clear the marked polygon.");
             _areaLimit = Config.Bind("Limits", "MaximumArea", 400f, new ConfigDescription("Maximum polygon area in square metres.", new AcceptableValueRange<float>(1f, 1000f)));
@@ -57,7 +62,8 @@ namespace PolygonLeveler
         {
             TerrainAccess.PruneRequests();
             Player p = Player.m_localPlayer;
-            if (p == null) { if (_markers.Count > 0) Clear(); Cancel(); return; }
+            if (p == null) { if (_markers.Count > 0) Clear(); Cancel(); _undoBatches.Clear(); return; }
+            if (_undoBatches.Count > 0 && p.GetZDOID() != _undoPlayer) _undoBatches.Clear();
             bool visible = Enabled.Value && HoldingHoe(p);
             if (_outline != null) _outline.gameObject.SetActive(visible);
             foreach (GameObject marker in _visuals) if (marker != null) marker.SetActive(visible);
@@ -70,6 +76,11 @@ namespace PolygonLeveler
             if (Input.GetKeyDown(_clearKey.Value)) Clear();
             else if (Input.GetKeyDown(_removeKey.Value) && _markers.Count > 0) { _markers.RemoveAt(_markers.Count - 1); Draw(); }
             else if (Marking && Input.GetKeyDown(_markerKey.Value)) Mark(p);
+            else if (UndoPressed && Time.unscaledTime - _lastUse > 1f)
+            {
+                _lastUse = Time.unscaledTime;
+                _work = StartCoroutine(Guard(Undo(p)));
+            }
             else if (LevelPressed && Time.unscaledTime - _lastUse > 1f)
             {
                 _lastUse = Time.unscaledTime;
@@ -84,7 +95,7 @@ namespace PolygonLeveler
             {
                 bool next;
                 try { next = operation.MoveNext(); }
-                catch (Exception ex) { Logger.LogError(ex); Say("Leveling stopped: " + ex.GetBaseException().Message); break; }
+                catch (Exception ex) { Logger.LogError(ex); Say("Terrain operation stopped: " + ex.GetBaseException().Message); break; }
                 if (!next) break;
                 yield return operation.Current;
             }
@@ -169,10 +180,13 @@ namespace PolygonLeveler
             p.UseStamina(cost);
             if (hoe.m_shared.m_useDurability) hoe.m_durability -= TerrainAccess.Durability(p, hoe) * Game.m_durabilityRate;
             int applied = 0;
+            _undoId = id; _undoPlayer = p.GetZDOID(); _undoBatches.Clear();
             foreach (TerrainAccess.Batch batch in batches)
             {
                 if (!Ready(p)) break;
                 done = false;
+                // Include a tile before sending: a lost reply must not lose its undo history.
+                _undoBatches.Add(batch);
                 TerrainAccess.Send(batch, p, id, 2, (ok, text) => { failed = ok ? null : text; done = true; });
                 float deadline = Time.unscaledTime + 5f;
                 while (!done && Time.unscaledTime < deadline) yield return null;
@@ -181,8 +195,35 @@ namespace PolygonLeveler
                 yield return null;
             }
             TerrainAccess.Forget(id);
-            Say(applied == batches.Count ? $"Leveled {Geometry.Area(_hull):0.#} m² ({vertices} terrain vertices)." : $"Stopped after {applied} terrain tile(s).");
+            Say(applied == batches.Count ? $"Leveled {Geometry.Area(_hull):0.#} m² ({vertices} terrain vertices). {_undoKey.Value} undoes." : $"Stopped after {applied} terrain tile(s). {_undoKey.Value} undoes.");
             _work = null;
+        }
+
+        private IEnumerator Undo(Player p)
+        {
+            if (_undoBatches.Count == 0) { Say("No polygon to undo in this session."); yield break; }
+            // Check every tile before restoring any. Each owner rechecks just before its save.
+            foreach (int phase in new[] { 3, 4 })
+            {
+                int completed = 0;
+                foreach (TerrainAccess.Batch batch in _undoBatches)
+                {
+                    if (!Ready(p)) yield break;
+                    bool done = false; string failed = null;
+                    TerrainAccess.Send(batch, p, _undoId, phase, (ok, text) => { failed = ok ? null : text; done = true; });
+                    float deadline = Time.unscaledTime + 5f;
+                    while (!done && Time.unscaledTime < deadline) yield return null;
+                    if (!done || failed != null)
+                    {
+                        Say($"Undo stopped{(phase == 4 ? $" after {completed} terrain tile(s)" : "")}: {failed ?? "owner did not respond"}. You can retry.");
+                        TerrainAccess.Forget(_undoId); yield break;
+                    }
+                    completed++;
+                    yield return null;
+                }
+            }
+            TerrainAccess.Forget(_undoId); _undoBatches.Clear();
+            Say("Restored the terrain before your last polygon.");
         }
 
         private void OnGUI()
@@ -190,8 +231,8 @@ namespace PolygonLeveler
             if (!Ready(Player.m_localPlayer)) return;
             string summary = _markers.Count == 0 ? "First marker sets the flat height." :
                 $"{_markers.Count} markers | {Geometry.Area(_hull):0.#} m² | height {_markers[0].y:0.00} m";
-            GUI.Label(new Rect(20, Screen.height - 155, 900, 80), Busy ? "PolygonLeveler: leveling… Escape stops further tiles." :
-                $"PolygonLeveler: {_modifier.Value}+{_markerKey.Value}: marker | {_levelKey.Value}: flatten | {_removeKey.Value}: remove | {_clearKey.Value}: clear\n{summary}");
+            GUI.Label(new Rect(20, Screen.height - 155, 1000, 80), Busy ? "PolygonLeveler: editing terrain… Escape stops further tiles." :
+                $"PolygonLeveler: {_modifier.Value}+{_markerKey.Value}: marker | {_levelKey.Value}: flatten | {_undoKey.Value}: undo | {_removeKey.Value}: remove | {_clearKey.Value}: clear\n{summary}");
         }
 
         private void Cancel()
@@ -237,7 +278,7 @@ namespace PolygonLeveler
         {
             Plugin plugin = Plugin.Instance;
             if (__instance == Player.m_localPlayer && plugin != null && plugin.Enabled.Value && Plugin.HoldingHoe(__instance) &&
-                (plugin.Marking || plugin.Busy || plugin.LevelPressed)) takeInput = false;
+                (plugin.Marking || plugin.Busy || plugin.LevelPressed || plugin.UndoPressed)) takeInput = false;
         }
     }
 }
