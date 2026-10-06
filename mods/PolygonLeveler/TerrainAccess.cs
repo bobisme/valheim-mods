@@ -38,7 +38,7 @@ namespace PolygonLeveler
         {
             internal TerrainComp Compiler;
             internal Heightmap Map;
-            internal float Height;
+            internal float[] Targets;
             internal float[] Deltas;
             internal readonly List<Vector2Int> Cells = new List<Vector2Int>();
         }
@@ -56,7 +56,7 @@ namespace PolygonLeveler
         internal static bool TakeInput(Player p) => (bool)InputMethod.Invoke(p, null);
         internal static float Durability(Player p, ItemDrop.ItemData hoe) => (float)Wear.Invoke(p, new object[] { hoe });
 
-        internal static List<Batch> Plan(Player player, IReadOnlyList<Point> hull, float height, float distance)
+        internal static List<Batch> Plan(Player player, IReadOnlyList<Point> hull, float height, float distance, bool fitPlane, out GroundPlane plane)
         {
             var batches = new List<Batch>();
             int count = 0;
@@ -74,7 +74,7 @@ namespace PolygonLeveler
                 int z0 = Mathf.Max(0, Mathf.CeilToInt((float)((minZ - origin.z) / scale) + half));
                 int z1 = Mathf.Min(map.m_width, Mathf.FloorToInt((float)((maxZ - origin.z) / scale) + half));
                 if ((long)Math.Max(0, x1 - x0 + 1) * Math.Max(0, z1 - z0 + 1) > 8192) throw new Exception("Terrain grid is too dense for this polygon.");
-                var batch = new Batch { Map = map, Height = height };
+                var batch = new Batch { Map = map };
                 for (int z = z0; z <= z1; z++)
                 for (int x = x0; x <= x1; x++)
                 {
@@ -96,7 +96,23 @@ namespace PolygonLeveler
             for (double x = Math.Ceiling(minX); x <= maxX; x++)
                 if (Geometry.Contains(hull, new Point(x, z)) && Heightmap.FindHeightmap(new Vector3((float)x, height, (float)z)) == null)
                     throw new Exception("Some polygon terrain is not loaded.");
-            foreach (Batch batch in batches) { batch.Compiler = batch.Map.GetAndCreateTerrainCompiler(); Register(batch.Compiler); }
+            plane = fitPlane ? GroundPlane.Fit(batches.SelectMany(b => b.Cells.Select(c =>
+            {
+                Vector3 pos = Vertex(b.Map, c.x, c.y, 0);
+                return new GroundSample(pos.x, pos.z, b.Map.GetHeight(c.x, c.y) + b.Map.transform.position.y);
+            }))) : new GroundPlane(0, 0, height, 0, 0);
+            GroundPlane targetPlane = plane;
+            foreach (Batch batch in batches)
+            {
+                batch.Targets = batch.Cells.Select(c =>
+                {
+                    Vector3 pos = Vertex(batch.Map, c.x, c.y, 0);
+                    float target = (float)targetPlane.At(pos.x, pos.z);
+                    if (!Geometry.Finite(target)) throw new Exception("Fitted plane has an invalid height.");
+                    return target;
+                }).ToArray();
+                batch.Compiler = batch.Map.GetAndCreateTerrainCompiler(); Register(batch.Compiler);
+            }
             return batches;
         }
 
@@ -122,10 +138,14 @@ namespace PolygonLeveler
             Callbacks[key] = callback;
             var pkg = new ZPackage();
             pkg.Write(id); pkg.Write(phase);
-            if (phase == 1)
+            if (phase == 1 || phase == 5)
             {
-                pkg.Write(player.GetZDOID()); pkg.Write(batch.Height); pkg.Write(batch.Cells.Count);
-                foreach (Vector2Int cell in batch.Cells) { pkg.Write(cell.x); pkg.Write(cell.y); }
+                pkg.Write(player.GetZDOID()); pkg.Write(batch.Targets[0]); pkg.Write(batch.Cells.Count);
+                for (int i = 0; i < batch.Cells.Count; i++)
+                {
+                    pkg.Write(batch.Cells[i].x); pkg.Write(batch.Cells[i].y);
+                    if (phase == 5) pkg.Write(batch.Targets[i]);
+                }
             }
             try { view.InvokeRPC(RequestRpc, pkg); }
             catch (Exception ex) { Callbacks.Remove(key); callback(false, ex.GetBaseException().Message); }
@@ -137,25 +157,27 @@ namespace PolygonLeveler
             long id = 0; int phase = 0;
             try
             {
-                if (pkg.Size() > 20000 || pkg.Size() < 12) return;
+                if (pkg.Size() > 30000 || pkg.Size() < 12) return;
                 id = pkg.ReadLong(); phase = pkg.ReadInt();
-                if (phase != 1 && pkg.GetPos() != pkg.Size()) throw new Exception("Invalid terrain request.");
+                if (phase != 1 && phase != 5 && pkg.GetPos() != pkg.Size()) throw new Exception("Invalid terrain request.");
                 string key = view.GetZDO().m_uid + ":" + sender + ":" + id;
                 PruneRequests();
-                if (phase == 1)
+                if (phase == 1 || phase == 5)
                 {
                     ZDOID player = pkg.ReadZDOID(); float height = pkg.ReadSingle(); int count = pkg.ReadInt();
-                    if (!Geometry.Finite(height) || count < 1 || count > Geometry.MaxVertices || pkg.Size() - pkg.GetPos() != count * 8)
+                    if (!Geometry.Finite(height) || count < 1 || count > Geometry.MaxVertices || pkg.Size() - pkg.GetPos() != count * (phase == 5 ? 12 : 8))
                         throw new Exception("Invalid terrain request.");
                     if (Requests.Count >= 64 && !Requests.ContainsKey(key)) throw new Exception("Too many pending terrain requests.");
                     if (Requests.TryGetValue(key, out Prepared prior))
                     { Respond(view, sender, id, phase, true, "Ready"); return; }
-                    var batch = new Batch { Compiler = compiler, Map = HMap.GetValue(compiler) as Heightmap, Height = height };
+                    var batch = new Batch { Compiler = compiler, Map = HMap.GetValue(compiler) as Heightmap, Targets = new float[count] };
                     var seen = new HashSet<Vector2Int>();
                     for (int i = 0; i < count; i++)
                     {
                         var cell = new Vector2Int(pkg.ReadInt(), pkg.ReadInt());
                         if (!seen.Add(cell)) throw new Exception("Duplicate terrain vertex.");
+                        batch.Targets[i] = phase == 5 ? pkg.ReadSingle() : height;
+                        if (!Geometry.Finite(batch.Targets[i])) throw new Exception("Invalid terrain height.");
                         batch.Cells.Add(cell);
                     }
                     var prepared = new Prepared { Batch = batch, Player = player, Sender = sender, Expires = Time.unscaledTime + 60f };
@@ -210,10 +232,11 @@ namespace PolygonLeveler
             Heightmap map = batch.Map;
             if (map == null || map.IsDistantLod) throw new Exception("Terrain is not loaded.");
             Load.Invoke(batch.Compiler, null);
-            foreach (Vector2Int cell in batch.Cells)
+            for (int i = 0; i < batch.Cells.Count; i++)
             {
+                Vector2Int cell = batch.Cells[i];
                 if (cell.x < 0 || cell.y < 0 || cell.x > map.m_width || cell.y > map.m_width) throw new Exception("Invalid terrain vertex.");
-                Vector3 pos = Vertex(map, cell.x, cell.y, batch.Height);
+                Vector3 pos = Vertex(map, cell.x, cell.y, batch.Targets[i]);
                 Vector3 delta = pos - actor.GetPosition(); delta.y = 0;
                 if (delta.magnitude > Plugin.Instance.Distance || !AccessFor(player.GetPlayerID(), pos) || Location.IsInsideNoBuildLocation(pos))
                     throw new Exception("Terrain is out of reach or protected.");
@@ -231,7 +254,7 @@ namespace PolygonLeveler
                 Vector2Int cell = batch.Cells[i];
                 int index = cell.y * (map.m_width + 1) + cell.x;
                 if (!Geometry.LevelDelta(_underlying[index] + map.transform.position.y, _limitBase[index] + map.transform.position.y,
-                    batch.Height, out double levelDelta)) throw new Exception("Target exceeds the game's terrain height limits. Choose a closer height.");
+                    batch.Targets[i], out double levelDelta)) throw new Exception("Target exceeds the game's terrain height limits. Choose a closer height or smaller polygon.");
                 batch.Deltas[i] = (float)levelDelta;
             }
             _underlying = _limitBase = null;
@@ -272,14 +295,14 @@ namespace PolygonLeveler
                 for (int i = 0; i < batch.Cells.Count; i++)
                 {
                     Vector2Int cell = batch.Cells[i];
-                    InternalOperation.Invoke(batch.Compiler, new object[] { Vertex(batch.Map, cell.x, cell.y, batch.Height), Vector3.zero, settings });
+                    InternalOperation.Invoke(batch.Compiler, new object[] { Vertex(batch.Map, cell.x, cell.y, batch.Targets[i]), Vector3.zero, settings });
                     // Correct hidden clamping offsets using the captured underlying terrain rather than displayed height.
                     levels[indices[i]] = batch.Deltas[i];
                     smooth[indices[i]] = 0f;
                 }
                 batch.Map.Poke();
-                foreach (Vector2Int cell in batch.Cells)
-                    if (Mathf.Abs(batch.Map.GetHeight(cell.x, cell.y) + batch.Map.transform.position.y - batch.Height) > 0.02f)
+                for (int i = 0; i < batch.Cells.Count; i++)
+                    if (Mathf.Abs(batch.Map.GetHeight(batch.Cells[i].x, batch.Cells[i].y) + batch.Map.transform.position.y - batch.Targets[i]) > 0.02f)
                         throw new Exception("Terrain did not reach the requested plane; tile was restored.");
                 var after = new TerrainSnapshot(indices, levels, smooth, modified);
                 Save.Invoke(batch.Compiler, new object[] { false });

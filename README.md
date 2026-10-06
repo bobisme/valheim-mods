@@ -4,18 +4,21 @@ Bob's Valheim mods, built for native Linux and Windows and packaged for the in-g
 
 ## PolygonLeveler
 
-Mark out a building pad and flatten its ground to one height. Equip a **hoe**:
+Mark out a building pad and level it, or flatten uneven ground while keeping its average slope. Equip a **hoe**:
 
 | Controls | Action |
 | --- | --- |
 | **Left Shift + left click** | Put a marker on the ground you aim at |
-| **L** | Flatten the convex polygon to the **first marker's height** |
+| **L** | Level the convex polygon horizontally at the **first marker's height** |
+| **Shift + L** | Flatten the current ground to its closest fitted plane, keeping its average slope |
 | **U** | Undo the last polygon, restoring the previous terrain |
 | **Backspace** | Remove the last marker |
 | **Delete** | Clear the markers |
 | **Escape** or put away the hoe | Stop sending edits to further terrain tiles |
 
-Markers can be placed in any order; their convex hull forms the boundary, so interior markers do not create dents. The turquoise outline shows the target plane. Put the first marker at the height you want, then add at least two more corners. The HUD shows the area and height before you press L. While Left Shift is held, the normal hoe action is suppressed so placing a marker does not alter the ground. L is only handled during normal play with a hoe; it does not replace QualityOfLife's inventory item-lock key.
+Markers can be placed in any order; their convex hull forms the boundary, so interior markers do not create dents. The turquoise outline initially shows the first marker's horizontal plane. Put the first marker at the height you want, then add at least two more corners. The HUD shows the area and first-marker height before you press L. While Left Shift is held, the normal hoe action is suppressed so placing a marker does not alter the ground. L is only handled during normal play with a hoe; it does not replace QualityOfLife's inventory item-lock key.
+
+**Shift + L** fits a plane to the current ground heights at every selected grid vertex, rather than using the marker heights. It minimizes the sum of squared vertical height changes, removing bumps while retaining the average slope. Shared tile-edge vertices count once in the fit. The outline updates to the fitted plane when you start the action. A polygon whose selected grid vertices are nearly collinear cannot define a stable plane: mark a wider area. The fitted plane must satisfy the same terrain-height, protection, reach, and size limits as horizontal leveling; it is rejected rather than clipped into an uneven surface. U also undoes fitted-plane flattening.
 
 The default limit is 400 m², with all selected vertices within 30 metres of you, at most 16 markers, and 2,048 grid vertices across terrain tiles. Leveling costs one normal hoe use in stamina and durability, with no stone cost. It preserves ground paint and cultivation and honors wards, no-build areas, and the game's normal ±8-metre terrain limits. A tile that fails to rebuild at the requested height is restored before saving.
 
@@ -25,7 +28,7 @@ The mod edits grid vertices inside the boundary, including the matching vertices
 
 Undo checks all tiles first, then rechecks and restores each tile before saving. Ownership, permissions, or terrain can change between replies, so a multi-tile undo can stop partway through. Press U again to retry; completed undo tiles are acknowledged without overwriting subsequent edits.
 
-For multiplayer, install PolygonLeveler **0.1.2 or newer** on the host and participating players: a terrain tile's network owner performs and acknowledges its edit. Every owner must confirm preparation before edits begin; an owner without the matching protocol times out without being sent a commit. Terrain ownership is not forcibly taken. Plain game saves contain only normal terrain data, so the flattened ground remains after removing the mod.
+For multiplayer, install PolygonLeveler **0.1.3 or newer** on the host and participating players: a terrain tile's network owner performs and acknowledges its edit. Every owner must confirm preparation before edits begin; an owner without the matching protocol times out without being sent a commit. Owners on 0.1.2 still support L/U but reject Shift + L without edits. Terrain ownership is not forcibly taken. Plain game saves contain only normal terrain data, so the flattened ground remains after removing the mod.
 
 Settings and controls are in F7 → Mod settings, or `BepInEx/config/com.bobisme.polygonleveler.cfg`. Farmhand and PolygonLeveler can be installed independently through the manager.
 
@@ -37,6 +40,7 @@ PolygonLeveler playtest checks:
 4. Have another player own a terrain tile. With the mod installed on both sides, confirm owner replies and persistent edits; without it on the owner, confirm preparation times out without applying the polygon.
 5. Press F6, change tools, or disconnect during preparation/application. Confirm local markers and RPC callbacks clean up and normal hoe controls work afterward. Already completed edits remain.
 6. Level cultivated ground, then press U: verify original heights/smoothing return and cultivation stays. Change an inside vertex with a normal hoe before U and verify undo refuses; change an outside vertex and verify it remains after undo. Test interrupted undo, repeated U after a lost reply, and undo across a tile seam with another player owning a tile.
+7. Mark bumpy sloping ground and press Shift + L. Confirm it forms a sloped plane rather than horizontal ground, its outline follows that plane, and U restores the bumps. Repeat across a tile seam and with an older multiplayer owner, which must reject the action without committing any tile.
 
 ## Farmhand
 
@@ -90,7 +94,7 @@ Press F6 in game afterward, or restart Valheim. BepInEx and ScriptEngine must al
 
 ## Validation
 
-`mise run test` exercises centered crop-row geometry, minimum growth spacing, harvest acknowledgement/timeouts, convex hulls, polygon grid containment, degenerate markers, native terrain-height limits including hidden saturation and legacy-modifier offsets, and selected-vertex undo snapshots/conflict detection. Builds verify public API usage against the installed game. `mise run verify` checks the private fields/methods and Harmony targets against the installed assembly, and checks all published symbols with the installed ScriptEngine's Cecil. Live multiplayer RPCs and terrain persistence still require the playtests above.
+`mise run test` exercises centered crop-row geometry, minimum growth spacing, harvest acknowledgement/timeouts, convex hulls, polygon grid containment, degenerate markers, least-squares plane fitting (slopes, noisy ground, tile-seam weighting, world coordinates, and degenerate samples), native terrain-height limits including hidden saturation and legacy-modifier offsets, and selected-vertex undo snapshots/conflict detection. Builds verify public API usage against the installed game. `mise run verify` checks the private fields/methods and Harmony targets against the installed assembly, and checks all published symbols with the installed ScriptEngine's Cecil. Live multiplayer RPCs and terrain persistence still require the playtests above.
 
 Manual checks for a first playtest:
 

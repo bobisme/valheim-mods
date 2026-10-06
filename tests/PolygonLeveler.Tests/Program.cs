@@ -67,4 +67,44 @@ foreach (int[] invalid in new[] { new[] { -1 }, new[] { 4 }, new[] { 0, 0 }, Arr
     try { new TerrainSnapshot(invalid, levels, smooth, modified); } catch (ArgumentException) { rejected = true; }
     Check(rejected, "Invalid or oversized snapshot rejected");
 }
-Console.WriteLine($"Passed {checks} polygon, native height-limit, and conflict-safe undo checks.");
+foreach (double shift in new[] { 0.0, -10000.0, 10000.0 })
+{
+    var ground = new List<GroundSample>();
+    for (int x = -3; x <= 3; x++) for (int z = -2; z <= 2; z++)
+        ground.Add(new GroundSample(x + shift, z - shift, 25 + 0.5 * x - 0.25 * z));
+    GroundPlane fitted = GroundPlane.Fit(ground.AsEnumerable().Reverse());
+    Check(Math.Abs(fitted.SlopeX - 0.5) < 1e-10 && Math.Abs(fitted.SlopeZ + 0.25) < 1e-10, "Existing slope survives flattening far from origin");
+    foreach (GroundSample s in ground) Check(Math.Abs(fitted.At(s.Position.X, s.Position.Z) - s.Height) < 1e-9, "Exact sloped plane is unchanged");
+}
+var flat = GroundPlane.Fit(new[] { new GroundSample(0, 0, 12), new GroundSample(4, 0, 12), new GroundSample(0, 7, 12) });
+Check(flat.At(-100, 100) == 12 && flat.SlopeX == 0 && flat.SlopeZ == 0, "Horizontal ground remains horizontal");
+var noisy = new List<GroundSample>();
+for (int x = -3; x <= 3; x++) for (int z = -2; z <= 2; z++)
+    noisy.Add(new GroundSample(x, z, 10 + 0.2 * x - 0.3 * z + 0.05 * (x * x + z * z)));
+GroundPlane closest = GroundPlane.Fit(noisy);
+Check(Math.Abs(closest.SlopeX - 0.2) < 1e-10 && Math.Abs(closest.SlopeZ + 0.3) < 1e-10, "Bumps are removed while average slope is retained");
+Check(Math.Abs(noisy.Sum(s => s.Height - closest.At(s.Position.X, s.Position.Z))) < 1e-9, "Fitted plane balances vertical cuts and fills");
+Check(Math.Abs(noisy.Sum(s => s.Position.X * (s.Height - closest.At(s.Position.X, s.Position.Z)))) < 1e-9 &&
+    Math.Abs(noisy.Sum(s => s.Position.Z * (s.Height - closest.At(s.Position.X, s.Position.Z)))) < 1e-9, "Residuals are orthogonal to both slope directions");
+double Error(GroundPlane plane) => noisy.Sum(s => Math.Pow(s.Height - plane.At(s.Position.X, s.Position.Z), 2));
+foreach (var perturbation in new[] { (0.1, 0.0, 0.0), (-0.1, 0.0, 0.0), (0.0, 0.1, 0.0), (0.0, 0.0, -0.1), (0.1, 0.1, 0.1) })
+    Check(Error(closest) < Error(new GroundPlane(closest.X, closest.Z, closest.Height + perturbation.Item1,
+        closest.SlopeX + perturbation.Item2, closest.SlopeZ + perturbation.Item3)), "Nearby alternative plane requires more squared vertical movement");
+GroundPlane seam = GroundPlane.Fit(noisy.Concat(Enumerable.Repeat(noisy[0], 30)));
+Check(Math.Abs(seam.SlopeX - closest.SlopeX) < 1e-10 && Math.Abs(seam.SlopeZ - closest.SlopeZ) < 1e-10 &&
+    Math.Abs(seam.At(0, 0) - closest.At(0, 0)) < 1e-10, "Duplicate tile-seam vertices do not bias the plane");
+foreach (var invalid in new[] {
+    Array.Empty<GroundSample>(), new[] { new GroundSample(0,0,0), new GroundSample(1,0,1) },
+    new[] { new GroundSample(0,0,0), new GroundSample(1,1,2), new GroundSample(2,2,4) },
+    new[] { new GroundSample(0,0,0), new GroundSample(0,0,1), new GroundSample(0,0,2) },
+    new[] { new GroundSample(0,0,double.NaN), new GroundSample(1,0,1), new GroundSample(0,1,2) },
+    new[] { new GroundSample(double.PositiveInfinity,0,0), new GroundSample(1,0,1), new GroundSample(0,1,2) },
+    new[] { new GroundSample(0,0,0), new GroundSample(1,1,0), new GroundSample(2,2 + 1e-8,0) },
+    Enumerable.Range(0, Geometry.MaxVertices + 1).Select(i => new GroundSample(i, i % 5, 0)).ToArray() })
+{
+    rejected = false;
+    try { GroundPlane.Fit(invalid); } catch (ArgumentException) { rejected = true; }
+    Check(rejected, "Invalid, degenerate, or oversized plane fit rejected");
+}
+Check(!Geometry.LevelDelta(0, 0, closest.At(1000, 1000), out _), "Fitted slope still obeys native height limits");
+Console.WriteLine($"Passed {checks} polygon, plane-fit, native height-limit, and conflict-safe undo checks.");

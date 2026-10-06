@@ -35,6 +35,7 @@ Field("Player", "m_lastToolUseTime", "System.Single");
 Field("Player", "m_buildRemoveDebt", "System.Int32");
 Field("Humanoid", "m_rightItem", "ItemDrop/ItemData");
 Method("TerrainComp", "Awake", "System.Void");
+Method("Heightmap", "GetHeight", "System.Single", "System.Int32", "System.Int32");
 Method("TerrainComp", "CheckLoad", "System.Void");
 Method("TerrainComp", "InternalDoOperation", "System.Void", "UnityEngine.Vector3", "UnityEngine.Vector3", "TerrainOp/Settings");
 Method("TerrainComp", "Save", "System.Void", "System.Boolean");

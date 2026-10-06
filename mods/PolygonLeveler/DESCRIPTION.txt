@@ -1,9 +1,9 @@
-Mark a convex polygon with your hoe and flatten its terrain to the first marker's height.
+Mark a convex polygon with your hoe, level it horizontally, or flatten it into a smooth sloped plane.
 
-Hold a hoe. Left Shift + left click places a marker; the convex outline shows the target plane. L flattens it and U undoes the last polygon. Backspace removes the last marker and Delete clears the outline. All keys are configurable.
+Hold a hoe. Left Shift + left click places a marker. L levels it to the first marker's height. Shift + L fits the closest plane to the current ground, removing bumps while keeping the average slope; the outline updates to that plane. U undoes the last polygon. Backspace removes the last marker and Delete clears the outline. All keys are configurable.
 
 Uses normal terrain saving and network ownership, checks wards and the game's height limits, preserves ground paint, and edits only terrain-grid vertices inside the convex boundary. The visible edge follows the terrain's triangles. Costs one hoe use per polygon, with no stone cost.
 
 Undo restores original heights and smoothing without refunding the hoe use. It refuses conflicting edits and checks current ward permissions and distance. Undo history lasts ten minutes, clears on reload, and requires the original terrain owner to remain available. An interrupted undo can be retried. Only leveling done with this version can be undone.
 
-Install this version on the host and participating players for multiplayer. Markers are local previews and disappear on reload. Changes to the ground persist normally. Gameplay and multiplayer still need an in-game playtest.
+The fitted plane minimizes squared vertical height changes over the selected ground vertices, counting tile seams once. Polygons too narrow to define a plane are rejected. Install 0.1.3 or newer on the host and participating players for Shift + L in multiplayer. Markers are local previews and disappear on reload. Changes to the ground persist normally. Gameplay and multiplayer still need an in-game playtest.

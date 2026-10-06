@@ -1,3 +1,5 @@
+0.1.3: Shift + L flattens the current ground to a least-squares fitted plane, preserving its average slope. L still levels horizontally to the first marker. Tile seams count once in the fit, the outline shows the fitted plane, normal terrain limits are checked for every target height, and U undoes either action. Multiplayer owners need 0.1.3 for fitted planes.
+
 0.1.2: U undoes the last polygon while holding a hoe. Restores prior heights and smoothing, preserves paint and unrelated edits, checks for conflicting terrain changes, and retains retryable owner-side history for ten minutes. Reload clears undo history. Multiplayer terrain owners need this version.
 
 0.1.1: Place markers with Left Shift + left click by default; no Right Alt key needed. L still flattens the marked polygon.

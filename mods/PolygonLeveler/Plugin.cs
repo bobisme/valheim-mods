@@ -14,10 +14,10 @@ namespace PolygonLeveler
     {
         public const string Guid = "com.bobisme.polygonleveler";
         public const string Name = "PolygonLeveler";
-        public const string Version = "0.1.2";
+        public const string Version = "0.1.3";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled;
-        private ConfigEntry<KeyCode> _modifier, _markerKey, _levelKey, _undoKey, _removeKey, _clearKey;
+        private ConfigEntry<KeyCode> _modifier, _markerKey, _levelKey, _flattenModifier, _undoKey, _removeKey, _clearKey;
         private ConfigEntry<float> _areaLimit, _distance;
         private Harmony _harmony;
         private readonly List<Vector3> _markers = new List<Vector3>();
@@ -43,6 +43,7 @@ namespace PolygonLeveler
             _modifier = Config.Bind("Controls", "MarkerModifier", KeyCode.LeftShift, "Hold with marker key to place markers instead of using the hoe.");
             _markerKey = Config.Bind("Controls", "PlaceMarker", KeyCode.Mouse0, "Place a marker on the aimed ground.");
             _levelKey = Config.Bind("Controls", "LevelPolygon", KeyCode.L, "Flatten the polygon to the first marker's height while holding a hoe.");
+            _flattenModifier = Config.Bind("Controls", "FlattenModifier", KeyCode.LeftShift, "Hold with LevelPolygon to fit a sloped plane to the current ground instead of leveling to the first marker.");
             _undoKey = Config.Bind("Controls", "UndoPolygon", KeyCode.U, "Undo the last polygon while holding a hoe. History lasts ten minutes and clears on reload.");
             _removeKey = Config.Bind("Controls", "RemoveMarker", KeyCode.Backspace, "Remove the last marker.");
             _clearKey = Config.Bind("Controls", "ClearMarkers", KeyCode.Delete, "Clear the marked polygon.");
@@ -84,7 +85,8 @@ namespace PolygonLeveler
             else if (LevelPressed && Time.unscaledTime - _lastUse > 1f)
             {
                 _lastUse = Time.unscaledTime;
-                _work = StartCoroutine(Guard(Level(p)));
+                // Read the modifier on the keypress, before the coroutine yields.
+                _work = StartCoroutine(Guard(Level(p, Input.GetKey(_flattenModifier.Value))));
             }
         }
 
@@ -116,7 +118,7 @@ namespace PolygonLeveler
             Draw();
         }
 
-        private void Draw()
+        private void Draw(GroundPlane? plane = null)
         {
             foreach (GameObject go in _visuals) if (go != null) Destroy(go);
             _visuals.Clear();
@@ -147,17 +149,21 @@ namespace PolygonLeveler
             if (_material != null) _outline.sharedMaterial = _material;
             _outline.positionCount = _hull.Count;
             for (int i = 0; i < _hull.Count; i++)
-                _outline.SetPosition(i, new Vector3((float)_hull[i].X, _markers[0].y + 0.12f, (float)_hull[i].Z));
+                _outline.SetPosition(i, new Vector3((float)_hull[i].X, (float)(plane?.At(_hull[i].X, _hull[i].Z) ?? _markers[0].y) + 0.12f, (float)_hull[i].Z));
         }
 
-        private IEnumerator Level(Player p)
+        private IEnumerator Level(Player p, bool fitPlane)
         {
             // Assign the coroutine before it can complete synchronously.
             yield return null;
             if (_hull.Count < 3 || Geometry.Area(_hull) < 0.5) { Say("Place at least three non-collinear markers."); _work = null; yield break; }
             if (Geometry.Area(_hull) > Mathf.Clamp(_areaLimit.Value, 1, 1000)) { Say("Polygon exceeds the maximum area."); _work = null; yield break; }
             List<TerrainAccess.Batch> batches;
-            try { batches = TerrainAccess.Plan(p, _hull, _markers[0].y, Distance); }
+            try
+            {
+                batches = TerrainAccess.Plan(p, _hull, _markers[0].y, Distance, fitPlane, out GroundPlane plane);
+                Draw(plane);
+            }
             catch (Exception ex) { Say(ex.Message); Logger.LogWarning(ex); _work = null; yield break; }
             long id = DateTime.UtcNow.Ticks;
             bool done = false;
@@ -165,10 +171,10 @@ namespace PolygonLeveler
             int vertices = batches.Sum(b => b.Cells.Count);
             foreach (TerrainAccess.Batch batch in batches)
             {
-                TerrainAccess.Send(batch, p, id, 1, (ok, text) => { failed = ok ? null : text; done = true; });
+                TerrainAccess.Send(batch, p, id, fitPlane ? 5 : 1, (ok, text) => { failed = ok ? null : text; done = true; });
                 float deadline = Time.unscaledTime + 5f;
                 while (!done && Time.unscaledTime < deadline) yield return null;
-                if (!done || failed != null) { Say(failed ?? "Terrain owner did not respond. Install PolygonLeveler on the host and other players."); TerrainAccess.Forget(id); _work = null; yield break; }
+                if (!done || failed != null) { Say(failed ?? "Terrain owner did not respond. Install PolygonLeveler 0.1.3 on the host and other players."); TerrainAccess.Forget(id); _work = null; yield break; }
                 done = false;
             }
             if (!Ready(p)) { TerrainAccess.Forget(id); _work = null; yield break; }
@@ -195,7 +201,7 @@ namespace PolygonLeveler
                 yield return null;
             }
             TerrainAccess.Forget(id);
-            Say(applied == batches.Count ? $"Leveled {Geometry.Area(_hull):0.#} m² ({vertices} terrain vertices). {_undoKey.Value} undoes." : $"Stopped after {applied} terrain tile(s). {_undoKey.Value} undoes.");
+            Say(applied == batches.Count ? $"{(fitPlane ? "Flattened to fitted plane" : "Leveled")} {Geometry.Area(_hull):0.#} m² ({vertices} terrain vertices). {_undoKey.Value} undoes." : $"Stopped after {applied} terrain tile(s). {_undoKey.Value} undoes.");
             _work = null;
         }
 
@@ -232,7 +238,7 @@ namespace PolygonLeveler
             string summary = _markers.Count == 0 ? "First marker sets the flat height." :
                 $"{_markers.Count} markers | {Geometry.Area(_hull):0.#} m² | height {_markers[0].y:0.00} m";
             GUI.Label(new Rect(20, Screen.height - 155, 1000, 80), Busy ? "PolygonLeveler: editing terrain… Escape stops further tiles." :
-                $"PolygonLeveler: {_modifier.Value}+{_markerKey.Value}: marker | {_levelKey.Value}: flatten | {_undoKey.Value}: undo | {_removeKey.Value}: remove | {_clearKey.Value}: clear\n{summary}");
+                $"PolygonLeveler: {_modifier.Value}+{_markerKey.Value}: marker | {_levelKey.Value}: level | {_flattenModifier.Value}+{_levelKey.Value}: fit plane | {_undoKey.Value}: undo | {_removeKey.Value}: remove | {_clearKey.Value}: clear\n{summary}");
         }
 
         private void Cancel()
