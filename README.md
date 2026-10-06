@@ -39,7 +39,9 @@ remain their original meshes: inspect the resulting ghosts before building those
 **Repeat:** select a post, decoration, or other building piece and press Ctrl+F4. Mark **start, bend, end** for its path. After the third
 point, an options panel opens beside the wire preview with a free mouse cursor. Choose a **Path anchor** (piece origin, visual center, or
 a named native snap point such as Bottom/Top), then adjust **spacing**, **yaw**, **pitch**, **roll**, and whether
-pieces **turn with the curve**; the preview updates immediately. **Confirm** submits shared ghosts, **Edit path** lets you replace the end
+pieces **turn with the curve**; the preview updates immediately. Use sliders for broad changes, or type an exact value and press **Enter**
+or **Apply**. The ± buttons adjust spacing by **0.05 m** and rotation by **1°**; hold **Shift** for **0.01 m / 0.1°** steps.
+**Confirm** also applies any unfinished numeric entries before submitting shared ghosts. **Edit path** lets you replace the end
 point, and **Cancel** exits. Escape closes the options while keeping the path; L reopens them. F4 exits the tool.
 
 Spacing is a maximum, adjusted evenly along the curve to include both endpoints. Curve-following applies the change in horizontal
@@ -74,7 +76,9 @@ batch, ghost-ray, input-conflict, undo, and world tests. Rendering, multiplayer 
 2. Mirror a roof wing, triangular under-roof wall (including inverted variants), sloped beam, and offset-pivot beam across an oblique
    line. Check native snaps, wedge slopes, roof pitch, and copied versus original pieces.
 3. Repeat upright posts along a curve. Confirm the options open automatically, cursor is free, spacing/yaw/pitch/roll/follow change the
-   preview, and slider clicks never move/look/attack/place. Choose a Bottom/Top/end snap and check that it stays on the path while
+   preview, and slider clicks never move/look/attack/place. Enter fractional spacing/angles, use ± with/without Shift, and check that
+   sliders keep the precise value until dragged. Try invalid/out-of-range entries, Enter/Apply, and Confirm with a pending edit.
+   Choose a Bottom/Top/end snap and check that it stays on the path while
    changing pitch/roll/yaw. Try Edit path, Escape/L, Cancel/F4, then F6 with the panel open.
 4. Build one output piece, then U: only its remaining ghosts disappear. Try protected, distant, scaled, and terrain-operation pieces.
 5. F6, reload the planner independently, switch worlds, open inventory/F11, or begin a blueprint/bridge. Check input/preview cleanup.

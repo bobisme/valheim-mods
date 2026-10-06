@@ -1,3 +1,5 @@
+0.2.3: Repeat now offers exact numeric entry and fine ± buttons for spacing and all rotation axes. Hold Shift for 0.01 m / 0.1° steps. Enter/Apply updates the preview; Confirm validates and applies pending edits. Sliders preserve precise values until dragged, and scrollable options keep the action buttons visible.
+
 0.2.2: Repeat's Path anchor picker offers piece origin, visual center, and each named native snap point. The selected point stays on the curve through yaw/pitch/roll and curve-following changes, with gold crosses showing anchor positions in the preview. Copying the same piece type preserves the anchor; another type resets it.
 
 0.2.1: Repeat options open after the third path marker, with live spacing, yaw/pitch/roll, and curve-following controls plus Confirm/Edit path/Cancel. Modal input and cursor handling keep menu clicks out of gameplay. Mirror now chooses its reflection axis and pivot from native snap geometry, fixing triangular under-roof partial walls and sloped beams without changing ordinary roof slopes.
