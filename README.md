@@ -2,6 +2,52 @@
 
 Bob's Valheim mods, built for native Linux and Windows and packaged for the in-game mod manager.
 
+## BuildShapes
+
+A small add-on for **BuildOrders**, starting with a three-dimensional Curve tool. It requires BuildOrders with the new planning API;
+the API change is available in [upstream PR #2](https://github.com/HardHeadHackerHead/valheim-mods/pull/2). Until it is merged, use the patched BuildOrders DLL from that branch. An older planner safely refuses activation. The add-on discovers the current planner instance
+again after F6 or individual mod reloads, so it can update independently.
+
+Equip a **hammer**, select a **beam or pole**, and close the piece menu:
+
+| Controls | Action |
+| --- | --- |
+| **F4** | Enter/exit Curve mode |
+| **Left Shift + left click** | Mark the **start**, **bend**, then **end** |
+| **L** | Submit the preview as shared BuildOrders ghosts |
+| **Backspace** | Remove the last marker |
+| **U** in Curve mode | Remove the unbuilt ghosts from your last curve |
+| **Escape** | Exit and clear the local preview |
+
+Markers can be placed on terrain or buildings; nearby building snap points are used automatically. The turquoise strokes show the pieces'
+center lines. The fitted curve goes through the bend marker and works in any orientation, including vertical arches. Shorter beams follow
+tighter bends. Pieces keep their native length, with overlaps at joints, and the outer ends meet the first/last markers. Beams and
+poles must have their original prefab scale and exactly two endpoint snap points, with a span from 0.25 to 8 metres. Curves are bounded to 128 metres and 256 pieces;
+degenerate or excessively tight bends are rejected before planning.
+
+Build the ghosts with the planner's usual **E** controls and normal materials. Only the designer needs BuildShapes; participating players should use
+BuildOrders with the new add-on API and the chosen piece prefabs. Older planners can build the ghosts but still expose blueprint terrain actions. Curve mode reserves normal hammer placement; exit with F4 to select another piece or build
+normally. The planner's Plans window also lists the generated group. Its blueprint Move/Level actions are disabled for add-on shapes,
+which should be redrawn with the shape tool rather than moved through terrain leveling.
+
+U removes only remaining ghosts: already built pieces and terrain stay intact. Undo is one step in the current session and clears on F6,
+death/respawn, or world changes. Planned ghosts remain in BuildOrders' ordinary saved/shared plans after the add-on unloads. Settings are
+in `BepInEx/config/com.bobisme.buildshapes.cfg`. Repeat, symmetry, and ornament tools are future additions.
+
+BuildShapes checks cover native-length curve geometry, endpoint alignment, invalid/tight curves, and reflection dispatch across missing,
+old, independently reloaded, and failing planner instances. The upstream API has separate batch/undo/world tests. Rendering, real
+multiplayer delivery, save/reload, and fresh-launch behavior still need game playtests:
+
+1. With a 1m or 2m wood beam selected, mark a horizontal curve and a vertical arch. Confirm turquoise center lines align with the full
+   ghosts after L, normal materials are needed to build, and native support/stability rules apply.
+2. Build one piece, then press U in Curve mode: its real piece should remain while the rest of the curve ghosts disappear.
+3. Repeat with an offset-pivot beam, a tight bend, too-short span, protected area, and an unsupported multi-snap piece.
+4. Independently reload/disable/re-enable BuildOrders, then F6 both mods, and switch worlds. Confirm no stale calls, markers, or undo keys.
+5. Have another player view and build a curve with BuildOrders alone. Save/restart and confirm the generated ghosts remain.
+
+For developers, `mise run verify -- --planner-assembly /path/to/BuildOrders.dll` checks the compiled public planning interface alongside
+the game signatures, published mod metadata, hot-reload dependency declaration, and loader-readable symbols.
+
 ## PolygonLeveler
 
 Mark out a building pad and level it, or flatten uneven ground while keeping its average slope. Equip a **hoe**:

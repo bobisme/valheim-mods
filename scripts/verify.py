@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 """Validate game-specific API assumptions without launching or mutating Valheim."""
+import argparse
 import os
 from pathlib import Path
 import subprocess
 
 root = Path(__file__).resolve().parent.parent
+parser = argparse.ArgumentParser()
+parser.add_argument("--planner-assembly", type=Path, help="Also verify the BuildOrders public planning interface and symbols")
+args = parser.parse_args()
 home = Path.home()
 candidates = [Path(os.environ["VALHEIM_DIR"])] if os.environ.get("VALHEIM_DIR") else [
     home / ".local/share/Steam/steamapps/common/Valheim",
@@ -15,5 +19,8 @@ candidates = [Path(os.environ["VALHEIM_DIR"])] if os.environ.get("VALHEIM_DIR") 
 game = next((p.resolve() for p in candidates if (p / "valheim_Data/Managed/assembly_valheim.dll").is_file()), None)
 if game is None:
     raise SystemExit("Set VALHEIM_DIR to the installed game directory.")
-subprocess.run(["dotnet", "run", "--project", str(root / "tests/Farmhand.ApiCheck"), "-c", "Release",
-                "-p:ValheimDir=" + str(game), "--", str(game), str(root / "dist/manifest.json")], check=True)
+command = ["dotnet", "run", "--project", str(root / "tests/Farmhand.ApiCheck"), "-c", "Release",
+           "-p:ValheimDir=" + str(game), "--", str(game), str(root / "dist/manifest.json")]
+if args.planner_assembly:
+    command.append(str(args.planner_assembly.resolve()))
+subprocess.run(command, check=True)

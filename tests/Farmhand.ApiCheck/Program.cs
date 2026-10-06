@@ -1,8 +1,11 @@
 using System.Text.Json;
 using Mono.Cecil;
 
-if (args.Length != 2) throw new Exception("Expected game directory and manifest.json");
-using var game = AssemblyDefinition.ReadAssembly(Path.Combine(args[0], "valheim_Data/Managed/assembly_valheim.dll"));
+if (args.Length != 2 && args.Length != 3) throw new Exception("Expected game directory, manifest.json, and optional planner DLL");
+using var resolver = new DefaultAssemblyResolver();
+resolver.AddSearchDirectory(Path.Combine(args[0], "BepInEx/core"));
+resolver.AddSearchDirectory(Path.Combine(args[0], "valheim_Data/Managed"));
+using var game = AssemblyDefinition.ReadAssembly(Path.Combine(args[0], "valheim_Data/Managed/assembly_valheim.dll"), new ReaderParameters { AssemblyResolver = resolver });
 void Method(string type, string name, string result, params string[] parameters)
 {
     TypeDefinition target = game.MainModule.Types.Single(t => t.FullName == type);
@@ -23,6 +26,8 @@ Method("Player", "ConsumeResources", "System.Void", "Piece/Requirement[]", "Syst
 Method("Player", "PieceRayTest", "System.Boolean", "UnityEngine.Vector3&", "UnityEngine.Vector3&", "Piece&", "Heightmap&", "UnityEngine.Collider&", "System.Boolean");
 Method("Player", "UpdatePlacementGhost", "System.Void", "System.Boolean");
 Method("Player", "UpdatePlacement", "System.Void", "System.Boolean", "System.Single");
+Method("Menu", "Update", "System.Void");
+Method("Piece", "GetSnapPoints", "System.Void", "System.Collections.Generic.List`1<UnityEngine.Transform>");
 Method("Plant", "UpdateHealth", "System.Void", "System.Double");
 Method("Plant", "GetStatus", "Plant/Status");
 Method("Pickable", "Interact", "System.Boolean", "Humanoid", "System.Boolean", "System.Boolean");
@@ -57,15 +62,39 @@ foreach (var entry in catalog.RootElement.GetProperty("mods").EnumerateArray())
 {
     string name = entry.GetProperty("name").GetString()!;
     string directory = Path.GetDirectoryName(args[1])!;
-    using var mod = AssemblyDefinition.ReadAssembly(Path.Combine(directory, name + ".dll"), new ReaderParameters { ReadSymbols = true });
+    using var mod = AssemblyDefinition.ReadAssembly(Path.Combine(directory, name + ".dll"), new ReaderParameters { ReadSymbols = true, AssemblyResolver = resolver });
     if (!mod.MainModule.HasSymbols) throw new Exception("ScriptEngine symbols not readable: " + name);
     var attribute = mod.MainModule.Types.SelectMany(t => t.CustomAttributes).Single(a => a.AttributeType.FullName == "BepInEx.BepInPlugin");
+    if (name == "BuildShapes")
+    {
+        if (mod.MainModule.AssemblyReferences.Any(r => r.Name.StartsWith("BuildOrders", StringComparison.Ordinal)))
+            throw new Exception("BuildShapes must not bind a hot-reloaded BuildOrders assembly identity.");
+        if (!mod.MainModule.Types.SelectMany(t => t.CustomAttributes).Any(a => a.AttributeType.FullName == "BepInEx.BepInDependency" &&
+            (string)a.ConstructorArguments[0].Value == "com.dhack.buildorders"))
+            throw new Exception("BuildShapes planner dependency is missing.");
+    }
     foreach (var (key, index) in new[] { ("guid", 0), ("name", 1), ("version", 2) })
         if (entry.GetProperty(key).GetString() != (string)attribute.ConstructorArguments[index].Value)
             throw new Exception("Published metadata mismatch: " + name + ":" + key);
     foreach (string? file in entry.GetProperty("files").EnumerateArray().Select(e => e.GetString()))
         if (file == null || !File.Exists(Path.Combine(directory, file))) throw new Exception("Published file missing: " + file);
     Console.WriteLine(name + ": metadata and symbols verified");
+}
+if (args.Length == 3)
+{
+    using var planner = AssemblyDefinition.ReadAssembly(args[2], new ReaderParameters { ReadSymbols = true, AssemblyResolver = resolver });
+    var plugin = planner.MainModule.Types.Single(t => t.FullName == "BuildOrders.Plugin");
+    if (!planner.MainModule.HasSymbols || !plugin.Fields.Any(f => f.Name == "PlanningApiVersion" && f.HasConstant && (int)f.Constant == 1))
+        throw new Exception("Planner symbols or API version are incompatible.");
+    void Api(string name, params string[] parameters)
+    {
+        if (!plugin.Methods.Any(m => m.IsPublic && !m.IsStatic && m.Name == name && m.ReturnType.FullName == "System.Boolean" &&
+            m.Parameters.Select(p => p.ParameterType.FullName).SequenceEqual(parameters)))
+            throw new Exception("Planner API signature mismatch: " + name);
+    }
+    Api("TryCreateGhostPlan", "Player", "System.String", "System.String[]", "UnityEngine.Vector3[]", "UnityEngine.Quaternion[]", "System.String&", "System.String&");
+    Api("TryRemoveGhostPlan", "Player", "System.String", "System.Int32&", "System.String&");
+    Console.WriteLine("BuildOrders: public planning API and symbols verified; BuildShapes has no planner assembly binding.");
 }
 Console.WriteLine("All native crop/terrain APIs, private members, and Harmony targets match the installed game.");
 Console.WriteLine("Published plugin metadata matches its catalog; DLL/PDB symbols are readable by the installed Cecil.");

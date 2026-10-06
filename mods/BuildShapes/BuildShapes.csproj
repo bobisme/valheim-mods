@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>BuildShapes</AssemblyName><RootNamespace>BuildShapes</RootNamespace></PropertyGroup>
+</Project>
