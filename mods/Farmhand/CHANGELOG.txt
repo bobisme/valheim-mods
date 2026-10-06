@@ -1,0 +1,1 @@
+0.1.0: First release. Spaced crop rows with a reach preview, bounded nearby harvesting and replanting using real seeds, and unhealthy-crop labels. Native Linux builds and hot reload support.

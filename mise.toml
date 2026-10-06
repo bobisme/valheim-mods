@@ -12,3 +12,11 @@ run = "dotnet run --project tests/Farmhand.Tests -c Release"
 [tasks.publish]
 description = "Build DLL, symbols, and mod-manager catalog"
 run = "python3 scripts/publish.py"
+
+[tasks.verify]
+description = "Verify game patch targets and published ScriptEngine symbols"
+run = "python3 scripts/verify.py"
+
+[tasks.install]
+description = "Build and copy Farmhand into the local game's ScriptEngine folder"
+run = "dotnet build mods/Farmhand -c Release -p:DeployToGame=true"
