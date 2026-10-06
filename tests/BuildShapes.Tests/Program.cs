@@ -80,8 +80,19 @@ foreach(var fixture in fixtures.RootElement.EnumerateArray())
  {
   V3 expected=mirror.Point(source+r*point.X+u*point.Y+f*point.Z);
   Check(snaps.Any(q=>Near(root+mr*q.X+mu*q.Y+mf*q.Z,expected)),fixtureName+": every reflected native snap lands correctly");
+  // Use a tilted final frame: pinning must include the selected snap's full XYZ offset,
+  // not just height, and must remain correct away from the world origin.
+  foreach(V3 station in new[]{new V3(5,7,-3),new V3(10000,21,-10000)})
+  {
+   V3 placed=Curve.AnchoredOrigin(station,point,r,u,f);
+   Check(Near(placed+r*point.X+u*point.Y+f*point.Z,station),fixtureName+": selected Repeat snap stays on the path after final tilt/yaw");
+  }
  }
 }
+V3 anchorStation=new V3(10,20,30);
+Check(Near(Curve.AnchoredOrigin(anchorStation,new V3(0,-1,0),new V3(1,0,0),new V3(0,0,1),new V3(0,-1,0)),new V3(10,20,31)),"Bottom of a pitched post pins to the path, not its root");
+Check(Near(Curve.AnchoredOrigin(anchorStation,new V3(2,0,0),new V3(0,0,-1),new V3(0,1,0),new V3(1,0,0)),new V3(10,20,32)),"End of a yawed beam pins to the path");
+Check(Near(Curve.AnchoredOrigin(anchorStation,new V3(),new V3(1,0,0),new V3(0,0,1),new V3(0,-1,0)),anchorStation),"Piece origin retains legacy Repeat placement");
 var offsetProfile=MirrorProfile.Choose(new[]{new V3(0,0,0),new V3(4,0,0)},new V3(2.1,0,0));
 Check(!offsetProfile.FlipZ&&offsetProfile.Centre==2,"Snap-derived origin compensation avoids decorative mesh-bound drift");
 var fallback=MirrorProfile.Choose(Array.Empty<V3>(),new V3(2.1,0,0));

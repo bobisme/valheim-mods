@@ -30,11 +30,12 @@ namespace BuildShapes
             bool enabled=GUI.enabled;
             try
             {
-                float scale=Mathf.Max(0.6f,Screen.height/1080f);
+                float scale=Mathf.Min(Mathf.Max(0.6f,Screen.height/1080f),Screen.height/820f);
                 GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1));
                 float sw=Screen.width/scale,sh=Screen.height/scale;
-                const float width=440,height=620;
+                const float width=440,height=780;
                 if(!_repeatRectPlaced){_repeatRect=new Rect(sw-width-25,(sh-height)/2,width,height);_repeatRectPlaced=true;}
+                _repeatRect.width=width;_repeatRect.height=height;
                 _repeatRect.x=Mathf.Clamp(_repeatRect.x,0,Mathf.Max(0,sw-width));
                 _repeatRect.y=Mathf.Clamp(_repeatRect.y,0,Mathf.Max(0,sh-height));
                 // Ignore the marker click that caused this window to appear.
@@ -49,7 +50,8 @@ namespace BuildShapes
             GUILayout.Label("Repeat",_menuTitle);
             GUILayout.Label($"{_seed.Prefab} · {_output.Count} pieces",_menuText);
             GUILayout.Space(8);
-            bool changed=false;
+            bool changed=DrawRepeatAnchors();
+            GUILayout.Space(8);
             GUILayout.Label($"Spacing: {SafeSpacing():0.##} m",_menuText);
             float spacing=Mathf.Round(GUILayout.HorizontalSlider(SafeSpacing(),0.25f,16f)*20)/20;
             GUILayout.BeginHorizontal();

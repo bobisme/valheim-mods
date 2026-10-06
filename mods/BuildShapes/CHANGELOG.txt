@@ -1,3 +1,5 @@
+0.2.2: Repeat's Path anchor picker offers piece origin, visual center, and each named native snap point. The selected point stays on the curve through yaw/pitch/roll and curve-following changes, with gold crosses showing anchor positions in the preview. Copying the same piece type preserves the anchor; another type resets it.
+
 0.2.1: Repeat options open after the third path marker, with live spacing, yaw/pitch/roll, and curve-following controls plus Confirm/Edit path/Cancel. Modal input and cursor handling keep menu clicks out of gameplay. Mirror now chooses its reflection axis and pivot from native snap geometry, fixing triangular under-roof partial walls and sloped beams without changing ordinary roof slopes.
 
 0.2.0: Mirror selected built pieces/ghosts across a marked line, and Repeat any building piece along a three-point curve. Adjustable spacing, yaw and fixed/follow orientation; offset-pivot compensation; shared shape undo; planner input-conflict guards and hot-reload-safe ghost selection. Shift+F4 Mirror, Ctrl+F4 Repeat; original F4 Curve remains.

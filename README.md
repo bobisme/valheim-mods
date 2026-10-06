@@ -37,14 +37,17 @@ pitches mirror correctly. Asymmetric carvings, lettering, or handed decorations
 remain their original meshes: inspect the resulting ghosts before building those.
 
 **Repeat:** select a post, decoration, or other building piece and press Ctrl+F4. Mark **start, bend, end** for its path. After the third
-point, an options panel opens beside the wire preview with a free mouse cursor. Adjust **spacing**, **yaw**, **pitch**, **roll**, and whether
+point, an options panel opens beside the wire preview with a free mouse cursor. Choose a **Path anchor** (piece origin, visual center, or
+a named native snap point such as Bottom/Top), then adjust **spacing**, **yaw**, **pitch**, **roll**, and whether
 pieces **turn with the curve**; the preview updates immediately. **Confirm** submits shared ghosts, **Edit path** lets you replace the end
 point, and **Cancel** exits. Escape closes the options while keeping the path; L reopens them. F4 exits the tool.
 
 Spacing is a maximum, adjusted evenly along the curve to include both endpoints. Curve-following applies the change in horizontal
 heading relative to the first point; seed tilt and initial heading are preserved, then the chosen yaw/pitch/roll offsets are applied.
-An upright post stays upright with zero tilt offsets. A vertical tangent keeps the previous heading. Native placement origins sit on the
-path without automatic terrain alignment. The keyboard shortcuts **[ / ]**, **Page Up / Down**, and **Home** still work outside the panel.
+An upright post stays upright with zero tilt offsets. A vertical tangent keeps the previous heading. The chosen anchor sits on the path
+after the final rotation, so a Bottom snap follows the path at the base of a post, or an end snap at the end of a beam. Gold crosses mark
+the anchor positions. Piece origin preserves the previous behavior; Visual center uses the mesh bounds. Sampling the same piece type
+keeps your anchor choice; choosing a different type resets it to Piece origin. This does not align pieces to terrain automatically. The keyboard shortcuts **[ / ]**, **Page Up / Down**, and **Home** still work outside the panel.
 Ctrl+click a built piece/visible ghost outside the panel to copy its prefab and orientation; completed paths reopen the options afterward.
 Mark a horizontal curve for a palisade, or an arch to repeat ribs/decorations in three dimensions.
 
@@ -71,7 +74,8 @@ batch, ghost-ray, input-conflict, undo, and world tests. Rendering, multiplayer 
 2. Mirror a roof wing, triangular under-roof wall (including inverted variants), sloped beam, and offset-pivot beam across an oblique
    line. Check native snaps, wedge slopes, roof pitch, and copied versus original pieces.
 3. Repeat upright posts along a curve. Confirm the options open automatically, cursor is free, spacing/yaw/pitch/roll/follow change the
-   preview, and slider clicks never move/look/attack/place. Try Edit path, Escape/L, Cancel/F4, then F6 with the panel open.
+   preview, and slider clicks never move/look/attack/place. Choose a Bottom/Top/end snap and check that it stays on the path while
+   changing pitch/roll/yaw. Try Edit path, Escape/L, Cancel/F4, then F6 with the panel open.
 4. Build one output piece, then U: only its remaining ghosts disappear. Try protected, distant, scaled, and terrain-operation pieces.
 5. F6, reload the planner independently, switch worlds, open inventory/F11, or begin a blueprint/bridge. Check input/preview cleanup.
 6. Have another player view/build shapes with the updated planner alone. Save/restart and confirm ghosts persist.

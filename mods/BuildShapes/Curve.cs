@@ -25,6 +25,10 @@ namespace BuildShapes
     {
         internal const int MaximumPieces = 256;
         private const int Samples = 1024;
+        // Pin the chosen prefab-local point to a path station using the FINAL oriented frame.
+        // This keeps the anchor fixed when curve-following or yaw/pitch/roll changes.
+        internal static V3 AnchoredOrigin(V3 station,V3 anchor,V3 right,V3 up,V3 forward) =>
+            station-right*anchor.X-up*anchor.Y-forward*anchor.Z;
         // The middle marker is ON the curve, rather than an invisible Bezier control handle.
         internal static V3 At(V3 start, V3 middle, V3 end, double t)
         {

@@ -15,7 +15,7 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.2.1";
+        public const string Version = "0.2.2";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
@@ -33,7 +33,7 @@ namespace BuildShapes
         private readonly List<GameObject> _visuals = new List<GameObject>();
         private readonly Dictionary<string, Bounds> _bounds = new Dictionary<string, Bounds>();
         private readonly Dictionary<string, MirrorProfile> _mirrorProfiles = new Dictionary<string, MirrorProfile>();
-        private Material _material;
+        private Material _material, _anchorMaterial;
         private string _selected, _lastPlan, _previewError;
         private PiecePose _seed;
         private Vector3 _localStart, _localEnd;
@@ -171,6 +171,7 @@ namespace BuildShapes
             {
                 GameObject ghost = PlacementGhost.GetValue(player) as GameObject;
                 _seed = new PiecePose(null, name, Vector3.zero, ghost != null ? ghost.transform.rotation : Quaternion.identity);
+                SetRepeatAnchors(name);
             }
             _tool = requested;
             Say(requested == Tool.Mirror ? "Mirror: Shift+click two points for the line; Ctrl+click pieces/ghosts to select." :
@@ -223,7 +224,7 @@ namespace BuildShapes
             }
             if (Vector3.Distance(pose.Position, player.transform.position) > 40f) { Say("Move within 40 metres of that piece."); return; }
             if (!UsablePrefab(pose.Prefab, out _)) return;
-            if (_tool == Tool.Repeat) { _seed = pose; Say("Repeat piece and orientation copied."); }
+            if (_tool == Tool.Repeat) { _seed = pose; SetRepeatAnchors(pose.Prefab); Say("Repeat piece and orientation copied."); }
             else
             {
                 int at = _sources.FindIndex(p => p.Id == pose.Id);
@@ -295,7 +296,15 @@ namespace BuildShapes
                     {
                         float turn = _yaw + (_follow.Value ? (float)(station.Yaw - stations[0].Yaw) : 0);
                         Quaternion tilt=Quaternion.AngleAxis(_pitch,Vector3.right)*Quaternion.AngleAxis(_roll,Vector3.forward);
-                        _output.Add(new PiecePose(null, _seed.Prefab, V(station.Position), Quaternion.AngleAxis(turn, Vector3.up) * _seed.Rotation * tilt));
+                        Quaternion rotation=Quaternion.AngleAxis(turn, Vector3.up) * _seed.Rotation * tilt;
+                        Vector3 anchor=RepeatAnchor;
+                        Vector3 position=V(Curve.AnchoredOrigin(station.Position,V(anchor),V(rotation*Vector3.right),V(rotation*Vector3.up),V(rotation*Vector3.forward)));
+                        _output.Add(new PiecePose(null, _seed.Prefab, position, rotation));
+                        Vector3 point=V(station.Position);
+                        const float size=0.10f;
+                        Line(new[]{point-Vector3.right*size,point+Vector3.right*size,point,
+                            point-Vector3.up*size,point+Vector3.up*size,point,
+                            point-Vector3.forward*size,point+Vector3.forward*size},0.035f,true);
                     }
                 }
             }
@@ -354,7 +363,7 @@ namespace BuildShapes
                 new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1));
             return result;
         }
-        private void Line(Vector3[] points, float width)
+        private void Line(Vector3[] points, float width, bool anchor=false)
         {
             if (_material == null)
             {
@@ -362,9 +371,10 @@ namespace BuildShapes
                 if (shader == null) return;
                 _material = new Material(shader) { color = new Color(0.3f, 0.95f, 0.9f) };
             }
+            if(anchor && _anchorMaterial==null)_anchorMaterial=new Material(_material){color=new Color(1f,0.75f,0.2f)};
             GameObject go = new GameObject("BuildShapes local preview"); go.layer = LayerMask.NameToLayer("Ignore Raycast");
             LineRenderer line = go.AddComponent<LineRenderer>(); line.useWorldSpace = true;
-            line.sharedMaterial = _material; line.startWidth = line.endWidth = width;
+            line.sharedMaterial = anchor?_anchorMaterial:_material; line.startWidth = line.endWidth = width;
             line.positionCount = points.Length; line.SetPositions(points); _visuals.Add(go);
         }
         private void Submit(Player player)
@@ -387,11 +397,12 @@ namespace BuildShapes
         }
         private void ClearVisuals() { foreach (GameObject go in _visuals) if (go != null) Destroy(go); _visuals.Clear(); }
         private void ClearShape() { CloseRepeatMenu(); _markers.Clear(); _sources.Clear(); _output.Clear(); _previewError = null; ClearVisuals(); }
-        private void Stop() { _tool = Tool.None; _yaw = _pitch = _roll = 0; _seed = default; _bounds.Clear(); _mirrorProfiles.Clear(); ClearShape(); }
+        private void Stop() { _tool = Tool.None; _yaw = _pitch = _roll = 0; _seed = default; ResetRepeatAnchors(); _bounds.Clear(); _mirrorProfiles.Clear(); ClearShape(); }
         private static void Say(string text) { Player.m_localPlayer?.Message(MessageHud.MessageType.Center, "BuildShapes: " + (text ?? "Planner unavailable.")); }
         private void OnDestroy()
         {
             Stop(); _harmony?.UnpatchSelf(); if (_material != null) Destroy(_material);
+            if(_anchorMaterial!=null)Destroy(_anchorMaterial);
             if (Instance == this) Instance = null;
         }
     }
