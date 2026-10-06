@@ -1,0 +1,14 @@
+[tools]
+dotnet = "10.0.300"
+
+[tasks.build]
+description = "Build Farmhand without changing the game"
+run = "dotnet build mods/Farmhand -c Release -p:DeployToGame=false"
+
+[tasks.test]
+description = "Check row geometry and harvest acknowledgement rules"
+run = "dotnet run --project tests/Farmhand.Tests -c Release"
+
+[tasks.publish]
+description = "Build DLL, symbols, and mod-manager catalog"
+run = "python3 scripts/publish.py"
