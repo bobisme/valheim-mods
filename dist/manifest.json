@@ -3,9 +3,9 @@
     {
       "guid": "com.bobisme.farmhand",
       "name": "Farmhand",
-      "version": "0.1.0",
-      "description": "Plant spaced rows and harvest/replant nearby crops with your cultivator. See why unhealthy plants cannot grow.\n\nEquip a cultivator and select a crop. Hold Right Alt to preview a row, and press J to plant it. Hold Right Alt and press U to harvest nearby mature crops and replant the same types; also hold Shift to harvest without replanting.\n\nEvery planted crop uses normal seeds/materials, stamina, and cultivator durability. Normal placement reach, cultivated soil, biome, sunlight, spacing, and protected areas still apply. Harvested drops remain normal world items; bring seeds before replanting. BuildFromChests can supply seeds while the cultivator is equipped.\n\nSupports crop and seed-crop pieces in the cultivator, not trees, vines, wild berries, or respawning plants. New controls and batch sizes are configurable through the mod manager. Turn off BuildOrders plan mode before using batch actions. Peers and the host do not need Farmhand.",
-      "notes": "0.1.0: First release. Spaced crop rows with a reach preview, bounded nearby harvesting and replanting using real seeds, and unhealthy-crop labels. Native Linux builds and hot reload support.",
+      "version": "0.1.1",
+      "description": "Plant spaced rows and harvest/replant nearby crops with your cultivator. See why unhealthy plants cannot grow.\n\nEquip a cultivator and select a crop. Hold Left Shift to preview a row, and press J to plant it. Hold Left Shift and press U to harvest nearby mature crops and replant the same types; also hold Left Ctrl to harvest without replanting.\n\nEvery planted crop uses normal seeds/materials, stamina, and cultivator durability. Normal placement reach, cultivated soil, biome, sunlight, spacing, and protected areas still apply. Harvested drops remain normal world items; bring seeds before replanting. BuildFromChests can supply seeds while the cultivator is equipped.\n\nSupports crop and seed-crop pieces in the cultivator, not trees, vines, wild berries, or respawning plants. New controls and batch sizes are configurable through the mod manager. Turn off BuildOrders plan mode before using batch actions. Peers and the host do not need Farmhand.",
+      "notes": "0.1.1: Default controls use Left Shift instead of Right Alt. Left Ctrl is the configurable harvest-only modifier, so Shift + U still replants.",
       "restart": "",
       "cover": "",
       "files": [
@@ -16,9 +16,9 @@
     {
       "guid": "com.bobisme.polygonleveler",
       "name": "PolygonLeveler",
-      "version": "0.1.0",
-      "description": "Mark a convex polygon with your hoe and flatten its terrain to the first marker's height.\n\nHold a hoe. Right Alt + left click places a marker; the convex outline shows the target plane. L flattens it. Backspace removes the last marker and Delete clears the outline. All keys are configurable.\n\nUses normal terrain saving and network ownership, checks wards and the game's height limits, preserves ground paint, and edits only terrain-grid vertices inside the convex boundary. The visible edge follows the terrain's triangles. Costs one hoe use per polygon, with no stone cost.\n\nInstall on the host and participating players for multiplayer. Markers are local previews and disappear on reload. Changes to the ground persist normally. The first release needs an in-game playtest.",
-      "notes": "0.1.0: First release. Convex marker outline, first-marker target height, L to flatten, protected-ground and terrain-limit checks, native terrain persistence, bounded owner-acknowledged multiplayer edits, and hot reload cleanup.",
+      "version": "0.1.1",
+      "description": "Mark a convex polygon with your hoe and flatten its terrain to the first marker's height.\n\nHold a hoe. Left Shift + left click places a marker; the convex outline shows the target plane. L flattens it. Backspace removes the last marker and Delete clears the outline. All keys are configurable.\n\nUses normal terrain saving and network ownership, checks wards and the game's height limits, preserves ground paint, and edits only terrain-grid vertices inside the convex boundary. The visible edge follows the terrain's triangles. Costs one hoe use per polygon, with no stone cost.\n\nInstall on the host and participating players for multiplayer. Markers are local previews and disappear on reload. Changes to the ground persist normally. The first release needs an in-game playtest.",
+      "notes": "0.1.1: Place markers with Left Shift + left click by default; no Right Alt key needed. L still flattens the marked polygon.",
       "restart": "",
       "cover": "",
       "files": [

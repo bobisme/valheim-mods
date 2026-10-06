@@ -1,1 +1,3 @@
+0.1.1: Default controls use Left Shift instead of Right Alt. Left Ctrl is the configurable harvest-only modifier, so Shift + U still replants.
+
 0.1.0: First release. Spaced crop rows with a reach preview, bounded nearby harvesting and replanting using real seeds, and unhealthy-crop labels. Native Linux builds and hot reload support.

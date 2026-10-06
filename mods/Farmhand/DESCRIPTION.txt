@@ -1,6 +1,6 @@
 Plant spaced rows and harvest/replant nearby crops with your cultivator. See why unhealthy plants cannot grow.
 
-Equip a cultivator and select a crop. Hold Right Alt to preview a row, and press J to plant it. Hold Right Alt and press U to harvest nearby mature crops and replant the same types; also hold Shift to harvest without replanting.
+Equip a cultivator and select a crop. Hold Left Shift to preview a row, and press J to plant it. Hold Left Shift and press U to harvest nearby mature crops and replant the same types; also hold Left Ctrl to harvest without replanting.
 
 Every planted crop uses normal seeds/materials, stamina, and cultivator durability. Normal placement reach, cultivated soil, biome, sunlight, spacing, and protected areas still apply. Harvested drops remain normal world items; bring seeds before replanting. BuildFromChests can supply seeds while the cultivator is equipped.
 

@@ -8,13 +8,13 @@ Mark out a building pad and flatten its ground to one height. Equip a **hoe**:
 
 | Controls | Action |
 | --- | --- |
-| **Right Alt + left click** | Put a marker on the ground you aim at |
+| **Left Shift + left click** | Put a marker on the ground you aim at |
 | **L** | Flatten the convex polygon to the **first marker's height** |
 | **Backspace** | Remove the last marker |
 | **Delete** | Clear the markers |
 | **Escape** or put away the hoe | Stop sending edits to further terrain tiles |
 
-Markers can be placed in any order; their convex hull forms the boundary, so interior markers do not create dents. The turquoise outline shows the target plane. Put the first marker at the height you want, then add at least two more corners. The HUD shows the area and height before you press L. While Right Alt is held, the normal hoe action is suppressed so placing a marker does not alter the ground. L is only handled during normal play with a hoe; it does not replace QualityOfLife's inventory item-lock key.
+Markers can be placed in any order; their convex hull forms the boundary, so interior markers do not create dents. The turquoise outline shows the target plane. Put the first marker at the height you want, then add at least two more corners. The HUD shows the area and height before you press L. While Left Shift is held, the normal hoe action is suppressed so placing a marker does not alter the ground. L is only handled during normal play with a hoe; it does not replace QualityOfLife's inventory item-lock key.
 
 The default limit is 400 m², with all selected vertices within 30 metres of you, at most 16 markers, and 2,048 grid vertices across terrain tiles. Leveling costs one normal hoe use in stamina and durability, with no stone cost. It preserves ground paint and cultivation and honors wards, no-build areas, and the game's normal ±8-metre terrain limits. A tile that fails to rebuild at the requested height is restored before saving.
 
@@ -40,10 +40,10 @@ Equip a **cultivator**, open its build menu, and select a crop:
 
 | Controls | Action |
 | --- | --- |
-| Hold **Right Alt** | Show row positions around the normal placement ghost |
-| **Right Alt + J** | Plant a spaced row of the selected crop |
-| **Right Alt + U** | Harvest nearby mature crops, then replant the same crop types |
-| **Right Alt + Shift + U** | Harvest nearby crops without replanting |
+| Hold **Left Shift** | Show row positions around the normal placement ghost |
+| **Left Shift + J** | Plant a spaced row of the selected crop |
+| **Left Shift + U** | Harvest nearby mature crops, then replant the same crop types |
+| **Left Shift + Left Ctrl + U** | Harvest nearby crops without replanting |
 | **Escape** or put away the cultivator | Cancel the current batch |
 
 Aim a little in front of your feet so the row fits within normal placement reach. Green preview dots mean the ground is within reach; actual planting additionally checks cultivation, biome, sunlight, obstacles, wards, and crop growth space. Blocked spots are skipped. Minimum spacing is 1.8 metres by default and increases for crops with larger growth radii.
@@ -91,7 +91,7 @@ Manual checks for a first playtest:
 1. Plant a row on cultivated soil. Check each crop consumes the usual seeds, stamina, and durability; aim near the edge of reach and confirm distant spots are skipped.
 2. Try uncultivated soil, a wrong biome, a roof, an occupied spot, and a protected ward. No invalid crop should be planted or paid for.
 3. Run out of seeds or stamina midway through a row. The batch should stop without creating free crops.
-4. Harvest and replant mature crops. With no seeds, harvesting should still work and leave empty spots. Shift should harvest only.
+4. Harvest and replant mature crops. With no seeds, harvesting should still work and leave empty spots. Left Ctrl should harvest only.
 5. With a friend hosting, harvest crops whose network owner is the friend. Confirm no duplicate drops and no replant before the harvest response.
 6. Change tool, open a menu, die, move away, or press F6 during a batch. Check it stops and restores normal manual planting. Repeated F6 reloads should not duplicate actions.
 7. Check seed use from nearby chests with BuildFromChests, and rejection of BuildOrders plan mode or redirected ghosts.

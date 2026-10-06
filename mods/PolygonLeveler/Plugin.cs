@@ -14,7 +14,7 @@ namespace PolygonLeveler
     {
         public const string Guid = "com.bobisme.polygonleveler";
         public const string Name = "PolygonLeveler";
-        public const string Version = "0.1.0";
+        public const string Version = "0.1.1";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled;
         private ConfigEntry<KeyCode> _modifier, _markerKey, _levelKey, _removeKey, _clearKey;
@@ -36,7 +36,7 @@ namespace PolygonLeveler
         {
             Instance = this;
             Enabled = Config.Bind("General", "Enabled", true, "Enable polygon leveling, including requests from other players.");
-            _modifier = Config.Bind("Controls", "MarkerModifier", KeyCode.RightAlt, "Hold with marker key to place markers instead of using the hoe.");
+            _modifier = Config.Bind("Controls", "MarkerModifier", KeyCode.LeftShift, "Hold with marker key to place markers instead of using the hoe.");
             _markerKey = Config.Bind("Controls", "PlaceMarker", KeyCode.Mouse0, "Place a marker on the aimed ground.");
             _levelKey = Config.Bind("Controls", "LevelPolygon", KeyCode.L, "Flatten the polygon to the first marker's height while holding a hoe.");
             _removeKey = Config.Bind("Controls", "RemoveMarker", KeyCode.Backspace, "Remove the last marker.");

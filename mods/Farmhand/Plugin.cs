@@ -13,7 +13,7 @@ namespace Farmhand
     {
         public const string Guid = "com.bobisme.farmhand";
         public const string Name = "Farmhand";
-        public const string Version = "0.1.0";
+        public const string Version = "0.1.1";
 
         internal static Plugin Instance;
         internal bool Busy => _routine != null;
@@ -24,7 +24,7 @@ namespace Farmhand
         private ItemDrop.ItemData _tool;
         private Player _player;
         private ConfigEntry<bool> _enabled, _healthLabels;
-        private ConfigEntry<KeyCode> _modifier, _rowKey, _harvestKey;
+        private ConfigEntry<KeyCode> _modifier, _rowKey, _harvestKey, _harvestOnlyModifier;
         private ConfigEntry<int> _rowCount, _batchLimit;
         private ConfigEntry<float> _spacing, _harvestRadius;
         private readonly List<Plant> _nearbyPlants = new List<Plant>();
@@ -34,9 +34,10 @@ namespace Farmhand
         {
             Instance = this;
             _enabled = Config.Bind("General", "Enabled", true, "Enable Farmhand.");
-            _modifier = Config.Bind("Controls", "Modifier", KeyCode.RightAlt, "Hold to preview and use Farmhand controls.");
+            _modifier = Config.Bind("Controls", "Modifier", KeyCode.LeftShift, "Hold to preview and use Farmhand controls.");
             _rowKey = Config.Bind("Controls", "PlantRow", KeyCode.J, "With modifier held, plant a row of the selected crop.");
-            _harvestKey = Config.Bind("Controls", "Harvest", KeyCode.U, "With modifier held, harvest and replant nearby crops. Also hold Shift to harvest only.");
+            _harvestKey = Config.Bind("Controls", "Harvest", KeyCode.U, "With modifier held, harvest and replant nearby crops.");
+            _harvestOnlyModifier = Config.Bind("Controls", "HarvestOnlyModifier", KeyCode.LeftControl, "Also hold this key to harvest without replanting.");
             _rowCount = Config.Bind("Planting", "RowCount", 5, new ConfigDescription("Crops in a row, centered on your placement ghost.", new AcceptableValueRange<int>(1, 9)));
             _spacing = Config.Bind("Planting", "Spacing", 1.8f, new ConfigDescription("Minimum spacing in metres; crop growth radius may increase it.", new AcceptableValueRange<float>(0.5f, 5f)));
             _harvestRadius = Config.Bind("Harvest", "Radius", 3f, new ConfigDescription("Harvest within this radius of the player, subject to normal placement reach for replanting.", new AcceptableValueRange<float>(1f, 5f)));
@@ -67,7 +68,7 @@ namespace Farmhand
             {
                 if (Input.GetKeyDown(_rowKey.Value)) StartWork(p, PlantRow(p));
                 else if (Input.GetKeyDown(_harvestKey.Value))
-                    StartWork(p, Harvest(p, !(Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))));
+                    StartWork(p, Harvest(p, !Input.GetKey(_harvestOnlyModifier.Value)));
             }
             if (_healthLabels.Value && Time.unscaledTime >= _nextHealthScan)
             {
@@ -144,7 +145,7 @@ namespace Farmhand
             Player p = Player.m_localPlayer;
             if (!Ready(p)) return;
             GUI.Label(new Rect(20, Screen.height - 100, 700, 65), Busy ? "Farmhand working… put away the cultivator to cancel." :
-                $"Farmhand: hold {_modifier.Value} | {_rowKey.Value}: plant row | {_harvestKey.Value}: harvest/replant | Shift: harvest only");
+                $"Farmhand: hold {_modifier.Value} | {_rowKey.Value}: plant row | {_harvestKey.Value}: harvest/replant | {_harvestOnlyModifier.Value}: harvest only");
             Camera camera = Camera.main;
             if (camera == null) return;
             Color saved = GUI.color;

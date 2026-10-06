@@ -1,1 +1,3 @@
+0.1.1: Place markers with Left Shift + left click by default; no Right Alt key needed. L still flattens the marked polygon.
+
 0.1.0: First release. Convex marker outline, first-marker target height, L to flatten, protected-ground and terrain-limit checks, native terrain persistence, bounded owner-acknowledged multiplayer edits, and hot reload cleanup.
