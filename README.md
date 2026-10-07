@@ -2,6 +2,43 @@
 
 Bob's Valheim mods, built for native Linux and Windows and packaged for the in-game mod manager.
 
+## Gary the Greydwarf
+
+A purple greydwarf friend with native creature AI. No API key is needed.
+
+- **Ctrl+F3:** summon your Gary, or recall the same Gary beside you.
+- **Ctrl+Shift+F3:** tell him to stay where he is. Ctrl+F3 resumes following.
+
+Gary follows you and fights a hostile creature **after it actually hurts you**. He does not start fights with nearby creatures or
+players. At **20% health**, he stops fighting and tries to run **40 metres away** to recover; he returns at **90%**. Damage has a
+positive health floor and Gary cannot die. Healing continues slowly while escaping if the route is blocked. A persisted recovery
+deadline also lets him recover after three minutes of world time while his zone is unloaded. Calling him cannot skip that retreat.
+
+Every roughly **3–5 minutes**, a peaceful Gary can toss one free **raspberry, blueberry, or mushroom** near your feet. Pick it up as a
+normal ground item. Near a loaded **burial chamber, sunken crypt, troll cave, or frost cave**, he may lead ahead and wait for you to
+catch up. He remembers up to 32 entrances he showed you, gives up on obstructed routes, and cannot distinguish cleared dungeons.
+Guiding uses nearby loaded entrances; it does not reveal distant locations or add map pins.
+
+Calls require clear, dry ground. Gary waits outside dungeons and while you are dead. After a portal trip, call him with Ctrl+F3.
+He stays in the world when you log out. Food cooldowns, retreat state, and his player identity survive F6 and world saves.
+**Install on the host/dedicated server and participating players**: only the creature's network owner runs AI/healing/gifts, and the
+server authenticates summons and reuses an existing Gary even when his zone is unloaded. All behavior is scoped to Gary; wild
+greydwarfs keep their normal behavior. His save uses the original Greydwarf prefab, so removing the mod leaves a normal tamed
+creature without deleting a missing custom prefab.
+
+Settings and keys: F7 → Mod settings, or `BepInEx/config/com.bobisme.gary.cfg`.
+The native AI and hot-reload patterns were informed by [Quad's AICompanion](https://github.com/HardHeadHackerHead/valheim-mods/tree/main/mods/AICompanion).
+
+First-playtest checklist (automated policy checks and assembly verification do not exercise the running game):
+
+1. F6, then Ctrl+F3 on clear ground. Check Gary's purple appearance and following; repeatedly call him and confirm one Gary.
+2. Walk past peaceful creatures. Let a hostile creature hit you; Gary should retaliate. Player/pet hits should not hurt him.
+3. Let Gary take heavy/lethal damage. He must flee alive, rest away from you, and return healed; a call during recovery must wait.
+4. Wait for a food gift. Check one normal food item arcs toward you; F6 should keep its cooldown. Combat suppresses gifts.
+5. Approach a crypt/cave. Follow Gary, lag behind, or walk away; check waiting and cancellation. He should wait outside when you enter.
+6. Save/restart and F6 with Gary following, waiting, and retreating. Recall from an unloaded zone and check identity/recovery.
+7. Repeat on a server with Gary installed everywhere; transfer ownership and check one companion, one simulation, and normal wild AI.
+
 ## BuildShapes
 
 Curve, Mirror, and Repeat tools for **BuildOrders**, using normal pieces, materials, and support rules. The original Curve API has been
@@ -169,7 +206,7 @@ mise run publish
 export VALHEIM_DIR="/path/to/Steam/steamapps/common/Valheim"
 ```
 
-Builds and publishing leave your game untouched by default. To deploy both mods' DLLs and PDBs to your own installed ScriptEngine:
+Builds and publishing leave your game untouched by default. To deploy all mods' DLLs and PDBs to your own installed ScriptEngine:
 
 ```bash
 mise run install
@@ -195,6 +232,6 @@ The first version is built and checked against local assemblies; gameplay, multi
 
 ## Development
 
-Mods live in `mods/<Name>/`. `scripts/publish.py` builds the release DLL/PDB and generates `dist/manifest.json`. Commit generated `dist/` artifacts for the mod manager and bump the version in `Plugin.cs` before publishing updates. Use feature branches and pull requests for changes once a remote is configured.
+Mods live in `mods/<Name>/`. `scripts/publish.py` builds the release DLL/PDB and generates `dist/manifest.json`. Commit generated `dist/` artifacts for the mod manager and bump the version in `Plugin.cs` before publishing updates. Changes to this repository go directly to main; changes to the upstream friend repositories go through pull requests.
 
 The build layout follows the MIT-licensed [mod manager template](https://github.com/HardHeadHackerHead/valheim-mod-manager/tree/main/template). Farmhand uses [Harmony patches](https://harmony.pardeike.net/v2/articles/patching) around normal game methods and removes them on unload.

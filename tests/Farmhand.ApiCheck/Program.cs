@@ -63,6 +63,29 @@ Field("TerrainComp", "m_operations", "System.Int32");
 Field("TerrainComp", "m_lastOpPoint", "UnityEngine.Vector3");
 Field("TerrainComp", "m_lastOpRadius", "System.Single");
 
+// Gary uses tagged vanilla creatures and native navigation/combat. Bind private hooks to the installed game.
+Method("MonsterAI","UpdateAI","System.Boolean","System.Single");
+Method("MonsterAI","UpdateTarget","System.Void","Humanoid","System.Single","System.Boolean&","System.Boolean&");
+Method("BaseAI","UpdateAI","System.Boolean","System.Single");
+Method("BaseAI","MoveTo","System.Boolean","System.Single","UnityEngine.Vector3","System.Single","System.Boolean");
+Method("BaseAI","Flee","System.Boolean","System.Single","UnityEngine.Vector3");
+Method("BaseAI","SetAlerted","System.Void","System.Boolean");
+Method("BaseAI","SetTargetInfo","System.Void","ZDOID");
+Method("Character","SetHealth","System.Void","System.Single");
+Method("Character","CheckDeath","System.Void");
+Method("Character","RPC_Damage","System.Void","System.Int64","HitData");
+Method("Character","ApplyDamage","System.Void","HitData","System.Boolean","System.Boolean","HitData/DamageModifier");
+Method("Character","RaiseSkill","System.Void","Skills/SkillType","System.Single");
+Method("Character","GetHoverName","System.String");
+Method("Character","GetHoverText","System.String");
+Field("MonsterAI","m_targetCreature","Character");
+Field("MonsterAI","m_targetStatic","StaticTarget");
+Field("MonsterAI","m_lastKnownTargetPos","UnityEngine.Vector3");
+Field("MonsterAI","m_beenAtLastPos","System.Boolean");
+Field("MonsterAI","m_timeSinceSensedTargetCreature","System.Single");
+Field("Location","s_allLocations","System.Collections.Generic.List`1<Location>");
+Field("ZRoutedRpc","m_functions","System.Collections.Generic.Dictionary`2<System.Int32,RoutedMethodBase>");
+
 using var catalog = JsonDocument.Parse(File.ReadAllText(args[1]));
 foreach (var entry in catalog.RootElement.GetProperty("mods").EnumerateArray())
 {
@@ -104,5 +127,5 @@ if (args.Length == 3)
     Api("TryGetGhostAtRay", "Player", "UnityEngine.Vector3", "UnityEngine.Vector3", "System.String&", "System.String&", "UnityEngine.Vector3&", "UnityEngine.Quaternion&", "System.Single&");
     Console.WriteLine("BuildOrders: public planning API and symbols verified; BuildShapes has no planner assembly binding.");
 }
-Console.WriteLine("All native crop/terrain APIs, private members, and Harmony targets match the installed game.");
+Console.WriteLine("All native crop/terrain/companion APIs, private members, and Harmony targets match the installed game.");
 Console.WriteLine("Published plugin metadata matches its catalog; DLL/PDB symbols are readable by the installed Cecil.");

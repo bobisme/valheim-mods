@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>Gary</AssemblyName><RootNamespace>Gary</RootNamespace></PropertyGroup>
+</Project>

@@ -1,0 +1,1 @@
+0.1.0: Gary the Greydwarf follows his player, defends against verified creature attackers, retreats to heal instead of dying, tosses occasional forest food, and guides toward nearby loaded crypt/cave entrances. Purple appearance, server-authorized one-per-player summon/recall, wait command, owner-only simulation, and vanilla-prefab persistence across F6/world saves.
