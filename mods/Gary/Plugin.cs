@@ -14,7 +14,7 @@ namespace Gary
     {
         public const string Guid="com.bobisme.gary";
         public const string Name="Gary";
-        public const string Version="0.2.1";
+        public const string Version="0.2.2";
         internal static Plugin Instance;
         internal ConfigEntry<float> Health,GiftSeconds,GuideRange;
         internal ConfigEntry<bool> Gifts,Guiding,Reactions,Warnings,Campfires,Building;

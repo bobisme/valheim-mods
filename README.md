@@ -5,7 +5,7 @@ Bob's Valheim mods, built for native Linux and Windows and packaged for the in-g
 ## Gary the Greydwarf
 
 A purple greydwarf friend with native creature AI. No API key is needed. Gary jogs at 4 m/s, runs at 7.5 m/s, and starts
-running when more than 5 metres behind you. Players can walk through Gary; terrain and enemy collisions remain active.
+running when more than 5 metres behind you. Players and Quad’s AICompanion characters can walk through Gary; terrain and enemy collisions remain active.
 
 - **F3:** summon your Gary, or recall the same Gary beside you.
 - **Shift+F3:** tell him to stay where he is. F3 resumes following.
@@ -58,7 +58,7 @@ First-playtest checklist (automated policy checks and assembly verification do n
 6. Pause by a burning fire, extinguish it, then walk away. Build and rotate your ghost toward Gary; check he watches from clear ground and resumes following when you move. Danger and actual hits must interrupt every idle activity.
 7. Return from a dungeon, defeat a foe Gary was fighting, and approach a visible large hostile. Check greetings/celebration/warnings, subdued volume, cooldowns, and no unsolicited attacks.
 8. Approach an untouched, partly looted, and fully looted crypt/cave. Check only complete empty scans suppress guiding, unreadable/unloaded interiors remain eligible, and unopened chests are untouched. Leave a core, loose gem, scrap pile, or cave material behind and confirm it remains unfinished. Clear it, wait a few seconds inside, exit, then F6/save/restart and check the cleared mark persists. Gary waits outside; unfinished entrances can be shown again after ten minutes.
-9. Walk directly through Gary while following, waiting, retreating, and after F6/respawn. All players should pass through him, while terrain and enemies still collide and E still pets him.
+9. Walk directly through Gary while following, waiting, retreating, and after F6/respawn. All players and Quad’s AICompanion characters should pass through him, while terrain and enemies still collide and E still pets him. Repeat after reloading each mod independently.
 10. Save/restart and F6 with Gary following, waiting, and retreating. Recall from an unloaded zone and check identity/recovery.
 11. Repeat on a server with Gary installed everywhere; transfer ownership and check one companion, one simulation, and normal wild AI.
 
