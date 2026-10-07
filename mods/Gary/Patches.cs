@@ -42,6 +42,18 @@ namespace Gary
             Brain.UpdateTarget(__instance,dt,out canHearTarget,out canSeeTarget);return false;
         }
     }
+    [HarmonyPatch(typeof(MonsterAI),"OnDamaged")]
+    internal static class GaryDefendSelf
+    {
+        private static void Postfix(MonsterAI __instance,float damage,Character attacker)
+        {
+            if(!Companion.Is(__instance)||!__instance.GetComponent<ZNetView>().IsOwner()||!(damage>0)||attacker==null)return;
+            Character c=__instance.GetComponent<Character>();Companion.State st=Companion.Get(c);
+            if(attacker.IsPlayer()||attacker.IsTamed()||attacker.IsDead()||!BaseAI.IsEnemy(c,attacker))return;
+            st.SelfAttacker=attacker;st.SelfThreatAt=Companion.Now;
+            st.SelfThreatOwner=Companion.Data(c).GetOwner();st.SelfThreatOrigin=c.transform.position;
+        }
+    }
     [HarmonyPatch(typeof(Character),nameof(Character.SetHealth))]
     internal static class GaryHealth
     {

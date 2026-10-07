@@ -65,6 +65,7 @@ Field("TerrainComp", "m_lastOpRadius", "System.Single");
 
 // Gary uses tagged vanilla creatures and native navigation/combat. Bind private hooks to the installed game.
 Method("MonsterAI","UpdateAI","System.Boolean","System.Single");
+Method("MonsterAI","OnDamaged","System.Void","System.Single","Character");
 Method("MonsterAI","UpdateTarget","System.Void","Humanoid","System.Single","System.Boolean&","System.Boolean&");
 Method("BaseAI","UpdateAI","System.Boolean","System.Single");
 Method("BaseAI","MoveTo","System.Boolean","System.Single","UnityEngine.Vector3","System.Single","System.Boolean");

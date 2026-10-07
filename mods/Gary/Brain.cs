@@ -43,22 +43,34 @@ namespace Gary
                 c.Heal(c.GetMaxHealth()*(distance>=Policy.RetreatDistance?0.03f:0.005f)*Mathf.Min(dt,1),false);
                 result=true;return false;
             }
-            if(master==null||master.IsDead()||master.InInterior()||z.GetBool(Companion.Waiting,false))
+            bool follow=CanFollow(master,z);
+            ai.SetFollowTarget(follow?master.gameObject:null);
+            Character target=ThreatFor(c,follow?master:null);
+            if(target!=null)
+            {st.Entrance=null;Status(st,target==st.SelfAttacker?"defending myself":"protecting my friend");return true;}
+            SetTarget(ai,null);
+            if(!follow)
             {
-                BaseUpdate(ai,dt);SetTarget(ai,null);ai.SetFollowTarget(null);ai.StopMoving();st.Entrance=null;
+                BaseUpdate(ai,dt);ai.StopMoving();st.Entrance=null;
                 Status(st,master!=null&&master.InInterior()?"waiting outside":"waiting for my friend");result=true;return false;
             }
-            ai.SetFollowTarget(master.gameObject);
-            Character target=ThreatFor(c,master);
-            if(target!=null){st.Entrance=null;Status(st,"protecting my friend");return true;}
-            SetTarget(ai,null);
             Gift(st,master);
             if(Guide.Tick(st,ai,master,dt))
             {BaseUpdate(ai,dt);result=true;return false;}
             Status(st,"following");return true;
         }
+        private static bool CanFollow(Player master,ZDO z) =>
+            master!=null&&!master.IsDead()&&!master.InInterior()&&!z.GetBool(Companion.Waiting,false);
         internal static Character ThreatFor(Character c,Player master)
         {
+            Companion.State st=Companion.Get(c);Character self=st.SelfAttacker;
+            // Native OnDamaged chooses an attacker, but our target override must retain that verified threat.
+            // Ownership changes and hot reload discard this local combat memory rather than persisting an attacker ID.
+            if(self!=null && st.SelfThreatOwner==Companion.Data(c).GetOwner() &&
+                Policy.FreshSelfThreat((Companion.Now-st.SelfThreatAt)/(double)TimeSpan.TicksPerSecond,
+                    Vector3.Distance(self.transform.position,c.transform.position),Vector3.Distance(self.transform.position,st.SelfThreatOrigin),
+                    BaseAI.IsEnemy(c,self),self.IsPlayer()||self.IsTamed(),self.IsDead()))return self;
+            st.SelfAttacker=null;
             ZDO player=Companion.Data(master);if(player==null)return null;
             // The player ZDO is ephemeral. Bind its threat ID to this session's owner, never save a ZDOID in a player profile.
             if(player.GetLong(Companion.ThreatOwner,0)!=player.GetOwner())return null;
@@ -72,7 +84,8 @@ namespace Gary
         internal static void UpdateTarget(MonsterAI ai,float dt,out bool hear,out bool see)
         {
             Character c=ai.GetComponent<Character>();Player master=Companion.Owner(c);
-            Character target=master!=null&&!master.IsDead()&&!Companion.Data(c).GetBool(Companion.Retreating,false)&&!Companion.Data(c).GetBool(Companion.Waiting,false)?ThreatFor(c,master):null;
+            ZDO z=Companion.Data(c);
+            Character target=!z.GetBool(Companion.Retreating,false)?ThreatFor(c,CanFollow(master,z)?master:null):null;
             SetTarget(ai,target);hear=target!=null&&ai.CanHearTarget(target);see=target!=null&&ai.CanSeeTarget(target);
             SinceSensed(ai)=hear||see?0:SinceSensed(ai)+dt;
         }

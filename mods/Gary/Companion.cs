@@ -15,6 +15,10 @@ namespace Gary
             internal bool OwnerConfigured;
             internal string Status="following";
             internal float NextGuide,GuideUntil,StuckTime,LastError;
+            // Local, short-lived combat memory: do not save attacker IDs in Gary's persistent ZDO.
+            internal Character SelfAttacker;
+            internal long SelfThreatAt,SelfThreatOwner;
+            internal Vector3 SelfThreatOrigin;
             internal Vector3? Entrance;
             internal string EntranceId;
             internal Vector3 LastPosition;

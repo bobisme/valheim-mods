@@ -10,9 +10,9 @@ running when more than 5 metres behind you.
 - **F3:** summon your Gary, or recall the same Gary beside you.
 - **Shift+F3:** tell him to stay where he is. F3 resumes following.
 
-Gary follows you and fights a hostile creature **after it actually hurts you**. He does not start fights with nearby creatures or
-players. At **20% health**, he stops fighting and tries to run **40 metres away** to recover; he returns at **90%**. Damage has a
-positive health floor and Gary cannot die. Healing continues slowly while escaping if the route is blocked. A persisted recovery
+Gary follows you and fights a hostile creature **after it actually hurts you or him**. He also defends himself while waiting,
+then resumes waiting when the threat ends. He does not start fights with nearby creatures or players. At **20% health**, he stops
+fighting and tries to run **40 metres away** to recover; he returns at **90%**. Damage has a positive health floor and Gary cannot die. Healing continues slowly while escaping if the route is blocked. A persisted recovery
 deadline also lets him recover after three minutes of world time while his zone is unloaded. Calling him cannot skip that retreat.
 
 Every roughly **3–5 minutes**, a peaceful Gary can toss one free **raspberry, blueberry, or mushroom** near your feet. Pick it up as a
@@ -33,7 +33,7 @@ The native AI and hot-reload patterns were informed by [Quad's AICompanion](http
 First-playtest checklist (automated policy checks and assembly verification do not exercise the running game):
 
 1. F6, then F3 on clear ground. Check Gary's purple appearance and following; repeatedly call him and confirm one Gary.
-2. Walk past peaceful creatures. Let a hostile creature hit you; Gary should retaliate. Player/pet hits should not hurt him.
+2. Walk past peaceful creatures. Let a hostile creature hit you, then Gary alone; he should retaliate in both cases, including while waiting. Player/pet hits should not hurt him.
 3. Let Gary take heavy/lethal damage. He must flee alive, rest away from you, and return healed; a call during recovery must wait.
 4. Wait for a food gift. Check one normal food item arcs toward you; F6 should keep its cooldown. Combat suppresses gifts.
 5. Approach a crypt/cave. Follow Gary, lag behind, or walk away; check waiting and cancellation. He should wait outside when you enter.

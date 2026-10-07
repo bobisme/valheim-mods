@@ -11,6 +11,8 @@ namespace Gary
         internal static bool Retreat(bool current,double fraction) => current?fraction<ReturnAt:fraction<=RetreatAt;
         internal static bool FreshThreat(double age,double playerDistance,double companionDistance,bool hostile,bool player,bool dead) =>
             hostile&&!player&&!dead&&age>=0&&age<=ThreatSeconds&&playerDistance<=ThreatRange&&companionDistance<=ThreatRange+15;
+        internal static bool FreshSelfThreat(double age,double companionDistance,double originDistance,bool hostile,bool friendly,bool dead) =>
+            hostile&&!friendly&&!dead&&age>=0&&age<=ThreatSeconds&&companionDistance<=ThreatRange&&originDistance<=ThreatRange;
         internal static bool CanGift(bool retreat,bool fighting,bool waiting,bool interior,double distance,double secondsUntilGift) =>
             !retreat&&!fighting&&!waiting&&!interior&&distance<=8&&secondsUntilGift<=0;
         internal static bool GuideWait(double playerDistance) => playerDistance>14;

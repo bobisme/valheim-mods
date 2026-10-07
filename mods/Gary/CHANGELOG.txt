@@ -1,3 +1,5 @@
+0.1.2: Fixed Gary ignoring creatures that attacked him without attacking his player. Remembers verified attackers for bounded self-defense, including while waiting. Stops chasing dead, friendly, stale, or distant attackers; healing retreats still take priority.
+
 0.1.1: F3 calls Gary and Shift+F3 tells him to wait. Migrates the previous Ctrl+F3 bindings, which conflicted with Valheim's hide-all-UI shortcut, and restores hidden UI during migration. Gary now jogs at 4 m/s, runs at 7.5 m/s, turns faster, and starts running when 5 metres behind instead of 10.
 
 0.1.0: Gary the Greydwarf follows his player, defends against verified creature attackers, retreats to heal instead of dying, tosses occasional forest food, and guides toward nearby loaded crypt/cave entrances. Purple appearance, server-authorized one-per-player summon/recall, wait command, owner-only simulation, and vanilla-prefab persistence across F6/world saves.
