@@ -83,4 +83,41 @@ foreach(double invalid in new[]{double.NaN,double.PositiveInfinity,double.Negati
     Check(!Policy.SafeRest(invalid,20)&&!Policy.SafeRest(45,invalid),"Invalid positions cannot enable rapid healing");
     Check(double.IsNegativeInfinity(Policy.RestSpotScore(invalid,20,true))&&double.IsNegativeInfinity(Policy.RestSpotScore(45,invalid,true)),"Invalid refuge scores are rejected");
 }
-Console.WriteLine($"Passed {checks} Gary injury, defense, food conservation, personality, petting, retreat and guide checks.");
+// Read-only inventory header and dungeon-layout/ledger safety.
+byte[] Header(int version,int count,bool compact,bool body=false)
+{
+    using var stream=new MemoryStream();using var writer=new BinaryWriter(stream);
+    writer.Write(version);if(compact)writer.Write((ushort)count);else writer.Write(count);
+    if(body)writer.Write((byte)1);return stream.ToArray();
+}
+foreach(int version in Enumerable.Range(101,9))
+{
+    bool compact=version>=108;
+    Check(LootPolicy.Chest(Header(version,0,compact),true)==LootState.Empty,"Exact native empty chest header is empty");
+    Check(LootPolicy.Chest(Header(version,1,compact,true),true)==LootState.Remaining,"Saved positive count retains even unavailable or modded items");
+    Check(LootPolicy.Chest(Header(version,1,compact),true)==LootState.Unknown,"Truncated nonempty chest cannot become empty");
+    Check(LootPolicy.Chest(Header(version,0,compact,true),true)==LootState.Unknown,"Unexpected trailing data is not empty");
+    Check(LootPolicy.Chest(Header(version,0,compact),false)==LootState.Unknown,"Ungenerated defaults are unknown");
+}
+foreach(byte[] data in new byte[][]{null,Array.Empty<byte>(),new byte[5],Header(110,0,true),Header(100,0,false),Header(106,-1,false),new byte[1024*1024+1]})
+    Check(LootPolicy.Chest(data!,true)==LootState.Unknown,"Missing, future, malformed, and oversized inventories stay unknown");
+foreach(LootState state in Enum.GetValues<LootState>())
+{
+    Check(LootPolicy.Merge(state,LootState.Remaining)==LootState.Remaining,"Positive loot evidence takes precedence");
+    Check(LootPolicy.Merge(state,LootState.Unknown)!=LootState.Empty,"Partial scans never become empty");
+}
+foreach(int count in new[]{0,1,50,512,513})
+{
+    byte[] data=new byte[4+count*32];BitConverter.GetBytes(count).CopyTo(data,0);
+    Check(LootPolicy.RoomCount(data)==(count>0&&count<=512?count:0),"Room layouts are bounded and exact");
+    Check(LootPolicy.RoomCount(data.Take(data.Length-1).ToArray())==0,"Truncated layout cannot certify all rooms");
+}
+var ledger=LootPolicy.Ledger("1,2;1,2;bad;3,-4");
+Check(ledger.SequenceEqual(new[]{"1,2","3,-4"}),"Ledger rejects duplicates and malformed IDs");
+Check(!LootPolicy.Update(ledger,"1,2",LootState.Unknown)&&ledger.Contains("1,2"),"Unknown scan preserves previous cleared knowledge");
+Check(LootPolicy.Update(ledger,"1,2",LootState.Remaining)&&!ledger.Contains("1,2"),"Restocked or unfinished interiors remove the cleared mark");
+Check(LootPolicy.Update(ledger,"5,6",LootState.Empty)&&ledger.Contains("5,6"),"Only confirmed empty interiors gain cleared marks");
+for(int n=0;n<1000;n++)LootPolicy.Update(ledger,n+",0",LootState.Empty);
+Check(ledger.Count==512&&ledger.Last()=="999,0","Saved knowledge keeps a bounded recent history");
+Check(LootPolicy.Ledger(new string('x',16385)).Count==0,"Oversized saved ledger does not allocate unbounded entries");
+Console.WriteLine($"Passed {checks} Gary injury, defense, food conservation, personality, petting, retreat, dungeon loot and guide checks.");

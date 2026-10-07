@@ -9,14 +9,14 @@ namespace Gary
     internal static class Guide
     {
         private static List<Location> Locations() => AccessTools.StaticFieldRefAccess<List<Location>>(typeof(Location),"s_allLocations");
-        private static string Id(Vector3 p) => Math.Round(p.x).ToString(CultureInfo.InvariantCulture)+","+Math.Round(p.z).ToString(CultureInfo.InvariantCulture);
+        internal static string Id(Vector3 p) => Math.Round(p.x).ToString(CultureInfo.InvariantCulture)+","+Math.Round(p.z).ToString(CultureInfo.InvariantCulture);
         internal static bool Tick(Companion.State st,MonsterAI ai,Player master,float dt)
         {
             if(!Plugin.Instance.Guiding.Value){st.Entrance=null;return false;}
             if(st.Entrance==null && Time.time>=st.NextGuide)
             {
                 st.NextGuide=Time.time+5;
-                var seen=new HashSet<string>(Companion.Data(st.Body).GetString(Companion.Seen,"").Split(';'));
+
                 float best=Plugin.Instance.GuideRange.Value;
                 foreach(Location location in Locations())
                 {
@@ -30,8 +30,11 @@ namespace Gary
                         if(!door.gameObject.activeInHierarchy||door.m_targetPoint==null||door.m_targetPoint.transform.position.y-door.transform.position.y<1000)continue;
                         Vector3 entrance=door.transform.position;
                         float distance=Vector3.Distance(entrance,master.transform.position);
-                        if(distance<12||distance>=best||seen.Contains(Id(entrance)))continue;
-                        best=distance;st.Entrance=entrance;st.EntranceId=Id(entrance);
+                        string id=Id(entrance);
+                        if(distance<12||distance>=best||RecentlyShown(st,id))continue;
+                        // An available live scan can reject old fully emptied dungeons immediately.
+                        if(!DungeonLoot.Eligible(master,id,door.m_targetPoint.transform.position))continue;
+                        best=distance;st.Entrance=entrance;st.EntranceId=id;st.GuideInterior=door.m_targetPoint.transform.position;
                     }
                 }
                 if(st.Entrance!=null)
@@ -41,6 +44,11 @@ namespace Gary
                 }
             }
             if(st.Entrance==null)return false;
+            if(Time.time>=st.NextGuide)
+            {
+                st.NextGuide=Time.time+5;
+                if(!DungeonLoot.Eligible(master,st.EntranceId,st.GuideInterior)){st.Entrance=null;return false;}
+            }
             Vector3 destination=st.Entrance.Value;
             if(Time.time>st.GuideUntil || Vector3.Distance(destination,master.transform.position)>Plugin.Instance.GuideRange.Value+30)
             {st.Entrance=null;st.NextGuide=Time.time+60;return false;}
@@ -64,12 +72,27 @@ namespace Gary
             if(st.StuckTime>15){st.Entrance=null;st.NextGuide=Time.time+60;return false;}
             return true;
         }
+        private static bool RecentlyShown(Companion.State st,string id)
+        {
+            // A timed cooldown replaces the old permanent shown-entrance blacklist.
+            foreach(string entry in Companion.Data(st.Body).GetString("bob_gary_shown_v2","").Split(';'))
+            {
+                string[] parts=entry.Split('|');
+                if(parts.Length==2&&parts[0]==id&&long.TryParse(parts[1],out long at)&&Companion.Now>=at&&Companion.Now-at<TimeSpan.TicksPerMinute*10)return true;
+            }
+            return false;
+        }
         private static void Remember(Companion.State st)
         {
-            ZDO z=Companion.Data(st.Body);var seen=new List<string>(z.GetString(Companion.Seen,"").Split(new[]{';'},StringSplitOptions.RemoveEmptyEntries));
-            if(!seen.Contains(st.EntranceId))seen.Add(st.EntranceId);
-            while(seen.Count>32)seen.RemoveAt(0);
-            z.Set(Companion.Seen,string.Join(";",seen));
+            ZDO z=Companion.Data(st.Body);var recent=new List<string>();
+            foreach(string entry in z.GetString("bob_gary_shown_v2","").Split(';'))
+            {
+                string[] p=entry.Split('|');
+                if(p.Length==2&&LootPolicy.ValidId(p[0])&&p[0]!=st.EntranceId&&long.TryParse(p[1],out long at)&&Companion.Now>=at&&Companion.Now-at<TimeSpan.TicksPerMinute*10)recent.Add(entry);
+            }
+            recent.Add(st.EntranceId+"|"+Companion.Now.ToString(CultureInfo.InvariantCulture));
+            while(recent.Count>32)recent.RemoveAt(0);
+            z.Set("bob_gary_shown_v2",string.Join(";",recent));
         }
     }
 }

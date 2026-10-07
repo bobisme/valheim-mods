@@ -5,7 +5,7 @@ Bob's Valheim mods, built for native Linux and Windows and packaged for the in-g
 ## Gary the Greydwarf
 
 A purple greydwarf friend with native creature AI. No API key is needed. Gary jogs at 4 m/s, runs at 7.5 m/s, and starts
-running when more than 5 metres behind you.
+running when more than 5 metres behind you. Players can walk through Gary; terrain and enemy collisions remain active.
 
 - **F3:** summon your Gary, or recall the same Gary beside you.
 - **Shift+F3:** tell him to stay where he is. F3 resumes following.
@@ -30,8 +30,12 @@ While you pause to **build**, he watches from the side, away from your placement
 retreat now searches for reachable, dry ground away from both you and danger, preferring cover; blocked paths retain his slow healing.
 Combat and healing override social activities.
 
-Near a loaded **burial chamber, sunken crypt, troll cave, or frost cave**, he may lead ahead and wait for you to catch up. He remembers
-up to 32 entrances, gives up on obstructed routes, and cannot distinguish cleared dungeons. Guiding uses nearby loaded entrances;
+Near a loaded **burial chamber, sunken crypt, troll cave, or frost cave**, he may lead ahead and wait for you to catch up. He skips interiors
+confirmed fully looted and can revisit unfinished ones after a ten-minute shown-entrance cooldown. Saved chest contents, loose treasures,
+cores, scrap piles, collectible cave materials, and removable valuables count; enemies, regrowing mushrooms, and ordinary furniture salvage do not.
+He reads saved chest item counts without opening chests, spawning items, or rolling loot. Incomplete/unloaded interiors stay **unknown** and
+remain eligible. He remembers up to 512 confirmed cleared entrances per player/world, saved with your character and shared with Gary's simulator.
+Older visits have no automatic history: Gary must get a complete nearby scan or observe you inside. Guiding uses nearby loaded entrances;
 it does not reveal distant locations or add map pins.
 
 Calls require clear, dry ground. Gary waits outside dungeons and while you are dead. After a portal trip, call him with F3.
@@ -53,9 +57,10 @@ First-playtest checklist (automated policy checks and assembly verification do n
 5. Pet Gary with E while following and waiting. Check one pat/chirp/sparkle/dance per cooldown, normal interactions with other objects, and rejection while healing/fighting. Check petting/reactions on two clients without duplicated sounds.
 6. Pause by a burning fire, extinguish it, then walk away. Build and rotate your ghost toward Gary; check he watches from clear ground and resumes following when you move. Danger and actual hits must interrupt every idle activity.
 7. Return from a dungeon, defeat a foe Gary was fighting, and approach a visible large hostile. Check greetings/celebration/warnings, subdued volume, cooldowns, and no unsolicited attacks.
-8. Approach a crypt/cave. Follow Gary, lag behind, or walk away; check waiting and cancellation. He should wait outside when you enter.
-9. Save/restart and F6 with Gary following, waiting, and retreating. Recall from an unloaded zone and check identity/recovery.
-10. Repeat on a server with Gary installed everywhere; transfer ownership and check one companion, one simulation, and normal wild AI.
+8. Approach an untouched, partly looted, and fully looted crypt/cave. Check only complete empty scans suppress guiding, unreadable/unloaded interiors remain eligible, and unopened chests are untouched. Leave a core, loose gem, scrap pile, or cave material behind and confirm it remains unfinished. Clear it, wait a few seconds inside, exit, then F6/save/restart and check the cleared mark persists. Gary waits outside; unfinished entrances can be shown again after ten minutes.
+9. Walk directly through Gary while following, waiting, retreating, and after F6/respawn. All players should pass through him, while terrain and enemies still collide and E still pets him.
+10. Save/restart and F6 with Gary following, waiting, and retreating. Recall from an unloaded zone and check identity/recovery.
+11. Repeat on a server with Gary installed everywhere; transfer ownership and check one companion, one simulation, and normal wild AI.
 
 ## BuildShapes
 

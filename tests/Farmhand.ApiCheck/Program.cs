@@ -105,6 +105,23 @@ Field("MonsterAI","m_beenAtLastPos","System.Boolean");
 Field("MonsterAI","m_timeSinceSensedTargetCreature","System.Single");
 Field("Location","s_allLocations","System.Collections.Generic.List`1<Location>");
 Field("Hud","m_userHidden","System.Boolean");
+Method("Teleport","Interact","System.Boolean","Humanoid","System.Boolean","System.Boolean");
+Method("Character","GetCollider","UnityEngine.CapsuleCollider");
+Method("Room","GetHash","System.Int32");
+Method("ZNetScene","IsAreaReady","System.Boolean","UnityEngine.Vector3");
+Method("ZDOMan","FindSectorObjects","System.Void","Vector2s","SimulationDistance","System.Collections.Generic.List`1<ZDO>","System.Collections.Generic.List`1<ZDO>");
+Field("MineRock","m_hitAreas","UnityEngine.Collider[]");
+Method("MineRock","GetHealth","System.Single");
+Field("DungeonGenerator","m_roomsToLoad","System.Int32");
+Field("DungeonGenerator","m_loadedRooms","DungeonGenerator/RoomPlacementData[]");
+Field("Player","m_customData","System.Collections.Generic.Dictionary`2<System.String,System.String>");
+var itemVersions=game.MainModule.Types.Single(t=>t.Name=="Version").NestedTypes.Single(t=>t.Name=="Item");
+foreach(var (name,value) in new[]{("Quality",101),("Smaller",108),("ChunksNCheats",109)})
+    if(!itemVersions.Fields.Any(f=>f.Name==name&&f.HasConstant&&(int)f.Constant==value))throw new Exception("Native chest serialization changed: "+name);
+var inventorySave=game.MainModule.Types.Single(t=>t.Name=="Inventory").Methods.Single(m=>m.Name=="Save"&&m.Parameters.Count==1);
+if(!inventorySave.Body.Instructions.Any(i=>i.OpCode.Code==Mono.Cecil.Cil.Code.Ldc_I4_S&&Convert.ToInt32(i.Operand)==109)||
+   !inventorySave.Body.Instructions.Any(i=>i.Operand is MethodReference m&&m.DeclaringType.Name=="ZPackage"&&m.Name=="Write"&&m.Parameters.Count==1&&m.Parameters[0].ParameterType.FullName=="System.UInt16"))
+    throw new Exception("Native inventory header changed; review Gary's read-only chest parser.");
 Field("ZRoutedRpc","m_functions","System.Collections.Generic.Dictionary`2<System.Int32,RoutedMethodBase>");
 
 using var catalog = JsonDocument.Parse(File.ReadAllText(args[1]));

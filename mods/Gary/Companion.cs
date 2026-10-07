@@ -28,7 +28,7 @@ namespace Gary
             internal Vector3 SelfThreatOrigin;
             internal Vector3? Entrance;
             internal string EntranceId;
-            internal Vector3 LastPosition;
+            internal Vector3 LastPosition,GuideInterior;
             internal readonly Dictionary<Renderer,MaterialPropertyBlock> Original=new Dictionary<Renderer,MaterialPropertyBlock>();
         }
         internal static readonly Dictionary<Character,State> States=new Dictionary<Character,State>();

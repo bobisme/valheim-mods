@@ -4,6 +4,12 @@ using UnityEngine;
 
 namespace Gary
 {
+    [HarmonyPatch(typeof(Teleport),nameof(Teleport.Interact))]
+    internal static class GaryDungeonEntrance
+    {
+        private static void Postfix(Teleport __instance,Humanoid character,bool __result)
+        {if(__result&&character is Player p)DungeonLoot.Enter(p,__instance);}
+    }
     [HarmonyPatch(typeof(BaseAI),"Follow")]
     internal static class GaryFollow
     {
