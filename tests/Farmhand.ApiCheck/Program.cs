@@ -115,6 +115,23 @@ Method("Minimap","AddPin","Minimap/PinData","UnityEngine.Vector3","Minimap/PinTy
 Method("Minimap","RemovePin","System.Void","Minimap/PinData");
 Field("Minimap","m_pins","System.Collections.Generic.List`1<Minimap/PinData>");
 Field("Minimap","m_pinUpdateRequired","System.Boolean");
+// Gary passengers pause native locomotion and synchronize a boat-relative deck position.
+Method("Character","UpdateMotion","System.Void","System.Single");
+Method("Character","IsAttached","System.Boolean");
+Method("Character","IsAttachedToShip","System.Boolean");
+Method("Character","GetStandingOnShip","Ship");
+Method("Character","GetRelativePosition","System.Boolean","ZDOID&","System.String&","UnityEngine.Vector3&","UnityEngine.Quaternion&","UnityEngine.Vector3&");
+Method("Player","GetControlledShip","Ship");
+Method("Ship","IsPlayerInBoat","System.Boolean","Player");
+Method("Ship","get_Instances","System.Collections.Generic.List`1<IMonoUpdater>");
+Method("ZSyncTransform","ClientSync","System.Void","System.Single");
+Method("ZSyncTransform","OwnerSync","System.Void");
+Method("ZSyncTransform","CustomFixedUpdate","System.Void","System.Single");
+Method("ZSyncTransform","SyncNow","System.Void");
+Field("ZSyncTransform","m_characterParentSync","System.Boolean");
+Field("Character","m_lastGroundBody","UnityEngine.Rigidbody");
+Field("Character","m_lastGroundCollider","UnityEngine.Collider");
+Field("Character","m_lastGroundTouch","System.Single");
 Method("Teleport","Interact","System.Boolean","Humanoid","System.Boolean","System.Boolean");
 Method("Character","GetCollider","UnityEngine.CapsuleCollider");
 Method("Room","GetHash","System.Int32");

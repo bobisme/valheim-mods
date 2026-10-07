@@ -14,10 +14,10 @@ namespace Gary
     {
         public const string Guid="com.bobisme.gary";
         public const string Name="Gary";
-        public const string Version="0.2.4";
+        public const string Version="0.2.5";
         internal static Plugin Instance;
         internal ConfigEntry<float> Health,GiftSeconds,GuideRange;
-        internal ConfigEntry<bool> Gifts,Guiding,Reactions,Warnings,Campfires,Building,ShowMapMarker;
+        internal ConfigEntry<bool> Gifts,Guiding,Reactions,Warnings,Campfires,Building,ShowMapMarker,Boats;
         private ConfigEntry<KeyboardShortcut> _call,_wait;
         private Harmony _harmony;
         private ZRoutedRpc _rpc;
@@ -44,6 +44,7 @@ namespace Gary
                 Logger.LogInfo("Moved Gary's Ctrl+F3 bindings to F3 / Shift+F3 and restored hidden UI.");
             }
             Health=Config.Bind("Companion","Health",150f,new ConfigDescription("Gary's injury buffer. He retreats at 20% and returns at 90%; damage never kills him.",new AcceptableValueRange<float>(40,500)));
+            Boats=Config.Bind("Companion","RideBoats",true,"Gary boards a nearby boat with you, rides on a clear deck spot, and follows onto dry ground when you get off. He waits aboard if you fall into the water and rests aboard if injured.");
             ShowMapMarker=Config.Bind("Companion","MapMarker",true,"Show your Gary as a purple moving pin on the minimap and full map. Unloaded known positions are labeled last seen.");
             Gifts=Config.Bind("Forest","FoodGifts",true,"Gather real wild berries/mushrooms and loose feathers into a six-item stash and occasionally toss one near your feet, outside combat.");
             GiftSeconds=Config.Bind("Forest","FoodInterval",240f,new ConfigDescription("Average seconds between forest gifts (randomized 0.75–1.25 times this).",new AcceptableValueRange<float>(60,1800)));
@@ -74,11 +75,12 @@ namespace Gary
             if(_pendingUntil>0)return;
             if(p.InInterior()){Tell("I'll wait outside. Call me when you're back outside the dungeon.");return;}
             Vector3 spot=p.transform.position;
-            if(!wait && !Companion.SafeSpot(spot,out spot))
-            {Tell("I need some clear, dry ground beside you. Move away from water or walls.");return;}
+            if(!wait && !BoatRide.CallSpot(p,out spot))
+            {Tell("I need clear ground or a free spot on your boat. Move away from walls or the mast.");return;}
             _pendingUntil=Time.unscaledTime+8;
             _rpc.InvokeRoutedRPC(Command,wait,spot);
         }
+        private void LateUpdate()=>BoatRide.LateUpdate();
         private static bool Busy() => Console.IsVisible()||TextInput.IsVisible()||Menu.IsVisible()||InventoryGui.IsVisible()||Minimap.IsOpen()||
             StoreGui.IsVisible()||Hud.IsPieceSelectionVisible()||(Chat.instance!=null&&Chat.instance.HasFocus());
         private void Register()
@@ -124,6 +126,6 @@ namespace Gary
         internal static void Tell(string message) => Player.m_localPlayer?.Message(MessageHud.MessageType.TopLeft,"Gary: "+message);
         internal void Error(Exception error) => Logger.LogError(error);
         private void OnDestroy()
-        {Unregister();_harmony?.UnpatchSelf();MapMarker.Clear();PlayerCollision.Clear();DungeonLoot.Clear();Companion.Clear();if(Instance==this)Instance=null;}
+        {Unregister();_harmony?.UnpatchSelf();MapMarker.Clear();BoatRide.Clear();PlayerCollision.Clear();DungeonLoot.Clear();Companion.Clear();if(Instance==this)Instance=null;}
     }
 }

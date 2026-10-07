@@ -46,6 +46,13 @@ then resumes waiting when the threat ends. He does not start fights with nearby 
 fighting and tries to run **40 metres away** to recover; he returns at **90%**. Damage has a positive health floor and Gary cannot die. Healing continues slowly while escaping if the route is blocked. A persisted recovery
 deadline also lets him recover after three minutes of world time while his zone is unloaded. Calling him cannot skip that retreat.
 
+Gary also **rides boats**. Board while he is following nearby (within **12 metres**, **5 metres** of vertical reach), and he hops to a
+clear spot on deck. **F3 works aboard** to summon/recall him onto a free deck spot. He rides through turns/waves, pauses fighting/foraging,
+and leaves player seats and steering alone. When you get off onto nearby dry ground or a dock, he follows after a short grace period. Falling into
+water, dying, teleporting away or telling him to wait leaves him aboard; return or use F3 to recall him. Injured passengers rest/heal aboard.
+Toggle **Companion → RideBoats** in F7. Boarding state survives F6/saves; physics and collision settings are restored when released or
+reloaded. He remains a separate saved creature, so destroying the boat releases Gary alive. Boat geometry, waves and multiplayer need playtesting.
+
 Your Gary has a **purple marker on the minimap and full map** that follows him while loaded. If only his known saved position is available,
 it shows **Gary (last seen)** there; it disappears when no position is known. Toggle **Companion → MapMarker** in F7. The marker is local,
 never saved/shared through the cartography table, and cleaned up on F6 or world/player changes.
@@ -91,7 +98,8 @@ First-playtest checklist (automated policy checks and assembly verification do n
 4. Walk past wild berries/mushrooms and loose feathers at least four metres from players. Feathers must be within two metres of Gary and already owned by his simulator; he skips player-dropped items, bases, custom/placed items and his own gifts. Check Gary harvests once, then gifts only from his stash. Check normal regrowth, wards (including your own), resource-rate scaling, and F6/save preservation. An empty stash must produce no food.
 5. Pet Gary with E while following and waiting. Check one pat/chirp/sparkle/dance per cooldown, normal interactions with other objects, and rejection while healing/fighting. Check petting/reactions on two clients without duplicated sounds.
 6. Pause by a burning fire, extinguish it, then walk away. Build and rotate your ghost toward Gary; check he watches from clear ground and resumes following when you move. Danger and actual hits must interrupt every idle activity.
-7. Return from a dungeon, defeat a foe Gary was fighting, and approach a visible large hostile. Check greetings/celebration/warnings, subdued volume, cooldowns, and no unsolicited attacks.
+7. Try a raft, karve and longship: board nearby, steer, sit and walk on deck, turn in waves, fall into the water, disembark onto dry ground/a pier and call F3 from aboard/ashore. Check waiting/injury behavior, F6/save/restart aboard, boat destruction, and owner changes with a friend. Gary must not push the boat, fall off, duplicate or remain frozen after release.
+8. Return from a dungeon, defeat a foe Gary was fighting, and approach a visible large hostile. Check greetings/celebration/warnings, subdued volume, cooldowns, and no unsolicited attacks.
 8. Approach an untouched, partly looted, and fully looted crypt/cave. Check only complete empty scans suppress guiding, unreadable/unloaded interiors remain eligible, and unopened chests are untouched. Leave a core, loose gem, scrap pile, or cave material behind and confirm it remains unfinished. Clear it, wait a few seconds inside, exit, then F6/save/restart and check the cleared mark persists. Gary waits outside; unfinished entrances can be shown again after ten minutes.
 9. Walk directly through Gary while following, waiting, retreating, and after F6/respawn. All players and Quad’s AICompanion characters should pass through him, while terrain and enemies still collide and E still pets him. Repeat after reloading each mod independently.
 10. Save/restart and F6 with Gary following, waiting, and retreating. Recall from an unloaded zone and check identity/recovery.

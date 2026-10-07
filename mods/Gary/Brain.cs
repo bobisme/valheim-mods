@@ -28,6 +28,11 @@ namespace Gary
             if(retreat!=z.GetBool(Companion.Retreating,false))
             {z.Set(Companion.Retreating,retreat);if(retreat)z.Set(Companion.RecoverAt,Companion.Now+TimeSpan.TicksPerMinute*3);}
             c.m_regenAllHPTime=retreat?1e9f:180;
+            if(BoatRide.Tick(st,ai,master,dt,retreat))
+            {
+                BaseUpdate(ai,dt);SetTarget(ai,null);ai.SetFollowTarget(null);st.Entrance=null;Personality.Cancel(st);
+                result=true;return false;
+            }
             if(retreat)
             {
                 BaseUpdate(ai,dt);SetTarget(ai,null);ai.SetFollowTarget(null);st.Entrance=null;Personality.Cancel(st);

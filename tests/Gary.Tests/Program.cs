@@ -137,4 +137,16 @@ Check(LootPolicy.Update(ledger,"5,6",LootState.Empty)&&ledger.Contains("5,6"),"O
 for(int n=0;n<1000;n++)LootPolicy.Update(ledger,n+",0",LootState.Empty);
 Check(ledger.Count==512&&ledger.Last()=="999,0","Saved knowledge keeps a bounded recent history");
 Check(LootPolicy.Ledger(new string('x',16385)).Count==0,"Oversized saved ledger does not allocate unbounded entries");
-Console.WriteLine($"Passed {checks} Gary injury, defense, food conservation, personality, petting, retreat, dungeon loot and guide checks.");
+Check(RidePolicy.CanBoard(true,false,false,true,12,5),"Nearby following Gary can board at inclusive reach limits");
+foreach(var state in new[]{(false,false,false,true),(true,true,false,true),(true,false,true,true),(true,false,false,false)})
+    Check(!RidePolicy.CanBoard(state.Item1,state.Item2,state.Item3,state.Item4,2,1),"Waiting, retreating, fighting or no boat prevents new boarding");
+foreach(double invalid in new[]{-1.0,12.01,double.NaN,double.PositiveInfinity,double.NegativeInfinity})
+    Check(!RidePolicy.CanBoard(true,false,false,true,invalid,1),"Invalid or distant boarding is rejected");
+foreach(double invalid in new[]{-1.0,5.01,double.NaN,double.PositiveInfinity,double.NegativeInfinity})
+    Check(!RidePolicy.CanBoard(true,false,false,true,2,invalid),"Invalid boarding height is rejected");
+Check(RidePolicy.Grace(0)&&RidePolicy.Grace(1.5)&&!RidePolicy.Grace(1.51)&&!RidePolicy.Grace(double.NaN),"Brief loss of boat contact has a bounded grace period");
+Check(RidePolicy.CanDisembark(true,true,20),"A nearby living player on dry ground can bring Gary ashore");
+Check(!RidePolicy.CanDisembark(false,true,2)&&!RidePolicy.CanDisembark(true,false,2),"Death and swimming cannot pull Gary off the boat");
+foreach(double invalid in new[]{-1.0,20.01,double.NaN,double.PositiveInfinity,double.NegativeInfinity})
+    Check(!RidePolicy.CanDisembark(true,true,invalid),"Disembarking cannot teleport Gary to a distant or invalid shore");
+Console.WriteLine($"Passed {checks} Gary injury, defense, food conservation, personality, petting, retreat, dungeon loot, guide and boat boarding checks.");

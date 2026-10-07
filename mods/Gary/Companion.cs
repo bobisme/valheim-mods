@@ -21,7 +21,7 @@ namespace Gary
             internal Fireplace Fire;
             internal Character LastEnemy;
             internal string Status="following";
-            internal float NextGuide,GuideUntil,StuckTime,LastError;
+            internal float BoatMissingUntil,NextBoat,NextGuide,GuideUntil,StuckTime,LastError;
             // Local, short-lived combat memory: do not save attacker IDs in Gary's persistent ZDO.
             internal Character SelfAttacker;
             internal long SelfThreatAt,SelfThreatOwner;
@@ -132,13 +132,13 @@ namespace Gary
             }
             else
             {
-                gary.SetOwner(ZNet.GetUID());gary.SetPosition(spot);gary.SetRotation(Quaternion.identity);
+                gary.SetOwner(ZNet.GetUID());BoatRide.Forget(gary);gary.SetPosition(spot);gary.SetRotation(Quaternion.identity);
                 GameObject go=ZNetScene.instance.FindInstance(gary.m_uid);
                 if(go!=null)
                 {
                     go.transform.SetPositionAndRotation(spot,Quaternion.identity);
                     Rigidbody body=go.GetComponent<Rigidbody>();if(body!=null){body.position=spot;body.linearVelocity=Vector3.zero;}
-                    Character c=go.GetComponent<Character>();Get(c).Entrance=null;
+                    Character c=go.GetComponent<Character>();State state=Get(c);state.Entrance=null;state.NextBoat=0;state.BoatMissingUntil=0;
                 }
             }
             gary.Set(Waiting,false);
@@ -161,7 +161,7 @@ namespace Gary
         }
         internal static void Clear()
         {
-            Personality.Clear();
+            BoatRide.Clear();Personality.Clear();
             foreach(State st in States.Values)
                 foreach(var pair in st.Original)if(pair.Key!=null)pair.Key.SetPropertyBlock(pair.Value);
             States.Clear();
