@@ -15,10 +15,24 @@ then resumes waiting when the threat ends. He does not start fights with nearby 
 fighting and tries to run **40 metres away** to recover; he returns at **90%**. Damage has a positive health floor and Gary cannot die. Healing continues slowly while escaping if the route is blocked. A persisted recovery
 deadline also lets him recover after three minutes of world time while his zone is unloaded. Calling him cannot skip that retreat.
 
-Every roughly **3–5 minutes**, a peaceful Gary can toss one free **raspberry, blueberry, or mushroom** near your feet. Pick it up as a
-normal ground item. Near a loaded **burial chamber, sunken crypt, troll cave, or frost cave**, he may lead ahead and wait for you to
-catch up. He remembers up to 32 entrances he showed you, gives up on obstructed routes, and cannot distinguish cleared dungeons.
-Guiding uses nearby loaded entrances; it does not reveal distant locations or add map pins.
+Gary gathers actual wild **raspberries, blueberries, and mushrooms** into a saved six-item stash. Every roughly **3–5 minutes**,
+he can toss you one of those snacks as a normal ground item. An empty stash means no gift until he finds more food. He stays nearby,
+skips protected plants and plants close to players, and leaves bushes/mushrooms on their normal regrowth timers. In multiplayer,
+he gathers only plants owned by his current simulator; other players' harvests never become his food.
+
+Look at Gary and press your normal **Use key (E)** to pet him: a friendly pat, quiet forest chirp, purple sparkles, and a short happy
+dance. Petting has no stat bonus. He greets you after returning from a dungeon/absence and celebrates foes he fought and your nearby victories over huge enemies.
+Occasionally, he chirps and looks toward a nearby **visible** danger, sounding nervous around huge creatures. He still starts combat
+only after an enemy hurts you or him.
+
+When you stop near a **burning campfire or hearth**, Gary finds a clear spot beside it and relaxes, with an occasional contented wiggle.
+While you pause to **build**, he watches from the side, away from your placement ghost. Moving away resumes following. His injury
+retreat now searches for reachable, dry ground away from both you and danger, preferring cover; blocked paths retain his slow healing.
+Combat and healing override social activities.
+
+Near a loaded **burial chamber, sunken crypt, troll cave, or frost cave**, he may lead ahead and wait for you to catch up. He remembers
+up to 32 entrances, gives up on obstructed routes, and cannot distinguish cleared dungeons. Guiding uses nearby loaded entrances;
+it does not reveal distant locations or add map pins.
 
 Calls require clear, dry ground. Gary waits outside dungeons and while you are dead. After a portal trip, call him with F3.
 He stays in the world when you log out. Food cooldowns, retreat state, and his player identity survive F6 and world saves.
@@ -27,7 +41,7 @@ server authenticates summons and reuses an existing Gary even when his zone is u
 greydwarfs keep their normal behavior. His save uses the original Greydwarf prefab, so removing the mod leaves a normal tamed
 creature without deleting a missing custom prefab.
 
-Settings and keys: F7 → Mod settings, or `BepInEx/config/com.bobisme.gary.cfg`.
+Settings and keys: F7 → Mod settings, or `BepInEx/config/com.bobisme.gary.cfg`. Campfire companionship, building companionship, reactions, and danger warnings each have a toggle.
 The native AI and hot-reload patterns were informed by [Quad's AICompanion](https://github.com/HardHeadHackerHead/valheim-mods/tree/main/mods/AICompanion).
 
 First-playtest checklist (automated policy checks and assembly verification do not exercise the running game):
@@ -35,10 +49,13 @@ First-playtest checklist (automated policy checks and assembly verification do n
 1. F6, then F3 on clear ground. Check Gary's purple appearance and following; repeatedly call him and confirm one Gary.
 2. Walk past peaceful creatures. Let a hostile creature hit you, then Gary alone; he should retaliate in both cases, including while waiting. Player/pet hits should not hurt him.
 3. Let Gary take heavy/lethal damage. He must flee alive, rest away from you, and return healed; a call during recovery must wait.
-4. Wait for a food gift. Check one normal food item arcs toward you; F6 should keep its cooldown. Combat suppresses gifts.
-5. Approach a crypt/cave. Follow Gary, lag behind, or walk away; check waiting and cancellation. He should wait outside when you enter.
-6. Save/restart and F6 with Gary following, waiting, and retreating. Recall from an unloaded zone and check identity/recovery.
-7. Repeat on a server with Gary installed everywhere; transfer ownership and check one companion, one simulation, and normal wild AI.
+4. Walk past wild berries/mushrooms at least four metres from players. Check Gary harvests once, then gifts only from his stash. Check normal regrowth, wards (including your own), resource-rate scaling, and F6/save preservation. An empty stash must produce no food.
+5. Pet Gary with E while following and waiting. Check one pat/chirp/sparkle/dance per cooldown, normal interactions with other objects, and rejection while healing/fighting. Check petting/reactions on two clients without duplicated sounds.
+6. Pause by a burning fire, extinguish it, then walk away. Build and rotate your ghost toward Gary; check he watches from clear ground and resumes following when you move. Danger and actual hits must interrupt every idle activity.
+7. Return from a dungeon, defeat a foe Gary was fighting, and approach a visible large hostile. Check greetings/celebration/warnings, subdued volume, cooldowns, and no unsolicited attacks.
+8. Approach a crypt/cave. Follow Gary, lag behind, or walk away; check waiting and cancellation. He should wait outside when you enter.
+9. Save/restart and F6 with Gary following, waiting, and retreating. Recall from an unloaded zone and check identity/recovery.
+10. Repeat on a server with Gary installed everywhere; transfer ownership and check one companion, one simulation, and normal wild AI.
 
 ## BuildShapes
 

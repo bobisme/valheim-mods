@@ -1,3 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><AssemblyName>Gary</AssemblyName><RootNamespace>Gary</RootNamespace></PropertyGroup>
+  <ItemGroup>
+    <Reference Include="UnityEngine.AnimationModule"><HintPath>$(ManagedDir)/UnityEngine.AnimationModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AudioModule"><HintPath>$(ManagedDir)/UnityEngine.AudioModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.ParticleSystemModule"><HintPath>$(ManagedDir)/UnityEngine.ParticleSystemModule.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
 </Project>

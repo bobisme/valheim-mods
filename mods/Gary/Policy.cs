@@ -15,6 +15,16 @@ namespace Gary
             hostile&&!friendly&&!dead&&age>=0&&age<=ThreatSeconds&&companionDistance<=ThreatRange&&originDistance<=ThreatRange;
         internal static bool CanGift(bool retreat,bool fighting,bool waiting,bool interior,double distance,double secondsUntilGift) =>
             !retreat&&!fighting&&!waiting&&!interior&&distance<=8&&secondsUntilGift<=0;
+        internal static bool CanPet(bool master,double distance,bool alive,bool retreat) =>
+            master&&alive&&!retreat&&distance>=0&&distance<=5;
+        internal static bool MoodDue(double seconds) => !double.IsInfinity(seconds)&&seconds>=2;
+        internal static bool PlayRecentMood(double age) => age>=0&&age<=4;
+        internal static bool SafeRest(double playerDistance,double enemyDistance) =>
+            !double.IsInfinity(playerDistance)&&!double.IsInfinity(enemyDistance)&&playerDistance>=RetreatDistance&&enemyDistance>=18;
+        internal static double RestSpotScore(double playerDistance,double enemyDistance,bool cover) =>
+            double.IsNaN(playerDistance)||double.IsInfinity(playerDistance)||double.IsNaN(enemyDistance)||double.IsInfinity(enemyDistance)||
+            playerDistance<RetreatDistance||enemyDistance<18?double.NegativeInfinity:
+            System.Math.Min(enemyDistance,70)*2+System.Math.Min(playerDistance,60)+(cover?30:0);
         internal static bool GuideWait(double playerDistance) => playerDistance>14;
     }
 }

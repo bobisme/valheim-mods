@@ -8,7 +8,6 @@ namespace Gary
     {
         private static readonly Func<BaseAI,float,bool> BaseUpdate=AccessTools.MethodDelegate<Func<BaseAI,float,bool>>(AccessTools.Method(typeof(BaseAI),nameof(BaseAI.UpdateAI)),virtualCall:false);
         internal static readonly Func<BaseAI,float,Vector3,float,bool,bool> Move=AccessTools.MethodDelegate<Func<BaseAI,float,Vector3,float,bool,bool>>(AccessTools.Method(typeof(BaseAI),"MoveTo"));
-        private static readonly Func<BaseAI,float,Vector3,bool> Flee=AccessTools.MethodDelegate<Func<BaseAI,float,Vector3,bool>>(AccessTools.Method(typeof(BaseAI),"Flee"));
         internal static readonly Action<BaseAI,bool> Alert=AccessTools.MethodDelegate<Action<BaseAI,bool>>(AccessTools.Method(typeof(BaseAI),"SetAlerted"));
         private static readonly Action<BaseAI,ZDOID> TargetInfo=AccessTools.MethodDelegate<Action<BaseAI,ZDOID>>(AccessTools.Method(typeof(BaseAI),"SetTargetInfo"));
         private static readonly AccessTools.FieldRef<MonsterAI,Character> Target=AccessTools.FieldRefAccess<MonsterAI,Character>("m_targetCreature");
@@ -16,13 +15,12 @@ namespace Gary
         private static readonly AccessTools.FieldRef<MonsterAI,Vector3> LastTarget=AccessTools.FieldRefAccess<MonsterAI,Vector3>("m_lastKnownTargetPos");
         private static readonly AccessTools.FieldRef<MonsterAI,bool> BeenAtTarget=AccessTools.FieldRefAccess<MonsterAI,bool>("m_beenAtLastPos");
         private static readonly AccessTools.FieldRef<MonsterAI,float> SinceSensed=AccessTools.FieldRefAccess<MonsterAI,float>("m_timeSinceSensedTargetCreature");
-        private static readonly string[] Foods={"Raspberry","Blueberries","Mushroom"};
 
         // True lets native MonsterAI handle following/combat; false means this tick was handled here.
         internal static bool BeforeUpdate(MonsterAI ai,float dt,ref bool result)
         {
             Character c=ai.GetComponent<Character>();Companion.State st=Companion.Get(c);
-            ZNetView view=c.GetComponent<ZNetView>();if(!view.IsOwner())return true;
+            ZNetView view=c.GetComponent<ZNetView>();Personality.Visual(st);if(!view.IsOwner())return true;
             ZDO z=view.GetZDO();Player master=Companion.Owner(c);
             if(z.GetBool(Companion.Retreating,false)&&z.GetLong(Companion.RecoverAt,0)>0&&Companion.Now>=z.GetLong(Companion.RecoverAt,0))
                 c.Heal(c.GetMaxHealth(),false);
@@ -32,32 +30,28 @@ namespace Gary
             c.m_regenAllHPTime=retreat?1e9f:180;
             if(retreat)
             {
-                BaseUpdate(ai,dt);SetTarget(ai,null);st.Entrance=null;
-                Vector3 from=master!=null?master.transform.position:z.GetVec3("bob_gary_retreat_from",c.transform.position-c.transform.forward);
-                if(master!=null)z.Set("bob_gary_retreat_from",from);
-                float distance=Utils.DistanceXZ(c.transform.position,from);
-                if(distance<Policy.RetreatDistance)
-                {Alert(ai,true);if(distance<0.5f)from-=c.transform.forward;Flee(ai,dt,from);Status(st,"retreating to heal");}
-                else {ai.StopMoving();Alert(ai,false);Status(st,"resting; coming back soon");}
-                // A small trickle while fleeing prevents being stranded forever behind an impassable wall.
-                c.Heal(c.GetMaxHealth()*(distance>=Policy.RetreatDistance?0.03f:0.005f)*Mathf.Min(dt,1),false);
+                BaseUpdate(ai,dt);SetTarget(ai,null);ai.SetFollowTarget(null);st.Entrance=null;Personality.Cancel(st);
+                Nature.Retreat(st,ai,master,dt);
                 result=true;return false;
             }
             bool follow=CanFollow(master,z);
             ai.SetFollowTarget(follow?master.gameObject:null);
             Character target=ThreatFor(c,follow?master:null);
             if(target!=null)
-            {st.Entrance=null;Status(st,target==st.SelfAttacker?"defending myself":"protecting my friend");return true;}
+            {st.Entrance=null;st.LastEnemy=target;st.LastFight=Time.time;Personality.Cancel(st);Status(st,target==st.SelfAttacker?"defending myself":"protecting my friend");return true;}
             SetTarget(ai,null);
+            Personality.Observe(st,ai,master,dt);
             if(!follow)
             {
-                BaseUpdate(ai,dt);ai.StopMoving();st.Entrance=null;
+                BaseUpdate(ai,dt);ai.StopMoving();st.Entrance=null;st.ForageTarget=null;
                 Status(st,master!=null&&master.InInterior()?"waiting outside":"waiting for my friend");result=true;return false;
             }
             Gift(st,master);
+            if(Personality.Tick(st,ai,master,dt)){BaseUpdate(ai,dt);result=true;return false;}
             if(Guide.Tick(st,ai,master,dt))
-            {BaseUpdate(ai,dt);result=true;return false;}
-            Status(st,"following");return true;
+            {Personality.CancelVibe(st);BaseUpdate(ai,dt);result=true;return false;}
+            if(Nature.Forage(st,ai,master,dt)){Personality.CancelVibe(st);BaseUpdate(ai,dt);result=true;return false;}
+            Personality.CancelVibe(st);Status(st,"following");return true;
         }
         private static bool CanFollow(Player master,ZDO z) =>
             master!=null&&!master.IsDead()&&!master.InInterior()&&!z.GetBool(Companion.Waiting,false);
@@ -102,13 +96,16 @@ namespace Gary
             Character c=st.Body;ZDO z=Companion.Data(c);
             if(!Policy.CanGift(z.GetBool(Companion.Retreating,false),c.InAttack(),z.GetBool(Companion.Waiting,false),master.InInterior(),
                 Vector3.Distance(c.transform.position,master.transform.position),(z.GetLong(Companion.GiftAt,0)-Companion.Now)/(double)TimeSpan.TicksPerSecond))return;
-            Companion.ScheduleGift(z); // persist BEFORE spawning, so F6 or ownership transfer cannot repeat this gift
-            string name=Foods[UnityEngine.Random.Range(0,Foods.Length)];GameObject prefab=ZNetScene.instance.GetPrefab(name);
-            if(prefab==null)return;
+            ForestStash stash=Nature.Load(z);if(stash.Count==0)return;
+            int first=UnityEngine.Random.Range(0,3),kind=-1;
+            for(int i=0;i<3;i++)if(stash.At((first+i)%3)>0){kind=(first+i)%3;break;}
+            GameObject prefab=ZNetScene.instance.GetPrefab(Nature.Foods[kind]);if(prefab==null)return;
+            if(!stash.TryTake(kind,out ForestStash next))return;
+            Nature.Save(z,next);Companion.ScheduleGift(z); // spend BEFORE spawning; F6 cannot create another copy
             Vector3 start=c.GetCenterPoint()+c.transform.forward*0.8f;
             Vector3 end=master.transform.position+master.transform.right*0.8f+Vector3.up*0.3f;
             GameObject gift=UnityEngine.Object.Instantiate(prefab,start,Quaternion.identity);
-            ItemDrop item=gift.GetComponent<ItemDrop>();if(item!=null)item.m_itemData.m_stack=1;
+            ItemDrop item=gift.GetComponent<ItemDrop>();if(item!=null){item.SetStack(1);ItemDrop.OnCreateNew(item);}
             Rigidbody body=gift.GetComponent<Rigidbody>();
             if(body!=null)
             {

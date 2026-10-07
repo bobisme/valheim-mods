@@ -14,10 +14,10 @@ namespace Gary
     {
         public const string Guid="com.bobisme.gary";
         public const string Name="Gary";
-        public const string Version="0.1.2";
+        public const string Version="0.2.0";
         internal static Plugin Instance;
         internal ConfigEntry<float> Health,GiftSeconds,GuideRange;
-        internal ConfigEntry<bool> Gifts,Guiding;
+        internal ConfigEntry<bool> Gifts,Guiding,Reactions,Warnings,Campfires,Building;
         private ConfigEntry<KeyboardShortcut> _call,_wait;
         private Harmony _harmony;
         private ZRoutedRpc _rpc;
@@ -44,10 +44,14 @@ namespace Gary
                 Logger.LogInfo("Moved Gary's Ctrl+F3 bindings to F3 / Shift+F3 and restored hidden UI.");
             }
             Health=Config.Bind("Companion","Health",150f,new ConfigDescription("Gary's injury buffer. He retreats at 20% and returns at 90%; damage never kills him.",new AcceptableValueRange<float>(40,500)));
-            Gifts=Config.Bind("Forest","FoodGifts",true,"Occasionally toss one forest food item near your feet, outside combat.");
+            Gifts=Config.Bind("Forest","FoodGifts",true,"Gather real wild berries/mushrooms into a six-item stash and occasionally toss one near your feet, outside combat.");
             GiftSeconds=Config.Bind("Forest","FoodInterval",240f,new ConfigDescription("Average seconds between food gifts (randomized 0.75–1.25 times this).",new AcceptableValueRange<float>(60,1800)));
             Guiding=Config.Bind("Forest","DungeonGuiding",true,"Notice nearby loaded crypt/cave entrances, lead ahead, and wait for you to catch up. Does not reveal the world map.");
             GuideRange=Config.Bind("Forest","NoticeRange",90f,new ConfigDescription("Distance at which Gary notices a loaded dungeon entrance.",new AcceptableValueRange<float>(20,120)));
+            Reactions=Config.Bind("Personality","Reactions",true,"Happy chirps and short native dances for petting, reunions, victories, and relaxing.");
+            Warnings=Config.Bind("Personality","DangerWarnings",true,"Occasional chirp and glance at a nearby visible hostile creature; no map markers or proactive attacks.");
+            Campfires=Config.Bind("Personality","CampfireBuddy",true,"Relax beside a burning fire when you settle down nearby.");
+            Building=Config.Bind("Personality","BuildingBuddy",true,"Watch from the side while you build, away from your placement ghost.");
             _harmony=new Harmony(Guid);_harmony.PatchAll(typeof(Plugin).Assembly);
             Logger.LogInfo($"Gary {Version} loaded. {_call.Value} calls Gary; {_wait.Value} tells him to wait.");
         }
@@ -78,12 +82,13 @@ namespace Gary
         private void Register()
         {
             _rpc=ZRoutedRpc.instance;if(_rpc==null)return;
-            _rpc.Register<bool,Vector3>(Command,OnCommand);_rpc.Register<string>(Reply,OnReply);
+            _rpc.Register<bool,Vector3>(Command,OnCommand);_rpc.Register<string>(Reply,OnReply);Petting.Register(_rpc);
             IDictionary table=AccessTools.Field(typeof(ZRoutedRpc),"m_functions").GetValue(_rpc) as IDictionary;
             _commandHandler=table?[Command.GetStableHashCode()];_replyHandler=table?[Reply.GetStableHashCode()];
         }
         private void Unregister()
         {
+            Petting.Unregister();
             if(_rpc!=null)
             {
                 IDictionary table=AccessTools.Field(typeof(ZRoutedRpc),"m_functions").GetValue(_rpc) as IDictionary;

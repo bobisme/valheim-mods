@@ -42,4 +42,45 @@ foreach(var blocked in new[]{(true,false,false,false),(false,true,false,false),(
 Check(!Policy.CanGift(false,false,false,false,8.01,0),"No food thrown from afar");
 Check(!Policy.CanGift(false,false,false,false,3,0.01),"No gift before saved cooldown expires");
 Check(Policy.GuideWait(14.01)&&!Policy.GuideWait(14),"Guiding waits for the player to catch up");
-Console.WriteLine($"Passed {checks} Gary injury, retaliation, gift, and guide policy checks.");
+// Food conservation across repeated harvest/gift cycles, including a serialized F6 handoff.
+var random=new Random(20261007);
+ForestStash stash=new ForestStash(0,0,0);int harvested=0,given=0;
+for(int step=0;step<1000;step++)
+{
+    int kind=random.Next(-1,4),amount=random.Next(-1,9),before=stash.Count;
+    if(random.Next(2)==0)
+    {
+        bool accepted=stash.TryAdd(kind,amount,out ForestStash next);
+        if(accepted){harvested+=amount;Check(next.At(kind)==stash.At(kind)+amount,"Harvest credits exactly its actual yield");}
+        else Check(next.Count==before,"Rejected harvest cannot create or discard food");
+        stash=next;
+    }
+    else
+    {
+        bool accepted=stash.TryTake(kind,out ForestStash next);
+        if(accepted){given++;Check(next.Count==before-1,"Each snack consumes one harvested item");}
+        else Check(next.Count==before,"An empty or invalid pocket produces no snack");
+        stash=next;
+    }
+    stash=new ForestStash(stash.Berries,stash.Blueberries,stash.Mushrooms);
+    Check(stash.Count==harvested-given&&stash.Count>=0&&stash.Count<=ForestStash.Capacity,"Food stays conserved and bounded across reloads");
+}
+Check(new ForestStash(int.MaxValue,int.MaxValue,int.MaxValue).Count==6,"Malformed saved pockets cannot exceed six items");
+Check(new ForestStash(-1,-1,-1).Count==0,"Negative saved pockets cannot create food");
+Check(Policy.CanPet(true,5,true,false),"A nearby living master can pet Gary");
+foreach(double distance in new[]{-1.0,5.01,double.NaN,double.PositiveInfinity})
+    Check(!Policy.CanPet(true,distance,true,false),"Invalid/out-of-reach pet requests are rejected");
+Check(!Policy.CanPet(false,1,true,false)&&!Policy.CanPet(true,1,false,false)&&!Policy.CanPet(true,1,true,true),"Other players, dead players and healing retreats cannot pet");
+Check(Policy.MoodDue(2)&&!Policy.MoodDue(1.99),"Chirps and reactions have a minimum cooldown");
+Check(Policy.PlayRecentMood(0)&&Policy.PlayRecentMood(4)&&!Policy.PlayRecentMood(4.01)&&!Policy.PlayRecentMood(-1),"Observers play only recent reactions");
+Check(Policy.SafeRest(40,18)&&!Policy.SafeRest(39.99,18)&&!Policy.SafeRest(40,17.99),"Rest requires distance from both friend and danger");
+Check(Policy.RestSpotScore(40,30,true)>Policy.RestSpotScore(40,30,false),"Reachable cover is preferred for a refuge");
+Check(Policy.RestSpotScore(40,50,false)>Policy.RestSpotScore(40,20,false),"Retreat routes prefer more separation from danger");
+Check(double.IsNegativeInfinity(Policy.RestSpotScore(40,17.99,true)),"Cover cannot make an unsafe enemy distance acceptable");
+foreach(double invalid in new[]{double.NaN,double.PositiveInfinity,double.NegativeInfinity})
+{
+    Check(!Policy.MoodDue(invalid)&&!Policy.PlayRecentMood(invalid),"Invalid reaction clocks cannot replay effects");
+    Check(!Policy.SafeRest(invalid,20)&&!Policy.SafeRest(45,invalid),"Invalid positions cannot enable rapid healing");
+    Check(double.IsNegativeInfinity(Policy.RestSpotScore(invalid,20,true))&&double.IsNegativeInfinity(Policy.RestSpotScore(45,invalid,true)),"Invalid refuge scores are rejected");
+}
+Console.WriteLine($"Passed {checks} Gary injury, defense, food conservation, personality, petting, retreat and guide checks.");

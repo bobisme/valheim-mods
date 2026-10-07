@@ -51,7 +51,8 @@ namespace Gary
             Character c=__instance.GetComponent<Character>();Companion.State st=Companion.Get(c);
             if(attacker.IsPlayer()||attacker.IsTamed()||attacker.IsDead()||!BaseAI.IsEnemy(c,attacker))return;
             st.SelfAttacker=attacker;st.SelfThreatAt=Companion.Now;
-            st.SelfThreatOwner=Companion.Data(c).GetOwner();st.SelfThreatOrigin=c.transform.position;
+            ZDO z=Companion.Data(c);st.SelfThreatOwner=z.GetOwner();st.SelfThreatOrigin=c.transform.position;
+            z.Set("bob_gary_danger",attacker.transform.position);z.Set("bob_gary_danger_time",Companion.Now);
         }
     }
     [HarmonyPatch(typeof(Character),nameof(Character.SetHealth))]
@@ -98,6 +99,20 @@ namespace Gary
             ZDO z=Companion.Data(p);z.Set(Companion.Threat,attacker.GetZDOID());z.Set(Companion.ThreatAt,Companion.Now);z.Set(Companion.ThreatOwner,z.GetOwner());
         }
     }
+    [HarmonyPatch(typeof(Player),"Interact")]
+    internal static class GaryPet
+    {
+        private static bool Prefix(Player __instance,GameObject go,bool hold,bool alt)
+        {
+            Character c=go!=null?go.GetComponentInParent<Character>():null;
+            if(c==null||!Companion.Is(c))return true;
+            if(!hold&&!alt)Petting.Request(__instance,c);
+            return false;
+        }
+    }
+    [HarmonyPatch(typeof(Character),nameof(Character.OnDeath))]
+    internal static class GaryVictory
+    {private static void Prefix(Character __instance){if(!Companion.Is(__instance))Personality.EnemyDied(__instance);}}
     [HarmonyPatch(typeof(Character),nameof(Character.RaiseSkill))]
     internal static class GarySkill
     {private static bool Prefix(Character __instance) => !Companion.Is(__instance);}
@@ -110,7 +125,7 @@ namespace Gary
         private static void Postfix(Character __instance,ref string __result)
         {
             if(!Companion.Is(__instance))return;
-            __result="Gary the Greydwarf\n"+Companion.Data(__instance).GetString("bob_gary_status","following")+"\nF3: call · Shift+F3: wait";
+            __result=Localization.instance.Localize("Gary the Greydwarf\n"+Companion.Data(__instance).GetString("bob_gary_status","following")+"\n[<color=yellow><b>$KEY_Use</b></color>] Pet Gary\nF3: call · Shift+F3: wait");
         }
     }
 }

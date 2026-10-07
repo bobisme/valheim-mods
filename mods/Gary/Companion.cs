@@ -12,7 +12,14 @@ namespace Gary
         internal sealed class State
         {
             internal Character Body;
-            internal bool OwnerConfigured;
+            internal bool OwnerConfigured,VibeSupported,VictoryPending;
+            internal long SeenMood;
+            internal float Stationary,NextForage,ForageUntil,NextRetreatSpot,NextDanger,NextWarning,NextVictory,NextCozy,NextFire,NextBuildSpot,LookUntil,LastFight,VictoryUntil;
+            internal Vector3 MasterPosition,FireSpot,BuildOrigin,LookPoint;
+            internal Vector3? RetreatSpot,RetreatDanger,BuildSpot;
+            internal Pickable ForageTarget;
+            internal Fireplace Fire;
+            internal Character LastEnemy;
             internal string Status="following";
             internal float NextGuide,GuideUntil,StuckTime,LastError;
             // Local, short-lived combat memory: do not save attacker IDs in Gary's persistent ZDO.
@@ -35,6 +42,8 @@ namespace Gary
             if(!States.TryGetValue(c,out State st))
             {
                 st=new State{Body=c,LastPosition=c.transform.position};States.Add(c,st);
+                ZSyncAnimation animation=c.GetZAnim();
+                st.VibeSupported=animation!=null&&animation.HasParameter("george_vibing",AnimatorControllerParameterType.Bool);
                 c.m_name="Gary the Greydwarf";c.m_faction=Character.Faction.Players;c.m_group="bob_gary";
                 c.m_tolerateWater=true;c.m_regenAllHPTime=180;
                 c.m_speed=4f;c.m_walkSpeed=2f;c.m_runSpeed=7.5f;
@@ -132,7 +141,10 @@ namespace Gary
                     Character c=go.GetComponent<Character>();Get(c).Entrance=null;
                 }
             }
-            gary.Set(Waiting,false);return "Hello, friend! I'll follow you.";
+            gary.Set(Waiting,false);
+            GameObject loaded=ZNetScene.instance.FindInstance(gary.m_uid);
+            if(loaded!=null&&loaded.GetComponent<ZNetView>().IsOwner())Personality.Mood(Get(loaded.GetComponent<Character>()),Personality.Greeting);
+            return "Hello, friend! I'll follow you.";
         }
         internal static bool SafeSpot(Vector3 origin,out Vector3 spot)
         {
@@ -149,6 +161,7 @@ namespace Gary
         }
         internal static void Clear()
         {
+            Personality.Clear();
             foreach(State st in States.Values)
                 foreach(var pair in st.Original)if(pair.Key!=null)pair.Key.SetPropertyBlock(pair.Value);
             States.Clear();
