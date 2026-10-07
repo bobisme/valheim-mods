@@ -2,6 +2,37 @@
 
 Bob's Valheim mods, built for native Linux and Windows and packaged for the in-game mod manager.
 
+## ChestSearch
+
+Press **Ctrl+F** to open your inventory and a nearby-chest search window. Type part of an item's name; multiple words all need to match.
+Each slot represents an actual stack from one chest, with its count and quality. Hover for its item tooltip and source chest/distance.
+Use **‹ / ›** to page through matches, then **drag a stack onto your inventory**. Empty slots accept the stack; a matching stack takes
+only what fits. A different occupied slot refuses the move. Right-click or dropping elsewhere cancels. Escape, Ctrl+F, or × closes search.
+
+The default range is **20 metres**, configurable from **5–40 metres** in F7 → Mod settings. Only loaded, accessible storage containers
+are searched, including carts and boat storage. Chests in use, inaccessible wards/private storage, creature bags, tombstones and recyclers
+are excluded. Limits: 64 nearest containers, 512 matching stacks, 24 slots per page. Searches localized item names rather than chest names.
+
+Search previews never hold real items. On a drop, the source chest's current owner must approve a normal open request. ChestSearch then
+waits for ownership, reloads the actual contents, rechecks range/access and the original stack's metadata, and performs a native inventory
+move. A stack changed by another player is rejected and refreshed. It does not force ownership, swap items into the source chest, or drop
+preview items into the world. Closing, dying, teleporting, timing out, or F6 before completion moves nothing. A pending native grant arriving
+after the mod unloads can open the ordinary chest window, but cannot run a ChestSearch transfer.
+
+Only the player using the search window needs this mod; the host uses normal chest RPCs. Native Linux/Windows, no custom prefab/save data
+or DLL dependencies on Quad's mods. This first version supports keyboard search and mouse dragging; controller/touch operation is future work.
+
+Checks cover search/range rules, stack capacity/conservation, asynchronous permission gating, duplicate/late replies and cancellation, plus
+native methods and loader-readable symbols. These do not exercise the running UI or live multiplayer. First playtest:
+
+1. Ctrl+F near a mix of chests. Type `wood`, `iron scrap`, and an unmatched name; check slots/counts/source labels, paging and empty results.
+2. Drag to an empty inventory slot and a nearly full matching stack; confirm the corresponding chest loses exactly the moved amount.
+3. Drop on a different item, another panel, or outside; right-click during a drag. The source and player inventories must stay unchanged.
+4. Type words containing E/F/Tab while searching; check typing doesn't activate powers, close the inventory, move, attack or click underlying panels.
+5. Have a friend own/open/change the source chest. Check normal permission, busy/private/ward rejection and stale-stack refusal without duplicates.
+6. Save/restart after moving items, and F6/close/teleport while dragging or awaiting permission. Check source persistence and cancellation.
+7. Check UI scaling and compatibility with GearSlots, QualityOfLife and AICompanion bag panels; opening a normal chest closes search.
+
 ## Gary the Greydwarf
 
 A purple greydwarf friend with native creature AI. No API key is needed. Gary jogs at 4 m/s, runs at 7.5 m/s, and starts

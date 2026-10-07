@@ -124,6 +124,23 @@ if(!inventorySave.Body.Instructions.Any(i=>i.OpCode.Code==Mono.Cecil.Cil.Code.Ld
     throw new Exception("Native inventory header changed; review Gary's read-only chest parser.");
 Field("ZRoutedRpc","m_functions","System.Collections.Generic.Dictionary`2<System.Int32,RoutedMethodBase>");
 
+// ChestSearch uses native permission/ownership and displays cloned slot visuals, never synthetic inventory transfers.
+Method("Container","RPC_OpenResponse","System.Void","System.Int64","System.Boolean");
+Method("Container","Load","System.Boolean");
+Method("Container","CheckAccess","System.Boolean","System.Int64");
+Field("Container","m_nview","ZNetView");
+Method("InventoryGui","Update","System.Void");
+Method("InventoryGui","Hide","System.Void");
+Method("InventoryGui","CloseContainer","System.Void");
+Method("InventoryGui","OnSelectedItem","System.Void","InventoryGrid","ItemDrop/ItemData","Vector2i","InventoryGrid/Modifier");
+Method("InventoryGui","OnReleasedItem","System.Void","InventoryGrid","ItemDrop/ItemData","Vector2i");
+Method("InventoryGui","OnRightClickItem","System.Void","InventoryGrid","ItemDrop/ItemData","Vector2i");
+Field("InventoryGui","m_dragGo","UnityEngine.GameObject");
+Method("InventoryGrid","GetHoveredElement","InventoryElement");
+Method("InventoryGrid","GetElementPos","Vector2i","InventoryElement");
+Method("InventoryElement","Initialize","System.Void","System.Int32","System.Int32");
+Method("Inventory","MoveItemToThis","System.Boolean","Inventory","ItemDrop/ItemData","System.Int32","System.Int32","System.Int32");
+
 using var catalog = JsonDocument.Parse(File.ReadAllText(args[1]));
 foreach (var entry in catalog.RootElement.GetProperty("mods").EnumerateArray())
 {
