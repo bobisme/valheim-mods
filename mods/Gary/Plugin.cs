@@ -14,10 +14,10 @@ namespace Gary
     {
         public const string Guid="com.bobisme.gary";
         public const string Name="Gary";
-        public const string Version="0.2.3";
+        public const string Version="0.2.4";
         internal static Plugin Instance;
         internal ConfigEntry<float> Health,GiftSeconds,GuideRange;
-        internal ConfigEntry<bool> Gifts,Guiding,Reactions,Warnings,Campfires,Building;
+        internal ConfigEntry<bool> Gifts,Guiding,Reactions,Warnings,Campfires,Building,ShowMapMarker;
         private ConfigEntry<KeyboardShortcut> _call,_wait;
         private Harmony _harmony;
         private ZRoutedRpc _rpc;
@@ -44,6 +44,7 @@ namespace Gary
                 Logger.LogInfo("Moved Gary's Ctrl+F3 bindings to F3 / Shift+F3 and restored hidden UI.");
             }
             Health=Config.Bind("Companion","Health",150f,new ConfigDescription("Gary's injury buffer. He retreats at 20% and returns at 90%; damage never kills him.",new AcceptableValueRange<float>(40,500)));
+            ShowMapMarker=Config.Bind("Companion","MapMarker",true,"Show your Gary as a purple moving pin on the minimap and full map. Unloaded known positions are labeled last seen.");
             Gifts=Config.Bind("Forest","FoodGifts",true,"Gather real wild berries/mushrooms and loose feathers into a six-item stash and occasionally toss one near your feet, outside combat.");
             GiftSeconds=Config.Bind("Forest","FoodInterval",240f,new ConfigDescription("Average seconds between forest gifts (randomized 0.75–1.25 times this).",new AcceptableValueRange<float>(60,1800)));
             Guiding=Config.Bind("Forest","DungeonGuiding",true,"Notice nearby loaded crypt/cave entrances and skip dungeons confirmed fully looted for your player/world. Unknown or unfinished interiors remain eligible.");
@@ -65,7 +66,7 @@ namespace Gary
             }
             if(_pendingUntil>0 && Time.unscaledTime>_pendingUntil)
             {_pendingUntil=0;Tell("No reply yet. Gary must be installed on the host and participating players.");}
-            DungeonLoot.Tick();
+            DungeonLoot.Tick();MapMarker.Tick();
             Player p=Player.m_localPlayer;
             if(p==null||p.IsDead()||p.IsTeleporting()||Busy()||_rpc==null)return;
             bool wait=_wait.Value.IsDown();
@@ -123,6 +124,6 @@ namespace Gary
         internal static void Tell(string message) => Player.m_localPlayer?.Message(MessageHud.MessageType.TopLeft,"Gary: "+message);
         internal void Error(Exception error) => Logger.LogError(error);
         private void OnDestroy()
-        {Unregister();_harmony?.UnpatchSelf();PlayerCollision.Clear();DungeonLoot.Clear();Companion.Clear();if(Instance==this)Instance=null;}
+        {Unregister();_harmony?.UnpatchSelf();MapMarker.Clear();PlayerCollision.Clear();DungeonLoot.Clear();Companion.Clear();if(Instance==this)Instance=null;}
     }
 }

@@ -46,6 +46,10 @@ then resumes waiting when the threat ends. He does not start fights with nearby 
 fighting and tries to run **40 metres away** to recover; he returns at **90%**. Damage has a positive health floor and Gary cannot die. Healing continues slowly while escaping if the route is blocked. A persisted recovery
 deadline also lets him recover after three minutes of world time while his zone is unloaded. Calling him cannot skip that retreat.
 
+Your Gary has a **purple marker on the minimap and full map** that follows him while loaded. If only his known saved position is available,
+it shows **Gary (last seen)** there; it disappears when no position is known. Toggle **Companion → MapMarker** in F7. The marker is local,
+never saved/shared through the cartography table, and cleaned up on F6 or world/player changes.
+
 Gary gathers actual wild **raspberries, blueberries, mushrooms, and loose feathers** into a saved six-item stash. Every roughly **3–5 minutes**,
 he can toss you one as a normal ground item. At most two pockets hold feathers, and food gets **80%** of gifts when he has both. An empty stash means no gift until he gathers more. He stays nearby,
 skips protected plants and plants close to players, and leaves bushes/mushrooms on their normal regrowth timers. In multiplayer,
@@ -81,7 +85,7 @@ The native AI and hot-reload patterns were informed by [Quad's AICompanion](http
 
 First-playtest checklist (automated policy checks and assembly verification do not exercise the running game):
 
-1. F6, then F3 on clear ground. Check Gary's purple appearance and following; repeatedly call him and confirm one Gary.
+1. F6, then F3 on clear ground. Check Gary's purple appearance, following and purple pin on both maps; repeatedly call him and confirm one Gary and one marker. Toggle MapMarker in F7, F6 again, switch worlds and leave Gary waiting out of range; check cleanup and the last-seen label.
 2. Walk past peaceful creatures. Let a hostile creature hit you, then Gary alone; he should retaliate in both cases, including while waiting. Player/pet hits should not hurt him.
 3. Let Gary take heavy/lethal damage. He must flee alive, rest away from you, and return healed; a call during recovery must wait.
 4. Walk past wild berries/mushrooms and loose feathers at least four metres from players. Feathers must be within two metres of Gary and already owned by his simulator; he skips player-dropped items, bases, custom/placed items and his own gifts. Check Gary harvests once, then gifts only from his stash. Check normal regrowth, wards (including your own), resource-rate scaling, and F6/save preservation. An empty stash must produce no food.

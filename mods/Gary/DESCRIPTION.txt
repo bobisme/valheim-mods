@@ -18,4 +18,6 @@ Within 90 metres, Gary can notice a loaded burial chamber, sunken crypt, troll c
 
 Install Gary on the host/dedicated server and participating clients for multiplayer. The server authenticates commands and finds the existing saved Gary, including unloaded zones, before spawning. Creature simulation and gifts run only on its network owner. Uses tagged vanilla Greydwarf saves, so removing the mod leaves a normal tamed greydwarf instead of an unknown-prefab object. Special behavior and purple appearance require the mod.
 
+Your Gary has a purple moving marker on the minimap and full map. If he unloads but his saved object is still known, it shows Gary (last seen) at that position; it disappears when no position is known. Only your Gary is shown. The marker is transient, does not become a saved/shared map pin, and cleans up on F6/world/player changes. Toggle Companion/MapMarker in F7.
+
 Settings are in F7 → Mod settings, or BepInEx/config/com.bobisme.gary.cfg. Compiled and checked against native Linux assemblies, including food-conservation, injury, defense, petting, reaction and retreat policy tests. Appearance, pathfinding, audio, live multiplayer, and save/restart behavior need in-game playtests.
