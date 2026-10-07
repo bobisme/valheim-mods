@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
@@ -13,7 +14,7 @@ namespace Gary
     {
         public const string Guid="com.bobisme.gary";
         public const string Name="Gary";
-        public const string Version="0.1.0";
+        public const string Version="0.1.1";
         internal static Plugin Instance;
         internal ConfigEntry<float> Health,GiftSeconds,GuideRange;
         internal ConfigEntry<bool> Gifts,Guiding;
@@ -28,15 +29,27 @@ namespace Gary
         private void Awake()
         {
             Instance=this;
-            _call=Config.Bind("Controls","CallGary",new KeyboardShortcut(KeyCode.F3,KeyCode.LeftControl),"Summon your Gary, or recall the same Gary beside you. Does not interrupt his healing retreat.");
-            _wait=Config.Bind("Controls","WaitHere",new KeyboardShortcut(KeyCode.F3,KeyCode.LeftControl,KeyCode.LeftShift),"Tell Gary to wait here. Use CallGary to resume following.");
+            _call=Config.Bind("Controls","CallGary",new KeyboardShortcut(KeyCode.F3),"Summon your Gary, or recall the same Gary beside you. Does not interrupt his healing retreat.");
+            _wait=Config.Bind("Controls","WaitHere",new KeyboardShortcut(KeyCode.F3,KeyCode.LeftShift),"Tell Gary to wait here. Use CallGary to resume following.");
+            // Ctrl+F3 is hardcoded in Hud.Update to hide the entire UI root, including menus.
+            // Bind reads existing config values: changing only the defaults would leave everyone on the broken keys.
+            bool migrated=false;
+            foreach(ConfigEntry<KeyboardShortcut> key in new[]{_call,_wait})
+                if(key.Value.MainKey==KeyCode.F3 && key.Value.Modifiers.Contains(KeyCode.LeftControl))
+                {key.Value=key==_call?new KeyboardShortcut(KeyCode.F3):new KeyboardShortcut(KeyCode.F3,KeyCode.LeftShift);migrated=true;}
+            if(migrated)
+            {
+                Config.Save();
+                if(Hud.instance!=null)Hud.instance.m_userHidden=false;
+                Logger.LogInfo("Moved Gary's Ctrl+F3 bindings to F3 / Shift+F3 and restored hidden UI.");
+            }
             Health=Config.Bind("Companion","Health",150f,new ConfigDescription("Gary's injury buffer. He retreats at 20% and returns at 90%; damage never kills him.",new AcceptableValueRange<float>(40,500)));
             Gifts=Config.Bind("Forest","FoodGifts",true,"Occasionally toss one forest food item near your feet, outside combat.");
             GiftSeconds=Config.Bind("Forest","FoodInterval",240f,new ConfigDescription("Average seconds between food gifts (randomized 0.75–1.25 times this).",new AcceptableValueRange<float>(60,1800)));
             Guiding=Config.Bind("Forest","DungeonGuiding",true,"Notice nearby loaded crypt/cave entrances, lead ahead, and wait for you to catch up. Does not reveal the world map.");
             GuideRange=Config.Bind("Forest","NoticeRange",90f,new ConfigDescription("Distance at which Gary notices a loaded dungeon entrance.",new AcceptableValueRange<float>(20,120)));
             _harmony=new Harmony(Guid);_harmony.PatchAll(typeof(Plugin).Assembly);
-            Logger.LogInfo($"Gary {Version} loaded. Ctrl+F3 calls Gary; Ctrl+Shift+F3 tells him to wait.");
+            Logger.LogInfo($"Gary {Version} loaded. {_call.Value} calls Gary; {_wait.Value} tells him to wait.");
         }
         private void Update()
         {

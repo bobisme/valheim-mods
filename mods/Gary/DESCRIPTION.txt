@@ -1,6 +1,6 @@
 Gary the Greydwarf is a purple forest companion: friendly, defensive, impossible to kill, and occasionally generous with snacks. Uses the game's native Greydwarf body, movement, weapons, and animation; no API key or external service required.
 
-Ctrl+F3 summons one Gary per player, or recalls that same Gary beside you. Ctrl+Shift+F3 tells him to stay where he is; Ctrl+F3 resumes following. Both keys are configurable. Calls need clear dry ground nearby. He waits outside dungeons and for you to respawn; use Ctrl+F3 to call him after a portal trip.
+F3 summons one Gary per player, or recalls that same Gary beside you. Shift+F3 tells him to stay where he is; F3 resumes following. Both keys are configurable. Calls need clear dry ground nearby. He waits outside dungeons and for you to respawn; use F3 to call him after a portal trip.
 
 Gary follows quietly until a hostile creature actually damages his player. He defends against that attacker for up to 30 seconds and stays within a bounded defense radius. He does not pick fights with nearby wildlife, players, or tamed friends. Friendly player/pet hits do not hurt him.
 

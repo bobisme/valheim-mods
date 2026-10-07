@@ -4,10 +4,11 @@ Bob's Valheim mods, built for native Linux and Windows and packaged for the in-g
 
 ## Gary the Greydwarf
 
-A purple greydwarf friend with native creature AI. No API key is needed.
+A purple greydwarf friend with native creature AI. No API key is needed. Gary jogs at 4 m/s, runs at 7.5 m/s, and starts
+running when more than 5 metres behind you.
 
-- **Ctrl+F3:** summon your Gary, or recall the same Gary beside you.
-- **Ctrl+Shift+F3:** tell him to stay where he is. Ctrl+F3 resumes following.
+- **F3:** summon your Gary, or recall the same Gary beside you.
+- **Shift+F3:** tell him to stay where he is. F3 resumes following.
 
 Gary follows you and fights a hostile creature **after it actually hurts you**. He does not start fights with nearby creatures or
 players. At **20% health**, he stops fighting and tries to run **40 metres away** to recover; he returns at **90%**. Damage has a
@@ -19,7 +20,7 @@ normal ground item. Near a loaded **burial chamber, sunken crypt, troll cave, or
 catch up. He remembers up to 32 entrances he showed you, gives up on obstructed routes, and cannot distinguish cleared dungeons.
 Guiding uses nearby loaded entrances; it does not reveal distant locations or add map pins.
 
-Calls require clear, dry ground. Gary waits outside dungeons and while you are dead. After a portal trip, call him with Ctrl+F3.
+Calls require clear, dry ground. Gary waits outside dungeons and while you are dead. After a portal trip, call him with F3.
 He stays in the world when you log out. Food cooldowns, retreat state, and his player identity survive F6 and world saves.
 **Install on the host/dedicated server and participating players**: only the creature's network owner runs AI/healing/gifts, and the
 server authenticates summons and reuses an existing Gary even when his zone is unloaded. All behavior is scoped to Gary; wild
@@ -31,7 +32,7 @@ The native AI and hot-reload patterns were informed by [Quad's AICompanion](http
 
 First-playtest checklist (automated policy checks and assembly verification do not exercise the running game):
 
-1. F6, then Ctrl+F3 on clear ground. Check Gary's purple appearance and following; repeatedly call him and confirm one Gary.
+1. F6, then F3 on clear ground. Check Gary's purple appearance and following; repeatedly call him and confirm one Gary.
 2. Walk past peaceful creatures. Let a hostile creature hit you; Gary should retaliate. Player/pet hits should not hurt him.
 3. Let Gary take heavy/lethal damage. He must flee alive, rest away from you, and return healed; a call during recovery must wait.
 4. Wait for a food gift. Check one normal food item arcs toward you; F6 should keep its cooldown. Combat suppresses gifts.

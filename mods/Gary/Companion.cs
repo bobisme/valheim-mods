@@ -33,6 +33,8 @@ namespace Gary
                 st=new State{Body=c,LastPosition=c.transform.position};States.Add(c,st);
                 c.m_name="Gary the Greydwarf";c.m_faction=Character.Faction.Players;c.m_group="bob_gary";
                 c.m_tolerateWater=true;c.m_regenAllHPTime=180;
+                c.m_speed=4f;c.m_walkSpeed=2f;c.m_runSpeed=7.5f;
+                c.m_turnSpeed=300f;c.m_runTurnSpeed=300f;
                 MonsterAI ai=c.GetComponent<MonsterAI>();
                 ai.m_attackPlayerObjects=false;ai.m_aggravatable=false;ai.m_afraidOfFire=false;ai.m_avoidFire=false;
                 ai.m_fleeIfNotAlerted=false;ai.m_fleeIfLowHealth=0;ai.m_fleeIfHurtWhenTargetCantBeReached=false;
@@ -95,8 +97,8 @@ namespace Gary
             }
             if(wait)
             {
-                if(gary==null)return "Call me with Ctrl+F3 first.";
-                gary.SetOwner(ZNet.GetUID());gary.Set(Waiting,true);return "I'll wait here. Ctrl+F3 calls me back.";
+                if(gary==null)return "Call me with F3 first.";
+                gary.SetOwner(ZNet.GetUID());gary.Set(Waiting,true);return "I'll wait here. F3 calls me back.";
             }
             if(gary!=null&&gary.GetBool(Retreating,false))
             {

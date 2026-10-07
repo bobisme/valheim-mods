@@ -4,6 +4,19 @@ using UnityEngine;
 
 namespace Gary
 {
+    [HarmonyPatch(typeof(BaseAI),"Follow")]
+    internal static class GaryFollow
+    {
+        private static bool Prefix(BaseAI __instance,GameObject go,float dt)
+        {
+            if(!Companion.Is(__instance))return true;
+            if(go==null||!__instance.GetComponent<ZNetView>().IsOwner())return false;
+            float distance=Vector3.Distance(__instance.transform.position,go.transform.position);
+            if(distance<3)__instance.StopMoving();
+            else Brain.Move(__instance,dt,go.transform.position,2.5f,distance>5);
+            return false;
+        }
+    }
     [HarmonyPatch(typeof(MonsterAI),nameof(MonsterAI.UpdateAI))]
     internal static class GaryAI
     {
@@ -85,7 +98,7 @@ namespace Gary
         private static void Postfix(Character __instance,ref string __result)
         {
             if(!Companion.Is(__instance))return;
-            __result="Gary the Greydwarf\n"+Companion.Data(__instance).GetString("bob_gary_status","following")+"\nCtrl+F3: call · Ctrl+Shift+F3: wait";
+            __result="Gary the Greydwarf\n"+Companion.Data(__instance).GetString("bob_gary_status","following")+"\nF3: call · Shift+F3: wait";
         }
     }
 }

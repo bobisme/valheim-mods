@@ -69,6 +69,7 @@ Method("MonsterAI","UpdateTarget","System.Void","Humanoid","System.Single","Syst
 Method("BaseAI","UpdateAI","System.Boolean","System.Single");
 Method("BaseAI","MoveTo","System.Boolean","System.Single","UnityEngine.Vector3","System.Single","System.Boolean");
 Method("BaseAI","Flee","System.Boolean","System.Single","UnityEngine.Vector3");
+Method("BaseAI","Follow","System.Void","UnityEngine.GameObject","System.Single");
 Method("BaseAI","SetAlerted","System.Void","System.Boolean");
 Method("BaseAI","SetTargetInfo","System.Void","ZDOID");
 Method("Character","SetHealth","System.Void","System.Single");
@@ -84,6 +85,7 @@ Field("MonsterAI","m_lastKnownTargetPos","UnityEngine.Vector3");
 Field("MonsterAI","m_beenAtLastPos","System.Boolean");
 Field("MonsterAI","m_timeSinceSensedTargetCreature","System.Single");
 Field("Location","s_allLocations","System.Collections.Generic.List`1<Location>");
+Field("Hud","m_userHidden","System.Boolean");
 Field("ZRoutedRpc","m_functions","System.Collections.Generic.Dictionary`2<System.Int32,RoutedMethodBase>");
 
 using var catalog = JsonDocument.Parse(File.ReadAllText(args[1]));
