@@ -97,15 +97,15 @@ namespace Gary
             if(!Policy.CanGift(z.GetBool(Companion.Retreating,false),c.InAttack(),z.GetBool(Companion.Waiting,false),master.InInterior(),
                 Vector3.Distance(c.transform.position,master.transform.position),(z.GetLong(Companion.GiftAt,0)-Companion.Now)/(double)TimeSpan.TicksPerSecond))return;
             ForestStash stash=Nature.Load(z);if(stash.Count==0)return;
-            int first=UnityEngine.Random.Range(0,3),kind=-1;
-            for(int i=0;i<3;i++)if(stash.At((first+i)%3)>0){kind=(first+i)%3;break;}
-            GameObject prefab=ZNetScene.instance.GetPrefab(Nature.Foods[kind]);if(prefab==null)return;
+            int kind=stash.GiftKind(UnityEngine.Random.Range(0,100));if(kind<0)return;
+            GameObject prefab=ZNetScene.instance.GetPrefab(Nature.Gifts[kind]);if(prefab==null||prefab.GetComponent<ItemDrop>()==null)return;
             if(!stash.TryTake(kind,out ForestStash next))return;
             Nature.Save(z,next);Companion.ScheduleGift(z); // spend BEFORE spawning; F6 cannot create another copy
             Vector3 start=c.GetCenterPoint()+c.transform.forward*0.8f;
             Vector3 end=master.transform.position+master.transform.right*0.8f+Vector3.up*0.3f;
             GameObject gift=UnityEngine.Object.Instantiate(prefab,start,Quaternion.identity);
             ItemDrop item=gift.GetComponent<ItemDrop>();if(item!=null){item.SetStack(1);ItemDrop.OnCreateNew(item);}
+            ZDO drop=Companion.Data(gift.transform);if(drop!=null)drop.Set(Nature.GiftDrop,true);
             Rigidbody body=gift.GetComponent<Rigidbody>();
             if(body!=null)
             {
@@ -113,7 +113,7 @@ namespace Gary
                 body.linearVelocity=(end-start)/flight-Physics.gravity*flight*0.5f;
                 body.angularVelocity=UnityEngine.Random.insideUnitSphere*3;
             }
-            if(master==Player.m_localPlayer)Plugin.Tell("Found you a snack!");
+            if(master==Player.m_localPlayer)Plugin.Tell(kind==3?"Found you a feather!":"Found you a snack!");
         }
     }
 }

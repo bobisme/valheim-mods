@@ -12,12 +12,13 @@ namespace Gary
         private static readonly Func<PrivateArea,bool> Enabled=AccessTools.MethodDelegate<Func<PrivateArea,bool>>(AccessTools.Method(typeof(PrivateArea),"IsEnabled"));
         private static readonly Func<PrivateArea,Vector3,float,bool> Inside=AccessTools.MethodDelegate<Func<PrivateArea,Vector3,float,bool>>(AccessTools.Method(typeof(PrivateArea),"IsInside"));
         private static readonly Func<PrivateArea,long,bool> Permitted=AccessTools.MethodDelegate<Func<PrivateArea,long,bool>>(AccessTools.Method(typeof(PrivateArea),"IsPermitted"));
-        internal static readonly string[] Foods={"Raspberry","Blueberries","Mushroom"};
+        internal static readonly string[] Gifts={"Raspberry","Blueberries","Mushroom","Feathers"};
+        internal const string GiftDrop="bob_gary_gift_drop";
         private static readonly string[] Plants={"RaspberryBush","BlueberryBush","Pickable_Mushroom"};
-        private static readonly string[] Pocket={"bob_gary_raspberries","bob_gary_blueberries","bob_gary_mushrooms"};
-        internal static ForestStash Load(ZDO z) => new ForestStash(z.GetInt(Pocket[0],0),z.GetInt(Pocket[1],0),z.GetInt(Pocket[2],0));
+        private static readonly string[] Pocket={"bob_gary_raspberries","bob_gary_blueberries","bob_gary_mushrooms","bob_gary_feathers"};
+        internal static ForestStash Load(ZDO z) => new ForestStash(z.GetInt(Pocket[0],0),z.GetInt(Pocket[1],0),z.GetInt(Pocket[2],0),z.GetInt(Pocket[3],0));
         internal static void Save(ZDO z,ForestStash stash)
-        {z.Set(Pocket[0],stash.Berries);z.Set(Pocket[1],stash.Blueberries);z.Set(Pocket[2],stash.Mushrooms);}
+        {z.Set(Pocket[0],stash.Berries);z.Set(Pocket[1],stash.Blueberries);z.Set(Pocket[2],stash.Mushrooms);z.Set(Pocket[3],stash.Feathers);}
         internal static bool Ground(MonsterAI ai,Vector3 candidate,out Vector3 spot)
         {
             spot=candidate;
@@ -32,12 +33,12 @@ namespace Gary
             if(EffectArea.IsPointInsideArea(spot,EffectArea.Type.Burning,0.7f)!=null)return false;
             return HavePath(ai,spot);
         }
-        private static bool Allowed(Pickable p,Player master)
+        private static bool Allowed(Vector3 position,Player master)
         {
             bool protectedGround=false;
             foreach(PrivateArea ward in Wards())
             {
-                if(ward==null||!Enabled(ward)||!Inside(ward,p.transform.position,0))continue;
+                if(ward==null||!Enabled(ward)||!Inside(ward,position,0))continue;
                 protectedGround=true;Piece piece=ward.GetComponent<Piece>();
                 if((piece!=null&&piece.GetCreator()==master.GetPlayerID())||Permitted(ward,master.GetPlayerID()))return true;
             }
@@ -48,7 +49,7 @@ namespace Gary
             ZDO z=Companion.Data(p);
             if(z==null||p.m_itemPrefab==null)return -1;
             for(int i=0;i<Plants.Length;i++)
-                if(z.GetPrefab()==Plants[i].GetStableHashCode()&&p.m_itemPrefab.name==Foods[i])return i;
+                if(z.GetPrefab()==Plants[i].GetStableHashCode()&&p.m_itemPrefab.name==Gifts[i])return i;
             return -1;
         }
         private static bool FreeToPick(Pickable p,Player master)
@@ -56,10 +57,37 @@ namespace Gary
             if(p==null||!p.isActiveAndEnabled||p.GetComponent<Piece>()!=null||p.GetComponent<Plant>()!=null||p.m_hideWhenPicked==null||
                 p.m_extraDrops.m_drops.Count!=0||p.m_aggravateRange!=0||p.m_tarPreventsPicking||p.GetPicked()||!p.CanBePicked()||p.GetEnabled!=1||Kind(p)<0)return false;
             ZNetView view=p.GetComponent<ZNetView>();
-            if(view==null||!view.IsValid()||!view.IsOwner()||!Allowed(p,master))return false;
+            if(view==null||!view.IsValid()||!view.IsOwner()||!Allowed(p.transform.position,master))return false;
             foreach(Player player in Player.GetAllPlayers())
                 if(player!=null&&!player.IsDead()&&Vector3.Distance(player.transform.position,p.transform.position)<4)return false;
             return true;
+        }
+        private static bool GatherFeather(Companion.State st,MonsterAI ai,Player master,ZDO z)
+        {
+            if(!Load(z).TryAdd(3,1,out ForestStash next))return false;
+            foreach(ItemDrop drop in UnityEngine.Object.FindObjectsByType<ItemDrop>(FindObjectsSortMode.None))
+            {
+                if(drop==null||!drop.isActiveAndEnabled||!drop.m_autoPickup||drop.IsPiece()||drop.InTar()||
+                    Vector3.Distance(drop.transform.position,st.Body.transform.position)>2||
+                    Vector3.Distance(drop.transform.position,master.transform.position)>12||
+                    EffectArea.IsPointInsideArea(drop.transform.position,EffectArea.Type.PlayerBase)!=null||!Allowed(drop.transform.position,master))continue;
+                ZNetView view=drop.GetComponent<ZNetView>();
+                if(view==null||!view.IsValid()||!view.IsOwner()||view.GetZDO().GetPrefab()!=Gifts[3].GetStableHashCode()||
+                    view.GetZDO().GetBool(GiftDrop,false)||!drop.CanPickup())continue;
+                bool nearPlayer=false;
+                foreach(Player player in Player.GetAllPlayers())
+                    if(player!=null&&!player.IsDead()&&Vector3.Distance(player.transform.position,drop.transform.position)<4){nearPlayer=true;break;}
+                if(nearPlayer)continue;
+                drop.Load();
+                ItemDrop.ItemData item=drop.m_itemData;
+                // Count-only pockets must never erase custom item metadata or quality/world differences.
+                if(item==null||item.m_dropPrefab==null||item.m_dropPrefab.name!=Gifts[3]||item.m_stack<=0||item.m_quality!=1||
+                    item.m_variant!=0||item.m_worldLevel!=Game.m_worldLevel||item.m_cheated||item.m_customData==null||item.m_customData.Count!=0)continue;
+                // Already owned, so RemoveOne cannot request ownership. Deplete the real stack before crediting the stash.
+                if(!drop.RemoveOne())continue;
+                Save(z,next);st.NextForage=Time.time+30;ai.StopMoving();Brain.Status(st,"gathering a feather");return true;
+            }
+            return false;
         }
         internal static bool Forage(Companion.State st,MonsterAI ai,Player master,float dt)
         {
@@ -69,6 +97,7 @@ namespace Gary
             if(st.ForageTarget==null&&Time.time>=st.NextForage)
             {
                 st.NextForage=Time.time+8;
+                if(GatherFeather(st,ai,master,z))return true;
                 float best=10;
                 foreach(Pickable p in UnityEngine.Object.FindObjectsByType<Pickable>(FindObjectsSortMode.None))
                 {

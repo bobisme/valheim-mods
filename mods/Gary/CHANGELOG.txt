@@ -1,3 +1,5 @@
+0.2.3: Gary gathers loose feathers he passes and sometimes tosses one alongside his berry/mushroom gifts. Keeps at most two feathers within the existing six-item stash; food gets 80 percent of mixed-stash gifts. Real owner-held drops only, leaving player drops, nearby players, bases, protected ground, custom items, and Gary's own gifts alone. Existing saved food and gift cooldowns remain intact.
+
 0.2.2: Quad's AICompanion humanoids can walk through Gary just like human players. Detects their saved prefab identity without an AICompanion DLL dependency; retains terrain/enemy collisions and restores previous collision settings on F6.
 
 0.2.1: Players can walk through Gary without losing terrain/enemy collisions or petting. Dungeon guiding skips confirmed fully looted interiors and allows unfinished revisits after a ten-minute cooldown. Read-only saved chest counts plus loose treasure, cores, scrap mining stages, cave collectibles and removable valuables; no loot generation. Complete room/sector checks, stable empty scans, unknown handling, and per-player/world cleared history across F6/saves.

@@ -14,7 +14,7 @@ namespace Gary
     {
         public const string Guid="com.bobisme.gary";
         public const string Name="Gary";
-        public const string Version="0.2.2";
+        public const string Version="0.2.3";
         internal static Plugin Instance;
         internal ConfigEntry<float> Health,GiftSeconds,GuideRange;
         internal ConfigEntry<bool> Gifts,Guiding,Reactions,Warnings,Campfires,Building;
@@ -44,8 +44,8 @@ namespace Gary
                 Logger.LogInfo("Moved Gary's Ctrl+F3 bindings to F3 / Shift+F3 and restored hidden UI.");
             }
             Health=Config.Bind("Companion","Health",150f,new ConfigDescription("Gary's injury buffer. He retreats at 20% and returns at 90%; damage never kills him.",new AcceptableValueRange<float>(40,500)));
-            Gifts=Config.Bind("Forest","FoodGifts",true,"Gather real wild berries/mushrooms into a six-item stash and occasionally toss one near your feet, outside combat.");
-            GiftSeconds=Config.Bind("Forest","FoodInterval",240f,new ConfigDescription("Average seconds between food gifts (randomized 0.75–1.25 times this).",new AcceptableValueRange<float>(60,1800)));
+            Gifts=Config.Bind("Forest","FoodGifts",true,"Gather real wild berries/mushrooms and loose feathers into a six-item stash and occasionally toss one near your feet, outside combat.");
+            GiftSeconds=Config.Bind("Forest","FoodInterval",240f,new ConfigDescription("Average seconds between forest gifts (randomized 0.75–1.25 times this).",new AcceptableValueRange<float>(60,1800)));
             Guiding=Config.Bind("Forest","DungeonGuiding",true,"Notice nearby loaded crypt/cave entrances and skip dungeons confirmed fully looted for your player/world. Unknown or unfinished interiors remain eligible.");
             GuideRange=Config.Bind("Forest","NoticeRange",90f,new ConfigDescription("Distance at which Gary notices a loaded dungeon entrance.",new AcceptableValueRange<float>(20,120)));
             Reactions=Config.Bind("Personality","Reactions",true,"Happy chirps and short native dances for petting, reunions, victories, and relaxing.");

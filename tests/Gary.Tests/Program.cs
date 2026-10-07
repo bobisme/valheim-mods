@@ -42,12 +42,12 @@ foreach(var blocked in new[]{(true,false,false,false),(false,true,false,false),(
 Check(!Policy.CanGift(false,false,false,false,8.01,0),"No food thrown from afar");
 Check(!Policy.CanGift(false,false,false,false,3,0.01),"No gift before saved cooldown expires");
 Check(Policy.GuideWait(14.01)&&!Policy.GuideWait(14),"Guiding waits for the player to catch up");
-// Food conservation across repeated harvest/gift cycles, including a serialized F6 handoff.
+// Forest-item conservation across repeated harvest/gift cycles, including a serialized F6 handoff.
 var random=new Random(20261007);
 ForestStash stash=new ForestStash(0,0,0);int harvested=0,given=0;
 for(int step=0;step<1000;step++)
 {
-    int kind=random.Next(-1,4),amount=random.Next(-1,9),before=stash.Count;
+    int kind=random.Next(-1,5),amount=random.Next(-1,9),before=stash.Count;
     if(random.Next(2)==0)
     {
         bool accepted=stash.TryAdd(kind,amount,out ForestStash next);
@@ -62,11 +62,28 @@ for(int step=0;step<1000;step++)
         else Check(next.Count==before,"An empty or invalid pocket produces no snack");
         stash=next;
     }
-    stash=new ForestStash(stash.Berries,stash.Blueberries,stash.Mushrooms);
+    stash=new ForestStash(stash.Berries,stash.Blueberries,stash.Mushrooms,stash.Feathers);
     Check(stash.Count==harvested-given&&stash.Count>=0&&stash.Count<=ForestStash.Capacity,"Food stays conserved and bounded across reloads");
 }
-Check(new ForestStash(int.MaxValue,int.MaxValue,int.MaxValue).Count==6,"Malformed saved pockets cannot exceed six items");
-Check(new ForestStash(-1,-1,-1).Count==0,"Negative saved pockets cannot create food");
+Check(new ForestStash(int.MaxValue,int.MaxValue,int.MaxValue,int.MaxValue).Count==6,"Malformed saved pockets cannot exceed six items");
+Check(new ForestStash(-1,-1,-1,-1).Count==0,"Negative saved pockets cannot create food");
+Check(new ForestStash(1,2,3).Feathers==0,"Existing three-pocket saves load without changing their food");
+Check(new ForestStash(0,0,0,int.MaxValue).Feathers==2,"Feathers occupy at most two pockets");
+Check(!new ForestStash(0,0,0,2).TryAdd(3,1,out _),"Full feather pockets refuse more gathering");
+Check(!new ForestStash(2,2,2).TryAdd(3,1,out _),"Feathers cannot overflow a full food stash");
+Check(new ForestStash(1,1,1).TryAdd(3,1,out var mixed)&&mixed.Count==4&&mixed.Feathers==1,"One real feather can join existing food");
+Check(mixed.TryTake(3,out var afterFeather)&&afterFeather.Count==3&&afterFeather.Feathers==0&&afterFeather.Berries==1,"A feather gift spends only one feather");
+int featherGifts=0;
+for(int roll=0;roll<100;roll++)
+{
+    int kind=mixed.GiftKind(roll);if(kind==3)featherGifts++;
+    Check(kind>=0&&mixed.At(kind)>0,"Every gift selection uses an occupied pocket");
+    Check(new ForestStash(0,0,0,1).GiftKind(roll)==3,"A feather-only stash can still give a gift");
+    Check(new ForestStash(0,1,0).GiftKind(roll)==1,"Food-only stashes never select a missing feather");
+    Check(new ForestStash(0,0,0).GiftKind(roll)==-1,"Empty pockets never create gifts");
+}
+Check(featherGifts==20,"Feathers are occasional: 20 percent of selections when food is available");
+Check(mixed.GiftKind(-1)==-1&&mixed.GiftKind(100)==-1,"Invalid random draws cannot select a gift");
 Check(Policy.CanPet(true,5,true,false),"A nearby living master can pet Gary");
 foreach(double distance in new[]{-1.0,5.01,double.NaN,double.PositiveInfinity})
     Check(!Policy.CanPet(true,distance,true,false),"Invalid/out-of-reach pet requests are rejected");

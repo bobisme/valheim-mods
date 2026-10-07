@@ -46,8 +46,8 @@ then resumes waiting when the threat ends. He does not start fights with nearby 
 fighting and tries to run **40 metres away** to recover; he returns at **90%**. Damage has a positive health floor and Gary cannot die. Healing continues slowly while escaping if the route is blocked. A persisted recovery
 deadline also lets him recover after three minutes of world time while his zone is unloaded. Calling him cannot skip that retreat.
 
-Gary gathers actual wild **raspberries, blueberries, and mushrooms** into a saved six-item stash. Every roughly **3–5 minutes**,
-he can toss you one of those snacks as a normal ground item. An empty stash means no gift until he finds more food. He stays nearby,
+Gary gathers actual wild **raspberries, blueberries, mushrooms, and loose feathers** into a saved six-item stash. Every roughly **3–5 minutes**,
+he can toss you one as a normal ground item. At most two pockets hold feathers, and food gets **80%** of gifts when he has both. An empty stash means no gift until he gathers more. He stays nearby,
 skips protected plants and plants close to players, and leaves bushes/mushrooms on their normal regrowth timers. In multiplayer,
 he gathers only plants owned by his current simulator; other players' harvests never become his food.
 
@@ -84,7 +84,7 @@ First-playtest checklist (automated policy checks and assembly verification do n
 1. F6, then F3 on clear ground. Check Gary's purple appearance and following; repeatedly call him and confirm one Gary.
 2. Walk past peaceful creatures. Let a hostile creature hit you, then Gary alone; he should retaliate in both cases, including while waiting. Player/pet hits should not hurt him.
 3. Let Gary take heavy/lethal damage. He must flee alive, rest away from you, and return healed; a call during recovery must wait.
-4. Walk past wild berries/mushrooms at least four metres from players. Check Gary harvests once, then gifts only from his stash. Check normal regrowth, wards (including your own), resource-rate scaling, and F6/save preservation. An empty stash must produce no food.
+4. Walk past wild berries/mushrooms and loose feathers at least four metres from players. Feathers must be within two metres of Gary and already owned by his simulator; he skips player-dropped items, bases, custom/placed items and his own gifts. Check Gary harvests once, then gifts only from his stash. Check normal regrowth, wards (including your own), resource-rate scaling, and F6/save preservation. An empty stash must produce no food.
 5. Pet Gary with E while following and waiting. Check one pat/chirp/sparkle/dance per cooldown, normal interactions with other objects, and rejection while healing/fighting. Check petting/reactions on two clients without duplicated sounds.
 6. Pause by a burning fire, extinguish it, then walk away. Build and rotate your ghost toward Gary; check he watches from clear ground and resumes following when you move. Danger and actual hits must interrupt every idle activity.
 7. Return from a dungeon, defeat a foe Gary was fighting, and approach a visible large hostile. Check greetings/celebration/warnings, subdued volume, cooldowns, and no unsolicited attacks.
