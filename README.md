@@ -20,7 +20,8 @@ choose its blend and pack an empty pipe. Put the pipe on your hotbar, close the 
 holding a torch** to light it. An empty pipe packs the first available tin when used; use it again to light. Use a lit pipe again to tamp
 out the ember and save its remaining tobacco. The pipe is never consumed. Finish a bowl before changing blends.
 
-The pipe has a hollow wooden bowl, bent stem and leather wrap, a tiny ember and quiet smoke. At rest it occasionally rises for a puff.
+The pipe has a hollow wooden bowl, bent stem and leather wrap, a tiny ember and quiet smoke. While lit it rests in the character's mouth,
+with its bowl hanging below the stem and occasional quiet exhalations at rest.
 With use, the smoking pipe gradually darkens to a seasoned finish. Fighting, blocking, swimming, bed and exposed rain put it away;
 its unfinished bowl stays with the actual inventory item through saves, transfers and deaths. Smoking does not consume stamina or
 force you to stay seated. Cigars and pipes share **one active smoke**, preserving unrelated status effects. Set **EffectStrength = 0**
@@ -39,7 +40,7 @@ and the exact native inventory/tooltip/registration hooks. First playtest:
 3. Snuff halfway, save/restart, drop and retrieve the pipe, and move it through a chest or tombstone. Confirm its remaining bowl is kept.
 4. Light a cigar while smoking the pipe, and reverse the order. Check only one smoke/bonus remains and unrelated rested/food effects stay.
 5. Fight, swim, die and press F6. Check the pipe goes out and its inventory item is kept. Reload Cigars as well and confirm recipes and smoking reconnect.
-6. Have a friend with both mods watch the pipe and puffs; check pose in hand and mouth with a free hand or torch, and at a seated campfire.
+6. Have a friend with both mods watch the pipe and puffs; check the mouth pose while walking, holding a torch, and sitting at a campfire.
 
 The release is compiled and checked against the native Linux installation; visual poses and live multiplayer still need this playtest.
 

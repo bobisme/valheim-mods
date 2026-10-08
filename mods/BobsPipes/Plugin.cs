@@ -13,7 +13,7 @@ namespace BobsPipes
     {
         public const string Guid = "com.bobisme.bobspipes";
         public const string Name = "Bob's Pipes";
-        public const string Version = "0.1.1";
+        public const string Version = "0.1.2";
         internal static Plugin Instance;
         internal ConfigEntry<float> Minutes, Strength;
         internal ConfigEntry<bool> ShowSmoke, Rain;
@@ -63,9 +63,8 @@ namespace BobsPipes
             if (_bowl.Empty) { Snuff("Your bowl has burned down."); return; }
             if (Time.time >= _nextPuff)
             {
-                if (_owner.GetVelocity().sqrMagnitude < 2.25f && RightItem(_owner) == null && !InventoryGui.IsVisible() && !Menu.IsVisible())
+                if (_owner.GetVelocity().sqrMagnitude < 2.25f && !InventoryGui.IsVisible() && !Menu.IsVisible())
                 {
-                    _owner.GetComponent<ZSyncAnimation>()?.SetTrigger("eat");
                     ZDO zdo = Data(_owner);
                     zdo?.Set(PuffKey, (long)(ZNet.instance.GetTimeSeconds()*1000));
                     _nextPuff = Time.time+UnityEngine.Random.Range(16f,26f);
@@ -136,7 +135,6 @@ namespace BobsPipes
             ZDO data=Data(player);
             data?.Set(PatinaKey,Math.Min(5,(int)(bowl.Smoked/300))); data?.Set(BlendKey,bowl.Blend); data?.Set(EndKey,(long)((ZNet.instance.GetTimeSeconds()+bowl.Remaining)*1000));
             data?.Set(PuffKey,(long)(ZNet.instance.GetTimeSeconds()*1000));
-            if (RightItem(player)==null) player.GetComponent<ZSyncAnimation>()?.SetTrigger("eat");
             Say(player,"You tamp and light the "+Blend.All[bowl.Blend].Name.ToLower()+". Use the pipe again to put it out.");
             return true;
         }

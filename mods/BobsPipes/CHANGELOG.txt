@@ -1,3 +1,5 @@
+0.1.2: A lit pipe stays in the character's mouth, with its bowl hanging below the stem. Remove the cigar-style hand grip and hand-to-mouth eating gestures; occasional quiet exhalations remain.
+
 0.1.1: Fix the pipe's hand pose: follow the actual fingers and palm, grip the leather-wrapped stem, and keep the bowl outside the hand. The pipe stays upright and still moves to the mouth for puffs.
 
 0.1.0: First release: a reusable carved pipe, three tobacco blends using Quad's production chain, fire lighting, saved unfinished bowls, restrained smoke and idle puff gestures. A pipe develops a seasoned finish with use. Cigars and pipes share one active smoke through Cigars API v1; no hard assembly reference, and registrations reconnect after F6.
