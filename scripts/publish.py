@@ -20,9 +20,16 @@ for project in sorted((root / "mods").glob("*/*.csproj")):
     files = [name + ".dll", name + ".pdb"]
     for file in files:
         shutil.copyfile(project.parent / "bin/Release/net48" / file, dist / file)
+    cover = ""
+    for extension in ("png", "jpg", "jpeg"):
+        image = project.parent / ("cover." + extension)
+        if image.is_file():
+            cover = name + ".cover." + extension
+            shutil.copyfile(image, dist / cover)
+            break
     description = (project.parent / "DESCRIPTION.txt").read_text().strip()
     notes = (project.parent / "CHANGELOG.txt").read_text().strip().split("\n\n", 1)[0]
     mods.append(dict(guid=fields["Guid"], name=name, version=fields["Version"], description=description,
-                     notes=notes, restart="", cover="", files=files))
+                     notes=notes, restart="", cover=cover, files=files))
 (dist / "manifest.json").write_text(json.dumps({"mods": mods}, indent=2) + "\n")
 print("Published", len(mods), "mods to", dist)

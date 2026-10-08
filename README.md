@@ -355,4 +355,6 @@ The first version is built and checked against local assemblies; gameplay, multi
 
 Mods live in `mods/<Name>/`. `scripts/publish.py` builds the release DLL/PDB and generates `dist/manifest.json`. Commit generated `dist/` artifacts for the mod manager and bump the version in `Plugin.cs` before publishing updates. Changes to this repository go directly to main; changes to the upstream friend repositories go through pull requests.
 
+Add `cover.png`, `cover.jpg`, or `cover.jpeg` to a mod folder to publish its thumbnail alongside the manifest; PNG takes precedence if more than one exists. Covers are separate from the install files. The current [cover artwork and generation prompts](assets/covers/PROMPTS.md) are saved in this repository.
+
 The build layout follows the MIT-licensed [mod manager template](https://github.com/HardHeadHackerHead/valheim-mod-manager/tree/main/template). Farmhand uses [Harmony patches](https://harmony.pardeike.net/v2/articles/patching) around normal game methods and removes them on unload.
