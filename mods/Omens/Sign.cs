@@ -85,9 +85,11 @@ namespace Omens
                 case Kind.AbandonedCamp:
                     GameObject pit=Looks.Copy("fire_pit",transform,Vector3.zero,Quaternion.identity);
                     if(pit!=null)Looks.Smother(pit);
-                    foreach(var (prefab,x,z) in new[]{("BoneFragments",1.3f,0.4f),("BoneFragments",-0.9f,1.1f),("Wood",1.6f,-1.2f),("Wood",1.9f,-0.8f),
-                        ("LeatherScraps",-1.5f,-0.6f),("TrophySkeleton",-0.4f,-1.6f)})
-                        Looks.Item(prefab,transform,new Vector3(x,0,z));
+                    // Someone slept here and left in a hurry: a bedroll by the fire, belongings dropped, and a skull.
+                    Looks.Item("Morkhalla_Bedroll1",transform,new Vector3(2.3f,0,0.4f),Quaternion.Euler(0,100,0));
+                    foreach(var (prefab,x,z) in new[]{("Skull1",-1.3f,1.5f),("ArmorRagsChest",-2f,-0.7f),("ShieldWood",1.1f,-2f),("SpearFlint",0.2f,2.4f),
+                        ("BoneFragments",-0.6f,2f),("BoneFragments",1.6f,1.6f),("Wood",-1.7f,-1.9f)})
+                        Looks.Item(prefab,transform,new Vector3(x,0,z),Quaternion.Euler(0,Random.Range(0,360f),0));
                     Looks.Hover(transform,new Vector3(0,0.4f,0),new Vector3(4.5f,0.8f,4.5f));
                     break;
                 case Kind.Ravens:
@@ -188,16 +190,22 @@ namespace Omens
         internal static void Smother(GameObject pit)
         {
             foreach(Light light in pit.GetComponentsInChildren<Light>(true))light.enabled=false;
+            // Cold: the coals' glow is emission in the pit's own materials.
+            foreach(Renderer r in pit.GetComponentsInChildren<Renderer>(true))
+                if(r.GetType().Name!="ParticleSystemRenderer")
+                    foreach(Material m in r.materials)if(m.HasProperty("_EmissionColor")){m.SetColor("_EmissionColor",Color.black);m.DisableKeyword("_EMISSION");}
             foreach(Renderer r in pit.GetComponentsInChildren<Renderer>(true))
                 if(r.GetType().Name=="ParticleSystemRenderer"&&r.gameObject.name.IndexOf("smoke",System.StringComparison.OrdinalIgnoreCase)<0)r.gameObject.SetActive(false);
             foreach(Collider c in pit.GetComponentsInChildren<Collider>(true))c.enabled=false;
         }
-        internal static void Item(string prefab,Transform parent,Vector3 local)
+        // A still prop on the ground: no physics, no hitbox, and none of the glint that marks loot.
+        internal static void Item(string prefab,Transform parent,Vector3 local,Quaternion rotation)
         {
-            GameObject item=Copy(prefab,parent,local,Quaternion.Euler(0,Random.Range(0,360f),0));
+            GameObject item=Copy(prefab,parent,local,rotation);
             if(item==null)return;
             foreach(Rigidbody body in item.GetComponentsInChildren<Rigidbody>(true))body.isKinematic=true;
             foreach(Collider c in item.GetComponentsInChildren<Collider>(true))c.enabled=false;
+            foreach(Renderer r in item.GetComponentsInChildren<Renderer>(true))if(r.GetType().Name=="ParticleSystemRenderer")r.enabled=false;
             Vector3 top=item.transform.position+Vector3.up*3;
             if(Physics.Raycast(top,Vector3.down,out RaycastHit hit,6,LayerMask.GetMask("terrain","Default","static_solid")))
                 item.transform.position=hit.point+Vector3.up*0.05f;

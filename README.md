@@ -17,7 +17,7 @@ a chat line for everyone, and a pin on your map. An omen nobody finds fades afte
 About **60%** of omens are bad. A bad omen's raid comes at nightfall when seen by day, or a few minutes later when seen at night. It goes
 to the nearest workbench or bed within **1,500 metres** of the sign and uses the game's own raid events, messages and music. It never
 interrupts a raid already running, gives up after a day and a half if one keeps it waiting, and a world with **raids turned off** gets only
-good omens. Signs are visual copies of the game's own models (a troll ragdoll, a fire pit with scattered bones and belongings, crows), so
+good omens. Signs are visual copies of the game's own models (a troll ragdoll; a bedroll by a cold fire pit with a skull, bones and dropped belongings; crows), so
 they cannot be mined, looted or counted as a base.
 
 **Install on the host and every player.** The host decides everything and keeps a small ledger per world in `BepInEx/config/omens/`;
@@ -25,7 +25,7 @@ signs are saved world objects tagged with their own random id. Frequency, the ba
 reach and each omen are in F7 → Mod settings (only the host's values count). Later versions can add omens beyond the game's raids.
 
 For testing on the host with Quad's Claude Tools installed, its `omen` command lists omens (`omen list`), places one ahead of the player
-(`omen place troll|ravens|camp [metres]`), brings one to pass at once, night or not (`omen now <id|last>`), averts one as burning the troll does (`omen avert <id>`), or schedules the next natural one
+(`omen place troll|ravens|camp [metres]`), brings one to pass at once, night or not (`omen now <id|last>`), averts one as burning the troll does (`omen avert <id>`), removes one without effect (`omen clear <id>`), or schedules the next natural one
 in 5 seconds (`omen soon`).
 
 Checks cover omen choice and the 60/40 split, biome fallbacks, intervals, raid timing, the omen state machine and nearest-base search,

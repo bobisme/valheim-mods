@@ -224,6 +224,17 @@ namespace Omens
             OnRespond(ZNet.GetUID(),e.Id);
             return $"{e.Omen.Name} ({e.Id}) averted";
         }
+        // As if it had faded unseen: no outcome, its sign leaves the world.
+        internal static string TestClear(string id)
+        {
+            if(!Hosting)return "not the host";
+            Load();
+            Entry e=_ledger.Omens.FirstOrDefault(x=>x.Id.ToString()==id);
+            if(e==null||Policy.Finished((State)e.State))return "no open omen "+id;
+            e.State=(int)State.Expired;e.ResolvedAt=Now;Save();_nextTick=0;
+            Plugin.Log($"{e.Omen.Name} ({e.Id}) cleared for testing");
+            return $"{e.Omen.Name} ({e.Id}) cleared";
+        }
         internal static IEnumerable<string> TestList()
         {
             if(!Hosting)yield break;

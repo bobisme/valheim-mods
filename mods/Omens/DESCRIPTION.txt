@@ -4,7 +4,7 @@ Every 1.5 in-game days or so, the host places an omen 45 to 85 metres from a pla
 
 Dead troll (Black Forest, bad): "The forest is angry." That night, trolls raid the nearest base. Burn the carcass first (use it, with 5 resin) to avert the raid.
 
-Abandoned camp (Meadows and Black Forest, bad): a cold fire with bones and scattered belongings. That night, greydwarfs raid the nearest base.
+Abandoned camp (Meadows and Black Forest, bad): a bedroll by a cold fire, a skull, and dropped belongings. That night, greydwarfs raid the nearest base.
 
 Circling ravens (good): "Odin is watching." Players nearby become rested, and the land within 250 metres is revealed on their maps.
 
