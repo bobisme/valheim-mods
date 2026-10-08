@@ -18,6 +18,7 @@ namespace Omens
         {
             public long Id;public int Kind,State;public float X,Y,Z;
             public double PlacedAt,SeenAt,ResolvedAt;public bool SeenAtNight,Forced,Softened;public string SeenBy="";public bool SignRemoved;
+            public bool Taken,TakenAtNight;public long TakenBy;public double TakenAt;public string TakenByName=""; // a hoard's thief
             [JsonIgnore]public Vector3 Pos=>new Vector3(X,Y,Z);
             [JsonIgnore]public Omen Omen=>Policy.Of((Kind)Kind);
         }
@@ -63,32 +64,56 @@ namespace Omens
             if(state==State.Seen)
             {
                 Omen omen=e.Omen;
-                if(omen.Result==Result.Blessing){Net.Blessing(e.Pos,60);done=true;}
-                else if(omen.Result==Result.Gift){done=Strand(e.Pos);if(!done){impossible=true;why="the shore could not hold the fish";}}
-                else if(omen.Result==Result.BloodMoon&&(e.Forced||Policy.RaidDue(now,e.SeenAt,e.SeenAtNight,EnvMan.IsNight())))
+                int biome=(int)WorldGenerator.instance.GetBiome(e.X,e.Z);
+                switch(omen.Result)
                 {
-                    if(_ledger.MoonActive&&!e.Forced){} // one blood moon at a time: it waits for tonight's to wane
-                    else
-                    {
+                    case Result.Blessing:Net.Blessing(e.Pos,60);done=true;break;
+                    case Result.Favour:Net.Favour(e.Pos,50);done=true;break;
+                    case Result.Gift:done=Scatter(Policy.Gifts(omen.Kind,biome),e.Pos,2.5f);if(!done){impossible=true;why="the gift could not be left there";}break;
+                    case Result.Treasure:done=Bury(e,biome);if(!done){impossible=true;why="no dry ground for a chest nearby";}break;
+                    case Result.Quarry:done=Release(e.Pos);if(!done){impossible=true;why="no room for the stag";}break;
+                    case Result.Curse:
+                        if(!e.Taken)
+                        {
+                            // Left alone, the hoard is harmless and sinks back into the earth in time.
+                            if(now-e.PlacedAt>=Plugin.Instance.ExpireDays.Value*DayLength*2)
+                            {
+                                e.State=(int)State.Expired;e.ResolvedAt=now;
+                                Net.Tell("The hoard sinks back into the earth, untouched.",e.Pos,-1,0);
+                                Plugin.Log($"{omen.Name} ({e.Id}) was left alone");
+                                return true;
+                            }
+                            break;
+                        }
+                        if(!e.Forced&&!Policy.RaidDue(now,e.TakenAt,e.TakenAtNight,EnvMan.IsNight()))break;
+                        Vector3? thief=PlayerPos(e.TakenBy);
+                        why=ZoneSystem.instance.GetGlobalKey(GlobalKeys.PassiveMobs)?"monsters are passive in this world"
+                            :now-e.TakenAt>Policy.CurseDays*DayLength?$"{e.TakenByName} was never found":"";
+                        if(why!=""){impossible=true;break;}
+                        if(thief==null)break; // away, or in a dungeon: the dead wait for them
+                        done=Hunt(thief.Value,Policy.Pack(omen.Kind,(int)WorldGenerator.instance.GetBiome(thief.Value.x,thief.Value.z)),25,35);
+                        at=thief.Value;break;
+                    case Result.BloodMoon:
+                        if(!e.Forced&&!Policy.RaidDue(now,e.SeenAt,e.SeenAtNight,EnvMan.IsNight()))break;
+                        if(_ledger.MoonActive&&!e.Forced)break; // one blood moon at a time: it waits for tonight's to wane
                         _ledger.MoonActive=true;_ledger.MoonSoftened|=e.Softened;
                         _ledger.MoonUntil=e.Forced&&!EnvMan.IsNight()?now+300:0;
                         Net.BloodMoon(true,_ledger.MoonSoftened);_nextMoonCall=Time.time+20;
-                        done=true;
-                    }
-                }
-                else if(e.Forced||Policy.RaidDue(now,e.SeenAt,e.SeenAtNight,EnvMan.IsNight()))
-                {
-                    Vector3? home=NearestBase(e.Pos);
-                    why=Game.m_eventRate<=0?"raids are turned off in this world"
-                        :omen.Result==Result.Stalkers&&ZoneSystem.instance.GetGlobalKey(GlobalKeys.PassiveMobs)?"monsters are passive in this world"
-                        :home==null?$"no workbench or bed within {Plugin.Instance.BaseRange.Value:0} m"
-                        :now-e.SeenAt>DayLength*1.5?"it waited too long for its moment"
-                        :omen.Result==Result.Raid&&!RandEventSystem.instance.HaveEvent(omen.Raid)?$"the game has no {omen.Raid} raid":"";
-                    if(why!="")impossible=true;
-                    else if(omen.Result==Result.Raid&&RandEventSystem.instance.GetCurrentRandomEvent()==null) // never interrupts a raid in progress
-                    {RandEventSystem.instance.SetRandomEventByName(omen.Raid,home.Value);at=home.Value;done=true;}
-                    else if(omen.Result==Result.Stalkers&&Players().Any(p=>Vector3.Distance(p,home.Value)<150)) // they come when someone is home
-                    {done=Hunt(home.Value);at=home.Value;}
+                        done=true;break;
+                    default: // a raid or a hunting pack at the nearest base
+                        if(!e.Forced&&!Policy.RaidDue(now,e.SeenAt,e.SeenAtNight,EnvMan.IsNight()))break;
+                        Vector3? home=NearestBase(e.Pos);
+                        why=Game.m_eventRate<=0?"raids are turned off in this world"
+                            :omen.Result==Result.Stalkers&&ZoneSystem.instance.GetGlobalKey(GlobalKeys.PassiveMobs)?"monsters are passive in this world"
+                            :home==null?$"no workbench or bed within {Plugin.Instance.BaseRange.Value:0} m"
+                            :now-e.SeenAt>DayLength*1.5?"it waited too long for its moment"
+                            :omen.Result==Result.Raid&&!RandEventSystem.instance.HaveEvent(omen.Raid)?$"the game has no {omen.Raid} raid":"";
+                        if(why!="")impossible=true;
+                        else if(omen.Result==Result.Raid&&RandEventSystem.instance.GetCurrentRandomEvent()==null) // never interrupts a raid in progress
+                        {RandEventSystem.instance.SetRandomEventByName(omen.Raid,home.Value);at=home.Value;done=true;}
+                        else if(omen.Result==Result.Stalkers&&Players().Any(p=>Vector3.Distance(p,home.Value)<150)) // they come when someone is home
+                        {done=Hunt(home.Value,Policy.Pack(omen.Kind,(int)WorldGenerator.instance.GetBiome(home.Value.x,home.Value.z)),35,45);at=home.Value;}
+                        break;
                 }
             }
             var next=Policy.Advance(state,now,e.PlacedAt,Plugin.Instance.ExpireDays.Value*DayLength,false,false,done,impossible);
@@ -124,48 +149,102 @@ namespace Omens
             return false;
         }
 
-        // A hunting pack chosen by the base's biome, 35–45 m out on dry ground, set to hunt players. Saved creatures keep hunting
+        // A pack between min and max metres out on dry ground, set to hunt players. Saved creatures keep hunting
         // when their area unloads and loads again.
-        private static bool Hunt(Vector3 home)
+        private static bool Hunt(Vector3 center,(string prefab,int level)[] pack,float min,float max)
         {
-            var pack=Policy.Pack((int)WorldGenerator.instance.GetBiome(home.x,home.z));
-            float water=ZoneSystem.instance.m_waterLevel;
             for(int attempt=0;attempt<12;attempt++)
             {
-                Vector2 dir=Random.insideUnitCircle.normalized*Random.Range(35f,45f);
-                var spot=new Vector3(home.x+dir.x,home.y,home.z+dir.y);
-                spot.y=ZoneSystem.instance.GetSolidHeight(spot,out float solid)?solid:WorldGenerator.instance.GetHeight(spot.x,spot.z);
-                if(spot.y<water+0.5f)continue;
+                Vector2 dir=Random.insideUnitCircle.normalized*Random.Range(min,max);
+                if(!DryGround(new Vector3(center.x+dir.x,center.y,center.z+dir.y),out Vector3 spot))continue;
                 int made=0;
                 foreach(var (name,level) in pack)
                 {
                     GameObject prefab=ZNetScene.instance.GetPrefab(name);
                     if(prefab==null){Plugin.Log("Omens: no creature "+name);continue;}
                     Vector2 jitter=Random.insideUnitCircle*3;
-                    GameObject go=Object.Instantiate(prefab,spot+new Vector3(jitter.x,0.5f,jitter.y),Quaternion.LookRotation(home-spot));
+                    GameObject go=Object.Instantiate(prefab,spot+new Vector3(jitter.x,0.5f,jitter.y),Quaternion.LookRotation(center-spot));
                     go.GetComponent<Character>()?.SetLevel(level);
                     go.GetComponent<BaseAI>()?.SetHuntPlayer(true);
                     made++;
                 }
-                if(made>0)Plugin.Log($"Sent {made} hunters toward the base near {home:F0}");
+                if(made>0)Plugin.Log($"Sent {made} hunters toward {center:F0}");
                 return made>0;
             }
             return false;
         }
-        // Three to five real fish flopping on the shore at the sign, ready to be picked up.
-        private static bool Strand(Vector3 at)
+        private static bool DryGround(Vector3 at,out Vector3 spot)
         {
-            GameObject fish=ZNetScene.instance.GetPrefab("Fish1");
-            if(fish==null)return false;
-            int count=Random.Range(3,6);
-            for(int i=0;i<count;i++)
+            spot=at;
+            spot.y=ZoneSystem.instance.GetSolidHeight(at,out float solid)?solid:WorldGenerator.instance.GetHeight(at.x,at.z);
+            return spot.y>=ZoneSystem.instance.m_waterLevel+0.5f;
+        }
+        // Real items on the ground around a spot, ready to be picked up: stranded fish, a star's ore, a hoard's gold.
+        private static bool Scatter((string prefab,int min,int max)[] gifts,Vector3 at,float radius)
+        {
+            int made=0;
+            foreach(var (name,min,max) in gifts)
             {
-                Vector2 jitter=Random.insideUnitCircle*2.5f;
-                var spot=at+new Vector3(jitter.x,0,jitter.y);
-                if(ZoneSystem.instance.GetSolidHeight(spot,out float h))spot.y=h;
-                Object.Instantiate(fish,spot+Vector3.up*0.4f,Quaternion.Euler(0,Random.Range(0,360f),90));
+                GameObject prefab=ZNetScene.instance.GetPrefab(name);
+                if(prefab==null){Plugin.Log("Omens: no item "+name);continue;}
+                int count=Policy.Roll(min,max,Random.value);
+                // Stackable items land as a few stacks, not one pile or a hundred coins.
+                int stacks=Math.Min(count,name=="Fish1"?count:3),left=count;
+                for(int i=0;i<stacks;i++)
+                {
+                    int amount=i==stacks-1?left:count/stacks;left-=amount;
+                    Vector2 jitter=Random.insideUnitCircle*radius;
+                    var spot=at+new Vector3(jitter.x,0,jitter.y);
+                    if(ZoneSystem.instance.GetSolidHeight(spot,out float h))spot.y=h;
+                    GameObject go=Object.Instantiate(prefab,spot+Vector3.up*0.4f,Quaternion.Euler(0,Random.Range(0,360f),name=="Fish1"?90:0));
+                    if(amount>1)go.GetComponent<ItemDrop>()?.SetStack(amount);
+                    made++;
+                }
             }
-            return true;
+            return made>0;
+        }
+        // The lights' treasure: the game's own chest for the land, 40–70 m away on dry ground, which fills itself with that land's loot.
+        private static bool Bury(Entry e,int biome)
+        {
+            GameObject chest=ZNetScene.instance.GetPrefab(Policy.Chest(biome))??ZNetScene.instance.GetPrefab(Policy.Chest(Policy.Meadows));
+            if(chest==null)return false;
+            for(int attempt=0;attempt<16;attempt++)
+            {
+                Vector2 dir=Random.insideUnitCircle.normalized*Random.Range(40f,70f);
+                if(!DryGround(new Vector3(e.X+dir.x,e.Y,e.Z+dir.y),out Vector3 spot)||NearBuilding(spot))continue;
+                Object.Instantiate(chest,spot,Quaternion.Euler(0,Random.Range(0,360f),0));
+                Net.Lead(e.Pos,spot);
+                Net.Mark(spot,"Treasure");
+                Plugin.Log($"The lights lead to a {chest.name} at {spot:F0}");
+                return true;
+            }
+            return false;
+        }
+        // The great stag, 20–35 m from its antler: a two-star deer, marked so every game draws it larger and its drops include its antlers.
+        private static bool Release(Vector3 at)
+        {
+            GameObject deer=ZNetScene.instance.GetPrefab("Deer");
+            if(deer==null)return false;
+            for(int attempt=0;attempt<12;attempt++)
+            {
+                Vector2 dir=Random.insideUnitCircle.normalized*Random.Range(20f,35f);
+                if(!DryGround(new Vector3(at.x+dir.x,at.y,at.z+dir.y),out Vector3 spot))continue;
+                GameObject go=Object.Instantiate(deer,spot+Vector3.up*0.3f,Quaternion.LookRotation(spot-at));
+                go.GetComponent<ZNetView>()?.GetZDO()?.Set(Stag.Key,true); // before its Start, where every game reads it
+                go.GetComponent<Character>()?.SetLevel(Policy.StagLevel);
+                Net.Mark(spot,"Great stag");
+                Plugin.Log($"A great stag runs at {spot:F0}");
+                return true;
+            }
+            return false;
+        }
+        // Where a player is now, unless away, dead or in a dungeon.
+        private static Vector3? PlayerPos(long uid)
+        {
+            if(uid==ZNet.GetUID())
+                return Player.m_localPlayer!=null&&!Player.m_localPlayer.IsDead()&&Player.m_localPlayer.transform.position.y<3000?Player.m_localPlayer.transform.position:(Vector3?)null;
+            ZNetPeer peer=ZNet.instance.GetPeer(uid);
+            return peer!=null&&peer.IsReady()&&!peer.m_characterID.IsNone()&&peer.m_refPos.y<3000?peer.m_refPos:(Vector3?)null;
         }
 
         internal static void OnSeen(long sender,long id)
@@ -199,9 +278,23 @@ namespace Omens
                 Save();_nextTick=0;
                 return;
             }
+            if(e.Omen.Result==Result.Curse)
+            {
+                // The thief takes the gold; the dead remember who.
+                if(e.Taken)return;
+                e.Taken=true;e.TakenBy=sender;e.TakenByName=NameOf(sender);e.TakenAt=Now;e.TakenAtNight=EnvMan.IsNight();
+                if((State)e.State==State.Placed){e.State=(int)State.Seen;e.SeenAt=Now;e.SeenAtNight=e.TakenAtNight;e.SeenBy=e.TakenByName;}
+                Scatter(Policy.Gifts(e.Omen.Kind,(int)WorldGenerator.instance.GetBiome(e.X,e.Z)),e.Pos,1.2f);
+                RemoveSign(e.Id);Net.Resolve(e.Id);
+                Net.Tell(e.Omen.Averted,e.Pos,60,0);
+                Plugin.Log($"{e.TakenByName} took {e.Omen.Name} ({e.Id})");
+                Save();_nextTick=0;
+                return;
+            }
             e.State=(int)Policy.Advance((State)e.State,Now,e.PlacedAt,double.MaxValue,false,true,false,false);
             e.ResolvedAt=Now;
-            Net.Responded(e.Id); // before the sign leaves the world on the next tick
+            Net.Responded(e.Id); // before the sign leaves the world
+            if(e.Omen.Provokes)Hunt(e.Pos,Policy.Pack(e.Omen.Kind,(int)WorldGenerator.instance.GetBiome(e.X,e.Z)),12,20); // the fight comes now instead
             Net.Tell(e.Omen.Averted,e.Pos,60,0);
             Plugin.Log($"{NameOf(sender)} averted {e.Omen.Name} ({e.Id})");
             Save();
@@ -324,6 +417,7 @@ namespace Omens
                 :_ledger.Omens.FirstOrDefault(x=>x.Id.ToString()==which);
             if(e==null||Policy.Finished((State)e.State))return "no open omen "+which;
             if((State)e.State==State.Placed)OnSeen(ZNet.GetUID(),e.Id);
+            if(e.Omen.Result==Result.Curse&&!e.Taken)OnRespond(ZNet.GetUID(),e.Id); // the host takes the hoard, so the dead come for the host
             e.Forced=true;Save();_nextTick=0;
             return $"{e.Omen.Name} ({e.Id}) comes to pass";
         }

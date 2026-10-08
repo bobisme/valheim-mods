@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
@@ -10,9 +11,10 @@ namespace Omens
     {
         public const string Guid="com.bobisme.omens";
         public const string Name="Omens";
-        public const string Version="0.3.0";
+        public const string Version="0.4.0";
         internal static Plugin Instance;
-        internal ConfigEntry<bool> Enabled,DeadTroll,Ravens,AbandonedCamp,Cairn,DrainedDeer,Catch,BloodMoonOmen;
+        internal ConfigEntry<bool> Enabled;
+        private readonly Dictionary<Kind,ConfigEntry<bool>> _omens=new Dictionary<Kind,ConfigEntry<bool>>();
         internal ConfigEntry<float> IntervalDays,BadChance,ExpireDays,BaseRange;
         internal ConfigEntry<int> MaxActive;
         private Harmony _harmony;
@@ -26,30 +28,14 @@ namespace Omens
             ExpireDays=Config.Bind("General","ExpireDays",1f,new ConfigDescription("In-game days an unseen omen waits before fading without effect.",new AcceptableValueRange<float>(0.25f,5)));
             MaxActive=Config.Bind("General","MaxActive",2,new ConfigDescription("Most omens waiting to be seen or come to pass at once.",new AcceptableValueRange<int>(1,5)));
             BaseRange=Config.Bind("General","BaseRange",1500f,new ConfigDescription("A bad omen's raid goes to the nearest base (workbench or bed) within this many metres of the sign; with none, it fizzles.",new AcceptableValueRange<float>(200,5000)));
-            DeadTroll=Config.Bind("Omens","DeadTroll",true,"Black Forest: a dead troll. Unless burned with resin, trolls raid the nearest base that night.");
-            Ravens=Config.Bind("Omens","Ravens",true,"Ravens circling: players nearby are rested and the land around is revealed on their map.");
-            AbandonedCamp=Config.Bind("Omens","AbandonedCamp",true,"Meadows or Black Forest: a cold, abandoned camp. Greydwarfs raid the nearest base that night.");
-            Cairn=Config.Bind("Omens","Cairn",true,"Meadows, Black Forest or Swamp: a scattered cairn. Unless the bones are laid to rest (5 bone fragments), skeletons raid the nearest base that night.");
-            DrainedDeer=Config.Bind("Omens","DrainedDeer",true,"Meadows or Black Forest: a deer drained of blood. At night a hunting pack, led by a stronger one, comes for the nearest base.");
-            BloodMoonOmen=Config.Bind("Omens","BloodMoon",true,"Most land: a blood-soaked circle. That night the moon bleeds: a red sky, and night creatures spawn twice as often, more at once and stronger. An offering of 4 raw meat softens it.");
-            Catch=Config.Bind("Omens","Catch",true,"Shores: gulls circling. Reading it strands real fish on the shore for the taking.");
+            // One switch per omen, named after its kind (the names earlier versions used).
+            foreach(Omen omen in Policy.All)_omens[omen.Kind]=Config.Bind("Omens",omen.Kind.ToString(),true,omen.Config);
             _harmony=new Harmony(Guid);_harmony.PatchAll(typeof(Plugin).Assembly);
             if(ZNetScene.instance!=null)SignPrefab.Register(ZNetScene.instance); // hot reload while in a world
             OmenSign.AttachAll();
             Logger.LogInfo($"{Name} {Version} loaded.");
         }
-        internal List<Kind> EnabledKinds()
-        {
-            var kinds=new List<Kind>();
-            if(DeadTroll.Value)kinds.Add(Kind.DeadTroll);
-            if(Ravens.Value)kinds.Add(Kind.Ravens);
-            if(AbandonedCamp.Value)kinds.Add(Kind.AbandonedCamp);
-            if(Cairn.Value)kinds.Add(Kind.Cairn);
-            if(DrainedDeer.Value)kinds.Add(Kind.DrainedDeer);
-            if(Catch.Value)kinds.Add(Kind.Catch);
-            if(BloodMoonOmen.Value)kinds.Add(Kind.BloodMoon);
-            return kinds;
-        }
+        internal List<Kind> EnabledKinds()=>Policy.All.Where(o=>_omens.TryGetValue(o.Kind,out var on)&&on.Value).Select(o=>o.Kind).ToList();
         internal static void Log(string text)=>Instance?.Logger.LogInfo(text);
         private void Update()
         {
@@ -67,6 +53,7 @@ namespace Omens
             _harmony?.UnpatchSelf();
             SignPrefab.Unregister();
             Looks.Clear();
+            Favour.Clear();
             if(Instance==this)Instance=null;
         }
     }

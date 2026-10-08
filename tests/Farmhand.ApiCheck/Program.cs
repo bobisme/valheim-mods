@@ -226,6 +226,15 @@ Method("EnvMan","SetEnv","System.Void","EnvSetup","System.Single","System.Single
 Field("EnvMan","m_dirLight","UnityEngine.Light");
 Method("SpawnSystem","UpdateSpawnList","System.Void","System.Collections.Generic.List`1<SpawnSystem/SpawnData>","System.DateTime","System.Boolean","System.String");
 Method("SpawnSystem","GetLevelUpChance","System.Single","UnityEngine.Vector3","System.Single");
+Method("Character","Start","System.Void");
+Field("Character","m_name","System.String");
+Method("CharacterDrop","GenerateDropList","System.Collections.Generic.List`1<System.Collections.Generic.KeyValuePair`2<UnityEngine.GameObject,System.Int32>>");
+Field("Odin","m_despawn","EffectList");
+Field("SE_Stats","m_raiseSkill","Skills/SkillType");
+Field("SE_Stats","m_raiseSkillModifier","System.Single");
+Method("ItemDrop","SetStack","System.Void","System.Int32");
+Method("Minimap","AddPin","Minimap/PinData","UnityEngine.Vector3","Minimap/PinType","System.String","System.Boolean","System.Boolean","System.Int64","Splatform.PlatformUserID");
+Method("ZoneSystem","GetGroundHeight","System.Boolean","UnityEngine.Vector3","System.Single&");
 
 // DualWield routes a matching second weapon into the off hand and borrows the game's dual weapons' stance and attacks.
 Method("Humanoid","EquipItem","System.Boolean","ItemDrop/ItemData","System.Boolean");

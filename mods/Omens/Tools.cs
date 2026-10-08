@@ -28,7 +28,7 @@ namespace Omens
             {
                 MethodInfo register=found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static);
                 register?.Invoke(null,new object[]{Plugin.Name,"omen",
-                    "omen list | events | place <troll|ravens|camp|cairn|deer|catch|bloodmoon> [metres=12] | now <id|last> | avert <id> | clear <id> | soon: test omens (host only). place puts one ahead of the player; now marks it seen and brings its outcome at once, night or not; avert does what burning the troll does; clear removes one without effect; soon schedules the next natural omen in 5 s",
+                    $"omen list | events | place <{string.Join("|",Policy.All.Select(o=>o.Test))}> [metres=12] | now <id|last> | avert <id> | clear <id> | soon: test omens (host only). place puts one ahead of the player; now marks it seen and brings its outcome at once, night or not (a hoard is taken by the host first); avert responds as a player would (burns the troll, takes the hoard); clear removes one without effect; soon schedules the next natural omen in 5 s",
                     (Func<string[],Action<JObject>,Action<string>,IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: omen command added");
             }
@@ -57,9 +57,9 @@ namespace Omens
                 case "place":
                     Player me=Player.m_localPlayer;
                     if(me==null){error("omen place: no player");break;}
-                    Kind? kind=args.Length>2?args[2] switch{"troll"=>Kind.DeadTroll,"ravens"=>Kind.Ravens,"camp"=>Kind.AbandonedCamp,
-                        "cairn"=>Kind.Cairn,"deer"=>Kind.DrainedDeer,"catch"=>Kind.Catch,"bloodmoon"=>Kind.BloodMoon,_=>(Kind?)null}:null;
-                    if(kind==null){error("omen place: troll, ravens, camp, cairn, deer, catch or bloodmoon");break;}
+                    Omen pick=args.Length>2?Policy.All.FirstOrDefault(o=>o.Test==args[2]):null;
+                    if(pick==null){error("omen place: "+string.Join(", ",Policy.All.Select(o=>o.Test)));break;}
+                    Kind? kind=pick.Kind;
                     float metres=args.Length>3&&float.TryParse(args[3],out float m)?m:12;
                     Vector3 ahead=me.transform.forward;ahead.y=0;
                     string id=Director.TestPlace(kind.Value,me.transform.position+ahead.normalized*metres);

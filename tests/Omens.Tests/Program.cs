@@ -10,14 +10,25 @@ foreach(Omen o in Policy.All)
     Check(!string.IsNullOrWhiteSpace(o.Name)&&!string.IsNullOrWhiteSpace(o.Reading)&&!string.IsNullOrWhiteSpace(o.Outcome),"Every omen has a name, reading and outcome");
     Check(o.Biomes!=0,"Every omen can appear somewhere");
     Check((o.Result==Result.Raid)==!string.IsNullOrEmpty(o.Raid),"Raid omens, and only they, name a raid");
-    Check(o.Bad==(o.Result==Result.Raid||o.Result==Result.Stalkers||o.Result==Result.BloodMoon),"Bad omens bring raids, hunters or a blood moon; good ones blessings or gifts");
-    Check(o.Respondable==!string.IsNullOrWhiteSpace(o.Averted)&&o.Respondable==!string.IsNullOrWhiteSpace(o.Action)&&(!o.Respondable||o.CostAmount>0&&!o.Cost.StartsWith("$")&&!o.Cost.Contains(' ')),
-        "A respondable omen has a cost, an action and an averted message; others have none");
+    Check(o.Bad==(o.Result is Result.Raid or Result.Stalkers or Result.BloodMoon or Result.Curse),"Bad omens bring raids, hunters, a blood moon or a curse; good ones blessings, gifts, treasure, quarry or favour");
+    Check(o.Respondable==!string.IsNullOrWhiteSpace(o.Averted)&&o.Respondable==!string.IsNullOrWhiteSpace(o.Action),"A respondable omen has an action and a response message; others have neither");
+    Check(o.Cost==null?o.CostAmount==0:o.Respondable&&o.CostAmount>0&&!o.Cost.StartsWith("$")&&!o.Cost.Contains(' '),"A cost is an item prefab and an amount, and only on a respondable omen");
+    Check(o.Cost!=null||!o.Respondable||o.Provokes||o.Result==Result.Curse,"A free response either provokes a fight or takes a hoard");
+    Check(!o.Provokes||o.Respondable&&o.Bad&&!o.Softens,"Only a bad omen's response can provoke its pack");
+    Check(!string.IsNullOrWhiteSpace(o.Test)&&!o.Test.Contains(' ')&&!string.IsNullOrWhiteSpace(o.Config),"Every omen has a test name and a setting description");
+    Check(o.SeenFrom>=10&&o.SeenFrom<=40,"Seen from a sensible distance");
     Check(!o.Linger||!o.Bad,"Only good omens linger after coming to pass");
     Check(Policy.Of(o.Kind)==o,"Each kind maps to its own omen");
 }
 Check(Policy.All.Select(o=>o.Kind).Distinct().Count()==Policy.All.Length&&Policy.All.Length==every.Length,"Every kind has exactly one omen");
-Check(Policy.All.Count(o=>o.Bad)==5&&Policy.All.Count(o=>!o.Bad)==2,"Five bad and two good omens");
+Check(Policy.All.Select(o=>o.Test).Distinct().Count()==Policy.All.Length,"Test names are unique");
+Check(Policy.All.Count(o=>o.Bad)==11&&Policy.All.Count(o=>!o.Bad)==6,"Eleven bad and six good omens");
+Check((int)Kind.DeadTroll==0&&(int)Kind.BloodMoon==6&&(int)Kind.Scorched==16,"Kinds keep their saved numbers");
+foreach(int land in new[]{Policy.Meadows,Policy.BlackForest,Policy.Swamp,Policy.Mountain,Policy.Plains})
+{
+    Check(Policy.All.Count(o=>o.Bad&&(o.Biomes&land)!=0)>=3,"Every land has several bad omens");
+    Check(Policy.All.Count(o=>!o.Bad&&o.Site==Site.Any&&(o.Biomes&land)!=0)>=2,"Every land has good omens that need no special spot");
+}
 Check(Policy.All.Where(o=>o.Softens).All(o=>o.Respondable&&o.Bad),"Only respondable bad omens can be softened");
 Check(Policy.Of(Kind.BloodMoon).Softens&&!Policy.Of(Kind.DeadTroll).Softens,"An offering softens the blood moon; burning the troll averts its raid");
 
@@ -30,12 +41,13 @@ for(double p=0;p<1;p+=0.001)for(double k=0;k<1;k+=0.25)
     trials++;if(Policy.Of(pick.Value).Bad)bad++;
 }
 Check(Math.Abs(bad/(double)trials-0.6)<0.01,"60/40 bad to good where both are possible");
-Check(Policy.Pick(0.99,0.5,0.6,Policy.Mountain,every)==Kind.Ravens,"Good roll in the mountains: ravens");
-Check(Policy.Pick(0.0,0.5,0.6,Policy.Mountain,every)==Kind.BloodMoon,"Bad roll in the mountains: the blood moon");
+Check(Policy.Pick(0.99,0.0,0.6,Policy.Mountain,new[]{Kind.Ravens,Kind.BloodMoon})==Kind.Ravens,"Good roll in the mountains: ravens");
+Check(Policy.Pick(0.0,0.5,0.6,Policy.Mountain,new[]{Kind.Ravens,Kind.BloodMoon})==Kind.BloodMoon,"Bad roll in the mountains: the blood moon");
 Check(Policy.Pick(0.0,0.5,0.6,Policy.Mistlands,every) is Kind g0&&!Policy.Of(g0).Bad,"Bad roll where no bad omen fits falls back to a good one");
+Check(Policy.Pick(0.0,0.0,0.6,Policy.Plains,new[]{Kind.WarBanner,Kind.DeadTroll})==Kind.WarBanner,"The war banner stands in the plains");
 Check(Policy.Pick(0.0,0.0,0.6,Policy.Swamp,new[]{Kind.DeadTroll})==null,"Nothing fits: no omen");
 Check(Policy.Pick(0.0,0.5,0.6,Policy.Meadows,every) is Kind m&&Policy.Of(m).Bad&&m!=Kind.DeadTroll,"Bad omen in the meadows is never the troll (Black Forest only)");
-Check(Policy.Pick(0.99,0.0,0.6,Policy.Mountain,every.Where(k=>k!=Kind.Ravens).ToList())==Kind.BloodMoon,"Mountains without open sky: a good roll falls back to the blood moon");
+Check(Policy.Pick(0.99,0.0,0.6,Policy.Mountain,new[]{Kind.BloodMoon,Kind.Catch})==Kind.BloodMoon,"Mountains without open sky: a good roll falls back to the blood moon");
 Check(Policy.Pick(0.99,0.0,0.6,Policy.Mountain,new[]{Kind.Catch,Kind.DeadTroll})==null,"Nothing that fits the mountains: no omen");
 Check(Policy.Pick(0.99,0.5,0.6,Policy.Meadows,new[]{Kind.Catch,Kind.Cairn})==Kind.Catch,"A good roll on a shore picks the catch");
 for(double k=0;k<1;k+=0.05)Check(Policy.Pick(0.0,k,0,Policy.BlackForest,every) is Kind g&&!Policy.Of(g).Bad,"With raids off only good omens appear");
@@ -74,17 +86,36 @@ foreach(State end in new[]{State.Fulfilled,State.Averted,State.Expired,State.Fiz
 }
 Check(!Policy.Finished(State.Placed)&&!Policy.Finished(State.Seen),"Open states are open");
 Check(!Policy.SignGone(State.Fulfilled,true,0)&&!Policy.SignGone(State.Fulfilled,true,Policy.Linger-1)&&Policy.SignGone(State.Fulfilled,true,Policy.Linger),"A lingering sign stays, then goes");
-Check(Policy.SignGone(State.Fulfilled,false,0)&&Policy.SignGone(State.Averted,true,0)&&Policy.SignGone(State.Expired,true,0)&&Policy.SignGone(State.Fizzled,true,0),"Other finished signs go at once");
+Check(Policy.SignGone(State.Fulfilled,false,0)&&Policy.SignGone(State.Expired,true,0)&&Policy.SignGone(State.Fizzled,true,0),"Other finished signs go at once");
+Check(!Policy.SignGone(State.Averted,false,0)&&!Policy.SignGone(State.Averted,true,Policy.AvertLinger-1)&&Policy.SignGone(State.Averted,false,Policy.AvertLinger),"An averted sign stays just long enough to see the response");
 Check(!Policy.SignGone(State.Seen,true,1e9)&&!Policy.SignGone(State.Placed,false,1e9),"Open omens keep their sign");
 
 // Hunting packs: every base biome gets a small pack led by its strongest.
 foreach(int biome in new[]{Policy.Meadows,Policy.BlackForest,Policy.Swamp,Policy.Mountain,Policy.Plains,Policy.Mistlands,32,64,256,0})
 {
-    var pack=Policy.Pack(biome);
-    Check(pack.Length>=2&&pack.Length<=4,"A pack is a few creatures");
-    Check(pack.All(c=>!string.IsNullOrWhiteSpace(c.prefab)&&c.level>=1&&c.level<=3),"Pack creatures have names and sane levels");
+    foreach(Kind kind in new[]{Kind.DrainedDeer,Kind.Drowned,Kind.Hoard,Kind.WarBanner})
+    {
+        var pack=Policy.Pack(kind,biome);
+        Check(pack.Length>=2&&pack.Length<=4,"A pack is a few creatures");
+        Check(pack.All(c=>!string.IsNullOrWhiteSpace(c.prefab)&&c.level>=1&&c.level<=3),"Pack creatures have names and sane levels");
+    }
+    foreach(Kind kind in new[]{Kind.Catch,Kind.FallenStar,Kind.Hoard})
+    {
+        var gifts=Policy.Gifts(kind,biome);
+        Check(gifts.Length>=1&&gifts.All(g=>!string.IsNullOrWhiteSpace(g.prefab)&&g.min>=1&&g.max>=g.min&&g.max<=100),"Gifts are real items in sane amounts");
+    }
+    Check(Policy.Chest(biome).StartsWith("TreasureChest_"),"The lights always lead to one of the game's chests");
 }
-Check(Policy.Pack(Policy.Swamp)[0].prefab=="Draugr_Elite"&&Policy.Pack(Policy.BlackForest)[0].prefab=="Greydwarf_Elite","The pack fits the base's biome");
+Check(Policy.Pack(Kind.DrainedDeer,Policy.Swamp)[0].prefab=="Draugr_Elite"&&Policy.Pack(Kind.DrainedDeer,Policy.BlackForest)[0].prefab=="Greydwarf_Elite","The pack fits the base's biome");
+Check(Policy.Pack(Kind.Drowned,Policy.Meadows).All(c=>c.prefab=="Draugr"&&c.level==1),"The drowned go easy on a meadows base");
+Check(Policy.Pack(Kind.Drowned,Policy.Plains).Sum(c=>c.level)>Policy.Pack(Kind.Drowned,Policy.Swamp).Sum(c=>c.level),"The drowned grow stronger with the land");
+Check(Policy.Pack(Kind.Hoard,Policy.Meadows).Any(c=>c.prefab=="Ghost")&&Policy.Pack(Kind.Hoard,Policy.Mountain).Any(c=>c.prefab=="Ghost"),"A ghost always leads the dead to their gold");
+Check(Policy.Gifts(Kind.FallenStar,Policy.Swamp)[0].prefab=="IronScrap"&&Policy.Gifts(Kind.FallenStar,Policy.Plains)[0].prefab=="BlackMetalScrap","A star's ore fits the land");
+Check(Policy.Gifts(Kind.Hoard,Policy.Plains).Sum(g=>g.max)>Policy.Gifts(Kind.Hoard,Policy.Meadows).Sum(g=>g.max),"Richer hoards in harder lands");
+Check(Policy.Chest(Policy.Swamp)=="TreasureChest_swamp"&&Policy.Chest(Policy.Meadows)=="TreasureChest_meadows","The chest fits the land");
+for(double r=0;r<=1;r+=0.01){int n=Policy.Roll(3,5,r);Check(n>=3&&n<=5,"Rolls stay in range");}
+Check(Policy.Roll(3,5,0)==3&&Policy.Roll(3,5,0.999)==5&&Policy.Roll(4,4,0.5)==4&&Policy.Roll(3,5,double.NaN)==3,"Rolls reach both ends");
+Check(Policy.StagLevel==3&&Policy.StagDrops.Any(d=>d.prefab=="HardAntler"),"The great stag is two-star and drops its antlers");
 
 // Nearest base.
 var bases=new List<(double x,double z)>{(100,0),(0,50),(-500,-500)};

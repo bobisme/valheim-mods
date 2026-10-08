@@ -58,6 +58,10 @@ namespace Omens
         private List<Rigidbody> _bodies;
         private GameObject _carcass;
         private BoxCollider _hover;
+        private readonly List<Transform> _wisps=new List<Transform>();
+        private readonly List<GameObject> _candles=new List<GameObject>();
+        private GameObject _banner,_wanderer;
+        private bool _answered; // responded to here, or the host showed a response: no second payment while the sign lingers
 
         private void Awake()
         {
@@ -135,6 +139,112 @@ namespace Omens
                     Looks.Hover(transform,new Vector3(0,0.4f,0),new Vector3(4.5f,0.8f,4.5f));
                     break;
                 case Kind.Ravens:Birds("Crow",14,7,1.5f);break; // larger than the ambient crows, so they read as a sign
+                case Kind.Wolves:
+                    // A deer torn apart: bones strewn wide, blood on the ground.
+                    Corpse("deer_ragdoll",0.4f,new Vector3(3,1,3));
+                    Scatter(("BoneFragments",-1.4f,0.6f),("BoneFragments",1.2f,1.5f),("BoneFragments",0.4f,-1.7f),("BoneFragments",-0.8f,-1.3f),
+                        ("Bloodbag",0.9f,-0.6f),("Bloodbag",-0.5f,1.1f),("Skull2",1.8f,-1.2f));
+                    break;
+                case Kind.WarBanner:
+                    // A Fuling banner planted in the earth, skulls at its foot.
+                    _banner=Looks.Copy("goblin_banner",transform,Vector3.zero,Quaternion.Euler(0,Random.Range(0,360f),Random.Range(-4f,4f)));
+                    if(_banner!=null)foreach(Collider c in _banner.GetComponentsInChildren<Collider>(true))c.enabled=false;
+                    Scatter(("Skull1",0.7f,0.4f),("Skull1",-0.5f,0.6f),("Skull2",0.1f,-0.8f),("BoneFragments",-1f,-0.6f),("SpearFlint",1.2f,-0.9f));
+                    _hover=Looks.Hover(transform,new Vector3(0,1.5f,0),new Vector3(2.5f,3.5f,2.5f));
+                    break;
+                case Kind.Drowned:
+                    Corpse("Draugr_ragdoll",0.4f,new Vector3(2.5f,1,2.5f));
+                    Scatter(("ShieldWood",1.3f,0.8f),("Wood",-1.5f,-0.7f),("Wood",-0.9f,1.6f));
+                    break;
+                case Kind.Hoard:
+                    // A grave-chest spilling gold, and the bones that still clutch at it.
+                    GameObject chest=Looks.Copy("TreasureChest_meadows",transform,Vector3.zero,Quaternion.Euler(0,Random.Range(0,360f),0));
+                    if(chest!=null)foreach(Collider c in chest.GetComponentsInChildren<Collider>(true))c.enabled=false;
+                    Scatter(("Coins",0.8f,0.2f),("Coins",1.1f,-0.5f),("Coins",0.5f,0.9f),("Coins",1.5f,0.4f),("Ruby",0.9f,-0.1f),("Amber",1.3f,0.9f),
+                        ("SilverNecklace",0.4f,-0.8f),("Skull1",-1.1f,0.4f),("BoneFragments",-0.8f,-0.6f),("BoneFragments",-1.5f,0.9f));
+                    _hover=Looks.Hover(transform,new Vector3(0,0.5f,0),new Vector3(3.5f,1.2f,3.5f));
+                    break;
+                case Kind.GraveCandles:
+                    // Grave candles in a ring around an old skull, blown out until someone relights them.
+                    Looks.Item("Skull2",transform,Vector3.zero,Quaternion.Euler(0,Random.Range(0,360f),0));
+                    for(int i=0;i<6;i++)
+                    {
+                        float a=i*Mathf.PI/3;
+                        GameObject candle=Looks.Copy("Candle_resin",transform,new Vector3(Mathf.Cos(a)*1.4f,0,Mathf.Sin(a)*1.4f),Quaternion.identity);
+                        if(candle==null)continue;
+                        Looks.Ground(candle);Looks.Smother(candle);
+                        _candles.Add(candle);
+                    }
+                    Scatter(("BoneFragments",0.4f,0.5f),("BoneFragments",-2.1f,0.3f),("stone_pile",2.3f,-1.4f));
+                    _hover=Looks.Hover(transform,new Vector3(0,0.4f,0),new Vector3(3.6f,1f,3.6f));
+                    break;
+                case Kind.Scorched:
+                    // A burnt circle of coal around a surtling core that still burns.
+                    Looks.Item("SurtlingCore",transform,Vector3.zero,Quaternion.identity);
+                    Looks.Fire(transform,Vector3.zero,0.5f);
+                    for(int i=0;i<9;i++)
+                    {
+                        float a=i*Mathf.PI*2/9+Random.Range(-0.2f,0.2f),r=Random.Range(1.2f,2.6f);
+                        Looks.Item("Coal",transform,new Vector3(Mathf.Cos(a)*r,0,Mathf.Sin(a)*r),Quaternion.Euler(0,Random.Range(0,360f),0));
+                    }
+                    _hover=Looks.Hover(transform,new Vector3(0,0.4f,0),new Vector3(4f,1f,4f));
+                    break;
+                case Kind.Wisps:
+                    for(int i=0;i<3;i++)
+                    {
+                        GameObject wisp=Looks.Wisp(transform,new Vector3(0,1.5f,0));
+                        if(wisp!=null)_wisps.Add(wisp.transform);
+                    }
+                    _hover=Looks.Hover(transform,new Vector3(0,1.5f,0),new Vector3(3f,2.5f,3f));
+                    break;
+                case Kind.GreatStag:
+                    // One huge antler in the moss, and the tracks of something that shed it.
+                    GameObject antler=Looks.Copy("HardAntler",transform,new Vector3(0,0.1f,0),Quaternion.Euler(0,Random.Range(0,360f),0));
+                    if(antler!=null){antler.transform.localScale=Vector3.one*1.6f;Looks.Still(antler);Looks.Ground(antler);}
+                    Scatter(("Stone",-1.2f,0.8f),("Stone",1.4f,-1f));
+                    _hover=Looks.Hover(transform,new Vector3(0,0.4f,0),new Vector3(2.5f,1f,2.5f));
+                    break;
+                case Kind.FallenStar:
+                    // A dark stone smouldering in a ring of thrown-up rock.
+                    GameObject star=Looks.Copy("Pickable_Meteorite",transform,Vector3.zero,Quaternion.Euler(Random.Range(-15f,15f),Random.Range(0,360f),0));
+                    if(star!=null){Looks.Still(star);Looks.Ground(star);}
+                    Looks.Fire(transform,new Vector3(0,0.2f,0),0.6f);
+                    for(int i=0;i<8;i++)
+                    {
+                        float a=i*Mathf.PI/4+Random.Range(-0.2f,0.2f);
+                        Looks.Item(i%2==0?"Stone":"Coal",transform,new Vector3(Mathf.Cos(a)*2.2f,0,Mathf.Sin(a)*2.2f),Quaternion.Euler(0,Random.Range(0,360f),0));
+                    }
+                    _hover=Looks.Hover(transform,new Vector3(0,0.5f,0),new Vector3(4.6f,1.2f,4.6f));
+                    break;
+                case Kind.Wanderer:
+                    _wanderer=Looks.Copy("odin",transform,Vector3.zero,Quaternion.identity);
+                    if(_wanderer!=null){Looks.Still(_wanderer);FaceNearestPlayer();}
+                    break;
+            }
+        }
+        // Props laid around the sign: (prefab, x, z) in its own frame.
+        private void Scatter(params (string prefab,float x,float z)[] props)
+        {
+            foreach(var (prefab,x,z) in props)Looks.Item(prefab,transform,new Vector3(x,0,z),Quaternion.Euler(0,Random.Range(0,360f),0));
+        }
+        private void FaceNearestPlayer()
+        {
+            Player me=Player.m_localPlayer;
+            if(me==null||_wanderer==null)return;
+            Vector3 to=me.transform.position-_wanderer.transform.position;to.y=0;
+            if(to.sqrMagnitude>0.01f)_wanderer.transform.rotation=Quaternion.LookRotation(to);
+        }
+
+        // What everyone sees when the host accepts a response.
+        internal void Responded()
+        {
+            _answered=true;
+            switch(Kind)
+            {
+                case Kind.DeadTroll:Looks.Burn(Carcass);break;
+                case Kind.GraveCandles:foreach(GameObject candle in _candles)if(candle!=null)Looks.Kindle(candle);break;
+                case Kind.WarBanner:if(_banner!=null)_banner.transform.localRotation=Quaternion.Euler(84,_banner.transform.localEulerAngles.y,0);break;
+                case Kind.Drowned:Looks.Item("Coins",transform,transform.InverseTransformPoint(Carcass),Quaternion.identity);break;
             }
         }
         // A ragdoll copy that collapses naturally, then holds still; the box people aim at follows it.
@@ -162,6 +272,24 @@ namespace Omens
         }
         private void Update()
         {
+            for(int i=0;i<_wisps.Count;i++)
+            {
+                if(_wisps[i]==null)continue;
+                float t=Time.time*(0.7f+i*0.23f)+i*2.1f;
+                _wisps[i].localPosition=new Vector3(Mathf.Cos(t)*(1.1f+i*0.3f),1.3f+Mathf.Sin(t*1.7f)*0.4f+i*0.25f,Mathf.Sin(t*1.3f)*(1.1f+i*0.3f));
+            }
+            if(_wanderer!=null&&_wanderer.activeSelf)
+            {
+                // He watches whoever comes, and is gone before they reach him.
+                Player me=Player.m_localPlayer;
+                if(me!=null&&Vector3.Distance(me.transform.position,transform.position)<=Omen.SeenFrom)
+                {
+                    GameObject odin=ZNetScene.instance!=null?ZNetScene.instance.GetPrefab("odin"):null;
+                    odin?.GetComponent<Odin>()?.m_despawn.Create(_wanderer.transform.position,_wanderer.transform.rotation);
+                    _wanderer.SetActive(false);
+                }
+                else if(Time.frameCount%30==0)FaceNearestPlayer();
+            }
             if(_bodies!=null)
             {
                 FollowCarcass(); // the ragdoll can slide downhill; the box people aim at goes with it
@@ -196,18 +324,23 @@ namespace Omens
         public float GetHoverOffset()=>0;
         public string GetHoverText()
         {
-            if(!Omen.Respondable)return Omen.Name;
-            return Localization.instance.Localize($"{Omen.Name}\n[<color=yellow><b>$KEY_Use</b></color>] {Omen.Action} ({Omen.CostAmount} {CostName()})");
+            if(!Omen.Respondable||_answered)return Omen.Name;
+            string cost=Omen.Cost!=null?$" ({Omen.CostAmount} {CostName()})":"";
+            return Localization.instance.Localize($"{Omen.Name}\n[<color=yellow><b>$KEY_Use</b></color>] {Omen.Action}{cost}");
         }
         public bool Interact(Humanoid user,bool hold,bool alt)
         {
-            if(hold||!Omen.Respondable||!(user is Player player)||player!=Player.m_localPlayer)return false;
-            Inventory inventory=player.GetInventory();
-            string cost=CostName();
-            if(cost==null)return false;
-            if(inventory.CountItems(cost)<Omen.CostAmount)
-            {player.Message(MessageHud.MessageType.Center,Localization.instance.Localize($"You need {Omen.CostAmount} {cost}."));return false;}
-            inventory.RemoveItem(cost,Omen.CostAmount);
+            if(hold||_answered||!Omen.Respondable||!(user is Player player)||player!=Player.m_localPlayer)return false;
+            if(Omen.Cost!=null)
+            {
+                Inventory inventory=player.GetInventory();
+                string cost=CostName();
+                if(cost==null)return false;
+                if(inventory.CountItems(cost)<Omen.CostAmount)
+                {player.Message(MessageHud.MessageType.Center,Localization.instance.Localize($"You need {Omen.CostAmount} {cost}."));return false;}
+                inventory.RemoveItem(cost,Omen.CostAmount);
+            }
+            _answered=true;
             Net.Respond(Id); // the host shows the response to everyone (Net.OnResponded) once it accepts
             return true;
         }
@@ -259,13 +392,49 @@ namespace Omens
         {
             GameObject item=Copy(prefab,parent,local,rotation);
             if(item==null)return;
-            foreach(Rigidbody body in item.GetComponentsInChildren<Rigidbody>(true))body.isKinematic=true;
-            foreach(Collider c in item.GetComponentsInChildren<Collider>(true))c.enabled=false;
+            Still(item);
             foreach(Renderer r in item.GetComponentsInChildren<Renderer>(true))if(r.GetType().Name=="ParticleSystemRenderer")r.enabled=false;
-            Vector3 top=item.transform.position+Vector3.up*3;
-            if(Physics.Raycast(top,Vector3.down,out RaycastHit hit,6,LayerMask.GetMask("terrain","Default","static_solid")))
-                item.transform.position=hit.point+Vector3.up*0.05f;
+            Ground(item);
         }
+        internal static void Still(GameObject go)
+        {
+            foreach(Rigidbody body in go.GetComponentsInChildren<Rigidbody>(true))body.isKinematic=true;
+            foreach(Collider c in go.GetComponentsInChildren<Collider>(true))c.enabled=false;
+        }
+        internal static void Ground(GameObject go)
+        {
+            Vector3 top=go.transform.position+Vector3.up*3;
+            if(Physics.Raycast(top,Vector3.down,out RaycastHit hit,6,LayerMask.GetMask("terrain","Default","static_solid")))
+                go.transform.position=hit.point+Vector3.up*0.05f;
+        }
+        // A floating light: the game's lured wisp (or its wisp item), with a soft glow of its own so it shows whatever the copy keeps.
+        internal static GameObject Wisp(Transform parent,Vector3 local)
+        {
+            GameObject wisp=Copy("LuredWisp",parent,local,Quaternion.identity)??Copy("Wisp",parent,local,Quaternion.identity);
+            if(wisp==null){wisp=new GameObject("Wisp");wisp.transform.SetParent(parent,false);wisp.transform.localPosition=local;}
+            Still(wisp);
+            var glow=new GameObject("Glow");glow.transform.SetParent(wisp.transform,false);
+            Light light=glow.AddComponent<Light>();
+            light.type=LightType.Point;light.color=new Color(0.55f,0.85f,1f);light.range=5;light.intensity=1.6f;light.shadows=LightShadows.None;
+            return wisp;
+        }
+        // Lights the stripped copy of a candle or fire: its hidden flame objects shown, its lights on.
+        internal static void Kindle(GameObject go)
+        {
+            foreach(Transform t in go.GetComponentsInChildren<Transform>(true))t.gameObject.SetActive(true);
+            foreach(Light light in go.GetComponentsInChildren<Light>(true))light.enabled=true;
+            foreach(Renderer r in go.GetComponentsInChildren<Renderer>(true))r.enabled=true;
+            foreach(Collider c in go.GetComponentsInChildren<Collider>(true))c.enabled=false;
+        }
+        // A light that drifts from one spot to another over the ground, waits there a while, then fades.
+        internal static void Guide(Vector3 from,Vector3 to)
+        {
+            GameObject wisp=Wisp(null,from+Vector3.up*1.6f);
+            if(wisp==null)return;
+            wisp.AddComponent<Drift>().Begin(from,to);
+            Guides.Add(wisp);
+        }
+        private static readonly List<GameObject> Guides=new List<GameObject>();
         // A non-solid box so the crosshair finds the sign without anyone bumping into it.
         internal static BoxCollider Hover(Transform parent,Vector3 center,Vector3 size)
         {
@@ -277,14 +446,42 @@ namespace Omens
         // The game's own fire-pit flames over the carcass for a few seconds, as everyone near it sees it burn.
         internal static void Burn(Vector3 at)
         {
-            GameObject copy=Copy("fire_pit",null,at,Quaternion.identity);
-            if(copy==null)return;
-            copy.transform.localScale=Vector3.one*1.6f;
+            GameObject copy=Fire(null,at,1.6f);
+            if(copy!=null)Object.Destroy(copy,12);
+        }
+        // The game's own fire-pit flames alone, without the pit: a fire on the ground.
+        internal static GameObject Fire(Transform parent,Vector3 local,float scale)
+        {
+            GameObject copy=Copy("fire_pit",parent,local,Quaternion.identity);
+            if(copy==null)return null;
+            copy.transform.localScale=Vector3.one*scale;
             foreach(Transform t in copy.GetComponentsInChildren<Transform>(true))t.gameObject.SetActive(true); // the lit-fire objects start hidden
             foreach(Renderer r in copy.GetComponentsInChildren<Renderer>(true))if(r.GetType().Name!="ParticleSystemRenderer")r.enabled=false; // only the flames
             foreach(Collider c in copy.GetComponentsInChildren<Collider>(true))c.enabled=false;
-            Object.Destroy(copy,12);
+            return copy;
         }
-        internal static void Clear(){if(_staging!=null)Object.Destroy(_staging);_staging=null;}
+        internal static void Clear()
+        {
+            foreach(GameObject guide in Guides)if(guide!=null)Object.Destroy(guide);
+            Guides.Clear();
+            if(_staging!=null)Object.Destroy(_staging);_staging=null;
+        }
+    }
+
+    // A guiding light's flight: low over the ground from the sign to the treasure, waiting there, then gone.
+    internal sealed class Drift:MonoBehaviour
+    {
+        private Vector3 _from,_to;private float _start,_travel;
+        private const float Speed=4.5f,Wait=120;
+        internal void Begin(Vector3 from,Vector3 to){_from=from;_to=to;_start=Time.time+1.5f;_travel=Vector3.Distance(from,to)/Speed;}
+        private void Update()
+        {
+            float t=Mathf.Clamp01((Time.time-_start)/Mathf.Max(1,_travel));
+            Vector3 p=Vector3.Lerp(_from,_to,Mathf.SmoothStep(0,1,t));
+            float ground=ZoneSystem.instance!=null&&ZoneSystem.instance.GetGroundHeight(p,out float h)?h:p.y;
+            p.y=ground+1.6f+Mathf.Sin(Time.time*2.3f)*0.25f;
+            transform.position=p;
+            if(Time.time>_start+_travel+Wait)Object.Destroy(gameObject);
+        }
     }
 }

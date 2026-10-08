@@ -10,11 +10,13 @@ namespace Omens
     // Players report what they saw or did; the host decides and tells everyone.
     internal static class Net
     {
-        private const string Seen="bob_omens_seen_v1",Respond_="bob_omens_respond_v1",Show="bob_omens_show_v1",Resolved="bob_omens_resolved_v1",Bless="bob_omens_bless_v1",Burn="bob_omens_burn_v1",Moon="bob_omens_bloodmoon_v1";
+        private const string Seen="bob_omens_seen_v1",Respond_="bob_omens_respond_v1",Show="bob_omens_show_v1",Resolved="bob_omens_resolved_v1",Bless="bob_omens_bless_v1",Burn="bob_omens_burn_v1",Moon="bob_omens_bloodmoon_v1",
+            Favour_="bob_omens_favour_v1",Lead_="bob_omens_lead_v1",Mark_="bob_omens_mark_v1";
         private static ZRoutedRpc _rpc;
         private static readonly Dictionary<string,object> Handlers=new Dictionary<string,object>();
         private static readonly HashSet<long> Reported=new HashSet<long>();
         private static readonly Dictionary<long,Minimap.PinData> Pins=new Dictionary<long,Minimap.PinData>();
+        private static readonly List<Minimap.PinData> Marks=new List<Minimap.PinData>();
         private static readonly System.Reflection.MethodInfo Explore=AccessTools.Method(typeof(Minimap),"Explore",new[]{typeof(Vector3),typeof(float)});
         private static float _nextLook;
 
@@ -27,8 +29,7 @@ namespace Omens
             foreach(OmenSign sign in OmenSign.Loaded)
             {
                 if(sign==null||sign.Id==0||Reported.Contains(sign.Id))continue;
-                float reach=sign.Kind==Kind.Ravens?35:14; // ravens are seen from afar, overhead
-                if(Vector3.Distance(me.transform.position,sign.transform.position)>reach)continue;
+                if(Vector3.Distance(me.transform.position,sign.transform.position)>sign.Omen.SeenFrom)continue; // ravens are seen from afar, overhead
                 Reported.Add(sign.Id);
                 _rpc.InvokeRoutedRPC(Seen,sign.Id);
             }
@@ -41,6 +42,9 @@ namespace Omens
         internal static void Blessing(Vector3 pos,float radius)=>_rpc?.InvokeRoutedRPC(ZRoutedRpc.Everybody,Bless,pos,radius);
         internal static void BloodMoon(bool active,bool softened)=>_rpc?.InvokeRoutedRPC(ZRoutedRpc.Everybody,Moon,active,softened);
         internal static void Responded(long id)=>_rpc?.InvokeRoutedRPC(ZRoutedRpc.Everybody,Burn,id);
+        internal static void Favour(Vector3 pos,float radius)=>_rpc?.InvokeRoutedRPC(ZRoutedRpc.Everybody,Favour_,pos,radius);
+        internal static void Lead(Vector3 from,Vector3 to)=>_rpc?.InvokeRoutedRPC(ZRoutedRpc.Everybody,Lead_,from,to);
+        internal static void Mark(Vector3 pos,string label)=>_rpc?.InvokeRoutedRPC(ZRoutedRpc.Everybody,Mark_,pos,label);
 
         private static void OnShow(long sender,string text,Vector3 pos,float centerRadius,long pinId)
         {
@@ -71,7 +75,22 @@ namespace Omens
         {
             if(!FromHost(sender))return;
             OmenSign sign=OmenSign.Loaded.FirstOrDefault(s=>s!=null&&s.Id==id);
-            if(sign!=null&&sign.Kind==Kind.DeadTroll)Looks.Burn(sign.Carcass);
+            if(sign!=null)sign.Responded();
+        }
+        private static void OnFavour(long sender,Vector3 pos,float radius)
+        {
+            Player me=Player.m_localPlayer;
+            if(FromHost(sender)&&me!=null&&Vector3.Distance(me.transform.position,pos)<=radius)Omens.Favour.Give(me);
+        }
+        // A light drifts from the sign to what it leads to, for players near enough to follow it.
+        private static void OnLead(long sender,Vector3 from,Vector3 to)
+        {
+            Player me=Player.m_localPlayer;
+            if(FromHost(sender)&&me!=null&&Vector3.Distance(me.transform.position,from)<=120)Looks.Guide(from,to);
+        }
+        private static void OnMark(long sender,Vector3 pos,string label)
+        {
+            if(FromHost(sender)&&Minimap.instance!=null)Marks.Add(Minimap.instance.AddPin(pos,Minimap.PinType.Icon3,label,false,false));
         }
         private static void OnMoon(long sender,bool active,bool softened){if(FromHost(sender))Omens.BloodMoon.Heard(active,softened);}
         private static bool FromHost(long sender)=>ZNet.instance!=null&&(ZNet.instance.IsServer()?sender==ZNet.GetUID():sender==ZNet.instance.GetServerPeer()?.m_uid);
@@ -86,8 +105,11 @@ namespace Omens
             _rpc.Register<Vector3,float>(Bless,OnBless);
             _rpc.Register<long>(Burn,OnResponded);
             _rpc.Register<bool,bool>(Moon,OnMoon);
+            _rpc.Register<Vector3,float>(Favour_,OnFavour);
+            _rpc.Register<Vector3,Vector3>(Lead_,OnLead);
+            _rpc.Register<Vector3,string>(Mark_,OnMark);
             var table=AccessTools.Field(typeof(ZRoutedRpc),"m_functions").GetValue(_rpc) as IDictionary;
-            foreach(string name in new[]{Seen,Respond_,Show,Resolved,Bless,Burn,Moon})Handlers[name]=table?[name.GetStableHashCode()];
+            foreach(string name in new[]{Seen,Respond_,Show,Resolved,Bless,Burn,Moon,Favour_,Lead_,Mark_})Handlers[name]=table?[name.GetStableHashCode()];
         }
         internal static void Unregister()
         {
@@ -97,6 +119,8 @@ namespace Omens
             Handlers.Clear();_rpc=null;Reported.Clear();
             if(Minimap.instance!=null)foreach(Minimap.PinData pin in Pins.Values)Minimap.instance.RemovePin(pin);
             Pins.Clear();
+            if(Minimap.instance!=null)foreach(Minimap.PinData pin in Marks)Minimap.instance.RemovePin(pin);
+            Marks.Clear();
         }
     }
 }
