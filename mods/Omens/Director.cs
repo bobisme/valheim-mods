@@ -1,0 +1,225 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using BepInEx;
+using Newtonsoft.Json;
+using UnityEngine;
+using Random=UnityEngine.Random;
+
+namespace Omens
+{
+    // The host decides: where omens appear, when they come to pass. Its ledger is a small file per world beside the host's config,
+    // keyed by each sign's own random id (a ZDOID changes every time the world loads).
+    internal static class Director
+    {
+        private sealed class Entry
+        {
+            public long Id;public int Kind,State;public float X,Y,Z;
+            public double PlacedAt,SeenAt,ResolvedAt;public bool SeenAtNight;public string SeenBy="";public bool SignRemoved;
+            [JsonIgnore]public Vector3 Pos=>new Vector3(X,Y,Z);
+            [JsonIgnore]public Omen Omen=>Policy.Of((Kind)Kind);
+        }
+        private sealed class Ledger{public double NextAt;public List<Entry> Omens=new List<Entry>();}
+
+        private static readonly string[] BasePieces={"piece_workbench","bed","piece_bed02"};
+        private static Ledger _ledger;
+        private static string _world,_path;
+        private static float _nextTick;
+        private static bool _reconciled;
+
+        private static bool Hosting=>ZNet.instance!=null&&ZNet.instance.IsServer()&&ZDOMan.instance!=null&&ZoneSystem.instance!=null&&
+            EnvMan.instance!=null&&RandEventSystem.instance!=null&&WorldGenerator.instance!=null;
+        private static double Now=>ZNet.instance.GetTimeSeconds();
+        private static double DayLength=>Math.Max(60,EnvMan.instance.m_dayLengthSec);
+
+        internal static void Tick()
+        {
+            if(!Plugin.Instance.Enabled.Value||!Hosting||Time.time<_nextTick)return;
+            _nextTick=Time.time+5;
+            Load();
+            if(!_reconciled){Reconcile();_reconciled=true;}
+            double now=Now;
+            if(_ledger.NextAt<=0)_ledger.NextAt=now+Policy.NextDelay(Plugin.Instance.IntervalDays.Value,DayLength,Random.value);
+            bool changed=false;
+            foreach(Entry e in _ledger.Omens.Where(e=>!Policy.Finished((State)e.State)).ToList())changed|=Advance(e,now);
+            foreach(Entry e in _ledger.Omens.Where(e=>Policy.Finished((State)e.State)&&!e.SignRemoved).ToList()){RemoveSign(e.Id);Net.Resolve(e.Id);e.SignRemoved=true;changed=true;}
+            changed|=MaybePlace(now);
+            if(changed)Save();
+        }
+
+        private static bool Advance(Entry e,double now)
+        {
+            var state=(State)e.State;bool done=false,impossible=false;
+            Vector3 raidAt=Vector3.zero;
+            if(state==State.Seen)
+            {
+                if(!e.Omen.Bad)done=true;
+                else if(Policy.RaidDue(now,e.SeenAt,e.SeenAtNight,EnvMan.IsNight()))
+                {
+                    Vector3? home=NearestBase(e.Pos);
+                    if(Game.m_eventRate<=0||home==null||now-e.SeenAt>DayLength*1.5||!RandEventSystem.instance.HaveEvent(e.Omen.Raid))impossible=true;
+                    else if(RandEventSystem.instance.GetCurrentRandomEvent()==null) // never interrupts a raid in progress; waits for it to end
+                    {RandEventSystem.instance.SetRandomEventByName(e.Omen.Raid,home.Value);raidAt=home.Value;done=true;}
+                }
+            }
+            var next=Policy.Advance(state,now,e.PlacedAt,Plugin.Instance.ExpireDays.Value*DayLength,false,false,done,impossible);
+            if(next==state)return false;
+            e.State=(int)next;e.ResolvedAt=now;
+            switch(next)
+            {
+                case State.Fulfilled when e.Omen.Bad:
+                    Net.Tell(e.Omen.Outcome,raidAt,0,0);
+                    Plugin.Log($"{e.Omen.Name} ({e.Id}) came to pass: {e.Omen.Raid} at the base near {raidAt:F0}");break;
+                case State.Fulfilled:
+                    Net.Blessing(e.Pos,60);Net.Tell(e.Omen.Outcome,e.Pos,60,0);
+                    Plugin.Log($"{e.Omen.Name} ({e.Id}) blessed players near {e.Pos:F0}");break;
+                case State.Fizzled:
+                    Net.Tell("The omen passes. Whatever it foretold did not find you.",e.Pos,-1,0);
+                    Plugin.Log($"{e.Omen.Name} ({e.Id}) fizzled: no base within reach, raids off, or no chance to start it");break;
+                case State.Expired:
+                    Plugin.Log($"{e.Omen.Name} ({e.Id}) at {e.Pos:F0} faded unseen");break;
+            }
+            return true;
+        }
+
+        internal static void OnSeen(long sender,long id)
+        {
+            if(!Hosting)return;
+            Load();
+            Entry e=_ledger.Omens.FirstOrDefault(x=>x.Id==id);
+            if(e==null||(State)e.State!=State.Placed)return;
+            e.State=(int)Policy.Advance(State.Placed,Now,e.PlacedAt,double.MaxValue,true,false,false,false);
+            e.SeenAt=Now;e.SeenAtNight=EnvMan.IsNight();e.SeenBy=NameOf(sender);
+            Net.Tell(e.Omen.Reading,e.Pos,40,e.Id);
+            Plugin.Log($"{e.SeenBy} saw {e.Omen.Name} ({e.Id}) at {e.Pos:F0}{(e.SeenAtNight?" at night":"")}");
+            Save();
+            _nextTick=0; // a good omen comes to pass at once
+        }
+        internal static void OnRespond(long sender,long id)
+        {
+            if(!Hosting)return;
+            Load();
+            Entry e=_ledger.Omens.FirstOrDefault(x=>x.Id==id);
+            if(e==null||!e.Omen.Respondable||Policy.Finished((State)e.State))return;
+            e.State=(int)Policy.Advance((State)e.State,Now,e.PlacedAt,double.MaxValue,false,true,false,false);
+            e.ResolvedAt=Now;
+            Net.Tell(e.Omen.Averted,e.Pos,60,0);
+            Plugin.Log($"{NameOf(sender)} averted {e.Omen.Name} ({e.Id})");
+            Save();
+            _nextTick=0;
+        }
+
+        // ---- placing ----
+        private static bool MaybePlace(double now)
+        {
+            if(now<_ledger.NextAt)return false;
+            List<Vector3> players=Players();
+            int active=_ledger.Omens.Count(e=>!Policy.Finished((State)e.State));
+            if(players.Count==0||active>=Plugin.Instance.MaxActive.Value){_ledger.NextAt=now+120;return true;}
+            var enabled=Plugin.Instance.EnabledKinds();
+            double badChance=Game.m_eventRate>0?Plugin.Instance.BadChance.Value:0; // a world without raids gets only good omens
+            float water=ZoneSystem.instance.m_waterLevel;
+            for(int attempt=0;attempt<16;attempt++)
+            {
+                Vector3 near=players[Random.Range(0,players.Count)];
+                Vector2 offset=Random.insideUnitCircle.normalized*Random.Range(45f,85f);
+                var spot=new Vector3(near.x+offset.x,near.y,near.z+offset.y);
+                if(!ZoneSystem.instance.GetSolidHeight(spot,out float height)||height<water+0.6f)continue;
+                spot.y=height;
+                int biome=(int)WorldGenerator.instance.GetBiome(spot.x,spot.z);
+                Kind? kind=Policy.Pick(Random.value,Random.value,badChance,biome,enabled);
+                if(kind==null||NearBuilding(spot)||players.Any(p=>Vector3.Distance(p,spot)<35)||
+                   _ledger.Omens.Any(e=>!Policy.Finished((State)e.State)&&Vector3.Distance(e.Pos,spot)<150))continue;
+                Place(kind.Value,spot,now);
+                _ledger.NextAt=now+Policy.NextDelay(Plugin.Instance.IntervalDays.Value,DayLength,Random.value);
+                return true;
+            }
+            _ledger.NextAt=now+120; // nowhere suitable near anyone right now
+            return true;
+        }
+        private static void Place(Kind kind,Vector3 spot,double now)
+        {
+            long id;do{id=((long)Random.Range(1,int.MaxValue)<<31)^Random.Range(1,int.MaxValue);}while(id==0||_ledger.Omens.Any(e=>e.Id==id));
+            ZDO zdo=ZDOMan.instance.CreateNewZDO(spot,SignPrefab.Hash);
+            zdo.Persistent=true;zdo.Type=ZDO.ObjectType.Default;zdo.Distant=false;
+            zdo.SetPrefab(SignPrefab.Hash);zdo.SetRotation(Quaternion.Euler(0,Random.Range(0,360f),0));
+            zdo.Set(SignPrefab.KindKey,(int)kind);zdo.Set(SignPrefab.IdKey,id);
+            _ledger.Omens.Add(new Entry{Id=id,Kind=(int)kind,X=spot.x,Y=spot.y,Z=spot.z,PlacedAt=now,State=(int)State.Placed});
+            Plugin.Log($"Placed {Policy.Of(kind).Name} ({id}) at {spot:F0}");
+        }
+        private static bool NearBuilding(Vector3 spot)
+        {
+            foreach(Collider c in Physics.OverlapSphere(spot,40,LayerMask.GetMask("piece","piece_nonsolid")))
+                if(c.GetComponentInParent<Piece>() is Piece piece&&piece.GetCreator()!=0)return true;
+            return false;
+        }
+        private static List<Vector3> Players()
+        {
+            var list=new List<Vector3>();
+            if(Player.m_localPlayer!=null&&!Player.m_localPlayer.IsDead())list.Add(Player.m_localPlayer.transform.position);
+            foreach(ZNetPeer peer in ZNet.instance.GetPeers())if(peer.IsReady()&&!peer.m_characterID.IsNone())list.Add(peer.m_refPos);
+            return list.Where(p=>p.y<3000).ToList(); // not inside dungeons
+        }
+        private static string NameOf(long sender)
+        {
+            if(sender==ZNet.GetUID())return Player.m_localPlayer!=null?Player.m_localPlayer.GetPlayerName():"the host";
+            return ZNet.instance.GetPeer(sender)?.m_playerName??"someone";
+        }
+
+        // ---- the world's own objects ----
+        private static List<ZDO> All(string prefab)
+        {
+            var found=new List<ZDO>();int index=0;
+            while(!ZDOMan.instance.GetAllZDOsWithPrefabIterative(prefab,found,ref index)){}
+            return found;
+        }
+        private static Vector3? NearestBase(Vector3 from)
+        {
+            var bases=BasePieces.SelectMany(All).Where(z=>z.GetLong(ZDOVars.s_creator,0L)!=0).Select(z=>z.GetPosition()).ToList();
+            int i=Policy.Nearest(from.x,from.z,bases.Select(b=>((double)b.x,(double)b.z)).ToList(),Plugin.Instance.BaseRange.Value);
+            return i<0?(Vector3?)null:bases[i];
+        }
+        private static void RemoveSign(long id)
+        {
+            foreach(ZDO zdo in All(SignPrefab.Name).Where(z=>z.GetLong(SignPrefab.IdKey,0L)==id))
+            {zdo.SetOwner(ZDOMan.GetSessionID());ZDOMan.instance.DestroyZDO(zdo);}
+        }
+        // Signs whose ledger entry is gone (a deleted file) or finished (a crash before saving) leave the world.
+        private static void Reconcile()
+        {
+            var known=new HashSet<long>(_ledger.Omens.Where(e=>!Policy.Finished((State)e.State)).Select(e=>e.Id));
+            foreach(ZDO zdo in All(SignPrefab.Name).Where(z=>!known.Contains(z.GetLong(SignPrefab.IdKey,0L))))
+            {zdo.SetOwner(ZDOMan.GetSessionID());ZDOMan.instance.DestroyZDO(zdo);Plugin.Log("Removed a sign with no open omen at "+zdo.GetPosition().ToString("F0"));}
+        }
+
+        // ---- the ledger file ----
+        private static void Load()
+        {
+            string world=ZNet.instance.GetWorldName()+"-"+ZNet.instance.GetWorldUID();
+            if(_ledger!=null&&_world==world)return;
+            _world=world;_reconciled=false;
+            string safe=new string(world.Select(c=>char.IsLetterOrDigit(c)||c=='-'?c:'_').ToArray());
+            _path=Path.Combine(Paths.ConfigPath,"omens",safe+".json");
+            try{_ledger=File.Exists(_path)?JsonConvert.DeserializeObject<Ledger>(File.ReadAllText(_path)):null;}
+            catch(Exception ex){Plugin.Log("Could not read "+_path+": "+ex.Message);}
+            _ledger=_ledger??new Ledger();
+        }
+        internal static void Save()
+        {
+            if(_ledger==null||_path==null)return;
+            try
+            {
+                // Keep every open omen and the most recent finished ones as history.
+                var finished=_ledger.Omens.Where(e=>Policy.Finished((State)e.State)&&e.SignRemoved).OrderByDescending(e=>e.ResolvedAt).Skip(40).ToList();
+                _ledger.Omens.RemoveAll(finished.Contains);
+                Directory.CreateDirectory(Path.GetDirectoryName(_path));
+                File.WriteAllText(_path+".tmp",JsonConvert.SerializeObject(_ledger,Formatting.Indented));
+                if(File.Exists(_path))File.Delete(_path);
+                File.Move(_path+".tmp",_path);
+            }
+            catch(Exception ex){Plugin.Log("Could not save "+_path+": "+ex.Message);}
+        }
+        internal static void Reset(){Save();_ledger=null;_world=null;_reconciled=false;}
+    }
+}

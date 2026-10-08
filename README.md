@@ -2,6 +2,40 @@
 
 Bob's Valheim mods, built for native Linux and Windows and packaged for the in-game mod manager.
 
+## Omens
+
+Signs appear in the world that foretell good or bad things, and what they foretell really happens. Every **1.5 in-game days** or so, the
+host places an omen 45–85 metres from a player, away from buildings. Walk near it to read it: an on-screen message for players nearby,
+a chat line for everyone, and a pin on your map. An omen nobody finds fades after a day without effect.
+
+| Omen | Where | Reading | What happens |
+| --- | --- | --- | --- |
+| **Dead troll** | Black Forest | "The forest is angry. Perhaps fire would calm it." | Trolls raid the nearest base that night, unless you **use the carcass with 5 resin** to burn it first. |
+| **Abandoned camp** | Meadows, Black Forest | "Others passed this way, and did not leave." | Greydwarfs raid the nearest base that night. |
+| **Circling ravens** | Most land | "Odin is watching." | Players nearby become rested, and 250 metres of land is revealed on their maps. |
+
+About **60%** of omens are bad. A bad omen's raid comes at nightfall when seen by day, or a few minutes later when seen at night. It goes
+to the nearest workbench or bed within **1,500 metres** of the sign and uses the game's own raid events, messages and music. It never
+interrupts a raid already running, gives up after a day and a half if one keeps it waiting, and a world with **raids turned off** gets only
+good omens. Signs are visual copies of the game's own models (a troll ragdoll, a fire pit with scattered bones and belongings, crows), so
+they cannot be mined, looted or counted as a base.
+
+**Install on the host and every player.** The host decides everything and keeps a small ledger per world in `BepInEx/config/omens/`;
+signs are saved world objects tagged with their own random id. Frequency, the bad chance, how long signs wait, the most open at once, raid
+reach and each omen are in F7 → Mod settings (only the host's values count). Later versions can add omens beyond the game's raids.
+
+Checks cover omen choice and the 60/40 split, biome fallbacks, intervals, raid timing, the omen state machine and nearest-base search,
+plus native hooks. First playtest:
+
+1. Set IntervalDays to 0.25 on the host. Walk around the Black Forest and Meadows; check signs appear out of sight, away from buildings,
+   and look right: a collapsed troll, a cold camp with bones, three crows circling high.
+2. Walk up to each. Check the reading on screen nearby, the chat line for a friend far away, and one map pin each.
+3. See a dead troll by day; check the troll raid starts at your nearest base at nightfall. See one and burn it with 5 resin instead:
+   no raid, the averted message, the sign disappears. Try without enough resin.
+4. See a camp at night; the greydwarf raid follows a few minutes later. See ravens; check rested and the revealed map.
+5. Leave a sign unseen for a day; it fades. Save/restart the host mid-omen; seen omens still come to pass, unseen ones still wait.
+6. Try a world with raids off, a seen bad omen with no base within reach, and an omen seen while another raid is running.
+
 ## Spyglass
 
 A bronze spyglass, crafted at the **forge** from **3 bronze**. While it is in your inventory, press **Shift+Z** to raise it to your eye;

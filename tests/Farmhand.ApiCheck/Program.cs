@@ -195,6 +195,21 @@ Field("PlayerController","m_mouseSens","System.Single");
 Method("Minimap","Explore","System.Void","UnityEngine.Vector3","System.Single");
 Method("WorldGenerator","GetHeight","System.Single","System.Single","System.Single");
 Field("Character","m_eye","UnityEngine.Transform");
+
+// Omens: a networked sign the host creates as a raw ZDO, the game's own raid events, and night timing.
+Method("ZNet","Shutdown","System.Void","System.Boolean");
+Method("ZNet","GetWorldUID","System.Int64");
+Method("RandEventSystem","SetRandomEventByName","System.Void","System.String","UnityEngine.Vector3");
+Method("RandEventSystem","HaveEvent","System.Boolean","System.String");
+Method("RandEventSystem","GetCurrentRandomEvent","RandomEvent");
+Method("ZDOMan","CreateNewZDO","ZDO","UnityEngine.Vector3","System.Int32");
+Method("ZDOMan","DestroyZDO","System.Void","ZDO");
+Method("ZDOMan","GetAllZDOsWithPrefabIterative","System.Boolean","System.String","System.Collections.Generic.List`1<ZDO>","System.Int32&");
+Method("ZoneSystem","GetSolidHeight","System.Boolean","UnityEngine.Vector3","System.Single&","System.Int32");
+Method("EnvMan","IsNight","System.Boolean");
+Field("EnvMan","m_dayLengthSec","System.Int64");
+Field("Game","m_eventRate","System.Single");
+Method("SEMan","AddStatusEffect","StatusEffect","System.Int32","System.Boolean","System.Int32","System.Single","System.Int16");
 Field("Recipe","m_craftingStation","CraftingStation");
 
 using var catalog = JsonDocument.Parse(File.ReadAllText(args[1]));
