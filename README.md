@@ -44,6 +44,31 @@ and the exact native inventory/tooltip/registration hooks. First playtest:
 
 The release is compiled and checked against the native Linux installation; visual poses and live multiplayer still need this playtest.
 
+## TrophyHall
+
+Hang your trophies and your hall remembers what you have slain. Creature trophies on **item stands you have built inside a base** give
+everyone in that base small themed perks, shown as a **Trophy hall** status effect. Each kind counts once, however many heads you hang:
+
+| Trophy | Perk |
+| --- | --- |
+| Troll (forest, frost) | +30 carry weight |
+| Draugr | Slight poison resistance |
+| Wolf, Ulv, Fenring | +10% stamina regeneration |
+| Neck, serpent | +10% swim speed |
+| Greydwarf (any) | +10% woodcutting skill gain |
+| Boar | +10% health regeneration |
+| Deer | +5% movement speed |
+
+At most **six** perks apply, rarest first. Every kind of trophy also counts toward **comfort under a roof**: four kinds add +1, eight add +2.
+Walking into a hall names it after the ward's owner, counts its trophies and lists the creatures fallen there, at most every ten minutes per
+hall. **Boss trophies stay on their altars**, where the game uses them for Forsaken powers. The perks are deliberately small: flavour felt over
+time, not a change to combat balance. Only the player in the hall needs the mod; it reads the item stands everyone already sees. Range,
+readings and the whole mod are in F7.
+
+Checks cover themes, boss exclusion, one perk per kind, the six-perk cap, comfort steps and the reading's wording, plus native hooks. First
+playtest: hang a troll, wolf and boar head inside a base and walk in; check the reading, the status effect's tooltip and carry weight. Add a
+fourth and eighth kind and check comfort under a roof. Leave the base; the effect goes. Check boss altars and stands outside bases are ignored.
+
 ## DualWield
 
 Fight with a weapon in each hand. **Pairs of one-handed axes** and **pairs of knives** are supported, using the game's own dual move sets:

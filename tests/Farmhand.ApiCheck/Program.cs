@@ -231,6 +231,15 @@ Field("Humanoid","m_rightItem","ItemDrop/ItemData");
 Field("Humanoid","m_leftItem","ItemDrop/ItemData");
 Field("Humanoid","m_visEquipment","VisEquipment");
 Field("VisEquipment","m_leftItemInstance","UnityEngine.GameObject");
+
+// TrophyHall reads trophies on player-built item stands inside bases and adds comfort beside the game's own.
+Method("ItemStand","GetAttachedItem","System.Int32");
+Method("ItemStand","HaveAttachment","System.Boolean");
+Field("ItemStand","m_guardianPower","StatusEffect");
+Method("EffectArea","IsPointInsideArea","EffectArea","UnityEngine.Vector3","EffectArea/Type","System.Single");
+Method("SE_Rested","CalculateComfortLevel","System.Int32","System.Boolean","UnityEngine.Vector3");
+Field("SE_Stats","m_addMaxCarryWeight","System.Single");
+Field("SE_Stats","m_raiseSkillModifier","System.Single");
 Field("Recipe","m_craftingStation","CraftingStation");
 
 // Bob's Pipes: hotbar dispatch, saved item bowls, mutual smoking and native item registrations.

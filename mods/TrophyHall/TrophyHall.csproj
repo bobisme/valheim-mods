@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>TrophyHall</AssemblyName><RootNamespace>TrophyHall</RootNamespace></PropertyGroup>
+</Project>
