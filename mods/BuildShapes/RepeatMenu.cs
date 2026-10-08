@@ -81,7 +81,7 @@ namespace BuildShapes
         }
         private void DrawRepeatMenu() => DrawOptionsWindow(ref _repeatRect, ref _repeatRectPlaced, 780, 194738, RepeatContents);
 
-        private void DrawOptionsWindow(ref Rect rect, ref bool placed, float height, int id, GUI.WindowFunction contents)
+        private void DrawOptionsWindow(ref Rect rect, ref bool placed, float height, int id, GUI.WindowFunction contents, bool centered=false)
         {
             Cursor.lockState=CursorLockMode.None; Cursor.visible=true;
             Matrix4x4 saved=GUI.matrix;
@@ -94,7 +94,7 @@ namespace BuildShapes
                 GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1));
                 float sw=Screen.width/scale,sh=Screen.height/scale;
                 const float width=440;
-                if(!placed){rect=new Rect(sw-width-25,(sh-height)/2,width,height);placed=true;}
+                if(!placed){rect=new Rect(centered?(sw-width)/2:sw-width-25,(sh-height)/2,width,height);placed=true;}
                 rect.width=width;rect.height=height;
                 rect.x=Mathf.Clamp(rect.x,0,Mathf.Max(0,sw-width));
                 rect.y=Mathf.Clamp(rect.y,0,Mathf.Max(0,sh-height));
@@ -170,7 +170,7 @@ namespace BuildShapes
             {CloseRepeatMenu();if(_markers.Count>0)_markers.RemoveAt(_markers.Count-1);Preview();}
             if(GUILayout.Button("Cancel",_menuButton,GUILayout.Height(34)))Stop();
             GUILayout.EndHorizontal();
-            GUILayout.Label("Esc: close options · L: reopen · F4: exit",_menuHint);
+            GUILayout.Label("Esc: close options · L: reopen · F4: modes",_menuHint);
             GUILayout.EndArea();
             GUI.DragWindow(new Rect(0,0,_repeatRect.width-60,50));
         }

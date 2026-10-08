@@ -1,3 +1,5 @@
+0.3.1: F4 opens one mode picker for Curve, Arch, Mirror, and Repeat; no modifier shortcuts are needed. F4/Escape closes the picker. Choosing the current mode resumes its preview and options; switching modes clears only the local preview. Exit shape mode returns to normal building. The picker frees the cursor and blocks gameplay input, highlights the active mode, and explains unavailable beam/planner choices. Existing custom toggle bindings are preserved.
+
 0.3.0: Arch mode (Ctrl+Shift+F4): mark two endpoints, then adjust center rise with a live slider, exact numeric entry, and 0.05 m / Shift-0.01 m steps. A gold center guide shows the rise. Confirm creates normal BuildOrders ghosts; Edit end preserves the chosen rise, Escape/L closes/reopens options, and U shares the existing shape undo. Endpoints and native beam lengths stay fixed.
 
 0.2.4: The Repeat options panel and the shape-mode hint use ChestSearch's look: an opaque dark wood panel, cream Valheim-font text at a larger size, bordered buttons and fields, gold sliders and a gold highlight on the chosen path anchor. Hints are muted, errors are orange, and × closes the options like Escape.

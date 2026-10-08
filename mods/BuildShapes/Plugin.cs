@@ -15,7 +15,7 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.3.0";
+        public const string Version = "0.3.1";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
@@ -54,8 +54,9 @@ namespace BuildShapes
             internal PiecePose(string id, string prefab, Vector3 position, Quaternion rotation)
             { Id = id; Prefab = prefab; Position = position; Rotation = rotation; }
         }
-        internal bool ReservesHammer => _tool != Tool.None && _enabled.Value && HoldingHammer(Player.m_localPlayer);
-        internal static bool OptionsMenuOpen => Instance != null && (Instance._repeatMenu || Instance._archMenu) && Instance.ReservesHammer;
+        private bool ShapeActive => _tool != Tool.None || _modeMenu;
+        internal bool ReservesHammer => ShapeActive && _enabled.Value && HoldingHammer(Player.m_localPlayer);
+        internal static bool OptionsMenuOpen => Instance != null && (Instance._modeMenu || Instance._repeatMenu || Instance._archMenu) && Instance.ReservesHammer;
         private int RequiredMarkers => _tool == Tool.Mirror || _tool == Tool.Arch ? 2 : 3;
         internal static bool ProbingInput => Instance?._probingInput == true;
         internal static bool ReservesEscape => _escapeFrame == Time.frameCount || _escapeFrame == Time.frameCount - 1 ||
@@ -66,8 +67,8 @@ namespace BuildShapes
         {
             Instance = this;
             _enabled = Config.Bind("General", "Enabled", true, "Enable Curve, Arch, Mirror, and Repeat tools.");
-            // Keep the original config keys so existing Curve key bindings survive the update.
-            _toggle = Config.Bind("Controls", "ToggleCurve", KeyCode.F4, "Curve toggle. Hold Left Shift for Mirror, Left Ctrl for Repeat, or both for Arch.");
+            // Keep the original config key so existing custom F4 bindings survive the update.
+            _toggle = Config.Bind("Controls", "ToggleCurve", KeyCode.F4, "Open/close the shape-mode picker: Curve, Arch, Mirror, or Repeat.");
             _modifier = Config.Bind("Controls", "MarkerModifier", KeyCode.LeftShift, "Hold with PlaceMarker to mark curve points, arch endpoints, or a mirror line.");
             _mark = Config.Bind("Controls", "PlaceMarker", KeyCode.Mouse0, "Mark points; Left Ctrl with this key selects pieces in Mirror/Repeat.");
             _plan = Config.Bind("Controls", "PlanCurve", KeyCode.L, "Submit the current shape as shared BuildOrders ghosts.");
@@ -76,7 +77,7 @@ namespace BuildShapes
             _spacing = Config.Bind("Repeat", "Spacing", 2f, new ConfigDescription("Maximum repeat spacing in metres; adjusted evenly to meet both ends. [ and ] adjust by 0.25 m.", new AcceptableValueRange<float>(0.25f, 16f)));
             _follow = Config.Bind("Repeat", "FollowCurve", true, "Turn pieces around world up to follow the curve, keeping their original tilt. Home toggles this.");
             _harmony = new Harmony(Guid); _harmony.PatchAll(typeof(Plugin).Assembly);
-            Logger.LogInfo($"{Name} {Version} loaded; hammer + {_toggle.Value}: Curve, Shift: Mirror, Ctrl: Repeat, Ctrl+Shift: Arch.");
+            Logger.LogInfo($"{Name} {Version} loaded; hammer + {_toggle.Value}: choose Curve, Arch, Mirror, or Repeat from the mode picker.");
         }
 
         private static bool HoldingHammer(Player player) => player != null &&
@@ -96,20 +97,22 @@ namespace BuildShapes
             if (_player != player || _session != ZNet.instance || _world != world)
             { Stop(); _lastPlan = null; _bounds.Clear(); _player = player; _session = ZNet.instance; _world = world; }
             if (!_enabled.Value || !HoldingHammer(player) || player.IsDead())
-            { if (_tool != Tool.None) Stop(); if (player != null && player.IsDead()) _lastPlan = null; return; }
-            if (!_planner.Ready()) { if (_tool != Tool.None) Stop(); return; }
+            { if (ShapeActive) Stop(); if (player != null && player.IsDead()) _lastPlan = null; return; }
+            if (!_planner.Ready()) { if (ShapeActive) Stop(); return; }
             if ((_tool == Tool.Mirror || _tool == Tool.Repeat) && !_planner.Extended)
             { Stop(); Say("Mirror/Repeat canceled: update BuildOrders with the ghost-selection API."); return; }
             if (!_planner.Available(player))
-            { if (_tool != Tool.None) { Stop(); Say("Finish or cancel the planner's blueprint/bridge first."); } return; }
-            if (!Ready(player)) { CloseRepeatMenu(); CloseArchMenu(); return; }
+            { if (ShapeActive) { Stop(); Say("Finish or cancel the planner's blueprint/bridge first."); } return; }
+            if (!Ready(player)) { CloseModeMenu(); CloseRepeatMenu(); CloseArchMenu(); return; }
             if (Input.GetKeyDown(_toggle.Value))
             {
-                bool control = Input.GetKey(KeyCode.LeftControl), shift = Input.GetKey(KeyCode.LeftShift);
-                Tool requested = control && shift ? Tool.Arch : control ? Tool.Repeat : shift ? Tool.Mirror : Tool.Curve;
-                if (_tool == requested || (_tool != Tool.None && !Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.LeftShift))) Stop();
-                else Begin(player, requested);
+                if (_modeMenu) CloseModeMenu(); else OpenModeMenu();
                 return;
+            }
+            if (_modeMenu)
+            {
+                if (Input.GetKeyDown(KeyCode.Escape)) { _escapeFrame = Time.frameCount; CloseModeMenu(); }
+                return; // Picker clicks and keys must never mark, select, or submit a shape.
             }
             if (_tool == Tool.None) return;
             if (Input.GetKeyDown(KeyCode.Escape))
@@ -404,13 +407,14 @@ namespace BuildShapes
         }
         private void OnGUI()
         {
-            if (_tool == Tool.None || !Ready(Player.m_localPlayer) || !_planner.Available(Player.m_localPlayer)) return;
+            if (!ShapeActive || !Ready(Player.m_localPlayer) || !_planner.Available(Player.m_localPlayer)) return;
+            if (_modeMenu) { DrawModeMenu(); return; }
             if (_repeatMenu) { DrawRepeatMenu(); return; }
             if (_archMenu) { DrawArchMenu(); return; }
             string detail = _tool == Tool.Mirror ? $"{_sources.Count} selected; Ctrl+click toggles pieces/ghosts; Ctrl+Backspace removes last selection." :
-                _tool == Tool.Repeat ? $"Spacing {SafeSpacing():0.##} m ([ / ]); yaw {_yaw:0}° (PgUp/PgDn); {(_follow.Value ? "follow curve" : "fixed orientation")} (Home); Ctrl+click copies a piece." : _tool == Tool.Arch ? "Two endpoints; L opens center-height options. Native-length beams; joints overlap." : "Native-length beams; joints overlap. Ctrl+Shift+F4: Arch mode.";
+                _tool == Tool.Repeat ? $"Spacing {SafeSpacing():0.##} m ([ / ]); yaw {_yaw:0}° (PgUp/PgDn); {(_follow.Value ? "follow curve" : "fixed orientation")} (Home); Ctrl+click copies a piece." : _tool == Tool.Arch ? "Two endpoints; L opens center-height options. Native-length beams; joints overlap." : "Native-length beams; joints overlap.";
             string status = _previewError ?? (_output.Count > 0 ? $"{_output.Count} ghosts ready." : $"{_markers.Count}/{RequiredMarkers} markers.");
-            string text = $"BuildShapes {_tool}: {_modifier.Value}+click: marker | {_plan.Value}: plan | {_undo.Value}: undo | {_back.Value}: remove marker | {_toggle.Value}/Escape: exit\n{detail}\n{status}";
+            string text = $"BuildShapes {_tool}: {_modifier.Value}+click: marker | {_plan.Value}: plan | {_undo.Value}: undo | {_back.Value}: remove marker | {_toggle.Value}: modes | Escape: exit\n{detail}\n{status}";
             Matrix4x4 saved = GUI.matrix;
             try
             {
@@ -423,7 +427,7 @@ namespace BuildShapes
             finally { GUI.matrix = saved; }
         }
         private void ClearVisuals() { foreach (GameObject go in _visuals) if (go != null) Destroy(go); _visuals.Clear(); }
-        private void ClearShape() { CloseRepeatMenu(); CloseArchMenu(); _archRiseSet = false; _markers.Clear(); _sources.Clear(); _output.Clear(); _previewError = null; ClearVisuals(); }
+        private void ClearShape() { CloseModeMenu(); CloseRepeatMenu(); CloseArchMenu(); _archRiseSet = false; _markers.Clear(); _sources.Clear(); _output.Clear(); _previewError = null; ClearVisuals(); }
         private void Stop() { _tool = Tool.None; _yaw = _pitch = _roll = 0; _seed = default; ResetRepeatAnchors(); _bounds.Clear(); _mirrorProfiles.Clear(); ClearShape(); }
         private static void Say(string text) { Player.m_localPlayer?.Message(MessageHud.MessageType.Center, "BuildShapes: " + (text ?? "Planner unavailable.")); }
         private void OnDestroy()

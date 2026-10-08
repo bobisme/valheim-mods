@@ -63,7 +63,7 @@ namespace BuildShapes
             { CloseArchMenu(); if (_markers.Count > 0) _markers.RemoveAt(_markers.Count-1); Preview(); }
             if (GUILayout.Button("Cancel", _menuButton, GUILayout.Height(34))) Stop();
             GUILayout.EndHorizontal();
-            GUILayout.Label("Esc: close options · L: reopen · F4: exit", _menuHint);
+            GUILayout.Label("Esc: close options · L: reopen · F4: modes", _menuHint);
             GUILayout.EndArea();
             GUI.DragWindow(new Rect(0, 0, _archRect.width-60, 50));
         }
