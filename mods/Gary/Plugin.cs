@@ -14,7 +14,7 @@ namespace Gary
     {
         public const string Guid="com.bobisme.gary";
         public const string Name="Gary";
-        public const string Version="0.3.0";
+        public const string Version="0.3.1";
         internal static Plugin Instance;
         internal ConfigEntry<float> Health,GiftSeconds,GuideRange;
         internal ConfigEntry<bool> Gifts,Guiding,Reactions,Warnings,Campfires,Building,ShowMapMarker,Boats;
@@ -64,7 +64,7 @@ namespace Gary
             SailingAntics=Config.Bind("Personality","SailingAntics",true,"Watch from the deck, chirp at visible birds and crouch during rough waves.");
             CompanionFriends=Config.Bind("Personality","CompanionFriends",true,"Greet your Quad AICompanion characters and watch or imitate their work.");
             ShowAndTell=Config.Bind("Personality","ShowAndTell",true,"Hold up a forest find briefly before tossing the real gift.");
-            FlowerCrown=Config.Bind("Appearance","FlowerCrown",true,"Wear a small cosmetic forest flower crown; no armor bonus.");
+            FlowerCrown=Config.Bind("Appearance","FlowerCrown",true,"Wear a small matte twig-and-feather crown in muted forest colors; no armor bonus.");
             ForestPouch=Config.Bind("Appearance","ForestPouch",true,"Wear a tiny cosmetic pouch; stash capacity stays unchanged.");
             EarFeather=Config.Bind("Appearance","EarFeather",true,"Wear a small cosmetic feather behind the ear.");
             Fetch.Scan();_harmony=new Harmony(Guid);_harmony.PatchAll(typeof(Plugin).Assembly);

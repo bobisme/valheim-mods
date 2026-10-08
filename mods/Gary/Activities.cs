@@ -64,7 +64,6 @@ namespace Gary
                 if(Plugin.Instance.CopyEmotes.Value&&kind!=0&&Vector3.Distance(st.Body.transform.position,master.transform.position)<10&&Time.time>=st.NextEmote)
                 {st.NextEmote=Time.time+5;st.PoseToFriend=false;Personality.CancelVibe(st);Pose(st,kind,kind==Dance?5:3);Personality.Mood(st,Personality.Greeting);}
             }
-            if(Fetch.Tick(st,ai,master,dt))return true;
             if(z.GetLong(PoseUntil,0)>Companion.Now)
             {
                 int kind=z.GetInt(PoseKey,0);

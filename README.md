@@ -62,12 +62,13 @@ Gary also has these playful activities, each adjustable in F7:
 | **Home nest** | **Left Shift+E** on a **wood pile you built**. He makes a leaf/branch nest beside it and curls up when you pause nearby for eight seconds. Repeat on the same pile to forget it. |
 | **Rain antics** | Settle down near shelter in rain. He seeks a nearby reachable roof and shakes dry afterward. |
 | **Sailing personality** | He prefers a clear forward deck spot, watches ahead, chirps at visible seabirds and crouches during rough waves. |
-| **Forest accessories** | A small flower crown, pouch and ear feather; toggle each under **Appearance**. |
+| **Forest accessories** | A small matte twig-and-feather crown, pouch and ear feather; toggle each under **Appearance**. |
 | **Quad friendship** | He greets your nearby AICompanion characters and watches or imitates their building/gathering work. |
 | **Show-and-tell** | Before a gift, he holds up a visual preview for two seconds, then tosses the real stash item. |
 
 Fetch uses **one Wood**, follows within **16 metres**, and expires after **35 seconds**. Combat, healing, waiting, boats, portals,
-F6 or an ownership split interrupt play; the actual Wood remains an ordinary dropped item and can be picked up. Fetch never claims item
+F6 or an ownership split interrupt play; the actual Wood remains an ordinary dropped item and can be picked up. Fetch takes priority over emotes, foraging and crypt guiding; an accepted throw pauses guiding for a minute. Gary chases the ground landing
+during flight and retries temporary navigation failures for up to five seconds. Fetch never claims item
 ownership or stores Wood in an invisible inventory. The nest references an ordinary saved wood pile and preserves its normal costs/support;
 removing the pile removes the nest visual. Emotes baseline on load instead of replaying old player commands. Poses and props are cosmetic:
 no armor, skill buffs, extra stash slots or free resources. Gary's native rig lacks wave/sleep/crouch animations, so these use small bone poses.

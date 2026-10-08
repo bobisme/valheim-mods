@@ -167,4 +167,11 @@ foreach(var pair in new[]{("wave",1),("cheer",2),("dance",3),("sit",4),("relax",
     Check(FunPolicy.Emote(pair.Item1)==pair.Item2,"Only known native emote names map to Gary poses");
 foreach(string name in new string[]{null!,"","attack","throw","Wave","unknown"})
     Check(FunPolicy.Emote(name)==0,"Unknown names cannot trigger attack animations or a pose");
+// A simulated one-second throw never queries the airborne item's navigation destination.
+for(int tick=0;tick<=15;tick++)Check(FunPolicy.FetchInFlight(tick/10.0),"Flight phase chases the prevalidated ground landing instead of cancelling on an airborne path");
+Check(!FunPolicy.FetchInFlight(1.501),"Landed fetch switches to the actual dropped Wood's ground position");
+for(int tick=0;tick<=50;tick++)Check(FunPolicy.FetchNavigationGrace(tick/10.0),"Transient navigation failure retains the same fetch until its retry grace ends");
+Check(!FunPolicy.FetchNavigationGrace(5.001),"An unreachable throw releases normal Wood after bounded retries");
+foreach(double bad in new[]{-1.0,double.NaN,double.PositiveInfinity,double.NegativeInfinity})
+    Check(!FunPolicy.FetchInFlight(bad)&&!FunPolicy.FetchNavigationGrace(bad),"Invalid fetch clocks cannot keep flight or retry alive");
 Console.WriteLine($"Passed {checks} Gary injury, defense, food conservation, personality, petting, retreat, dungeon loot, guide and boat boarding checks.");

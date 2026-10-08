@@ -53,6 +53,7 @@ namespace Gary
                 BaseUpdate(ai,dt);ai.StopMoving();st.Entrance=null;st.ForageTarget=null;Activities.Cancel(st);
                 Status(st,master!=null&&master.InInterior()?"waiting outside":"waiting for my friend");result=true;return false;
             }
+            if(Fetch.Tick(st,ai,master,dt)){BaseUpdate(ai,dt);result=true;return false;}
             Gift(st,master);
             if(Activities.Tick(st,ai,master,dt)){BaseUpdate(ai,dt);result=true;return false;}
             if(Personality.Tick(st,ai,master,dt)){BaseUpdate(ai,dt);result=true;return false;}

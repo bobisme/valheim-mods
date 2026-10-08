@@ -6,7 +6,7 @@ namespace Gary
 {
     internal static class Fetch
     {
-        private const string For="bob_gary_fetch_for",Until="bob_gary_fetch_until",Carrier="bob_gary_fetch_carrier",Master="bob_gary_fetch_master";
+        private const string For="bob_gary_fetch_for",Until="bob_gary_fetch_until",Carrier="bob_gary_fetch_carrier",Master="bob_gary_fetch_master",ThrownAt="bob_gary_fetch_thrown",Landing="bob_gary_fetch_landing";
         private sealed class Held
         {
             internal ItemDrop Drop;internal Character Gary;internal Rigidbody Body;
@@ -49,7 +49,8 @@ namespace Gary
             {
                 drop=ItemDrop.DropItem(copy,1,start,Quaternion.identity);ZDO z=Companion.Data(drop);
                 if(z==null)throw new InvalidOperationException("Fetch drop has no valid world identity.");
-                z.Set(Master,p.GetPlayerID());z.Set(Until,Companion.Now+TimeSpan.TicksPerSecond*35);z.Set(For,c.GetZDOID());
+                z.Set(ThrownAt,Companion.Now);z.Set(Landing,landing);z.Set(Master,p.GetPlayerID());z.Set(Until,Companion.Now+TimeSpan.TicksPerSecond*35);z.Set(For,c.GetZDOID());
+                Activities.Cancel(st);st.Entrance=null;st.ForageTarget=null;st.NextGuide=Time.time+60;st.FetchPathWait=0;
                 drop.m_autoPickup=false;ActiveDrops.Add(drop);st.FetchDrop=drop;
                 Rigidbody body=drop.GetComponent<Rigidbody>();
                 if(body!=null){const float flight=1;body.linearVelocity=(landing-start)/flight-Physics.gravity*flight*0.5f;body.angularVelocity=UnityEngine.Random.insideUnitSphere*4;}
@@ -94,10 +95,24 @@ namespace Gary
                 }
                 return true;
             }
-            if(!Nature.HavePath(ai,drop.transform.position)||!Nature.Allowed(drop.transform.position,master)){Cancel(st);return false;}
+            if(!Nature.Allowed(drop.transform.position,master)){Cancel(st);return false;}
+            double age=(Companion.Now-data.GetLong(ThrownAt,data.GetLong(Until,0)-TimeSpan.TicksPerSecond*35))/(double)TimeSpan.TicksPerSecond;
+            bool inFlight=FunPolicy.FetchInFlight(age);
+            // HavePath snaps its destination within just one metre. A tossed item's airborne position fails that check.
+            // Chase the validated landing point during flight, then project the actual Wood to reachable ground.
+            Vector3 destination=data.GetVec3(Landing,master.transform.position);
+            if(!inFlight&&!Nature.Ground(ai,drop.transform.position,out destination))
+            {
+                st.FetchPathWait+=Mathf.Min(dt,1);ai.StopMoving();Brain.Status(st,"trying to reach your stick");
+                if(FunPolicy.FetchNavigationGrace(st.FetchPathWait))return true;
+                Cancel(st);st.NextGuide=Time.time+60;
+                if(master==Player.m_localPlayer)Plugin.Tell("I can't reach that stick. Your Wood is still on the ground.");
+                return false;
+            }
+            st.FetchPathWait=0;
             st.Entrance=null;st.ForageTarget=null;Personality.CancelVibe(st);
-            if(Vector3.Distance(st.Body.transform.position,drop.transform.position)>1.6f)
-            {Brain.Move(ai,dt,drop.transform.position,1.3f,true);Brain.Status(st,"chasing your stick");}
+            if(inFlight||Vector3.Distance(st.Body.transform.position,drop.transform.position)>1.6f)
+            {Brain.Move(ai,dt,destination,1.3f,true);Brain.Status(st,"chasing your stick");}
             else if(drop.CanPickup())
             {data.Set(Carrier,st.Body.GetZDOID());Hold(drop,st.Body);Brain.Status(st,"found your stick");}
             return true;

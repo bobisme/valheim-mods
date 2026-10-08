@@ -19,6 +19,7 @@ namespace Gary
             internal Vector3? Shelter;
             internal Character WorkFriend;
             internal ItemDrop FetchDrop;
+            internal float FetchPathWait;
             internal bool OwnerConfigured,VibeSupported,VictoryPending;
             internal long SeenMood;
             internal float Stationary,NextForage,ForageUntil,NextRetreatSpot,NextDanger,NextWarning,NextVictory,NextCozy,NextFire,NextBuildSpot,LookUntil,LastFight,VictoryUntil;

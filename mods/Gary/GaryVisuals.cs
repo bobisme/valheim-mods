@@ -36,15 +36,35 @@ namespace Gary
         private static Material Paint(Color color)
         {
             if(Materials.TryGetValue(color,out Material m))return m;
-            Shader shader=Shader.Find("Standard")??Shader.Find("Custom/Creature");if(shader==null)return null;
-            m=new Material(shader){name="Gary forest accessory",color=color};Materials.Add(color,m);return m;
+            // A shader name can resolve to a stripped/unsupported variant and render magenta on Linux.
+            // Clone a material the running game already renders, including its native shader settings.
+            Material basis=null;
+            foreach(string name in new[]{"piece_cauldron","wood_floor","wood_stack"})
+            {
+                GameObject prefab=ZNetScene.instance.GetPrefab(name);if(prefab==null)continue;
+                foreach(Renderer renderer in prefab.GetComponentsInChildren<Renderer>(true))
+                    foreach(Material candidate in renderer.sharedMaterials)
+                        if(candidate!=null&&candidate.shader!=null&&candidate.shader.isSupported&&
+                            (candidate.name=="cauldron_chain"||candidate.name=="woodwall"))basis=candidate;
+                if(basis!=null)break;
+            }
+            if(basis==null)return null;
+            m=new Material(basis){name="Gary matte forest accessory"};
+            if(m.HasProperty("_Color"))m.SetColor("_Color",color);
+            if(m.HasProperty("_MainTex"))m.SetTexture("_MainTex",Texture2D.whiteTexture);
+            foreach(string name in new[]{"_EmissionColor","_Emissive","_NoiseGlowColor"})if(m.HasProperty(name))m.SetColor(name,Color.black);
+            foreach(string name in new[]{"_Metallic","_MetallicAlphaGloss","_Glossiness","_GlossMapScale","_BumpScale","_NoiseGlowEnabled","_ValueNoiseVertex","_AddRain"})
+                if(m.HasProperty(name))m.SetFloat(name,0);
+            if(m.HasProperty("_EmissionMap"))m.SetTexture("_EmissionMap",Texture2D.blackTexture);
+            if(m.HasProperty("_MetallicTex"))m.SetTexture("_MetallicTex",Texture2D.blackTexture);
+            m.DisableKeyword("_EMISSION");Materials.Add(color,m);return m;
         }
         private static GameObject Shape(Transform parent,PrimitiveType type,Vector3 position,Vector3 scale,Color color,Vector3 angles=default)
         {
             GameObject go=GameObject.CreatePrimitive(type);go.name="Gary cosmetic";
             Collider collider=go.GetComponent<Collider>();if(collider!=null){collider.enabled=false;UnityEngine.Object.Destroy(collider);}
             go.transform.SetParent(parent,false);go.transform.localPosition=position;go.transform.localScale=scale;go.transform.localRotation=Quaternion.Euler(angles);
-            Renderer renderer=go.GetComponent<Renderer>();Material material=Paint(color);if(material!=null)renderer.sharedMaterial=material;
+            Renderer renderer=go.GetComponent<Renderer>();Material material=Paint(color);if(material!=null)renderer.sharedMaterial=material;else renderer.enabled=false;
             renderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;go.layer=LayerMask.NameToLayer("Default");return go;
         }
         private static GameObject Anchor(Transform bone,Character c,string name,Vector3 offset)
@@ -64,19 +84,22 @@ namespace Gary
                     if(!view.Bones.ContainsKey(bone.name))view.Bones[bone.name]=new Bone{Transform=bone};
             Transform head=BoneOf(view,"head")??c.transform;
             view.Crown=Anchor(head,c,"Gary's flower crown",new Vector3(0,0.25f,0));
-            Color leaf=new Color(0.25f,0.43f,0.15f),stem=new Color(0.28f,0.19f,0.10f);
-            for(int i=0;i<12;i++)
+            Color leaf=new Color(0.20f,0.29f,0.13f),stem=new Color(0.24f,0.17f,0.10f);
+            for(int i=0;i<20;i++)
             {
-                float angle=i*Mathf.PI/6;Vector3 point=new Vector3(Mathf.Cos(angle)*0.23f,0,Mathf.Sin(angle)*0.20f);
-                Shape(view.Crown.transform,PrimitiveType.Cube,point,new Vector3(0.10f,0.025f,0.04f),stem,new Vector3(0,-i*30,0));
-                Shape(view.Crown.transform,PrimitiveType.Sphere,point+Vector3.up*0.035f,new Vector3(0.10f,0.035f,0.055f),leaf,new Vector3(0,i*30,0));
-                if(i%2==0)
-                {
-                    Color flower=i%4==0?new Color(0.85f,0.72f,0.96f):new Color(0.98f,0.85f,0.35f);
-                    for(int j=0;j<5;j++)
-                        Shape(view.Crown.transform,PrimitiveType.Sphere,point+new Vector3(Mathf.Cos(j*1.256f)*0.025f,0.065f,Mathf.Sin(j*1.256f)*0.025f),new Vector3(0.038f,0.024f,0.038f),flower);
-                    Shape(view.Crown.transform,PrimitiveType.Sphere,point+Vector3.up*0.072f,Vector3.one*0.025f,new Color(0.9f,0.55f,0.1f));
-                }
+                float angle=i*Mathf.PI/10,next=(i+1)*Mathf.PI/10;
+                Vector3 start=new Vector3(Mathf.Cos(angle)*0.23f,0,Mathf.Sin(angle)*0.20f),end=new Vector3(Mathf.Cos(next)*0.23f,0,Mathf.Sin(next)*0.20f);
+                GameObject twig=Shape(view.Crown.transform,PrimitiveType.Cylinder,(start+end)*0.5f,new Vector3(0.018f,(end-start).magnitude*0.55f,0.018f),stem);
+                twig.transform.localRotation=Quaternion.FromToRotation(Vector3.up,end-start);
+            }
+            // Small, tapered feather vanes around the back/sides, leaving Gary's face open.
+            for(int i=0;i<7;i++)
+            {
+                float degrees=180+i*30,angle=degrees*Mathf.Deg2Rad;
+                var holder=new GameObject("crown feather");holder.transform.SetParent(view.Crown.transform,false);
+                holder.transform.localPosition=new Vector3(Mathf.Cos(angle)*0.22f,0.01f,Mathf.Sin(angle)*0.19f);
+                holder.transform.localRotation=Quaternion.Euler(0,90-degrees,0)*Quaternion.Euler(-18,0,0);
+                Feather(view,holder.transform,0.18f+(i%3)*0.035f,0.025f,i%2==0?new Color(0.61f,0.58f,0.49f):new Color(0.42f,0.43f,0.39f));
             }
             Transform spine=BoneOf(view,"spine2")??c.transform;
             view.Pouch=Anchor(spine,c,"Gary's tiny forest pouch",new Vector3(0.42f,-0.10f,-0.03f));
@@ -84,9 +107,8 @@ namespace Gary
             Shape(view.Pouch.transform,PrimitiveType.Cube,new Vector3(0,0.10f,0.02f),new Vector3(0.25f,0.07f,0.17f),stem);
             Shape(view.Pouch.transform,PrimitiveType.Cube,new Vector3(0,0.22f,-0.04f),new Vector3(0.035f,0.23f,0.035f),stem,new Vector3(0,0,20));
             view.Feather=Anchor(head,c,"Gary's tucked feather",new Vector3(-0.28f,0.12f,-0.05f));
-            Shape(view.Feather.transform,PrimitiveType.Cube,Vector3.zero,new Vector3(0.018f,0.36f,0.018f),new Color(0.72f,0.64f,0.49f),new Vector3(0,0,-25));
-            for(int i=0;i<7;i++)
-                Shape(view.Feather.transform,PrimitiveType.Sphere,new Vector3(i*0.012f,0.04f+i*0.035f,0),new Vector3(0.11f-i*0.008f,0.055f,0.015f),new Color(0.87f,0.84f,0.72f),new Vector3(0,0,-25));
+            view.Feather.transform.localRotation*=Quaternion.Euler(0,0,-25);
+            Feather(view,view.Feather.transform,0.27f,0.035f,new Color(0.62f,0.60f,0.51f));
             Combine(view,view.Crown);Combine(view,view.Pouch);Combine(view,view.Feather);
             view.Lod=c.GetComponentInChildren<LODGroup>();
             if(view.Lod!=null)
@@ -98,6 +120,30 @@ namespace Gary
                 view.Lod.SetLODs(levels);
             }
             Views.Add(c,view);return view;
+        }
+        private static void Feather(View view,Transform parent,float length,float width,Color color)
+        {
+            const int rows=8,side=rows*3;
+            var vertices=new Vector3[side*2];var uv=new Vector2[vertices.Length];var triangles=new List<int>();
+            for(int face=0;face<2;face++)
+            for(int row=0;row<rows;row++)
+            {
+                float t=row/(float)(rows-1),w=width*Mathf.Sin(t*Mathf.PI)*(row%2==0?1:0.82f);
+                int i=face*side+row*3;float z=face==0?0.002f:-0.002f;
+                vertices[i]=new Vector3(-w,length*t,z);vertices[i+1]=new Vector3(0,length*t,z*2);vertices[i+2]=new Vector3(w,length*t,z);
+                uv[i]=new Vector2(0,t);uv[i+1]=new Vector2(0.5f,t);uv[i+2]=new Vector2(1,t);
+                if(row==rows-1)continue;
+                for(int col=0;col<2;col++)
+                {
+                    int a=i+col,b=a+1,c=a+3,d=b+3;
+                    if(face==0)triangles.AddRange(new[]{a,b,c,c,b,d});else triangles.AddRange(new[]{a,c,b,c,d,b});
+                }
+            }
+            Mesh mesh=new Mesh{name="Gary tapered feather"};mesh.vertices=vertices;mesh.uv=uv;mesh.triangles=triangles.ToArray();mesh.RecalculateNormals();mesh.RecalculateBounds();view.Meshes.Add(mesh);
+            var go=new GameObject("matte feather vane");go.transform.SetParent(parent,false);go.AddComponent<MeshFilter>().sharedMesh=mesh;
+            MeshRenderer renderer=go.AddComponent<MeshRenderer>();Material material=Paint(color);if(material!=null)renderer.sharedMaterial=material;else renderer.enabled=false;
+            renderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
+            Shape(parent,PrimitiveType.Cylinder,new Vector3(0,length*0.45f,0),new Vector3(0.006f,length*0.48f,0.006f),new Color(0.35f,0.29f,0.20f));
         }
         private static Transform BoneOf(View v,string name)=>v.Bones.TryGetValue(name,out Bone bone)?bone.Transform:null;
         private static Vector3 RootShift(View v,float metres)
@@ -123,7 +169,7 @@ namespace Gary
             foreach(MeshFilter filter in root.GetComponentsInChildren<MeshFilter>())
             {
                 MeshRenderer renderer=filter.GetComponent<MeshRenderer>();Material material=renderer!=null?renderer.sharedMaterial:null;
-                if(material==null||filter.sharedMesh==null)continue;
+                if(renderer==null||!renderer.enabled||material==null||filter.sharedMesh==null)continue;
                 if(!groups.TryGetValue(material,out List<CombineInstance> group)){group=new List<CombineInstance>();groups.Add(material,group);}
                 group.Add(new CombineInstance{mesh=filter.sharedMesh,transform=root.transform.worldToLocalMatrix*filter.transform.localToWorldMatrix});originals.Add(filter.gameObject);
             }
@@ -134,6 +180,7 @@ namespace Gary
                 var go=new GameObject("forest cosmetic mesh");go.transform.SetParent(root.transform,false);
                 go.AddComponent<MeshFilter>().sharedMesh=mesh;MeshRenderer renderer=go.AddComponent<MeshRenderer>();renderer.sharedMaterial=pair.Key;
                 renderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
+                if(pair.Key.shader==null||!pair.Key.shader.isSupported)renderer.enabled=false;
             }
         }
         private static void Nest(View view,ZDO z)
@@ -148,8 +195,8 @@ namespace Gary
             for(int i=0;i<20;i++)
             {
                 float angle=i*Mathf.PI/10;Vector3 point=new Vector3(Mathf.Cos(angle),0.05f+(i%3)*0.025f,Mathf.Sin(angle));
-                Shape(view.Nest.transform,PrimitiveType.Cube,point,new Vector3(0.55f,0.06f,0.06f),new Color(0.29f,0.21f,0.11f),new Vector3(0,-i*18,8));
-                Shape(view.Nest.transform,PrimitiveType.Sphere,point*0.70f,new Vector3(0.6f,0.04f,0.28f),new Color(0.30f+(i%3)*0.02f,0.42f,0.17f),new Vector3(0,i*31,0));
+                Shape(view.Nest.transform,PrimitiveType.Cube,point,new Vector3(0.55f,0.06f,0.06f),new Color(0.23f,0.17f,0.10f),new Vector3(0,-i*18,8));
+                Shape(view.Nest.transform,PrimitiveType.Sphere,point*0.70f,new Vector3(0.42f,0.035f,0.19f),new Color(0.18f+(i%3)*0.02f,0.27f,0.12f),new Vector3(0,i*31,0));
             }
         }
         private static void Find(View v,ZDO z,bool showing)
