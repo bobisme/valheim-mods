@@ -163,6 +163,7 @@ namespace Omens
             box.position=bounds.center;box.rotation=Quaternion.identity;
             _hover.center=Vector3.zero;_hover.size=Vector3.Max(bounds.size,new Vector3(1.5f,0.8f,1.5f));
         }
+        internal Vector3 Carcass=>_hover!=null?_hover.transform.position:transform.position; // where it lies, not where it was placed
         public string GetHoverName()=>Omen.Name;
         public float GetHoverOffset()=>0;
         public string GetHoverText()
@@ -177,8 +178,7 @@ namespace Omens
             if(inventory.CountItems(Resin)<ResinCost)
             {player.Message(MessageHud.MessageType.Center,Localization.instance.Localize($"You need {ResinCost} $item_resin to burn it."));return false;}
             inventory.RemoveItem(Resin,ResinCost);
-            Net.Respond(Id);
-            Looks.Burn(_hover!=null?_hover.transform.position:transform.position); // where the carcass lies, not where it was placed
+            Net.Respond(Id); // the host lights it for everyone (Net.OnBurn) once it accepts
             return true;
         }
         public bool UseItem(Humanoid user,ItemDrop.ItemData item)=>false;

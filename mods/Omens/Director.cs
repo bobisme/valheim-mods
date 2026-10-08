@@ -107,6 +107,7 @@ namespace Omens
             if(e==null||!e.Omen.Respondable||Policy.Finished((State)e.State))return;
             e.State=(int)Policy.Advance((State)e.State,Now,e.PlacedAt,double.MaxValue,false,true,false,false);
             e.ResolvedAt=Now;
+            Net.Burned(e.Id); // before the sign leaves the world on the next tick
             Net.Tell(e.Omen.Averted,e.Pos,60,0);
             Plugin.Log($"{NameOf(sender)} averted {e.Omen.Name} ({e.Id})");
             Save();
