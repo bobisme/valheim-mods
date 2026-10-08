@@ -113,8 +113,8 @@ namespace Omens
                 float angle=Time.time*0.55f+i*2.1f,radius=7+i*1.5f;
                 var local=new Vector3(Mathf.Cos(angle)*radius,_altitude+i*1.2f+Mathf.Sin(Time.time*0.9f+i)*0.6f,Mathf.Sin(angle)*radius);
                 _birds[i].localPosition=local;
-                // The crow model's beak is its +X axis: turn it onto the direction of flight, then dip the inner wing into the turn.
-                _birds[i].rotation=Quaternion.LookRotation(new Vector3(-Mathf.Sin(angle),0,Mathf.Cos(angle)))*Quaternion.Euler(0,-90,0)*Quaternion.Euler(15,0,0);
+                // Beak (+Z) along the direction of flight, in the sign's own frame (each sign has a random yaw), inner wing dipped into the turn.
+                _birds[i].localRotation=Quaternion.LookRotation(new Vector3(-Mathf.Sin(angle),0,Mathf.Cos(angle)))*Quaternion.Euler(0,0,15);
             }
         }
 

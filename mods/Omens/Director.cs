@@ -43,7 +43,8 @@ namespace Omens
             if(_ledger.NextAt<=0)_ledger.NextAt=now+Policy.NextDelay(Plugin.Instance.IntervalDays.Value,DayLength,Random.value);
             bool changed=false;
             foreach(Entry e in _ledger.Omens.Where(e=>!Policy.Finished((State)e.State)).ToList())changed|=Advance(e,now);
-            foreach(Entry e in _ledger.Omens.Where(e=>Policy.Finished((State)e.State)&&!e.SignRemoved).ToList()){RemoveSign(e.Id);Net.Resolve(e.Id);e.SignRemoved=true;changed=true;}
+            foreach(Entry e in _ledger.Omens.Where(e=>Policy.Finished((State)e.State)&&!e.SignRemoved&&Policy.SignGone((State)e.State,e.Omen.Bad,now-e.ResolvedAt)).ToList())
+            {RemoveSign(e.Id);Net.Resolve(e.Id);e.SignRemoved=true;changed=true;}
             changed|=MaybePlace(now);
             if(changed)Save();
         }
@@ -129,6 +130,7 @@ namespace Omens
                 spot.y=height;
                 int biome=(int)WorldGenerator.instance.GetBiome(spot.x,spot.z);
                 Kind? kind=Policy.Pick(Random.value,Random.value,badChance,biome,enabled);
+                if(kind==Kind.Ravens&&!OpenSky(spot))continue; // birds under a canopy go unseen: try another spot, keeping the good/bad roll fair
                 if(kind==null||NearBuilding(spot)||players.Any(p=>Vector3.Distance(p,spot)<35)||
                    _ledger.Omens.Any(e=>!Policy.Finished((State)e.State)&&Vector3.Distance(e.Pos,spot)<150))continue;
                 Place(kind.Value,spot,now);
@@ -148,6 +150,18 @@ namespace Omens
             _ledger.Omens.Add(new Entry{Id=id,Kind=(int)kind,X=spot.x,Y=spot.y,Z=spot.z,PlacedAt=now,State=(int)State.Placed});
             Plugin.Log($"Placed {Policy.Of(kind).Name} ({id}) at {spot:F0}");
             return id;
+        }
+        // A high ray at the centre and four points around it meets nothing more than 4 m above the ground (bushes and rocks are fine,
+        // treetops are not): the sky over the spot is open.
+        private static bool OpenSky(Vector3 spot)
+        {
+            foreach(Vector3 offset in new[]{Vector3.zero,new Vector3(7,0,0),new Vector3(-7,0,0),new Vector3(0,0,7),new Vector3(0,0,-7)})
+            {
+                Vector3 from=spot+offset+Vector3.up*70;
+                if(!Physics.Raycast(from,Vector3.down,out RaycastHit hit,90,~0,QueryTriggerInteraction.Ignore))return false;
+                if(!ZoneSystem.instance.GetGroundHeight(hit.point,out float ground)||hit.point.y>ground+4)return false;
+            }
+            return true;
         }
         private static bool NearBuilding(Vector3 spot)
         {
@@ -173,6 +187,17 @@ namespace Omens
         {
             if(!Hosting)return null;
             Load();
+            if(kind==Kind.Ravens)
+            {
+                // The nearest open-sky spot within 40 metres of the one asked for.
+                Vector3 asked=spot;bool found=false;
+                for(int ring=0;ring<=40&&!found;ring+=5)for(int step=0;step<Math.Max(1,ring)&&!found;step++)
+                {
+                    float a=step*Mathf.PI*2/Math.Max(1,ring);var test=asked+new Vector3(Mathf.Cos(a)*ring,0,Mathf.Sin(a)*ring);
+                    if(ZoneSystem.instance.GetSolidHeight(test,out float h)){test.y=h;if(OpenSky(test)){spot=test;found=true;}}
+                }
+                if(!found)return "none: no open sky within 40 m";
+            }
             if(ZoneSystem.instance.GetSolidHeight(spot,out float height))spot.y=height;
             long id=Place(kind,spot,Now);Save();
             return id.ToString();

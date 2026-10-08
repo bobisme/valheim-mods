@@ -12,7 +12,7 @@ a chat line for everyone, and a pin on your map. An omen nobody finds fades afte
 | --- | --- | --- | --- |
 | **Dead troll** | Black Forest | "The forest is angry. Perhaps fire would calm it." | Trolls raid the nearest base that night, unless you **use the carcass with 5 resin** to burn it first. |
 | **Abandoned camp** | Meadows, Black Forest | "Others passed this way, and did not leave." | Greydwarfs raid the nearest base that night. |
-| **Circling ravens** | Most land | "Odin is watching." | Players nearby become rested, and 250 metres of land is revealed on their maps. |
+| **Circling ravens** | Open sky on most land | "Odin is watching." | Players nearby become rested, and 250 metres of land is revealed on their maps. The ravens circle above the treetops for two more minutes. |
 
 About **60%** of omens are bad. A bad omen's raid comes at nightfall when seen by day, or a few minutes later when seen at night. It goes
 to the nearest workbench or bed within **1,500 metres** of the sign and uses the game's own raid events, messages and music. It never

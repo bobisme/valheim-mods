@@ -63,6 +63,9 @@ foreach(State end in new[]{State.Fulfilled,State.Averted,State.Expired,State.Fiz
     Check(Policy.Advance(end,1e9,0,1,true,true,true,true)==end,"End states never change");
 }
 Check(!Policy.Finished(State.Placed)&&!Policy.Finished(State.Seen),"Open states are open");
+Check(!Policy.SignGone(State.Fulfilled,false,0)&&!Policy.SignGone(State.Fulfilled,false,Policy.Linger-1)&&Policy.SignGone(State.Fulfilled,false,Policy.Linger),"A blessing's sign lingers, then goes");
+Check(Policy.SignGone(State.Fulfilled,true,0)&&Policy.SignGone(State.Averted,true,0)&&Policy.SignGone(State.Expired,false,0)&&Policy.SignGone(State.Fizzled,true,0),"Other finished signs go at once");
+Check(!Policy.SignGone(State.Seen,false,1e9)&&!Policy.SignGone(State.Placed,true,1e9),"Open omens keep their sign");
 
 // Nearest base.
 var bases=new List<(double x,double z)>{(100,0),(0,50),(-500,-500)};

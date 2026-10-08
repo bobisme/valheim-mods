@@ -68,6 +68,10 @@ namespace Omens
             }
         }
         internal static bool Finished(State state)=>state>=State.Fulfilled;
+        internal const double Linger=120; // seconds of world time a fulfilled good omen stays to be watched
+        // When a finished omen's sign leaves the world: at once, except a blessing, which lingers so it can be seen after it is read.
+        internal static bool SignGone(State state,bool bad,double sinceResolved)=>
+            Finished(state)&&(bad||state!=State.Fulfilled||sinceResolved>=Linger);
 
         // Index of the nearest base to a point, or -1 when none is within reach.
         internal static int Nearest(double x,double z,IList<(double x,double z)> bases,double maxDistance)
