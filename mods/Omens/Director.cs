@@ -51,7 +51,7 @@ namespace Omens
 
         private static bool Advance(Entry e,double now)
         {
-            var state=(State)e.State;bool done=false,impossible=false;
+            var state=(State)e.State;bool done=false,impossible=false;string why="";
             Vector3 raidAt=Vector3.zero;
             if(state==State.Seen)
             {
@@ -59,7 +59,9 @@ namespace Omens
                 else if(e.Forced||Policy.RaidDue(now,e.SeenAt,e.SeenAtNight,EnvMan.IsNight()))
                 {
                     Vector3? home=NearestBase(e.Pos);
-                    if(Game.m_eventRate<=0||home==null||now-e.SeenAt>DayLength*1.5||!RandEventSystem.instance.HaveEvent(e.Omen.Raid))impossible=true;
+                    why=Game.m_eventRate<=0?"raids are turned off in this world":home==null?$"no workbench or bed within {Plugin.Instance.BaseRange.Value:0} m"
+                        :now-e.SeenAt>DayLength*1.5?"another raid kept it waiting too long":!RandEventSystem.instance.HaveEvent(e.Omen.Raid)?$"the game has no {e.Omen.Raid} raid":"";
+                    if(why!="")impossible=true;
                     else if(RandEventSystem.instance.GetCurrentRandomEvent()==null) // never interrupts a raid in progress; waits for it to end
                     {RandEventSystem.instance.SetRandomEventByName(e.Omen.Raid,home.Value);raidAt=home.Value;done=true;}
                 }
@@ -77,7 +79,7 @@ namespace Omens
                     Plugin.Log($"{e.Omen.Name} ({e.Id}) blessed players near {e.Pos:F0}");break;
                 case State.Fizzled:
                     Net.Tell("The omen passes. Whatever it foretold did not find you.",e.Pos,-1,0);
-                    Plugin.Log($"{e.Omen.Name} ({e.Id}) fizzled: no base within reach, raids off, or no chance to start it");break;
+                    Plugin.Log($"{e.Omen.Name} ({e.Id}) fizzled: {why}");break;
                 case State.Expired:
                     Plugin.Log($"{e.Omen.Name} ({e.Id}) at {e.Pos:F0} faded unseen");break;
             }

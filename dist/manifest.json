@@ -55,9 +55,9 @@
     {
       "guid": "com.bobisme.omens",
       "name": "Omens",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "description": "Signs appear in the world that foretell good or bad things, and what they foretell really happens.\n\nEvery 1.5 in-game days or so, the host places an omen 45 to 85 metres from a player, away from buildings. Walk near it to read it: a message appears on screen for players nearby, a chat line for everyone, and a pin on your map. An omen nobody finds fades after a day without effect.\n\nDead troll (Black Forest, bad): \"The forest is angry.\" That night, trolls raid the nearest base. Burn the carcass first (use it, with 5 resin) to avert the raid.\n\nAbandoned camp (Meadows and Black Forest, bad): a bedroll by a cold fire, a skull, and dropped belongings. That night, greydwarfs raid the nearest base.\n\nCircling ravens (good): \"Odin is watching.\" Players nearby become rested, and the land within 250 metres is revealed on their maps.\n\nAbout 60% of omens are bad. A bad omen's raid comes at nightfall when seen by day, or a few minutes later when seen at night. It goes to the nearest workbench or bed within 1,500 metres of the sign. Raids are the game's own, with their usual messages and music; they never interrupt one already running, and a world with raids turned off gets only good omens. Signs are made from the game's own models and cannot be mined, looted or built on.\n\nInstall on the host and every player. The host decides everything and keeps a small record per world in BepInEx/config/omens. Frequency, the bad chance, how long signs wait, raid reach and each omen can be changed in F7. Compiled and checked against the local game; sign looks, discovery, raids and multiplayer still need in-game playtests.",
-      "notes": "0.1.5: The abandoned camp reads as a camp: a bedroll beside a cold fire pit (no glowing coals), a skull, a ragged tunic, wooden shield and flint spear, bones and a log, without the glint that made everything look like loot. The test command can clear an omen.",
+      "notes": "0.1.6: The log says why a bad omen fizzled: raids turned off in the world, no workbench or bed in reach, kept waiting too long by another raid, or a missing raid type.",
       "restart": "",
       "cover": "",
       "files": [
