@@ -4,10 +4,10 @@ using System.Linq;
 
 namespace Omens
 {
-    internal enum Kind { DeadTroll=0, Ravens=1, AbandonedCamp=2, Cairn=3, DrainedDeer=4, Catch=5 }
+    internal enum Kind { DeadTroll=0, Ravens=1, AbandonedCamp=2, Cairn=3, DrainedDeer=4, Catch=5, BloodMoon=6 }
     internal enum State { Placed=0, Seen=1, Fulfilled=2, Averted=3, Expired=4, Fizzled=5 }
     // What comes to pass: one of the game's raids, a hunting pack sent at the base, a blessing on those nearby, or a gift in the world.
-    internal enum Result { Raid, Stalkers, Blessing, Gift }
+    internal enum Result { Raid, Stalkers, Blessing, Gift, BloodMoon }
     // Where a sign may stand, beyond its biomes: anywhere, under open sky (birds must be seen), or on a shore.
     internal enum Site { Any, OpenSky, Shore }
 
@@ -17,7 +17,8 @@ namespace Omens
         internal Kind Kind;internal bool Bad;internal Result Result;internal Site Site;internal int Biomes;
         internal string Name,Reading,Outcome,Raid,Averted;
         internal bool Linger;                  // its sign stays a while after coming to pass, to be watched
-        internal string Cost,Action;internal int CostAmount; // a response: pay this item to avert it
+        internal string Cost,Action;internal int CostAmount; // a response: pay this item (by prefab name) to avert it
+        internal bool Softens;                 // the response only softens what comes, instead of averting it
         internal bool Respondable=>Cost!=null;
     }
 
@@ -30,7 +31,7 @@ namespace Omens
         internal static readonly Omen[] All=
         {
             new Omen{Kind=Kind.DeadTroll,Bad=true,Result=Result.Raid,Biomes=BlackForest,Name="A dead troll",Raid="foresttrolls",
-                Cost="$item_resin",CostAmount=5,Action="Burn the carcass",
+                Cost="Resin",CostAmount=5,Action="Burn the carcass",
                 Reading="A troll lies dead, untouched by any blade. The forest is angry. Perhaps fire would calm it.",
                 Outcome="The forest's anger comes for you.",
                 Averted="The carcass burns. The smoke rises, and the forest's anger fades."},
@@ -41,7 +42,7 @@ namespace Omens
                 Reading="A cold camp, left in haste. Others passed this way, and did not leave.",
                 Outcome="Whatever drove them away has found you."},
             new Omen{Kind=Kind.Cairn,Bad=true,Result=Result.Raid,Biomes=Meadows|BlackForest|Swamp,Name="A scattered cairn",Raid="skeletons",
-                Cost="$item_bonefragments",CostAmount=5,Action="Lay the bones to rest",
+                Cost="BoneFragments",CostAmount=5,Action="Lay the bones to rest",
                 Reading="Someone has scattered these stones and the bones beneath them. The dead are restless. Lay them to rest.",
                 Outcome="The restless dead have come for you.",
                 Averted="The bones lie beneath the stones again. The dead are quiet."},
@@ -51,6 +52,11 @@ namespace Omens
             new Omen{Kind=Kind.Catch,Bad=false,Result=Result.Gift,Site=Site.Shore,Linger=true,Biomes=Meadows|BlackForest|Swamp|Plains|Mistlands,
                 Name="Gulls over the shore",Reading="Gulls wheel over the shore. The sea is generous.",
                 Outcome="Fish lie stranded on the shore. Take them before they slip away."},
+            new Omen{Kind=Kind.BloodMoon,Bad=true,Result=Result.BloodMoon,Biomes=Meadows|BlackForest|Swamp|Mountain|Plains,Name="A blood-soaked circle",
+                Cost="RawMeat",CostAmount=4,Action="Leave an offering",Softens=true,
+                Reading="A ring of stones, wet with blood. The moon will bleed tonight. An offering of meat might sate it.",
+                Outcome="The moon bleeds. The night is hungry.",
+                Averted="The stones drink the offering. The night will hunger less."},
         };
         internal static Omen Of(Kind kind)=>All.First(o=>o.Kind==kind);
 
@@ -92,6 +98,11 @@ namespace Omens
         // When a finished omen's sign leaves the world: at once, except one that lingers after coming to pass so it can be watched.
         internal static bool SignGone(State state,bool lingers,double sinceResolved)=>
             Finished(state)&&(!lingers||state!=State.Fulfilled||sinceResolved>=Linger);
+
+        // A blood moon night: night spawns come more often, more at once, and stronger; an offering softens it.
+        internal static float SpawnChance(float chance,bool softened)=>Math.Min(100f,Math.Max(0f,chance)*(softened?1.5f:2f));
+        internal static int MaxSpawned(int max,bool softened)=>max<=0?max:(int)Math.Ceiling(max*(softened?1.25:1.5));
+        internal static float LevelUpChance(float chance,bool softened)=>Math.Min(70f,Math.Max(0f,chance)*(softened?1.5f:2f));
 
         // The hunting pack a drained deer sends, by the biome of the base it hunts: (creature prefab, level).
         internal static (string prefab,int level)[] Pack(int baseBiome)

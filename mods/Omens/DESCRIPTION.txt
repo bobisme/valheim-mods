@@ -10,6 +10,8 @@ Abandoned camp (Meadows and Black Forest, bad): a bedroll by a cold fire, a skul
 
 Drained deer (Meadows and Black Forest, bad): "Something hunts in the night." At night, once someone is home, a hunting pack led by a stronger creature comes for the nearest base: greydwarfs, draugr, wolves, goblins or seekers, depending on where the base stands.
 
+Blood-soaked circle (most land, bad): "The moon will bleed tonight." That night the sky turns red for everyone, and night creatures spawn twice as often, more at once and stronger. Leave an offering of 4 raw meat at the circle to soften it; it cannot be averted. It wanes at daybreak.
+
 Circling ravens (open sky, good): "Odin is watching." Players nearby become rested, and the land within 250 metres is revealed on their maps.
 
 Gulls over the shore (good): "The sea is generous." Real fish are stranded on the shore for the taking.

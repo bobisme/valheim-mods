@@ -112,6 +112,18 @@ namespace Omens
                     _hover=Looks.Hover(transform,new Vector3(0,0.4f,0),new Vector3(4.5f,1f,4.5f));
                     break;
                 case Kind.Catch:Birds("Seagal",10,6,0.9f);break;
+                case Kind.BloodMoon:
+                    // A circle of stones around a slaughtered boar, blood spilled over it.
+                    Corpse("boar_ragdoll",0.4f,new Vector3(4.5f,1f,4.5f));
+                    for(int i=0;i<8;i++)
+                    {
+                        float a=i*Mathf.PI/4;
+                        Looks.Item("Stone",transform,new Vector3(Mathf.Cos(a)*2.4f,0,Mathf.Sin(a)*2.4f),Quaternion.Euler(0,Random.Range(0,360f),0));
+                    }
+                    foreach(var (x,z) in new[]{(0.7f,0.5f),(-0.6f,-0.4f),(0.2f,-0.9f)})
+                        Looks.Item("Bloodbag",transform,new Vector3(x,0,z),Quaternion.Euler(0,Random.Range(0,360f),0));
+                    Looks.Item("Skull1",transform,new Vector3(-1.5f,0,1.1f),Quaternion.Euler(0,Random.Range(0,360f),0));
+                    break;
                 case Kind.AbandonedCamp:
                     GameObject pit=Looks.Copy("fire_pit",transform,Vector3.zero,Quaternion.identity);
                     if(pit!=null)Looks.Smother(pit);
@@ -185,19 +197,23 @@ namespace Omens
         public string GetHoverText()
         {
             if(!Omen.Respondable)return Omen.Name;
-            return Localization.instance.Localize($"{Omen.Name}\n[<color=yellow><b>$KEY_Use</b></color>] {Omen.Action} ({Omen.CostAmount} {Omen.Cost})");
+            return Localization.instance.Localize($"{Omen.Name}\n[<color=yellow><b>$KEY_Use</b></color>] {Omen.Action} ({Omen.CostAmount} {CostName()})");
         }
         public bool Interact(Humanoid user,bool hold,bool alt)
         {
             if(hold||!Omen.Respondable||!(user is Player player)||player!=Player.m_localPlayer)return false;
             Inventory inventory=player.GetInventory();
-            if(inventory.CountItems(Omen.Cost)<Omen.CostAmount)
-            {player.Message(MessageHud.MessageType.Center,Localization.instance.Localize($"You need {Omen.CostAmount} {Omen.Cost}."));return false;}
-            inventory.RemoveItem(Omen.Cost,Omen.CostAmount);
+            string cost=CostName();
+            if(cost==null)return false;
+            if(inventory.CountItems(cost)<Omen.CostAmount)
+            {player.Message(MessageHud.MessageType.Center,Localization.instance.Localize($"You need {Omen.CostAmount} {cost}."));return false;}
+            inventory.RemoveItem(cost,Omen.CostAmount);
             Net.Respond(Id); // the host shows the response to everyone (Net.OnResponded) once it accepts
             return true;
         }
         public bool UseItem(Humanoid user,ItemDrop.ItemData item)=>false;
+        // The cost item's in-game name ("$item_resin"), from its prefab: the game counts and removes items by that name.
+        private string CostName()=>ObjectDB.instance?.GetItemPrefab(Omen.Cost)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name;
     }
 
     // Visual-only copies of the game's prefabs: no networking, AI, loot or building, so a sign can never be mined, picked up or raided as a base.

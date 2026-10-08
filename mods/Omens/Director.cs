@@ -17,11 +17,16 @@ namespace Omens
         private sealed class Entry
         {
             public long Id;public int Kind,State;public float X,Y,Z;
-            public double PlacedAt,SeenAt,ResolvedAt;public bool SeenAtNight,Forced;public string SeenBy="";public bool SignRemoved;
+            public double PlacedAt,SeenAt,ResolvedAt;public bool SeenAtNight,Forced,Softened;public string SeenBy="";public bool SignRemoved;
             [JsonIgnore]public Vector3 Pos=>new Vector3(X,Y,Z);
             [JsonIgnore]public Omen Omen=>Policy.Of((Kind)Kind);
         }
-        private sealed class Ledger{public double NextAt;public List<Entry> Omens=new List<Entry>();}
+        private sealed class Ledger
+        {
+            public double NextAt;public List<Entry> Omens=new List<Entry>();
+            public bool MoonActive,MoonSoftened;public double MoonUntil; // MoonUntil: a forced test moon's end; 0 ends at daybreak
+        }
+        private static float _nextMoonCall;
 
         private static readonly string[] BasePieces={"piece_workbench","bed","piece_bed02"};
         private static Ledger _ledger;
@@ -47,6 +52,7 @@ namespace Omens
             foreach(Entry e in _ledger.Omens.Where(e=>Policy.Finished((State)e.State)&&!e.SignRemoved&&Policy.SignGone((State)e.State,e.Omen.Linger,now-e.ResolvedAt)).ToList())
             {RemoveSign(e.Id);Net.Resolve(e.Id);e.SignRemoved=true;changed=true;}
             changed|=MaybePlace(now);
+            changed|=MoonTick(now);
             if(changed)Save();
         }
 
@@ -59,6 +65,17 @@ namespace Omens
                 Omen omen=e.Omen;
                 if(omen.Result==Result.Blessing){Net.Blessing(e.Pos,60);done=true;}
                 else if(omen.Result==Result.Gift){done=Strand(e.Pos);if(!done){impossible=true;why="the shore could not hold the fish";}}
+                else if(omen.Result==Result.BloodMoon&&(e.Forced||Policy.RaidDue(now,e.SeenAt,e.SeenAtNight,EnvMan.IsNight())))
+                {
+                    if(_ledger.MoonActive&&!e.Forced){} // one blood moon at a time: it waits for tonight's to wane
+                    else
+                    {
+                        _ledger.MoonActive=true;_ledger.MoonSoftened|=e.Softened;
+                        _ledger.MoonUntil=e.Forced&&!EnvMan.IsNight()?now+300:0;
+                        Net.BloodMoon(true,_ledger.MoonSoftened);_nextMoonCall=Time.time+20;
+                        done=true;
+                    }
+                }
                 else if(e.Forced||Policy.RaidDue(now,e.SeenAt,e.SeenAtNight,EnvMan.IsNight()))
                 {
                     Vector3? home=NearestBase(e.Pos);
@@ -80,7 +97,7 @@ namespace Omens
             switch(next)
             {
                 case State.Fulfilled:
-                    Net.Tell(e.Omen.Outcome,at,e.Omen.Bad?0:60,0);
+                    Net.Tell(e.Omen.Result==Result.BloodMoon&&e.Softened?"The moon bleeds, but the offering has dulled its hunger.":e.Omen.Outcome,at,e.Omen.Bad?0:60,0);
                     Plugin.Log($"{e.Omen.Name} ({e.Id}) came to pass near {at:F0}"+(e.Omen.Result==Result.Raid?$": {e.Omen.Raid}":""));break;
                 case State.Fizzled:
                     Net.Tell("The omen passes. Whatever it foretold did not find you.",e.Pos,-1,0);
@@ -89,6 +106,22 @@ namespace Omens
                     Plugin.Log($"{e.Omen.Name} ({e.Id}) at {e.Pos:F0} faded unseen");break;
             }
             return true;
+        }
+
+        // While a blood moon lasts, tell everyone now and then (late arrivals, reloads); it wanes at daybreak (a forced test one after five minutes).
+        private static bool MoonTick(double now)
+        {
+            if(!_ledger.MoonActive)return false;
+            bool over=_ledger.MoonUntil>0?now>=_ledger.MoonUntil:!EnvMan.IsNight();
+            if(over)
+            {
+                _ledger.MoonActive=false;_ledger.MoonSoftened=false;_ledger.MoonUntil=0;
+                Net.BloodMoon(false,false);Net.Tell("The blood moon wanes.",Vector3.zero,0,0);
+                Plugin.Log("The blood moon waned");
+                return true;
+            }
+            if(Time.time>=_nextMoonCall){_nextMoonCall=Time.time+20;Net.BloodMoon(true,_ledger.MoonSoftened);}
+            return false;
         }
 
         // A hunting pack chosen by the base's biome, 35–45 m out on dry ground, set to hunt players. Saved creatures keep hunting
@@ -154,6 +187,18 @@ namespace Omens
             Load();
             Entry e=_ledger.Omens.FirstOrDefault(x=>x.Id==id);
             if(e==null||!e.Omen.Respondable||Policy.Finished((State)e.State))return;
+            if(e.Omen.Softens)
+            {
+                // It still comes, weaker; the offering is taken, so the sign goes now.
+                if(e.Softened)return;
+                e.Softened=true;
+                if((State)e.State==State.Placed){e.State=(int)State.Seen;e.SeenAt=Now;e.SeenAtNight=EnvMan.IsNight();e.SeenBy=NameOf(sender);}
+                RemoveSign(e.Id);Net.Resolve(e.Id);
+                Net.Tell(e.Omen.Averted,e.Pos,60,0);
+                Plugin.Log($"{NameOf(sender)} softened {e.Omen.Name} ({e.Id})");
+                Save();_nextTick=0;
+                return;
+            }
             e.State=(int)Policy.Advance((State)e.State,Now,e.PlacedAt,double.MaxValue,false,true,false,false);
             e.ResolvedAt=Now;
             Net.Responded(e.Id); // before the sign leaves the world on the next tick

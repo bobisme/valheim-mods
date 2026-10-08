@@ -215,6 +215,10 @@ Method("Character","SetLevel","System.Void","System.Int32");
 Method("ZoneSystem","GetGlobalKey","System.Boolean","GlobalKeys");
 Method("WorldGenerator","GetBiome","Heightmap/Biome","System.Single","System.Single","System.Single","System.Boolean");
 Field("RandEventSystem","m_events","System.Collections.Generic.List`1<RandomEvent>");
+Method("EnvMan","SetEnv","System.Void","EnvSetup","System.Single","System.Single","System.Single","System.Single","System.Single");
+Field("EnvMan","m_dirLight","UnityEngine.Light");
+Method("SpawnSystem","UpdateSpawnList","System.Void","System.Collections.Generic.List`1<SpawnSystem/SpawnData>","System.DateTime","System.Boolean","System.String");
+Method("SpawnSystem","GetLevelUpChance","System.Single","UnityEngine.Vector3","System.Single");
 
 // DualWield routes a matching second weapon into the off hand and borrows the game's dual weapons' stance and attacks.
 Method("Humanoid","EquipItem","System.Boolean","ItemDrop/ItemData","System.Boolean");

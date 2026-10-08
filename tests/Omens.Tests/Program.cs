@@ -10,14 +10,16 @@ foreach(Omen o in Policy.All)
     Check(!string.IsNullOrWhiteSpace(o.Name)&&!string.IsNullOrWhiteSpace(o.Reading)&&!string.IsNullOrWhiteSpace(o.Outcome),"Every omen has a name, reading and outcome");
     Check(o.Biomes!=0,"Every omen can appear somewhere");
     Check((o.Result==Result.Raid)==!string.IsNullOrEmpty(o.Raid),"Raid omens, and only they, name a raid");
-    Check(o.Bad==(o.Result==Result.Raid||o.Result==Result.Stalkers),"Bad omens bring raids or hunters; good ones blessings or gifts");
-    Check(o.Respondable==!string.IsNullOrWhiteSpace(o.Averted)&&o.Respondable==!string.IsNullOrWhiteSpace(o.Action)&&(!o.Respondable||o.CostAmount>0&&o.Cost.StartsWith("$item_")),
+    Check(o.Bad==(o.Result==Result.Raid||o.Result==Result.Stalkers||o.Result==Result.BloodMoon),"Bad omens bring raids, hunters or a blood moon; good ones blessings or gifts");
+    Check(o.Respondable==!string.IsNullOrWhiteSpace(o.Averted)&&o.Respondable==!string.IsNullOrWhiteSpace(o.Action)&&(!o.Respondable||o.CostAmount>0&&!o.Cost.StartsWith("$")&&!o.Cost.Contains(' ')),
         "A respondable omen has a cost, an action and an averted message; others have none");
     Check(!o.Linger||!o.Bad,"Only good omens linger after coming to pass");
     Check(Policy.Of(o.Kind)==o,"Each kind maps to its own omen");
 }
 Check(Policy.All.Select(o=>o.Kind).Distinct().Count()==Policy.All.Length&&Policy.All.Length==every.Length,"Every kind has exactly one omen");
-Check(Policy.All.Count(o=>o.Bad)==4&&Policy.All.Count(o=>!o.Bad)==2,"Four bad and two good omens");
+Check(Policy.All.Count(o=>o.Bad)==5&&Policy.All.Count(o=>!o.Bad)==2,"Five bad and two good omens");
+Check(Policy.All.Where(o=>o.Softens).All(o=>o.Respondable&&o.Bad),"Only respondable bad omens can be softened");
+Check(Policy.Of(Kind.BloodMoon).Softens&&!Policy.Of(Kind.DeadTroll).Softens,"An offering softens the blood moon; burning the troll averts its raid");
 
 // Picking: polarity by chance, falling back when a biome has only the other kind.
 int bad=0,trials=0;
@@ -29,10 +31,12 @@ for(double p=0;p<1;p+=0.001)for(double k=0;k<1;k+=0.25)
 }
 Check(Math.Abs(bad/(double)trials-0.6)<0.01,"60/40 bad to good where both are possible");
 Check(Policy.Pick(0.99,0.5,0.6,Policy.Mountain,every)==Kind.Ravens,"Good roll in the mountains: ravens");
-Check(Policy.Pick(0.0,0.5,0.6,Policy.Mountain,every)==Kind.Ravens,"Bad roll where no bad omen fits falls back to a good one");
+Check(Policy.Pick(0.0,0.5,0.6,Policy.Mountain,every)==Kind.BloodMoon,"Bad roll in the mountains: the blood moon");
+Check(Policy.Pick(0.0,0.5,0.6,Policy.Mistlands,every) is Kind g0&&!Policy.Of(g0).Bad,"Bad roll where no bad omen fits falls back to a good one");
 Check(Policy.Pick(0.0,0.0,0.6,Policy.Swamp,new[]{Kind.DeadTroll})==null,"Nothing fits: no omen");
 Check(Policy.Pick(0.0,0.5,0.6,Policy.Meadows,every) is Kind m&&Policy.Of(m).Bad&&m!=Kind.DeadTroll,"Bad omen in the meadows is never the troll (Black Forest only)");
-Check(Policy.Pick(0.99,0.0,0.6,Policy.Mountain,every.Where(k=>k!=Kind.Ravens).ToList())==null,"Mountains without open sky: no omen fits");
+Check(Policy.Pick(0.99,0.0,0.6,Policy.Mountain,every.Where(k=>k!=Kind.Ravens).ToList())==Kind.BloodMoon,"Mountains without open sky: a good roll falls back to the blood moon");
+Check(Policy.Pick(0.99,0.0,0.6,Policy.Mountain,new[]{Kind.Catch,Kind.DeadTroll})==null,"Nothing that fits the mountains: no omen");
 Check(Policy.Pick(0.99,0.5,0.6,Policy.Meadows,new[]{Kind.Catch,Kind.Cairn})==Kind.Catch,"A good roll on a shore picks the catch");
 for(double k=0;k<1;k+=0.05)Check(Policy.Pick(0.0,k,0,Policy.BlackForest,every) is Kind g&&!Policy.Of(g).Bad,"With raids off only good omens appear");
 foreach(double roll in new[]{-1.0,0,0.9999999,1,2,double.NaN})
@@ -88,4 +92,12 @@ Check(Policy.Nearest(0,0,bases,1000)==1,"Closest base wins");
 Check(Policy.Nearest(0,0,bases,40)==-1,"No base within reach");
 Check(Policy.Nearest(0,0,new List<(double x,double z)>(),1000)==-1,"No bases at all");
 Check(Policy.Nearest(0,0,bases,50)==1,"Reach is inclusive");
+// Blood moon nights.
+foreach(bool soft in new[]{false,true})
+{
+    Check(Policy.SpawnChance(30,soft)==(soft?45:60)&&Policy.SpawnChance(80,soft)==100&&Policy.SpawnChance(-5,soft)==0,"Night spawns are likelier, never above certain");
+    Check(Policy.MaxSpawned(2,soft)==(soft?3:3)&&Policy.MaxSpawned(4,soft)==(soft?5:6)&&Policy.MaxSpawned(0,soft)==0,"More at once, but an unlimited spawner stays unlimited");
+    Check(Policy.LevelUpChance(10,soft)==(soft?15:20)&&Policy.LevelUpChance(60,soft)==70,"Stronger, within the game's own level-up ceiling");
+}
+Check(Policy.SpawnChance(30,true)<Policy.SpawnChance(30,false)&&Policy.LevelUpChance(10,true)<Policy.LevelUpChance(10,false),"An offering softens every part of it");
 Console.WriteLine($"Passed {checks} omen choice, timing, state and base checks.");
