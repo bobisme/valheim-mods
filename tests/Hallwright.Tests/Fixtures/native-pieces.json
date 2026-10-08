@@ -362,5 +362,31 @@
       ]
     },
     "material": "Wood"
+  },
+  "wood_gate": {
+    "p": "wood_gate",
+    "snaps": {
+      "mid edge": [
+        1.0,
+        1.0,
+        0.0
+      ],
+      "bottom edge": [
+        1.0,
+        -1.0,
+        0.0
+      ],
+      "top edge": [
+        1.0,
+        2.0,
+        0.0
+      ],
+      "bottom inner": [
+        -1.0,
+        -1.0,
+        0.0
+      ]
+    },
+    "material": "Wood"
   }
 }

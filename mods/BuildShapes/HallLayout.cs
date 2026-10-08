@@ -21,6 +21,7 @@ namespace BuildShapes
         {
             internal int X,Z,W,D;
             internal bool Across;
+            internal double TierLift;
             internal int Width => Across ? D : W;
             internal int Length => Across ? W : D;
             internal V3 At(double u,double y,double v) => Across ? new V3(X*2+v,y,Z*2+D*2-u) : new V3(X*2+u,y,Z*2+v);
@@ -38,7 +39,7 @@ namespace BuildShapes
             internal string Post="wood_pole2", Beam="wood_beam", ShortBeam="wood_beam_1";
             internal string Roof="wood_roof_45", Ridge="wood_roof_top_45", Wedge="wood_wall_roof_45";
             internal string Arch=null, Raven=null;
-            internal double Slope=1, BeamLength=2, ShortLength=1;
+            internal double Slope=1, BeamLength=2, ShortLength=1, DoorHeight=2;
             internal int SpanCells=4;
         }
         internal sealed class Design
@@ -51,6 +52,7 @@ namespace BuildShapes
             internal double DoorYaw;
             internal double RoofHeight;
             internal int BoundaryPanels;
+            internal int TieredWings;
         }
 
         internal static List<Cell> Footprint(IReadOnlyList<V3> corners)
@@ -140,9 +142,9 @@ namespace BuildShapes
             return best;
         }
 
-        internal static Design Plan(IReadOnlyList<V3> corners,Kit kit,int height,int detail,int entrance)
+        internal static Design Plan(IReadOnlyList<V3> corners,Kit kit,int height,int detail,int entrance,bool tiered=false)
         {
-            if(kit==null || height<2 || height>4 || detail<0 || detail>3 || kit.Slope!=1 && kit.Slope!=0.5)
+            if(kit==null || kit.DoorHeight<2 || kit.DoorHeight>height || kit.DoorHeight!=Math.Round(kit.DoorHeight) || height<2 || height>4 || detail<0 || detail>3 || kit.Slope!=1 && kit.Slope!=0.5)
                 throw new ArgumentException("Choose walls 2–4 m high, a native roof pitch, and intricacy 0–3.");
             var plan=new Design();plan.Cells.AddRange(Footprint(corners));plan.Wings.AddRange(SolveWings(plan.Cells,kit.SpanCells));
             var set=new HashSet<Cell>(plan.Cells);
@@ -159,6 +161,8 @@ namespace BuildShapes
             {
                 double length=(b-a).Length;
                 if(length<0.2)return;
+                if(name==kit.Beam && length<nativeLength && length>=kit.ShortLength)
+                {name=kit.ShortBeam;nativeLength=kit.ShortLength;}
                 int count=Math.Max(1,(int)Math.Ceiling(length/nativeLength-1e-9));
                 V3 direction=(b-a)*(1/length);
                 for(int i=0;i<count;i++)
@@ -191,16 +195,11 @@ namespace BuildShapes
                 double along=V3.Dot(at-plan.Door,tangent);
                 V3 normal=new V3(-tangent.Z,0,tangent.X);
                 bool door=Math.Abs(V3.Dot(at-plan.Door,normal))<0.01 && Math.Abs(along)<1.999;
-                for(int h=0;h<height;h+=2)
-                {
-                    if(door && h==0)
-                    {
-                        // Keep the entrance centred even when it splits two native 2 m wall panels.
-                        if(Math.Abs(along)>0.1)
-                            for(int q=0;q<2;q++)Add(kit.Quarter,at+tangent*(Math.Sign(along)*0.5)+new V3(0,q,0),Anchor.Bottom,edge.yaw,"wall");
-                    }
-                    else Add(h+2<=height?kit.Wall:kit.Half,at+new V3(0,h,0),Anchor.Bottom,edge.yaw,"wall");
-                }
+                if(door && Math.Abs(along)>0.1)
+                    for(int q=0;q<kit.DoorHeight;q++)Add(kit.Quarter,at+tangent*(Math.Sign(along)*0.5)+new V3(0,q,0),Anchor.Bottom,edge.yaw,"wall");
+                // Header starts above the actual opening: a 3 m gate must not have a wall across its upper metre.
+                for(int h=door?(int)kit.DoorHeight:0;h<height;h+=2)
+                    Add(h+2<=height?kit.Wall:kit.Half,at+new V3(0,h,0),Anchor.Bottom,edge.yaw,"wall");
                 Rod(kit.Beam,edge.a+new V3(0,height,0),edge.b+new V3(0,height,0),kit.BeamLength);
             }
             // Foundation contact points include all floor corners, also under interior tiles.
@@ -215,22 +214,51 @@ namespace BuildShapes
             foreach(Wing wing in plan.Wings)
             {
                 double yaw=wing.Across?90:0,width=wing.Width*2,length=wing.Length*2;
-                double peak=height+width*0.5*kit.Slope;
+                wing.TierLift=tiered && wing.Width>=3?1:0;
+                if(wing.TierLift>0)plan.TieredWings++;
+                double peak=height+width*0.5*kit.Slope+wing.TierLift;
+                double Lift(int col)=>col>0 && col<wing.Width-1?wing.TierLift:0;
+                void Rafter(double v,string role)
+                {
+                    if(wing.TierLift==0)
+                    {
+                        Rod(kit.Beam,wing.At(0,height,v),wing.At(width/2,peak,v),kit.BeamLength,role);
+                        Rod(kit.Beam,wing.At(width,height,v),wing.At(width/2,peak,v),kit.BeamLength,role);
+                    }
+                    else foreach(bool left in new[]{true,false})
+                    {
+                        double edge=left?0:width,shoulder=left?2:width-2,y=height+2*kit.Slope;
+                        Rod(kit.Beam,wing.At(edge,height,v),wing.At(shoulder,y,v),kit.BeamLength,role);
+                        Rod(kit.ShortBeam,wing.At(shoulder,y,v),wing.At(shoulder,y+wing.TierLift,v),kit.ShortLength,role);
+                        Rod(kit.Beam,wing.At(shoulder,y+wing.TierLift,v),wing.At(width/2,peak,v),kit.BeamLength,role);
+                    }
+                }
                 plan.RoofHeight=Math.Max(plan.RoofHeight,peak);
                 for(int row=0;row<wing.Length;row++)for(int col=0;col<wing.Width;col++)
                 {
                     bool center=wing.Width%2==1 && col==wing.Width/2;
                     bool left=col<wing.Width/2;
-                    double low=height+Math.Min(col,wing.Width-1-col)*2*kit.Slope;
+                    double low=height+Math.Min(col,wing.Width-1-col)*2*kit.Slope+Lift(col);
                     if(center)Add(kit.Ridge,wing.At(col*2+1,low,row*2+1),Anchor.Floor,yaw+90,"roof");
                     else Add(kit.Roof,wing.At(left?col*2:(col+1)*2,low,row*2+1),Anchor.RoofLow,yaw+(left?270:90),"roof");
+                }
+                if(wing.TierLift>0)
+                {
+                    double y=height+2*kit.Slope;
+                    foreach(double shoulder in new[]{2.0,width-2})
+                    {
+                        for(int row=0;row<wing.Length;row++)
+                            Add(kit.Half,wing.At(shoulder,y,row*2+1),Anchor.Bottom,yaw+(shoulder==2?90:270),"tier wall");
+                        Rod(kit.Beam,wing.At(shoulder,y,0),wing.At(shoulder,y,length),kit.BeamLength);
+                        Rod(kit.Beam,wing.At(shoulder,y+wing.TierLift,0),wing.At(shoulder,y+wing.TierLift,length),kit.BeamLength);
+                    }
                 }
                 for(int end=0;end<2;end++)
                 {
                     double v=end*length;
                     for(int col=0;col<wing.Width;col++)
                     {
-                        double low=Math.Min(col,wing.Width-1-col)*2*kit.Slope;
+                        double low=Math.Min(col,wing.Width-1-col)*2*kit.Slope+Lift(col);
                         for(int h=0;h<low-0.001;h+=2)
                             Add(h+2<=low?kit.Wall:kit.Half,wing.At(col*2+1,height+h,v),Anchor.Bottom,yaw,"gable");
                         bool center=wing.Width%2==1 && col==wing.Width/2;
@@ -245,8 +273,7 @@ namespace BuildShapes
                     }
                     if(detail>=1)
                     {
-                        Rod(kit.Beam,wing.At(0,height,v),wing.At(width/2,peak,v),kit.BeamLength,"ornament");
-                        Rod(kit.Beam,wing.At(width, height,v),wing.At(width/2,peak,v),kit.BeamLength,"ornament");
+                        Rafter(v,"ornament");
                     }
                     if(detail>=2)
                     {
@@ -262,8 +289,13 @@ namespace BuildShapes
                 {
                     double v=Math.Min(bay*2,length);
                     Rod(kit.Beam,wing.At(0,height,v),wing.At(width,height,v),kit.BeamLength);
-                    Rod(kit.Beam,wing.At(0,height,v),wing.At(width/2,peak,v),kit.BeamLength);
-                    Rod(kit.Beam,wing.At(width,height,v),wing.At(width/2,peak,v),kit.BeamLength);
+                    Rafter(v,"frame");
+                    if(wing.TierLift>0)foreach(double shoulder in new[]{2.0,width-2})
+                    {
+                        double top=height+2*kit.Slope+wing.TierLift;
+                        for(int h=0;h<top;h+=2)
+                            Add(kit.Post,wing.At(shoulder,Math.Min(h,top-2),v),Anchor.Bottom,0,"tier post");
+                    }
                     if(detail>=2 && kit.Arch!=null && width>=4)
                     {
                         Add(kit.Arch,wing.At(0,height-2,v),Anchor.Bottom,yaw,"ornament");

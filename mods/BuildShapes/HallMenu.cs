@@ -27,6 +27,10 @@ namespace BuildShapes
             int height=Mathf.RoundToInt(GUILayout.HorizontalSlider(_hallHeight,2,4));
             if(height!=_hallHeight){_hallHeight=height;changed=true;}
             GUILayout.BeginHorizontal();foreach(int h in new[]{2,3,4})if(GUILayout.Button(h+" m",_menuButton)){_hallHeight=h;changed=true;}GUILayout.EndHorizontal();
+            GUILayout.Space(12);GUILayout.Label("Roof silhouette",_menuText);
+            int roof=GUILayout.SelectionGrid(_hallTiered?1:0,new[]{"Gabled","Tiered longhouse"},2,_menuButton,GUILayout.Height(34));
+            if((roof==1)!=_hallTiered){_hallTiered=roof==1;changed=true;}
+            GUILayout.Label("Tiered: raised central roof, low side aisles and an inner colonnade. Wings under 6 m wide stay gabled.",_menuHint);
             GUILayout.Space(12);GUILayout.Label("Roof pitch",_menuText);
             int pitch=GUILayout.SelectionGrid(_hallRoof45?1:0,new[]{"26° · low","45° · steep"},2,_menuButton,GUILayout.Height(34));
             if((pitch==1)!=_hallRoof45){_hallRoof45=pitch==1;changed=true;}
@@ -35,6 +39,9 @@ namespace BuildShapes
             if(detail!=_hallDetail){_hallDetail=detail;changed=true;}
             GUILayout.Label(_hallDetail==0?"Clean shell and structural trusses.":_hallDetail==1?"Gable trim and repeated knee braces.":_hallDetail==2?"Radiating gable timberwork and unlocked darkwood details.":"Rich gable patterns, layered eaves, and unlocked raven crest ornaments.",_menuHint);
             GUILayout.Space(12);GUILayout.Label("Entrance",_menuText);
+            int opening=GUILayout.SelectionGrid(_hallEntranceMode,new[]{"Auto","Door · 2 m","Gate · 3 m"},3,_menuButton,GUILayout.Height(34));
+            if(opening!=_hallEntranceMode){_hallEntranceMode=opening;changed=true;}
+            GUILayout.Label("Auto chooses an unlocked gate at 3 m or taller, otherwise a door.",_menuHint);
             GUILayout.BeginHorizontal();
             if(GUILayout.Button("‹",_menuButton,GUILayout.Width(42))){_hallEntrance=(_hallEntrance+_markers.Count-1)%_markers.Count;changed=true;}
             GUILayout.Label($"Edge {_hallEntrance%_markers.Count+1} of {_markers.Count}",_menuText);

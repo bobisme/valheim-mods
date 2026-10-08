@@ -8,8 +8,8 @@ namespace BuildShapes
 {
     public sealed partial class Plugin
     {
-        private bool _hallMenu, _hallRoof45=true, _hallSolid=true, _hallShowRoof=true;
-        private int _hallHeight=3, _hallDetail=1, _hallEntrance, _hallMaterialMode;
+        private bool _hallMenu, _hallRoof45=true, _hallSolid=true, _hallShowRoof=true, _hallTiered;
+        private int _hallHeight=3, _hallDetail=1, _hallEntrance, _hallMaterialMode, _hallEntranceMode;
         private float _hallRaise=0.15f, _hallDue, _hallNextCatalog;
         private Vector3 _hallOrigin;
         private Quaternion _hallFrame=Quaternion.identity;
@@ -48,6 +48,10 @@ namespace BuildShapes
         {
             RefreshHallCatalog(player);
             var kit=new HallLayout.Kit();
+            bool gate=_hallEntranceMode==2 || _hallEntranceMode==0 && _hallHeight>=3 && HallKnown("wood_gate");
+            if(gate && _hallHeight<3)throw new ArgumentException("A gate needs walls at least 3 m high. Choose Door or raise the walls.");
+            if(gate){kit.Door="wood_gate";kit.DoorHeight=3;}
+            else if(_hallEntranceMode==0 && _hallHeight>=3 && !HallKnown("wood_gate"))_hallNote="Gate not unlocked; Auto uses a door.";
             foreach(string name in new[]{kit.Floor,kit.Wall,kit.Half,kit.Quarter,kit.Door,kit.Post,kit.Beam,kit.ShortBeam})
                 if(!HallKnown(name))throw new ArgumentException("Unlock "+name+" before planning a timber hall.");
             if(_hallMaterialMode==2 && !HallKnown("wood_pole_log"))throw new ArgumentException("Core-wood posts are not unlocked yet.");
@@ -139,7 +143,7 @@ namespace BuildShapes
                 if(_markers.Count<3)throw new ArgumentException("Draw the boundary with Shift+click, then L opens the hall settings.");
                 _hallKit=HallKit(Player.m_localPlayer);
                 var corners=_markers.Select(p=>{Vector3 v=Quaternion.Inverse(_hallFrame)*(p-_hallOrigin);return new V3(Math.Round(v.x/2)*2,0,Math.Round(v.z/2)*2);}).ToArray();
-                _hallDesign=HallLayout.Plan(corners,_hallKit,_hallHeight,_hallDetail,_hallEntrance);
+                _hallDesign=HallLayout.Plan(corners,_hallKit,_hallHeight,_hallDetail,_hallEntrance,_hallTiered);
                 _hallFloorY=_hallOrigin.y;
                 float highest=float.MinValue;
                 foreach(V3 v in _hallDesign.Vertices)highest=Mathf.Max(highest,HallGround(HallWorld(v)));
@@ -180,12 +184,12 @@ namespace BuildShapes
                     string post=_hallMaterialMode==0 && HallKnown("woodiron_pole")?"woodiron_pole":_hallKit.Post;
                     foreach(var wing in _hallDesign.Wings)
                     {
-                        double length=wing.Length*2,peak=_hallHeight+wing.Width*_hallKit.Slope;
+                        double length=wing.Length*2,peak=_hallHeight+wing.Width*_hallKit.Slope+wing.TierLift;
                         for(double v=length<=2?1:2;v<length;v+=4)
                         {HallColumn(wing.At(wing.Width,0,v),peak,post,"support");_hallAddedPosts++;}
                     }
                     ComputeHallSupport(Player.m_localPlayer);_hallFalls=_hallSupport.Values.Count(v=>v.Collapses);
-                    _hallNote=$"Added {_hallAddedPosts} interior ridge supports"+(post=="woodiron_pole"?" using unlocked reinforced timber.":".");
+                    _hallNote=(_hallNote==null?"":_hallNote+" ")+$"Added {_hallAddedPosts} interior ridge supports"+(post=="woodiron_pole"?" using unlocked reinforced timber.":".");
                 }
                 if(_hallSupport.Count!=_output.Count)throw new ArgumentException("Some pieces could not be checked for support.");
                 if(_hallFalls>0)_hallProblem=$"{_hallFalls} pieces would fall in the support estimate. Lower the walls, choose 26° roofs, or simplify the outline.";
