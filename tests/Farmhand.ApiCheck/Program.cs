@@ -215,6 +215,22 @@ Method("Character","SetLevel","System.Void","System.Int32");
 Method("ZoneSystem","GetGlobalKey","System.Boolean","GlobalKeys");
 Method("WorldGenerator","GetBiome","Heightmap/Biome","System.Single","System.Single","System.Single","System.Boolean");
 Field("RandEventSystem","m_events","System.Collections.Generic.List`1<RandomEvent>");
+
+// DualWield routes a matching second weapon into the off hand and borrows the game's dual weapons' stance and attacks.
+Method("Humanoid","EquipItem","System.Boolean","ItemDrop/ItemData","System.Boolean");
+Method("Humanoid","UnequipItem","System.Void","ItemDrop/ItemData","System.Boolean");
+Method("Humanoid","UnequipAllItems","System.Void");
+Method("Humanoid","SetupEquipment","System.Void");
+Method("Humanoid","SetupAnimationState","System.Void");
+Method("Humanoid","SetAnimationState","System.Void","ItemDrop/ItemData/AnimationState");
+Method("Humanoid","TriggerEquipEffect","System.Void","ItemDrop/ItemData");
+Method("Humanoid","GetCurrentBlocker","ItemDrop/ItemData");
+Method("Attack","Start","System.Boolean","Humanoid","UnityEngine.Rigidbody","ZSyncAnimation","CharacterAnimEvent","VisEquipment","ItemDrop/ItemData","Attack","System.Single","System.Single");
+Method("VisEquipment","SetLeftHandEquipped","System.Boolean","System.Int32","System.Int32","System.Int32");
+Field("Humanoid","m_rightItem","ItemDrop/ItemData");
+Field("Humanoid","m_leftItem","ItemDrop/ItemData");
+Field("Humanoid","m_visEquipment","VisEquipment");
+Field("VisEquipment","m_leftItemInstance","UnityEngine.GameObject");
 Field("Recipe","m_craftingStation","CraftingStation");
 
 // Bob's Pipes: hotbar dispatch, saved item bowls, mutual smoking and native item registrations.

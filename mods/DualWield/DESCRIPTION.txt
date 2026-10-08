@@ -1,0 +1,7 @@
+Fight with a weapon in each hand. Pairs of one-handed axes and pairs of knives are supported, using the game's own dual move sets: two axes fight like the Berserkir axes, two knives like Skoll and Hati.
+
+Equip a one-handed axe or knife, then equip a second one of the same kind: it goes into your off hand, replacing your shield or torch. You need 20 in that weapon skill; below it you are told how far you have to go. Hold Left Alt while equipping to replace your main weapon instead. Putting away the main weapon moves the off-hand one across. Equipping a shield, torch or another kind of weapon ends dual wielding as usual.
+
+Balance: each hit is worth 62% of both weapons' damage combined, about 1.24× one weapon when they are equal, normalized against the dual move set's own combo. Every swing costs 1.3× the main weapon's stamina. Both weapons wear down. Blocking uses only the main weapon's weak block, shown with both weapons raised, so a shield is still the defensive choice. The skill you train is the pair's own. Swords, clubs and mixed pairs are not supported yet.
+
+Install for every player: the off-hand weapon and the dual stance are seen by others through the game's own equipment and animation sync, and the off-hand position needs this mod to look right. The damage share, stamina, skill requirement, swap key, and the off-hand weapon's position and rotation can be changed in F7. Compiled and checked against the local game; the off-hand look, move sets, balance and GearSlots interaction still need in-game playtests.

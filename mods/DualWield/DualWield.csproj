@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>DualWield</AssemblyName><RootNamespace>DualWield</RootNamespace></PropertyGroup>
+</Project>

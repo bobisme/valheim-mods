@@ -44,6 +44,33 @@ and the exact native inventory/tooltip/registration hooks. First playtest:
 
 The release is compiled and checked against the native Linux installation; visual poses and live multiplayer still need this playtest.
 
+## DualWield
+
+Fight with a weapon in each hand. **Pairs of one-handed axes** and **pairs of knives** are supported, using the game's own dual move sets:
+two axes fight like the **Berserkir axes**, two knives like **Skoll and Hati**. Equip a one-handed axe or knife, then equip a second one of the
+same kind: it goes into your off hand, replacing your shield or torch. You need **20 in that weapon skill**; below it you are told how far you
+have to go. Hold **Left Alt** while equipping to replace your main weapon instead. Putting away the main weapon moves the off-hand one across;
+equipping a shield, torch or another kind of weapon ends dual wielding as usual.
+
+| Balance lever | Value | Why |
+| --- | --- | --- |
+| Damage | Each hit is 62% of both weapons combined (about 1.24× one weapon), normalized against the dual combo's own multipliers | Stronger than one weapon, below a two-hander's burst and the tier's own dual weapon |
+| Stamina | 1.3× the main weapon's per swing | A burst style, not a constant one |
+| Blocking | Only the main weapon's weak block, shown with both weapons raised | The shield stays the defensive choice |
+| Wear | Both weapons lose durability | Two weapons' upkeep |
+| Unlock | 20 in that weapon skill | Earned, not day-one |
+
+Install for every player: others see the off-hand weapon and the dual stance through the game's own equipment and animation sync. The damage
+share, stamina, skill requirement, swap key, and the off-hand weapon's position and rotation are in F7. Swords, clubs and mixed pairs are future
+work. Checks cover pairing, the skill gate, the swap key, chain-normalized damage and stamina, plus every native hook. First playtest:
+
+1. With 20+ Axes, equip a one-handed axe, then a second axe. Check it sits in the left hand (adjust Looks in F7 if not), the dual stance and the
+   Berserkir moves, primary and secondary. Block: both weapons up, weak block. Below 20, check the message and the normal swap.
+2. Repeat with two knives. Hold Left Alt while equipping to replace the main weapon instead.
+3. Put away the main weapon; the off-hand one moves across. Equip a shield, a torch, a two-hander, then die and respawn: no weapon stuck in a hand.
+4. Check GearSlots' shield-follows-weapon does not fight the off-hand weapon, and that a friend sees both weapons and the stance.
+5. Compare kill speed and stamina with one axe, the pair, and the Berserkir axes at the same tier.
+
 ## Omens
 
 Signs appear in the world that foretell good or bad things, and what they foretell really happens. Every **1.5 in-game days** or so, the
