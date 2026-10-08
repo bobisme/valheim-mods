@@ -82,17 +82,12 @@ namespace BuildShapes
         private void DrawRepeatMenu()
         {
             Cursor.lockState=CursorLockMode.None; Cursor.visible=true;
-            if(_menuTitle==null)
-            {
-                _menuTitle=new GUIStyle(GUI.skin.label){fontSize=20,fontStyle=FontStyle.Bold};
-                _menuText=new GUIStyle(GUI.skin.label){fontSize=14,wordWrap=true};
-                _menuButton=new GUIStyle(GUI.skin.button){fontSize=14};
-                _menuNumber=new GUIStyle(GUI.skin.textField){fontSize=14};
-            }
             Matrix4x4 saved=GUI.matrix;
             bool enabled=GUI.enabled;
+            GUISkin skin=GUI.skin;
             try
             {
+                GUI.skin=Theme();
                 float scale=Mathf.Min(Mathf.Max(0.6f,Screen.height/1080f),Screen.height/820f);
                 GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1));
                 float sw=Screen.width/scale,sh=Screen.height/scale;
@@ -103,18 +98,22 @@ namespace BuildShapes
                 _repeatRect.y=Mathf.Clamp(_repeatRect.y,0,Mathf.Max(0,sh-height));
                 // Ignore the marker click that caused this window to appear.
                 GUI.enabled=enabled && Time.frameCount>_menuOpenedFrame+1;
-                _repeatRect=GUI.Window(194738,_repeatRect,RepeatContents,"Repeat along curve");
+                _repeatRect=GUI.Window(194738,_repeatRect,RepeatContents,GUIContent.none);
             }
             finally
             {
                 _editingNumber=_repeatMenu && (GUI.GetNameOfFocusedControl()??"").StartsWith(NumberControl);
-                GUI.matrix=saved;GUI.enabled=enabled;
+                GUI.matrix=saved;GUI.enabled=enabled;GUI.skin=skin;
             }
         }
         private void RepeatContents(int id)
         {
-            GUILayout.BeginArea(new Rect(18,30,_repeatRect.width-36,_repeatRect.height-44));
-            GUILayout.Label("Repeat",_menuTitle);
+            GUILayout.BeginArea(new Rect(20,14,_repeatRect.width-40,_repeatRect.height-28));
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Repeat along curve",_menuTitle,GUILayout.Height(32));
+            GUILayout.FlexibleSpace();
+            if(GUILayout.Button("×",_menuClose,GUILayout.Width(38),GUILayout.Height(34)))CloseRepeatMenu();
+            GUILayout.EndHorizontal();
             GUILayout.Label($"{_seed.Prefab} · {_output.Count} pieces",_menuText);
             _repeatOptionsScroll=GUILayout.BeginScrollView(_repeatOptionsScroll);
             GUILayout.Space(8);
@@ -130,7 +129,7 @@ namespace BuildShapes
             {spacing=preset;_numberEdits.Remove("Spacing");_numberError=null;}
             GUILayout.EndHorizontal();
             if(spacing!=SafeSpacing()){_spacing.Value=spacing;changed=true;}
-            GUILayout.Label("Spacing fits evenly to both ends of the path.",_menuText);
+            GUILayout.Label("Spacing fits evenly to both ends of the path.",_menuHint);
             GUILayout.Space(8);
             bool follow=GUILayout.Toggle(_follow.Value,"Turn with the curve (keep initial heading)");
             if(follow!=_follow.Value){_follow.Value=follow;changed=true;}
@@ -155,10 +154,11 @@ namespace BuildShapes
             {_yaw=Mathf.Repeat(_yaw+90,360);_numberEdits.Remove("Yaw");_numberError=null;changed=true;}
             GUILayout.EndHorizontal();
             if(changed)Preview();
-            GUILayout.Label("Type a value, then Enter or Apply. Hold Shift for finer ± steps.",_menuText);
+            GUILayout.Label("Type a value, then Enter or Apply. Hold Shift for finer ± steps.",_menuHint);
             GUILayout.EndScrollView();
             GUILayout.Space(8);
-            GUILayout.Label(_numberError??_previewError??$"{_output.Count} ghosts ready. Normal materials and support apply.",_menuText);
+            string problem=_numberError??_previewError;
+            GUILayout.Label(problem??$"{_output.Count} ghosts ready. Normal materials and support apply.",problem!=null?_menuWarning:_menuText);
             bool enabled=GUI.enabled;
             GUILayout.BeginHorizontal();
             GUI.enabled=enabled && _output.Count>0;
@@ -168,9 +168,9 @@ namespace BuildShapes
             {CloseRepeatMenu();if(_markers.Count>0)_markers.RemoveAt(_markers.Count-1);Preview();}
             if(GUILayout.Button("Cancel",_menuButton,GUILayout.Height(34)))Stop();
             GUILayout.EndHorizontal();
-            GUILayout.Label("Esc: close options · L: reopen · F4: exit",_menuText);
+            GUILayout.Label("Esc: close options · L: reopen · F4: exit",_menuHint);
             GUILayout.EndArea();
-            GUI.DragWindow(new Rect(0,0,_repeatRect.width,26));
+            GUI.DragWindow(new Rect(0,0,_repeatRect.width-60,50));
         }
     }
 

@@ -45,10 +45,10 @@ namespace BuildShapes
             bool changed=false;
             _anchorScroll=GUILayout.BeginScrollView(_anchorScroll,GUILayout.Height(105));
             for(int i=0;i<_repeatAnchors.Count;i++)
-                if(GUILayout.Button((i==_repeatAnchor?"● ":"")+_repeatAnchors[i].Key,_menuButton))
+                if(GUILayout.Button((i==_repeatAnchor?"● ":"")+_repeatAnchors[i].Key,i==_repeatAnchor?_menuSelected:_menuButton))
                 {changed=i!=_repeatAnchor;_repeatAnchor=i;}
             GUILayout.EndScrollView();
-            GUILayout.Label("The chosen point sits on the path. Gold crosses mark it.",_menuText);
+            GUILayout.Label("The chosen point sits on the path. Gold crosses mark it.",_menuHint);
             return changed;
         }
     }

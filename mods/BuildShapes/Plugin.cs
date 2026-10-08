@@ -15,7 +15,7 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.2.3";
+        public const string Version = "0.2.4";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
@@ -392,8 +392,17 @@ namespace BuildShapes
             string detail = _tool == Tool.Mirror ? $"{_sources.Count} selected; Ctrl+click toggles pieces/ghosts; Ctrl+Backspace removes last selection." :
                 _tool == Tool.Repeat ? $"Spacing {SafeSpacing():0.##} m ([ / ]); yaw {_yaw:0}° (PgUp/PgDn); {(_follow.Value ? "follow curve" : "fixed orientation")} (Home); Ctrl+click copies a piece." : "Native-length beams; joints overlap.";
             string status = _previewError ?? (_output.Count > 0 ? $"{_output.Count} ghosts ready." : $"{_markers.Count}/{(_tool == Tool.Mirror ? 2 : 3)} markers.");
-            GUI.Label(new Rect(20, Screen.height - 185, 1250, 100),
-                $"BuildShapes {_tool}: {_modifier.Value}+click: marker | {_plan.Value}: plan | {_undo.Value}: undo | {_back.Value}: remove marker | {_toggle.Value}/Escape: exit\n{detail}\n{status}");
+            string text = $"BuildShapes {_tool}: {_modifier.Value}+click: marker | {_plan.Value}: plan | {_undo.Value}: undo | {_back.Value}: remove marker | {_toggle.Value}/Escape: exit\n{detail}\n{status}";
+            Matrix4x4 saved = GUI.matrix;
+            try
+            {
+                Theme();
+                float scale = Mathf.Max(0.6f, Screen.height / 1080f);
+                GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1));
+                float width = Mathf.Min(980, Screen.width / scale - 40), height = _hud.CalcHeight(new GUIContent(text), width);
+                GUI.Box(new Rect(20, Screen.height / scale - 85 - height, width, height), text, _hud);
+            }
+            finally { GUI.matrix = saved; }
         }
         private void ClearVisuals() { foreach (GameObject go in _visuals) if (go != null) Destroy(go); _visuals.Clear(); }
         private void ClearShape() { CloseRepeatMenu(); _markers.Clear(); _sources.Clear(); _output.Clear(); _previewError = null; ClearVisuals(); }
@@ -403,6 +412,7 @@ namespace BuildShapes
         {
             Stop(); _harmony?.UnpatchSelf(); if (_material != null) Destroy(_material);
             if(_anchorMaterial!=null)Destroy(_anchorMaterial);
+            DestroyTheme();
             if (Instance == this) Instance = null;
         }
     }
