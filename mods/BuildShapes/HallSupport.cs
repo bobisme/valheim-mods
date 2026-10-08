@@ -295,7 +295,7 @@ namespace BuildShapes
 
             foreach (Node n in nodes)
                 _hallSupport[n.Order.Id] = new Stab { Support = n.Support, Max = n.Max, Min = n.Min, From = n.Grounded ? new List<string>() : n.From.Select(f => f.Order.Id).ToList() };
-            
+
         }
 
     }
