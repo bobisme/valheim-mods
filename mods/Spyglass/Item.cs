@@ -226,6 +226,9 @@ namespace Spyglass
                 copy.transform.localPosition=Vector3.zero;
                 copy.transform.localRotation=Quaternion.Euler(0,0,38); // lies diagonally, lens up and right
                 copy.SetActive(true);
+                // Alone on a layer the game leaves unnamed, so the camera cannot pick up its water, sky or terrain.
+                int layer=StageLayer();
+                foreach(Transform t in copy.GetComponentsInChildren<Transform>(true))t.gameObject.layer=layer;
                 Renderer[] renderers=copy.GetComponentsInChildren<Renderer>();
                 if(renderers.Length==0)return null;
                 Bounds bounds=renderers[0].bounds;
@@ -234,7 +237,7 @@ namespace Spyglass
                 var cameraObject=new GameObject("SpyglassIconCamera");
                 cameraObject.transform.SetParent(stage.transform,false);
                 Camera camera=cameraObject.AddComponent<Camera>();
-                camera.enabled=false;camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(0,0,0,0);
+                camera.enabled=false;camera.cullingMask=1<<layer;camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(0,0,0,0);
                 camera.fieldOfView=20;camera.nearClipPlane=0.05f;camera.farClipPlane=20;camera.allowHDR=false;camera.allowMSAA=false;
                 float radius=bounds.extents.magnitude;
                 camera.transform.position=bounds.center+new Vector3(0.12f,0.18f,-1f).normalized*(radius/Mathf.Sin(10*Mathf.Deg2Rad))*1.02f;
@@ -243,7 +246,7 @@ namespace Spyglass
                 lightObject.transform.SetParent(stage.transform,false);
                 lightObject.transform.rotation=Quaternion.Euler(40,30,0);
                 Light light=lightObject.AddComponent<Light>();
-                light.type=LightType.Directional;light.intensity=1.3f;light.shadows=LightShadows.None;
+                light.type=LightType.Directional;light.intensity=1.3f;light.shadows=LightShadows.None;light.cullingMask=1<<layer;
 
                 RenderTexture target=RenderTexture.GetTemporary(Size*2,Size*2,24,RenderTextureFormat.ARGB32);
                 RenderTexture previous=RenderTexture.active;
@@ -260,9 +263,19 @@ namespace Spyglass
             }
             finally{Object.DestroyImmediate(stage);} // the stage light must not reach the next rendered frame
         }
+        private static int StageLayer()
+        {
+            for(int layer=31;layer>8;layer--)if(string.IsNullOrEmpty(LayerMask.LayerToName(layer)))return layer;
+            return 31;
+        }
+        // The model is centred with a margin, so a real drawing leaves every corner see-through.
         private static bool Drawn(Texture2D texture)
         {
             Color32[] pixels=texture.GetPixels32();
+            int w=texture.width,h=texture.height,edge=Math.Max(2,w/16);
+            foreach(var (cx,cy) in new[]{(0,0),(w-edge,0),(0,h-edge),(w-edge,h-edge)})
+                for(int y=cy;y<cy+edge;y++)for(int x=cx;x<cx+edge;x++)
+                    if(pixels[y*w+x].a>8)return false;
             int covered=0;long brightness=0;
             for(int i=0;i<pixels.Length;i+=7)if(pixels[i].a>40){covered++;brightness+=pixels[i].r+pixels[i].g+pixels[i].b;}
             return covered>pixels.Length/7*0.04f&&brightness/Math.Max(1,covered)>60;
