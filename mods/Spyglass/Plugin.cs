@@ -12,7 +12,7 @@ namespace Spyglass
     {
         public const string Guid="com.bobisme.spyglass";
         public const string Name="Spyglass";
-        public const string Version="0.1.1";
+        public const string Version="0.1.2";
         internal static Plugin Instance;
         internal ConfigEntry<KeyboardShortcut> Toggle;
         internal ConfigEntry<float> StartMagnification,MaxMagnification,RevealRadius,RevealRange;

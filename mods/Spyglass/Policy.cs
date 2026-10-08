@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Spyglass
 {
@@ -62,6 +63,9 @@ namespace Spyglass
                 previous=t;
             }
         }
+
+        // ScriptEngine loads each copy of a mod as "<name>-<ticks>"; old copies stay loaded after a hot reload.
+        internal static string ModName(string assembly)=>Regex.Replace(assembly??"",@"-\d+$","");
 
         // A shorter shortcut on the same key (Z, while ours is Shift+Z) would also fire. It loses only while all our keys are held.
         internal static bool Shadows(int ourMain,IEnumerable<int> ourModifiers,int theirMain,IEnumerable<int> theirModifiers,Func<int,bool> held)

@@ -60,8 +60,11 @@ namespace Spyglass
         {
             _harmony=harmony;_log=log;
             AppDomain.CurrentDomain.AssemblyLoad+=Loaded;
-            lock(Pending)foreach(Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())Pending.Enqueue(assembly);
+            // Each hot reload leaves the old copy loaded under a new name (GearSlots-<ticks>); only the last-loaded copy still runs.
+            Assembly[] loaded=AppDomain.CurrentDomain.GetAssemblies();
+            lock(Pending)foreach(Assembly assembly in loaded.Where((a,i)=>!loaded.Skip(i+1).Any(b=>ModName(b)==ModName(a))))Pending.Enqueue(assembly);
         }
+        private static string ModName(Assembly assembly)=>Policy.ModName(assembly.GetName().Name);
         internal static void Stop(){AppDomain.CurrentDomain.AssemblyLoad-=Loaded;lock(Pending)Pending.Clear();Patched.Clear();_harmony=null;}
         private static void Loaded(object sender,AssemblyLoadEventArgs e){lock(Pending)Pending.Enqueue(e.LoadedAssembly);}
         internal static void Tick()

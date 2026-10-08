@@ -20,6 +20,7 @@ namespace Spyglass
         private static readonly MethodInfo UpdateRegisters=AccessTools.Method(typeof(ObjectDB),"UpdateRegisters");
         private static readonly MethodInfo CloneShared=typeof(object).GetMethod("MemberwiseClone",BindingFlags.Instance|BindingFlags.NonPublic);
 
+        private static bool Particles(Renderer r)=>r.GetType().Name=="ParticleSystemRenderer";
         internal static bool Is(ItemDrop.ItemData item)=>item!=null&&item.m_shared!=null&&item.m_shared.m_name==DisplayName;
 
         // Items are also in ZNetScene, and ObjectDB may wake before or after it, so either can supply the source prefab.
@@ -35,7 +36,8 @@ namespace Spyglass
             GameObject source=Source("Bronze",db);
             ItemDrop sourceDrop=source!=null?source.GetComponent<ItemDrop>():null;
             if(sourceDrop==null)return null;
-            Material basis=source.GetComponentsInChildren<Renderer>(true).Select(r=>r.sharedMaterial).FirstOrDefault(m=>m!=null);
+            // The bar's mesh material; the item also has a shine ParticleSystemRenderer, whose particle material renders flat white.
+            Material basis=source.GetComponentsInChildren<Renderer>(true).Where(r=>!Particles(r)).Select(r=>r.sharedMaterial).FirstOrDefault(m=>m!=null);
             if(basis==null)return null;
 
             _holder=new GameObject(PrefabName+"Prefabs");
@@ -47,7 +49,7 @@ namespace Spyglass
             foreach(Collider c in go.GetComponentsInChildren<Collider>(true))Object.DestroyImmediate(c);
             foreach(Renderer r in go.GetComponentsInChildren<Renderer>(true))
             {
-                if(r==null)continue; // already gone with a destroyed parent
+                if(r==null||Particles(r))continue; // already gone with a destroyed parent, or the native item shine
                 if(r.gameObject!=go){Object.DestroyImmediate(r.gameObject);continue;}
                 MeshFilter filter=go.GetComponent<MeshFilter>();
                 Object.DestroyImmediate(r);if(filter!=null)Object.DestroyImmediate(filter);
@@ -143,7 +145,8 @@ namespace Spyglass
                 if(had&&db==ObjectDB.instance)UpdateRegisters.Invoke(db,null);
             }
             if(_recipe!=null)Object.Destroy(_recipe);_recipe=null;
-            foreach(Object owned in Owned)if(owned!=null)Object.Destroy(owned);Owned.Clear();
+            // Materials, mesh and icon stay alive: spyglasses already in the world and in chests still draw with them until reloaded.
+            Owned.Clear();
             Object.Destroy(_holder);_holder=null;_prefab=null;_icon=null;
         }
     }
@@ -167,8 +170,9 @@ namespace Spyglass
         {
             var looks=new Dictionary<string,Material>
             {
-                {"Bronze",Tint(basis,new Color(0.95f,0.72f,0.45f),true)},{"Bright",Tint(basis,new Color(1f,0.84f,0.58f),true)},
-                {"Dark",Tint(basis,new Color(0.55f,0.38f,0.24f),true)},{"Leather",Tint(basis,new Color(0.33f,0.2f,0.11f),false)},
+                // The bar's own bronze texture, lightly shaded; colour multiplies it.
+                {"Bronze",Tint(basis,Color.white,true)},{"Bright",Tint(basis,new Color(1f,0.96f,0.88f),true)},
+                {"Dark",Tint(basis,new Color(0.58f,0.48f,0.4f),true)},{"Leather",Tint(basis,new Color(0.33f,0.2f,0.11f),false)},
                 {"Glass",Tint(basis,new Color(0.16f,0.26f,0.34f),false)},
             };
             owned.AddRange(looks.Values);

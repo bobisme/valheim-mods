@@ -64,4 +64,6 @@ Check(!Policy.Shadows(Z,new[]{LeftShift},Z,new[]{LeftControl},k=>k==LeftShift||k
 Check(!Policy.Shadows(Z,new[]{LeftShift},122+1,new int[0],shift),"Other keys are never hidden");
 Check(!Policy.Shadows(0,new int[0],0,new int[0],none),"An unbound spyglass key hides nothing");
 Check(!Policy.Shadows(Z,new int[0],Z,new int[0],none),"A plain-Z spyglass key does not hide plain Z");
+Check(Policy.ModName("GearSlots-639270216874136510")=="GearSlots"&&Policy.ModName("QualityOfLife-1")=="QualityOfLife","Reloaded copies share their mod's name");
+Check(Policy.ModName("GearSlots")=="GearSlots"&&Policy.ModName("Mono.Cecil")=="Mono.Cecil"&&Policy.ModName("Some-Mod")=="Some-Mod"&&Policy.ModName(null)=="","Ordinary names are unchanged");
 Console.WriteLine($"Passed {checks} spyglass zoom, gaze and shortcut checks.");

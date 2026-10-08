@@ -1,3 +1,5 @@
+0.1.2: Fixed the dropped spyglass drawing as flat white shapes: its parts used the bronze bar's shine-particle material instead of the bar's bronze texture. The native item shine is kept. Hot reloads no longer break spyglasses already in the world, and the GearSlots/QualityOfLife key guard patches only each mod's current copy (ScriptEngine renames every reloaded copy), instead of every leftover one.
+
 0.1.1: Fixed the inventory icon showing the game's sea and sky. The icon camera and light now see only the spyglass, on a layer the game does not use, and a picture with filled corners falls back to a painted spyglass icon.
 
 0.1.0: First Spyglass. Craft it at the forge from 3 bronze. With it in your inventory, Shift+Z raises it to your eye: the view narrows to 4× optical magnification (wheel: 2–8×), turning slows to match, and a round eyepiece darkens the screen edges. Every quarter second the point you gaze at, up to 600 metres away, uncovers a 30-metre circle of your map. Escape or Shift+Z lowers it. A plain Z from GearSlots and similar mods does not fire while Shift+Z is pressed.
