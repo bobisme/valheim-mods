@@ -414,33 +414,19 @@ PolygonLeveler playtest checks:
 
 ## Farmhand
 
-Farmhand lays out a crop field from the boundary you draw, keeping normal crop growth and resource costs.
-Equip a **cultivator**, select a crop in its build menu, then **Shift+click** each corner **in boundary order**.
-The outline closes automatically after three corners, and you can keep adding corners. Concave **L/U-shaped outlines** retain their
-notches; corners are never rearranged into a convex hull. Self-crossings, overlapping edges and degenerate plots show an error.
+Farmhand makes tending a farm faster while keeping normal crop growth and resource costs.
 
-Rows follow the **first edge**. Minimum spacing defaults to **1.8 metres** and increases for the crop's growth radius. Crop centers stay
-half a spacing inside the boundary, including its concave edges. Changing the selected crop or spacing updates the layout. Green dots
-are within ordinary placement reach; amber dots need you to walk closer. The actual planting additionally checks cultivation, biome,
-sunlight, obstacles, wards and growth space; rejected spots turn red.
+Equip a **cultivator**, open its build menu, and select a crop:
 
 | Controls | Action |
 | --- | --- |
-| **Left Shift + left-click** | Add a plot corner on the aimed ground |
-| **Left Shift + J** with a marked plot | Start/resume planting the selected crop throughout the plot |
-| **Backspace** | Remove the last corner |
-| **Delete** | Clear the marked plot |
-| **Escape**, open a menu, or put away the cultivator | Pause the batch; the marked plot and completed spots stay |
-| **Left Shift + J** without a marked plot | Plant the original short row around the placement ghost |
+| Hold **Left Shift** | Show row positions around the normal placement ghost |
+| **Left Shift + J** | Plant a spaced row of the selected crop |
 | **Left Shift + U** | Harvest nearby mature crops, then replant the same crop types |
 | **Left Shift + Left Ctrl + U** | Harvest nearby crops without replanting |
+| **Escape** or put away the cultivator | Cancel the current batch |
 
-For a larger plot, **walk through the field while it plants nearby spots**. It waits for stamina to recover. Running out of seeds or
-breaking the cultivator pauses the job; bring supplies/repair it, then press Shift+J again. Successful spots are remembered, and a
-manual restart also retries blocked spots. Editing the boundary, changing crops/spacing, changing characters/worlds or reloading
-clears the local layout progress; crops already planted remain normal saved plants. Plots support at most **32 corners**, **512 crop
-spots**, and **400 m²** by default (area and marker reach are configurable). The outline may be concave but cannot contain crossing edges
-or separate holes; trace an indentation to leave space around an obstacle.
+Aim a little in front of your feet so the row fits within normal placement reach. Green preview dots mean the ground is within reach; actual planting additionally checks cultivation, biome, sunlight, obstacles, wards, and crop growth space. Blocked spots are skipped. Minimum spacing is 1.8 metres by default and increases for crops with larger growth radii.
 
 Planting spends seeds/materials, stamina, and cultivator durability for each successful crop, respecting the world's normal free-build rules. Bring seeds before replanting; harvesting leaves normal drops on the ground and does not move them into your inventory. With BuildFromChests installed, its existing building integration can supply seeds from nearby accessible chests.
 
@@ -478,19 +464,17 @@ Press F6 in game afterward, or restart Valheim. BepInEx and ScriptEngine must al
 
 ## Validation
 
-`mise run test` exercises centered crop-row geometry, ordered concave plot containment, border clearance, rotated grid layout, crossing rejection and layout work limits, minimum growth spacing, harvest acknowledgement/timeouts, convex hulls, polygon grid containment, degenerate markers, least-squares plane fitting (slopes, noisy ground, tile-seam weighting, world coordinates, and degenerate samples), native terrain-height limits including hidden saturation and legacy-modifier offsets, and selected-vertex undo snapshots/conflict detection. Builds verify public API usage against the installed game. `mise run verify` checks the private fields/methods and Harmony targets against the installed assembly, and checks all published symbols with the installed ScriptEngine's Cecil. Live multiplayer RPCs and terrain persistence still require the playtests above.
+`mise run test` exercises centered crop-row geometry, minimum growth spacing, harvest acknowledgement/timeouts, convex hulls, polygon grid containment, degenerate markers, least-squares plane fitting (slopes, noisy ground, tile-seam weighting, world coordinates, and degenerate samples), native terrain-height limits including hidden saturation and legacy-modifier offsets, and selected-vertex undo snapshots/conflict detection. Builds verify public API usage against the installed game. `mise run verify` checks the private fields/methods and Harmony targets against the installed assembly, and checks all published symbols with the installed ScriptEngine's Cecil. Live multiplayer RPCs and terrain persistence still require the playtests above.
 
 Manual checks for a first playtest:
 
-1. Mark rectangles, L/U-shaped fields and a plot around a path. Check rows follow the first edge, leave borders and keep concave notches empty. Try a crossed outline and remove its bad corner with Backspace.
-4. Press Shift+J and walk through a larger plot. Check it plants within normal reach, waits for stamina, and leaves completed dots hidden. Escape/menu pauses; resuming must not duplicate successful spots. Run out of seeds, repair a broken tool, and retry blocked spots.
-3. Plant a row on cultivated soil with no marked plot. Check each crop consumes the usual seeds, stamina, and durability; aim near the edge of reach and confirm distant spots are skipped.
-4. Try uncultivated soil, a wrong biome, a roof, an occupied spot, and a protected ward. No invalid crop should be planted or paid for.
-5. Run out of seeds or stamina midway through a row. The batch should stop without creating free crops.
-6. Harvest and replant mature crops. With no seeds, harvesting should still work and leave empty spots. Left Ctrl should harvest only.
-7. With a friend hosting, harvest crops whose network owner is the friend. Confirm no duplicate drops and no replant before the harvest response.
-8. Change tool, open a menu, die, move away, or press F6 during a batch. Check it stops and restores normal manual planting. Repeated F6 reloads should not duplicate actions.
-9. Check seed use from nearby chests with BuildFromChests, and rejection of BuildOrders plan mode or redirected ghosts.
+1. Plant a row on cultivated soil. Check each crop consumes the usual seeds, stamina, and durability; aim near the edge of reach and confirm distant spots are skipped.
+2. Try uncultivated soil, a wrong biome, a roof, an occupied spot, and a protected ward. No invalid crop should be planted or paid for.
+3. Run out of seeds or stamina midway through a row. The batch should stop without creating free crops.
+4. Harvest and replant mature crops. With no seeds, harvesting should still work and leave empty spots. Left Ctrl should harvest only.
+5. With a friend hosting, harvest crops whose network owner is the friend. Confirm no duplicate drops and no replant before the harvest response.
+6. Change tool, open a menu, die, move away, or press F6 during a batch. Check it stops and restores normal manual planting. Repeated F6 reloads should not duplicate actions.
+7. Check seed use from nearby chests with BuildFromChests, and rejection of BuildOrders plan mode or redirected ghosts.
 
 The first version is built and checked against local assemblies; gameplay, multiplayer latency, and F6 reload behavior still need a playtest. No game assemblies are redistributed in this repository.
 
