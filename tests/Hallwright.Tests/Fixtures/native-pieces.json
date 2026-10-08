@@ -1,0 +1,366 @@
+{
+  "wood_floor": {
+    "p": "wood_floor",
+    "snaps": {
+      "corner 1": [
+        1.0,
+        0.0,
+        -1.0
+      ],
+      "corner 2": [
+        -1.0,
+        0.0,
+        -1.0
+      ],
+      "corner 3": [
+        1.0,
+        0.0,
+        1.0
+      ],
+      "corner 4": [
+        -1.0,
+        0.0,
+        1.0
+      ]
+    },
+    "material": "Wood"
+  },
+  "woodwall": {
+    "p": "woodwall",
+    "snaps": {
+      "top 1": [
+        1.0,
+        1.0,
+        0.0
+      ],
+      "top 2": [
+        -1.0,
+        1.0,
+        0.0
+      ],
+      "bottom 1": [
+        1.0,
+        -1.0,
+        0.0
+      ],
+      "bottom 2": [
+        -1.0,
+        -1.0,
+        0.0
+      ]
+    },
+    "material": "Wood"
+  },
+  "wood_wall_half": {
+    "p": "wood_wall_half",
+    "snaps": {
+      "top 1": [
+        1.0,
+        0.5,
+        0.0
+      ],
+      "top 2": [
+        -1.0,
+        0.5,
+        0.0
+      ],
+      "bottom 1": [
+        1.0,
+        -0.5,
+        0.0
+      ],
+      "bottom 2": [
+        -1.0,
+        -0.5,
+        0.0
+      ]
+    },
+    "material": "Wood"
+  },
+  "wood_door": {
+    "p": "wood_door",
+    "snaps": {
+      "top 1": [
+        1.0,
+        1.0,
+        0.0
+      ],
+      "top 2": [
+        -1.0,
+        1.0,
+        0.0
+      ],
+      "bottom center 1": [
+        1.0,
+        -1.0,
+        0.0
+      ],
+      "bottom center 2": [
+        -1.0,
+        -1.0,
+        0.0
+      ],
+      "bottom corner 1": [
+        1.0,
+        -1.0,
+        0.264
+      ],
+      "bottom corner 3": [
+        -1.0,
+        -1.0,
+        0.264
+      ],
+      "bottom corner 2": [
+        1.0,
+        -1.0,
+        -0.264
+      ],
+      "bottom corner 4": [
+        -1.0,
+        -1.0,
+        -0.264
+      ]
+    },
+    "material": "Wood"
+  },
+  "wood_pole2": {
+    "p": "wood_pole2",
+    "snaps": {
+      "top": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "bottom": [
+        0.0,
+        -1.0,
+        0.0
+      ]
+    },
+    "material": "Wood"
+  },
+  "wood_beam": {
+    "p": "wood_beam",
+    "snaps": {
+      "edge 1": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "edge 2": [
+        1.0,
+        0.0,
+        0.0
+      ]
+    },
+    "material": "Wood"
+  },
+  "wood_beam_1": {
+    "p": "wood_beam_1",
+    "snaps": {
+      "edge 1": [
+        0.5,
+        0.0,
+        0.0
+      ],
+      "edge 2": [
+        -0.5,
+        0.0,
+        0.0
+      ]
+    },
+    "material": "Wood"
+  },
+  "wood_roof": {
+    "p": "wood_roof",
+    "snaps": {
+      "top 1": [
+        1.0,
+        1.0,
+        -1.0
+      ],
+      "bottom 1": [
+        1.0,
+        0.0,
+        1.0
+      ],
+      "top 2": [
+        -1.0,
+        1.0,
+        -1.0
+      ],
+      "bottom 2": [
+        -1.0,
+        0.0,
+        1.0
+      ]
+    },
+    "material": "Wood"
+  },
+  "wood_roof_top": {
+    "p": "wood_roof_top",
+    "snaps": {
+      "bottom 1": [
+        1.0,
+        0.0,
+        -1.0
+      ],
+      "bottom 2": [
+        1.0,
+        0.0,
+        1.0
+      ],
+      "bottom 3": [
+        -1.0,
+        0.0,
+        -1.0
+      ],
+      "bottom 4": [
+        -1.0,
+        0.0,
+        1.0
+      ],
+      "edge 1": [
+        1.0,
+        0.5,
+        0.0
+      ],
+      "edge 2": [
+        -1.0,
+        0.5,
+        0.0
+      ]
+    },
+    "material": "Wood"
+  },
+  "wood_wall_roof_a": {
+    "p": "wood_wall_roof_a",
+    "snaps": {
+      "top": [
+        1.0,
+        1.0,
+        0.0
+      ],
+      "bottom": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "inner bottom": [
+        1.0,
+        0.0,
+        0.0
+      ]
+    },
+    "material": "Wood"
+  },
+  "wood_roof_45": {
+    "p": "wood_roof_45",
+    "snaps": {
+      "top 1": [
+        1.0,
+        1.0,
+        -1.0
+      ],
+      "bottom 1": [
+        1.0,
+        -1.0,
+        1.0
+      ],
+      "top 2": [
+        -1.0,
+        1.0,
+        -1.0
+      ],
+      "bottom 2": [
+        -1.0,
+        -1.0,
+        1.0
+      ]
+    },
+    "material": "Wood"
+  },
+  "wood_roof_top_45": {
+    "p": "wood_roof_top_45",
+    "snaps": {
+      "bottom 2": [
+        1.0,
+        0.0,
+        -1.0
+      ],
+      "bottom 1": [
+        1.0,
+        0.0,
+        1.0
+      ],
+      "bottom 4": [
+        -1.0,
+        0.0,
+        -1.0
+      ],
+      "bottom 3": [
+        -1.0,
+        0.0,
+        1.0
+      ],
+      "edge 1": [
+        1.0,
+        1.0,
+        0.0
+      ],
+      "edge 2": [
+        -1.0,
+        1.0,
+        0.0
+      ]
+    },
+    "material": "Wood"
+  },
+  "wood_wall_roof_45": {
+    "p": "wood_wall_roof_45",
+    "snaps": {
+      "inner bottom": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "bottom": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "top": [
+        1.0,
+        2.0,
+        0.0
+      ]
+    },
+    "material": "Wood"
+  },
+  "wood_wall_quarter": {
+    "p": "wood_wall_quarter",
+    "snaps": {
+      "top 1": [
+        0.5,
+        1.0,
+        0.0
+      ],
+      "top 2": [
+        -0.5,
+        1.0,
+        0.0
+      ],
+      "bottom 1": [
+        0.5,
+        0.0,
+        0.0
+      ],
+      "bottom 2": [
+        -0.5,
+        0.0,
+        0.0
+      ]
+    },
+    "material": "Wood"
+  }
+}

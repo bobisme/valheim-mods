@@ -11,12 +11,12 @@ namespace BuildShapes
 
         private void OpenModeMenu()
         {
-            CloseRepeatMenu(); CloseArchMenu();
+            CloseRepeatMenu(); CloseArchMenu(); CloseHallMenu();
             _modeMenu = true; _menuOpenedFrame = Time.frameCount;
             Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
         }
         private void CloseModeMenu() { _modeMenu = false; _editingNumber = false; }
-        private void DrawModeMenu() => DrawOptionsWindow(ref _modeRect, ref _modeRectPlaced, 560, 194740, ModeContents, true);
+        private void DrawModeMenu() => DrawOptionsWindow(ref _modeRect, ref _modeRectPlaced, 670, 194740, ModeContents, true);
 
         private void ChooseMode(Tool requested)
         {
@@ -24,11 +24,12 @@ namespace BuildShapes
             Piece piece = player.GetSelectedPiece();
             string selected = piece != null ? Utils.GetPrefabName(piece.gameObject) : "";
             // Choosing the current mode resumes its path; switching discards only the local preview.
-            if (requested == _tool && selected == _selected)
+            if (requested == _tool && (requested == Tool.Hall || selected == _selected))
             {
                 CloseModeMenu();
                 if (_tool == Tool.Arch && _markers.Count == 2) OpenArchMenu();
                 else if (_tool == Tool.Repeat && _markers.Count == 3) OpenRepeatMenu();
+                else if (_tool == Tool.Hall && _markers.Count >= 3) OpenHallMenu();
             }
             else Begin(player, requested);
         }
@@ -52,12 +53,13 @@ namespace BuildShapes
             void Mode(Tool tool, string detail, bool available)
             {
                 GUI.enabled = enabled && available && piece != null;
-                string label = tool.ToString() + (_tool == tool ? "  ·  active" : "");
+                string label = (tool==Tool.Hall?"Hallwright":tool.ToString()) + (_tool == tool ? "  ·  active" : "");
                 if (GUILayout.Button(label, _tool == tool ? _menuSelected : _menuButton, GUILayout.Height(36))) chosen = tool;
                 GUI.enabled = enabled;
                 GUILayout.Label(detail, _menuHint);
                 GUILayout.Space(10);
             }
+            Mode(Tool.Hall, "Draw a floor plan; solve a complete timber shell with live materials, roof, and intricacy options.", true);
             Mode(Tool.Curve, "Three points: start, bend, and end. Uses beams or poles.", beam);
             Mode(Tool.Arch, "Two endpoints, then adjust the center height. Uses beams or poles.", beam);
             Mode(Tool.Mirror, "Reflect a group of pieces across a marked line.", extended);

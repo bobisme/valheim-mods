@@ -15,12 +15,12 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.3.1";
+        public const string Version = "0.4.0";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
         private static readonly MethodInfo TakeInput = AccessTools.Method(typeof(Player), "TakeInput");
-        private enum Tool { None, Curve, Mirror, Repeat, Arch }
+        private enum Tool { None, Curve, Mirror, Repeat, Arch, Hall }
         private Tool _tool;
         private ConfigEntry<bool> _enabled, _follow;
         private ConfigEntry<float> _spacing;
@@ -56,7 +56,7 @@ namespace BuildShapes
         }
         private bool ShapeActive => _tool != Tool.None || _modeMenu;
         internal bool ReservesHammer => ShapeActive && _enabled.Value && HoldingHammer(Player.m_localPlayer);
-        internal static bool OptionsMenuOpen => Instance != null && (Instance._modeMenu || Instance._repeatMenu || Instance._archMenu) && Instance.ReservesHammer;
+        internal static bool OptionsMenuOpen => Instance != null && (Instance._modeMenu || Instance._repeatMenu || Instance._archMenu || Instance._hallMenu) && Instance.ReservesHammer;
         private int RequiredMarkers => _tool == Tool.Mirror || _tool == Tool.Arch ? 2 : 3;
         internal static bool ProbingInput => Instance?._probingInput == true;
         internal static bool ReservesEscape => _escapeFrame == Time.frameCount || _escapeFrame == Time.frameCount - 1 ||
@@ -66,9 +66,9 @@ namespace BuildShapes
         private void Awake()
         {
             Instance = this;
-            _enabled = Config.Bind("General", "Enabled", true, "Enable Curve, Arch, Mirror, and Repeat tools.");
+            _enabled = Config.Bind("General", "Enabled", true, "Enable Curve, Arch, Mirror, Repeat, and Hallwright tools.");
             // Keep the original config key so existing custom F4 bindings survive the update.
-            _toggle = Config.Bind("Controls", "ToggleCurve", KeyCode.F4, "Open/close the shape-mode picker: Curve, Arch, Mirror, or Repeat.");
+            _toggle = Config.Bind("Controls", "ToggleCurve", KeyCode.F4, "Open/close the shape-mode picker: Curve, Arch, Mirror, Repeat, or Hallwright.");
             _modifier = Config.Bind("Controls", "MarkerModifier", KeyCode.LeftShift, "Hold with PlaceMarker to mark curve points, arch endpoints, or a mirror line.");
             _mark = Config.Bind("Controls", "PlaceMarker", KeyCode.Mouse0, "Mark points; Left Ctrl with this key selects pieces in Mirror/Repeat.");
             _plan = Config.Bind("Controls", "PlanCurve", KeyCode.L, "Submit the current shape as shared BuildOrders ghosts.");
@@ -77,7 +77,7 @@ namespace BuildShapes
             _spacing = Config.Bind("Repeat", "Spacing", 2f, new ConfigDescription("Maximum repeat spacing in metres; adjusted evenly to meet both ends. [ and ] adjust by 0.25 m.", new AcceptableValueRange<float>(0.25f, 16f)));
             _follow = Config.Bind("Repeat", "FollowCurve", true, "Turn pieces around world up to follow the curve, keeping their original tilt. Home toggles this.");
             _harmony = new Harmony(Guid); _harmony.PatchAll(typeof(Plugin).Assembly);
-            Logger.LogInfo($"{Name} {Version} loaded; hammer + {_toggle.Value}: choose Curve, Arch, Mirror, or Repeat from the mode picker.");
+            Logger.LogInfo($"{Name} {Version} loaded; hammer + {_toggle.Value}: choose Hallwright, Curve, Arch, Mirror, or Repeat from the mode picker.");
         }
 
         private static bool HoldingHammer(Player player) => player != null &&
@@ -95,7 +95,8 @@ namespace BuildShapes
             Player player = Player.m_localPlayer;
             long world = ZNet.World?.m_uid ?? 0;
             if (_player != player || _session != ZNet.instance || _world != world)
-            { Stop(); _lastPlan = null; _bounds.Clear(); _player = player; _session = ZNet.instance; _world = world; }
+            { Stop(); DestroyHall(); _lastPlan = null; _bounds.Clear(); _player = player; _session = ZNet.instance; _world = world; }
+            UpdateHallCommands();
             if (!_enabled.Value || !HoldingHammer(player) || player.IsDead())
             { if (ShapeActive) Stop(); if (player != null && player.IsDead()) _lastPlan = null; return; }
             if (!_planner.Ready()) { if (ShapeActive) Stop(); return; }
@@ -103,7 +104,8 @@ namespace BuildShapes
             { Stop(); Say("Mirror/Repeat canceled: update BuildOrders with the ghost-selection API."); return; }
             if (!_planner.Available(player))
             { if (ShapeActive) { Stop(); Say("Finish or cancel the planner's blueprint/bridge first."); } return; }
-            if (!Ready(player)) { CloseModeMenu(); CloseRepeatMenu(); CloseArchMenu(); return; }
+            if (!Ready(player)) { CloseModeMenu(); CloseRepeatMenu(); CloseArchMenu(); CloseHallMenu(); return; }
+            if (_tool == Tool.Hall) UpdateHall();
             if (Input.GetKeyDown(_toggle.Value))
             {
                 if (_modeMenu) CloseModeMenu(); else OpenModeMenu();
@@ -116,19 +118,20 @@ namespace BuildShapes
             }
             if (_tool == Tool.None) return;
             if (Input.GetKeyDown(KeyCode.Escape))
-            { _escapeFrame = Time.frameCount; if (_repeatMenu) CloseRepeatMenu(); else if (_archMenu) CloseArchMenu(); else Stop(); return; }
+            { _escapeFrame = Time.frameCount; if (_repeatMenu) CloseRepeatMenu(); else if (_archMenu) CloseArchMenu(); else if (_hallMenu) CloseHallMenu(); else Stop(); return; }
             Piece selected = player.GetSelectedPiece();
-            if (selected == null || Utils.GetPrefabName(selected.gameObject) != _selected)
+            if (_tool != Tool.Hall && (selected == null || Utils.GetPrefabName(selected.gameObject) != _selected))
             { Stop(); Say("Shape canceled: hammer selection changed."); return; }
             if (_tool==Tool.Repeat && (_previewSpacing!=SafeSpacing() || _previewFollow!=_follow.Value)) Preview();
-            if (_repeatMenu || _archMenu)
+            if (_repeatMenu || _archMenu || _hallMenu)
             {
                 if (!_editingNumber && Time.frameCount > _menuOpenedFrame+1 && Input.GetKeyDown(_plan.Value))
-                { if (_archMenu) ConfirmArch(player); else ConfirmRepeat(player); }
+                { if (_archMenu) ConfirmArch(player); else if (_hallMenu) ConfirmHall(player); else ConfirmRepeat(player); }
                 else if (!_editingNumber && Time.unscaledTime-_lastAction>0.5f && Input.GetKeyDown(_undo.Value))
                 {_lastAction=Time.unscaledTime;UndoShape(player);}
                 return; // Menu mouse/keyboard input must never select pieces or mark the world.
             }
+            if (_tool == Tool.Hall && Input.GetKeyDown(KeyCode.Delete)) { _markers.Clear(); BuildHallPreview(); return; }
             if (_tool == Tool.Repeat)
             {
                 bool changed = _previewSpacing != SafeSpacing() || _previewFollow != _follow.Value;
@@ -148,7 +151,7 @@ namespace BuildShapes
             else if ((_tool == Tool.Mirror || _tool == Tool.Repeat) && Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(_mark.Value)) SelectSource(player);
             else if (Input.GetKey(_modifier.Value) && Input.GetKeyDown(_mark.Value)) Mark(player);
             else if (Time.unscaledTime - _lastAction > 0.5f && Input.GetKeyDown(_plan.Value))
-            { _lastAction = Time.unscaledTime; if (_tool==Tool.Repeat && _markers.Count==3) OpenRepeatMenu(); else if (_tool==Tool.Arch && _markers.Count==2) OpenArchMenu(); else Submit(player); }
+            { _lastAction = Time.unscaledTime; if (_tool==Tool.Repeat && _markers.Count==3) OpenRepeatMenu(); else if (_tool==Tool.Arch && _markers.Count==2) OpenArchMenu(); else if (_tool==Tool.Hall) { BuildHallPreview(); if (_markers.Count>=3) OpenHallMenu(); } else Submit(player); }
             else if (Time.unscaledTime - _lastAction > 0.5f && Input.GetKeyDown(_undo.Value))
             {
                 _lastAction = Time.unscaledTime;
@@ -166,6 +169,7 @@ namespace BuildShapes
         private void Begin(Player player, Tool requested)
         {
             Stop();
+            if (requested == Tool.Hall) { _tool=Tool.Hall; Say("Hallwright: Shift+click square corners; the first edge sets the grid. L opens settings; Backspace edits; Delete clears."); return; }
             if ((requested == Tool.Mirror || requested == Tool.Repeat) && !_planner.Extended)
             { Say("Update BuildOrders with the ghost-selection API for Mirror/Repeat."); return; }
             Piece piece = player.GetSelectedPiece();
@@ -244,6 +248,7 @@ namespace BuildShapes
         }
         private void Mark(Player player)
         {
+            if (_tool==Tool.Hall) { MarkHall(player); return; }
             int needed = RequiredMarkers;
             if (_markers.Count == needed) { Say($"Markers set. {_plan.Value} plans; {_back.Value} changes the last point."); return; }
             if (!CameraRay(out Ray ray) || !Physics.Raycast(ray, out RaycastHit hit, 80f, BuildLayers, QueryTriggerInteraction.Ignore)) return;
@@ -270,6 +275,7 @@ namespace BuildShapes
 
         private void Preview()
         {
+            if (_tool==Tool.Hall) { BuildHallPreview(); return; }
             ClearVisuals(); _output.Clear(); _previewError = null;
             _previewSpacing = SafeSpacing(); _previewFollow = _follow.Value;
             try
@@ -411,6 +417,15 @@ namespace BuildShapes
             if (_modeMenu) { DrawModeMenu(); return; }
             if (_repeatMenu) { DrawRepeatMenu(); return; }
             if (_archMenu) { DrawArchMenu(); return; }
+            if (_hallMenu) { DrawHallMenu(); return; }
+            if (_tool==Tool.Hall)
+            {
+                Matrix4x4 savedHall=GUI.matrix;
+                try { Theme(); float hs=Mathf.Max(0.6f,Screen.height/1080f); GUI.matrix=Matrix4x4.Scale(new Vector3(hs,hs,1));
+                    string hint="Hallwright: Shift+click corners · L: settings · Backspace: last corner · Delete: clear · F4: modes · Esc: exit\n"+(_hallProblem??$"{_markers.Count} corners · {_output.Count} pieces · support estimate passed");
+                    GUI.Box(new Rect(20,Screen.height/hs-160,Mathf.Min(1000,Screen.width/hs-40),95),hint,_hud);
+                } finally { GUI.matrix=savedHall; } return;
+            }
             string detail = _tool == Tool.Mirror ? $"{_sources.Count} selected; Ctrl+click toggles pieces/ghosts; Ctrl+Backspace removes last selection." :
                 _tool == Tool.Repeat ? $"Spacing {SafeSpacing():0.##} m ([ / ]); yaw {_yaw:0}° (PgUp/PgDn); {(_follow.Value ? "follow curve" : "fixed orientation")} (Home); Ctrl+click copies a piece." : _tool == Tool.Arch ? "Two endpoints; L opens center-height options. Native-length beams; joints overlap." : "Native-length beams; joints overlap.";
             string status = _previewError ?? (_output.Count > 0 ? $"{_output.Count} ghosts ready." : $"{_markers.Count}/{RequiredMarkers} markers.");
@@ -427,14 +442,14 @@ namespace BuildShapes
             finally { GUI.matrix = saved; }
         }
         private void ClearVisuals() { foreach (GameObject go in _visuals) if (go != null) Destroy(go); _visuals.Clear(); }
-        private void ClearShape() { CloseModeMenu(); CloseRepeatMenu(); CloseArchMenu(); _archRiseSet = false; _markers.Clear(); _sources.Clear(); _output.Clear(); _previewError = null; ClearVisuals(); }
+        private void ClearShape() { CloseModeMenu(); CloseRepeatMenu(); CloseArchMenu(); ClearHall(); _archRiseSet = false; _markers.Clear(); _sources.Clear(); _output.Clear(); _previewError = null; ClearVisuals(); }
         private void Stop() { _tool = Tool.None; _yaw = _pitch = _roll = 0; _seed = default; ResetRepeatAnchors(); _bounds.Clear(); _mirrorProfiles.Clear(); ClearShape(); }
         private static void Say(string text) { Player.m_localPlayer?.Message(MessageHud.MessageType.Center, "BuildShapes: " + (text ?? "Planner unavailable.")); }
         private void OnDestroy()
         {
             Stop(); _harmony?.UnpatchSelf(); if (_material != null) Destroy(_material);
             if(_anchorMaterial!=null)Destroy(_anchorMaterial);
-            DestroyTheme();
+            DestroyHall(); UnregisterHallCommands(); DestroyTheme();
             if (Instance == this) Instance = null;
         }
     }

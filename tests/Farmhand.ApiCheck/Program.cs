@@ -34,6 +34,13 @@ Method("ZInput", "GetMouseScrollWheel", "System.Single");
 Method("Humanoid", "StartAttack", "System.Boolean", "Character", "System.Boolean");
 Method("ZNetView", "IsValid", "System.Boolean");
 Method("Piece", "GetSnapPoints", "System.Void", "System.Collections.Generic.List`1<UnityEngine.Transform>");
+// Hallwright reads actual unlocked recipes, native collider geometry and support losses.
+Method("Player", "IsRecipeKnown", "System.Boolean", "System.String");
+Method("WearNTear", "GetMaterialProperties", "System.Void", "System.Single&", "System.Single&", "System.Single&", "System.Single&");
+Method("WearNTear", "GetCOM", "UnityEngine.Vector3");
+Method("WearNTear", "GetSupport", "System.Single");
+Field("WearNTear", "m_comOffset", "UnityEngine.Vector3");
+Field("WearNTear", "m_supports", "System.Boolean");
 Method("Plant", "UpdateHealth", "System.Void", "System.Double");
 Method("Plant", "GetStatus", "Plant/Status");
 Method("Pickable", "Interact", "System.Boolean", "Humanoid", "System.Boolean", "System.Boolean");
@@ -313,6 +320,8 @@ if (args.Length >= 3 && args[2] != "-")
             throw new Exception("Planner API signature mismatch: " + name);
     }
     Api("TryCreateGhostPlan", "Player", "System.String", "System.String[]", "UnityEngine.Vector3[]", "UnityEngine.Quaternion[]", "System.String&", "System.String&");
+    if(plugin.Fields.Any(f=>f.Name=="MaximumShellPieces"))
+        Api("TryCreateBuildingShell", "Player", "System.String", "System.String[]", "UnityEngine.Vector3[]", "UnityEngine.Quaternion[]", "System.String&", "System.String&");
     Api("TryRemoveGhostPlan", "Player", "System.String", "System.Int32&", "System.String&");
     Api("IsPlanningInputAvailable", "Player");
     Api("TryGetGhostAtRay", "Player", "UnityEngine.Vector3", "UnityEngine.Vector3", "System.String&", "System.String&", "UnityEngine.Vector3&", "UnityEngine.Quaternion&", "System.Single&");

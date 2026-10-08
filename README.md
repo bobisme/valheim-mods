@@ -298,6 +298,15 @@ First-playtest checklist (automated policy checks and assembly verification do n
 
 ## BuildShapes
 
+**Hallwright** designs a complete Viking timber shell from your floor plan. Equip a hammer, press **F4 → Hallwright**, and **Shift+click** each corner in boundary order. The first edge sets a **2 m grid**; later edges follow its square directions. **L** opens the live settings. Concave L/U shapes work.
+
+Choose wall height (2–4 m), native roof pitch (26°/45°), entrance edge, foundation lift, and **Simple → Crafted → Ornate → Grand** intricacy. Floors, walls, entrance, joined roof wings, gable infill, trusses and terrain-reaching foundations update together. On raised sites, steps descend from the entrance. Ornate styles add patterned timberwork, curved darkwood braces and raven crest ornaments as they unlock. Roof visibility and materials/ghost preview buttons make the framing easy to inspect. Small odd-width gable peaks are intentional vents.
+
+**Auto materials** follows the character's actual unlocked hammer recipes. It uses available core-wood framing, stone plinths and darkwood details; reinforced ridge columns are added only when needed and unlocked. You can choose a material style instead. The preview shows normal material costs and required stations. Support is estimated from native collider contacts, actual material losses, terrain and nearby built pieces; unresolved collapses block acceptance. **Plan shell** rechecks the site and turns the result into shared BuildOrders ghosts, then exits shape mode so you can build normally. Ground and existing buildings stay intact. The game's normal placement, materials, station and stability rules still apply when building.
+
+Footprints are bounded to **24 corners / 64 tiles (256 m²)** and shells to **1,024 pieces**. Backspace edits, Delete clears, and Escape closes settings or exits. **U** removes the last plan's unbuilt ghosts (re-enter Hallwright after planning). Large shells require the whole-building BuildOrders API supplied in [upstream PR #5](https://github.com/HardHeadHackerHead/valheim-mods/pull/5); older API v1 accepts up to 256 pieces. Local previews clear on F6, character/world changes and switching modes. ClaudeTools adds `hall catalog`, `hall rectangle`, `hall outline`, `hall options`, `hall status`, `hall ui`, `hall clear`, `hall undo` and explicit `hall confirm`; cameras can use `hallpreview`.
+
+
 Curve, Arch, Mirror, and Repeat tools for **BuildOrders**, using normal pieces, materials, and support rules. The original Curve API has been
 merged upstream. Mirror/Repeat also need the new ghost-selection/input API; use the patched planner from [upstream PR #3](https://github.com/HardHeadHackerHead/valheim-mods/pull/3) until it merges. Curve still works with the original API release (BuildOrders 1.9.3 or newer).
 The add-on reconnects to the live planner after F6 or individual reloads, without referencing its assembly.

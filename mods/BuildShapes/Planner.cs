@@ -10,20 +10,22 @@ namespace BuildShapes
     {
         internal const string Guid = "com.dhack.buildorders";
         private BaseUnityPlugin _instance;
-        private MethodInfo _create, _remove, _ray, _available;
+        private MethodInfo _create, _shell, _remove, _ray, _available;
         internal bool Extended => Ready() && _ray != null && _available != null;
         internal string Status { get; private set; } = "Update BuildOrders to a version with add-on support.";
         internal bool Ready()
         {
             BaseUnityPlugin current = null;
             if (Chainloader.PluginInfos.TryGetValue(Guid, out var info)) current = info.Instance;
-            if (current == null) { _instance = null; _create = _remove = _ray = _available = null; Status = "BuildOrders is missing or reloading."; return false; }
+            if (current == null) { _instance = null; _create = _shell = _remove = _ray = _available = null; Status = "BuildOrders is missing or reloading."; return false; }
             if (current == _instance && _create != null && _remove != null) return true;
-            _instance = current; _create = _remove = _ray = _available = null;
+            _instance = current; _create = _shell = _remove = _ray = _available = null;
             Type type = current.GetType();
             if (!Equals(type.GetField("PlanningApiVersion", BindingFlags.Public | BindingFlags.Static)?.GetRawConstantValue(), 1))
             { Status = "Update BuildOrders to a version with add-on support."; return false; }
             _create = type.GetMethod("TryCreateGhostPlan", new[] { typeof(Player), typeof(string), typeof(string[]), typeof(Vector3[]), typeof(Quaternion[]), typeof(string).MakeByRefType(), typeof(string).MakeByRefType() });
+            _shell = type.GetMethod("TryCreateBuildingShell", new[] { typeof(Player), typeof(string), typeof(string[]), typeof(Vector3[]), typeof(Quaternion[]), typeof(string).MakeByRefType(), typeof(string).MakeByRefType() });
+            if (_shell?.ReturnType != typeof(bool)) _shell=null;
             _remove = type.GetMethod("TryRemoveGhostPlan", new[] { typeof(Player), typeof(string), typeof(int).MakeByRefType(), typeof(string).MakeByRefType() });
             if (_create?.ReturnType != typeof(bool) || _remove?.ReturnType != typeof(bool))
             { _create = _remove = null; Status = "BuildOrders has an incompatible planning interface."; return false; }
@@ -48,6 +50,14 @@ namespace BuildShapes
             object[] args = { player, title, names, positions, rotations, null, null };
             try { bool ok = (bool)_create.Invoke(_instance, args); key = args[5] as string; error = args[6] as string; return ok; }
             catch (Exception ex) { error = ex.GetBaseException().Message; return false; }
+        }
+        internal bool CreateShell(Player player, string title, string[] names, Vector3[] positions, Quaternion[] rotations, out string key, out string error)
+        {
+            key=null; error=null; if (!Ready()) { error=Status; return false; }
+            if (_shell==null) { if(names.Length<=256) return Create(player,title,names,positions,rotations,out key,out error); error="Update BuildOrders with the whole-building planning API (this shell exceeds 256 pieces)."; return false; }
+            object[] args={player,title,names,positions,rotations,null,null};
+            try { bool ok=(bool)_shell.Invoke(_instance,args);key=args[5] as string;error=args[6] as string;return ok; }
+            catch(Exception ex){error=ex.GetBaseException().Message;return false;}
         }
         internal bool Available(Player player)
         {
