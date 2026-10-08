@@ -14,10 +14,12 @@ namespace Gary
     {
         public const string Guid="com.bobisme.gary";
         public const string Name="Gary";
-        public const string Version="0.2.5";
+        public const string Version="0.3.0";
         internal static Plugin Instance;
         internal ConfigEntry<float> Health,GiftSeconds,GuideRange;
         internal ConfigEntry<bool> Gifts,Guiding,Reactions,Warnings,Campfires,Building,ShowMapMarker,Boats;
+        internal ConfigEntry<bool> FetchGame,CopyEmotes,Nests,RainAntics,SailingAntics,CompanionFriends,ShowAndTell,FlowerCrown,ForestPouch,EarFeather;
+        private ConfigEntry<KeyboardShortcut> _fetch;
         private ConfigEntry<KeyboardShortcut> _call,_wait;
         private Harmony _harmony;
         private ZRoutedRpc _rpc;
@@ -54,7 +56,18 @@ namespace Gary
             Warnings=Config.Bind("Personality","DangerWarnings",true,"Occasional chirp and glance at a nearby visible hostile creature; no map markers or proactive attacks.");
             Campfires=Config.Bind("Personality","CampfireBuddy",true,"Relax beside a burning fire when you settle down nearby.");
             Building=Config.Bind("Personality","BuildingBuddy",true,"Watch from the side while you build, away from your placement ghost.");
-            _harmony=new Harmony(Guid);_harmony.PatchAll(typeof(Plugin).Assembly);
+            FetchGame=Config.Bind("Personality","Fetch",true,"F8 throws one Wood from your inventory for Gary to fetch. It remains a real world item.");
+            _fetch=Config.Bind("Controls","ThrowFetchStick",new KeyboardShortcut(KeyCode.F8),"Throw one Wood toward clear ground about nine metres ahead for Gary to fetch.");
+            CopyEmotes=Config.Bind("Personality","CopyEmotes",true,"Gary tries wave, cheer, dance, sit and relax emotes nearby.");
+            Nests=Config.Bind("Personality","Nest",true,"Shift+E on your own built wood pile designates Gary's leaf nest beside it. Repeat to forget it.");
+            RainAntics=Config.Bind("Personality","RainAntics",true,"Seek a nearby roof while you settle down in rain, then shake dry.");
+            SailingAntics=Config.Bind("Personality","SailingAntics",true,"Watch from the deck, chirp at visible birds and crouch during rough waves.");
+            CompanionFriends=Config.Bind("Personality","CompanionFriends",true,"Greet your Quad AICompanion characters and watch or imitate their work.");
+            ShowAndTell=Config.Bind("Personality","ShowAndTell",true,"Hold up a forest find briefly before tossing the real gift.");
+            FlowerCrown=Config.Bind("Appearance","FlowerCrown",true,"Wear a small cosmetic forest flower crown; no armor bonus.");
+            ForestPouch=Config.Bind("Appearance","ForestPouch",true,"Wear a tiny cosmetic pouch; stash capacity stays unchanged.");
+            EarFeather=Config.Bind("Appearance","EarFeather",true,"Wear a small cosmetic feather behind the ear.");
+            Fetch.Scan();_harmony=new Harmony(Guid);_harmony.PatchAll(typeof(Plugin).Assembly);
             Logger.LogInfo($"Gary {Version} loaded. {_call.Value} calls Gary; {_wait.Value} tells him to wait.");
         }
         private void Update()
@@ -63,13 +76,14 @@ namespace Gary
             if(Time.unscaledTime>=_nextScan)
             {
                 _nextScan=Time.unscaledTime+1;
-                Companion.Scan();PlayerCollision.Scan();
+                Companion.Scan();PlayerCollision.Scan();Fetch.Scan();
             }
             if(_pendingUntil>0 && Time.unscaledTime>_pendingUntil)
             {_pendingUntil=0;Tell("No reply yet. Gary must be installed on the host and participating players.");}
             DungeonLoot.Tick();MapMarker.Tick();
             Player p=Player.m_localPlayer;
             if(p==null||p.IsDead()||p.IsTeleporting()||Busy()||_rpc==null)return;
+            if(_fetch.Value.IsDown()){Fetch.Throw(p);return;}
             bool wait=_wait.Value.IsDown();
             if(!wait&&!_call.Value.IsDown())return;
             if(_pendingUntil>0)return;
@@ -80,7 +94,7 @@ namespace Gary
             _pendingUntil=Time.unscaledTime+8;
             _rpc.InvokeRoutedRPC(Command,wait,spot);
         }
-        private void LateUpdate()=>BoatRide.LateUpdate();
+        private void LateUpdate(){BoatRide.LateUpdate();GaryVisuals.LateUpdate();Fetch.LateUpdate();}
         private static bool Busy() => Console.IsVisible()||TextInput.IsVisible()||Menu.IsVisible()||InventoryGui.IsVisible()||Minimap.IsOpen()||
             StoreGui.IsVisible()||Hud.IsPieceSelectionVisible()||(Chat.instance!=null&&Chat.instance.HasFocus());
         private void Register()
@@ -126,6 +140,6 @@ namespace Gary
         internal static void Tell(string message) => Player.m_localPlayer?.Message(MessageHud.MessageType.TopLeft,"Gary: "+message);
         internal void Error(Exception error) => Logger.LogError(error);
         private void OnDestroy()
-        {Unregister();_harmony?.UnpatchSelf();MapMarker.Clear();BoatRide.Clear();PlayerCollision.Clear();DungeonLoot.Clear();Companion.Clear();if(Instance==this)Instance=null;}
+        {Fetch.Clear();GaryVisuals.Clear();Unregister();_harmony?.UnpatchSelf();MapMarker.Clear();BoatRide.Clear();PlayerCollision.Clear();DungeonLoot.Clear();Companion.Clear();if(Instance==this)Instance=null;}
     }
 }

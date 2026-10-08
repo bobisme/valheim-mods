@@ -41,7 +41,7 @@ namespace Gary
         {
             if(ZNet.instance!=null&&ZNet.instance.IsDedicated())return;
             ZDO z=Companion.Data(st.Body);long now=Companion.Now,at=z.GetLong(MoodAt,0),until=z.GetLong(VibeUntil,0);
-            Vibe(st,until>now&&until-now<=TimeSpan.TicksPerSecond*3&&!z.GetBool(Companion.Retreating,false)&&!st.Body.InAttack()&&st.Body.GetVelocity().sqrMagnitude<0.1f);
+            Vibe(st,z.GetLong(Activities.PoseUntil,0)<=now&&until>now&&until-now<=TimeSpan.TicksPerSecond*3&&!z.GetBool(Companion.Retreating,false)&&!st.Body.InAttack()&&st.Body.GetVelocity().sqrMagnitude<0.1f);
             if(at!=st.SeenMood)
             {
                 st.SeenMood=at;

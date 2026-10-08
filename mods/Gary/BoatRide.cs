@@ -58,7 +58,7 @@ namespace Gary
         private static bool DeckSpot(Ship ship,Player master,out Vector3 local)
         {
             local=Vector3.zero;
-            Vector3[] offsets={new Vector3(-1,0,-1),new Vector3(1,0,-1),new Vector3(-1,0,1),new Vector3(1,0,1),
+            Vector3[] offsets={new Vector3(0,0,2.5f),new Vector3(-0.8f,0,1.8f),new Vector3(0.8f,0,1.8f),new Vector3(-1,0,-1),new Vector3(1,0,-1),new Vector3(-1,0,1),new Vector3(1,0,1),
                 new Vector3(-1.3f,0,0),new Vector3(1.3f,0,0),new Vector3(0,0,-1.3f),new Vector3(0,0,1.3f)};
             foreach(Vector3 offset in offsets)
             {
@@ -139,7 +139,7 @@ namespace Gary
         {
             if(!Current(c,out Passenger ride))return false;
             ZDO z=Companion.Data(c);Vector3 position=ride.Ship.transform.TransformPoint(z.GetVec3(SpotKey,Vector3.zero));
-            Quaternion rotation=ride.Ship.transform.rotation;
+            Quaternion rotation=ride.Ship.transform.rotation*Quaternion.Euler(0,z.GetFloat("bob_gary_deck_yaw",0),0);
             Collider collider=c.GetCollider();
             if(collider!=null)
                 foreach(Collision pair in ride.Collisions)if(pair.Other!=null)Physics.IgnoreCollision(collider,pair.Other,true);
@@ -162,7 +162,7 @@ namespace Gary
         {
             parent=ZDOID.None;position=Vector3.zero;rotation=Quaternion.identity;
             if(!Current(c,out Passenger ride))return false;
-            parent=ride.ShipID;position=Companion.Data(c).GetVec3(SpotKey,Vector3.zero);return true;
+            parent=ride.ShipID;position=Companion.Data(c).GetVec3(SpotKey,Vector3.zero);rotation=Quaternion.Euler(0,Companion.Data(c).GetFloat("bob_gary_deck_yaw",0),0);return true;
         }
         internal static bool Tick(Companion.State st,MonsterAI ai,Player master,float dt,bool retreat)
         {
@@ -217,10 +217,12 @@ namespace Gary
             if(retreat)c.Heal(c.GetMaxHealth()*0.03f*Mathf.Min(dt,1),false);
             Brain.Status(st,retreat?"resting aboard to heal":wanted==ship?"sailing with my friend":"waiting aboard");return true;
         }
+        internal static void Personality(Companion.State st,bool retreat)
+        {if(Current(st.Body,out Passenger ride))Activities.Sailing(st,ride.Ship,retreat);}
         internal static void Forget(ZDO z)
         {
             // Called only by the current Gary owner, or by server recall after taking Gary ownership.
-            z.Set(ShipKey,ZDOID.None);z.Set(SpotKey,Vector3.zero);
+            z.Set("bob_gary_deck_yaw",0f);z.Set(ShipKey,ZDOID.None);z.Set(SpotKey,Vector3.zero);
             z.UpdateConnection(ZDOExtraData.ConnectionType.SyncTransform,ZDOID.None);z.Set(ZDOVars.s_attachJointHash,"");
             foreach(Passenger ride in new List<Passenger>(Passengers.Values))
                 if(ride.Gary!=null&&Companion.Data(ride.Gary)?.m_uid==z.m_uid)Release(ride.Gary);

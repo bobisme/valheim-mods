@@ -33,7 +33,7 @@ namespace Gary
             if(EffectArea.IsPointInsideArea(spot,EffectArea.Type.Burning,0.7f)!=null)return false;
             return HavePath(ai,spot);
         }
-        private static bool Allowed(Vector3 position,Player master)
+        internal static bool Allowed(Vector3 position,Player master)
         {
             bool protectedGround=false;
             foreach(PrivateArea ward in Wards())

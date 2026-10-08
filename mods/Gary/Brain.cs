@@ -31,11 +31,13 @@ namespace Gary
             if(BoatRide.Tick(st,ai,master,dt,retreat))
             {
                 BaseUpdate(ai,dt);SetTarget(ai,null);ai.SetFollowTarget(null);st.Entrance=null;Personality.Cancel(st);
-                result=true;return false;
+                if(!st.WasRiding||retreat)Activities.Cancel(st);else {Fetch.Cancel(st);st.ShowStarted=0;}
+                st.WasRiding=true;BoatRide.Personality(st,retreat);result=true;return false;
             }
+            if(st.WasRiding){Activities.Cancel(st);st.WasRiding=false;}
             if(retreat)
             {
-                BaseUpdate(ai,dt);SetTarget(ai,null);ai.SetFollowTarget(null);st.Entrance=null;Personality.Cancel(st);
+                BaseUpdate(ai,dt);SetTarget(ai,null);ai.SetFollowTarget(null);st.Entrance=null;Personality.Cancel(st);Activities.Cancel(st);
                 Nature.Retreat(st,ai,master,dt);
                 result=true;return false;
             }
@@ -43,15 +45,16 @@ namespace Gary
             ai.SetFollowTarget(follow?master.gameObject:null);
             Character target=ThreatFor(c,follow?master:null);
             if(target!=null)
-            {st.Entrance=null;st.LastEnemy=target;st.LastFight=Time.time;Personality.Cancel(st);Status(st,target==st.SelfAttacker?"defending myself":"protecting my friend");return true;}
+            {st.Entrance=null;st.LastEnemy=target;st.LastFight=Time.time;Personality.Cancel(st);Activities.Cancel(st);Status(st,target==st.SelfAttacker?"defending myself":"protecting my friend");return true;}
             SetTarget(ai,null);
             Personality.Observe(st,ai,master,dt);
             if(!follow)
             {
-                BaseUpdate(ai,dt);ai.StopMoving();st.Entrance=null;st.ForageTarget=null;
+                BaseUpdate(ai,dt);ai.StopMoving();st.Entrance=null;st.ForageTarget=null;Activities.Cancel(st);
                 Status(st,master!=null&&master.InInterior()?"waiting outside":"waiting for my friend");result=true;return false;
             }
             Gift(st,master);
+            if(Activities.Tick(st,ai,master,dt)){BaseUpdate(ai,dt);result=true;return false;}
             if(Personality.Tick(st,ai,master,dt)){BaseUpdate(ai,dt);result=true;return false;}
             if(Guide.Tick(st,ai,master,dt))
             {Personality.CancelVibe(st);BaseUpdate(ai,dt);result=true;return false;}
@@ -101,10 +104,10 @@ namespace Gary
             Character c=st.Body;ZDO z=Companion.Data(c);
             if(!Policy.CanGift(z.GetBool(Companion.Retreating,false),c.InAttack(),z.GetBool(Companion.Waiting,false),master.InInterior(),
                 Vector3.Distance(c.transform.position,master.transform.position),(z.GetLong(Companion.GiftAt,0)-Companion.Now)/(double)TimeSpan.TicksPerSecond))return;
-            ForestStash stash=Nature.Load(z);if(stash.Count==0)return;
-            int kind=stash.GiftKind(UnityEngine.Random.Range(0,100));if(kind<0)return;
+            ForestStash stash=Nature.Load(z);if(stash.Count==0||st.FetchDrop!=null||Activities.Active(st,Activities.Curl))return;
+            int kind=st.ShowStarted!=0&&stash.At(st.ShowGiftKind)>0?st.ShowGiftKind:stash.GiftKind(UnityEngine.Random.Range(0,100));if(kind<0)return;
             GameObject prefab=ZNetScene.instance.GetPrefab(Nature.Gifts[kind]);if(prefab==null||prefab.GetComponent<ItemDrop>()==null)return;
-            if(!stash.TryTake(kind,out ForestStash next))return;
+            if(!Activities.ShowGift(st,master,kind)||!stash.TryTake(kind,out ForestStash next))return;
             Nature.Save(z,next);Companion.ScheduleGift(z); // spend BEFORE spawning; F6 cannot create another copy
             Vector3 start=c.GetCenterPoint()+c.transform.forward*0.8f;
             Vector3 end=master.transform.position+master.transform.right*0.8f+Vector3.up*0.3f;

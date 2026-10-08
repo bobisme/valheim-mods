@@ -53,6 +53,25 @@ water, dying, teleporting away or telling him to wait leaves him aboard; return 
 Toggle **Companion → RideBoats** in F7. Boarding state survives F6/saves; physics and collision settings are restored when released or
 reloaded. He remains a separate saved creature, so destroying the boat releases Gary alive. Boat geometry, waves and multiplayer need playtesting.
 
+Gary also has these playful activities, each adjustable in F7:
+
+| Activity | How to try it |
+| --- | --- |
+| **Fetch** | Carry Wood and press **F8** while looking toward clear ground about nine metres ahead. Gary carries that actual Wood back and waits proudly for an **E** pat. |
+| **Emote copying** | Wave, cheer, dance, sit or relax near him; he tries his own version. |
+| **Home nest** | **Left Shift+E** on a **wood pile you built**. He makes a leaf/branch nest beside it and curls up when you pause nearby for eight seconds. Repeat on the same pile to forget it. |
+| **Rain antics** | Settle down near shelter in rain. He seeks a nearby reachable roof and shakes dry afterward. |
+| **Sailing personality** | He prefers a clear forward deck spot, watches ahead, chirps at visible seabirds and crouches during rough waves. |
+| **Forest accessories** | A small flower crown, pouch and ear feather; toggle each under **Appearance**. |
+| **Quad friendship** | He greets your nearby AICompanion characters and watches or imitates their building/gathering work. |
+| **Show-and-tell** | Before a gift, he holds up a visual preview for two seconds, then tosses the real stash item. |
+
+Fetch uses **one Wood**, follows within **16 metres**, and expires after **35 seconds**. Combat, healing, waiting, boats, portals,
+F6 or an ownership split interrupt play; the actual Wood remains an ordinary dropped item and can be picked up. Fetch never claims item
+ownership or stores Wood in an invisible inventory. The nest references an ordinary saved wood pile and preserves its normal costs/support;
+removing the pile removes the nest visual. Emotes baseline on load instead of replaying old player commands. Poses and props are cosmetic:
+no armor, skill buffs, extra stash slots or free resources. Gary's native rig lacks wave/sleep/crouch animations, so these use small bone poses.
+
 Your Gary has a **purple marker on the minimap and full map** that follows him while loaded. If only his known saved position is available,
 it shows **Gary (last seen)** there; it disappears when no position is known. Toggle **Companion → MapMarker** in F7. The marker is local,
 never saved/shared through the cartography table, and cleaned up on F6 or world/player changes.
@@ -100,10 +119,14 @@ First-playtest checklist (automated policy checks and assembly verification do n
 6. Pause by a burning fire, extinguish it, then walk away. Build and rotate your ghost toward Gary; check he watches from clear ground and resumes following when you move. Danger and actual hits must interrupt every idle activity.
 7. Try a raft, karve and longship: board nearby, steer, sit and walk on deck, turn in waves, fall into the water, disembark onto dry ground/a pier and call F3 from aboard/ashore. Check waiting/injury behavior, F6/save/restart aboard, boat destruction, and owner changes with a friend. Gary must not push the boat, fall off, duplicate or remain frozen after release.
 8. Return from a dungeon, defeat a foe Gary was fighting, and approach a visible large hostile. Check greetings/celebration/warnings, subdued volume, cooldowns, and no unsolicited attacks.
-8. Approach an untouched, partly looted, and fully looted crypt/cave. Check only complete empty scans suppress guiding, unreadable/unloaded interiors remain eligible, and unopened chests are untouched. Leave a core, loose gem, scrap pile, or cave material behind and confirm it remains unfinished. Clear it, wait a few seconds inside, exit, then F6/save/restart and check the cleared mark persists. Gary waits outside; unfinished entrances can be shown again after ten minutes.
-9. Walk directly through Gary while following, waiting, retreating, and after F6/respawn. All players and Quad’s AICompanion characters should pass through him, while terrain and enemies still collide and E still pets him. Repeat after reloading each mod independently.
-10. Save/restart and F6 with Gary following, waiting, and retreating. Recall from an unloaded zone and check identity/recovery.
-11. Repeat on a server with Gary installed everywhere; transfer ownership and check one companion, one simulation, and normal wild AI.
+9. Approach an untouched, partly looted, and fully looted crypt/cave. Check only complete empty scans suppress guiding, unreadable/unloaded interiors remain eligible, and unopened chests are untouched. Leave a core, loose gem, scrap pile, or cave material behind and confirm it remains unfinished. Clear it, wait a few seconds inside, exit, then F6/save/restart and check the cleared mark persists. Gary waits outside; unfinished entrances can be shown again after ten minutes.
+10. Walk directly through Gary while following, waiting, retreating, and after F6/respawn. All players and Quad’s AICompanion characters should pass through him, while terrain and enemies still collide and E still pets him. Repeat after reloading each mod independently.
+11. Save/restart and F6 with Gary following, waiting, and retreating. Recall from an unloaded zone and check identity/recovery.
+12. Repeat on a server with Gary installed everywhere; transfer ownership and check one companion, one simulation, and normal wild AI.
+13. F8 with one/multiple Wood, no Wood, blocked aim, a protected target, and another Wood stack nearby. Check exactly one Wood leaves inventory and the same item returns; pet him afterward. Interrupt with damage, waiting, boat boarding, portal, item pickup, F6 and ownership transfer; no duplicates, frozen drops or hidden losses.
+14. Use wave/cheer/dance/sit/relax, then F6 and move away. Check pose axes, duration, movement/combat interruptions, and observer agreement. Verify crown/feather placement and independent Appearance toggles.
+15. Shift+E on your own wood pile with open space; pause eight seconds, move away, mark another pile, then forget/remove it. Try someone else's pile and a ward. Check F6/save/restart home persistence and ordinary pile materials/support/removal.
+16. Pause in rain near a roof and walk away again; watch shelter choice and the dry-off shake. Sail through calm and rough water near birds. Let your Quad companions build/gather and check greetings/imitation. Watch a due gift's preview/toss and interrupt presentation; stash counts must change only when a real gift appears.
 
 ## BuildShapes
 

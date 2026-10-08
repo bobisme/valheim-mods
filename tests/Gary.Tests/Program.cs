@@ -149,4 +149,22 @@ Check(RidePolicy.CanDisembark(true,true,20),"A nearby living player on dry groun
 Check(!RidePolicy.CanDisembark(false,true,2)&&!RidePolicy.CanDisembark(true,false,2),"Death and swimming cannot pull Gary off the boat");
 foreach(double invalid in new[]{-1.0,20.01,double.NaN,double.PositiveInfinity,double.NegativeInfinity})
     Check(!RidePolicy.CanDisembark(true,true,invalid),"Disembarking cannot teleport Gary to a distant or invalid shore");
+// Saved activity deadlines reject rollback/nonfinite input; fetch and home have independent reach limits.
+foreach(double invalid in new[]{-1.0,double.NaN,double.PositiveInfinity,double.NegativeInfinity})
+{
+    Check(!FunPolicy.Recent(invalid,45),"Invalid elapsed clocks cannot keep a saved activity alive");
+    Check(!FunPolicy.FetchReach(invalid),"Invalid item distances cannot permit fetch");
+    Check(!FunPolicy.HomeReady(true,true,invalid,3),"Invalid stationary timer cannot activate a nest");
+    Check(!FunPolicy.HomeReady(true,true,10,invalid),"Invalid home distances cannot activate a nest");
+}
+Check(FunPolicy.FetchReach(16)&&!FunPolicy.FetchReach(16.001),"Fetch cannot chase a thrown stick beyond its player reach");
+Check(FunPolicy.Recent(0,45)&&FunPolicy.Recent(45,45)&&!FunPolicy.Recent(45.001,45),"Saved fetch clocks are bounded including both endpoints");
+Check(FunPolicy.HomeReady(true,true,8,12),"An eight-second pause within twelve metres enables a nest");
+Check(FunPolicy.HomeReady(true,true,7200,3),"A long peaceful pause keeps Gary at home");
+Check(!FunPolicy.HomeReady(false,true,10,3)&&!FunPolicy.HomeReady(true,false,10,3),"Waiting and activity conditions do not summon Gary home");
+Check(!FunPolicy.HomeReady(true,true,7.99,3)&&!FunPolicy.HomeReady(true,true,10,12.01),"A moving or distant player cannot keep Gary nesting");
+foreach(var pair in new[]{("wave",1),("cheer",2),("dance",3),("sit",4),("relax",4)})
+    Check(FunPolicy.Emote(pair.Item1)==pair.Item2,"Only known native emote names map to Gary poses");
+foreach(string name in new string[]{null!,"","attack","throw","Wave","unknown"})
+    Check(FunPolicy.Emote(name)==0,"Unknown names cannot trigger attack animations or a pose");
 Console.WriteLine($"Passed {checks} Gary injury, defense, food conservation, personality, petting, retreat, dungeon loot, guide and boat boarding checks.");

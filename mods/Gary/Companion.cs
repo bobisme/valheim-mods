@@ -12,6 +12,13 @@ namespace Gary
         internal sealed class State
         {
             internal Character Body;
+            internal bool EmoteObserved,WasWet,WasRiding,PoseToFriend;
+            internal int LastEmote,ShowGiftKind;
+            internal long ShowStarted;
+            internal float NextEmote,NextShelter,NextFriend,NextFriendGreeting,NextImitate,NextBird,NextSailChirp,NextFetchScan;
+            internal Vector3? Shelter;
+            internal Character WorkFriend;
+            internal ItemDrop FetchDrop;
             internal bool OwnerConfigured,VibeSupported,VictoryPending;
             internal long SeenMood;
             internal float Stationary,NextForage,ForageUntil,NextRetreatSpot,NextDanger,NextWarning,NextVictory,NextCozy,NextFire,NextBuildSpot,LookUntil,LastFight,VictoryUntil;
@@ -138,7 +145,7 @@ namespace Gary
                 {
                     go.transform.SetPositionAndRotation(spot,Quaternion.identity);
                     Rigidbody body=go.GetComponent<Rigidbody>();if(body!=null){body.position=spot;body.linearVelocity=Vector3.zero;}
-                    Character c=go.GetComponent<Character>();State state=Get(c);state.Entrance=null;state.NextBoat=0;state.BoatMissingUntil=0;
+                    Character c=go.GetComponent<Character>();State state=Get(c);Activities.Cancel(state);state.Entrance=null;state.NextBoat=0;state.BoatMissingUntil=0;
                 }
             }
             gary.Set(Waiting,false);
@@ -163,7 +170,10 @@ namespace Gary
         {
             BoatRide.Clear();Personality.Clear();
             foreach(State st in States.Values)
+            {
+                if(st.Body!=null&&Data(st.Body)!=null&&st.Body.GetComponent<ZNetView>().IsOwner())Activities.Cancel(st);
                 foreach(var pair in st.Original)if(pair.Key!=null)pair.Key.SetPropertyBlock(pair.Value);
+            }
             States.Clear();
         }
     }

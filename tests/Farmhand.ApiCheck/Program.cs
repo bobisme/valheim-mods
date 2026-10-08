@@ -115,6 +115,19 @@ Method("Minimap","AddPin","Minimap/PinData","UnityEngine.Vector3","Minimap/PinTy
 Method("Minimap","RemovePin","System.Void","Minimap/PinData");
 Field("Minimap","m_pins","System.Collections.Generic.List`1<Minimap/PinData>");
 Field("Minimap","m_pinUpdateRequired","System.Boolean");
+// Gary activities reuse native emote/weather/item saves without cloning gameplay components.
+Method("EnvMan","IsWet","System.Boolean");
+Method("EnvMan","IsNight","System.Boolean");
+Method("Cover","IsUnderRoof","System.Boolean","UnityEngine.Vector3");
+Method("Player","StartEmote","System.Boolean","System.String","System.Boolean");
+Method("ItemDrop","DropItem","ItemDrop","ItemDrop/ItemData","System.Int32","UnityEngine.Vector3","UnityEngine.Quaternion");
+Method("ItemDrop","Start","System.Void");
+Method("ItemDrop","AutoStackItems","System.Void");
+Method("Inventory","GetItem","ItemDrop/ItemData","System.String","System.Int32","System.Boolean");
+Method("Inventory","RemoveItem","System.Boolean","ItemDrop/ItemData","System.Int32");
+Method("RandomFlyingBird","get_Instances","System.Collections.Generic.List`1<IMonoUpdater>");
+Field("ZDOVars","s_emoteID","System.Int32");
+Field("ZDOVars","s_emote","System.Int32");
 // Gary passengers pause native locomotion and synchronize a boat-relative deck position.
 Method("Character","UpdateMotion","System.Void","System.Single");
 Method("Character","IsAttached","System.Boolean");

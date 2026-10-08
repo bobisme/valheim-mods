@@ -110,6 +110,7 @@ namespace Gary
     {
         private static bool Prefix(Player __instance,GameObject go,bool hold,bool alt)
         {
+            if(Activities.SetHome(__instance,go,hold))return false;
             Character c=go!=null?go.GetComponentInParent<Character>():null;
             if(c==null||!Companion.Is(c))return true;
             if(!hold&&!alt)Petting.Request(__instance,c);
