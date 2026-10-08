@@ -10,7 +10,7 @@ namespace Omens
     {
         public const string Guid="com.bobisme.omens";
         public const string Name="Omens";
-        public const string Version="0.1.6";
+        public const string Version="0.1.7";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled,DeadTroll,Ravens,AbandonedCamp;
         internal ConfigEntry<float> IntervalDays,BadChance,ExpireDays,BaseRange;
@@ -31,6 +31,7 @@ namespace Omens
             AbandonedCamp=Config.Bind("Omens","AbandonedCamp",true,"Meadows or Black Forest: a cold, abandoned camp. Greydwarfs raid the nearest base that night.");
             _harmony=new Harmony(Guid);_harmony.PatchAll(typeof(Plugin).Assembly);
             if(ZNetScene.instance!=null)SignPrefab.Register(ZNetScene.instance); // hot reload while in a world
+            OmenSign.AttachAll();
             Logger.LogInfo($"{Name} {Version} loaded.");
         }
         internal List<Kind> EnabledKinds()
@@ -51,6 +52,7 @@ namespace Omens
         private void OnDestroy()
         {
             Director.Reset();
+            OmenSign.DetachAll();
             Tools.Stop();
             Net.Unregister();
             _harmony?.UnpatchSelf();

@@ -68,10 +68,34 @@ namespace Omens
             Kind=(Kind)zdo.GetInt(SignPrefab.KindKey,0);Id=zdo.GetLong(SignPrefab.IdKey,0L);
             Loaded.Add(this);
             if(SystemInfo.graphicsDeviceType==UnityEngine.Rendering.GraphicsDeviceType.Null)return; // a dedicated server draws nothing
+            int before=transform.childCount;
             try{Build();}
             catch(System.Exception e){Debug.LogWarning("[Omens] could not build the "+Kind+" sign: "+e.Message);}
+            for(int i=before;i<transform.childCount;i++)_built.Add(transform.GetChild(i).gameObject);
         }
         private void OnDestroy()=>Loaded.Remove(this);
+        private readonly List<GameObject> _built=new List<GameObject>();
+
+        // A hot reload keeps the signs already in the world, with the old copy's code and closed connection to the host.
+        // The old copy takes its parts off on unload; the new one puts fresh parts on every loaded sign.
+        internal static void DetachAll()
+        {
+            foreach(OmenSign sign in Loaded.ToList())
+                if(sign!=null){foreach(GameObject part in sign._built)if(part!=null)Object.Destroy(part);Object.Destroy(sign);}
+            Loaded.Clear();
+        }
+        internal static void AttachAll()
+        {
+            if(ZNetScene.instance==null)return;
+            foreach(ZNetView view in Object.FindObjectsByType<ZNetView>(FindObjectsSortMode.None))
+            {
+                if(view==null||!view.IsValid()||view.GetZDO().GetPrefab()!=SignPrefab.Hash||view.GetComponent<OmenSign>()!=null)continue;
+                // An older copy (one without DetachAll) may still be attached: its component and every child are Omens' own visuals.
+                foreach(MonoBehaviour stale in view.GetComponents<MonoBehaviour>())if(stale!=null&&stale.GetType().FullName==typeof(OmenSign).FullName)Object.DestroyImmediate(stale);
+                foreach(Transform child in view.transform.Cast<Transform>().ToList())Object.Destroy(child.gameObject);
+                view.gameObject.AddComponent<OmenSign>();
+            }
+        }
 
         private void Build()
         {

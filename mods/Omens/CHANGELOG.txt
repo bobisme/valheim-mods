@@ -1,3 +1,5 @@
+0.1.7: Signs already in the world keep working after a hot reload (F6): they are rebuilt with the reloaded mod. Before, burning such a troll used the resin but never reached the host, so the carcass stayed.
+
 0.1.6: The log says why a bad omen fizzled: raids turned off in the world, no workbench or bed in reach, kept waiting too long by another raid, or a missing raid type.
 
 0.1.5: The abandoned camp reads as a camp: a bedroll beside a cold fire pit (no glowing coals), a skull, a ragged tunic, wooden shield and flint spear, bones and a log, without the glint that made everything look like loot. The test command can clear an omen.
