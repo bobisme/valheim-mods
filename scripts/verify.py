@@ -8,6 +8,7 @@ import subprocess
 root = Path(__file__).resolve().parent.parent
 parser = argparse.ArgumentParser()
 parser.add_argument("--planner-assembly", type=Path, help="Also verify the BuildOrders public planning interface and symbols")
+parser.add_argument("--cigars-assembly", type=Path, help="Also verify Quad's Cigars public smoking interface and symbols")
 args = parser.parse_args()
 home = Path.home()
 candidates = [Path(os.environ["VALHEIM_DIR"])] if os.environ.get("VALHEIM_DIR") else [
@@ -23,4 +24,8 @@ command = ["dotnet", "run", "--project", str(root / "tests/Farmhand.ApiCheck"), 
            "-p:ValheimDir=" + str(game), "--", str(game), str(root / "dist/manifest.json")]
 if args.planner_assembly:
     command.append(str(args.planner_assembly.resolve()))
+if args.cigars_assembly:
+    if not args.planner_assembly:
+        command.append("-")
+    command.append(str(args.cigars_assembly.resolve()))
 subprocess.run(command, check=True)

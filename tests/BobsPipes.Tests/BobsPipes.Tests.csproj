@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
+  <ItemGroup><Compile Include="../../mods/BobsPipes/Bowl.cs" Link="Bowl.cs" /><Compile Include="../../mods/BobsPipes/Tobacco.cs" Link="Tobacco.cs" /></ItemGroup>
+</Project>

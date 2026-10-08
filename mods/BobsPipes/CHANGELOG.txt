@@ -1,0 +1,1 @@
+0.1.0: First release: a reusable carved pipe, three tobacco blends using Quad's production chain, fire lighting, saved unfinished bowls, restrained smoke and idle puff gestures. A pipe develops a seasoned finish with use. Cigars and pipes share one active smoke through Cigars API v1; no hard assembly reference, and registrations reconnect after F6.

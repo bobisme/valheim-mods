@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import xml.etree.ElementTree as ET
 
 root = Path(__file__).resolve().parent.parent
 dist = root / "dist"
@@ -17,19 +18,22 @@ for project in sorted((root / "mods").glob("*/*.csproj")):
     for field in ("Guid", "Name", "Version"):
         fields[field] = re.search(r'public const string ' + field + r'\s*=\s*"([^"\n]+)";', source).group(1)
     name = fields["Name"]
-    files = [name + ".dll", name + ".pdb"]
+    assembly = ET.parse(project).findtext(".//AssemblyName") or project.stem
+    files = [assembly + ".dll", assembly + ".pdb"]
     for file in files:
         shutil.copyfile(project.parent / "bin/Release/net48" / file, dist / file)
     cover = ""
     for extension in ("png", "jpg", "jpeg"):
         image = project.parent / ("cover." + extension)
         if image.is_file():
-            cover = name + ".cover." + extension
+            cover = assembly + ".cover." + extension
             shutil.copyfile(image, dist / cover)
             break
     description = (project.parent / "DESCRIPTION.txt").read_text().strip()
     notes = (project.parent / "CHANGELOG.txt").read_text().strip().split("\n\n", 1)[0]
+    restart_file = project.parent / "RESTART_REQUIRED.txt"
+    restart = restart_file.read_text().strip() if restart_file.is_file() else ""
     mods.append(dict(guid=fields["Guid"], name=name, version=fields["Version"], description=description,
-                     notes=notes, restart="", cover=cover, files=files))
+                     notes=notes, restart=restart, cover=cover, files=files))
 (dist / "manifest.json").write_text(json.dumps({"mods": mods}, indent=2) + "\n")
 print("Published", len(mods), "mods to", dist)

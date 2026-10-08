@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Mono.Cecil;
 
-if (args.Length != 2 && args.Length != 3) throw new Exception("Expected game directory, manifest.json, and optional planner DLL");
+if (args.Length < 2 || args.Length > 4) throw new Exception("Expected game directory, manifest.json, and optional planner DLL / Cigars DLL");
 using var resolver = new DefaultAssemblyResolver();
 resolver.AddSearchDirectory(Path.Combine(args[0], "BepInEx/core"));
 resolver.AddSearchDirectory(Path.Combine(args[0], "valheim_Data/Managed"));
@@ -9,7 +9,7 @@ using var game = AssemblyDefinition.ReadAssembly(Path.Combine(args[0], "valheim_
 using var utils = AssemblyDefinition.ReadAssembly(Path.Combine(args[0], "valheim_Data/Managed/assembly_utils.dll"), new ReaderParameters { AssemblyResolver = resolver });
 void Method(string type, string name, string result, params string[] parameters)
 {
-    TypeDefinition target = game.MainModule.Types.Concat(utils.MainModule.Types).Single(t => t.FullName == type);
+    TypeDefinition target = game.MainModule.Types.Concat(utils.MainModule.Types).SelectMany(t => t.NestedTypes.Prepend(t)).Single(t => t.FullName == type);
     if (!target.Methods.Any(m => m.Name == name && m.ReturnType.FullName == result &&
         m.Parameters.Select(p => p.ParameterType.FullName).SequenceEqual(parameters)))
         throw new Exception($"Game API mismatch: {type}.{name}");
@@ -217,12 +217,33 @@ Method("WorldGenerator","GetBiome","Heightmap/Biome","System.Single","System.Sin
 Field("RandEventSystem","m_events","System.Collections.Generic.List`1<RandomEvent>");
 Field("Recipe","m_craftingStation","CraftingStation");
 
+// Bob's Pipes: hotbar dispatch, saved item bowls, mutual smoking and native item registrations.
+Method("Player","UseHotbarItem","System.Void","System.Int32");
+Method("Player","OnDeath","System.Void");
+Method("Humanoid","UseItem","System.Void","Inventory","ItemDrop/ItemData","System.Boolean");
+Method("Inventory","Changed","System.Void","System.Boolean","System.Boolean");
+Method("Inventory","RemoveItem","System.Boolean","ItemDrop/ItemData","System.Int32");
+Method("ItemDrop/ItemData","GetTooltip","System.String","ItemDrop/ItemData","System.Int32","System.Boolean","System.Single","System.Int32","System.Boolean");
+Method("ObjectDB","UpdateRegisters","System.Void");
+Method("ObjectDB","Awake","System.Void");
+Method("ObjectDB","CopyOtherDB","System.Void","ObjectDB");
+Method("ZNetScene","Awake","System.Void");
+Method("Player","Awake","System.Void");
+Method("SEMan","AddStatusEffect","StatusEffect","StatusEffect","System.Boolean","System.Int32","System.Single","System.Int16");
+Method("SEMan","RemoveStatusEffect","System.Boolean","System.Int32","System.Boolean");
+Method("SEMan","HaveStatusEffect","System.Boolean","System.Int32");
+Method("ZSyncAnimation","SetTrigger","System.Void","System.String");
+Method("EnvMan","GetWindForce","UnityEngine.Vector3");
+Field("Inventory","m_onChanged","System.Action");
+Field("VisEquipment","m_rightItem","System.Int32");
+Field("ZNetScene","m_namedPrefabs","System.Collections.Generic.Dictionary`2<System.Int32,UnityEngine.GameObject>");
+
 using var catalog = JsonDocument.Parse(File.ReadAllText(args[1]));
 foreach (var entry in catalog.RootElement.GetProperty("mods").EnumerateArray())
 {
     string name = entry.GetProperty("name").GetString()!;
     string directory = Path.GetDirectoryName(args[1])!;
-    using var mod = AssemblyDefinition.ReadAssembly(Path.Combine(directory, name + ".dll"), new ReaderParameters { ReadSymbols = true, AssemblyResolver = resolver });
+    using var mod = AssemblyDefinition.ReadAssembly(Path.Combine(directory, entry.GetProperty("files").EnumerateArray().Select(f=>f.GetString()!).Single(f=>f.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))), new ReaderParameters { ReadSymbols = true, AssemblyResolver = resolver });
     if (!mod.MainModule.HasSymbols) throw new Exception("ScriptEngine symbols not readable: " + name);
     var attribute = mod.MainModule.Types.SelectMany(t => t.CustomAttributes).Single(a => a.AttributeType.FullName == "BepInEx.BepInPlugin");
     if (name == "BuildShapes")
@@ -233,6 +254,16 @@ foreach (var entry in catalog.RootElement.GetProperty("mods").EnumerateArray())
             (string)a.ConstructorArguments[0].Value == "com.dhack.buildorders"))
             throw new Exception("BuildShapes planner dependency is missing.");
     }
+    if (entry.GetProperty("guid").GetString() == "com.bobisme.bobspipes")
+    {
+        if (mod.MainModule.AssemblyReferences.Any(r => r.Name.StartsWith("CigarSmoking", StringComparison.Ordinal)))
+            throw new Exception("Pipes must not bind a hot-reloaded Cigars assembly identity.");
+        if (!mod.MainModule.Types.SelectMany(t => t.CustomAttributes).Any(a => a.AttributeType.FullName == "BepInEx.BepInDependency" &&
+            (string)a.ConstructorArguments[0].Value == "com.dhack.cigarsmoking"))
+            throw new Exception("Pipes Cigars dependency is missing.");
+        if (string.IsNullOrWhiteSpace(entry.GetProperty("restart").GetString()))
+            throw new Exception("New saved pipe items require a published restart notice.");
+    }
     foreach (var (key, index) in new[] { ("guid", 0), ("name", 1), ("version", 2) })
         if (entry.GetProperty(key).GetString() != (string)attribute.ConstructorArguments[index].Value)
             throw new Exception("Published metadata mismatch: " + name + ":" + key);
@@ -240,7 +271,7 @@ foreach (var entry in catalog.RootElement.GetProperty("mods").EnumerateArray())
         if (file == null || !File.Exists(Path.Combine(directory, file))) throw new Exception("Published file missing: " + file);
     Console.WriteLine(name + ": metadata and symbols verified");
 }
-if (args.Length == 3)
+if (args.Length >= 3 && args[2] != "-")
 {
     using var planner = AssemblyDefinition.ReadAssembly(args[2], new ReaderParameters { ReadSymbols = true, AssemblyResolver = resolver });
     var plugin = planner.MainModule.Types.Single(t => t.FullName == "BuildOrders.Plugin");
@@ -257,6 +288,22 @@ if (args.Length == 3)
     Api("IsPlanningInputAvailable", "Player");
     Api("TryGetGhostAtRay", "Player", "UnityEngine.Vector3", "UnityEngine.Vector3", "System.String&", "System.String&", "UnityEngine.Vector3&", "UnityEngine.Quaternion&", "System.Single&");
     Console.WriteLine("BuildOrders: public planning API and symbols verified; BuildShapes has no planner assembly binding.");
+}
+if (args.Length == 4)
+{
+    using var cigars=AssemblyDefinition.ReadAssembly(args[3],new ReaderParameters{ReadSymbols=true,AssemblyResolver=resolver});
+    var plugin=cigars.MainModule.Types.Single(t=>t.FullName=="CigarSmoking.Plugin");
+    if(!cigars.MainModule.HasSymbols || !plugin.Fields.Any(f=>f.Name=="SmokingApiVersion"&&f.HasConstant&&(int)f.Constant==1))
+        throw new Exception("Cigars symbols or smoking API version are incompatible.");
+    void SmokeApi(string name,string result,params string[] parameters)
+    {
+        if(!plugin.Methods.Any(m=>m.IsPublic&&!m.IsStatic&&m.Name==name&&m.ReturnType.FullName==result&&m.Parameters.Select(p=>p.ParameterType.FullName).SequenceEqual(parameters)))
+            throw new Exception("Cigars smoking API signature mismatch: "+name);
+    }
+    SmokeApi("RegisterSmokingEffect","System.Boolean","System.String");
+    SmokeApi("UnregisterSmokingEffect","System.Void","System.String");
+    SmokeApi("StopOtherSmoking","System.Boolean","Character","System.String");
+    Console.WriteLine("Quad's Cigars: public smoking API v1 and symbols verified; Pipes has no Cigars assembly binding.");
 }
 Console.WriteLine("All native crop/terrain/companion APIs, private members, and Harmony targets match the installed game.");
 Console.WriteLine("Published plugin metadata matches its catalog; DLL/PDB symbols are readable by the installed Cecil.");

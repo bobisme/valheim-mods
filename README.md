@@ -2,6 +2,47 @@
 
 Bob's Valheim mods, built for native Linux and Windows and packaged for the in-game mod manager.
 
+## Bob's Pipes
+
+A reusable **Carved Pipe**, crafted at a **workbench** from **4 wood, 2 core wood and 1 leather scraps**. It depends on
+[Quad's Cigars](https://github.com/HardHeadHackerHead/valheim-mods) with **smoking API v1 (0.2.1)**, and uses its tobacco growing,
+drying, aging, rolling table and humidor. The API is proposed in [upstream PR #4](https://github.com/HardHeadHackerHead/valheim-mods/pull/4);
+until it is merged, the matching Cigars DLL/PDB are published on its `bob/pipes-smoking-api` branch. Bob's Pipes supplies the pipe and three blend tins:
+
+| Tobacco | Recipe at the Cigar Rolling Table | Bonus while lit |
+| --- | --- | --- |
+| Meadow | 2 dried meadow leaves → 2 tins | +5% stamina regeneration |
+| Honeywood | 2 aged forest leaves + 1 honey → 2 tins; level 2 table | +10% health regeneration |
+| Cloudberry | 2 aged plains leaves + 2 cloudberries → 2 tins; level 2 table | 5% less running stamina |
+
+The humidor upgrades the table for the aged blends. One tin packs one five-minute bowl. **Use a tin** from inventory or hotbar to
+choose its blend and pack an empty pipe. Put the pipe on your hotbar, close the inventory and **use the pipe near a burning fire or
+holding a torch** to light it. An empty pipe packs the first available tin when used; use it again to light. Use a lit pipe again to tamp
+out the ember and save its remaining tobacco. The pipe is never consumed. Finish a bowl before changing blends.
+
+The pipe has a hollow wooden bowl, bent stem and leather wrap, a tiny ember and quiet smoke. At rest it occasionally rises for a puff.
+With use, the smoking pipe gradually darkens to a seasoned finish. Fighting, blocking, swimming, bed and exposed rain put it away;
+its unfinished bowl stays with the actual inventory item through saves, transfers and deaths. Smoking does not consume stamina or
+force you to stay seated. Cigars and pipes share **one active smoke**, preserving unrelated status effects. Set **EffectStrength = 0**
+in F7 → Mod settings for cosmetic smoking; bowl duration, smoke and rain behavior are adjustable too. There are no new function keys.
+
+**Install both mods on the host and every player, and restart before loading your world.** The pipe and tins are new saved item prefabs.
+For later F6 reloads, the add-on resolves the live Cigars instance and registers its effect names again; it never binds its reloadable
+assembly identity. Recipes wait for Quad's actual resources and station and reconnect after a reload. A reload snuffs and saves a lit bowl.
+Without API v1, using a pipe shows an update message and spends no tobacco.
+
+Checks cover saved bowls, accounting, malformed data, reloads and dependency failure, both directions of the shared smoking rule,
+and the exact native inventory/tooltip/registration hooks. First playtest:
+
+1. Craft a pipe and all three blends. Try packing from the inventory and hotbar; confirm one tin is spent, and a filled bowl cannot be overwritten.
+2. Try lighting without fire, in rain, by a campfire and holding a torch. Check the model and inventory icons, ember, idle puffs and subtle smoke.
+3. Snuff halfway, save/restart, drop and retrieve the pipe, and move it through a chest or tombstone. Confirm its remaining bowl is kept.
+4. Light a cigar while smoking the pipe, and reverse the order. Check only one smoke/bonus remains and unrelated rested/food effects stay.
+5. Fight, swim, die and press F6. Check the pipe goes out and its inventory item is kept. Reload Cigars as well and confirm recipes and smoking reconnect.
+6. Have a friend with both mods watch the pipe and puffs; check pose in hand and mouth with a free hand or torch, and at a seated campfire.
+
+The release is compiled and checked against the native Linux installation; visual poses and live multiplayer still need this playtest.
+
 ## Omens
 
 Signs appear in the world that foretell good or bad things, and what they foretell really happens. Every **1.5 in-game days** or so, the

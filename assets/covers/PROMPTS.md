@@ -1,6 +1,6 @@
 # Mod cover artwork
 
-These six illustrations were made with the built-in imagegen tool. The final generation prompts are recorded below. The original generated PNGs were exported as 640 × 360, quality-90 JPEG thumbnails with ImageMagick; no content retouching was applied.
+These illustrations were made with the built-in imagegen tool. The final generation prompts are recorded below. The original generated PNGs were exported as 640 × 360, quality-90 JPEG thumbnails with ImageMagick; no content retouching was applied.
 
 Source thumbnails live in `mods/<Name>/cover.jpg`. Publishing copies them to `dist/<Name>.cover.jpg` and records the filename in `dist/manifest.json`. Covers are separate from the DLL/PDB install files. In game, open F7 and press **Refresh** to fetch them.
 
@@ -51,3 +51,13 @@ Create a beautiful premium cover illustration for a Valheim game mod. WIDE LANDS
 Final prompt:
 
 Create a beautiful premium cover illustration for a Valheim game mod. WIDE LANDSCAPE 16:9 composition, intended as a 640 by 360 thumbnail displayed as small as 128 by 72. Art direction: tactile stylized Nordic fantasy, chunky low-poly forms with painterly hand-painted surfaces, weathered wood, moss and bronze, restrained earthy palette, cinematic natural light, atmospheric depth. Polished game key art, strong readable silhouette, one dominant subject centered with generous safe margins. Make the subject recognizable at tiny size. No lettering, words, logos, UI, border, watermark, neon colors or shiny plastic. Render a single complete illustration filling the frame. A primitive Viking bronze spyglass dominates the foreground, lying diagonally on a weathered timber lookout railing: elegant short tapered bronze telescope with patinated metal rings and a dark leather-wrapped grip. Beyond it a sweeping misty Nordic fjord, blue-gray sea, rocky islands, dark pines and a small distant timber watchtower. A corner of a hand-drawn parchment coastline map lies under the telescope. Dramatic cool dawn atmosphere contrasted with warm bronze highlights. The telescope is large and immediately recognizable; the scenery stays simple and secondary.
+
+## BobsPipes
+
+![Cover](../../mods/BobsPipes/cover.jpg)
+
+Generated with the built-in imagegen tool, exported with ImageMagick to `mods/BobsPipes/cover.jpg` (640 × 360 JPEG).
+
+Final prompt:
+
+Use case: stylized-concept. Asset type: cover for Bob's Pipes, a Valheim mod. Create a beautiful premium game key-art illustration in wide landscape 16:9, intended as a 640x360 thumbnail shown as small as 128x72. Tactile Nordic fantasy, chunky low-poly forms with painterly hand-painted surfaces, weathered wood and bronze, restrained earthy palette, atmospheric warm hearth light. One dominant foreground subject with generous safe margins: a gorgeous hand-carved bent wooden tobacco pipe resting diagonally on a rough oak table, a deep hollow round wooden bowl with subtle carved Norse knotwork, dark curved stem and small leather wrap, tiny warm ember inside and one delicate curl of pale smoke. A small round bronze tobacco tin and a few dry brown tobacco leaves beside it. A cozy Viking longhouse hearth softly blurred in the background, cool dark timber rafters and warm amber fire. Quiet craftsmanship and an immersive evening ritual. Strong readable pipe silhouette. No people, lettering, words, logos, UI, border, watermark, neon colors, giant flames, modern cigarette packaging or shiny plastic. Single complete illustration filling frame.
