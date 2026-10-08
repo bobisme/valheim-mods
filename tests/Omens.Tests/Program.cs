@@ -2,18 +2,22 @@ using Omens;
 
 int checks=0;
 void Check(bool ok,string name){checks++;if(!ok)throw new Exception(name);}
-var every=new[]{Kind.DeadTroll,Kind.Ravens,Kind.AbandonedCamp};
+var every=Enum.GetValues<Kind>();
 
 // Every omen is complete, and its biomes, polarity and raid agree.
 foreach(Omen o in Policy.All)
 {
     Check(!string.IsNullOrWhiteSpace(o.Name)&&!string.IsNullOrWhiteSpace(o.Reading)&&!string.IsNullOrWhiteSpace(o.Outcome),"Every omen has a name, reading and outcome");
     Check(o.Biomes!=0,"Every omen can appear somewhere");
-    Check(o.Bad==!string.IsNullOrEmpty(o.Raid),"Bad omens, and only bad ones, bring a raid");
-    Check(!o.Respondable||!string.IsNullOrWhiteSpace(o.Averted),"A respondable omen says what averting it did");
+    Check((o.Result==Result.Raid)==!string.IsNullOrEmpty(o.Raid),"Raid omens, and only they, name a raid");
+    Check(o.Bad==(o.Result==Result.Raid||o.Result==Result.Stalkers),"Bad omens bring raids or hunters; good ones blessings or gifts");
+    Check(o.Respondable==!string.IsNullOrWhiteSpace(o.Averted)&&o.Respondable==!string.IsNullOrWhiteSpace(o.Action)&&(!o.Respondable||o.CostAmount>0&&o.Cost.StartsWith("$item_")),
+        "A respondable omen has a cost, an action and an averted message; others have none");
+    Check(!o.Linger||!o.Bad,"Only good omens linger after coming to pass");
     Check(Policy.Of(o.Kind)==o,"Each kind maps to its own omen");
 }
-Check(Policy.All.Select(o=>o.Kind).Distinct().Count()==Policy.All.Length,"Kinds are unique");
+Check(Policy.All.Select(o=>o.Kind).Distinct().Count()==Policy.All.Length&&Policy.All.Length==every.Length,"Every kind has exactly one omen");
+Check(Policy.All.Count(o=>o.Bad)==4&&Policy.All.Count(o=>!o.Bad)==2,"Four bad and two good omens");
 
 // Picking: polarity by chance, falling back when a biome has only the other kind.
 int bad=0,trials=0;
@@ -27,8 +31,10 @@ Check(Math.Abs(bad/(double)trials-0.6)<0.01,"60/40 bad to good where both are po
 Check(Policy.Pick(0.99,0.5,0.6,Policy.Mountain,every)==Kind.Ravens,"Good roll in the mountains: ravens");
 Check(Policy.Pick(0.0,0.5,0.6,Policy.Mountain,every)==Kind.Ravens,"Bad roll where no bad omen fits falls back to a good one");
 Check(Policy.Pick(0.0,0.0,0.6,Policy.Swamp,new[]{Kind.DeadTroll})==null,"Nothing fits: no omen");
-Check(Policy.Pick(0.0,0.5,0.6,Policy.Meadows,every)==Kind.AbandonedCamp,"Bad omen in the meadows: the camp (trolls are Black Forest only)");
-Check(Policy.Pick(0.5,0.5,0,Policy.BlackForest,every)==Kind.Ravens,"With raids off only good omens appear");
+Check(Policy.Pick(0.0,0.5,0.6,Policy.Meadows,every) is Kind m&&Policy.Of(m).Bad&&m!=Kind.DeadTroll,"Bad omen in the meadows is never the troll (Black Forest only)");
+Check(Policy.Pick(0.99,0.0,0.6,Policy.Mountain,every.Where(k=>k!=Kind.Ravens).ToList())==null,"Mountains without open sky: no omen fits");
+Check(Policy.Pick(0.99,0.5,0.6,Policy.Meadows,new[]{Kind.Catch,Kind.Cairn})==Kind.Catch,"A good roll on a shore picks the catch");
+for(double k=0;k<1;k+=0.05)Check(Policy.Pick(0.0,k,0,Policy.BlackForest,every) is Kind g&&!Policy.Of(g).Bad,"With raids off only good omens appear");
 foreach(double roll in new[]{-1.0,0,0.9999999,1,2,double.NaN})
     Check(Policy.Pick(0.0,roll,0.6,Policy.BlackForest,every) is Kind k&&Policy.Of(k).Bad,"Out-of-range rolls still pick a valid kind");
 Check(Policy.Pick(0.0,0.0,0.6,Policy.BlackForest,new Kind[0])==null,"All omens disabled: none");
@@ -63,9 +69,18 @@ foreach(State end in new[]{State.Fulfilled,State.Averted,State.Expired,State.Fiz
     Check(Policy.Advance(end,1e9,0,1,true,true,true,true)==end,"End states never change");
 }
 Check(!Policy.Finished(State.Placed)&&!Policy.Finished(State.Seen),"Open states are open");
-Check(!Policy.SignGone(State.Fulfilled,false,0)&&!Policy.SignGone(State.Fulfilled,false,Policy.Linger-1)&&Policy.SignGone(State.Fulfilled,false,Policy.Linger),"A blessing's sign lingers, then goes");
-Check(Policy.SignGone(State.Fulfilled,true,0)&&Policy.SignGone(State.Averted,true,0)&&Policy.SignGone(State.Expired,false,0)&&Policy.SignGone(State.Fizzled,true,0),"Other finished signs go at once");
-Check(!Policy.SignGone(State.Seen,false,1e9)&&!Policy.SignGone(State.Placed,true,1e9),"Open omens keep their sign");
+Check(!Policy.SignGone(State.Fulfilled,true,0)&&!Policy.SignGone(State.Fulfilled,true,Policy.Linger-1)&&Policy.SignGone(State.Fulfilled,true,Policy.Linger),"A lingering sign stays, then goes");
+Check(Policy.SignGone(State.Fulfilled,false,0)&&Policy.SignGone(State.Averted,true,0)&&Policy.SignGone(State.Expired,true,0)&&Policy.SignGone(State.Fizzled,true,0),"Other finished signs go at once");
+Check(!Policy.SignGone(State.Seen,true,1e9)&&!Policy.SignGone(State.Placed,false,1e9),"Open omens keep their sign");
+
+// Hunting packs: every base biome gets a small pack led by its strongest.
+foreach(int biome in new[]{Policy.Meadows,Policy.BlackForest,Policy.Swamp,Policy.Mountain,Policy.Plains,Policy.Mistlands,32,64,256,0})
+{
+    var pack=Policy.Pack(biome);
+    Check(pack.Length>=2&&pack.Length<=4,"A pack is a few creatures");
+    Check(pack.All(c=>!string.IsNullOrWhiteSpace(c.prefab)&&c.level>=1&&c.level<=3),"Pack creatures have names and sane levels");
+}
+Check(Policy.Pack(Policy.Swamp)[0].prefab=="Draugr_Elite"&&Policy.Pack(Policy.BlackForest)[0].prefab=="Greydwarf_Elite","The pack fits the base's biome");
 
 // Nearest base.
 var bases=new List<(double x,double z)>{(100,0),(0,50),(-500,-500)};

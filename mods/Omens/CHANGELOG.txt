@@ -1,3 +1,5 @@
+0.2.0: Three new omens. A scattered cairn (Meadows, Black Forest, Swamp) brings a skeleton raid unless its bones are laid to rest with 5 bone fragments. A drained deer (Meadows, Black Forest) sends a hunting pack, led by a stronger one and suited to the base's biome, at the nearest base at night once someone is home. Gulls over a shore strand real fish there when read. Omens are now chosen among those that fit the spot (ravens need open sky, gulls a shore), keeping the 60/40 split. The test command can place the new omens and list the game's raid events.
+
 0.1.8: Everyone nearby sees a dead troll burn, not only the player who lit it: the host announces the burn and each game lights its own copy of the carcass.
 
 0.1.7: Signs already in the world keep working after a hot reload (F6): they are rebuilt with the reloaded mod. Before, burning such a troll used the resin but never reached the host, so the carcass stayed.

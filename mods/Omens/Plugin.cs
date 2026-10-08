@@ -10,9 +10,9 @@ namespace Omens
     {
         public const string Guid="com.bobisme.omens";
         public const string Name="Omens";
-        public const string Version="0.1.8";
+        public const string Version="0.2.0";
         internal static Plugin Instance;
-        internal ConfigEntry<bool> Enabled,DeadTroll,Ravens,AbandonedCamp;
+        internal ConfigEntry<bool> Enabled,DeadTroll,Ravens,AbandonedCamp,Cairn,DrainedDeer,Catch;
         internal ConfigEntry<float> IntervalDays,BadChance,ExpireDays,BaseRange;
         internal ConfigEntry<int> MaxActive;
         private Harmony _harmony;
@@ -29,6 +29,9 @@ namespace Omens
             DeadTroll=Config.Bind("Omens","DeadTroll",true,"Black Forest: a dead troll. Unless burned with resin, trolls raid the nearest base that night.");
             Ravens=Config.Bind("Omens","Ravens",true,"Ravens circling: players nearby are rested and the land around is revealed on their map.");
             AbandonedCamp=Config.Bind("Omens","AbandonedCamp",true,"Meadows or Black Forest: a cold, abandoned camp. Greydwarfs raid the nearest base that night.");
+            Cairn=Config.Bind("Omens","Cairn",true,"Meadows, Black Forest or Swamp: a scattered cairn. Unless the bones are laid to rest (5 bone fragments), skeletons raid the nearest base that night.");
+            DrainedDeer=Config.Bind("Omens","DrainedDeer",true,"Meadows or Black Forest: a deer drained of blood. At night a hunting pack, led by a stronger one, comes for the nearest base.");
+            Catch=Config.Bind("Omens","Catch",true,"Shores: gulls circling. Reading it strands real fish on the shore for the taking.");
             _harmony=new Harmony(Guid);_harmony.PatchAll(typeof(Plugin).Assembly);
             if(ZNetScene.instance!=null)SignPrefab.Register(ZNetScene.instance); // hot reload while in a world
             OmenSign.AttachAll();
@@ -40,6 +43,9 @@ namespace Omens
             if(DeadTroll.Value)kinds.Add(Kind.DeadTroll);
             if(Ravens.Value)kinds.Add(Kind.Ravens);
             if(AbandonedCamp.Value)kinds.Add(Kind.AbandonedCamp);
+            if(Cairn.Value)kinds.Add(Kind.Cairn);
+            if(DrainedDeer.Value)kinds.Add(Kind.DrainedDeer);
+            if(Catch.Value)kinds.Add(Kind.Catch);
             return kinds;
         }
         internal static void Log(string text)=>Instance?.Logger.LogInfo(text);

@@ -210,6 +210,11 @@ Method("EnvMan","IsNight","System.Boolean");
 Field("EnvMan","m_dayLengthSec","System.Int64");
 Field("Game","m_eventRate","System.Single");
 Method("SEMan","AddStatusEffect","StatusEffect","System.Int32","System.Boolean","System.Int32","System.Single","System.Int16");
+Method("BaseAI","SetHuntPlayer","System.Void","System.Boolean");
+Method("Character","SetLevel","System.Void","System.Int32");
+Method("ZoneSystem","GetGlobalKey","System.Boolean","GlobalKeys");
+Method("WorldGenerator","GetBiome","Heightmap/Biome","System.Single","System.Single","System.Single","System.Boolean");
+Field("RandEventSystem","m_events","System.Collections.Generic.List`1<RandomEvent>");
 Field("Recipe","m_craftingStation","CraftingStation");
 
 using var catalog = JsonDocument.Parse(File.ReadAllText(args[1]));

@@ -11,8 +11,11 @@ a chat line for everyone, and a pin on your map. An omen nobody finds fades afte
 | Omen | Where | Reading | What happens |
 | --- | --- | --- | --- |
 | **Dead troll** | Black Forest | "The forest is angry. Perhaps fire would calm it." | Trolls raid the nearest base that night, unless you **use the carcass with 5 resin** to burn it first. |
+| **Scattered cairn** | Meadows, Black Forest, Swamp | "The dead are restless. Lay them to rest." | Skeletons raid the nearest base that night, unless you **use it with 5 bone fragments**. |
 | **Abandoned camp** | Meadows, Black Forest | "Others passed this way, and did not leave." | Greydwarfs raid the nearest base that night. |
+| **Drained deer** | Meadows, Black Forest | "Something hunts in the night." | At night, once someone is home, a hunting pack led by a stronger creature comes for the nearest base. It suits the base's biome: greydwarfs, draugr, wolves, goblins or seekers. |
 | **Circling ravens** | Open sky on most land | "Odin is watching." | Players nearby become rested, and 250 metres of land is revealed on their maps. The ravens circle above the treetops for two more minutes. |
+| **Gulls over the shore** | Shores | "The sea is generous." | Real fish are stranded on the shore for the taking. |
 
 About **60%** of omens are bad. A bad omen's raid comes at nightfall when seen by day, or a few minutes later when seen at night. It goes
 to the nearest workbench or bed within **1,500 metres** of the sign and uses the game's own raid events, messages and music. It never
@@ -25,7 +28,7 @@ signs are saved world objects tagged with their own random id. Frequency, the ba
 reach and each omen are in F7 → Mod settings (only the host's values count). Later versions can add omens beyond the game's raids.
 
 For testing on the host with Quad's Claude Tools installed, its `omen` command lists omens (`omen list`), places one ahead of the player
-(`omen place troll|ravens|camp [metres]`), brings one to pass at once, night or not (`omen now <id|last>`), averts one as burning the troll does (`omen avert <id>`), removes one without effect (`omen clear <id>`), or schedules the next natural one
+(`omen place troll|ravens|camp|cairn|deer|catch [metres]`), lists the game's raid events (`omen events`), brings one to pass at once, night or not (`omen now <id|last>`), averts one as burning the troll does (`omen avert <id>`), removes one without effect (`omen clear <id>`), or schedules the next natural one
 in 5 seconds (`omen soon`).
 
 Checks cover omen choice and the 60/40 split, biome fallbacks, intervals, raid timing, the omen state machine and nearest-base search,

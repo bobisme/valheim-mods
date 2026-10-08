@@ -39,7 +39,7 @@ namespace Omens
         internal static void Tell(string text,Vector3 pos,float centerRadius,long pinId)=>_rpc?.InvokeRoutedRPC(ZRoutedRpc.Everybody,Show,text,pos,centerRadius,pinId);
         internal static void Resolve(long id)=>_rpc?.InvokeRoutedRPC(ZRoutedRpc.Everybody,Resolved,id);
         internal static void Blessing(Vector3 pos,float radius)=>_rpc?.InvokeRoutedRPC(ZRoutedRpc.Everybody,Bless,pos,radius);
-        internal static void Burned(long id)=>_rpc?.InvokeRoutedRPC(ZRoutedRpc.Everybody,Burn,id);
+        internal static void Responded(long id)=>_rpc?.InvokeRoutedRPC(ZRoutedRpc.Everybody,Burn,id);
 
         private static void OnShow(long sender,string text,Vector3 pos,float centerRadius,long pinId)
         {
@@ -65,12 +65,12 @@ namespace Omens
             me.GetSEMan().AddStatusEffect(SEMan.s_statusEffectRested,true);
             if(Minimap.instance!=null&&Explore!=null)Explore.Invoke(Minimap.instance,new object[]{pos,250f});
         }
-        // Each game lights its own copy of the carcass: ragdolls settle a little differently on every machine.
-        private static void OnBurn(long sender,long id)
+        // Each game shows it on its own copy of the sign: ragdolls settle a little differently on every machine.
+        private static void OnResponded(long sender,long id)
         {
             if(!FromHost(sender))return;
             OmenSign sign=OmenSign.Loaded.FirstOrDefault(s=>s!=null&&s.Id==id);
-            if(sign!=null)Looks.Burn(sign.Carcass);
+            if(sign!=null&&sign.Kind==Kind.DeadTroll)Looks.Burn(sign.Carcass);
         }
         private static bool FromHost(long sender)=>ZNet.instance!=null&&(ZNet.instance.IsServer()?sender==ZNet.GetUID():sender==ZNet.instance.GetServerPeer()?.m_uid);
 
@@ -82,7 +82,7 @@ namespace Omens
             _rpc.Register<string,Vector3,float,long>(Show,OnShow);
             _rpc.Register<long>(Resolved,OnResolved);
             _rpc.Register<Vector3,float>(Bless,OnBless);
-            _rpc.Register<long>(Burn,OnBurn);
+            _rpc.Register<long>(Burn,OnResponded);
             var table=AccessTools.Field(typeof(ZRoutedRpc),"m_functions").GetValue(_rpc) as IDictionary;
             foreach(string name in new[]{Seen,Respond_,Show,Resolved,Bless,Burn})Handlers[name]=table?[name.GetStableHashCode()];
         }

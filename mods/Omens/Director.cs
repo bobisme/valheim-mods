@@ -6,6 +6,7 @@ using BepInEx;
 using Newtonsoft.Json;
 using UnityEngine;
 using Random=UnityEngine.Random;
+using Object=UnityEngine.Object;
 
 namespace Omens
 {
@@ -43,7 +44,7 @@ namespace Omens
             if(_ledger.NextAt<=0)_ledger.NextAt=now+Policy.NextDelay(Plugin.Instance.IntervalDays.Value,DayLength,Random.value);
             bool changed=false;
             foreach(Entry e in _ledger.Omens.Where(e=>!Policy.Finished((State)e.State)).ToList())changed|=Advance(e,now);
-            foreach(Entry e in _ledger.Omens.Where(e=>Policy.Finished((State)e.State)&&!e.SignRemoved&&Policy.SignGone((State)e.State,e.Omen.Bad,now-e.ResolvedAt)).ToList())
+            foreach(Entry e in _ledger.Omens.Where(e=>Policy.Finished((State)e.State)&&!e.SignRemoved&&Policy.SignGone((State)e.State,e.Omen.Linger,now-e.ResolvedAt)).ToList())
             {RemoveSign(e.Id);Net.Resolve(e.Id);e.SignRemoved=true;changed=true;}
             changed|=MaybePlace(now);
             if(changed)Save();
@@ -52,18 +53,25 @@ namespace Omens
         private static bool Advance(Entry e,double now)
         {
             var state=(State)e.State;bool done=false,impossible=false;string why="";
-            Vector3 raidAt=Vector3.zero;
+            Vector3 at=e.Pos;
             if(state==State.Seen)
             {
-                if(!e.Omen.Bad)done=true;
+                Omen omen=e.Omen;
+                if(omen.Result==Result.Blessing){Net.Blessing(e.Pos,60);done=true;}
+                else if(omen.Result==Result.Gift){done=Strand(e.Pos);if(!done){impossible=true;why="the shore could not hold the fish";}}
                 else if(e.Forced||Policy.RaidDue(now,e.SeenAt,e.SeenAtNight,EnvMan.IsNight()))
                 {
                     Vector3? home=NearestBase(e.Pos);
-                    why=Game.m_eventRate<=0?"raids are turned off in this world":home==null?$"no workbench or bed within {Plugin.Instance.BaseRange.Value:0} m"
-                        :now-e.SeenAt>DayLength*1.5?"another raid kept it waiting too long":!RandEventSystem.instance.HaveEvent(e.Omen.Raid)?$"the game has no {e.Omen.Raid} raid":"";
+                    why=Game.m_eventRate<=0?"raids are turned off in this world"
+                        :omen.Result==Result.Stalkers&&ZoneSystem.instance.GetGlobalKey(GlobalKeys.PassiveMobs)?"monsters are passive in this world"
+                        :home==null?$"no workbench or bed within {Plugin.Instance.BaseRange.Value:0} m"
+                        :now-e.SeenAt>DayLength*1.5?"it waited too long for its moment"
+                        :omen.Result==Result.Raid&&!RandEventSystem.instance.HaveEvent(omen.Raid)?$"the game has no {omen.Raid} raid":"";
                     if(why!="")impossible=true;
-                    else if(RandEventSystem.instance.GetCurrentRandomEvent()==null) // never interrupts a raid in progress; waits for it to end
-                    {RandEventSystem.instance.SetRandomEventByName(e.Omen.Raid,home.Value);raidAt=home.Value;done=true;}
+                    else if(omen.Result==Result.Raid&&RandEventSystem.instance.GetCurrentRandomEvent()==null) // never interrupts a raid in progress
+                    {RandEventSystem.instance.SetRandomEventByName(omen.Raid,home.Value);at=home.Value;done=true;}
+                    else if(omen.Result==Result.Stalkers&&Players().Any(p=>Vector3.Distance(p,home.Value)<150)) // they come when someone is home
+                    {done=Hunt(home.Value);at=home.Value;}
                 }
             }
             var next=Policy.Advance(state,now,e.PlacedAt,Plugin.Instance.ExpireDays.Value*DayLength,false,false,done,impossible);
@@ -71,17 +79,58 @@ namespace Omens
             e.State=(int)next;e.ResolvedAt=now;
             switch(next)
             {
-                case State.Fulfilled when e.Omen.Bad:
-                    Net.Tell(e.Omen.Outcome,raidAt,0,0);
-                    Plugin.Log($"{e.Omen.Name} ({e.Id}) came to pass: {e.Omen.Raid} at the base near {raidAt:F0}");break;
                 case State.Fulfilled:
-                    Net.Blessing(e.Pos,60);Net.Tell(e.Omen.Outcome,e.Pos,60,0);
-                    Plugin.Log($"{e.Omen.Name} ({e.Id}) blessed players near {e.Pos:F0}");break;
+                    Net.Tell(e.Omen.Outcome,at,e.Omen.Bad?0:60,0);
+                    Plugin.Log($"{e.Omen.Name} ({e.Id}) came to pass near {at:F0}"+(e.Omen.Result==Result.Raid?$": {e.Omen.Raid}":""));break;
                 case State.Fizzled:
                     Net.Tell("The omen passes. Whatever it foretold did not find you.",e.Pos,-1,0);
                     Plugin.Log($"{e.Omen.Name} ({e.Id}) fizzled: {why}");break;
                 case State.Expired:
                     Plugin.Log($"{e.Omen.Name} ({e.Id}) at {e.Pos:F0} faded unseen");break;
+            }
+            return true;
+        }
+
+        // A hunting pack chosen by the base's biome, 35–45 m out on dry ground, set to hunt players. Saved creatures keep hunting
+        // when their area unloads and loads again.
+        private static bool Hunt(Vector3 home)
+        {
+            var pack=Policy.Pack((int)WorldGenerator.instance.GetBiome(home.x,home.z));
+            float water=ZoneSystem.instance.m_waterLevel;
+            for(int attempt=0;attempt<12;attempt++)
+            {
+                Vector2 dir=Random.insideUnitCircle.normalized*Random.Range(35f,45f);
+                var spot=new Vector3(home.x+dir.x,home.y,home.z+dir.y);
+                spot.y=ZoneSystem.instance.GetSolidHeight(spot,out float solid)?solid:WorldGenerator.instance.GetHeight(spot.x,spot.z);
+                if(spot.y<water+0.5f)continue;
+                int made=0;
+                foreach(var (name,level) in pack)
+                {
+                    GameObject prefab=ZNetScene.instance.GetPrefab(name);
+                    if(prefab==null){Plugin.Log("Omens: no creature "+name);continue;}
+                    Vector2 jitter=Random.insideUnitCircle*3;
+                    GameObject go=Object.Instantiate(prefab,spot+new Vector3(jitter.x,0.5f,jitter.y),Quaternion.LookRotation(home-spot));
+                    go.GetComponent<Character>()?.SetLevel(level);
+                    go.GetComponent<BaseAI>()?.SetHuntPlayer(true);
+                    made++;
+                }
+                if(made>0)Plugin.Log($"Sent {made} hunters toward the base near {home:F0}");
+                return made>0;
+            }
+            return false;
+        }
+        // Three to five real fish flopping on the shore at the sign, ready to be picked up.
+        private static bool Strand(Vector3 at)
+        {
+            GameObject fish=ZNetScene.instance.GetPrefab("Fish1");
+            if(fish==null)return false;
+            int count=Random.Range(3,6);
+            for(int i=0;i<count;i++)
+            {
+                Vector2 jitter=Random.insideUnitCircle*2.5f;
+                var spot=at+new Vector3(jitter.x,0,jitter.y);
+                if(ZoneSystem.instance.GetSolidHeight(spot,out float h))spot.y=h;
+                Object.Instantiate(fish,spot+Vector3.up*0.4f,Quaternion.Euler(0,Random.Range(0,360f),90));
             }
             return true;
         }
@@ -107,7 +156,7 @@ namespace Omens
             if(e==null||!e.Omen.Respondable||Policy.Finished((State)e.State))return;
             e.State=(int)Policy.Advance((State)e.State,Now,e.PlacedAt,double.MaxValue,false,true,false,false);
             e.ResolvedAt=Now;
-            Net.Burned(e.Id); // before the sign leaves the world on the next tick
+            Net.Responded(e.Id); // before the sign leaves the world on the next tick
             Net.Tell(e.Omen.Averted,e.Pos,60,0);
             Plugin.Log($"{NameOf(sender)} averted {e.Omen.Name} ({e.Id})");
             Save();
@@ -131,10 +180,11 @@ namespace Omens
                 var spot=new Vector3(near.x+offset.x,near.y,near.z+offset.y);
                 if(!ZoneSystem.instance.GetSolidHeight(spot,out float height)||height<water+0.6f)continue;
                 spot.y=height;
+                if(NearBuilding(spot)||players.Any(p=>Vector3.Distance(p,spot)<35))continue;
                 int biome=(int)WorldGenerator.instance.GetBiome(spot.x,spot.z);
-                Kind? kind=Policy.Pick(Random.value,Random.value,badChance,biome,enabled);
-                if(kind==Kind.Ravens&&!OpenSky(spot))continue; // birds under a canopy go unseen: try another spot, keeping the good/bad roll fair
-                if(kind==null||NearBuilding(spot)||players.Any(p=>Vector3.Distance(p,spot)<35)||
+                // Only omens that fit this very spot: birds need open sky to be seen, the catch needs a shore.
+                Kind? kind=Policy.Pick(Random.value,Random.value,badChance,biome,enabled.Where(k=>Fits(Policy.Of(k).Site,spot)).ToList());
+                if(kind==null||
                    _ledger.Omens.Any(e=>!Policy.Finished((State)e.State)&&Vector3.Distance(e.Pos,spot)<150))continue;
                 Place(kind.Value,spot,now);
                 _ledger.NextAt=now+Policy.NextDelay(Plugin.Instance.IntervalDays.Value,DayLength,Random.value);
@@ -153,6 +203,20 @@ namespace Omens
             _ledger.Omens.Add(new Entry{Id=id,Kind=(int)kind,X=spot.x,Y=spot.y,Z=spot.z,PlacedAt=now,State=(int)State.Placed});
             Plugin.Log($"Placed {Policy.Of(kind).Name} ({id}) at {spot:F0}");
             return id;
+        }
+        private static bool Fits(Site site,Vector3 spot)=>site==Site.Any||(site==Site.OpenSky?OpenSky(spot):Shore(spot));
+        // Dry ground just above the water, with water within 16 metres: a beach or a lake shore.
+        private static bool Shore(Vector3 spot)
+        {
+            float water=ZoneSystem.instance.m_waterLevel;
+            if(spot.y>water+3||spot.y<water+0.3f)return false;
+            for(int i=0;i<12;i++)
+            {
+                float a=i*Mathf.PI/6;
+                foreach(float reach in new[]{8f,16f})
+                    if(WorldGenerator.instance.GetHeight(spot.x+Mathf.Cos(a)*reach,spot.z+Mathf.Sin(a)*reach)<water-0.5f)return true;
+            }
+            return false;
         }
         // A high ray at the centre and four points around it meets nothing more than 4 m above the ground (bushes and rocks are fine,
         // treetops are not): the sky over the spot is open.
@@ -190,16 +254,17 @@ namespace Omens
         {
             if(!Hosting)return null;
             Load();
-            if(kind==Kind.Ravens)
+            Site site=Policy.Of(kind).Site;
+            if(site!=Site.Any)
             {
-                // The nearest open-sky spot within 40 metres of the one asked for.
+                // The nearest spot that fits within 80 metres of the one asked for.
                 Vector3 asked=spot;bool found=false;
-                for(int ring=0;ring<=40&&!found;ring+=5)for(int step=0;step<Math.Max(1,ring)&&!found;step++)
+                for(int ring=0;ring<=80&&!found;ring+=5)for(int step=0;step<Math.Max(1,ring)&&!found;step++)
                 {
                     float a=step*Mathf.PI*2/Math.Max(1,ring);var test=asked+new Vector3(Mathf.Cos(a)*ring,0,Mathf.Sin(a)*ring);
-                    if(ZoneSystem.instance.GetSolidHeight(test,out float h)){test.y=h;if(OpenSky(test)){spot=test;found=true;}}
+                    if(ZoneSystem.instance.GetSolidHeight(test,out float h)){test.y=h;if(Fits(site,test)){spot=test;found=true;}}
                 }
-                if(!found)return "none: no open sky within 40 m";
+                if(!found)return $"none: no {(site==Site.OpenSky?"open sky":"shore")} within 80 m";
             }
             if(ZoneSystem.instance.GetSolidHeight(spot,out float height))spot.y=height;
             long id=Place(kind,spot,Now);Save();

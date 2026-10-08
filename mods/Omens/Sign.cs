@@ -50,12 +50,11 @@ namespace Omens
     internal sealed class OmenSign:MonoBehaviour,Hoverable,Interactable
     {
         internal static readonly List<OmenSign> Loaded=new List<OmenSign>();
-        internal const string Resin="$item_resin";internal const int ResinCost=5;
         private ZNetView _view;
         internal Kind Kind;internal long Id;
         internal Omen Omen=>Policy.Of(Kind);
         private readonly List<Transform> _birds=new List<Transform>();
-        private float _settleAt,_altitude=14;
+        private float _settleAt,_altitude=14,_radius=7;
         private List<Rigidbody> _bodies;
         private GameObject _carcass;
         private BoxCollider _hover;
@@ -101,11 +100,18 @@ namespace Omens
         {
             switch(Kind)
             {
-                case Kind.DeadTroll:
-                    GameObject troll=Looks.Copy("Troll_ragdoll",transform,new Vector3(0,0.6f,0),Quaternion.Euler(0,Random.Range(0,360f),80));
-                    if(troll!=null){_carcass=troll;_bodies=troll.GetComponentsInChildren<Rigidbody>().ToList();_settleAt=Time.time+8;} // collapse naturally, then hold still
-                    _hover=Looks.Hover(transform,new Vector3(0,0.6f,0),new Vector3(3.5f,1.4f,3.5f));
+                case Kind.DeadTroll:Corpse("Troll_ragdoll",0.6f,new Vector3(3.5f,1.4f,3.5f));break;
+                case Kind.DrainedDeer:Corpse("deer_ragdoll",0.4f,new Vector3(2,1,2));break;
+                case Kind.Cairn:
+                    // A cairn kicked apart: its stack on its side, stones flung about, and what it covered.
+                    GameObject pile=Looks.Copy("stone_pile",transform,new Vector3(0.4f,0.2f,0),Quaternion.Euler(70,Random.Range(0,360f),0));
+                    if(pile!=null)foreach(Collider c in pile.GetComponentsInChildren<Collider>(true))c.enabled=false;
+                    foreach(var (prefab,x,z) in new[]{("Skull2",-0.6f,0.3f),("BoneFragments",-1.2f,-0.8f),("BoneFragments",0.9f,1.3f),("BoneFragments",-0.3f,1.6f),
+                        ("Stone",1.8f,-0.6f),("Stone",-1.9f,0.9f),("Stone",0.6f,-1.9f),("Stone",2.1f,1.2f),("Stone",-1.1f,-2f)})
+                        Looks.Item(prefab,transform,new Vector3(x,0,z),Quaternion.Euler(0,Random.Range(0,360f),0));
+                    _hover=Looks.Hover(transform,new Vector3(0,0.4f,0),new Vector3(4.5f,1f,4.5f));
                     break;
+                case Kind.Catch:Birds("Seagal",10,6,0.9f);break;
                 case Kind.AbandonedCamp:
                     GameObject pit=Looks.Copy("fire_pit",transform,Vector3.zero,Quaternion.identity);
                     if(pit!=null)Looks.Smother(pit);
@@ -116,20 +122,30 @@ namespace Omens
                         Looks.Item(prefab,transform,new Vector3(x,0,z),Quaternion.Euler(0,Random.Range(0,360f),0));
                     Looks.Hover(transform,new Vector3(0,0.4f,0),new Vector3(4.5f,0.8f,4.5f));
                     break;
-                case Kind.Ravens:
-                    // Above the treetops, or the forest hides them: the first thing a ray from high above meets, plus a margin.
-                    if(Physics.Raycast(transform.position+Vector3.up*80,Vector3.down,out RaycastHit top,95,~0,QueryTriggerInteraction.Ignore))
-                        _altitude=Mathf.Clamp(top.point.y-transform.position.y+6,14,45);
-                    for(int i=0;i<3;i++)
-                    {
-                        GameObject bird=Looks.Copy("Crow",transform,Vector3.up*14,Quaternion.identity)??Looks.Copy("Ravens",transform,Vector3.up*14,Quaternion.identity);
-                        if(bird==null)continue;
-                        Transform sitting=bird.transform.Find("crow_sitting"); // the perched model; only the flying one should show
-                        if(sitting!=null)sitting.gameObject.SetActive(false);
-                        bird.transform.localScale=Vector3.one*1.5f; // larger than the ambient crows, so they read as a sign
-                        _birds.Add(bird.transform);
-                    }
-                    break;
+                case Kind.Ravens:Birds("Crow",14,7,1.5f);break; // larger than the ambient crows, so they read as a sign
+            }
+        }
+        // A ragdoll copy that collapses naturally, then holds still; the box people aim at follows it.
+        private void Corpse(string prefab,float height,Vector3 box)
+        {
+            GameObject body=Looks.Copy(prefab,transform,new Vector3(0,height,0),Quaternion.Euler(0,Random.Range(0,360f),80));
+            if(body!=null){_carcass=body;_bodies=body.GetComponentsInChildren<Rigidbody>().ToList();_settleAt=Time.time+8;}
+            _hover=Looks.Hover(transform,new Vector3(0,height,0),box);
+        }
+        // Three birds circling above the treetops (or the forest hides them): the first thing a ray from high above meets, plus a margin.
+        private void Birds(string prefab,float lowest,float radius,float scale)
+        {
+            _altitude=lowest;_radius=radius;
+            if(Physics.Raycast(transform.position+Vector3.up*80,Vector3.down,out RaycastHit top,95,~0,QueryTriggerInteraction.Ignore))
+                _altitude=Mathf.Clamp(top.point.y-transform.position.y+6,lowest,45);
+            for(int i=0;i<3;i++)
+            {
+                GameObject bird=Looks.Copy(prefab,transform,Vector3.up*_altitude,Quaternion.identity);
+                if(bird==null)continue;
+                foreach(Transform part in bird.transform.Cast<Transform>().ToList()) // a perched model sits beside the flying one; only the flying one shows
+                    if(part.name.IndexOf("sit",System.StringComparison.OrdinalIgnoreCase)>=0)part.gameObject.SetActive(false);
+                bird.transform.localScale=Vector3.one*scale;
+                _birds.Add(bird.transform);
             }
         }
         private void Update()
@@ -142,7 +158,7 @@ namespace Omens
             for(int i=0;i<_birds.Count;i++)
             {
                 if(_birds[i]==null)continue;
-                float angle=Time.time*0.55f+i*2.1f,radius=7+i*1.5f;
+                float angle=Time.time*0.55f+i*2.1f,radius=_radius+i*1.5f;
                 var local=new Vector3(Mathf.Cos(angle)*radius,_altitude+i*1.2f+Mathf.Sin(Time.time*0.9f+i)*0.6f,Mathf.Sin(angle)*radius);
                 _birds[i].localPosition=local;
                 // Beak (+Z) along the direction of flight, in the sign's own frame (each sign has a random yaw), inner wing dipped into the turn.
@@ -169,16 +185,16 @@ namespace Omens
         public string GetHoverText()
         {
             if(!Omen.Respondable)return Omen.Name;
-            return Localization.instance.Localize($"{Omen.Name}\n[<color=yellow><b>$KEY_Use</b></color>] Burn the carcass ({ResinCost} $item_resin)");
+            return Localization.instance.Localize($"{Omen.Name}\n[<color=yellow><b>$KEY_Use</b></color>] {Omen.Action} ({Omen.CostAmount} {Omen.Cost})");
         }
         public bool Interact(Humanoid user,bool hold,bool alt)
         {
             if(hold||!Omen.Respondable||!(user is Player player)||player!=Player.m_localPlayer)return false;
             Inventory inventory=player.GetInventory();
-            if(inventory.CountItems(Resin)<ResinCost)
-            {player.Message(MessageHud.MessageType.Center,Localization.instance.Localize($"You need {ResinCost} $item_resin to burn it."));return false;}
-            inventory.RemoveItem(Resin,ResinCost);
-            Net.Respond(Id); // the host lights it for everyone (Net.OnBurn) once it accepts
+            if(inventory.CountItems(Omen.Cost)<Omen.CostAmount)
+            {player.Message(MessageHud.MessageType.Center,Localization.instance.Localize($"You need {Omen.CostAmount} {Omen.Cost}."));return false;}
+            inventory.RemoveItem(Omen.Cost,Omen.CostAmount);
+            Net.Respond(Id); // the host shows the response to everyone (Net.OnResponded) once it accepts
             return true;
         }
         public bool UseItem(Humanoid user,ItemDrop.ItemData item)=>false;
