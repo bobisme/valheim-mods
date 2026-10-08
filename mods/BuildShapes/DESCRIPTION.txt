@@ -1,8 +1,10 @@
-Draw curves, mirror building groups, and repeat decorations along a curve as shared BuildOrders ghosts. Requires BuildOrders with its planning and ghost-selection APIs.
+Draw curves and adjustable-height arches, mirror building groups, and repeat decorations along a curve as shared BuildOrders ghosts. Requires BuildOrders with its planning and ghost-selection APIs.
 
-With a hammer and building piece selected, close the piece menu. F4 opens Curve; Shift+F4 opens Mirror; Ctrl+F4 opens Repeat. F4 or Escape exits any mode. Shift+click marks points, L submits, U removes your last shape's unbuilt ghosts, and Backspace removes the last marker. Exit with F4 to build normally with E.
+With a hammer and building piece selected, close the piece menu. F4 opens Curve; Shift+F4 opens Mirror; Ctrl+F4 opens Repeat; Ctrl+Shift+F4 opens Arch. F4 or Escape exits any mode. Shift+click marks points, L submits, U removes your last shape's unbuilt ghosts, and Backspace removes the last marker. Exit with F4 to build normally with E.
 
 Curve: select a beam/pole and mark start, bend, end. Native-length beams follow the curve in 3D with overlapping joints. Requires two endpoint snap points and a span of 0.25–8 metres.
+
+Arch: select a beam/pole and Shift+click start and end. The height panel opens automatically. Center rise (0–32 m) is measured above the line between the endpoints; a gold guide marks the midpoint. Adjust the slider, type an exact height then Enter/Apply, or use ±0.05 m buttons (Shift: 0.01 m). The preview updates live, keeping both endpoints fixed. Confirm applies pending edits and creates shared ghosts. Edit end keeps your chosen rise; Escape closes the panel, L reopens it, and Cancel/F4 exits. This is a vertical parabolic curve; unequal endpoint heights are supported. Beams keep their native lengths with overlapping joints, so the center line approximates the curve. Ends must be horizontally separated, and tight bends or too-long beams are rejected.
 
 Mirror: mark two points for a vertical mirror plane, then Ctrl+click built pieces or visible ghosts to toggle source selection. Thin wire boxes show sources; heavier boxes preview copies. Ctrl+Backspace removes the last selection. Reflection axes and pivot compensation follow native snap layouts, fixing triangular under-roof walls and sloped beams while preserving ordinary roof pitch; mesh bounds are a fallback. Asymmetric carvings and handed meshes keep their original geometry, so inspect the ghosts before building.
 

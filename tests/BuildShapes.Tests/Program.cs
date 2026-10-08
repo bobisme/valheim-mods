@@ -35,6 +35,38 @@ Reject(() => Curve.Plan(new V3(0,0,0),new V3(40,0,0),new V3(80,0,0),0.25), "Piec
 Reject(() => Curve.Plan(new V3(0,0,0),new V3(100,50,0),new V3(150,0,0),1), "Curve length budget");
 Reject(() => Curve.Plan(new V3(0,0,0),new V3(1000,0,0),new V3(8,0,0),1), "Oversized control polygon rejected");
 
+// Two endpoints and a rise define the center without manual off-axis bend placement.
+foreach (double shift in new[] { 0.0, -10000, 10000 })
+foreach (V3 delta in new[] { new V3(12,0,0), new V3(0,4,12), new V3(7,-2,9) })
+foreach (double rise in new[] { 0.0, 0.017, 3.0, 6.0 })
+{
+    V3 a = new V3(shift,7,shift), c = a+delta;
+    V3 middle = Arch.Middle(a,c,rise);
+    Check(Near(middle,new V3(a.X+delta.X/2,a.Y+delta.Y/2+rise,a.Z+delta.Z/2)), "Arch midpoint pins the requested rise above sloped endpoints");
+    Check(Near(Arch.Middle(c,a,rise),middle), "Reversing endpoints preserves the arch center");
+    foreach(double t in new[] { 0.0, 0.125, 0.25, 0.5, 0.75, 0.875, 1.0 })
+    {
+        V3 expected = a+delta*t+new V3(0,4*rise*t*(1-t),0);
+        Check(Near(Curve.At(a,middle,c,t),expected), "Arch follows an independently computed parabola in a vertical plane");
+        if(delta.Y==0)Check(Math.Abs(Curve.At(a,middle,c,t).Y-Curve.At(a,middle,c,1-t).Y)<1e-8, "Level endpoints give symmetric arch heights");
+    }
+    foreach(double beam in new[] { 1.0, 2.0 })
+    {
+        var plan = Curve.Plan(a,middle,c,beam);
+        Check(Near(plan[0].Start,a)&&Near(plan[^1].End,c), "Arch ghosts meet both fixed endpoints at all rises");
+        Check(plan.All(p=>Math.Abs((p.End-p.Start).Length-beam)<1e-7), "Arch slider changes preserve native beam lengths");
+    }
+}
+Check(Arch.DefaultRise(new V3(),new V3(8,9,0))==4, "Initial rise depends on horizontal span, not endpoint elevation");
+Check(Arch.DefaultRise(new V3(),new V3(128,0,0))==Arch.MaximumRise, "Initial rise stays within the slider range");
+Check(Near(Arch.Middle(new V3(),new V3(8,0,0),Arch.MaximumRise),new V3(4,32,0)), "Maximum rise remains usable");
+Reject(()=>Arch.Middle(new V3(),new V3(0,8,0),2), "Vertical-only endpoints are not an arch span");
+Reject(()=>Arch.Middle(new V3(),new V3(0.09,8,0),2), "Near-vertical arch span rejected");
+Reject(()=>Arch.Middle(new V3(),new V3(129,0,0),2), "Oversized arch span rejected");
+Reject(()=>Arch.Middle(new V3(double.NaN,0,0),new V3(8,0,0),2), "Nonfinite arch endpoints rejected");
+foreach(double invalid in new[] { double.NaN, double.PositiveInfinity, -0.01, 32.01 })
+    Reject(()=>Arch.Middle(new V3(),new V3(8,0,0),invalid), "Nonfinite or out-of-range arch heights rejected");
+
 // Mirror positions and orthonormal frames at translated, oblique planes and tilted source orientations.
 V3 Unit(V3 a) => a*(1/a.Length);
 foreach(double shift in new[]{0.0,-10000,10000})

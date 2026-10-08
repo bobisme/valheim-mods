@@ -16,7 +16,7 @@ namespace BuildShapes
         private Vector2 _repeatOptionsScroll;
         private bool _editingNumber;
         private string _numberError;
-        private const string NumberControl="BuildShapes Repeat number ";
+        private const string NumberControl="BuildShapes number ";
 
         private void OpenRepeatMenu()
         {
@@ -50,7 +50,7 @@ namespace BuildShapes
         private bool NumberControlRow(string key,string unit,float min,float max,float step,ref float value)
         {
             bool fine=Input.GetKey(KeyCode.LeftShift)||Input.GetKey(KeyCode.RightShift);
-            if(fine)step/=key=="Spacing"?5:10;
+            if(fine)step/=key=="Spacing"||key=="Height"?5:10;
             string control=NumberControl+key;
             // Capture Return before the text field consumes it. It applies this field, never the plan.
             bool enter=GUI.GetNameOfFocusedControl()==control && Event.current.type==EventType.KeyDown &&
@@ -79,7 +79,9 @@ namespace BuildShapes
             if(next==value)return false;
             value=next;return true;
         }
-        private void DrawRepeatMenu()
+        private void DrawRepeatMenu() => DrawOptionsWindow(ref _repeatRect, ref _repeatRectPlaced, 780, 194738, RepeatContents);
+
+        private void DrawOptionsWindow(ref Rect rect, ref bool placed, float height, int id, GUI.WindowFunction contents)
         {
             Cursor.lockState=CursorLockMode.None; Cursor.visible=true;
             Matrix4x4 saved=GUI.matrix;
@@ -88,21 +90,21 @@ namespace BuildShapes
             try
             {
                 GUI.skin=Theme();
-                float scale=Mathf.Min(Mathf.Max(0.6f,Screen.height/1080f),Screen.height/820f);
+                float scale=Mathf.Min(Mathf.Max(0.6f,Screen.height/1080f),Screen.height/(height+40));
                 GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1));
                 float sw=Screen.width/scale,sh=Screen.height/scale;
-                const float width=440,height=780;
-                if(!_repeatRectPlaced){_repeatRect=new Rect(sw-width-25,(sh-height)/2,width,height);_repeatRectPlaced=true;}
-                _repeatRect.width=width;_repeatRect.height=height;
-                _repeatRect.x=Mathf.Clamp(_repeatRect.x,0,Mathf.Max(0,sw-width));
-                _repeatRect.y=Mathf.Clamp(_repeatRect.y,0,Mathf.Max(0,sh-height));
+                const float width=440;
+                if(!placed){rect=new Rect(sw-width-25,(sh-height)/2,width,height);placed=true;}
+                rect.width=width;rect.height=height;
+                rect.x=Mathf.Clamp(rect.x,0,Mathf.Max(0,sw-width));
+                rect.y=Mathf.Clamp(rect.y,0,Mathf.Max(0,sh-height));
                 // Ignore the marker click that caused this window to appear.
                 GUI.enabled=enabled && Time.frameCount>_menuOpenedFrame+1;
-                _repeatRect=GUI.Window(194738,_repeatRect,RepeatContents,GUIContent.none);
+                rect=GUI.Window(id,rect,contents,GUIContent.none);
             }
             finally
             {
-                _editingNumber=_repeatMenu && (GUI.GetNameOfFocusedControl()??"").StartsWith(NumberControl);
+                _editingNumber=OptionsMenuOpen && (GUI.GetNameOfFocusedControl()??"").StartsWith(NumberControl);
                 GUI.matrix=saved;GUI.enabled=enabled;GUI.skin=skin;
             }
         }
@@ -178,28 +180,28 @@ namespace BuildShapes
     internal static class RepeatPlayerInput
     {
         private static void Postfix(Player __instance,ref bool __result)
-        {if(__instance==Player.m_localPlayer && Plugin.RepeatMenuOpen && !Plugin.ProbingInput)__result=false;}
+        {if(__instance==Player.m_localPlayer && Plugin.OptionsMenuOpen && !Plugin.ProbingInput)__result=false;}
     }
     [HarmonyPatch(typeof(PlayerController),"TakeInput")]
     internal static class RepeatControllerInput
     {
-        private static void Postfix(ref bool __result) {if(Plugin.RepeatMenuOpen)__result=false;}
+        private static void Postfix(ref bool __result) {if(Plugin.OptionsMenuOpen)__result=false;}
     }
     [HarmonyPatch(typeof(GameCamera),"UpdateMouseCapture")]
     internal static class RepeatMouseCapture
     {
         private static bool Prefix()
-        {if(!Plugin.RepeatMenuOpen)return true;Cursor.lockState=CursorLockMode.None;Cursor.visible=true;return false;}
+        {if(!Plugin.OptionsMenuOpen)return true;Cursor.lockState=CursorLockMode.None;Cursor.visible=true;return false;}
     }
     [HarmonyPatch(typeof(ZInput),"GetMouseScrollWheel")]
     internal static class RepeatScroll
     {
-        private static void Postfix(ref float __result) {if(Plugin.RepeatMenuOpen)__result=0;}
+        private static void Postfix(ref float __result) {if(Plugin.OptionsMenuOpen)__result=0;}
     }
     [HarmonyPatch(typeof(Humanoid),nameof(Humanoid.StartAttack))]
     internal static class RepeatAttack
     {
         private static bool Prefix(Humanoid __instance,ref bool __result)
-        {if(__instance!=Player.m_localPlayer || !Plugin.RepeatMenuOpen)return true;__result=false;return false;}
+        {if(__instance!=Player.m_localPlayer || !Plugin.OptionsMenuOpen)return true;__result=false;return false;}
     }
 }

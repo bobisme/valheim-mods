@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
-  <ItemGroup><Compile Include="../../mods/BuildShapes/Curve.cs" Link="Curve.cs" /><Compile Include="../../mods/BuildShapes/Mirror.cs" Link="Mirror.cs" /><Compile Include="../../mods/BuildShapes/Planner.cs" Link="Planner.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../../mods/BuildShapes/Curve.cs" Link="Curve.cs" /><Compile Include="../../mods/BuildShapes/Arch.cs" Link="Arch.cs" /><Compile Include="../../mods/BuildShapes/Mirror.cs" Link="Mirror.cs" /><Compile Include="../../mods/BuildShapes/Planner.cs" Link="Planner.cs" /></ItemGroup>
   <ItemGroup><None Update="Fixtures/*.json" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
 </Project>

@@ -162,7 +162,7 @@ First-playtest checklist (automated policy checks and assembly verification do n
 
 ## BuildShapes
 
-Curve, Mirror, and Repeat tools for **BuildOrders**, using normal pieces, materials, and support rules. The original Curve API has been
+Curve, Arch, Mirror, and Repeat tools for **BuildOrders**, using normal pieces, materials, and support rules. The original Curve API has been
 merged upstream. Mirror/Repeat also need the new ghost-selection/input API; use the patched planner from [upstream PR #3](https://github.com/HardHeadHackerHead/valheim-mods/pull/3) until it merges. Curve still works with the original API release (BuildOrders 1.9.3 or newer).
 The add-on reconnects to the live planner after F6 or individual reloads, without referencing its assembly.
 
@@ -173,18 +173,30 @@ Equip a **hammer**, select a building piece, and close the piece menu:
 | **F4** | Enter/exit Curve mode (select a beam/pole first) |
 | **Left Shift + F4** | Enter/exit Mirror mode |
 | **Left Ctrl + F4** | Enter/exit Repeat mode |
-| **Left Shift + left click** | Mark curve points or the mirror line |
+| **Left Ctrl + Left Shift + F4** | Enter/exit Arch mode (select a beam/pole first) |
+| **Left Shift + left click** | Mark curve points, arch endpoints, or the mirror line |
 | **Left Ctrl + left click** | Mirror: toggle a source piece/ghost; Repeat: copy a source piece/ghost and its orientation |
-| **L** | Curve/Mirror: submit ghosts; Repeat: open/confirm options |
+| **L** | Curve/Mirror: submit ghosts; Arch/Repeat: open/confirm options |
 | **U** in any shape mode | Remove the last submitted shape's unbuilt ghosts |
 | **Backspace** | Remove the last marker |
 | **Left Ctrl + Backspace** | Mirror: remove the last source selection |
-| **F4** or **Escape** | Exit the current shape mode and clear its preview |
+| **F4** | Exit the current shape mode and clear its preview |
+| **Escape** | Close options first, or exit the shape mode |
 
 **Curve:** select a beam/pole and press F4. Mark **start, bend, end**; the curve passes through the bend marker and works in 3D,
 including vertical arches. The turquoise strokes show piece center lines. Pieces keep their native lengths with overlapping joints;
 the first/last endpoints meet your markers. Shorter beams follow tighter bends. Beams/poles need exactly two endpoint snap points,
 original prefab scale, and a span of 0.25–8 metres. Tight or degenerate bends are rejected before planning.
+
+**Arch:** select a beam/pole and press **Ctrl+Shift+F4**. Shift+click **start and end**; the center-height panel opens
+beside the preview. Set the **center rise** with the slider, or type an exact height and press **Enter/Apply**. The ± buttons
+step by **0.05 m**, or **0.01 m** while holding Shift. Rise is measured above the line between your endpoints, so 0 m gives a
+straight span and unequal endpoint heights work too. The gold guide marks the center; the preview updates as you adjust it.
+**Confirm** applies pending edits and submits normal ghosts. **Edit end** replaces the second endpoint while keeping the rise;
+**Escape** closes the panel and **L** reopens it. **Cancel/F4** exits. The arch is a vertical parabolic curve with native-length
+overlapping beams, whose center lines approximate the curve. Both outer endpoints stay fixed. Ends must be horizontally separated;
+shorter beams allow tighter arches. Center rise is limited to **0–32 m**, within the usual curve-length and piece-count limits.
+Arch uses the same original planning API as Curve.
 
 **Mirror:** press Shift+F4. Mark **two points** to define a vertical mirror plane; only their horizontal direction matters. Ctrl+click
 built pieces or visible planner ghosts to select a group; click again to deselect. Thin wire boxes show the source selection, and heavier
@@ -226,21 +238,22 @@ U removes only remaining ghosts; built pieces and terrain stay intact. Undo is o
 and clears on death/respawn, F6, or world changes. Saved/shared ghosts remain after the add-on unloads. Settings are in
 `BepInEx/config/com.bobisme.buildshapes.cfg`. Radial repeat and ornament presets are future additions.
 
-Automated checks cover curve/station geometry, independently integrated arc spacing, reflected tilted frames, offset pivots, 33 captured native snap layouts (including triangular gables), repeat
+Automated checks cover two-endpoint arch height/symmetry, curve/station geometry, independently integrated arc spacing, reflected tilted frames, offset pivots, 33 captured native snap layouts (including triangular gables), repeat
 bounds and vertical heading, plus reflection dispatch across original/extended/missing/reloaded planners. The upstream API has separate
 batch, ghost-ray, input-conflict, undo, and world tests. Rendering, multiplayer delivery, and fresh-launch behavior still need playtests:
 
 1. Curve a 1m/2m wood beam horizontally and vertically; compare center lines to submitted ghosts and normal support/material costs.
-2. Mirror a roof wing, triangular under-roof wall (including inverted variants), sloped beam, and offset-pivot beam across an oblique
+2. Arch two level and two unequal-height endpoints. Adjust the slider, fractional height, and Shift ± buttons; check endpoints stay fixed. Try Edit end, invalid heights, Enter/Apply, Confirm with a pending edit, Escape/L, and F6 with the panel open. Menu clicks must not move/look/attack/place.
+3. Mirror a roof wing, triangular under-roof wall (including inverted variants), sloped beam, and offset-pivot beam across an oblique
    line. Check native snaps, wedge slopes, roof pitch, and copied versus original pieces.
-3. Repeat upright posts along a curve. Confirm the options open automatically, cursor is free, spacing/yaw/pitch/roll/follow change the
+4. Repeat upright posts along a curve. Confirm the options open automatically, cursor is free, spacing/yaw/pitch/roll/follow change the
    preview, and slider clicks never move/look/attack/place. Enter fractional spacing/angles, use ± with/without Shift, and check that
    sliders keep the precise value until dragged. Try invalid/out-of-range entries, Enter/Apply, and Confirm with a pending edit.
    Choose a Bottom/Top/end snap and check that it stays on the path while
    changing pitch/roll/yaw. Try Edit path, Escape/L, Cancel/F4, then F6 with the panel open.
-4. Build one output piece, then U: only its remaining ghosts disappear. Try protected, distant, scaled, and terrain-operation pieces.
-5. F6, reload the planner independently, switch worlds, open inventory/F11, or begin a blueprint/bridge. Check input/preview cleanup.
-6. Have another player view/build shapes with the updated planner alone. Save/restart and confirm ghosts persist.
+5. Build one output piece, then U: only its remaining ghosts disappear. Try protected, distant, scaled, and terrain-operation pieces.
+6. F6, reload the planner independently, switch worlds, open inventory/F11, or begin a blueprint/bridge. Check input/preview cleanup.
+7. Have another player view/build shapes with the updated planner alone. Save/restart and confirm ghosts persist.
 
 For developers, `mise run verify -- --planner-assembly /path/to/BuildOrders.dll` checks the compiled public planning/query interface,
 game targets, dependency declaration, catalog metadata, and loader-readable symbols.
