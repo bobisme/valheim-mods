@@ -2,6 +2,37 @@
 
 Bob's Valheim mods, built for native Linux and Windows and packaged for the in-game mod manager.
 
+## Spyglass
+
+A bronze spyglass, crafted at the **forge** from **3 bronze**. While it is in your inventory, press **Shift+Z** to raise it to your eye;
+**Shift+Z** or **Escape** lowers it. The view narrows to **4×** optical magnification, and the **mouse wheel** changes it from 2× to 8×.
+Mouse turning slows to match, and a round eyepiece darkens the screen edges. The view is from your eyes, so your character never
+blocks it, and you can keep walking. Opening the inventory, map, menu or chat, dying, or losing the item lowers it.
+
+Where you gaze, the map fills in a little: every quarter second, a **30-metre** circle around the point you look at is uncovered, up to
+**600 metres** away. The gaze stops at loaded buildings, trees and ground, then at the world's generated terrain shape or sea level
+beyond them; the sky uncovers nothing. Uncovered map is saved with your character like normal exploring. Magnification, radius, range
+and the eyepiece are in F7 → Mod settings.
+
+GearSlots binds quick slot 1 to plain **Z**, and its key helper ignores extra held keys. While the whole Shift+Z is held, Spyglass makes
+any mod's `Pressed(KeyboardShortcut)` helper report a shorter shortcut on the same key as not pressed, including mods hot-reloaded later.
+Plain Z keeps working.
+
+Only the player using it needs the mod for looking and crafting. A spyglass **dropped on the ground** is a world object, so the host and
+nearby players need the mod too: a host without it deletes the dropped item when its area loads. Removing the mod removes spyglasses from saved
+inventories. The item is a bronze-bar clone with its own prefab name (`BobSpyglass`), model built from cylinders, and a rendered icon.
+
+Checks cover optical magnification, wheel limits, turn scaling, gaze/terrain/sea intersection and shortcut priority, plus native hooks.
+First playtest:
+
+1. Check that the recipe appears at a forge once you know bronze. Craft one, then look at its icon, its model when dropped, and its tooltip.
+2. Shift+Z with and without the item. Check the view comes from your eyes, the wheel changes magnification, turning feels steady, and Escape
+   lowers it without opening the menu.
+3. Put something in GearSlots quick slot 1. Shift+Z must not use it, and plain Z must.
+4. Gaze at distant hills, the sea, a nearby wall and the sky. Open the map: only the hills, sea and wall areas are uncovered. Save, restart and recheck.
+5. Quit fully, restart, and check the log for `Missing prefab hash` and `Failed to find item prefab` with a spyglass in your inventory and one dropped.
+6. F6 with it raised, in your inventory, and dropped. The camera must return to normal, and the inventory icon must survive the reload.
+
 ## ChestSearch
 
 Press **Ctrl+F** to open your inventory and a nearby-chest search window. Type part of an item's name; multiple words all need to match.

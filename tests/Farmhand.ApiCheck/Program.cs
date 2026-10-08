@@ -181,6 +181,22 @@ Method("InventoryGrid","GetElementPos","Vector2i","InventoryElement");
 Method("InventoryElement","Initialize","System.Void","System.Int32","System.Int32");
 Method("Inventory","MoveItemToThis","System.Boolean","Inventory","ItemDrop/ItemData","System.Int32","System.Int32","System.Int32");
 
+// Spyglass registers a cloned item and recipe, narrows the native camera, and uncovers map through the minimap's own explore.
+Method("ZNetScene","Awake","System.Void");
+Method("ObjectDB","UpdateRegisters","System.Void");
+Method("ObjectDB","CopyOtherDB","System.Void","ObjectDB");
+Field("ZNetScene","m_namedPrefabs","System.Collections.Generic.Dictionary`2<System.Int32,UnityEngine.GameObject>");
+Method("GameCamera","UpdateCamera","System.Void","System.Single");
+Field("GameCamera","m_camera","UnityEngine.Camera");
+Field("GameCamera","m_skyCamera","UnityEngine.Camera");
+Field("GameCamera","m_fov","System.Single");
+Method("PlayerController","LateUpdate","System.Void");
+Field("PlayerController","m_mouseSens","System.Single");
+Method("Minimap","Explore","System.Void","UnityEngine.Vector3","System.Single");
+Method("WorldGenerator","GetHeight","System.Single","System.Single","System.Single");
+Field("Character","m_eye","UnityEngine.Transform");
+Field("Recipe","m_craftingStation","CraftingStation");
+
 using var catalog = JsonDocument.Parse(File.ReadAllText(args[1]));
 foreach (var entry in catalog.RootElement.GetProperty("mods").EnumerateArray())
 {
