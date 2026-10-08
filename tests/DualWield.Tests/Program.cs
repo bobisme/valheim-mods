@@ -30,4 +30,7 @@ Check(Policy.DamageFactor(0,50,0.62,1,1)==1&&Policy.DamageFactor(50,50,0.62,0,1)
 Check(Near(Policy.DamageFactor(50,-5,0.62,1,1),0.62)&&Near(Policy.DamageFactor(50,50,0,1,1),1.24),"Bad off-hand damage or share fall back safely");
 
 Check(Near(Policy.Stamina(20,1.3),26)&&Policy.Stamina(double.NaN,1.3)==0&&Near(Policy.Stamina(20,0),20)&&Policy.Stamina(-5,1.3)==0,"Stamina is the main weapon's, 1.3× per swing");
+Check(Near(Policy.Effective(12,20,0.5),22)&&Policy.Equip(Family.Axes,Family.Axes,false,Policy.Effective(12,20,0.5),20,false)==Verdict.Dual,"Woodcutting gives half credit toward axes");
+Check(Near(Policy.Effective(12,100,0.5),62)&&Near(Policy.Effective(12,40,0),12)&&Near(Policy.Effective(12,40,5),52),"Credit is clamped to between none and full");
+Check(Near(Policy.Effective(double.NaN,double.NaN,0.5),0)&&Near(Policy.Effective(-3,10,0.5),5),"Invalid skills count as nothing");
 Console.WriteLine($"Passed {checks} dual wield pairing, skill, damage and stamina checks.");

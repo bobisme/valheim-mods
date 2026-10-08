@@ -12,10 +12,10 @@ namespace DualWield
     {
         public const string Guid="com.bobisme.dualwield";
         public const string Name="DualWield";
-        public const string Version="0.1.0";
+        public const string Version="0.1.1";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled;
-        internal ConfigEntry<float> MinSkill,DamageShare,StaminaFactor;
+        internal ConfigEntry<float> MinSkill,WoodcuttingCredit,DamageShare,StaminaFactor;
         internal ConfigEntry<KeyboardShortcut> SwapKey;
         internal ConfigEntry<Vector3> AxeRotation,AxeOffset,KnifeRotation,KnifeOffset;
         private Harmony _harmony;
@@ -25,6 +25,7 @@ namespace DualWield
             Instance=this;
             Enabled=Config.Bind("General","Enabled",true,"Equip a matching second one-handed axe or knife into the off hand.");
             MinSkill=Config.Bind("Balance","MinSkill",20f,new ConfigDescription("Weapon skill needed to wield two of that kind.",new AcceptableValueRange<float>(0,100)));
+            WoodcuttingCredit=Config.Bind("Balance","WoodcuttingCredit",0.5f,new ConfigDescription("Share of Woodcutting that counts toward wielding two axes (0.5: Axes plus half of Woodcutting must reach MinSkill).",new AcceptableValueRange<float>(0,1)));
             DamageShare=Config.Bind("Balance","DamageShare",0.62f,new ConfigDescription("Each dual hit is worth this share of both weapons' damage combined (0.62: about 1.24× one weapon when they are equal).",new AcceptableValueRange<float>(0.3f,1)));
             StaminaFactor=Config.Bind("Balance","StaminaFactor",1.3f,new ConfigDescription("Stamina per dual swing, as a multiple of the main weapon's.",new AcceptableValueRange<float>(1,3)));
             SwapKey=Config.Bind("Controls","ReplaceMainHand",new KeyboardShortcut(KeyCode.LeftAlt),"Hold while equipping a second matching weapon to replace the main-hand one instead of wielding both.");
@@ -81,6 +82,16 @@ namespace DualWield
                 item.m_shared.m_equipEffect.Create(vis.m_leftHand.position,vis.m_leftHand.rotation,null,1f,-1,h.GetZDOID());
             Setup.Invoke(h,null);
             if(effects)TriggerEffect.Invoke(h,new object[]{item});
+        }
+        // Toward the skill gate: the weapon skill, plus partial credit from woodcutting for axes.
+        internal static double Skill(Player p,ItemDrop.ItemData item,out string how)
+        {
+            float weapon=p.GetSkillLevel(item.m_shared.m_skillType);
+            how=$"$skill_{item.m_shared.m_skillType.ToString().ToLowerInvariant()} {weapon:0}";
+            if(FamilyOf(item)!=Family.Axes)return weapon;
+            float wood=p.GetSkillLevel(Skills.SkillType.WoodCutting),credit=Plugin.Instance.WoodcuttingCredit.Value;
+            if(credit>0)how+=$" + {credit*100:0}% of $skill_woodcutting {wood:0}";
+            return Policy.Effective(weapon,wood,credit);
         }
         internal static void Setup_(Humanoid h)=>Setup.Invoke(h,null);
         internal static void State(Humanoid h,ItemDrop.ItemData.AnimationState state)=>SetState.Invoke(h,new object[]{state});

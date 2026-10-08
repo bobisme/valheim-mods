@@ -9,6 +9,10 @@ namespace DualWield
     // Pure rules shared with the standalone tests: no Unity or game types.
     internal static class Policy
     {
+        // Skill toward wielding two: the weapon skill, plus a share of the gathering skill that uses the same tool
+        // (woodcutting teaches the axe, not fighting with two).
+        internal static double Effective(double weaponSkill,double gatheringSkill,double credit)=>
+            Math.Max(0,double.IsNaN(weaponSkill)?0:weaponSkill)+Math.Max(0,double.IsNaN(gatheringSkill)?0:gatheringSkill)*Math.Max(0,Math.Min(1,double.IsNaN(credit)?0:credit));
         internal static Family FamilyOf(bool oneHanded,bool axe,bool knife)=>!oneHanded?Family.None:axe?Family.Axes:knife?Family.Knives:Family.None;
 
         // Equipping a second weapon while one is in the main hand: a matching pair goes to the off hand once the skill allows it.

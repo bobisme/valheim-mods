@@ -1,1 +1,3 @@
+0.1.1: Woodcutting counts toward wielding two axes: Axes plus half of Woodcutting must reach 20 (adjustable). The message shows how your total is made up.
+
 0.1.0: First DualWield. With a one-handed axe or knife in your main hand and that weapon skill at 20, equipping a second one of the same kind puts it in your off hand, replacing a shield or torch. Two axes fight with the Berserkir axes' moves and two knives with Skoll and Hati's; damage per hit is 62% of both weapons combined (about 1.24× one weapon), each swing costs 1.3× the stamina, both weapons wear, and blocking uses the main weapon's weak block in a two-weapon stance. Hold Left Alt while equipping to replace the main weapon instead.

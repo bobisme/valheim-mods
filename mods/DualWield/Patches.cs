@@ -18,7 +18,8 @@ namespace DualWield
             if(item.m_shared.m_useDurability&&item.m_durability<=0)return true;
             bool swap=player==Player.m_localPlayer&&Plugin.Instance.SwapKey.Value.MainKey!=KeyCode.None&&Input.GetKey(Plugin.Instance.SwapKey.Value.MainKey);
             Family family=Hands.FamilyOf(main);
-            switch(Policy.Equip(family,Hands.FamilyOf(item),main==item,player.GetSkillLevel(item.m_shared.m_skillType),Plugin.Instance.MinSkill.Value,swap))
+            double skill=Hands.Skill(player,item,out string how);
+            switch(Policy.Equip(family,Hands.FamilyOf(item),main==item,skill,Plugin.Instance.MinSkill.Value,swap))
             {
                 case Verdict.Dual:
                     if(Hands.Template(family)==null)return true; // the game's own dual weapon is missing: no move set to borrow
@@ -27,7 +28,7 @@ namespace DualWield
                 case Verdict.NeedsSkill:
                     if(player==Player.m_localPlayer)
                         player.Message(MessageHud.MessageType.TopLeft,Localization.instance.Localize(
-                            $"Reach {Plugin.Instance.MinSkill.Value:0} in $skill_{item.m_shared.m_skillType.ToString().ToLowerInvariant()} to wield two."));
+                            $"To wield two you need {Plugin.Instance.MinSkill.Value:0}: {how} = {skill:0.#}."));
                     return true;
                 default:return true;
             }
