@@ -127,13 +127,15 @@ namespace Omens
         private void FollowCarcass()
         {
             if(_hover==null||_carcass==null)return;
-            Renderer[] parts=_carcass.GetComponentsInChildren<Renderer>();
-            if(parts.Length==0)return;
-            Bounds bounds=parts[0].bounds;
-            foreach(Renderer part in parts)bounds.Encapsulate(part.bounds);
+            // The bones' own physics shapes are where the body really is; a skinned mesh's bounds are only approximate.
+            Collider[] bones=_carcass.GetComponentsInChildren<Collider>();
+            if(bones.Length==0)return;
+            Bounds bounds=bones[0].bounds;
+            foreach(Collider bone in bones)bounds.Encapsulate(bone.bounds);
+            bounds.Expand(0.4f);
             Transform box=_hover.transform;
             box.position=bounds.center;box.rotation=Quaternion.identity;
-            _hover.center=Vector3.zero;_hover.size=Vector3.Max(bounds.size,new Vector3(2,1,2));
+            _hover.center=Vector3.zero;_hover.size=Vector3.Max(bounds.size,new Vector3(1.5f,0.8f,1.5f));
         }
         public string GetHoverName()=>Omen.Name;
         public float GetHoverOffset()=>0;
@@ -150,7 +152,7 @@ namespace Omens
             {player.Message(MessageHud.MessageType.Center,Localization.instance.Localize($"You need {ResinCost} $item_resin to burn it."));return false;}
             inventory.RemoveItem(Resin,ResinCost);
             Net.Respond(Id);
-            Looks.Burn(transform);
+            Looks.Burn(_hover!=null?_hover.transform.position:transform.position); // where the carcass lies, not where it was placed
             return true;
         }
         public bool UseItem(Humanoid user,ItemDrop.ItemData item)=>false;
@@ -209,9 +211,9 @@ namespace Omens
             return box;
         }
         // The game's own fire-pit flames over the carcass for a few seconds, as everyone near it sees it burn.
-        internal static void Burn(Transform at)
+        internal static void Burn(Vector3 at)
         {
-            GameObject copy=Copy("fire_pit",null,at.position+Vector3.up*0.3f,Quaternion.identity);
+            GameObject copy=Copy("fire_pit",null,at,Quaternion.identity);
             if(copy==null)return;
             copy.transform.localScale=Vector3.one*1.6f;
             foreach(Transform t in copy.GetComponentsInChildren<Transform>(true))t.gameObject.SetActive(true); // the lit-fire objects start hidden

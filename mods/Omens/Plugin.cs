@@ -10,7 +10,7 @@ namespace Omens
     {
         public const string Guid="com.bobisme.omens";
         public const string Name="Omens";
-        public const string Version="0.1.3";
+        public const string Version="0.1.4";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled,DeadTroll,Ravens,AbandonedCamp;
         internal ConfigEntry<float> IntervalDays,BadChance,ExpireDays,BaseRange;
