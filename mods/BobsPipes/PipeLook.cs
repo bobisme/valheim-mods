@@ -9,6 +9,7 @@ namespace BobsPipes
     internal sealed class PipeLook : MonoBehaviour
     {
         private Player _player; private ZNetView _view; private Transform _head,_hand,_forearm;
+        private Transform _index,_index2,_middle,_middle2,_little,_grip;
         private Model.Parts _model; private ParticleSystem _smoke; private Light _light;
         private readonly List<Object> _owned=new List<Object>(); private long _lastExhale;
         internal static void Attach(Player player)
@@ -33,6 +34,10 @@ namespace BobsPipes
             _forearm=Utils.GetBoneTransform(animator,HumanBodyBones.RightLowerArm);
             if(_forearm==null&&_hand!=null)_forearm=_hand.parent;
             if(_head==null||_hand==null)return false;
+            Transform Find(string name)=>_hand.GetComponentsInChildren<Transform>(true).FirstOrDefault(t=>t.name==name);
+            _index=Find("RightHandIndex1");_index2=Find("RightHandIndex2");
+            _middle=Find("RightHandMiddle1");_middle2=Find("RightHandMiddle2");
+            _little=Find("RightHandPinky1");_grip=Find("RightHand_Attach");
             GameObject wood=ObjectDB.instance?.GetItemPrefab("Wood");
             Material basis=wood?.GetComponentsInChildren<Renderer>(true).Where(r=>!(r is ParticleSystemRenderer)).Select(r=>r.sharedMaterial).FirstOrDefault(m=>m!=null);
             if(basis==null)return false;
@@ -55,10 +60,8 @@ namespace BobsPipes
             Vector3 forward=_head.TransformDirection(Vector3.left).normalized,up=_head.TransformDirection(Vector3.up).normalized;
             Vector3 mouth=_head.position+forward*0.125f+up*0.10f;
             Quaternion mouthRotation=Quaternion.LookRotation(forward+up*0.08f,up);
-            Vector3 along=_forearm!=null?(_hand.position-_forearm.position).normalized:Vector3.down;
-            Vector3 dir=(transform.forward+Vector3.up*0.35f).normalized;
-            Vector3 hand=_hand.position+along*0.035f-dir*0.065f;
-            _model.Root.SetPositionAndRotation(Vector3.Lerp(hand,mouth,blend),Quaternion.Slerp(Quaternion.LookRotation(dir,Vector3.up),mouthRotation,blend));
+            HandPose(out Vector3 hand,out Quaternion handRotation);
+            _model.Root.SetPositionAndRotation(Vector3.Lerp(hand,mouth,blend),Quaternion.Slerp(handRotation,mouthRotation,blend));
             bool smoke=Plugin.Instance?.ShowSmoke.Value??true;
             if(smoke&&!_smoke.isPlaying)_smoke.Play();else if(!smoke)_smoke.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);
             if(smoke&&puff>0&&puff!=_lastExhale&&age>=1.4f)
@@ -73,6 +76,33 @@ namespace BobsPipes
             _light.intensity=0.07f+0.025f*(1+Mathf.Sin(Time.time*2.7f));
             Vector3 wind=EnvMan.instance!=null?EnvMan.instance.GetWindForce()*0.045f:Vector3.zero;
             var velocity=_smoke.velocityOverLifetime;velocity.x=wind.x;velocity.y=0.12f;velocity.z=wind.z;
+        }
+        private void HandPose(out Vector3 position,out Quaternion rotation)
+        {
+            if(_index!=null&&_index2!=null&&_middle!=null&&_middle2!=null&&_little!=null)
+            {
+                Vector3 across=(_index.position-_little.position).normalized;
+                Vector3 fingers=(_index2.position-_index.position).normalized;
+                Vector3 palm=Vector3.Cross(across,fingers).normalized;
+                if(palm.sqrMagnitude>0.5f)
+                {
+                    // The attachment sits inside the curled hand. Point out of that palm,
+                    // using finger positions in world space: the rig's bone scale is not metres.
+                    if(_grip!=null&&Vector3.Dot(palm,_grip.position-_index.position)<0)palm=-palm;
+                    Vector3 axis=(fingers*0.45f-palm).normalized;
+                    rotation=Quaternion.LookRotation(axis,Vector3.up);
+                    Vector3 gap=(_index.position+_index2.position+_middle.position+_middle2.position)*0.25f;
+                    // Grip the leather-wrapped stem, not the model's mouthpiece origin.
+                    // The bowl lies another 8 cm beyond the fingers, clear of the hand.
+                    Vector3 stemGrip=new Vector3(0,-0.024f,0.10f);
+                    position=gap-palm*0.012f-rotation*stemGrip;
+                    return;
+                }
+            }
+            Vector3 along=_forearm!=null?(_hand.position-_forearm.position).normalized:Vector3.down;
+            Vector3 direction=(transform.forward+Vector3.up*0.35f).normalized;
+            rotation=Quaternion.LookRotation(direction,Vector3.up);
+            position=_hand.position+along*0.10f+Vector3.up*0.01f-rotation*new Vector3(0,-0.024f,0.10f);
         }
         private ParticleSystem MakeSmoke(Transform parent)
         {
