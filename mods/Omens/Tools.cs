@@ -28,7 +28,7 @@ namespace Omens
             {
                 MethodInfo register=found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static);
                 register?.Invoke(null,new object[]{Plugin.Name,"omen",
-                    "omen list | place <troll|ravens|camp> [metres=12] | now <id|last> | soon: test omens (host only). place puts one ahead of the player; now marks it seen and brings its outcome at once, night or not; soon schedules the next natural omen in 5 s",
+                    "omen list | place <troll|ravens|camp> [metres=12] | now <id|last> | avert <id> | soon: test omens (host only). place puts one ahead of the player; now marks it seen and brings its outcome at once, night or not; avert does what burning the troll does; soon schedules the next natural omen in 5 s",
                     (Func<string[],Action<JObject>,Action<string>,IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: omen command added");
             }
@@ -46,6 +46,7 @@ namespace Omens
             {
                 case "list":output(new JObject{["omens"]=new JArray(Director.TestList().ToArray())});break;
                 case "soon":Director.TestSoon();output(new JObject{["soon"]="the next omen is placed within a few seconds near a player"});break;
+                case "avert":output(new JObject{["avert"]=Director.TestAvert(args.Length>2?args[2]:"")});break;
                 case "now":output(new JObject{["now"]=Director.TestNow(args.Length>2?args[2]:"last")});break;
                 case "place":
                     Player me=Player.m_localPlayer;
@@ -58,7 +59,7 @@ namespace Omens
                     if(id==null)error("omen place: only the host places omens");
                     else output(new JObject{["placed"]=Policy.Of(kind.Value).Name,["id"]=id});
                     break;
-                default:error("omen: list, place, now or soon");break;
+                default:error("omen: list, place, now, avert or soon");break;
             }
             return null;
         }

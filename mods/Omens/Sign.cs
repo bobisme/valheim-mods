@@ -57,6 +57,8 @@ namespace Omens
         private readonly List<Transform> _birds=new List<Transform>();
         private float _settleAt,_altitude=14;
         private List<Rigidbody> _bodies;
+        private GameObject _carcass;
+        private BoxCollider _hover;
 
         private void Awake()
         {
@@ -77,8 +79,8 @@ namespace Omens
             {
                 case Kind.DeadTroll:
                     GameObject troll=Looks.Copy("Troll_ragdoll",transform,new Vector3(0,0.6f,0),Quaternion.Euler(0,Random.Range(0,360f),80));
-                    if(troll!=null){_bodies=troll.GetComponentsInChildren<Rigidbody>().ToList();_settleAt=Time.time+8;} // collapse naturally, then hold still
-                    Looks.Hover(transform,new Vector3(0,0.6f,0),new Vector3(3.5f,1.4f,3.5f));
+                    if(troll!=null){_carcass=troll;_bodies=troll.GetComponentsInChildren<Rigidbody>().ToList();_settleAt=Time.time+8;} // collapse naturally, then hold still
+                    _hover=Looks.Hover(transform,new Vector3(0,0.6f,0),new Vector3(3.5f,1.4f,3.5f));
                     break;
                 case Kind.AbandonedCamp:
                     GameObject pit=Looks.Copy("fire_pit",transform,Vector3.zero,Quaternion.identity);
@@ -106,7 +108,11 @@ namespace Omens
         }
         private void Update()
         {
-            if(_bodies!=null&&Time.time>=_settleAt){foreach(Rigidbody body in _bodies)if(body!=null)body.isKinematic=true;_bodies=null;}
+            if(_bodies!=null)
+            {
+                FollowCarcass(); // the ragdoll can slide downhill; the box people aim at goes with it
+                if(Time.time>=_settleAt){foreach(Rigidbody body in _bodies)if(body!=null)body.isKinematic=true;_bodies=null;}
+            }
             for(int i=0;i<_birds.Count;i++)
             {
                 if(_birds[i]==null)continue;
@@ -118,6 +124,17 @@ namespace Omens
             }
         }
 
+        private void FollowCarcass()
+        {
+            if(_hover==null||_carcass==null)return;
+            Renderer[] parts=_carcass.GetComponentsInChildren<Renderer>();
+            if(parts.Length==0)return;
+            Bounds bounds=parts[0].bounds;
+            foreach(Renderer part in parts)bounds.Encapsulate(part.bounds);
+            Transform box=_hover.transform;
+            box.position=bounds.center;box.rotation=Quaternion.identity;
+            _hover.center=Vector3.zero;_hover.size=Vector3.Max(bounds.size,new Vector3(2,1,2));
+        }
         public string GetHoverName()=>Omen.Name;
         public float GetHoverOffset()=>0;
         public string GetHoverText()
@@ -184,11 +201,12 @@ namespace Omens
                 item.transform.position=hit.point+Vector3.up*0.05f;
         }
         // A non-solid box so the crosshair finds the sign without anyone bumping into it.
-        internal static void Hover(Transform parent,Vector3 center,Vector3 size)
+        internal static BoxCollider Hover(Transform parent,Vector3 center,Vector3 size)
         {
             var go=new GameObject("Hover"){layer=LayerMask.NameToLayer("piece_nonsolid")};
             go.transform.SetParent(parent,false);
             var box=go.AddComponent<BoxCollider>();box.center=center;box.size=size;
+            return box;
         }
         // The game's own fire-pit flames over the carcass for a few seconds, as everyone near it sees it burn.
         internal static void Burn(Transform at)

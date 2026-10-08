@@ -25,7 +25,7 @@ signs are saved world objects tagged with their own random id. Frequency, the ba
 reach and each omen are in F7 → Mod settings (only the host's values count). Later versions can add omens beyond the game's raids.
 
 For testing on the host with Quad's Claude Tools installed, its `omen` command lists omens (`omen list`), places one ahead of the player
-(`omen place troll|ravens|camp [metres]`), brings one to pass at once, night or not (`omen now <id|last>`), or schedules the next natural one
+(`omen place troll|ravens|camp [metres]`), brings one to pass at once, night or not (`omen now <id|last>`), averts one as burning the troll does (`omen avert <id>`), or schedules the next natural one
 in 5 seconds (`omen soon`).
 
 Checks cover omen choice and the 60/40 split, biome fallbacks, intervals, raid timing, the omen state machine and nearest-base search,

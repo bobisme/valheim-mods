@@ -214,6 +214,16 @@ namespace Omens
             e.Forced=true;Save();_nextTick=0;
             return $"{e.Omen.Name} ({e.Id}) comes to pass";
         }
+        // As if a player had responded (burned the troll): averts a respondable omen.
+        internal static string TestAvert(string id)
+        {
+            if(!Hosting)return "not the host";
+            Load();
+            Entry e=_ledger.Omens.FirstOrDefault(x=>x.Id.ToString()==id);
+            if(e==null||Policy.Finished((State)e.State)||!e.Omen.Respondable)return "no open omen "+id+" that can be averted";
+            OnRespond(ZNet.GetUID(),e.Id);
+            return $"{e.Omen.Name} ({e.Id}) averted";
+        }
         internal static IEnumerable<string> TestList()
         {
             if(!Hosting)yield break;
