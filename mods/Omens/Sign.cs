@@ -55,7 +55,7 @@ namespace Omens
         internal Kind Kind;internal long Id;
         internal Omen Omen=>Policy.Of(Kind);
         private readonly List<Transform> _birds=new List<Transform>();
-        private float _settleAt;
+        private float _settleAt,_altitude=14;
         private List<Rigidbody> _bodies;
 
         private void Awake()
@@ -89,10 +89,17 @@ namespace Omens
                     Looks.Hover(transform,new Vector3(0,0.4f,0),new Vector3(4.5f,0.8f,4.5f));
                     break;
                 case Kind.Ravens:
+                    // Above the treetops, or the forest hides them: the first thing a ray from high above meets, plus a margin.
+                    if(Physics.Raycast(transform.position+Vector3.up*80,Vector3.down,out RaycastHit top,95,~0,QueryTriggerInteraction.Ignore))
+                        _altitude=Mathf.Clamp(top.point.y-transform.position.y+6,14,45);
                     for(int i=0;i<3;i++)
                     {
                         GameObject bird=Looks.Copy("Crow",transform,Vector3.up*14,Quaternion.identity)??Looks.Copy("Ravens",transform,Vector3.up*14,Quaternion.identity);
-                        if(bird!=null)_birds.Add(bird.transform);
+                        if(bird==null)continue;
+                        Transform sitting=bird.transform.Find("crow_sitting"); // the perched model; only the flying one should show
+                        if(sitting!=null)sitting.gameObject.SetActive(false);
+                        bird.transform.localScale=Vector3.one*1.5f; // larger than the ambient crows, so they read as a sign
+                        _birds.Add(bird.transform);
                     }
                     break;
             }
@@ -104,9 +111,10 @@ namespace Omens
             {
                 if(_birds[i]==null)continue;
                 float angle=Time.time*0.55f+i*2.1f,radius=7+i*1.5f;
-                var local=new Vector3(Mathf.Cos(angle)*radius,14+i*1.2f+Mathf.Sin(Time.time*0.9f+i)*0.6f,Mathf.Sin(angle)*radius);
+                var local=new Vector3(Mathf.Cos(angle)*radius,_altitude+i*1.2f+Mathf.Sin(Time.time*0.9f+i)*0.6f,Mathf.Sin(angle)*radius);
                 _birds[i].localPosition=local;
-                _birds[i].rotation=Quaternion.LookRotation(new Vector3(-Mathf.Sin(angle),0,Mathf.Cos(angle)))*Quaternion.Euler(0,0,-18); // banking into the turn
+                // The crow model's beak is its +X axis: turn it onto the direction of flight, then dip the inner wing into the turn.
+                _birds[i].rotation=Quaternion.LookRotation(new Vector3(-Mathf.Sin(angle),0,Mathf.Cos(angle)))*Quaternion.Euler(0,-90,0)*Quaternion.Euler(15,0,0);
             }
         }
 

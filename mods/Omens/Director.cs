@@ -16,7 +16,7 @@ namespace Omens
         private sealed class Entry
         {
             public long Id;public int Kind,State;public float X,Y,Z;
-            public double PlacedAt,SeenAt,ResolvedAt;public bool SeenAtNight;public string SeenBy="";public bool SignRemoved;
+            public double PlacedAt,SeenAt,ResolvedAt;public bool SeenAtNight,Forced;public string SeenBy="";public bool SignRemoved;
             [JsonIgnore]public Vector3 Pos=>new Vector3(X,Y,Z);
             [JsonIgnore]public Omen Omen=>Policy.Of((Kind)Kind);
         }
@@ -55,7 +55,7 @@ namespace Omens
             if(state==State.Seen)
             {
                 if(!e.Omen.Bad)done=true;
-                else if(Policy.RaidDue(now,e.SeenAt,e.SeenAtNight,EnvMan.IsNight()))
+                else if(e.Forced||Policy.RaidDue(now,e.SeenAt,e.SeenAtNight,EnvMan.IsNight()))
                 {
                     Vector3? home=NearestBase(e.Pos);
                     if(Game.m_eventRate<=0||home==null||now-e.SeenAt>DayLength*1.5||!RandEventSystem.instance.HaveEvent(e.Omen.Raid))impossible=true;
@@ -138,7 +138,7 @@ namespace Omens
             _ledger.NextAt=now+120; // nowhere suitable near anyone right now
             return true;
         }
-        private static void Place(Kind kind,Vector3 spot,double now)
+        private static long Place(Kind kind,Vector3 spot,double now)
         {
             long id;do{id=((long)Random.Range(1,int.MaxValue)<<31)^Random.Range(1,int.MaxValue);}while(id==0||_ledger.Omens.Any(e=>e.Id==id));
             ZDO zdo=ZDOMan.instance.CreateNewZDO(spot,SignPrefab.Hash);
@@ -147,6 +147,7 @@ namespace Omens
             zdo.Set(SignPrefab.KindKey,(int)kind);zdo.Set(SignPrefab.IdKey,id);
             _ledger.Omens.Add(new Entry{Id=id,Kind=(int)kind,X=spot.x,Y=spot.y,Z=spot.z,PlacedAt=now,State=(int)State.Placed});
             Plugin.Log($"Placed {Policy.Of(kind).Name} ({id}) at {spot:F0}");
+            return id;
         }
         private static bool NearBuilding(Vector3 spot)
         {
@@ -166,6 +167,38 @@ namespace Omens
             if(sender==ZNet.GetUID())return Player.m_localPlayer!=null?Player.m_localPlayer.GetPlayerName():"the host";
             return ZNet.instance.GetPeer(sender)?.m_playerName??"someone";
         }
+
+        // ---- for testing through Claude Tools (host only) ----
+        internal static string TestPlace(Kind kind,Vector3 spot)
+        {
+            if(!Hosting)return null;
+            Load();
+            if(ZoneSystem.instance.GetSolidHeight(spot,out float height))spot.y=height;
+            long id=Place(kind,spot,Now);Save();
+            return id.ToString();
+        }
+        // Mark it seen and bring its outcome now, ignoring night.
+        internal static string TestNow(string which)
+        {
+            if(!Hosting)return "not the host";
+            Load();
+            Entry e=which=="last"?_ledger.Omens.Where(x=>!Policy.Finished((State)x.State)).OrderByDescending(x=>x.PlacedAt).FirstOrDefault()
+                :_ledger.Omens.FirstOrDefault(x=>x.Id.ToString()==which);
+            if(e==null||Policy.Finished((State)e.State))return "no open omen "+which;
+            if((State)e.State==State.Placed)OnSeen(ZNet.GetUID(),e.Id);
+            e.Forced=true;Save();_nextTick=0;
+            return $"{e.Omen.Name} ({e.Id}) comes to pass";
+        }
+        internal static IEnumerable<string> TestList()
+        {
+            if(!Hosting)yield break;
+            Load();
+            Vector3 me=Player.m_localPlayer!=null?Player.m_localPlayer.transform.position:Vector3.zero;
+            yield return $"next omen in {Math.Max(0,_ledger.NextAt-Now):0} s";
+            foreach(Entry e in _ledger.Omens.OrderByDescending(x=>x.PlacedAt))
+                yield return $"{e.Id} {e.Omen.Name}: {(State)e.State}, {Vector3.Distance(me,e.Pos):0} m away at {e.Pos:F0}"+(e.SeenBy!=""?$", seen by {e.SeenBy}":"");
+        }
+        internal static void TestSoon(){if(Hosting){Load();_ledger.NextAt=Now+5;Save();_nextTick=0;}}
 
         // ---- the world's own objects ----
         private static List<ZDO> All(string prefab)

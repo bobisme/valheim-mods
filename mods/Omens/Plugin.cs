@@ -10,7 +10,7 @@ namespace Omens
     {
         public const string Guid="com.bobisme.omens";
         public const string Name="Omens";
-        public const string Version="0.1.0";
+        public const string Version="0.1.1";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled,DeadTroll,Ravens,AbandonedCamp;
         internal ConfigEntry<float> IntervalDays,BadChance,ExpireDays,BaseRange;
@@ -45,11 +45,13 @@ namespace Omens
         private void Update()
         {
             Net.Tick();
+            Tools.Tick();
             try{Director.Tick();}catch(System.Exception e){Logger.LogError("Omens director: "+e);}
         }
         private void OnDestroy()
         {
             Director.Reset();
+            Tools.Stop();
             Net.Unregister();
             _harmony?.UnpatchSelf();
             SignPrefab.Unregister();
