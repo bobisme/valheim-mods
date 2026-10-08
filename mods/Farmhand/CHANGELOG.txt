@@ -1,3 +1,5 @@
+0.2.0: Mark an ordered polygon with Shift+click and plant its spaced layout with Shift+J. Concave L/U-shaped plots retain their notches; crossing outlines are rejected. Rows follow the first edge with half-spacing borders. Walk through larger plots to plant within normal reach; stamina recovers automatically and paused plots keep completed spots. Backspace removes a corner, Delete clears, and Shift+J retries blocked spots. Existing rows and harvesting remain available.
+
 0.1.1: Default controls use Left Shift instead of Right Alt. Left Ctrl is the configurable harvest-only modifier, so Shift + U still replants.
 
 0.1.0: First release. Spaced crop rows with a reach preview, bounded nearby harvesting and replanting using real seeds, and unhealthy-crop labels. Native Linux builds and hot reload support.

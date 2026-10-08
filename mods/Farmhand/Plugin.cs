@@ -13,7 +13,7 @@ namespace Farmhand
     {
         public const string Guid = "com.bobisme.farmhand";
         public const string Name = "Farmhand";
-        public const string Version = "0.1.1";
+        public const string Version = "0.2.0";
 
         internal static Plugin Instance;
         internal bool Busy => _routine != null;
@@ -43,9 +43,10 @@ namespace Farmhand
             _harvestRadius = Config.Bind("Harvest", "Radius", 3f, new ConfigDescription("Harvest within this radius of the player, subject to normal placement reach for replanting.", new AcceptableValueRange<float>(1f, 5f)));
             _batchLimit = Config.Bind("Harvest", "BatchLimit", 40, new ConfigDescription("Maximum crops per key press.", new AcceptableValueRange<int>(1, 100)));
             _healthLabels = Config.Bind("Display", "HealthLabels", true, "While using the cultivator, label unhealthy crops nearby.");
+            SetupPlot();
             _harmony = new Harmony(Guid);
             _harmony.PatchAll(typeof(Plugin).Assembly);
-            Logger.LogInfo($"{Name} {Version} loaded; {_modifier.Value}+{_rowKey.Value}: row, {_modifier.Value}+{_harvestKey.Value}: harvest/replant.");
+            Logger.LogInfo($"{Name} {Version} loaded; {_modifier.Value}+{_markerKey.Value}: plot corner, {_modifier.Value}+{_plotKey.Value}: plant plot, {_modifier.Value}+{_harvestKey.Value}: harvest/replant.");
         }
 
         private bool Ready(Player p) => _enabled.Value && p != null && p == Player.m_localPlayer &&
@@ -58,15 +59,21 @@ namespace Farmhand
         private void Update()
         {
             Player p = Player.m_localPlayer;
+            UpdatePlot(p);
             if (Busy)
             {
                 if (!StillWorking(p) || Input.GetKeyDown(KeyCode.Escape)) Cancel();
                 return;
             }
             if (!Ready(p)) { _nearbyPlants.Clear(); return; }
-            if (Input.GetKey(_modifier.Value))
+            if (Input.GetKeyDown(_clearPlot.Value)) ClearPlot();
+            else if (Input.GetKeyDown(_removeMarker.Value) && _corners.Count>0)
+            { _corners.RemoveAt(_corners.Count-1); if(_corners.Count==0)ClearPlot();else _plotDirty=true; }
+            else if (Input.GetKey(_modifier.Value))
             {
-                if (Input.GetKeyDown(_rowKey.Value)) StartWork(p, PlantRow(p));
+                if (Input.GetKeyDown(_markerKey.Value)) MarkPlot(p);
+                else if (_corners.Count>0 && Input.GetKeyDown(_plotKey.Value)) StartPlot(p);
+                else if (Input.GetKeyDown(_rowKey.Value) && _corners.Count==0) StartWork(p, PlantRow(p));
                 else if (Input.GetKeyDown(_harvestKey.Value))
                     StartWork(p, Harvest(p, !Input.GetKey(_harvestOnlyModifier.Value)));
             }
@@ -125,6 +132,7 @@ namespace Farmhand
                 _restorePiece != null && _player.GetBuildTool() != null && _player.GetSelectedPiece() == ExpectedPiece)
                 _player.SetSelectedPiece(_restorePiece);
             _routine = null;
+            _plantingPlot = false;
             _restorePiece = null;
             ExpectedPiece = null;
             _player = null;
@@ -133,7 +141,7 @@ namespace Farmhand
 
         private void OnDestroy()
         {
-            Cancel();
+            Cancel(); DestroyPlot();
             _harmony?.UnpatchSelf();
             if (Instance == this) Instance = null;
         }
@@ -144,14 +152,17 @@ namespace Farmhand
         {
             Player p = Player.m_localPlayer;
             if (!Ready(p)) return;
-            GUI.Label(new Rect(20, Screen.height - 100, 700, 65), Busy ? "Farmhand working… put away the cultivator to cancel." :
-                $"Farmhand: hold {_modifier.Value} | {_rowKey.Value}: plant row | {_harvestKey.Value}: harvest/replant | {_harvestOnlyModifier.Value}: harvest only");
+            string controls=_corners.Count>0
+                ? $"{_modifier.Value}+{_markerKey.Value}: corner | {_modifier.Value}+{_plotKey.Value}: plant plot | {_removeMarker.Value}: remove | {_clearPlot.Value}: clear"
+                : $"{_modifier.Value}+{_markerKey.Value}: plot corner | {_modifier.Value}+{_rowKey.Value}: row | {_modifier.Value}+{_harvestKey.Value}: harvest/replant";
+            string activity=Busy?(_plantingPlot?"Planting your plot as you walk. Escape pauses.":"Working… Escape cancels."):controls;
+            GUI.Label(new Rect(20, Screen.height - 130, 1100, 90),"Farmhand: "+activity+"\n"+(_corners.Count>0?PlotSummary():$"Select a crop, then mark a boundary or plant a row. Hold {_harvestOnlyModifier.Value} with harvest for harvest only."));
             Camera camera = Camera.main;
             if (camera == null) return;
             Color saved = GUI.color;
             try
             {
-                if (!Busy && Input.GetKey(_modifier.Value))
+                if (!Busy && _corners.Count==0 && Input.GetKey(_modifier.Value))
                 {
                     Piece piece = p.GetSelectedPiece();
                     if (IsCrop(piece))
@@ -161,6 +172,7 @@ namespace Farmhand
                             Label(camera, reachable ? hit.point : pos, reachable ? "●" : "×", reachable ? Color.green : Color.red);
                         }
                 }
+                for(int i=0;i<_corners.Count;i++)Label(camera,_corners[i]+Vector3.up*0.22f,(i+1).ToString(),new Color(1,0.85f,0.5f));
                 if (_healthLabels.Value)
                     foreach (Plant plant in _nearbyPlants)
                         if (plant != null) Label(camera, plant.transform.position + Vector3.up * 0.6f,
@@ -174,7 +186,8 @@ namespace Farmhand
             Vector3 screen = camera.WorldToScreenPoint(pos);
             if (screen.z <= 0 || screen.x < 0 || screen.x > Screen.width || screen.y < 0 || screen.y > Screen.height) return;
             GUI.color = color;
-            GUI.Label(new Rect(screen.x - 70, Screen.height - screen.y, 180, 25), text);
+            Vector2 size=GUI.skin.label.CalcSize(new GUIContent(text));
+            GUI.Label(new Rect(screen.x-size.x*0.5f,Screen.height-screen.y,size.x+6,25),text);
         }
 
         private static string HealthReason(Plant.Status status)

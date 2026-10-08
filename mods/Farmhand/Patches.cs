@@ -68,7 +68,7 @@ namespace Farmhand
     {
         private static void Prefix(Player __instance, ref bool takeInput)
         {
-            if (__instance == Player.m_localPlayer && Plugin.Instance != null && Plugin.Instance.Busy) takeInput = false;
+            if (__instance == Player.m_localPlayer && Plugin.Instance != null && (Plugin.Instance.Busy || Plugin.Instance.Marking)) takeInput = false;
         }
     }
 }

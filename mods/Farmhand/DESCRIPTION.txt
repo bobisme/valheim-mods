@@ -1,7 +1,7 @@
-Plant spaced rows and harvest/replant nearby crops with your cultivator. See why unhealthy plants cannot grow.
+Lay out a whole crop plot with your cultivator: select a crop, then Shift+click corners in boundary order. Concave outlines work. Shift+J plants the previewed layout as you walk through the field, within normal cultivator reach. The first edge sets row direction; spacing leaves a half-cell border and increases for larger growth radii. Green dots are within reach; amber dots wait until you approach; blocked spots turn red.
 
-Equip a cultivator and select a crop. Hold Left Shift to preview a row, and press J to plant it. Hold Left Shift and press U to harvest nearby mature crops and replant the same types; also hold Left Ctrl to harvest without replanting.
+Escape pauses, and Shift+J resumes without repeating successful spots. Recover stamina automatically; add seeds or repair the tool when paused. Backspace removes the last corner; Delete clears the plot. At most 32 corners, 512 spots and 400 square metres by default. Self-crossing outlines are rejected. Plot previews and progress clear on reload or changing characters.
 
-Every planted crop uses normal seeds/materials, stamina, and cultivator durability. Normal placement reach, cultivated soil, biome, sunlight, spacing, and protected areas still apply. Harvested drops remain normal world items; bring seeds before replanting. BuildFromChests can supply seeds while the cultivator is equipped.
+Without a marked plot, Shift+J still plants a short row. Shift+U harvests and replants nearby mature crops; add Left Ctrl to harvest only. Unhealthy crops get helpful labels.
 
-Supports crop and seed-crop pieces in the cultivator, not trees, vines, wild berries, or respawning plants. New controls and batch sizes are configurable through the mod manager. Turn off BuildOrders plan mode before using batch actions. Peers and the host do not need Farmhand.
+Every successful planting uses ordinary seeds/materials, stamina and cultivator durability. Cultivation, biome, sunlight, space, obstacles and wards still apply. Harvest drops remain world items. BuildFromChests can supply seeds. Select a crop or seed crop, not a tree or vine; turn off BuildOrders plan mode. No extra mod is required on the host or peers.
