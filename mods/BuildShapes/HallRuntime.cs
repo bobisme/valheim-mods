@@ -126,7 +126,7 @@ namespace BuildShapes
         }
         private void AddHallPart(HallLayout.Part part)
         {
-            if(_output.Count>=HallLayout.MaximumParts)throw new ArgumentException("The shell and its foundations exceed 1,024 pieces. Reduce area or intricacy.");
+            if(_output.Count>=HallLayout.MaximumParts)throw new ArgumentException("The shell and its foundations exceed 2,048 pieces. Reduce area or intricacy.");
             if(!_hallCatalog.TryGetValue(part.Prefab,out var prefab))throw new ArgumentException("A planned piece is no longer unlocked: "+part.Prefab);
             if((prefab.transform.localScale-Vector3.one).sqrMagnitude>1e-6)throw new ArgumentException("Scaled pieces cannot be used in a hall.");
             Vector3 target=HallWorld(part.At),position;Quaternion rotation;

@@ -92,7 +92,7 @@ void VerifyDetails(V3[] outline,int height,bool tiered,bool steep,int edge,HallL
  string CoreKey(HallLayout.Part p)=>Key(p)+":"+p.End.X+","+p.End.Y+","+p.End.Z;
  Check(plain.Parts.Where(p=>p.Role is "floor" or "roof" or "wall" or "entrance").Select(CoreKey).ToHashSet().SetEquals(plan.Parts.Where(p=>p.Role is "floor" or "roof" or "wall" or "entrance").Select(CoreKey)),"Details preserve the original shell and full gate opening");
  Check(plan.Cells.ToHashSet().SetEquals(plain.Cells),"Detail options do not enlarge the drawn floor plan");
- Check(plan.Parts.Count<=1024 && plan.Parts.All(p=>p.At.Finite&&p.End.Finite),"Detail output is bounded and finite");
+ Check(plan.Parts.Count<=HallLayout.MaximumParts && plan.Parts.All(p=>p.At.Finite&&p.End.Finite),"Detail output is bounded and finite");
  var extras=new List<(double x0,double x1,double z0,double z1)>();
  bool Hit((double x0,double x1,double z0,double z1) a,(double x0,double x1,double z0,double z1) b)=>a.x1>b.x0+0.001&&b.x1>a.x0+0.001&&a.z1>b.z0+0.001&&b.z1>a.z0+0.001;
  foreach(var p in plan.Parts)
@@ -168,7 +168,7 @@ foreach(int h in new[]{2,3,4})foreach(int storeys in new[]{1,2,3})foreach(bool b
   V3 centre=(world[0]+world[1]+world[2]+world[3])*0.25;
   Check(plan.StairHoles.Contains(new HallLayout.Cell((int)Math.Floor(centre.X/2),(int)Math.Floor(centre.Z/2))),"Stair flight runs under intentional headroom opening");
  }
- Check(plan.Parts.All(p=>p.At.Finite&&p.End.Finite)&&plan.Parts.Count<=1024,"Stacked outputs finite and bounded");
+ Check(plan.Parts.All(p=>p.At.Finite&&p.End.Finite)&&plan.Parts.Count<=HallLayout.MaximumParts,"Stacked outputs finite and bounded");
  Check(plan.Parts.Where(p=>p.Role=="storey post"||p.Role=="tier post").All(p=>!HallStairs.Blocks(plan,p.At)),"Columns leave stairs and landings clear");
  Check(plan.Parts.Count(p=>p.Role=="cellar floor")== (basement?set.Count:0),"Basement floor covers cell union");
  if(basement)
@@ -208,7 +208,7 @@ foreach(var outline in new[]{tee,aitch,comb})foreach(var boundary in new[]{outli
  foreach(var wing in plan.Wings)for(int z=0;z<wing.D;z++)for(int x=0;x<wing.W;x++)Check(cover.Add(new HallLayout.Cell(wing.X+x,wing.Z+z)),"Complex roof cover never overlaps");
  Check(cover.SetEquals(plan.Cells),"T/H/22-corner comb roofs exactly cover complex footprint");
  Check(plan.Parts.Count(p=>p.Role=="floor")==plan.Cells.Count&&plan.Parts.Count(p=>p.Role=="roof")==plan.Cells.Count,"Complex footprint keeps exact floor and roof cells");
- Check(plan.Wings.Count<=12&&plan.Parts.Count<=1024,"Complex search remains bounded");
+ Check(plan.Wings.Count<=12&&plan.Parts.Count<=HallLayout.MaximumParts,"Complex search remains bounded");
 }
 foreach(var outline in new[]{tee,aitch})foreach(int edge in Enumerable.Range(0,outline.Length))
 {
@@ -298,3 +298,8 @@ foreach(double yaw in new[]{0.0,90,180,270})foreach(double hallYaw in new[]{0.0,
  }
 }
 Console.WriteLine($"Exterior native stair endpoints: {checks:N0} checks passed");
+
+var expandedRoyal=HallLayout.Plan(Rect(8,16),new HallLayout.Kit{Lattice="darkwood_decowall",LoadPost="woodiron_pole"},3,4,0,true,new HallLayout.Details{Storeys=3,Basement=true,Sweep=true,Finial="wood_dragon1"});
+Check(expandedRoyal.Parts.Count>1024&&expandedRoyal.Parts.Count<=2048,"Large three-storey royal cellar shell exceeds the old cap and fits the new bound");
+Console.WriteLine($"Expanded royal shell: {expandedRoyal.Parts.Count} pieces; {checks:N0} checks passed");
+Reject(()=>HallLayout.Plan(Rect(16,16),new HallLayout.Kit{Lattice="darkwood_decowall",LoadPost="woodiron_pole"},3,4,0,true,new HallLayout.Details{Storeys=3,Basement=true,Sweep=true,Finial="wood_dragon1"}),"Very large royal shell still respects the 2048 bound");

@@ -7,7 +7,7 @@ namespace BuildShapes
     // Pure, bounded geometry. Coordinates are metres in the footprint's first-edge frame.
     internal static class HallLayout
     {
-        internal const int MaximumCells = 64, MaximumParts = 1024, MaximumCorners = 24;
+        internal const int MaximumCells = 64, MaximumParts = 2048, MaximumCorners = 24;
         internal enum Anchor { Floor, Bottom, RoofLow, Point, Segment }
         internal readonly struct Cell : IEquatable<Cell>
         {
@@ -180,7 +180,7 @@ namespace BuildShapes
                 if(string.IsNullOrEmpty(name))return;
                 string key=name+":"+kind+":"+at.X+","+at.Y+","+at.Z+":"+yaw+":"+end.X+","+end.Y+","+end.Z;
                 if(!unique.Add(key))return;
-                if(plan.Parts.Count>=MaximumParts)throw new ArgumentException("This design exceeds 1,024 pieces. Reduce its area or intricacy.");
+                if(plan.Parts.Count>=MaximumParts)throw new ArgumentException("This design exceeds 2,048 pieces. Reduce its area or intricacy.");
                 plan.Parts.Add(new Part{Prefab=name,At=at,End=end,Kind=kind,Yaw=yaw,Role=role});
             }
             void Rod(string name,V3 a,V3 b,double nativeLength,string role="frame")
