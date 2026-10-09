@@ -16,7 +16,7 @@ namespace BuildShapes
         private void UpdateHallCommands()
         {
             if(Time.unscaledTime<_hallNextClaude)return;_hallNextClaude=Time.unscaledTime+2;
-            var found=Resources.FindObjectsOfTypeAll<BaseUnityPlugin>().FirstOrDefault(p=>p!=null && p.gameObject.scene.IsValid() && MetadataHelper.GetMetadata(p)?.GUID=="com.dhack.claudetools");
+            BaseUnityPlugin found=BepInEx.Bootstrap.Chainloader.PluginInfos.TryGetValue("com.dhack.claudetools",out var info)?info.Instance:null;
             if(found==_hallClaude)return;_hallClaude=found;if(found==null)return;
             try
             {

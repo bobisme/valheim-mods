@@ -1,3 +1,5 @@
+0.6.4: Use the live BepInEx plugin registry to reconnect to ClaudeTools instead of scanning every loaded Unity object every two seconds. Preserves late loading and reload detection while removing unnecessary main-thread scene scans, including while the designer is idle.
+
 0.6.3: Wrap automatic Hallwright/temple outline errors in a readable seven-second notification instead of Valheim's single-line center message. Clears immediately when the outline becomes valid; keeps drawing input free.
 
 0.6.2: Hallwright and Stave temple explain invalid outlines with a center-screen message while drawing, starting at four corners. New corner edits can repeat the reason; unchanged background solves stay quiet. Settings keep their existing error readout and do not interrupt drawing.
