@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>Shieldwall</AssemblyName><RootNamespace>Shieldwall</RootNamespace></PropertyGroup>
+  <ItemGroup>
+    <Reference Include="UnityEngine.AIModule"><HintPath>$(ManagedDir)/UnityEngine.AIModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.ParticleSystemModule"><HintPath>$(ManagedDir)/UnityEngine.ParticleSystemModule.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,1 @@
+0.1.0: First release. The Warstone (ward, crafting station, war horn), sieges in waves from a rift with a shown road and breach point, seven hordes by world progress with sappers, flyers and warchiefs, spoils and marks, cracking, five plantable staves with upgrades, raids drawn to the stone, a siege bar and raid music.

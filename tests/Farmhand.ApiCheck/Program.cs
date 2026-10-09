@@ -280,6 +280,47 @@ Field("Humanoid","m_leftItem","ItemDrop/ItemData");
 Field("Humanoid","m_visEquipment","VisEquipment");
 Field("VisEquipment","m_leftItemInstance","UnityEngine.GameObject");
 
+// Shieldwall: the horde's march (targets chosen before the game's own AI), the Warstone as a crafting station with a horn,
+// planted staves' friendly-fire guard, raids drawn to the stone, siege music, and the planting key.
+Method("MonsterAI","UpdateAI","System.Boolean","System.Single");
+Field("MonsterAI","m_targetCreature","Character");
+Field("MonsterAI","m_targetStatic","StaticTarget");
+Field("MonsterAI","m_updateTargetTimer","System.Single");
+Field("MonsterAI","m_timeSinceAttacking","System.Single");
+Field("MonsterAI","m_despawnInDay","System.Boolean");
+Method("BaseAI","SetAlerted","System.Void","System.Boolean");
+Method("BaseAI","CanSeeTarget","System.Boolean","Character");
+Method("BaseAI","CanSeeTarget","System.Boolean","StaticTarget");
+Field("Character","m_group","System.String");
+Method("Character","Awake","System.Void");
+Method("CraftingStation","Interact","System.Boolean","Humanoid","System.Boolean","System.Boolean");
+Method("CraftingStation","GetHoverText","System.String");
+Method("CraftingStation","GetLevel","System.Int32","System.Boolean");
+Method("Piece","CanBeRemoved","System.Boolean");
+Field("Player","m_placementGhost","UnityEngine.GameObject");
+Method("Player","Update","System.Void");
+Method("Player","UpdateKnownRecipesList","System.Void");
+Method("Projectile","IsValidTarget","System.Boolean","IDestructible");
+Field("Projectile","m_owner","Character");
+Field("Projectile","m_weapon","ItemDrop/ItemData");
+Field("Projectile","m_gravity","System.Single");
+Method("Projectile","Setup","System.Void","Character","UnityEngine.Vector3","System.Single","HitData","ItemDrop/ItemData","ItemDrop/ItemData");
+Method("Aoe","ShouldHit","System.Boolean","UnityEngine.Collider");
+Field("Aoe","m_owner","Character");
+Field("Aoe","m_itemData","ItemDrop/ItemData");
+Method("RandEventSystem","SetRandomEvent","System.Void","RandomEvent","UnityEngine.Vector3");
+Method("RandEventSystem","GetMusicOverride","System.String");
+Field("RandomEvent","m_nearBaseOnly","System.Boolean");
+Field("RandomEvent","m_forceMusic","System.String");
+Field("ZNetScene","m_instances","System.Collections.Generic.Dictionary`2<ZDO,ZNetView>");
+Method("Pathfinding","GetPath","System.Boolean","UnityEngine.Vector3","UnityEngine.Vector3","System.Collections.Generic.List`1<UnityEngine.Vector3>","Pathfinding/AgentType","System.Boolean","System.Boolean","System.Boolean");
+Method("Pathfinding","HavePath","System.Boolean","UnityEngine.Vector3","UnityEngine.Vector3","Pathfinding/AgentType");
+Method("ItemDrop","SaveToZDO","System.Void","ItemDrop/ItemData","ZDO","System.Int32");
+Method("ItemDrop","LoadFromZDO","System.Void","ItemDrop/ItemData","ZDO","System.Int32");
+Method("Cover","GetCoverForPoint","System.Void","UnityEngine.Vector3","System.Single&","System.Boolean&","System.Single");
+Field("SE_Stats","m_addArmor","System.Single");
+Field("SE_Stats","m_eitrRegenMultiplier","System.Single");
+
 // Cheap instance lists instead of whole-scene searches: plants via SlowUpdate, item stands as they wake.
 Method("SlowUpdate","GetAllInstaces","System.Collections.Generic.List`1<SlowUpdate>");
 Method("ItemStand","Awake","System.Void");

@@ -18,6 +18,70 @@ Install on the host and every player, then restart before loading a world. No ot
 Native Creative physics, scoring, sound and reload checks passed; remote multiplayer/ownership transfer remains untested.
 [Full controls and validation](mods/Golf/README.md).
 
+## Shieldwall
+
+A tower-defence game inside the game. Build a **Warstone**, plant **magic staves** around it, and hold the line when a horde comes for it.
+
+**The Warstone** (hammer → misc; 30 stone, 10 wood, 5 flint, 5 resin, near a workbench) wards everyone within **40 m**: faster health
+and stamina regeneration, then carry weight, eitr regeneration and armor as it gains **marks**. Under a roof with a fire burning within
+10 m it stands at a **hearth**: the ward doubles and adds comfort. One stone to a home (none within 80 m of another). **E** opens its staves
+(it is their crafting station; its level is 1 + marks); **Shift+E** sounds the **war horn**.
+
+| Marks | Title | Ward at a hearth (half in the open, no comfort) |
+| --- | --- | --- |
+| 0 | Unblooded | +10% health and stamina regeneration |
+| 1 | Blooded | +12.5%, +10 carry |
+| 2–3 | Tested | up to +17.5%, +30 carry, eitr +12%, comfort +1 |
+| 4–5 | Proven | up to +22.5%, +50 carry, eitr +20%, comfort +2 |
+| 6–8 | Storied | up to +30%, +80 carry, armor +6, comfort +3 |
+| 9–10 | Legendary | +35%, +100 carry, eitr +40%, armor +10 |
+
+**A siege.** The horn opens a **rift** 60–95 m away (a red beacon and a map pin). After **90 s** the horde marches in **4–8 waves** (more with
+marks), sized for the players nearby, the last led by a **warchief**. Who comes depends on the bosses beaten: greydwarfs; the Black Forest's
+host (trolls lead); the drowned dead; a mountain pack (golems); Fulings (brutes); the swarm of the mist (gjall overhead); the Charred legion
+(morgen). A glowing line shows the road the horde will take, recomputed as you build: walls turn it aside, and where the road is shut a red
+line marks the **breach**. Raiders fight only what stands within about 10 m, smash the piece in their way when stuck, and strike the stone
+when they reach it. **Sappers** go for planted staves; **flyers** cross the walls. A bar across the top of the screen shows the countdown,
+then the wave, how many are left and the stone's strength, with the game's raid music.
+
+- **Held** (the last raider falls, or the stone outlasts 25 minutes): spoils appear at the stone's foot (a treasure chest of that land with
+  **warshards**, coins and materials, more for an unscathed stone and a long fight), and the stone gains a mark (ten at most).
+- **Fallen** (the horde wears the stone to nothing; it feels only 40% of each blow): the stone **cracks** and works two marks lower until it holds a siege again. The
+  stone itself is never destroyed and nothing is lost.
+- **Abandoned** (no player within 150 m for a minute): the horde melts away; nothing changes.
+
+The horn rests **20 minutes** after a siege. A stone can't be taken down while a siege is on.
+
+**Staves** are crafted at the stone and upgraded there; you learn them once you carry a warshard, so the first siege is fought by hand (four levels: +35% power and +2 m reach each). Hold one and press **Use** on open
+ground within 50 m of a Warstone to **plant** it; Use the planted staff to pull it out. Planted staves fire on raiders and monsters in reach
+(not on passive creatures or Dverger) and never hurt players, companions, tames or buildings. A knocked-down staff drops where it stood.
+
+| Stave | Marks | Planted | Recipe (upgrade adds) |
+| --- | --- | --- | --- |
+| Ember | 0 | fireball, 18 fire + 6 blunt splash, 30 m, every 2.8 s | 10 wood, 2 surtling cores, 2 warshards (+1 core, +3 shards) |
+| Frost | 1 | ice shards, 9 frost + 4, 28 m, every 0.7 s, chills | 4 freeze glands, 2 crystal, 4 warshards |
+| Hearth | 1 | heals friends within 12 m by 10 every 4 s; mends the stone in a siege | 6 fine wood, 4 honey, 4 warshards |
+| Thunder | 2 | 55 lightning at the strongest foe within 42 m, every 4 s | 4 iron, 6 feathers, 6 warshards |
+| Blast | 3 | cluster bomb, 30 fire + 25 blunt, 32 m, every 7 s | 4 black metal, 6 surtling cores, 8 warshards |
+
+Raiders carry warshards now and then (warchiefs 3–6) and drop their trophies more often. Any other staff that throws something (Staff of
+Embers, Dundr...) can be planted too, at 40% power. In hand, Shieldwall's staves are weaker weapons that cost stamina instead of eitr.
+
+**Raids drawn to the stone.** Once you have a Warstone, a base raid the host would start near it becomes a siege at the stone instead, with
+**three minutes'** warning. Raids from Omens' bad omens are drawn the same way. This part needs Shieldwall on the host; a vanilla dedicated
+server raids as usual.
+
+A siege runs on the game of the player nearest the stone (its owner, in Valheim's terms) and everything about it is saved on the stone, so
+it carries on if that player leaves and works on a dedicated server without the mod. Everyone who joins in needs Shieldwall. Warnings,
+wave pacing, the most raiders at once (40), the time limit and the horn's cooldown are in F7. With Claude Tools, `siege status | plan | route |
+start [stage] | end | marks | raiders | hover | recipes` and test helpers (`place`, `plant`, `wall`, `remove`) check stones,
+watch what each raider is doing and run short test sieges.
+
+Checks cover the ward table, rosters, siege plans (sizes, growth, warchiefs, saved plans), pacing, rewards, staves and the aiming arcs, plus
+every native hook. First playtest, in a world of your own: build a stone near a workbench and check its look, hover and ward; craft and
+plant an Ember stave and watch it shoot a greydwarf; `siege start` (10 s warning) and check the rift, road line, bar, music, the march,
+breaking a wall placed across the road, the stone taking blows, and the spoils.
+
 ## Bob's Pipes
 
 A reusable **Carved Pipe**, crafted at a **workbench** from **4 wood, 2 core wood and 1 leather scraps**. It depends on
