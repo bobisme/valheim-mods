@@ -8,11 +8,12 @@ namespace BuildShapes
 {
     public sealed partial class Plugin
     {
-        private bool _hallMenu, _hallRoof45=true, _hallSolid=true, _hallShowRoof=true, _hallTiered, _hallOverhang, _hallPorch, _hallSweep;
-        private int _hallHeight=3, _hallDetail=1, _hallEntrance, _hallMaterialMode, _hallEntranceMode, _hallCrestMode;
+        private bool _hallMenu, _hallRoof45=true, _hallSolid=true, _hallShowRoof=true, _hallTiered, _hallOverhang, _hallPorch, _hallSweep, _hallBasement;
+        private int _hallHeight=3, _hallDetail=1, _hallEntrance, _hallMaterialMode, _hallEntranceMode, _hallCrestMode, _hallStoreys=1;
         private float _hallRaise=0.15f, _hallDue, _hallNextCatalog;
         private Vector3 _hallOrigin;
         private Quaternion _hallFrame=Quaternion.identity;
+        private readonly List<V3> _hallDoorPoints=new List<V3>();
         private HallLayout.Design _hallDesign;
         private HallLayout.Kit _hallKit;
         private float _hallFloorY;
@@ -64,11 +65,15 @@ namespace BuildShapes
                 if(HallKnown("darkwood_beam"))kit.Beam="darkwood_beam";
                 if(HallKnown("darkwood_raven"))kit.Raven="darkwood_raven";
                 if(HallKnown("darkwood_arch"))kit.Arch="darkwood_arch";
+                if(HallKnown("darkwood_decowall"))kit.Lattice="darkwood_decowall";
             }
+            if(_hallStoreys>1 && _hallMaterialMode==0 && HallKnown("woodiron_pole"))kit.LoadPost="woodiron_pole";
             bool steep=_hallRoof45;
             string roof=steep?"wood_roof_45":"wood_roof",ridge=steep?"wood_roof_top_45":"wood_roof_top",wedge=steep?"wood_wall_roof_45":"wood_wall_roof_a";
             foreach(string name in new[]{roof,ridge,wedge})if(!HallKnown(name))throw new ArgumentException("The selected roof pitch needs "+name+" unlocked.");
             kit.Roof=roof;kit.Ridge=ridge;kit.Wedge=wedge;kit.Slope=steep?1:0.5;
+            // Joists meet the underside of the floor without protruding into the stair landing.
+            kit.JoistDrop=ShapesOf(kit.Beam).Max(s=>s.Key.Aabb().max.y)+0.1;
             // Derive lengths from native snap axes instead of visual mesh bounds.
             Vector3[] ends=HallEnds(_hallCatalog[kit.Beam]);kit.BeamLength=(ends[1]-ends[0]).magnitude;
             ends=HallEnds(_hallCatalog[kit.ShortBeam]);kit.ShortLength=(ends[1]-ends[0]).magnitude;
@@ -83,7 +88,9 @@ namespace BuildShapes
             else if(_hallCrestMode==0 && _hallDetail>=2)
                 carving=HallKnown("wood_dragon1")?"wood_dragon1":HallKnown("darkwood_raven")?"darkwood_raven":null;
             if(carving!=null && !HallKnown(carving))throw new ArgumentException("Unlock the "+(_hallCrestMode==2?"dragon":"raven")+" carving before planning.");
-            return new HallLayout.Details{Overhang=_hallOverhang,Porch=_hallPorch,Sweep=_hallSweep,Finial=carving};
+            if(_hallBasement)foreach(string name in new[]{"stone_floor_2x2","stone_wall_2x1"})if(!HallKnown(name))throw new ArgumentException("Unlock stone floors and walls for a retaining-wall basement.");
+            if((_hallBasement || _hallStoreys>1) && !HallKnown("wood_stair"))throw new ArgumentException("Unlock wooden stairs for interior storeys.");
+            return new HallLayout.Details{Storeys=_hallStoreys,Basement=_hallBasement,Overhang=_hallOverhang,Porch=_hallPorch,Sweep=_hallSweep,Finial=carving,DoorPoints=_hallDoorPoints};
         }
         private static Vector3[] HallSnaps(GameObject prefab)
         {
@@ -135,12 +142,15 @@ namespace BuildShapes
             if(!V(position).Finite || Vector3.Distance(position,Player.m_localPlayer.transform.position)>70)
                 throw new ArgumentException("Keep the complete hall within 70 metres of you.");
             if(!PrivateArea.CheckAccess(position,0,false,false) || Location.IsInsideNoBuildLocation(position))throw new ArgumentException("The hall reaches protected ground.");
+            // Use the same pose tolerance as the planner, so support never relies on duplicate ghosts it will omit.
+            if(_output.Any(p=>p.Prefab==part.Prefab && (p.Position-position).sqrMagnitude<0.01f && Quaternion.Angle(p.Rotation,rotation)<5))return;
             _output.Add(new PiecePose(null,part.Prefab,position,rotation));_hallRoles.Add(part.Role);
         }
         private void HallColumn(V3 at,double top,string post,string role)
         {
-            float ground=HallGround(HallWorld(at));double depth=_hallFloorY+top-ground;
-            if(depth>12)throw new ArgumentException("The foundation is too tall here. Reduce the footprint or use a flatter site.");
+            double? predicted=_hallBasement?HallExcavation.Target(_hallDesign,at.X,at.Z):null;
+            float ground=predicted.HasValue?_hallFloorY+(float)predicted.Value:HallGround(HallWorld(at));double depth=_hallFloorY+top-ground;
+            if(depth>(role=="support"?24:12))throw new ArgumentException("The foundation or structural column is too tall here. Reduce the footprint or use a flatter site.");
             int count=Math.Max(1,(int)Math.Ceiling((depth+0.15)/2));
             for(int n=0;n<count;n++)AddHallPart(new HallLayout.Part{Prefab=post,At=new V3(at.X,top-2*(n+1),at.Z),Kind=HallLayout.Anchor.Bottom,Role=role});
         }
@@ -148,7 +158,7 @@ namespace BuildShapes
         {
             var solveWatch=System.Diagnostics.Stopwatch.StartNew();
             _hallDue=0;ClearVisuals();_output.Clear();_hallRoles.Clear();_hallBill.Clear();_hallStations.Clear();_hallSupport.Clear();
-            _hallProblem=null;_hallNote=null;_hallFalls=0;_hallAddedPosts=0;_hallDesign=null;
+            _hallProblem=null;_hallNote=null;_hallFalls=0;_hallAddedPosts=0;_hallDesign=null;_hallGroundJob.Clear();_hallTargetMaps.Clear();
             try
             {
                 if(_markers.Count<3)throw new ArgumentException("Draw the boundary with Shift+click, then L opens the hall settings.");
@@ -160,9 +170,10 @@ namespace BuildShapes
                 foreach(V3 v in _hallDesign.Vertices)highest=Mathf.Max(highest,HallGround(HallWorld(v)));
                 foreach(var c in _hallDesign.Cells)highest=Mathf.Max(highest,HallGround(HallWorld(new V3(c.X*2+1,0,c.Z*2+1))));
                 foreach(V3 at in _hallDesign.PorchFloors)highest=Mathf.Max(highest,HallGround(HallWorld(at)));
-                _hallFloorY=highest+_hallRaise;
+                _hallFloorY=_hallBasement?HallGround(HallWorld(_hallDesign.EntryLanding))+_hallRaise:highest+_hallRaise;
+                PrepareHallGround();
                 bool stone=(_hallMaterialMode==0 || _hallMaterialMode==3) && HallKnown("stone_floor_2x2");
-                if(stone)
+                if(stone && !_hallBasement)
                 {
                     foreach(V3 at in _hallDesign.Cells.Select(c=>new V3(c.X*2+1,0,c.Z*2+1)).Concat(_hallDesign.PorchFloors))
                     {
@@ -174,19 +185,20 @@ namespace BuildShapes
                         for(int n=0;n<count;n++)AddHallPart(new HallLayout.Part{Prefab="stone_floor_2x2",At=new V3(at.X,-n-1.06,at.Z),Kind=HallLayout.Anchor.Bottom,Role="foundation"});
                     }
                 }
-                else foreach(V3 v in _hallDesign.Vertices)HallColumn(v,0,_hallKit.Post,"foundation");
+                else foreach(V3 v in _hallDesign.Vertices)if(!HallStairs.Blocks(_hallDesign,v))HallColumn(v,_hallBasement && HallExcavation.Pit(_hallDesign,v.X,v.Z)?-3:0,_hallKit.Post,"foundation");
                 foreach(var part in _hallDesign.Parts)AddHallPart(part);
-                // Steps face outwards and descend until they meet terrain. No ground is edited.
-                V3 outward=V(Quaternion.Euler(0,(float)_hallDesign.DoorYaw,0)*Vector3.back);
-                for(int stair=0;stair<6;stair++)
+                // Each entrance receives its own route to the unedited terrain.
+                if(!_hallBasement)foreach(var entry in _hallDesign.Entrances)
                 {
-                    V3 low=_hallDesign.EntryLanding+outward*(2*(stair+1))+new V3(0,-stair-1,0);
-                    if(_hallFloorY-stair<=HallGround(HallWorld(_hallDesign.EntryLanding+outward*(2*stair)))+0.25)break;
-                    if(!HallKnown("wood_stair"))throw new ArgumentException("Unlock wooden stairs to reach the raised entrance.");
-                    AddHallPart(new HallLayout.Part{Prefab="wood_stair",At=low,Kind=HallLayout.Anchor.RoofLow,Yaw=_hallDesign.DoorYaw+180,Role="entrance steps"});
-                    if(_hallFloorY+low.Y<=HallGround(HallWorld(low))+0.15)break;
-                    HallColumn(low,low.Y,_hallKit.Post,"foundation");
-                    if(stair==5)throw new ArgumentException("The entrance needs more than six stair sections. Choose another edge or flatter ground.");
+                    V3 outward=V(Quaternion.Euler(0,(float)entry.Yaw,0)*Vector3.back);
+                    for(int stair=0;stair<6;stair++)
+                    {
+                        V3 low=entry.Landing+outward*(2*(stair+1))+new V3(0,-stair-1,0);
+                        if(_hallFloorY-stair<=HallGround(HallWorld(entry.Landing+outward*(2*stair)))+0.25)break;
+                        AddHallPart(new HallLayout.Part{Prefab="wood_stair",At=low,Kind=HallLayout.Anchor.RoofLow,Yaw=entry.Yaw,Role="entry stair"});
+                        HallColumn(low,low.Y,_hallKit.Post,"foundation");
+                        if(stair==5)throw new ArgumentException("An entrance needs more than six stair sections. Move its marker or use flatter ground.");
+                    }
                 }
                 ComputeHallSupport(Player.m_localPlayer);
                 _hallFalls=_hallSupport.Values.Count(v=>v.Collapses);
@@ -196,9 +208,17 @@ namespace BuildShapes
                     string post=_hallMaterialMode==0 && HallKnown("woodiron_pole")?"woodiron_pole":_hallKit.Post;
                     foreach(var wing in _hallDesign.Wings)
                     {
-                        double length=wing.Length*2,peak=_hallHeight+wing.Width*_hallKit.Slope+wing.TierLift;
+                        double length=wing.Length*2,peak=_hallHeight*_hallStoreys+wing.Width*_hallKit.Slope+wing.TierLift;
                         for(double v=length<=2?1:2;v<length;v+=4)
-                        {HallColumn(wing.At(wing.Width,0,v),peak,post,"support");_hallAddedPosts++;}
+                        {
+                            V3 at=wing.At(wing.Width,0,v);
+                            if(HallStairs.Blocks(_hallDesign,at) || HallDoors.Blocks(_hallDesign,at))
+                            {
+                                var alternatives=_hallDesign.Vertices.Where(p=>!HallStairs.Blocks(_hallDesign,p) && !HallDoors.Blocks(_hallDesign,p)).OrderBy(p=>(p-at).Length).ToArray();
+                                if(alternatives.Length==0)continue;at=alternatives[0];
+                            }
+                            HallColumn(at,peak,post,"support");_hallAddedPosts++;
+                        }
                     }
                     ComputeHallSupport(Player.m_localPlayer);_hallFalls=_hallSupport.Values.Count(v=>v.Collapses);
                     _hallNote=(_hallNote==null?"":_hallNote+" ")+$"Added {_hallAddedPosts} interior ridge supports"+(post=="woodiron_pole"?" using unlocked reinforced timber.":".");
@@ -220,6 +240,16 @@ namespace BuildShapes
             }
             foreach(Vector3 marker in _markers)Line(new[]{marker-Vector3.right*0.15f,marker+Vector3.right*0.15f},0.055f,true);
             if(_markers.Count>1)Line(_markers.Concat(new[]{_markers[0]}).ToArray(),0.035f,true);
+            foreach(var door in _hallDoorPoints)
+            {
+                Vector3 point=HallWorld(door);point.y=_hallFloorY+0.15f;
+                Line(new[]{point-Vector3.right*0.25f,point+Vector3.right*0.25f,point,point+Vector3.up*0.7f},0.06f,true);
+            }
+            if(_hallDesign!=null)foreach(var door in _hallDesign.Entrances)
+            {
+                Vector3 a=HallWorld(door.At+HallLayout.Turn(new V3(-1,0,0),door.Yaw)),b=HallWorld(door.At+HallLayout.Turn(new V3(1,0,0),door.Yaw));
+                Line(new[]{a,a+Vector3.up*(float)_hallKit.DoorHeight,b+Vector3.up*(float)_hallKit.DoorHeight,b},0.045f,true);
+            }
             _previewError=_hallProblem;_hallSolveMs=solveWatch.ElapsedMilliseconds;
         }
         private void QueueHallPreview(){_hallDue=Time.unscaledTime+0.18f;}
@@ -235,6 +265,19 @@ namespace BuildShapes
                 _hallFingerprint=fingerprint;
             }
             DrawHallMeshes();
+        }
+        private void MarkHallDoor(Player player)
+        {
+            if(_markers.Count<3){Say("Draw the floor plan first, then Ctrl+click near an exterior wall to mark entrances.");return;}
+            if(!CameraRay(out Ray ray) || !Physics.Raycast(ray,out RaycastHit hit,80,BuildLayers,QueryTriggerInteraction.Ignore))return;
+            if(Vector3.Distance(hit.point,player.transform.position)>40){Say("Move within 40 metres of the entrance.");return;}
+            Vector3 local=Quaternion.Inverse(_hallFrame)*(hit.point-_hallOrigin);V3 point=new V3(local.x,0,local.z);
+            int remove=_hallDoorPoints.FindIndex(p=>(p-point).Length<0.8);
+            if(remove<0 && _hallDesign!=null)remove=_hallDesign.Entrances.FindIndex(d=>(d.At-point).Length<0.8);
+            if(remove>=0 && remove<_hallDoorPoints.Count)_hallDoorPoints.RemoveAt(remove);
+            else if(_hallDoorPoints.Count<HallDoors.Maximum)_hallDoorPoints.Add(point);
+            else{Say("Mark at most eight entrances. Ctrl+click a marker to remove it.");return;}
+            BuildHallPreview();Say(_hallProblem??$"{_hallDoorPoints.Count} entrance markers; Ctrl+click again to remove, Ctrl+Backspace removes the last.");
         }
         private void MarkHall(Player player)
         {
@@ -268,17 +311,30 @@ namespace BuildShapes
             float raise=_hallRaise;if(!ReadNumber("Floor raise",0,2,ref raise))return;
             _hallRaise=raise;_numberEdits.Clear();BuildHallPreview();
             if(_hallProblem!=null || _output.Count==0){Say(_hallProblem??"No hall preview.");return;}
-            if(!_planner.CreateShell(player,"Hallwright",_output.Select(p=>p.Prefab).ToArray(),_output.Select(p=>p.Position).ToArray(),_output.Select(p=>p.Rotation).ToArray(),out string key,out string error))
-            {Say(error);return;}
-            _lastPlan=key;int count=_output.Count;Stop();Say($"Hall planned: {count} shared ghosts. E builds; F4 → Hallwright → U removes unbuilt pieces.");
+            try
+            {
+                string key=SubmitHall(player);int count=_output.Count;_lastPlan=key;Stop();Say($"Hall planned: {count} shared ghosts. E builds; U removes unbuilt pieces. Basement ground restoration is in Hallwright options.");
+            }
+            catch(Exception ex){Say(ex.GetBaseException().Message);}
+        }
+        private string SubmitHall(Player player)
+        {
+            GroundRecord ground=ApplyHallGround();
+            try
+            {
+                if(!_planner.CreateShell(player,"Hallwright",_output.Select(p=>p.Prefab).ToArray(),_output.Select(p=>p.Position).ToArray(),_output.Select(p=>p.Rotation).ToArray(),out string key,out string error))throw new ArgumentException(error);
+                return key;
+            }
+            catch
+            {if(ground!=null)RestoreHallGround();throw;}
         }
         private void ClearHall()
         {
-            CloseHallMenu();_hallDesign=null;_hallDue=0;_hallProblem=_hallNote=_hallFingerprint=null;
+            CloseHallMenu();_hallDoorPoints.Clear();_hallGroundJob.Clear();_hallTargetMaps.Clear();_hallDesign=null;_hallDue=0;_hallProblem=_hallNote=_hallFingerprint=null;
             _hallRoles.Clear();_hallBill.Clear();_hallStations.Clear();_hallSupport.Clear();
         }
         private void DestroyHall()
-        {foreach(var material in _hallGhostMaterials.Values)if(material!=null)Destroy(material);_hallGhostMaterials.Clear();_hallMeshes.Clear();_hallMaterials.Clear();_hallColliderShapes.Clear();}
+        {_hallCapture=null;_hallUnderlying=_hallBaseline=null;foreach(var material in _hallGhostMaterials.Values)if(material!=null)Destroy(material);_hallGhostMaterials.Clear();_hallMeshes.Clear();_hallMaterials.Clear();_hallColliderShapes.Clear();}
 
         private List<HallMesh> HallMeshes(string name)
         {

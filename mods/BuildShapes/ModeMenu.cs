@@ -29,7 +29,7 @@ namespace BuildShapes
                 CloseModeMenu();
                 if (_tool == Tool.Arch && _markers.Count == 2) OpenArchMenu();
                 else if (_tool == Tool.Repeat && _markers.Count == 3) OpenRepeatMenu();
-                else if (_tool == Tool.Hall && _markers.Count >= 3) OpenHallMenu();
+                else if (_tool == Tool.Hall && (_markers.Count >= 3 || System.IO.File.Exists(HallGroundFile))) OpenHallMenu();
             }
             else Begin(player, requested);
         }

@@ -180,13 +180,13 @@ namespace BuildShapes
                 });
             }
 
-            int ground = LayerMask.GetMask("terrain", "Default", "static_solid", "Default_small");
+            int ground = _hallBasement ? LayerMask.GetMask("Default", "static_solid", "Default_small") : LayerMask.GetMask("terrain", "Default", "static_solid", "Default_small");
             int pieces = LayerMask.GetMask("piece");
             foreach (Node n in nodes)
             {
                 foreach (Obb r in n.Reach)
                 {
-                    if (!n.Grounded && Physics.CheckBox(r.C, r.H, r.R, ground, QueryTriggerInteraction.Ignore)) n.Grounded = true;
+                    if (!n.Grounded && (Physics.CheckBox(r.C, r.H, r.R, ground, QueryTriggerInteraction.Ignore) || _hallBasement && HallPredictedGround(r))) n.Grounded = true;
                     // real pieces already touching it
                     int count = Physics.OverlapBoxNonAlloc(r.C, r.H, _hallNear, r.R, pieces, QueryTriggerInteraction.Ignore);
                     if (count == _hallNear.Length) throw new System.InvalidOperationException("Too many nearby colliders to verify support safely.");

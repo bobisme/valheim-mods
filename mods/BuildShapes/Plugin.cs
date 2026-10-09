@@ -15,7 +15,7 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.4.2";
+        public const string Version = "0.5.1";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
@@ -70,7 +70,7 @@ namespace BuildShapes
             // Keep the original config key so existing custom F4 bindings survive the update.
             _toggle = Config.Bind("Controls", "ToggleCurve", KeyCode.F4, "Open/close the shape-mode picker: Curve, Arch, Mirror, Repeat, or Hallwright.");
             _modifier = Config.Bind("Controls", "MarkerModifier", KeyCode.LeftShift, "Hold with PlaceMarker to mark curve points, arch endpoints, or a mirror line.");
-            _mark = Config.Bind("Controls", "PlaceMarker", KeyCode.Mouse0, "Mark points; Left Ctrl with this key selects pieces in Mirror/Repeat.");
+            _mark = Config.Bind("Controls", "PlaceMarker", KeyCode.Mouse0, "Mark points; Left Ctrl selects pieces in Mirror/Repeat or marks entrances in Hallwright.");
             _plan = Config.Bind("Controls", "PlanCurve", KeyCode.L, "Submit the current shape as shared BuildOrders ghosts.");
             _undo = Config.Bind("Controls", "UndoCurve", KeyCode.U, "Remove the last shape's unbuilt ghosts in this session. Built pieces stay.");
             _back = Config.Bind("Controls", "RemoveMarker", KeyCode.Backspace, "Remove last marker; Left Ctrl also removes the last Mirror selection.");
@@ -131,7 +131,7 @@ namespace BuildShapes
                 {_lastAction=Time.unscaledTime;UndoShape(player);}
                 return; // Menu mouse/keyboard input must never select pieces or mark the world.
             }
-            if (_tool == Tool.Hall && Input.GetKeyDown(KeyCode.Delete)) { _markers.Clear(); BuildHallPreview(); return; }
+            if (_tool == Tool.Hall && Input.GetKeyDown(KeyCode.Delete)) { _markers.Clear(); _hallDoorPoints.Clear(); BuildHallPreview(); return; }
             if (_tool == Tool.Repeat)
             {
                 bool changed = _previewSpacing != SafeSpacing() || _previewFollow != _follow.Value;
@@ -144,14 +144,16 @@ namespace BuildShapes
             }
             if (Input.GetKeyDown(_back.Value))
             {
-                if (_tool == Tool.Mirror && Input.GetKey(KeyCode.LeftControl) && _sources.Count > 0) _sources.RemoveAt(_sources.Count - 1);
+                if (_tool == Tool.Hall && Input.GetKey(KeyCode.LeftControl)) { if(_hallDoorPoints.Count>0)_hallDoorPoints.RemoveAt(_hallDoorPoints.Count-1); }
+                else if (_tool == Tool.Mirror && Input.GetKey(KeyCode.LeftControl) && _sources.Count > 0) _sources.RemoveAt(_sources.Count - 1);
                 else if (_markers.Count > 0) _markers.RemoveAt(_markers.Count - 1);
                 Preview();
             }
+            else if (_tool == Tool.Hall && Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(_mark.Value)) MarkHallDoor(player);
             else if ((_tool == Tool.Mirror || _tool == Tool.Repeat) && Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(_mark.Value)) SelectSource(player);
             else if (Input.GetKey(_modifier.Value) && Input.GetKeyDown(_mark.Value)) Mark(player);
             else if (Time.unscaledTime - _lastAction > 0.5f && Input.GetKeyDown(_plan.Value))
-            { _lastAction = Time.unscaledTime; if (_tool==Tool.Repeat && _markers.Count==3) OpenRepeatMenu(); else if (_tool==Tool.Arch && _markers.Count==2) OpenArchMenu(); else if (_tool==Tool.Hall) { BuildHallPreview(); if (_markers.Count>=3) OpenHallMenu(); } else Submit(player); }
+            { _lastAction = Time.unscaledTime; if (_tool==Tool.Repeat && _markers.Count==3) OpenRepeatMenu(); else if (_tool==Tool.Arch && _markers.Count==2) OpenArchMenu(); else if (_tool==Tool.Hall) { BuildHallPreview(); if (_markers.Count>=3 || System.IO.File.Exists(HallGroundFile)) OpenHallMenu(); } else Submit(player); }
             else if (Time.unscaledTime - _lastAction > 0.5f && Input.GetKeyDown(_undo.Value))
             {
                 _lastAction = Time.unscaledTime;
@@ -169,7 +171,7 @@ namespace BuildShapes
         private void Begin(Player player, Tool requested)
         {
             Stop();
-            if (requested == Tool.Hall) { _tool=Tool.Hall; Say("Hallwright: Shift+click square corners; the first edge sets the grid. L opens settings; Backspace edits; Delete clears."); return; }
+            if (requested == Tool.Hall) { _tool=Tool.Hall; if(System.IO.File.Exists(HallGroundFile))OpenHallMenu(); Say("Hallwright: Shift+click square corners; the first edge sets the grid. Ctrl+click entrances; L opens settings; Backspace edits; Delete clears."); return; }
             if ((requested == Tool.Mirror || requested == Tool.Repeat) && !_planner.Extended)
             { Say("Update BuildOrders with the ghost-selection API for Mirror/Repeat."); return; }
             Piece piece = player.GetSelectedPiece();
@@ -422,7 +424,7 @@ namespace BuildShapes
             {
                 Matrix4x4 savedHall=GUI.matrix;
                 try { Theme(); float hs=Mathf.Max(0.6f,Screen.height/1080f); GUI.matrix=Matrix4x4.Scale(new Vector3(hs,hs,1));
-                    string hint="Hallwright: Shift+click corners · L: settings · Backspace: last corner · Delete: clear · F4: modes · Esc: exit\n"+(_hallProblem??$"{_markers.Count} corners · {_output.Count} pieces · support estimate passed");
+                    string hint="Hallwright: Shift+click corners · Ctrl+click entrances · Ctrl+Backspace: last entrance · L: settings · Delete: clear · F4: modes · Esc: exit\n"+(_hallProblem??$"{_markers.Count} corners · {_output.Count} pieces · support estimate passed");
                     GUI.Box(new Rect(20,Screen.height/hs-160,Mathf.Min(1000,Screen.width/hs-40),95),hint,_hud);
                 } finally { GUI.matrix=savedHall; } return;
             }

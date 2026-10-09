@@ -7,7 +7,7 @@ namespace BuildShapes
     {
         private Vector2 _hallScroll;
         private static readonly string[] HallMaterials={"Auto","Timber","Core wood","Stone base","Darkwood"};
-        private static readonly string[] HallDetails={"Simple","Crafted","Ornate","Grand"};
+        private static readonly string[] HallDetails={"Simple","Crafted","Ornate","Grand","King’s hall"};
         private void DrawHallMenu()=>DrawOptionsWindow(ref _hallRect,ref _hallRectPlaced,790,194741,HallContents);
         private void HallContents(int id)
         {
@@ -27,6 +27,12 @@ namespace BuildShapes
             int height=Mathf.RoundToInt(GUILayout.HorizontalSlider(_hallHeight,2,4));
             if(height!=_hallHeight){_hallHeight=height;changed=true;}
             GUILayout.BeginHorizontal();foreach(int h in new[]{2,3,4})if(GUILayout.Button(h+" m",_menuButton)){_hallHeight=h;changed=true;}GUILayout.EndHorizontal();
+            GUILayout.Space(12);GUILayout.Label("Storeys",_menuText);
+            int storeys=GUILayout.SelectionGrid(_hallStoreys-1,new[]{"One","Two","Three"},3,_menuButton,GUILayout.Height(34))+1;
+            if(storeys!=_hallStoreys){_hallStoreys=storeys;changed=true;}
+            bool basement=GUILayout.Toggle(_hallBasement," Basement · 3 m stone cellar");
+            if(basement!=_hallBasement){_hallBasement=basement;changed=true;}
+            GUILayout.Label("Stairs are placed inside the footprint with landings and open headroom. A basement needs unlocked stone, dry terrain and a clear site. Ground changes only when you Plan shell.",_menuHint);
             GUILayout.Space(12);GUILayout.Label("Roof silhouette",_menuText);
             int roof=GUILayout.SelectionGrid(_hallTiered?1:0,new[]{"Gabled","Tiered longhouse"},2,_menuButton,GUILayout.Height(34));
             if((roof==1)!=_hallTiered){_hallTiered=roof==1;changed=true;}
@@ -47,23 +53,40 @@ namespace BuildShapes
             GUILayout.Label("Ridge ends",_menuText);
             int crest=GUILayout.SelectionGrid(_hallCrestMode,new[]{"Auto","None","Dragon","Raven"},2,_menuButton,GUILayout.Height(70));
             if(crest!=_hallCrestMode){_hallCrestMode=crest;changed=true;}
-            GUILayout.Label("Auto adds unlocked carvings at Ornate/Grand. Carvings and swept trim appear on exposed gables.",_menuHint);
+            GUILayout.Label("Auto adds unlocked carvings at Ornate and above. Carvings and swept trim appear on exposed gables.",_menuHint);
             GUILayout.Space(12);GUILayout.Label("Intricacy: "+HallDetails[_hallDetail],_menuText);
-            int detail=Mathf.RoundToInt(GUILayout.HorizontalSlider(_hallDetail,0,3));
+            int detail=Mathf.RoundToInt(GUILayout.HorizontalSlider(_hallDetail,0,4));
             if(detail!=_hallDetail){_hallDetail=detail;changed=true;}
-            GUILayout.Label(_hallDetail==0?"Clean shell and structural trusses.":_hallDetail==1?"Gable trim and repeated knee braces.":_hallDetail==2?"Radiating gable timberwork and unlocked darkwood details.":"Rich gable patterns, layered eaves, and unlocked raven crest ornaments.",_menuHint);
+            GUILayout.Label(_hallDetail==0?"Clean shell and structural trusses.":_hallDetail==1?"Gable trim and repeated knee braces.":_hallDetail==2?"Radiating gable timberwork and unlocked darkwood details.":_hallDetail==3?"Rich gable patterns, layered eaves and carved belts.":"Royal knotwork, carved darkwood panels, daylight windows and layered timber bands.",_menuHint);
             GUILayout.Space(12);GUILayout.Label("Entrance",_menuText);
             int opening=GUILayout.SelectionGrid(_hallEntranceMode,new[]{"Auto","Door · 2 m","Gate · 3 m"},3,_menuButton,GUILayout.Height(34));
             if(opening!=_hallEntranceMode){_hallEntranceMode=opening;changed=true;}
             GUILayout.Label("Auto chooses an unlocked gate at 3 m or taller, otherwise a door.",_menuHint);
-            GUILayout.BeginHorizontal();
-            if(GUILayout.Button("‹",_menuButton,GUILayout.Width(42))){_hallEntrance=(_hallEntrance+_markers.Count-1)%_markers.Count;changed=true;}
-            GUILayout.Label($"Edge {_hallEntrance%_markers.Count+1} of {_markers.Count}",_menuText);
-            if(GUILayout.Button("›",_menuButton,GUILayout.Width(42))){_hallEntrance=(_hallEntrance+1)%_markers.Count;changed=true;}
-            GUILayout.EndHorizontal();
-            GUILayout.Space(12);GUILayout.Label("Foundation lift above highest ground",_menuText);
+            if(_markers.Count>0 && _hallDoorPoints.Count==0)
+            {
+                GUILayout.BeginHorizontal();
+                if(GUILayout.Button("‹",_menuButton,GUILayout.Width(42))){_hallEntrance=(_hallEntrance+_markers.Count-1)%_markers.Count;changed=true;}
+                GUILayout.Label($"Edge {_hallEntrance%_markers.Count+1} of {_markers.Count}",_menuText);
+                if(GUILayout.Button("›",_menuButton,GUILayout.Width(42))){_hallEntrance=(_hallEntrance+1)%_markers.Count;changed=true;}
+                GUILayout.EndHorizontal();
+            }
+            GUILayout.Label("Ctrl+click near exterior walls to mark up to eight entrances; click a marker again to remove it. The first marker gets the covered porch. Edit outline returns to the ground.",_menuHint);
+            for(int i=0;i<_hallDoorPoints.Count;i++)
+            {
+                GUILayout.BeginHorizontal();GUILayout.Label($"Entrance {i+1}"+(i==0?" · main":""),_menuText);
+                bool remove=GUILayout.Button("Remove",_menuButton,GUILayout.Width(90));GUILayout.EndHorizontal();
+                if(remove){_hallDoorPoints.RemoveAt(i);changed=true;break;}
+            }
+            if(_hallDoorPoints.Count>0 && GUILayout.Button("Clear entrance markers · use edge selector",_menuButton)){_hallDoorPoints.Clear();changed=true;}
+            GUILayout.Space(12);GUILayout.Label(_hallBasement?"Ground floor lift above entrance terrain":"Foundation lift above highest ground",_menuText);
             float raise=_hallRaise;changed|=NumberControlRow("Floor raise","m",0,2,0.05f,ref raise);_hallRaise=raise;
-            GUILayout.Label("The terrain stays intact. Posts or a stone plinth bring the floor to one level.",_menuHint);
+            GUILayout.Label(_hallBasement?"The cellar pit follows the footprint. A level entrance apron meets its deck; courtyards remain outside the pit.":"Posts or a stone plinth bring the floor to one level.",_menuHint);
+            if(System.IO.File.Exists(HallGroundFile))
+            {
+                GUILayout.Label("Saved basement ground recovery (survives F6)",_menuHint);
+                if(GUILayout.Button("Restore ground · clear built cellar first",_menuButton))try{RestoreHallGround();changed=true;Say("Original terrain restored.");}catch(System.Exception ex){Say(ex.GetBaseException().Message);}
+                if(GUILayout.Button("Keep excavation · discard recovery",_menuButton))try{RestoreHallGround(true);Say("Excavation kept; another basement can now be planned.");}catch(System.Exception ex){Say(ex.GetBaseException().Message);}
+            }
             GUILayout.Space(10);
             GUILayout.BeginHorizontal();
             if(GUILayout.Button(_hallSolid?"Preview: materials":"Preview: ghosts",_menuButton))_hallSolid=!_hallSolid;
