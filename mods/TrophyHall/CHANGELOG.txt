@@ -1,1 +1,3 @@
+0.1.1: Smoother play: the hall keeps its own list of item stands as they load instead of searching every loaded object every two seconds (6–8 ms each time), and names the hall from the game's ward list.
+
 0.1.0: First TrophyHall. Creature trophies on player-built item stands inside a base give everyone there small themed perks: trolls +30 carry weight, draugr slight poison resistance, wolves +10% stamina regeneration, sea beasts +10% swim speed, greydwarfs +10% woodcutting skill gain, boars +10% health regeneration, deer +5% movement speed (six at most, rarest first). Four kinds of trophy add +1 comfort under a roof, eight add +2. Walking in names the hall, counts its trophies and lists what has fallen there. Boss trophies stay on their altars.

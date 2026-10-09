@@ -12,7 +12,7 @@ namespace TrophyHall
     {
         public const string Guid="com.bobisme.trophyhall";
         public const string Name="TrophyHall";
-        public const string Version="0.1.0";
+        public const string Version="0.1.1";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled,Readings;
         internal ConfigEntry<float> Range;
@@ -25,6 +25,7 @@ namespace TrophyHall
             Readings=Config.Bind("General","Readings",true,"Show the hall's name, trophy count and fallen creatures when you walk in (at most every 10 minutes per hall).");
             Range=Config.Bind("General","Range",40f,new ConfigDescription("Metres around you in which mounted trophies count, inside a base.",new AcceptableValueRange<float>(15,80)));
             _harmony=new Harmony(Guid);_harmony.PatchAll(typeof(Plugin).Assembly);
+            Hall.Seed(); // stands already loaded (a hot reload while in a world)
             Logger.LogInfo($"{Name} {Version} loaded.");
         }
         private void Update(){try{Hall.Tick();}catch(System.Exception e){Logger.LogError("Trophy hall: "+e);}}
@@ -42,6 +43,9 @@ namespace TrophyHall
         private static string _signature="";
         private static SE_Stats _template;
         private static readonly Dictionary<string,float> Greeted=new Dictionary<string,float>();
+        // Every loaded item stand, kept as they wake (StandSeen) instead of searching every loaded object each time.
+        internal static readonly HashSet<ItemStand> Stands=new HashSet<ItemStand>();
+        internal static void Seed(){Stands.Clear();foreach(ItemStand s in Object.FindObjectsByType<ItemStand>(FindObjectsSortMode.None))Stands.Add(s);}
 
         internal static void Tick()
         {
@@ -52,7 +56,8 @@ namespace TrophyHall
                EffectArea.IsPointInsideArea(me.transform.position,EffectArea.Type.PlayerBase)==null){Leave(me);return;}
             float range=Plugin.Instance.Range.Value;
             var mounted=new List<(string prefab,Sprite icon,Vector3 pos)>();
-            foreach(ItemStand stand in Object.FindObjectsByType<ItemStand>(FindObjectsSortMode.None))
+            Stands.RemoveWhere(s=>s==null);
+            foreach(ItemStand stand in Stands)
             {
                 if(stand==null||stand.m_guardianPower!=null||!stand.HaveAttachment())continue; // boss altars hold their trophies for powers
                 Vector3 pos=stand.transform.position;
@@ -82,7 +87,7 @@ namespace TrophyHall
             string key=$"{Mathf.Round(_center.x/20)}:{Mathf.Round(_center.z/20)}";
             if(Greeted.TryGetValue(key,out float last)&&Time.time-last<600)return;
             Greeted[key]=Time.time;
-            PrivateArea ward=Object.FindObjectsByType<PrivateArea>(FindObjectsSortMode.None)
+            PrivateArea ward=Wards()
                 .Where(w=>w!=null&&Vector3.Distance(w.transform.position,_center)<Plugin.Instance.Range.Value).OrderBy(w=>Vector3.Distance(w.transform.position,_center)).FirstOrDefault();
             string owner=ward!=null&&ward.GetComponent<ZNetView>() is ZNetView v&&v.IsValid()?v.GetZDO().GetString(ZDOVars.s_creatorName,""):""; // the ward's owner names the hall
             string title=string.IsNullOrEmpty(owner)?"A trophy hall":owner+"'s hall";
@@ -128,7 +133,14 @@ namespace TrophyHall
             me.GetSEMan().RemoveStatusEffect(EffectName.GetStableHashCode(),true);
             if(_template!=null)Object.Destroy(_template);_template=null;
         }
-        internal static void Clear(){Leave(Player.m_localPlayer);Greeted.Clear();}
+        internal static void Clear(){Leave(Player.m_localPlayer);Greeted.Clear();Stands.Clear();}
+        private static List<PrivateArea> Wards()=>AccessTools.StaticFieldRefAccess<List<PrivateArea>>(typeof(PrivateArea),"m_allAreas");
+    }
+
+    [HarmonyPatch(typeof(ItemStand),"Awake")]
+    internal static class StandSeen
+    {
+        private static void Postfix(ItemStand __instance){if(__instance!=null)Hall.Stands.Add(__instance);}
     }
 
     [HarmonyPatch(typeof(SE_Rested),nameof(SE_Rested.CalculateComfortLevel),new[]{typeof(bool),typeof(Vector3)})]

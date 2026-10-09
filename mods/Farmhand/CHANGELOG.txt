@@ -1,3 +1,5 @@
+0.2.1: Smoother play: crop health labels find nearby plants through the game's own list of growing things every 0.75 s, instead of searching every loaded object (a few milliseconds each time, more in big farms).
+
 0.2.0: Mark an ordered polygon with Shift+click and plant its spaced layout with Shift+J. Concave L/U-shaped plots retain their notches; crossing outlines are rejected. Rows follow the first edge with half-spacing borders. Walk through larger plots to plant within normal reach; stamina recovers automatically and paused plots keep completed spots. Backspace removes a corner, Delete clears, and Shift+J retries blocked spots. Existing rows and harvesting remain available.
 
 0.1.1: Default controls use Left Shift instead of Right Alt. Left Ctrl is the configurable harvest-only modifier, so Shift + U still replants.

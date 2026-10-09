@@ -55,9 +55,9 @@
     {
       "guid": "com.bobisme.farmhand",
       "name": "Farmhand",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "description": "Lay out a whole crop plot with your cultivator: select a crop, then Shift+click corners in boundary order. Concave outlines work. Shift+J plants the previewed layout as you walk through the field, within normal cultivator reach. The first edge sets row direction; spacing leaves a half-cell border and increases for larger growth radii. Green dots are within reach; amber dots wait until you approach; blocked spots turn red.\n\nEscape pauses, and Shift+J resumes without repeating successful spots. Recover stamina automatically; add seeds or repair the tool when paused. Backspace removes the last corner; Delete clears the plot. At most 32 corners, 512 spots and 400 square metres by default. Self-crossing outlines are rejected. Plot previews and progress clear on reload or changing characters.\n\nWithout a marked plot, Shift+J still plants a short row. Shift+U harvests and replants nearby mature crops; add Left Ctrl to harvest only. Unhealthy crops get helpful labels.\n\nEvery successful planting uses ordinary seeds/materials, stamina and cultivator durability. Cultivation, biome, sunlight, space, obstacles and wards still apply. Harvest drops remain world items. BuildFromChests can supply seeds. Select a crop or seed crop, not a tree or vine; turn off BuildOrders plan mode. No extra mod is required on the host or peers.",
-      "notes": "0.2.0: Mark an ordered polygon with Shift+click and plant its spaced layout with Shift+J. Concave L/U-shaped plots retain their notches; crossing outlines are rejected. Rows follow the first edge with half-spacing borders. Walk through larger plots to plant within normal reach; stamina recovers automatically and paused plots keep completed spots. Backspace removes a corner, Delete clears, and Shift+J retries blocked spots. Existing rows and harvesting remain available.",
+      "notes": "0.2.1: Smoother play: crop health labels find nearby plants through the game's own list of growing things every 0.75 s, instead of searching every loaded object (a few milliseconds each time, more in big farms).",
       "restart": "",
       "cover": "Farmhand.cover.jpg",
       "files": [
@@ -120,9 +120,9 @@
     {
       "guid": "com.bobisme.trophyhall",
       "name": "TrophyHall",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "description": "Hang your trophies and your hall remembers what you have slain.\n\nCreature trophies on item stands you have built inside a base give everyone in that base small themed perks, shown as a Trophy hall status effect. Each kind counts once, however many heads you hang:\n\nTrolls: +30 carry weight. Draugr: slight poison resistance. Wolves: +10% stamina regeneration. Necks and serpents: +10% swim speed. Greydwarfs: +10% woodcutting skill gain. Boars: +10% health regeneration. Deer: +5% movement speed.\n\nAt most six perks apply, rarest first. Every kind of trophy also counts toward comfort under a roof: four kinds add +1, eight add +2. Walking into a hall names it after the ward's owner, counts its trophies and lists the creatures fallen there (at most every ten minutes per hall). Boss trophies stay on their altars, where the game uses them for Forsaken powers.\n\nThe perks are deliberately small: flavour felt over time, not a change to combat balance. Only the player in the hall needs the mod; it reads the item stands everyone already sees. Range, readings and the whole mod can be changed in F7.",
-      "notes": "0.1.0: First TrophyHall. Creature trophies on player-built item stands inside a base give everyone there small themed perks: trolls +30 carry weight, draugr slight poison resistance, wolves +10% stamina regeneration, sea beasts +10% swim speed, greydwarfs +10% woodcutting skill gain, boars +10% health regeneration, deer +5% movement speed (six at most, rarest first). Four kinds of trophy add +1 comfort under a roof, eight add +2. Walking in names the hall, counts its trophies and lists what has fallen there. Boss trophies stay on their altars.",
+      "notes": "0.1.1: Smoother play: the hall keeps its own list of item stands as they load instead of searching every loaded object every two seconds (6–8 ms each time), and names the hall from the game's ward list.",
       "restart": "",
       "cover": "",
       "files": [

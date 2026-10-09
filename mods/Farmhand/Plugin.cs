@@ -13,7 +13,7 @@ namespace Farmhand
     {
         public const string Guid = "com.bobisme.farmhand";
         public const string Name = "Farmhand";
-        public const string Version = "0.2.0";
+        public const string Version = "0.2.1";
 
         internal static Plugin Instance;
         internal bool Busy => _routine != null;
@@ -81,8 +81,9 @@ namespace Farmhand
             {
                 _nextHealthScan = Time.unscaledTime + 0.75f;
                 _nearbyPlants.Clear();
-                foreach (Plant plant in UnityEngine.Object.FindObjectsByType<Plant>(FindObjectsSortMode.None))
-                    if (plant != null && !Player.IsPlacementGhost(plant.gameObject) &&
+                // The game's own list of slow-updating objects holds every loaded plant: no search of every loaded object.
+                foreach (SlowUpdate slow in SlowUpdate.GetAllInstaces())
+                    if (slow is Plant plant && plant != null && !Player.IsPlacementGhost(plant.gameObject) &&
                         (plant.transform.position - p.transform.position).sqrMagnitude <= 100f &&
                         plant.GetStatus() != Plant.Status.Healthy)
                     {

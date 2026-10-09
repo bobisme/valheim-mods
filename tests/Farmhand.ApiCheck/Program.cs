@@ -280,6 +280,9 @@ Field("Humanoid","m_leftItem","ItemDrop/ItemData");
 Field("Humanoid","m_visEquipment","VisEquipment");
 Field("VisEquipment","m_leftItemInstance","UnityEngine.GameObject");
 
+// Cheap instance lists instead of whole-scene searches: plants via SlowUpdate, item stands as they wake.
+Method("SlowUpdate","GetAllInstaces","System.Collections.Generic.List`1<SlowUpdate>");
+Method("ItemStand","Awake","System.Void");
 // TrophyHall reads trophies on player-built item stands inside bases and adds comfort beside the game's own.
 Method("ItemStand","GetAttachedItem","System.Int32");
 Method("ItemStand","HaveAttachment","System.Boolean");
