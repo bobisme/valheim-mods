@@ -20,6 +20,8 @@ namespace BuildShapes
         private HallLayout.Kit _hallKit;
         private float _hallFloorY;
         private string _hallProblem, _hallNote, _hallFingerprint;
+        private string _hallAnnouncedProblem;
+        private int _hallAnnouncedCorners=-1;
         private int _hallFalls, _hallAddedPosts;
         private long _hallSolveMs;
         private Rect _hallRect;
@@ -156,7 +158,7 @@ namespace BuildShapes
             int count=Math.Max(1,(int)Math.Ceiling((depth+0.15)/2));
             for(int n=0;n<count;n++)AddHallPart(new HallLayout.Part{Prefab=post,At=new V3(at.X,top-2*(n+1),at.Z),Kind=HallLayout.Anchor.Bottom,Role=role});
         }
-        private void BuildHallPreview()
+        private void BuildHallPreview(bool announceProblem=true)
         {
             SaveHallDraft();
             var solveWatch=System.Diagnostics.Stopwatch.StartNew();
@@ -250,6 +252,18 @@ namespace BuildShapes
             }
             DrawHallGuides();
             _previewError=_hallProblem;_hallSolveMs=solveWatch.ElapsedMilliseconds;
+            if(announceProblem)AnnounceHallDrawingProblem();
+        }
+        private void AnnounceHallDrawingProblem()
+        {
+            // Incomplete outlines stay quiet; successful edits re-arm the same reason.
+            if(_markers.Count<4 || _hallProblem==null)
+            {_hallAnnouncedProblem=null;_hallAnnouncedCorners=-1;return;}
+            if(_hallMenu)return;
+            // Catalog refreshes and repeated solves must not queue duplicate HUD messages.
+            if(_hallProblem==_hallAnnouncedProblem && _markers.Count==_hallAnnouncedCorners)return;
+            _hallAnnouncedProblem=_hallProblem;_hallAnnouncedCorners=_markers.Count;
+            Say($"{(_staveTemple?"Temple":"Hall")} outline: {_hallProblem}");
         }
         private void QueueHallPreview(){SaveHallDraft();_hallDue=Time.unscaledTime+0.18f;}
         private void UpdateHall()
@@ -276,7 +290,7 @@ namespace BuildShapes
             if(remove>=0 && remove<_hallDoorPoints.Count)_hallDoorPoints.RemoveAt(remove);
             else if(_hallDoorPoints.Count<HallDoors.Maximum)_hallDoorPoints.Add(point);
             else{Say("Mark at most eight entrances. Ctrl+click a marker to remove it.");return;}
-            BuildHallPreview();Say(_hallProblem??$"{_hallDoorPoints.Count} entrance markers; Ctrl+click again to remove, Ctrl+Backspace removes the last.");
+            BuildHallPreview(false);Say(_hallProblem??$"{_hallDoorPoints.Count} entrance markers; Ctrl+click again to remove, Ctrl+Backspace removes the last.");
         }
         private void MarkHall(Player player)
         {
@@ -331,7 +345,7 @@ namespace BuildShapes
         }
         private void ClearHall()
         {
-            CloseHallMenu();_hallGuideHasFloor=false;_hallDoorPoints.Clear();_hallGroundJob.Clear();_hallTargetMaps.Clear();_hallDesign=null;_hallDue=0;_hallProblem=_hallNote=_hallFingerprint=null;
+            CloseHallMenu();_hallAnnouncedProblem=null;_hallAnnouncedCorners=-1;_hallGuideHasFloor=false;_hallDoorPoints.Clear();_hallGroundJob.Clear();_hallTargetMaps.Clear();_hallDesign=null;_hallDue=0;_hallProblem=_hallNote=_hallFingerprint=null;
             _hallRoles.Clear();_hallBill.Clear();_hallStations.Clear();_hallSupport.Clear();
         }
         private void DestroyHall()
