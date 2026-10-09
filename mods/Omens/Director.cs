@@ -18,6 +18,7 @@ namespace Omens
         {
             public long Id;public int Kind,State;public float X,Y,Z;
             public double PlacedAt,SeenAt,ResolvedAt;public bool SeenAtNight,Forced,Softened;public string SeenBy="";public bool SignRemoved;
+            public bool Chained;                 // returned, worse, after an earlier omen was left to come to pass
             public bool Taken,TakenAtNight;public long TakenBy;public double TakenAt;public string TakenByName=""; // a hoard's thief
             [JsonIgnore]public Vector3 Pos=>new Vector3(X,Y,Z);
             [JsonIgnore]public Omen Omen=>Policy.Of((Kind)Kind);
@@ -28,7 +29,11 @@ namespace Omens
             public bool MoonActive,MoonSoftened;public double MoonUntil; // MoonUntil: a forced test moon's end; 0 ends at daybreak
             public bool AuroraActive;public double AuroraUntil;          // the northern lights, likewise
             public int Fate;                                             // the gods' favour for this world (Policy.FateMin–FateMax)
+            public bool StormActive,StormSoftened;public double StormUntil; // Thor's storm
+            public List<Pending> Pending=new List<Pending>();             // omens that will return, worse
         }
+        private sealed class Pending{public int Kind;public float X,Y,Z;public double DueAt;public int Tries;}
+        private static float _nextStormCall;
         private static float _nextAuroraCall;
         private static float _nextMoonCall;
 
@@ -58,6 +63,8 @@ namespace Omens
             changed|=MaybePlace(now);
             changed|=MoonTick(now);
             changed|=AuroraTick(now);
+            changed|=StormTick(now);
+            changed|=PendingTick(now);
             if(changed)Save();
         }
 
@@ -113,6 +120,12 @@ namespace Omens
                         _ledger.AuroraUntil=e.Forced&&!EnvMan.IsNight()?now+300:0;
                         Net.Aurora(true);_nextAuroraCall=Time.time+20;
                         done=true;break;
+                    case Result.Storm:
+                        if(!e.Forced&&!Policy.RaidDue(now,e.SeenAt,e.SeenAtNight,EnvMan.IsNight()))break;
+                        if(_ledger.StormActive)break; // one storm at a time: this one waits for it to pass
+                        _ledger.StormActive=true;_ledger.StormSoftened=e.Softened;_ledger.StormUntil=now+Policy.StormSeconds;
+                        Net.Storm(true,e.Softened);_nextStormCall=Time.time+20;
+                        done=true;break;
                     case Result.BloodMoon:
                         if(!e.Forced&&!Policy.RaidDue(now,e.SeenAt,e.SeenAtNight,EnvMan.IsNight()))break;
                         if(_ledger.MoonActive&&!e.Forced)break; // one blood moon at a time: it waits for tonight's to wane
@@ -146,6 +159,12 @@ namespace Omens
                     Plugin.Log($"{e.Omen.Name} ({e.Id}) came to pass near {at:F0}"+(e.Omen.Result==Result.Raid?$": {e.Omen.Raid}":""));
                     // A warning that could have been answered, and was not: the gods notice. (A thief's curse was already counted.)
                     if(e.Omen.Bad&&e.Omen.Respondable&&!e.Softened&&e.Omen.Result!=Result.Curse)Favour(Policy.FateIgnored,at,"left "+e.Omen.Name.ToLowerInvariant()+" unanswered");
+                    // Left to come to pass, some omens return, worse, near the home they struck.
+                    if(e.Omen.Bad&&!e.Chained&&Policy.Chain(e.Omen.Kind) is Kind chain&&Random.value<Policy.ChainChance(_ledger.Fate))
+                    {
+                        _ledger.Pending.Add(new Pending{Kind=(int)chain,X=at.x,Y=at.y,Z=at.z,DueAt=now+Policy.ChainDelayDays*DayLength});
+                        Plugin.Log($"{e.Omen.Name} ({e.Id}) will return as {Policy.Of(chain).Name} near {at:F0}");
+                    }
                     break;
                 case State.Fizzled:
                     Net.Tell("The omen passes. Whatever it foretold did not find you.",e.Pos,-1,0);
@@ -165,6 +184,42 @@ namespace Omens
             Plugin.Log($"The gods' favour {before} -> {_ledger.Fate} ({Policy.Standing(_ledger.Fate)}): {why}");
             string news=Policy.StandingNews(before,_ledger.Fate);
             if(news!=null)Net.Tell(news,at,0,0);
+        }
+
+        // Thor's storm: told to everyone now and then; it passes after its time.
+        private static bool StormTick(double now)
+        {
+            if(!_ledger.StormActive)return false;
+            if(now>=_ledger.StormUntil)
+            {
+                _ledger.StormActive=false;_ledger.StormSoftened=false;_ledger.StormUntil=0;
+                Net.Storm(false,false);Net.Tell("The storm rolls away. Thor's anger is spent.",Vector3.zero,-1,0);
+                Plugin.Log("Thor's storm passed");
+                return true;
+            }
+            if(Time.time>=_nextStormCall){_nextStormCall=Time.time+20;Net.Storm(true,_ledger.StormSoftened);}
+            return false;
+        }
+        // Omens returning, worse: placed near the home they struck, when their time comes.
+        private static bool PendingTick(double now)
+        {
+            bool changed=false;
+            foreach(Pending p in _ledger.Pending.Where(x=>now>=x.DueAt).ToList())
+            {
+                Vector3 home=new Vector3(p.X,p.Y,p.Z);
+                Site site=Policy.Of((Kind)p.Kind).Site;
+                Vector3? spot=null;
+                for(int attempt=0;attempt<20&&spot==null;attempt++)
+                {
+                    Vector2 dir=Random.insideUnitCircle.normalized*Random.Range(30f,70f);
+                    if(DryGround(new Vector3(home.x+dir.x,home.y,home.z+dir.y),out Vector3 at)&&!NearBuilding(at)&&Fits(site,at))spot=at;
+                }
+                if(spot!=null||++p.Tries>=6)_ledger.Pending.Remove(p);
+                else p.DueAt=now+120;
+                if(spot!=null)Place((Kind)p.Kind,spot.Value,now,true);
+                changed=true;
+            }
+            return changed;
         }
 
         // The northern lights: told to everyone now and then; they fade at daybreak (a forced test one after five minutes).
@@ -305,7 +360,7 @@ namespace Omens
             if(e==null||(State)e.State!=State.Placed)return;
             e.State=(int)Policy.Advance(State.Placed,Now,e.PlacedAt,double.MaxValue,true,false,false,false);
             e.SeenAt=Now;e.SeenAtNight=EnvMan.IsNight();e.SeenBy=NameOf(sender);
-            Net.Tell(Policy.ReadingOf(e.Omen.Kind,e.Id),e.Pos,40,e.Id);
+            Net.Tell((e.Chained?Policy.ChainedPrefix:"")+Policy.ReadingOf(e.Omen.Kind,e.Id),e.Pos,40,e.Id);
             Plugin.Log($"{e.SeenBy} saw {e.Omen.Name} ({e.Id}) at {e.Pos:F0}{(e.SeenAtNight?" at night":"")}");
             Save();
             _nextTick=0; // a good omen comes to pass at once
@@ -321,6 +376,8 @@ namespace Omens
                 // It still comes, weaker; the offering is taken, so the sign goes now.
                 if(e.Softened)return;
                 e.Softened=true;
+                if(e.Omen.Result==Result.Storm&&_ledger.StormActive){_ledger.StormSoftened=true;Net.Storm(true,true);}
+                if(e.Omen.Result==Result.BloodMoon&&_ledger.MoonActive){_ledger.MoonSoftened=true;Net.BloodMoon(true,true);}
                 if((State)e.State==State.Placed){e.State=(int)State.Seen;e.SeenAt=Now;e.SeenAtNight=EnvMan.IsNight();e.SeenBy=NameOf(sender);}
                 RemoveSign(e.Id);Net.Resolve(e.Id);
                 Net.Tell(e.Omen.Averted,e.Pos,60,0);
@@ -355,6 +412,23 @@ namespace Omens
             _nextTick=0;
         }
 
+        // Someone cast the rune bones: tell them, and only them, which way the nearest sign lies, how the gods see them, and what tonight holds.
+        internal static void OnCast(long sender,Vector3 from)
+        {
+            if(!Hosting)return;
+            Load();
+            Entry near=_ledger.Omens.Where(e=>!Policy.Finished((State)e.State)&&!e.SignRemoved&&!(e.Omen.Result==Result.Curse&&e.Taken))
+                .OrderBy(e=>Vector3.Distance(e.Pos,from)).FirstOrDefault(e=>Vector3.Distance(e.Pos,from)<=Policy.CastRange);
+            string tonight=_ledger.MoonActive?"The moon bleeds tonight.":_ledger.StormActive?"Thor's storm is upon you.":_ledger.AuroraActive?"The sky dances tonight."
+                :_ledger.Omens.Any(e=>(State)e.State==State.Seen&&e.Omen.Bad)?"Something gathers for nightfall."
+                :_ledger.Pending.Count>0?"An old omen stirs, and will return.":"";
+            Vector3 d=near!=null?near.Pos-from:Vector3.zero;
+            string text=Policy.Cast(near!=null,d.x,d.z,near!=null&&near.Omen.Bad,_ledger.Fate,tonight);
+            // The bones show a region, not a spot.
+            Vector3 hint=near!=null?near.Pos+new Vector3(Random.Range(-30f,30f),0,Random.Range(-30f,30f)):Vector3.zero;
+            Net.Answer(sender,text,hint,near!=null);
+        }
+
         // ---- placing ----
         private static bool MaybePlace(double now)
         {
@@ -385,15 +459,15 @@ namespace Omens
             _ledger.NextAt=now+120; // nowhere suitable near anyone right now
             return true;
         }
-        private static long Place(Kind kind,Vector3 spot,double now)
+        private static long Place(Kind kind,Vector3 spot,double now,bool chained=false)
         {
             long id;do{id=((long)Random.Range(1,int.MaxValue)<<31)^Random.Range(1,int.MaxValue);}while(id==0||_ledger.Omens.Any(e=>e.Id==id));
             ZDO zdo=ZDOMan.instance.CreateNewZDO(spot,SignPrefab.Hash);
             zdo.Persistent=true;zdo.Type=ZDO.ObjectType.Default;zdo.Distant=false;
             zdo.SetPrefab(SignPrefab.Hash);zdo.SetRotation(Quaternion.Euler(0,Random.Range(0,360f),0));
             zdo.Set(SignPrefab.KindKey,(int)kind);zdo.Set(SignPrefab.IdKey,id);
-            _ledger.Omens.Add(new Entry{Id=id,Kind=(int)kind,X=spot.x,Y=spot.y,Z=spot.z,PlacedAt=now,State=(int)State.Placed});
-            Plugin.Log($"Placed {Policy.Of(kind).Name} ({id}) at {spot:F0}");
+            _ledger.Omens.Add(new Entry{Id=id,Kind=(int)kind,X=spot.x,Y=spot.y,Z=spot.z,PlacedAt=now,State=(int)State.Placed,Chained=chained});
+            Plugin.Log($"Placed {(chained?"returning ":"")}{Policy.Of(kind).Name} ({id}) at {spot:F0}");
             return id;
         }
         private static bool Fits(Site site,Vector3 spot)=>site==Site.Any||(site==Site.OpenSky?OpenSky(spot):Shore(spot));
@@ -502,7 +576,8 @@ namespace Omens
             Load();
             Vector3 me=Player.m_localPlayer!=null?Player.m_localPlayer.transform.position:Vector3.zero;
             yield return $"next omen in {Math.Max(0,_ledger.NextAt-Now):0} s; the gods' favour {_ledger.Fate} ({Policy.Standing(_ledger.Fate)})"+
-                (_ledger.MoonActive?"; a blood moon is up":"")+(_ledger.AuroraActive?"; the northern lights are up":"");
+                (_ledger.MoonActive?"; a blood moon is up":"")+(_ledger.AuroraActive?"; the northern lights are up":"")+(_ledger.StormActive?"; Thor's storm is up":"")+
+                (_ledger.Pending.Count>0?$"; returning: {string.Join(", ",_ledger.Pending.Select(p=>$"{Policy.Of((Kind)p.Kind).Name} in {Math.Max(0,p.DueAt-Now):0} s"))}":"");
             foreach(Entry e in _ledger.Omens.OrderByDescending(x=>x.PlacedAt))
                 yield return $"{e.Id} {e.Omen.Name}: {(State)e.State}, {Vector3.Distance(me,e.Pos):0} m away at {e.Pos:F0}"+(e.SeenBy!=""?$", seen by {e.SeenBy}":"");
         }
@@ -513,6 +588,15 @@ namespace Omens
             if(int.TryParse(value,out int to))Favour(to-_ledger.Fate,Player.m_localPlayer!=null?Player.m_localPlayer.transform.position:Vector3.zero,"set for testing");
             Save();
             return $"{_ledger.Fate} ({Policy.Standing(_ledger.Fate)})";
+        }
+        // Bring every returning omen due now.
+        internal static string TestChains()
+        {
+            if(!Hosting)return "not the host";
+            Load();
+            foreach(Pending p in _ledger.Pending)p.DueAt=Now;
+            Save();_nextTick=0;
+            return $"{_ledger.Pending.Count} returning omen(s) due now";
         }
         internal static void TestSoon(){if(Hosting){Load();_ledger.NextAt=Now+5;Save();_nextTick=0;}}
 

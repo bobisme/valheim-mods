@@ -116,6 +116,7 @@ a chat line for everyone, and a pin on your map. An omen nobody finds fades afte
 | **Unlit grave candles** | Black Forest, Swamp, Mountains | "Without light, the dead walk. Relight them." | Ghosts haunt the nearest base that night, unless you **relight the candles with 3 resin**. |
 | **Scorched circle** | Black Forest, Swamp, Plains | "Fire is coming." | Surtlings raid the nearest base that night. |
 | **Ship with black sails** | Shores | "It is waiting for the dark. A beacon fire might warn it off." | A dark longship rides offshore with a green light aboard. At night, once someone is home, its draugr crew comes for the nearest base, unless you **light a warning beacon with 20 wood**: the beacon blazes and the ship turns away into the mist. |
+| **Lightning-split oak** | Most land | "Thor is angry, and he is coming." | That night **Thor's storm** breaks for 8 minutes for everyone: thunder, rain, and lightning striking near anyone under the open sky. A crackle of light on the ground warns of each strike (18 lightning damage within 2.5 m). **Bury 20 coins** at the oak to keep the storm but stop the strikes. |
 | **Circling ravens** | Open sky on most land | "Odin is watching." | Players nearby become rested, and 250 metres of land is revealed on their maps. The ravens circle above the treetops for two more minutes. |
 | **Gulls over the shore** | Shores | "The sea is generous." | Real fish are stranded on the shore for the taking. |
 | **Dancing lights** | Meadows, Black Forest, Swamp, Mistlands | "They want to show you something." | A light drifts off low over the ground to a **real treasure chest** of that land 40–70 m away, also pinned on the map. |
@@ -131,6 +132,17 @@ answerable warning come to pass lowers it by one, and robbing a cursed hoard by 
 point). **Beloved** worlds (+3 or more) get half as much again from every gift. **Forsaken** worlds (−3 or less) see omens a quarter more
 often, and every pack and hunter comes a level stronger.
 
+**Omens that return.** A bad omen left to come to pass can come back half a day later, worse, near the home it struck, announced as
+"The omen returns, worse than before.": a scattered cairn's dead return as unlit grave candles, a drained deer or a gnawed carcass feeds a
+blood moon, the drowned man's ship comes looking for him, a dead troll's forest calls down Thor's storm, and an abandoned camp's attackers come
+back with fire. How likely depends on the gods' favour: certain for the forsaken, even odds when they only watch, never for the beloved.
+A returning omen never returns again.
+
+**The rune bones.** Carve them at a **workbench** from **6 bone fragments and 2 resin**, then use them (hotbar or inventory). The host
+reads them for you alone: which way the nearest sign lies and roughly how far, whether it feels warm (good) or cold (bad), how the gods
+see you, and what tonight holds (a blood moon, Thor's storm, the northern lights, something gathering, an old omen stirring). A rough
+"Omen?" pin marks the region, not the spot. They are never used up; cast them again after 10 seconds.
+
 Readings vary: most omens have two or three ways of saying what they show, so a second dead troll does not read like the first.
 
 About **60%** of omens are bad. A bad omen's raid comes at nightfall when seen by day, or a few minutes later when seen at night. It goes
@@ -145,7 +157,7 @@ signs are saved world objects tagged with their own random id. Frequency, the ba
 reach and each omen are in F7 → Mod settings (only the host's values count). Later versions can add omens beyond the game's raids.
 
 For testing on the host with Quad's Claude Tools installed, its `omen` command lists omens (`omen list`), places one ahead of the player
-(`omen place troll|camp|cairn|deer|bloodmoon|wolves|banner|drowned|hoard|candles|scorched|ship|ravens|catch|wisps|stag|star|wanderer|shrine|aurora [metres]`), lists the game's raid events (`omen events`), brings one to pass at once, night or not (`omen now <id|last>`; a hoard is taken by the host first), responds to one as a player would (`omen avert <id>`), removes one without effect (`omen clear <id>`), shows or sets the gods' favour (`omen fate [-5..5]`), or schedules the next natural one
+(`omen place troll|camp|cairn|deer|bloodmoon|wolves|banner|drowned|hoard|candles|scorched|ship|storm|ravens|catch|wisps|stag|star|wanderer|shrine|aurora [metres]`), lists the game's raid events (`omen events`), brings one to pass at once, night or not (`omen now <id|last>`; a hoard is taken by the host first), responds to one as a player would (`omen avert <id>`), removes one without effect (`omen clear <id>`), shows or sets the gods' favour (`omen fate [-5..5]`), brings returning omens due now (`omen chains`), or schedules the next natural one
 in 5 seconds (`omen soon`).
 
 Checks cover omen choice and the 60/40 split, biome fallbacks, intervals, raid timing, the omen state machine, packs, gifts, chests and

@@ -10,7 +10,7 @@ foreach(Omen o in Policy.All)
     Check(!string.IsNullOrWhiteSpace(o.Name)&&!string.IsNullOrWhiteSpace(o.Reading)&&!string.IsNullOrWhiteSpace(o.Outcome),"Every omen has a name, reading and outcome");
     Check(o.Biomes!=0,"Every omen can appear somewhere");
     Check((o.Result==Result.Raid)==!string.IsNullOrEmpty(o.Raid),"Raid omens, and only they, name a raid");
-    Check(o.Bad==(o.Result is Result.Raid or Result.Stalkers or Result.BloodMoon or Result.Curse),"Bad omens bring raids, hunters, a blood moon or a curse; good ones blessings, gifts, treasure, quarry or favour");
+    Check(o.Bad==(o.Result is Result.Raid or Result.Stalkers or Result.BloodMoon or Result.Curse or Result.Storm),"Bad omens bring raids, hunters, a blood moon, a curse or a storm; good ones blessings, gifts, treasure, quarry or favour");
     Check(o.Respondable==!string.IsNullOrWhiteSpace(o.Averted)&&o.Respondable==!string.IsNullOrWhiteSpace(o.Action),"A respondable omen has an action and a response message; others have neither");
     Check(o.Cost==null?o.CostAmount==0:o.Respondable&&o.CostAmount>0&&!o.Cost.StartsWith("$")&&!o.Cost.Contains(' '),"A cost is an item prefab and an amount, and only on a respondable omen");
     Check(o.Cost!=null||!o.Respondable||o.Provokes||o.Result==Result.Curse,"A free response either provokes a fight or takes a hoard");
@@ -24,8 +24,8 @@ foreach(Omen o in Policy.All)
 }
 Check(Policy.All.Select(o=>o.Kind).Distinct().Count()==Policy.All.Length&&Policy.All.Length==every.Length,"Every kind has exactly one omen");
 Check(Policy.All.Select(o=>o.Test).Distinct().Count()==Policy.All.Length,"Test names are unique");
-Check(Policy.All.Count(o=>o.Bad)==12&&Policy.All.Count(o=>!o.Bad)==8,"Twelve bad and eight good omens");
-Check((int)Kind.DeadTroll==0&&(int)Kind.BloodMoon==6&&(int)Kind.Scorched==16&&(int)Kind.GhostShip==19,"Kinds keep their saved numbers");
+Check(Policy.All.Count(o=>o.Bad)==13&&Policy.All.Count(o=>!o.Bad)==8,"Thirteen bad and eight good omens");
+Check((int)Kind.DeadTroll==0&&(int)Kind.BloodMoon==6&&(int)Kind.Scorched==16&&(int)Kind.GhostShip==19&&(int)Kind.ThorStorm==20,"Kinds keep their saved numbers");
 foreach(int land in new[]{Policy.Meadows,Policy.BlackForest,Policy.Swamp,Policy.Mountain,Policy.Plains})
 {
     Check(Policy.All.Count(o=>o.Bad&&(o.Biomes&land)!=0)>=3,"Every land has several bad omens");
@@ -161,4 +161,33 @@ Check(Policy.StandingNews(1,0)!=Policy.StandingNews(-1,0)||Policy.StandingNews(1
 Check(Policy.AuroraSpawnChance(40)==20&&Policy.AuroraSpawnChance(-3)==0,"Under the lights, half as many night creatures");
 Check(Policy.Pick(0.99,0.0,0.6,Policy.Mountain,new[]{Kind.Aurora,Kind.Wolves})==Kind.Aurora,"The rune stone stands anywhere");
 Check(Policy.Pack(Kind.GhostShip,Policy.Swamp).SequenceEqual(Policy.Pack(Kind.Drowned,Policy.Swamp)),"The black ship's crew are the drowned");
+// Chains: some omens return, worse.
+foreach(Omen o in Policy.All)
+{
+    Kind? next=Policy.Chain(o.Kind);
+    if(next==null)continue;
+    Check(o.Bad&&Policy.Of(next.Value).Bad,"Only bad omens return, and they return as bad ones");
+    Check(Policy.Chain(next.Value)==null||Policy.Chain(next.Value)!=o.Kind,"No two omens chain into each other");
+    Check((Policy.Of(next.Value).Biomes&o.Biomes)!=0||Policy.Of(next.Value).Biomes==Policy.AnyLand,"A returning omen can stand where the first one did");
+}
+Check(Policy.Chain(Kind.Cairn)==Kind.GraveCandles&&Policy.Chain(Kind.Drowned)==Kind.GhostShip&&Policy.Chain(Kind.Ravens)==null,"The cairn's dead haunt you; the drowned man's ship comes looking");
+Check(Policy.ChainChance(-5)==1&&Policy.ChainChance(5)==0&&Policy.ChainChance(0)>Policy.ChainChance(1)&&Policy.ChainChance(-1)>Policy.ChainChance(0),"Chains are likelier the less the gods like you");
+for(int f=Policy.FateMin;f<=Policy.FateMax;f++)Check(Policy.ChainChance(f)>=0&&Policy.ChainChance(f)<=1,"Chain chances are chances");
+Check(Policy.ChainedPrefix.EndsWith(" "),"The returning prefix joins the reading");
+
+// Thor's storm.
+Check(Policy.Of(Kind.ThorStorm).Softens&&Policy.Of(Kind.ThorStorm).Cost=="Coins","Coins for Thor soften his storm");
+foreach(double r in new[]{0,0.5,1,double.NaN,-1,2}){float t=Policy.NextStrike(r);Check(t>=9&&t<=20,"Strikes come every 9 to 20 seconds");}
+Check(Policy.CloseStrike(0.1)&&!Policy.CloseStrike(0.5),"Low rolls strike close");
+int close=0;for(double r=0;r<1;r+=0.001)if(Policy.CloseStrike(r))close++;
+Check(Math.Abs(close/1000.0-0.25)<0.01,"One strike in four comes close");
+Check(Policy.StrikeDamage>0&&Policy.StrikeDamage<40&&Policy.StrikeWarning>=1,"A strike hurts but does not kill outright, and warns first");
+
+// The rune bones.
+Check(Policy.Compass(0,1)=="north"&&Policy.Compass(1,0)=="east"&&Policy.Compass(0,-1)=="south"&&Policy.Compass(-1,0)=="west"&&Policy.Compass(1,1)=="north-east"&&Policy.Compass(-1,-1)=="south-west","Compass points");
+Check(Policy.Compass(0,0)=="north"&&Policy.Compass(-0.1,1)=="north","Compass edge cases");
+Check(Policy.Roughly(3)==10&&Policy.Roughly(47)==50&&Policy.Roughly(130)==150&&Policy.Roughly(1234)==1250,"Distances are rough");
+string reading=Policy.Cast(true,100,0,true,-4,"The moon bleeds tonight.");
+Check(reading.Contains("east")&&reading.Contains("100 m")&&reading.Contains("cold")&&reading.Contains("forsaken")&&reading.EndsWith("tonight."),"The bones tell direction, distance, feel, standing and tonight");
+Check(Policy.Cast(false,0,0,false,4,"").Contains("say nothing")&&Policy.Cast(false,0,0,false,4,"").Contains("beloved")&&Policy.Cast(true,0,50,false,0,"").Contains("warm"),"Quiet bones and warm signs");
 Console.WriteLine($"Passed {checks} omen choice, timing, state and base checks.");

@@ -11,7 +11,7 @@ namespace Omens
     {
         public const string Guid="com.bobisme.omens";
         public const string Name="Omens";
-        public const string Version="0.5.0";
+        public const string Version="0.6.0";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled;
         private readonly Dictionary<Kind,ConfigEntry<bool>> _omens=new Dictionary<Kind,ConfigEntry<bool>>();
@@ -33,6 +33,7 @@ namespace Omens
             _harmony=new Harmony(Guid);_harmony.PatchAll(typeof(Plugin).Assembly);
             if(ZNetScene.instance!=null)SignPrefab.Register(ZNetScene.instance); // hot reload while in a world
             OmenSign.AttachAll();
+            Seer.RegisterLoaded(); // hot reload while in a world
             Logger.LogInfo($"{Name} {Version} loaded.");
         }
         internal List<Kind> EnabledKinds()=>Policy.All.Where(o=>_omens.TryGetValue(o.Kind,out var on)&&on.Value).Select(o=>o.Kind).ToList();
@@ -42,6 +43,7 @@ namespace Omens
             Net.Tick();
             BloodMoon.Tick();
             Aurora.Tick();
+            Storm.Tick();
             Tools.Tick();
             try{Director.Tick();}catch(System.Exception e){Logger.LogError("Omens director: "+e);}
         }
@@ -56,6 +58,8 @@ namespace Omens
             Looks.Clear();
             Favour.Clear();
             Aurora.Clear();
+            Storm.Clear();
+            Seer.Unregister();
             if(Instance==this)Instance=null;
         }
     }
@@ -63,7 +67,7 @@ namespace Omens
     [HarmonyPatch(typeof(ZNetScene),"Awake")]
     internal static class RegisterSign
     {
-        private static void Postfix(ZNetScene __instance)=>SignPrefab.Register(__instance);
+        private static void Postfix(ZNetScene __instance){SignPrefab.Register(__instance);Seer.RegisterScene(__instance);}
     }
     // A new world or a return to the main menu: forget the previous world's ledger.
     [HarmonyPatch(typeof(ZNet),"Shutdown")]

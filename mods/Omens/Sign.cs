@@ -260,6 +260,14 @@ namespace Omens
                         }
                     }
                     break;
+                case Kind.ThorStorm:
+                    // An oak stump split by lightning, still smouldering, its upper half thrown down beside it.
+                    GameObject stump=Looks.Copy("OakStub",transform,Vector3.zero,Quaternion.Euler(0,Random.Range(0,360f),0));
+                    if(stump!=null){Looks.Still(stump);Looks.Ground(stump);Looks.Darken(stump,new Color(0.35f,0.32f,0.3f));}
+                    Looks.Fire(transform,new Vector3(0.3f,0.9f,0.1f),0.35f);
+                    Scatter(("RoundLog",2.2f,0.6f),("RoundLog",1.6f,-1.3f),("Coal",-1.1f,0.8f),("Coal",0.9f,1.4f),("Coal",-0.6f,-1.5f),("Coal",1.8f,1.9f));
+                    _hover=Looks.Hover(transform,new Vector3(0,1f,0),new Vector3(3f,2f,3f));
+                    break;
                 case Kind.Wanderer:
                     _wanderer=Looks.Copy("odin",transform,Vector3.zero,Quaternion.identity);
                     if(_wanderer!=null){Looks.Still(_wanderer);FaceNearestPlayer();}
@@ -307,6 +315,7 @@ namespace Omens
                 case Kind.GraveCandles:foreach(GameObject candle in _candles)if(candle!=null)Looks.Kindle(candle);break;
                 case Kind.WarBanner:if(_banner!=null)_banner.transform.localRotation=Quaternion.Euler(84,_banner.transform.localEulerAngles.y,0);break;
                 case Kind.Drowned:Looks.Item("Coins",transform,transform.InverseTransformPoint(Carcass),Quaternion.identity);break;
+                case Kind.ThorStorm:Scatter(("Coins",0.6f,0.5f),("Coins",-0.5f,0.6f));break;
                 case Kind.Shrine:Scatter(("Honey",0.15f,0.25f),("Honey",-0.15f,0.3f),("Honey",0f,0.05f));break;
                 case Kind.GhostShip:Looks.Fire(transform,new Vector3(0,0.2f,0),1.3f);_leaveAt=Time.time;break;
             }

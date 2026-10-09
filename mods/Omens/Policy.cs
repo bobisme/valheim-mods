@@ -6,12 +6,12 @@ namespace Omens
 {
     internal enum Kind { DeadTroll=0, Ravens=1, AbandonedCamp=2, Cairn=3, DrainedDeer=4, Catch=5, BloodMoon=6,
         Wisps=7, GreatStag=8, FallenStar=9, Wanderer=10, Wolves=11, WarBanner=12, Drowned=13, Hoard=14, GraveCandles=15, Scorched=16,
-        Shrine=17, Aurora=18, GhostShip=19 }
+        Shrine=17, Aurora=18, GhostShip=19, ThorStorm=20 }
     internal enum State { Placed=0, Seen=1, Fulfilled=2, Averted=3, Expired=4, Fizzled=5 }
     // What comes to pass: one of the game's raids, a hunting pack sent at the base, a blessing on those nearby, a gift in the world,
     // a blood moon night, a treasure the lights lead to, a great stag to hunt, the wanderer's favour, the dead hunting a thief,
-    // the gods' favour for an offering, or a night under the northern lights.
-    internal enum Result { Raid, Stalkers, Blessing, Gift, BloodMoon, Treasure, Quarry, Favour, Curse, Offering, Aurora }
+    // the gods' favour for an offering, a night under the northern lights, or Thor's storm.
+    internal enum Result { Raid, Stalkers, Blessing, Gift, BloodMoon, Treasure, Quarry, Favour, Curse, Offering, Aurora, Storm }
     // Where a sign may stand, beyond its biomes: anywhere, under open sky (birds must be seen), or on a shore.
     internal enum Site { Any, OpenSky, Shore }
 
@@ -140,6 +140,12 @@ namespace Omens
                 Outcome="The black ship has come ashore. Its crew are not alive.",
                 Averted="The beacon blazes. Out at sea, the black ship turns away into the mist.",
                 Config="Shores: a ghost ship offshore. Unless you light a warning beacon (20 wood), its draugr crew comes for the nearest base at night, once someone is home."},
+            new Omen{Kind=Kind.ThorStorm,Bad=true,Result=Result.Storm,Biomes=AnyLand,Test="storm",
+                Cost="Coins",CostAmount=20,Action="Bury coins for Thor",Softens=true,
+                Name="A lightning-split oak",Reading="An oak split in two by lightning, still smouldering. Thor is angry, and he is coming. Silver buried at its roots might stay his hammer.",
+                Outcome="Thor's storm breaks over you. Get under a roof!",
+                Averted="You bury the coins at the oak's roots. Thunder rolls far off, but the hammer stays in Thor's hand.",
+                Config="Most land: a lightning-split oak. That night Thor's storm breaks for eight minutes: thunder, rain, and lightning striking near anyone under the open sky (a crackle on the ground warns of each strike). Burying 20 coins at the oak keeps the storm but stops the strikes."},
         };
 
         // More ways to say what a sign shows, so a second dead troll does not read like the first. One per sign, by its id.
@@ -198,6 +204,50 @@ namespace Omens
                 default:return "The gods love you. Their gifts will be generous.";
             }
         }
+
+        // ---- chains: an omen left to come to pass can return, worse, near the home it struck ----
+        internal static Kind? Chain(Kind kind)
+        {
+            switch(kind)
+            {
+                case Kind.Cairn:return Kind.GraveCandles;      // the restless dead find their way home with you
+                case Kind.DrainedDeer:return Kind.BloodMoon;   // the hunter feeds the moon
+                case Kind.Wolves:return Kind.BloodMoon;
+                case Kind.Drowned:return Kind.GhostShip;       // his crew comes looking for him
+                case Kind.DeadTroll:return Kind.ThorStorm;     // the forest calls on Thor
+                case Kind.AbandonedCamp:return Kind.Scorched;  // what drove them off comes back with fire
+                default:return null;
+            }
+        }
+        // How likely a chain is, by the gods' favour: certain for the forsaken, never for the beloved.
+        internal static double ChainChance(int fate)=>fate<=-3?1:fate<0?0.75:fate==0?0.5:fate<3?0.25:0;
+        internal const double ChainDelayDays=0.5; // it returns half a day later
+        internal const string ChainedPrefix="The omen returns, worse than before. ";
+
+        // ---- Thor's storm ----
+        internal const double StormSeconds=480;
+        internal const float StrikeDamage=18,StrikeRadius=2.5f,StrikeWarning=1.6f;
+        // Seconds to the next strike near a player, from a 0–1 roll; close strikes are rarer.
+        internal static float NextStrike(double roll)=>9f+11f*(float)Clamp01(roll);
+        internal static bool CloseStrike(double roll)=>Clamp01(roll)<0.25;
+
+        // ---- the rune bones: what the host tells whoever casts them ----
+        internal static string Compass(double dx,double dz)
+        {
+            string[] names={"north","north-east","east","south-east","south","south-west","west","north-west"};
+            double angle=Math.Atan2(dx,dz)*180/Math.PI; // 0 = north (+z), 90 = east (+x)
+            int i=(int)Math.Round(((angle%360)+360)%360/45)%8;
+            return names[i];
+        }
+        internal static int Roughly(double metres)=>metres<100?(int)Math.Max(10,Math.Round(metres/10)*10):(int)(Math.Round(metres/50)*50);
+        internal static string Cast(bool any,double dx,double dz,bool bad,int fate,string tonight)
+        {
+            string lead=any?$"The bones fall toward the {Compass(dx,dz)}. Something waits there, about {Roughly(Math.Sqrt(dx*dx+dz*dz))} m away. It feels {(bad?"cold":"warm")}."
+                :"The bones say nothing. No sign waits near you.";
+            return lead+$" The gods find you {Standing(fate)}."+(string.IsNullOrEmpty(tonight)?"":" "+tonight);
+        }
+        internal const float CastCooldown=10;
+        internal const double CastRange=2000;
 
         // ---- the northern lights ----
         internal static float AuroraSpawnChance(float chance)=>Math.Max(0f,chance)*0.5f;
