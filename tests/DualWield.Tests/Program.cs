@@ -4,13 +4,16 @@ int checks=0;
 void Check(bool ok,string name){checks++;if(!ok)throw new Exception(name);}
 bool Near(double a,double b)=>Math.Abs(a-b)<1e-9;
 
-Check(Policy.FamilyOf(true,true,false)==Family.Axes&&Policy.FamilyOf(true,false,true)==Family.Knives,"One-handed axes and knives have dual move sets");
-Check(Policy.FamilyOf(false,true,false)==Family.None,"Two-handed axes are not paired");
-Check(Policy.FamilyOf(true,false,false)==Family.None,"Swords, clubs and others have no dual move set yet");
-
+Check(Policy.FamilyOf(true,"Axes")==Family.Axes&&Policy.FamilyOf(true,"Knives")==Family.Knives,"One-handed axes and knives pair up");
+Check(Policy.FamilyOf(true,"Clubs")==Family.Maces&&Policy.FamilyOf(true,"Swords")==Family.Swords,"One-handed maces and swords pair up");
+Check(Policy.FamilyOf(false,"Axes")==Family.None&&Policy.FamilyOf(false,"Swords")==Family.None&&Policy.FamilyOf(false,"Clubs")==Family.None,"Two-handers are never paired");
+Check(Policy.FamilyOf(true,"Spears")==Family.None&&Policy.FamilyOf(true,"Unarmed")==Family.None&&Policy.FamilyOf(true,null)==Family.None,"Other weapons have no pair");
+Check(Policy.Template(Family.Knives)=="KnifeSkollAndHati"&&Policy.Template(Family.Axes)=="AxeBerzerkr"&&Policy.Template(Family.Maces)=="AxeBerzerkr"&&Policy.Template(Family.Swords)=="AxeBerzerkr"&&Policy.Template(Family.None)==null,
+    "Knives borrow Skoll and Hati; axes, maces and swords the Berserkir axes");
 Check(Policy.Equip(Family.Axes,Family.Axes,false,20,20,false)==Verdict.Dual,"A second axe goes to the off hand at skill 20");
 Check(Policy.Equip(Family.Axes,Family.Axes,false,19.9,20,false)==Verdict.NeedsSkill,"Below the skill it is refused with a reason");
-Check(Policy.Equip(Family.Axes,Family.Knives,false,99,20,false)==Verdict.Single,"Mixed pairs are not allowed");
+Check(Policy.Equip(Family.Axes,Family.Knives,false,99,20,false)==Verdict.Single&&Policy.Equip(Family.Maces,Family.Swords,false,99,20,false)==Verdict.Single,"Mixed pairs are not allowed");
+Check(Policy.Equip(Family.Maces,Family.Maces,false,20,20,false)==Verdict.Dual&&Policy.Equip(Family.Swords,Family.Swords,false,19,20,false)==Verdict.NeedsSkill,"Maces and swords use the same skill gate");
 Check(Policy.Equip(Family.None,Family.Axes,false,99,20,false)==Verdict.Single,"An empty or non-weapon main hand equips normally");
 Check(Policy.Equip(Family.Knives,Family.Knives,true,99,20,false)==Verdict.Single,"The same item cannot be in both hands");
 Check(Policy.Equip(Family.Axes,Family.Axes,false,99,20,true)==Verdict.Single,"Holding the swap key replaces the main weapon");

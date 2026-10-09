@@ -130,8 +130,7 @@ namespace DualWield
             GameObject prefab=ObjectDB.instance.GetItemPrefab(hash);
             Family family=prefab!=null?Hands.FamilyOf(prefab.GetComponent<ItemDrop>()?.m_itemData):Family.None;
             if(family==Family.None)return;
-            Vector3 rotation=family==Family.Axes?Plugin.Instance.AxeRotation.Value:Plugin.Instance.KnifeRotation.Value;
-            Vector3 offset=family==Family.Axes?Plugin.Instance.AxeOffset.Value:Plugin.Instance.KnifeOffset.Value;
+            var (rotation,offset)=Hands.Look(family);
             held.transform.localPosition+=offset;
             held.transform.localRotation*=Quaternion.Euler(rotation);
         }

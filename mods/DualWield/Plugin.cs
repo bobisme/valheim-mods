@@ -12,18 +12,18 @@ namespace DualWield
     {
         public const string Guid="com.bobisme.dualwield";
         public const string Name="DualWield";
-        public const string Version="0.1.1";
+        public const string Version="0.1.2";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled;
         internal ConfigEntry<float> MinSkill,WoodcuttingCredit,DamageShare,StaminaFactor;
         internal ConfigEntry<KeyboardShortcut> SwapKey;
-        internal ConfigEntry<Vector3> AxeRotation,AxeOffset,KnifeRotation,KnifeOffset;
+        internal ConfigEntry<Vector3> AxeRotation,AxeOffset,KnifeRotation,KnifeOffset,MaceRotation,MaceOffset,SwordRotation,SwordOffset;
         private Harmony _harmony;
 
         private void Awake()
         {
             Instance=this;
-            Enabled=Config.Bind("General","Enabled",true,"Equip a matching second one-handed axe or knife into the off hand.");
+            Enabled=Config.Bind("General","Enabled",true,"Equip a matching second one-handed axe, knife, mace or sword into the off hand.");
             MinSkill=Config.Bind("Balance","MinSkill",20f,new ConfigDescription("Weapon skill needed to wield two of that kind.",new AcceptableValueRange<float>(0,100)));
             WoodcuttingCredit=Config.Bind("Balance","WoodcuttingCredit",0.5f,new ConfigDescription("Share of Woodcutting that counts toward wielding two axes (0.5: Axes plus half of Woodcutting must reach MinSkill).",new AcceptableValueRange<float>(0,1)));
             DamageShare=Config.Bind("Balance","DamageShare",0.62f,new ConfigDescription("Each dual hit is worth this share of both weapons' damage combined (0.62: about 1.24× one weapon when they are equal).",new AcceptableValueRange<float>(0.3f,1)));
@@ -33,6 +33,10 @@ namespace DualWield
             AxeOffset=Config.Bind("Looks","AxeOffset",Vector3.zero,"Extra position (metres) for an axe held in the off hand.");
             KnifeRotation=Config.Bind("Looks","KnifeRotation",Vector3.zero,"Extra rotation (degrees) for a knife held in the off hand.");
             KnifeOffset=Config.Bind("Looks","KnifeOffset",Vector3.zero,"Extra position (metres) for a knife held in the off hand.");
+            MaceRotation=Config.Bind("Looks","MaceRotation",Vector3.zero,"Extra rotation (degrees) for a mace held in the off hand.");
+            MaceOffset=Config.Bind("Looks","MaceOffset",Vector3.zero,"Extra position (metres) for a mace held in the off hand.");
+            SwordRotation=Config.Bind("Looks","SwordRotation",Vector3.zero,"Extra rotation (degrees) for a sword held in the off hand.");
+            SwordOffset=Config.Bind("Looks","SwordOffset",Vector3.zero,"Extra position (metres) for a sword held in the off hand.");
             _harmony=new Harmony(Guid);_harmony.PatchAll(typeof(Plugin).Assembly);
             foreach(Player p in Player.GetAllPlayers())Hands.Refresh(p); // hot reload: re-apply the dual state to anyone holding a pair
             Logger.LogInfo($"{Name} {Version} loaded.");
@@ -57,7 +61,7 @@ namespace DualWield
         private static readonly MethodInfo SetupState=AccessTools.Method(typeof(Humanoid),"SetupAnimationState");
 
         internal static Family FamilyOf(ItemDrop.ItemData item)=>item==null?Family.None:Policy.FamilyOf(
-            item.m_shared.m_itemType==ItemDrop.ItemData.ItemType.OneHandedWeapon,item.m_shared.m_skillType==Skills.SkillType.Axes,item.m_shared.m_skillType==Skills.SkillType.Knives);
+            item.m_shared.m_itemType==ItemDrop.ItemData.ItemType.OneHandedWeapon,item.m_shared.m_skillType.ToString());
         // A matching weapon in each hand.
         internal static Family Pair(Humanoid h)
         {
@@ -68,7 +72,7 @@ namespace DualWield
         // The game's own dual weapon of that kind: its move set and animation state.
         internal static ItemDrop.ItemData.SharedData Template(Family family)
         {
-            string name=family==Family.Axes?"AxeBerzerkr":family==Family.Knives?"KnifeSkollAndHati":null;
+            string name=Policy.Template(family);
             GameObject prefab=name!=null&&ObjectDB.instance!=null?ObjectDB.instance.GetItemPrefab(name):null;
             return prefab!=null?prefab.GetComponent<ItemDrop>().m_itemData.m_shared:null;
         }
@@ -92,6 +96,18 @@ namespace DualWield
             float wood=p.GetSkillLevel(Skills.SkillType.WoodCutting),credit=Plugin.Instance.WoodcuttingCredit.Value;
             if(credit>0)how+=$" + {credit*100:0}% of $skill_woodcutting {wood:0}";
             return Policy.Effective(weapon,wood,credit);
+        }
+        // The configured correction for an off-hand weapon of this kind: (rotation, offset).
+        internal static (Vector3 rotation,Vector3 offset) Look(Family family)
+        {
+            Plugin p=Plugin.Instance;
+            switch(family)
+            {
+                case Family.Axes:return (p.AxeRotation.Value,p.AxeOffset.Value);
+                case Family.Maces:return (p.MaceRotation.Value,p.MaceOffset.Value);
+                case Family.Swords:return (p.SwordRotation.Value,p.SwordOffset.Value);
+                default:return (p.KnifeRotation.Value,p.KnifeOffset.Value);
+            }
         }
         internal static void Setup_(Humanoid h)=>Setup.Invoke(h,null);
         internal static void State(Humanoid h,ItemDrop.ItemData.AnimationState state)=>SetState.Invoke(h,new object[]{state});

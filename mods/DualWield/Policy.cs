@@ -2,8 +2,9 @@ using System;
 
 namespace DualWield
 {
-    // Weapon kinds the game has a dual move set for: two axes fight like the Berserkir axes, two knives like Skoll and Hati.
-    internal enum Family { None, Axes, Knives }
+    // Weapon kinds that pair up. The game has dual move sets for two of them: axes fight like the Berserkir axes, knives like Skoll and
+    // Hati. Maces and swords swing like the Berserkir axes too: the closest move set to a one-handed chop or smash.
+    internal enum Family { None, Axes, Knives, Maces, Swords }
     internal enum Verdict { Single, Dual, NeedsSkill }
 
     // Pure rules shared with the standalone tests: no Unity or game types.
@@ -13,7 +14,21 @@ namespace DualWield
         // (woodcutting teaches the axe, not fighting with two).
         internal static double Effective(double weaponSkill,double gatheringSkill,double credit)=>
             Math.Max(0,double.IsNaN(weaponSkill)?0:weaponSkill)+Math.Max(0,double.IsNaN(gatheringSkill)?0:gatheringSkill)*Math.Max(0,Math.Min(1,double.IsNaN(credit)?0:credit));
-        internal static Family FamilyOf(bool oneHanded,bool axe,bool knife)=>!oneHanded?Family.None:axe?Family.Axes:knife?Family.Knives:Family.None;
+        // By the weapon's skill (the game's Skills.SkillType names): Clubs are maces.
+        internal static Family FamilyOf(bool oneHanded,string skill)
+        {
+            if(!oneHanded)return Family.None;
+            switch(skill)
+            {
+                case "Axes":return Family.Axes;
+                case "Knives":return Family.Knives;
+                case "Clubs":return Family.Maces;
+                case "Swords":return Family.Swords;
+                default:return Family.None;
+            }
+        }
+        // The game's own dual weapon whose move set and stance a pair borrows.
+        internal static string Template(Family family)=>family==Family.Knives?"KnifeSkollAndHati":family==Family.None?null:"AxeBerzerkr";
 
         // Equipping a second weapon while one is in the main hand: a matching pair goes to the off hand once the skill allows it.
         internal static Verdict Equip(Family main,Family incoming,bool sameItem,double skill,double minSkill,bool swapHeld)
