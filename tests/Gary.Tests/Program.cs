@@ -174,4 +174,24 @@ for(int tick=0;tick<=50;tick++)Check(FunPolicy.FetchNavigationGrace(tick/10.0),"
 Check(!FunPolicy.FetchNavigationGrace(5.001),"An unreachable throw releases normal Wood after bounded retries");
 foreach(double bad in new[]{-1.0,double.NaN,double.PositiveInfinity,double.NegativeInfinity})
     Check(!FunPolicy.FetchInFlight(bad)&&!FunPolicy.FetchNavigationGrace(bad),"Invalid fetch clocks cannot keep flight or retry alive");
+// Reforestation: when he may look, which spots are fair, and which tree.
+Check(ReforestPolicy.Ready(true,20,60,600,480,0,6),"Near the bed, long after his last tree: he looks for a spot");
+Check(!ReforestPolicy.Ready(false,20,60,600,480,0,6)&&!ReforestPolicy.Ready(true,61,60,600,480,0,6)&&!ReforestPolicy.Ready(true,20,60,100,480,0,6)&&!ReforestPolicy.Ready(true,20,60,600,480,6,6),
+    "Not when turned off, away from home, too soon, or with enough saplings growing");
+Check(!ReforestPolicy.Ready(true,double.NaN,60,600,480,0,6)&&ReforestPolicy.Ready(true,20,60,double.PositiveInfinity,480,0,6),"No bed distance, no planting; never planted counts as long ago");
+Check(ReforestPolicy.Spot(30,60,20,false,false,false,false,false,false),"Open wild ground near home is fair");
+Check(!ReforestPolicy.Spot(5,60,20,false,false,false,false,false,false)&&!ReforestPolicy.Spot(70,60,20,false,false,false,false,false,false),"Not right by the bed, not far from home");
+Check(!ReforestPolicy.Spot(30,60,3,false,false,false,false,false,false)&&ReforestPolicy.Spot(30,60,double.MaxValue,false,false,false,false,false,false),"Clear of buildings");
+Check(!ReforestPolicy.Spot(30,60,20,true,false,false,false,false,false)&&!ReforestPolicy.Spot(30,60,20,false,true,false,false,false,false)&&!ReforestPolicy.Spot(30,60,20,false,false,true,false,false,false),
+    "Never in the base, on farmland or on paths");
+Check(!ReforestPolicy.Spot(30,60,20,false,false,false,true,false,false)&&!ReforestPolicy.Spot(30,60,20,false,false,false,false,true,false)&&!ReforestPolicy.Spot(30,60,20,false,false,false,false,false,true),
+    "Never under a roof or canopy, crowded, or by the water");
+Check(ReforestPolicy.StumpKind("Beech_Stub(Clone)")==0&&ReforestPolicy.StumpKind("BirchStub")==1&&ReforestPolicy.StumpKind("OakStub")==2&&ReforestPolicy.StumpKind("Pinetree_01_Stub")==3&&ReforestPolicy.StumpKind("FirTree_Stub")==4,
+    "Stumps tell which tree stood there");
+Check(ReforestPolicy.StumpKind("Beech1")==-1&&ReforestPolicy.StumpKind("stubbe")==-1&&ReforestPolicy.StumpKind(null)==-1,"Trees and odd stumps are not stumps he replants");
+var meadows=new[]{true,false,true,false,false};
+Check(ReforestPolicy.Choose(2,meadows,0.9)==2&&ReforestPolicy.Choose(4,meadows,0)==0&&ReforestPolicy.Choose(-1,meadows,0.9)==2,"The stump's own tree if it grows here, else one that does");
+Check(ReforestPolicy.Choose(-1,new bool[5],0.5)==-1&&ReforestPolicy.Choose(-1,null,0.5)==-1&&ReforestPolicy.Choose(-1,meadows,double.NaN)==0,"Nothing grows here: nothing planted");
+for(double r=0;r<1;r+=0.01){int k=ReforestPolicy.Choose(-1,meadows,r);Check(k==0||k==2,"Only trees that grow here");}
+Check(ReforestPolicy.Saplings.Length==ReforestPolicy.Names.Length,"Every sapling has a name");
 Console.WriteLine($"Passed {checks} Gary injury, defense, food conservation, personality, petting, retreat, dungeon loot, guide and boat boarding checks.");

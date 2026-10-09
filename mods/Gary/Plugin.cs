@@ -14,9 +14,11 @@ namespace Gary
     {
         public const string Guid="com.bobisme.gary";
         public const string Name="Gary";
-        public const string Version="0.3.1";
+        public const string Version="0.4.0";
         internal static Plugin Instance;
-        internal ConfigEntry<float> Health,GiftSeconds,GuideRange;
+        internal ConfigEntry<float> Health,GiftSeconds,GuideRange,ReforestRadius,ReforestMinutes;
+        internal ConfigEntry<int> ReforestMax;
+        internal ConfigEntry<bool> Reforestation;
         internal ConfigEntry<bool> Gifts,Guiding,Reactions,Warnings,Campfires,Building,ShowMapMarker,Boats;
         internal ConfigEntry<bool> FetchGame,CopyEmotes,Nests,RainAntics,SailingAntics,CompanionFriends,ShowAndTell,FlowerCrown,ForestPouch,EarFeather;
         private ConfigEntry<KeyboardShortcut> _fetch;
@@ -50,6 +52,10 @@ namespace Gary
             ShowMapMarker=Config.Bind("Companion","MapMarker",true,"Show your Gary as a purple moving pin on the minimap and full map. Unloaded known positions are labeled last seen.");
             Gifts=Config.Bind("Forest","FoodGifts",true,"Gather real wild berries/mushrooms and loose feathers into a six-item stash and occasionally toss one near your feet, outside combat.");
             GiftSeconds=Config.Bind("Forest","FoodInterval",240f,new ConfigDescription("Average seconds between forest gifts (randomized 0.75–1.25 times this).",new AcceptableValueRange<float>(60,1800)));
+            Reforestation=Config.Bind("Forest","Reforestation",true,"While you are near your bed, Gary now and then plants a real sapling on open wild ground nearby (beside a stump you left, if there is one): never inside your base, near buildings, on farmland or paths, under trees or roofs, or on others' warded land.");
+            ReforestRadius=Config.Bind("Forest","ReforestRadius",60f,new ConfigDescription("Metres around your bed where Gary plants trees (none within 12 m of it).",new AcceptableValueRange<float>(20,150)));
+            ReforestMinutes=Config.Bind("Forest","ReforestMinutes",8f,new ConfigDescription("Least real-time minutes between Gary's plantings.",new AcceptableValueRange<float>(1,120)));
+            ReforestMax=Config.Bind("Forest","ReforestMaxSaplings",6,new ConfigDescription("Gary stops planting while this many of his saplings are still growing around your bed.",new AcceptableValueRange<int>(1,30)));
             Guiding=Config.Bind("Forest","DungeonGuiding",true,"Notice nearby loaded crypt/cave entrances and skip dungeons confirmed fully looted for your player/world. Unknown or unfinished interiors remain eligible.");
             GuideRange=Config.Bind("Forest","NoticeRange",90f,new ConfigDescription("Distance at which Gary notices a loaded dungeon entrance.",new AcceptableValueRange<float>(20,120)));
             Reactions=Config.Bind("Personality","Reactions",true,"Happy chirps and short native dances for petting, reunions, victories, and relaxing.");

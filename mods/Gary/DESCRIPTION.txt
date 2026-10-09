@@ -31,3 +31,5 @@ On boats he prefers a clear forward deck spot, watches ahead, chirps at visible 
 Personality activities and Appearance accessories have separate F7 toggles. Fetch key is configurable under Controls; nest marking uses Left Shift plus the normal Use key. Gary's native rig has no wave/sleep/crouch animations, so these use local cosmetic bone poses replicated from bounded activity state. New poses, accessories, nested roofs, boat geometry, F6 and ownership changes need in-game playtests.
 
 Settings are in F7 → Mod settings, or BepInEx/config/com.bobisme.gary.cfg. Compiled and checked against native Linux assemblies, including food-conservation, injury, defense, petting, reaction and retreat policy tests. Appearance, pathfinding, audio, live multiplayer, and save/restart behavior need in-game playtests.
+
+Reforestation: while you are near your bed, Gary now and then plants a real sapling on open wild ground nearby, beside a stump you left when he can, never in your base, near buildings, on farmland or paths. He pauses while six of his saplings are growing. Radius, interval and limit are in F7.

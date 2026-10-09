@@ -138,6 +138,15 @@ Method("Inventory","RemoveItem","System.Boolean","ItemDrop/ItemData","System.Int
 Method("RandomFlyingBird","get_Instances","System.Collections.Generic.List`1<IMonoUpdater>");
 Field("ZDOVars","s_emoteID","System.Int32");
 Field("ZDOVars","s_emote","System.Int32");
+// Gary's reforestation reads the player's bed point and the ground's farm/path state, and plants native saplings.
+Method("PlayerProfile","GetCustomSpawnPoint","UnityEngine.Vector3");
+Method("PlayerProfile","HaveCustomSpawnPoint","System.Boolean");
+Method("Heightmap","IsCultivated","System.Boolean","UnityEngine.Vector3");
+Method("Heightmap","IsCleared","System.Boolean","UnityEngine.Vector3");
+Method("Heightmap","FindHeightmap","Heightmap","UnityEngine.Vector3");
+Field("Plant","m_biome","Heightmap/Biome");
+Field("Plant","m_growRadius","System.Single");
+Field("Piece","m_placeEffect","EffectList");
 // Gary passengers pause native locomotion and synchronize a boat-relative deck position.
 Method("Character","UpdateMotion","System.Void","System.Single");
 Method("Character","IsAttached","System.Boolean");

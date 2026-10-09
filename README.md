@@ -266,13 +266,18 @@ Gary also has these playful activities, each adjustable in F7:
 | **Forest accessories** | A small matte twig-and-feather crown, pouch and ear feather; toggle each under **Appearance**. |
 | **Quad friendship** | He greets your nearby AICompanion characters and watches or imitates their building/gathering work. |
 | **Show-and-tell** | Before a gift, he holds up a visual preview for two seconds, then tosses the real stash item. |
+| **Reforestation** | Spend time within **60 metres** of your bed. Every **8 minutes** or so he finds open wild ground nearby, preferring a spot beside a stump you left, works the soil a moment and plants a real sapling of a tree that grows there (the stump's own kind when it can). |
 
 Fetch uses **one Wood**, follows within **16 metres**, and expires after **35 seconds**. Combat, healing, waiting, boats, portals,
 F6 or an ownership split interrupt play; the actual Wood remains an ordinary dropped item and can be picked up. Fetch takes priority over emotes, foraging and crypt guiding; an accepted throw pauses guiding for a minute. Gary chases the ground landing
 during flight and retries temporary navigation failures for up to five seconds. Fetch never claims item
 ownership or stores Wood in an invisible inventory. The nest references an ordinary saved wood pile and preserves its normal costs/support;
 removing the pile removes the nest visual. Emotes baseline on load instead of replaying old player commands. Poses and props are cosmetic:
-no armor, skill buffs, extra stash slots or free resources. Gary's native rig lacks wave/sleep/crouch animations, so these use small bone poses.
+no armor, skill buffs, extra stash slots or free resources. Reforestation is the exception: the saplings are real
+and grow into real trees. He never plants within 12 metres of your bed, inside your base, within 8 metres of anything built, on
+farmland or paths, under trees or roofs, on steep slopes, by the water or on others' warded land, and he pauses while **6** of his
+saplings are still growing around home. Radius, interval and that limit are under **Forest** in F7; only your own game plants (it
+knows where you sleep). Gary's native rig lacks wave/sleep/crouch animations, so these use small bone poses.
 
 Your Gary has a **purple marker on the minimap and full map** that follows him while loaded. If only his known saved position is available,
 it shows **Gary (last seen)** there; it disappears when no position is known. Toggle **Companion → MapMarker** in F7. The marker is local,

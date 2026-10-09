@@ -34,7 +34,9 @@ namespace Gary
             internal Character SelfAttacker;
             internal long SelfThreatAt,SelfThreatOwner;
             internal Vector3 SelfThreatOrigin;
-            internal Vector3? Entrance;
+            internal Vector3? Entrance,PlantSpot;
+            internal int PlantKind;
+            internal float NextPlantLook,PlantUntil,PlantStarted;
             internal string EntranceId;
             internal Vector3 LastPosition,GuideInterior;
             internal readonly Dictionary<Renderer,MaterialPropertyBlock> Original=new Dictionary<Renderer,MaterialPropertyBlock>();
