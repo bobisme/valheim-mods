@@ -11,7 +11,7 @@ namespace Omens
     {
         public const string Guid="com.bobisme.omens";
         public const string Name="Omens";
-        public const string Version="0.4.0";
+        public const string Version="0.5.0";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled;
         private readonly Dictionary<Kind,ConfigEntry<bool>> _omens=new Dictionary<Kind,ConfigEntry<bool>>();
@@ -41,6 +41,7 @@ namespace Omens
         {
             Net.Tick();
             BloodMoon.Tick();
+            Aurora.Tick();
             Tools.Tick();
             try{Director.Tick();}catch(System.Exception e){Logger.LogError("Omens director: "+e);}
         }
@@ -54,6 +55,7 @@ namespace Omens
             SignPrefab.Unregister();
             Looks.Clear();
             Favour.Clear();
+            Aurora.Clear();
             if(Instance==this)Instance=null;
         }
     }

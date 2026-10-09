@@ -14,6 +14,8 @@ foreach(Omen o in Policy.All)
     Check(o.Respondable==!string.IsNullOrWhiteSpace(o.Averted)&&o.Respondable==!string.IsNullOrWhiteSpace(o.Action),"A respondable omen has an action and a response message; others have neither");
     Check(o.Cost==null?o.CostAmount==0:o.Respondable&&o.CostAmount>0&&!o.Cost.StartsWith("$")&&!o.Cost.Contains(' '),"A cost is an item prefab and an amount, and only on a respondable omen");
     Check(o.Cost!=null||!o.Respondable||o.Provokes||o.Result==Result.Curse,"A free response either provokes a fight or takes a hoard");
+    Check(o.Result!=Result.Offering||o.Respondable&&!o.Bad&&o.Cost!=null,"An offering is a good omen that costs something");
+    Check(Policy.ReadingOf(o.Kind,0)==o.Reading,"Every omen keeps its main reading");
     Check(!o.Provokes||o.Respondable&&o.Bad&&!o.Softens,"Only a bad omen's response can provoke its pack");
     Check(!string.IsNullOrWhiteSpace(o.Test)&&!o.Test.Contains(' ')&&!string.IsNullOrWhiteSpace(o.Config),"Every omen has a test name and a setting description");
     Check(o.SeenFrom>=10&&o.SeenFrom<=40,"Seen from a sensible distance");
@@ -22,8 +24,8 @@ foreach(Omen o in Policy.All)
 }
 Check(Policy.All.Select(o=>o.Kind).Distinct().Count()==Policy.All.Length&&Policy.All.Length==every.Length,"Every kind has exactly one omen");
 Check(Policy.All.Select(o=>o.Test).Distinct().Count()==Policy.All.Length,"Test names are unique");
-Check(Policy.All.Count(o=>o.Bad)==11&&Policy.All.Count(o=>!o.Bad)==6,"Eleven bad and six good omens");
-Check((int)Kind.DeadTroll==0&&(int)Kind.BloodMoon==6&&(int)Kind.Scorched==16,"Kinds keep their saved numbers");
+Check(Policy.All.Count(o=>o.Bad)==12&&Policy.All.Count(o=>!o.Bad)==8,"Twelve bad and eight good omens");
+Check((int)Kind.DeadTroll==0&&(int)Kind.BloodMoon==6&&(int)Kind.Scorched==16&&(int)Kind.GhostShip==19,"Kinds keep their saved numbers");
 foreach(int land in new[]{Policy.Meadows,Policy.BlackForest,Policy.Swamp,Policy.Mountain,Policy.Plains})
 {
     Check(Policy.All.Count(o=>o.Bad&&(o.Biomes&land)!=0)>=3,"Every land has several bad omens");
@@ -131,4 +133,32 @@ foreach(bool soft in new[]{false,true})
     Check(Policy.LevelUpChance(10,soft)==(soft?15:20)&&Policy.LevelUpChance(60,soft)==70,"Stronger, within the game's own level-up ceiling");
 }
 Check(Policy.SpawnChance(30,true)<Policy.SpawnChance(30,false)&&Policy.LevelUpChance(10,true)<Policy.LevelUpChance(10,false),"An offering softens every part of it");
+// Readings vary by sign, from a fixed set.
+foreach(var (kind,more) in Policy.Readings)
+{
+    var seen=new HashSet<string>();
+    for(long id=0;id<60;id++)seen.Add(Policy.ReadingOf(kind,id));
+    Check(seen.Count==more.Length+1&&more.All(seen.Contains)&&seen.Contains(Policy.Of(kind).Reading),"Every reading of an omen turns up");
+    Check(Policy.ReadingOf(kind,-7)!=null&&Policy.ReadingOf(kind,long.MinValue)!=null,"Any id picks a reading");
+}
+
+// The gods' favour.
+Check(Policy.Fate(0,1)==1&&Policy.Fate(5,1)==5&&Policy.Fate(-5,-2)==-5&&Policy.Fate(4,2)==5,"Favour stays within its bounds");
+Check(Policy.FateAverted>0&&Policy.FateOffering>Policy.FateAverted&&Policy.FateIgnored<0&&Policy.FateTaken<Policy.FateIgnored,"Answering omens pleases the gods; robbing the dead angers them most");
+Check(Math.Abs(Policy.BadChance(0.6,0)-0.6)<1e-9&&Policy.BadChance(0.6,5)<0.6&&Policy.BadChance(0.6,-5)>0.6,"Favour shifts the odds of bad omens");
+for(int f=Policy.FateMin;f<=Policy.FateMax;f++)
+{
+    Check(Policy.BadChance(0.6,f)>=0.25&&Policy.BadChance(0.6,f)<=0.85&&Policy.BadChance(double.NaN,f)>=0.25,"Never all bad or all good");
+    Check(Policy.Wrath(3,f)<=3&&Policy.Wrath(1,f)>=1,"Wrath never passes three stars");
+    Check(Policy.Generous(4,f)>=4&&Policy.IntervalFactor(f)>0&&Policy.IntervalFactor(f)<=1,"Favour never takes gifts away or slows omens");
+    Check(new[]{"forsaken","displeased","watched","favoured","beloved"}.Contains(Policy.Standing(f)),"Every favour has a standing");
+}
+Check(Policy.Wrath(1,-3)==2&&Policy.Wrath(1,-2)==1&&Policy.Generous(4,3)==6&&Policy.Generous(4,2)==4&&Policy.IntervalFactor(-3)<1,"The forsaken face stronger packs more often; the beloved get more");
+Check(Policy.StandingNews(0,0)==null&&Policy.StandingNews(1,2)==null&&Policy.StandingNews(2,3)!=null&&Policy.StandingNews(-2,-3)!=null&&Policy.StandingNews(0,1)!=null,"Only a change of standing is news");
+Check(Policy.StandingNews(1,0)!=Policy.StandingNews(-1,0)||Policy.StandingNews(1,0)!=null,"Returning to neutral is told");
+
+// The northern lights.
+Check(Policy.AuroraSpawnChance(40)==20&&Policy.AuroraSpawnChance(-3)==0,"Under the lights, half as many night creatures");
+Check(Policy.Pick(0.99,0.0,0.6,Policy.Mountain,new[]{Kind.Aurora,Kind.Wolves})==Kind.Aurora,"The rune stone stands anywhere");
+Check(Policy.Pack(Kind.GhostShip,Policy.Swamp).SequenceEqual(Policy.Pack(Kind.Drowned,Policy.Swamp)),"The black ship's crew are the drowned");
 Console.WriteLine($"Passed {checks} omen choice, timing, state and base checks.");

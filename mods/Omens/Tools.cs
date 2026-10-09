@@ -28,7 +28,7 @@ namespace Omens
             {
                 MethodInfo register=found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static);
                 register?.Invoke(null,new object[]{Plugin.Name,"omen",
-                    $"omen list | events | place <{string.Join("|",Policy.All.Select(o=>o.Test))}> [metres=12] | now <id|last> | avert <id> | clear <id> | soon: test omens (host only). place puts one ahead of the player; now marks it seen and brings its outcome at once, night or not (a hoard is taken by the host first); avert responds as a player would (burns the troll, takes the hoard); clear removes one without effect; soon schedules the next natural omen in 5 s",
+                    $"omen list | events | place <{string.Join("|",Policy.All.Select(o=>o.Test))}> [metres=12] | now <id|last> | avert <id> | clear <id> | fate [-5..5] | soon: test omens (host only). place puts one ahead of the player; now marks it seen and brings its outcome at once, night or not (a hoard is taken by the host first); avert responds as a player would (burns the troll, takes the hoard); clear removes one without effect; fate shows or sets the gods' favour; soon schedules the next natural omen in 5 s",
                     (Func<string[],Action<JObject>,Action<string>,IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: omen command added");
             }
@@ -50,6 +50,7 @@ namespace Omens
                     output(new JObject{["events"]=new JArray(names),
                         ["omenRaids"]=new JObject(Policy.All.Where(o=>o.Raid!=null).Select(o=>new JProperty(o.Raid,names.Contains(o.Raid))))});
                     break;
+                case "fate":output(new JObject{["fate"]=Director.TestFate(args.Length>2?args[2]:"")});break;
                 case "soon":Director.TestSoon();output(new JObject{["soon"]="the next omen is placed within a few seconds near a player"});break;
                 case "avert":output(new JObject{["avert"]=Director.TestAvert(args.Length>2?args[2]:"")});break;
                 case "clear":output(new JObject{["clear"]=Director.TestClear(args.Length>2?args[2]:"")});break;
@@ -66,7 +67,7 @@ namespace Omens
                     if(id==null)error("omen place: only the host places omens");
                     else output(new JObject{["placed"]=Policy.Of(kind.Value).Name,["id"]=id});
                     break;
-                default:error("omen: list, events, place, now, avert, clear or soon");break;
+                default:error("omen: list, events, place, now, avert, clear, fate or soon");break;
             }
             return null;
         }

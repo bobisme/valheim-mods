@@ -11,7 +11,7 @@ namespace Omens
     internal static class Net
     {
         private const string Seen="bob_omens_seen_v1",Respond_="bob_omens_respond_v1",Show="bob_omens_show_v1",Resolved="bob_omens_resolved_v1",Bless="bob_omens_bless_v1",Burn="bob_omens_burn_v1",Moon="bob_omens_bloodmoon_v1",
-            Favour_="bob_omens_favour_v1",Lead_="bob_omens_lead_v1",Mark_="bob_omens_mark_v1";
+            Favour_="bob_omens_favour_v1",Lead_="bob_omens_lead_v1",Mark_="bob_omens_mark_v1",Aurora_="bob_omens_aurora_v1";
         private static ZRoutedRpc _rpc;
         private static readonly Dictionary<string,object> Handlers=new Dictionary<string,object>();
         private static readonly HashSet<long> Reported=new HashSet<long>();
@@ -44,6 +44,7 @@ namespace Omens
         internal static void Responded(long id)=>_rpc?.InvokeRoutedRPC(ZRoutedRpc.Everybody,Burn,id);
         internal static void Favour(Vector3 pos,float radius)=>_rpc?.InvokeRoutedRPC(ZRoutedRpc.Everybody,Favour_,pos,radius);
         internal static void Lead(Vector3 from,Vector3 to)=>_rpc?.InvokeRoutedRPC(ZRoutedRpc.Everybody,Lead_,from,to);
+        internal static void Aurora(bool active)=>_rpc?.InvokeRoutedRPC(ZRoutedRpc.Everybody,Aurora_,active);
         internal static void Mark(Vector3 pos,string label)=>_rpc?.InvokeRoutedRPC(ZRoutedRpc.Everybody,Mark_,pos,label);
 
         private static void OnShow(long sender,string text,Vector3 pos,float centerRadius,long pinId)
@@ -92,6 +93,7 @@ namespace Omens
         {
             if(FromHost(sender)&&Minimap.instance!=null)Marks.Add(Minimap.instance.AddPin(pos,Minimap.PinType.Icon3,label,false,false));
         }
+        private static void OnAurora(long sender,bool active){if(FromHost(sender))Omens.Aurora.Heard(active);}
         private static void OnMoon(long sender,bool active,bool softened){if(FromHost(sender))Omens.BloodMoon.Heard(active,softened);}
         private static bool FromHost(long sender)=>ZNet.instance!=null&&(ZNet.instance.IsServer()?sender==ZNet.GetUID():sender==ZNet.instance.GetServerPeer()?.m_uid);
 
@@ -108,8 +110,9 @@ namespace Omens
             _rpc.Register<Vector3,float>(Favour_,OnFavour);
             _rpc.Register<Vector3,Vector3>(Lead_,OnLead);
             _rpc.Register<Vector3,string>(Mark_,OnMark);
+            _rpc.Register<bool>(Aurora_,OnAurora);
             var table=AccessTools.Field(typeof(ZRoutedRpc),"m_functions").GetValue(_rpc) as IDictionary;
-            foreach(string name in new[]{Seen,Respond_,Show,Resolved,Bless,Burn,Moon,Favour_,Lead_,Mark_})Handlers[name]=table?[name.GetStableHashCode()];
+            foreach(string name in new[]{Seen,Respond_,Show,Resolved,Bless,Burn,Moon,Favour_,Lead_,Mark_,Aurora_})Handlers[name]=table?[name.GetStableHashCode()];
         }
         internal static void Unregister()
         {

@@ -5,11 +5,13 @@ using System.Linq;
 namespace Omens
 {
     internal enum Kind { DeadTroll=0, Ravens=1, AbandonedCamp=2, Cairn=3, DrainedDeer=4, Catch=5, BloodMoon=6,
-        Wisps=7, GreatStag=8, FallenStar=9, Wanderer=10, Wolves=11, WarBanner=12, Drowned=13, Hoard=14, GraveCandles=15, Scorched=16 }
+        Wisps=7, GreatStag=8, FallenStar=9, Wanderer=10, Wolves=11, WarBanner=12, Drowned=13, Hoard=14, GraveCandles=15, Scorched=16,
+        Shrine=17, Aurora=18, GhostShip=19 }
     internal enum State { Placed=0, Seen=1, Fulfilled=2, Averted=3, Expired=4, Fizzled=5 }
     // What comes to pass: one of the game's raids, a hunting pack sent at the base, a blessing on those nearby, a gift in the world,
-    // a blood moon night, a treasure the lights lead to, a great stag to hunt, the wanderer's favour, or the dead hunting a thief.
-    internal enum Result { Raid, Stalkers, Blessing, Gift, BloodMoon, Treasure, Quarry, Favour, Curse }
+    // a blood moon night, a treasure the lights lead to, a great stag to hunt, the wanderer's favour, the dead hunting a thief,
+    // the gods' favour for an offering, or a night under the northern lights.
+    internal enum Result { Raid, Stalkers, Blessing, Gift, BloodMoon, Treasure, Quarry, Favour, Curse, Offering, Aurora }
     // Where a sign may stand, beyond its biomes: anywhere, under open sky (birds must be seen), or on a shore.
     internal enum Site { Any, OpenSky, Shore }
 
@@ -122,7 +124,85 @@ namespace Omens
                 Name="A cloaked wanderer",Reading="An old man in a grey cloak watches you from beneath his hat. Then he is gone.",
                 Outcome="Where he stood, the world seems clearer. Your skills will grow faster for a while.",
                 Config="Anywhere: a cloaked wanderer, who vanishes as you approach. Players nearby learn every skill 50% faster for 20 minutes."},
+            new Omen{Kind=Kind.Shrine,Bad=false,Result=Result.Offering,Biomes=AnyLand,Test="shrine",
+                Cost="Honey",CostAmount=3,Action="Leave an offering",
+                Name="A forgotten shrine",Reading="A shrine to the old gods, its offering bowl long empty. Those who remember the gods are remembered by them.",
+                Outcome="The gods remember you.",
+                Averted="The shrine accepts your offering. The gods remember, and you feel rested.",
+                Config="Most land: a forgotten shrine. Leave 3 honey in its bowl: everyone nearby is rested, and the gods' favour rises by two."},
+            new Omen{Kind=Kind.Aurora,Bad=false,Result=Result.Aurora,Biomes=AnyLand|Mistlands,SeenFrom=16,Test="aurora",
+                Name="A humming rune stone",Reading="An old rune stone hums, and its carvings glow faintly green. Tonight the sky will dance.",
+                Outcome="The northern lights fill the sky. The night is quiet, and the land rests.",
+                Config="Anywhere: a glowing rune stone. That night the northern lights fill the sky for everyone: half as many night creatures, and players under it heal faster and learn faster."},
+            new Omen{Kind=Kind.GhostShip,Bad=true,Result=Result.Stalkers,Site=Site.Shore,Biomes=Meadows|BlackForest|Swamp|Plains,SeenFrom=30,Test="ship",
+                Cost="Wood",CostAmount=20,Action="Light a warning beacon",
+                Name="A ship with black sails",Reading="A longship with black sails lies off the shore, and no one moves aboard. It is waiting for the dark. A beacon fire might warn it off.",
+                Outcome="The black ship has come ashore. Its crew are not alive.",
+                Averted="The beacon blazes. Out at sea, the black ship turns away into the mist.",
+                Config="Shores: a ghost ship offshore. Unless you light a warning beacon (20 wood), its draugr crew comes for the nearest base at night, once someone is home."},
         };
+
+        // More ways to say what a sign shows, so a second dead troll does not read like the first. One per sign, by its id.
+        internal static readonly Dictionary<Kind,string[]> Readings=new Dictionary<Kind,string[]>
+        {
+            [Kind.DeadTroll]=new[]{"A troll lies dead in the moss, with no wound on it. The forest is angry. Fire might calm it.",
+                "Something killed this troll without a blade. The trees lean close, and they are not pleased. Burn it, and they may forgive."},
+            [Kind.Ravens]=new[]{"Two ravens circle, then a third. Huginn and Muninn see you. Odin is watching.",
+                "Ravens wheel above you, calling. The Allfather's eyes are on you today."},
+            [Kind.AbandonedCamp]=new[]{"Someone slept here, and ran. Their spear is still on the ground. Whatever came for them is not far off.",
+                "The fire is cold, the bedroll still laid out. They left everything. They did not leave by choice."},
+            [Kind.Cairn]=new[]{"A grave cairn, torn open and kicked apart. The dead do not forgive that. Put their bones back.",
+                "The stones of an old cairn lie scattered, the bones flung among them. The dead will come looking for whoever did this."},
+            [Kind.DrainedDeer]=new[]{"The deer is white and empty, not a drop of blood left in it. Whatever did this is still hungry.",
+                "Two small wounds in the throat, and no blood at all. Something hunts at night, and it has your scent."},
+            [Kind.BloodMoon]=new[]{"Stones in a ring, red to the top. Someone has fed the moon, and tonight it will want more. Meat might sate it.",
+                "A boar lies slaughtered in a circle of stones. The moon will rise red tonight, and hungry."},
+            [Kind.Hoard]=new[]{"A chest of grave-gold, and a hand of bone still on the lid. The dead do not give up what is theirs.",
+                "Coins and gems spill from a burial chest. Take it, and the dead will know your name."},
+            [Kind.Wanderer]=new[]{"A tall old man with one eye and a wide hat leans on his staff, watching you. When you blink, he is gone.",
+                "A grey-cloaked wanderer stands in your path. He nods, as if he knows you, and then there is no one there."},
+            [Kind.Wisps]=new[]{"Little lights drift between the trees, waiting for you. They have found something.",
+                "Wisps dance in the dusk, beckoning. Someone hid something near here, and the lights remember where."},
+        };
+        internal static string ReadingOf(Kind kind,long id)
+        {
+            Omen omen=Of(kind);
+            if(!Readings.TryGetValue(kind,out string[] more)||more.Length==0)return omen.Reading;
+            int pick=(int)(((ulong)id)%(ulong)(more.Length+1));
+            return pick==0?omen.Reading:more[pick-1];
+        }
+
+        // ---- the gods' favour: one standing per world, moved by how players answer omens ----
+        internal const int FateMin=-5,FateMax=5;
+        internal const int FateAverted=1,FateIgnored=-1,FateTaken=-2,FateOffering=2;
+        internal static int Fate(int fate,int delta)=>Math.Max(FateMin,Math.Min(FateMax,fate+delta));
+        // Favoured worlds see fewer bad omens, forsaken ones more (never all of one kind).
+        internal static double BadChance(double baseChance,int fate)=>Math.Max(0.25,Math.Min(0.85,(double.IsNaN(baseChance)?0.6:baseChance)-0.05*fate));
+        // The forsaken see omens more often.
+        internal static double IntervalFactor(int fate)=>fate<=-3?0.75:1;
+        // The gods' wrath: packs and hunters a level stronger for the forsaken (at most three stars' worth).
+        internal static int Wrath(int level,int fate)=>Math.Min(3,level+(fate<=-3?1:0));
+        // The gods' generosity: gifts half as large again for the beloved.
+        internal static int Generous(int count,int fate)=>fate>=3?(int)Math.Ceiling(count*1.5):count;
+        internal static string Standing(int fate)=>fate<=-3?"forsaken":fate<0?"displeased":fate==0?"watched":fate<3?"favoured":"beloved";
+        internal static string StandingNews(int before,int after)
+        {
+            string was=Standing(before),now=Standing(after);
+            if(was==now)return null;
+            switch(now)
+            {
+                case "forsaken":return "The gods have turned their faces from you. Omens will come thick and cruel.";
+                case "displeased":return after<before?"The gods are displeased with you.":"The gods' anger cools a little.";
+                case "watched":return "The gods watch you, and wait.";
+                case "favoured":return after>before?"The gods are pleased with you.":"The gods' favour wanes.";
+                default:return "The gods love you. Their gifts will be generous.";
+            }
+        }
+
+        // ---- the northern lights ----
+        internal static float AuroraSpawnChance(float chance)=>Math.Max(0f,chance)*0.5f;
+        internal const float AuroraRegen=1.25f,AuroraSkill=0.25f;
+
         internal static Omen Of(Kind kind)=>All.First(o=>o.Kind==kind);
 
         // Bad with this chance, else good; falls back to the other polarity when none of the wanted kind fits here.
@@ -178,6 +258,7 @@ namespace Omens
             switch(kind)
             {
                 case Kind.Drowned: // draugr come ashore
+                case Kind.GhostShip:
                     if(late)return new[]{("Draugr_Elite",2),("Draugr",2),("Draugr_Ranged",1)};
                     if(swamp)return new[]{("Draugr_Elite",1),("Draugr",1),("Draugr_Ranged",1)};
                     return new[]{("Draugr",1),("Draugr",1)};

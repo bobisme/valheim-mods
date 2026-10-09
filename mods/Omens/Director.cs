@@ -26,7 +26,10 @@ namespace Omens
         {
             public double NextAt;public List<Entry> Omens=new List<Entry>();
             public bool MoonActive,MoonSoftened;public double MoonUntil; // MoonUntil: a forced test moon's end; 0 ends at daybreak
+            public bool AuroraActive;public double AuroraUntil;          // the northern lights, likewise
+            public int Fate;                                             // the gods' favour for this world (Policy.FateMin–FateMax)
         }
+        private static float _nextAuroraCall;
         private static float _nextMoonCall;
 
         private static readonly string[] BasePieces={"piece_workbench","bed","piece_bed02"};
@@ -54,6 +57,7 @@ namespace Omens
             {RemoveSign(e.Id);Net.Resolve(e.Id);e.SignRemoved=true;changed=true;}
             changed|=MaybePlace(now);
             changed|=MoonTick(now);
+            changed|=AuroraTick(now);
             if(changed)Save();
         }
 
@@ -93,6 +97,22 @@ namespace Omens
                         if(thief==null)break; // away, or in a dungeon: the dead wait for them
                         done=Hunt(thief.Value,Policy.Pack(omen.Kind,(int)WorldGenerator.instance.GetBiome(thief.Value.x,thief.Value.z)),25,35);
                         at=thief.Value;break;
+                    case Result.Offering:
+                        // Nothing comes of a shrine unless someone leaves an offering (OnRespond); left alone it is forgotten again.
+                        if(now-e.PlacedAt>=Plugin.Instance.ExpireDays.Value*DayLength*2)
+                        {
+                            e.State=(int)State.Expired;e.ResolvedAt=now;
+                            Plugin.Log($"{omen.Name} ({e.Id}) was left without an offering");
+                            return true;
+                        }
+                        break;
+                    case Result.Aurora:
+                        if(!e.Forced&&!Policy.RaidDue(now,e.SeenAt,e.SeenAtNight,EnvMan.IsNight()))break;
+                        if(_ledger.AuroraActive&&!e.Forced)break;
+                        _ledger.AuroraActive=true;
+                        _ledger.AuroraUntil=e.Forced&&!EnvMan.IsNight()?now+300:0;
+                        Net.Aurora(true);_nextAuroraCall=Time.time+20;
+                        done=true;break;
                     case Result.BloodMoon:
                         if(!e.Forced&&!Policy.RaidDue(now,e.SeenAt,e.SeenAtNight,EnvMan.IsNight()))break;
                         if(_ledger.MoonActive&&!e.Forced)break; // one blood moon at a time: it waits for tonight's to wane
@@ -123,7 +143,10 @@ namespace Omens
             {
                 case State.Fulfilled:
                     Net.Tell(e.Omen.Result==Result.BloodMoon&&e.Softened?"The moon bleeds, but the offering has dulled its hunger.":e.Omen.Outcome,at,e.Omen.Bad?0:60,0);
-                    Plugin.Log($"{e.Omen.Name} ({e.Id}) came to pass near {at:F0}"+(e.Omen.Result==Result.Raid?$": {e.Omen.Raid}":""));break;
+                    Plugin.Log($"{e.Omen.Name} ({e.Id}) came to pass near {at:F0}"+(e.Omen.Result==Result.Raid?$": {e.Omen.Raid}":""));
+                    // A warning that could have been answered, and was not: the gods notice. (A thief's curse was already counted.)
+                    if(e.Omen.Bad&&e.Omen.Respondable&&!e.Softened&&e.Omen.Result!=Result.Curse)Favour(Policy.FateIgnored,at,"left "+e.Omen.Name.ToLowerInvariant()+" unanswered");
+                    break;
                 case State.Fizzled:
                     Net.Tell("The omen passes. Whatever it foretold did not find you.",e.Pos,-1,0);
                     Plugin.Log($"{e.Omen.Name} ({e.Id}) fizzled: {why}");break;
@@ -131,6 +154,33 @@ namespace Omens
                     Plugin.Log($"{e.Omen.Name} ({e.Id}) at {e.Pos:F0} faded unseen");break;
             }
             return true;
+        }
+
+        // The gods' favour moves; everyone hears when their standing changes.
+        private static void Favour(int delta,Vector3 at,string why)
+        {
+            int before=_ledger.Fate;
+            _ledger.Fate=Policy.Fate(before,delta);
+            if(_ledger.Fate==before)return;
+            Plugin.Log($"The gods' favour {before} -> {_ledger.Fate} ({Policy.Standing(_ledger.Fate)}): {why}");
+            string news=Policy.StandingNews(before,_ledger.Fate);
+            if(news!=null)Net.Tell(news,at,0,0);
+        }
+
+        // The northern lights: told to everyone now and then; they fade at daybreak (a forced test one after five minutes).
+        private static bool AuroraTick(double now)
+        {
+            if(!_ledger.AuroraActive)return false;
+            bool over=_ledger.AuroraUntil>0?now>=_ledger.AuroraUntil:!EnvMan.IsNight();
+            if(over)
+            {
+                _ledger.AuroraActive=false;_ledger.AuroraUntil=0;
+                Net.Aurora(false);Net.Tell("The northern lights fade with the dawn.",Vector3.zero,-1,0);
+                Plugin.Log("The northern lights faded");
+                return true;
+            }
+            if(Time.time>=_nextAuroraCall){_nextAuroraCall=Time.time+20;Net.Aurora(true);}
+            return false;
         }
 
         // While a blood moon lasts, tell everyone now and then (late arrivals, reloads); it wanes at daybreak (a forced test one after five minutes).
@@ -164,7 +214,7 @@ namespace Omens
                     if(prefab==null){Plugin.Log("Omens: no creature "+name);continue;}
                     Vector2 jitter=Random.insideUnitCircle*3;
                     GameObject go=Object.Instantiate(prefab,spot+new Vector3(jitter.x,0.5f,jitter.y),Quaternion.LookRotation(center-spot));
-                    go.GetComponent<Character>()?.SetLevel(level);
+                    go.GetComponent<Character>()?.SetLevel(Policy.Wrath(level,_ledger.Fate));
                     go.GetComponent<BaseAI>()?.SetHuntPlayer(true);
                     made++;
                 }
@@ -187,7 +237,7 @@ namespace Omens
             {
                 GameObject prefab=ZNetScene.instance.GetPrefab(name);
                 if(prefab==null){Plugin.Log("Omens: no item "+name);continue;}
-                int count=Policy.Roll(min,max,Random.value);
+                int count=Policy.Generous(Policy.Roll(min,max,Random.value),_ledger.Fate);
                 // Stackable items land as a few stacks, not one pile or a hundred coins.
                 int stacks=Math.Min(count,name=="Fish1"?count:3),left=count;
                 for(int i=0;i<stacks;i++)
@@ -255,7 +305,7 @@ namespace Omens
             if(e==null||(State)e.State!=State.Placed)return;
             e.State=(int)Policy.Advance(State.Placed,Now,e.PlacedAt,double.MaxValue,true,false,false,false);
             e.SeenAt=Now;e.SeenAtNight=EnvMan.IsNight();e.SeenBy=NameOf(sender);
-            Net.Tell(e.Omen.Reading,e.Pos,40,e.Id);
+            Net.Tell(Policy.ReadingOf(e.Omen.Kind,e.Id),e.Pos,40,e.Id);
             Plugin.Log($"{e.SeenBy} saw {e.Omen.Name} ({e.Id}) at {e.Pos:F0}{(e.SeenAtNight?" at night":"")}");
             Save();
             _nextTick=0; // a good omen comes to pass at once
@@ -275,6 +325,7 @@ namespace Omens
                 RemoveSign(e.Id);Net.Resolve(e.Id);
                 Net.Tell(e.Omen.Averted,e.Pos,60,0);
                 Plugin.Log($"{NameOf(sender)} softened {e.Omen.Name} ({e.Id})");
+                Favour(Policy.FateAverted,e.Pos,NameOf(sender)+" softened "+e.Omen.Name.ToLowerInvariant());
                 Save();_nextTick=0;
                 return;
             }
@@ -288,6 +339,7 @@ namespace Omens
                 RemoveSign(e.Id);Net.Resolve(e.Id);
                 Net.Tell(e.Omen.Averted,e.Pos,60,0);
                 Plugin.Log($"{e.TakenByName} took {e.Omen.Name} ({e.Id})");
+                Favour(Policy.FateTaken,e.Pos,e.TakenByName+" robbed the dead");
                 Save();_nextTick=0;
                 return;
             }
@@ -296,6 +348,8 @@ namespace Omens
             Net.Responded(e.Id); // before the sign leaves the world
             if(e.Omen.Provokes)Hunt(e.Pos,Policy.Pack(e.Omen.Kind,(int)WorldGenerator.instance.GetBiome(e.X,e.Z)),12,20); // the fight comes now instead
             Net.Tell(e.Omen.Averted,e.Pos,60,0);
+            if(e.Omen.Result==Result.Offering){Net.Blessing(e.Pos,40);Favour(Policy.FateOffering,e.Pos,NameOf(sender)+" made an offering");}
+            else Favour(Policy.FateAverted,e.Pos,NameOf(sender)+" answered "+e.Omen.Name.ToLowerInvariant());
             Plugin.Log($"{NameOf(sender)} averted {e.Omen.Name} ({e.Id})");
             Save();
             _nextTick=0;
@@ -309,7 +363,7 @@ namespace Omens
             int active=_ledger.Omens.Count(e=>!Policy.Finished((State)e.State));
             if(players.Count==0||active>=Plugin.Instance.MaxActive.Value){_ledger.NextAt=now+120;return true;}
             var enabled=Plugin.Instance.EnabledKinds();
-            double badChance=Game.m_eventRate>0?Plugin.Instance.BadChance.Value:0; // a world without raids gets only good omens
+            double badChance=Game.m_eventRate>0?Policy.BadChance(Plugin.Instance.BadChance.Value,_ledger.Fate):0; // a world without raids gets only good omens
             float water=ZoneSystem.instance.m_waterLevel;
             for(int attempt=0;attempt<16;attempt++)
             {
@@ -325,7 +379,7 @@ namespace Omens
                 if(kind==null||
                    _ledger.Omens.Any(e=>!Policy.Finished((State)e.State)&&Vector3.Distance(e.Pos,spot)<150))continue;
                 Place(kind.Value,spot,now);
-                _ledger.NextAt=now+Policy.NextDelay(Plugin.Instance.IntervalDays.Value,DayLength,Random.value);
+                _ledger.NextAt=now+Policy.NextDelay(Plugin.Instance.IntervalDays.Value,DayLength,Random.value)*Policy.IntervalFactor(_ledger.Fate);
                 return true;
             }
             _ledger.NextAt=now+120; // nowhere suitable near anyone right now
@@ -447,9 +501,18 @@ namespace Omens
             if(!Hosting)yield break;
             Load();
             Vector3 me=Player.m_localPlayer!=null?Player.m_localPlayer.transform.position:Vector3.zero;
-            yield return $"next omen in {Math.Max(0,_ledger.NextAt-Now):0} s";
+            yield return $"next omen in {Math.Max(0,_ledger.NextAt-Now):0} s; the gods' favour {_ledger.Fate} ({Policy.Standing(_ledger.Fate)})"+
+                (_ledger.MoonActive?"; a blood moon is up":"")+(_ledger.AuroraActive?"; the northern lights are up":"");
             foreach(Entry e in _ledger.Omens.OrderByDescending(x=>x.PlacedAt))
                 yield return $"{e.Id} {e.Omen.Name}: {(State)e.State}, {Vector3.Distance(me,e.Pos):0} m away at {e.Pos:F0}"+(e.SeenBy!=""?$", seen by {e.SeenBy}":"");
+        }
+        internal static string TestFate(string value)
+        {
+            if(!Hosting)return "not the host";
+            Load();
+            if(int.TryParse(value,out int to))Favour(to-_ledger.Fate,Player.m_localPlayer!=null?Player.m_localPlayer.transform.position:Vector3.zero,"set for testing");
+            Save();
+            return $"{_ledger.Fate} ({Policy.Standing(_ledger.Fate)})";
         }
         internal static void TestSoon(){if(Hosting){Load();_ledger.NextAt=Now+5;Save();_nextTick=0;}}
 

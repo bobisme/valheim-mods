@@ -235,6 +235,8 @@ Field("SE_Stats","m_raiseSkillModifier","System.Single");
 Method("ItemDrop","SetStack","System.Void","System.Int32");
 Method("Minimap","AddPin","Minimap/PinData","UnityEngine.Vector3","Minimap/PinType","System.String","System.Boolean","System.Boolean","System.Int64","Splatform.PlatformUserID");
 Method("ZoneSystem","GetGroundHeight","System.Boolean","UnityEngine.Vector3","System.Single&");
+Field("SE_Stats","m_healthRegenMultiplier","System.Single");
+Field("StatusEffect","m_ttl","System.Single");
 
 // DualWield routes a matching second weapon into the off hand and borrows the game's dual weapons' stance and attacks.
 Method("Humanoid","EquipItem","System.Boolean","ItemDrop/ItemData","System.Boolean");

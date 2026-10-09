@@ -1,4 +1,4 @@
-Signs appear in the world that foretell good or bad things, and what they foretell really happens. Seventeen omens, from raids you can avert to treasure, a great stag to hunt, and a cursed hoard you can choose to take.
+Signs appear in the world that foretell good or bad things, and what they foretell really happens. Twenty omens, from raids you can avert to treasure, a great stag to hunt, a night of northern lights, and a cursed hoard you can choose to take. How you answer them sets the gods' favour, which shapes what comes next.
 
 Every 1.5 in-game days or so, the host places an omen 45 to 85 metres from a player, away from buildings. Walk near it to read it: a message appears on screen for players nearby, a chat line for everyone, and a pin on your map. An omen nobody finds fades after a day without effect.
 
@@ -14,6 +14,7 @@ Drowned man (shores): draugr come ashore for the nearest base at night, unless y
 Cursed hoard (most land): leave it and nothing happens. Take its coins and gems, and that night a ghost leads the dead to whoever took it.
 Unlit grave candles (Black Forest, Swamp, Mountains): ghosts haunt the base, unless you relight them with 3 resin.
 Scorched circle (Black Forest, Swamp, Plains): surtlings raid.
+Ship with black sails (shores): its draugr crew comes ashore for the nearest base at night, unless you light a warning beacon with 20 wood.
 
 Good omens:
 Circling ravens (open sky): players nearby are rested, and 250 metres of land is revealed on their maps.
@@ -22,6 +23,10 @@ Dancing lights: a light drifts off to a real treasure chest of that land nearby,
 Shed antler (Meadows, Black Forest): a great two-star stag appears nearby, dropping a hard antler and its trophy.
 Fallen star: ore suited to the land lies cooling in the ash.
 Cloaked wanderer: he vanishes as you approach; everyone nearby learns every skill 50% faster for 20 minutes.
+Forgotten shrine: leave 3 honey for the gods: everyone nearby is rested, and the gods' favour rises.
+Humming rune stone: that night the northern lights fill the sky: half the night creatures, faster healing and learning.
+
+The gods' favour: answering omens pleases the gods, and ignoring warnings or robbing the dead angers them. Favoured worlds see fewer bad omens and bigger gifts; forsaken worlds see more omens, with stronger packs.
 
 About 60% of omens are bad, chosen among those that fit the spot. A bad omen comes at nightfall when seen by day, or a few minutes later when seen at night, to the nearest workbench or bed within 1,500 metres of the sign. Raids are the game's own, with their usual messages and music, and never interrupt one already running. A world with raids turned off gets only good omens. Signs are made from the game's own models and cannot be mined, looted or built on.
 

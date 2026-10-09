@@ -60,7 +60,8 @@ namespace Omens
         private BoxCollider _hover;
         private readonly List<Transform> _wisps=new List<Transform>();
         private readonly List<GameObject> _candles=new List<GameObject>();
-        private GameObject _banner,_wanderer;
+        private GameObject _banner,_wanderer,_ship;
+        private Light _glow;private Vector3 _shipHome;private float _leaveAt=-1;
         private bool _answered; // responded to here, or the host showed a response: no second payment while the sign lingers
 
         private void Awake()
@@ -216,11 +217,72 @@ namespace Omens
                     }
                     _hover=Looks.Hover(transform,new Vector3(0,0.5f,0),new Vector3(4.6f,1.2f,4.6f));
                     break;
+                case Kind.Shrine:
+                    // A small stone altar in a ring of stones, two candles still burning, the offering bowl's place empty.
+                    GameObject altar=Looks.Copy("stone_pile",transform,Vector3.zero,Quaternion.Euler(0,Random.Range(0,360f),0));
+                    if(altar!=null){altar.transform.localScale=new Vector3(0.7f,0.55f,0.7f);Looks.Still(altar);}
+                    foreach(float x in new[]{-0.55f,0.55f})
+                    {
+                        GameObject candle=Looks.Copy("Candle_resin",transform,new Vector3(x,0.75f,0.2f),Quaternion.identity);
+                        if(candle!=null)Looks.Kindle(candle);
+                    }
+                    for(int i=0;i<7;i++)
+                    {
+                        float a=i*Mathf.PI*2/7;
+                        Looks.Item("Stone",transform,new Vector3(Mathf.Cos(a)*2f,0,Mathf.Sin(a)*2f),Quaternion.Euler(0,Random.Range(0,360f),0));
+                    }
+                    Scatter(("Feathers",0.3f,-0.9f),("Feathers",-0.4f,-1f));
+                    _hover=Looks.Hover(transform,new Vector3(0,0.6f,0),new Vector3(2.4f,1.4f,2.4f));
+                    break;
+                case Kind.Aurora:
+                    GameObject rune=Looks.Copy("RuneStone_Boars",transform,Vector3.zero,Quaternion.Euler(0,Random.Range(0,360f),0));
+                    if(rune!=null){Looks.Still(rune);Looks.Ground(rune);}
+                    var glow=new GameObject("Glow");glow.transform.SetParent(transform,false);glow.transform.localPosition=new Vector3(0,1.6f,0);
+                    _glow=glow.AddComponent<Light>();
+                    _glow.type=LightType.Point;_glow.color=new Color(0.35f,1f,0.75f);_glow.range=7;_glow.intensity=1.2f;_glow.shadows=LightShadows.None;
+                    _hover=Looks.Hover(transform,new Vector3(0,1.2f,0),new Vector3(2f,2.6f,2f));
+                    break;
+                case Kind.GhostShip:
+                    // Driftwood heaped on the shore for a beacon; out at sea, a dark longship riding at anchor with a sick green light aboard.
+                    Scatter(("Wood",0.3f,0.2f),("Wood",-0.4f,0.1f),("Wood",0.1f,-0.5f),("Wood",-0.2f,0.6f),("RoundLog",0.6f,-0.3f),("Resin",0.9f,0.6f));
+                    _hover=Looks.Hover(transform,new Vector3(0,0.4f,0),new Vector3(2.4f,1f,2.4f));
+                    Vector3 sea=Seaward();
+                    if(sea!=Vector3.zero)
+                    {
+                        float water=ZoneSystem.instance!=null?ZoneSystem.instance.m_waterLevel:30f;
+                        _shipHome=transform.InverseTransformPoint(new Vector3(transform.position.x+sea.x,water-0.3f,transform.position.z+sea.z));
+                        _ship=Looks.Copy("VikingShip",transform,_shipHome,Quaternion.Inverse(transform.rotation)*Quaternion.LookRotation(Vector3.Cross(sea.normalized,Vector3.up)));
+                        if(_ship!=null)
+                        {
+                            Looks.Still(_ship);Looks.Darken(_ship,new Color(0.28f,0.33f,0.3f));
+                            var lamp=new GameObject("Lamp");lamp.transform.SetParent(_ship.transform,false);lamp.transform.localPosition=new Vector3(0,3f,0);
+                            Light l=lamp.AddComponent<Light>();l.type=LightType.Point;l.color=new Color(0.4f,1f,0.55f);l.range=14;l.intensity=1.4f;l.shadows=LightShadows.None;
+                        }
+                    }
+                    break;
                 case Kind.Wanderer:
                     _wanderer=Looks.Copy("odin",transform,Vector3.zero,Quaternion.identity);
                     if(_wanderer!=null){Looks.Still(_wanderer);FaceNearestPlayer();}
                     break;
             }
+        }
+        // The way out to deep water from a shore sign (world offset, about 40 m), or zero when there is none.
+        private Vector3 Seaward()
+        {
+            if(WorldGenerator.instance==null||ZoneSystem.instance==null)return Vector3.zero;
+            float water=ZoneSystem.instance.m_waterLevel,best=float.MaxValue;Vector3 way=Vector3.zero;
+            for(int i=0;i<24;i++)
+            {
+                float a=i*Mathf.PI*2/24;var dir=new Vector3(Mathf.Cos(a),0,Mathf.Sin(a));
+                float depth=0;
+                foreach(float reach in new[]{25f,35f,45f})
+                {
+                    Vector3 p=transform.position+dir*reach;
+                    depth+=WorldGenerator.instance.GetHeight(p.x,p.z)-water;
+                }
+                if(depth<best){best=depth;way=dir*40f;}
+            }
+            return best<-6f?way:Vector3.zero; // all three points under water, a few metres deep
         }
         // Props laid around the sign: (prefab, x, z) in its own frame.
         private void Scatter(params (string prefab,float x,float z)[] props)
@@ -245,6 +307,8 @@ namespace Omens
                 case Kind.GraveCandles:foreach(GameObject candle in _candles)if(candle!=null)Looks.Kindle(candle);break;
                 case Kind.WarBanner:if(_banner!=null)_banner.transform.localRotation=Quaternion.Euler(84,_banner.transform.localEulerAngles.y,0);break;
                 case Kind.Drowned:Looks.Item("Coins",transform,transform.InverseTransformPoint(Carcass),Quaternion.identity);break;
+                case Kind.Shrine:Scatter(("Honey",0.15f,0.25f),("Honey",-0.15f,0.3f),("Honey",0f,0.05f));break;
+                case Kind.GhostShip:Looks.Fire(transform,new Vector3(0,0.2f,0),1.3f);_leaveAt=Time.time;break;
             }
         }
         // A ragdoll copy that collapses naturally, then holds still; the box people aim at follows it.
@@ -277,6 +341,16 @@ namespace Omens
                 if(_wisps[i]==null)continue;
                 float t=Time.time*(0.7f+i*0.23f)+i*2.1f;
                 _wisps[i].localPosition=new Vector3(Mathf.Cos(t)*(1.1f+i*0.3f),1.3f+Mathf.Sin(t*1.7f)*0.4f+i*0.25f,Mathf.Sin(t*1.3f)*(1.1f+i*0.3f));
+            }
+            if(_glow!=null)_glow.intensity=0.9f+0.5f*Mathf.Sin(Time.time*1.3f); // the rune stone hums
+            if(_ship!=null)
+            {
+                // Riding the swell; once warned off, it turns its back and fades out to sea.
+                float t=Time.time,gone=_leaveAt<0?0:Mathf.Clamp01((t-_leaveAt)/18f);
+                Vector3 away=_shipHome;away.y=0;away.Normalize();
+                _ship.transform.localPosition=_shipHome+away*gone*35f+Vector3.up*(Mathf.Sin(t*0.6f)*0.35f-gone*4f);
+                _ship.transform.localRotation=Quaternion.LookRotation(Vector3.Cross(away,Vector3.up))*Quaternion.Euler(Mathf.Sin(t*0.5f)*2f,gone*90f,Mathf.Sin(t*0.7f)*3f);
+                if(gone>=1)_ship.SetActive(false);
             }
             if(_wanderer!=null&&_wanderer.activeSelf)
             {
@@ -406,6 +480,15 @@ namespace Omens
             Vector3 top=go.transform.position+Vector3.up*3;
             if(Physics.Raycast(top,Vector3.down,out RaycastHit hit,6,LayerMask.GetMask("terrain","Default","static_solid")))
                 go.transform.position=hit.point+Vector3.up*0.05f;
+        }
+        // A ghostly cast: every material dimmed and tinted.
+        internal static void Darken(GameObject go,Color tint)
+        {
+            foreach(Renderer r in go.GetComponentsInChildren<Renderer>(true))
+            {
+                if(r.GetType().Name=="ParticleSystemRenderer"){r.enabled=false;continue;}
+                foreach(Material m in r.materials)if(m.HasProperty("_Color"))m.color=m.color*tint;
+            }
         }
         // A floating light: the game's lured wisp (or its wisp item), with a soft glow of its own so it shows whatever the copy keeps.
         internal static GameObject Wisp(Transform parent,Vector3 local)
