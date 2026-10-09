@@ -12,6 +12,8 @@ namespace BuildShapes
         public float[] Origin;
         public float Yaw,Raise;
         public float[][] Corners,Doors;
+        public bool StaveTemple,StaveGallery=true;
+        public int StaveHeight=6,StaveCrowns=1;
         public int Height,Detail,Entrance,Material,Opening,Crest,Storeys;
         public bool Roof45,Solid,ShowRoof,Tiered,Overhang,Porch,Sweep,Basement,GuideOnly;
         private static bool Finite(float x)=>!float.IsNaN(x) && !float.IsInfinity(x);
@@ -21,7 +23,7 @@ namespace BuildShapes
             Corners!=null && Corners.Length>=1 && Corners.Length<=24 && Corners.All(Point) &&
             Doors!=null && Doors.Length<=8 && Doors.All(Point) &&
             Height>=2 && Height<=4 && Detail>=0 && Detail<=4 && Entrance>=0 && Entrance<24 &&
-            Material>=0 && Material<=4 && Opening>=0 && Opening<=2 && Crest>=0 && Crest<=3 && Storeys>=1 && Storeys<=3;
+            Material>=0 && Material<=4 && Opening>=0 && Opening<=2 && Crest>=0 && Crest<=3 && Storeys>=1 && Storeys<=3 && StaveHeight>=4 && StaveHeight<=8 && StaveHeight%2==0 && StaveCrowns>=1 && StaveCrowns<=2 && (!StaveTemple || Storeys==1 && !Basement);
     }
     internal static class HallDraftStore
     {

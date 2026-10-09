@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+<PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
+<ItemGroup><Compile Include="../../mods/BuildShapes/Curve.cs" Link="Curve.cs" /><Compile Include="../../mods/BuildShapes/HallLayout.cs" Link="HallLayout.cs" /><Compile Include="../../mods/BuildShapes/StaveLayout.cs" Link="StaveLayout.cs" /><Compile Include="../../mods/BuildShapes/HallDoors.cs" Link="HallDoors.cs" /><Compile Include="../../mods/BuildShapes/HallStairs.cs" Link="HallStairs.cs" /><Compile Include="../../mods/BuildShapes/HallExcavation.cs" Link="HallExcavation.cs" /><Compile Include="../../mods/BuildShapes/HallTerrainGeometry.cs" Link="HallTerrainGeometry.cs" /></ItemGroup>
+<ItemGroup><None Include="../Hallwright.Tests/Fixtures/native-pieces.json" Link="Fixtures/native-pieces.json" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+</Project>

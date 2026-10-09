@@ -27,7 +27,7 @@ namespace BuildShapes
                 V3 at=a+direction*along;return new Entrance{At=at,Landing=at,Yaw=yaw,Edge=e};
             }
             if(requests==null || requests.Count==0)return new List<Entrance>{Make(edge,(corners[(edge+1)%corners.Count]-corners[edge]).Length/2)};
-            if(requests.Count>Maximum || requests.Any(p=>!p.Finite || Math.Abs(p.X)>28 || Math.Abs(p.Z)>28))throw new ArgumentException("Mark at most eight entrances near exterior walls.");
+            if(requests.Count>Maximum || requests.Any(p=>!p.Finite || Math.Abs(p.X)>HallLayout.MaximumExtent || Math.Abs(p.Z)>HallLayout.MaximumExtent))throw new ArgumentException("Mark at most eight entrances near exterior walls.");
             var choices=new List<Entrance[]>();
             for(int i=0;i<requests.Count;i++)
             {
@@ -67,7 +67,7 @@ namespace BuildShapes
             if(Math.Abs(a.Yaw-b.Yaw)<0.01 && Math.Abs(local.Z)<0.01)return Math.Abs(local.X)>=3-0.001;
             return difference.Length>=1.8;
         }
-        internal static bool Blocks(HallLayout.Design plan,V3 point)=>plan.Entrances.Any(d=>
+        internal static bool Blocks(HallLayout.Design plan,V3 point)=>plan.Entrances.Concat(plan.InnerEntrances).Any(d=>
         {V3 p=HallLayout.Turn(point-d.At,-d.Yaw);return Math.Abs(p.X)<1.3 && Math.Abs(p.Z)<0.6;});
     }
 }

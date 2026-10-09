@@ -25,7 +25,10 @@ try
  record.Doors=new[]{new float[]{0,0}};Reject(()=>HallDraftStore.Write(path,record),"Malformed door point accepted");
  File.WriteAllText(path,"{not valid");Reject(()=>HallDraftStore.Read(path,17,99),"Corrupt draft accepted");
  File.WriteAllText(path,new string(' ',65537));Reject(()=>HallDraftStore.Read(path,17,99),"Oversized draft parsed");
- record.Doors=Array.Empty<float[]>();record.Version=2;Reject(()=>HallDraftStore.Write(path,record),"Unknown schema accepted");
+ record.Doors=Array.Empty<float[]>();record.Storeys=1;record.Basement=false;record.StaveTemple=true;record.StaveHeight=8;record.StaveCrowns=2;record.StaveGallery=false;
+ HallDraftStore.Write(path,record);var temple=HallDraftStore.Read(path,17,99);Check(temple.StaveTemple&&temple.StaveHeight==8&&temple.StaveCrowns==2&&!temple.StaveGallery,"Temple style and all options survive reloads");
+ var old=Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(path));foreach(string name in new[]{"StaveTemple","StaveHeight","StaveCrowns","StaveGallery"})old.Remove(name);File.WriteAllText(path,old.ToString());var legacy=HallDraftStore.Read(path,17,99);Check(!legacy.StaveTemple&&legacy.StaveHeight==6&&legacy.StaveCrowns==1&&legacy.StaveGallery,"Legacy hall drafts retain safe defaults");
+ record.StaveHeight=5;Reject(()=>HallDraftStore.Write(path,record),"Invalid temple height accepted");record.StaveHeight=8;record.StaveCrowns=3;Reject(()=>HallDraftStore.Write(path,record),"Unbounded crowns accepted");record.StaveCrowns=2;record.Storeys=2;Reject(()=>HallDraftStore.Write(path,record),"Temple storeys accepted");record.Storeys=1;record.Version=2;Reject(()=>HallDraftStore.Write(path,record),"Unknown schema accepted");
  Console.WriteLine($"Passed {checks} production Hallwright draft persistence checks.");
 }
 finally{File.Delete(path);File.Delete(path+".tmp");}

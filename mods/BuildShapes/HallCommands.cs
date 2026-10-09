@@ -21,7 +21,7 @@ namespace BuildShapes
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Static|BindingFlags.Public)?.Invoke(null,new object[]{Name,"hall",
-                    "hall catalog | rectangle <width> <length> [distance=10] | outline <x,z>... | options height=2|3|4 detail=0..4 storeys=1|2|3 basement=on|off pitch=26|45 material=auto|timber|core|stone|dark raise=0..2 roof=gabled|tiered entrance=auto|door|gate overhang=on|off porch=on|off trim=on|off crest=auto|none|dragon|raven | doors clear | doors <x,z>... | status | resume | stairs | entrances | pieces | ui | clear | confirm | undo | restoreground | keepground | reload: local Hallwright previews; only confirm creates shared ghosts; undo removes the last shape's unbuilt ghosts",
+                    "hall catalog | rectangle <width> <length> [distance=10] | outline <x,z>... | options style=hall|temple chamber=4|6|8 crowns=1|2 gallery=on|off height=2|3|4 detail=0..4 storeys=1|2|3 basement=on|off pitch=26|45 material=auto|timber|core|stone|dark raise=0..2 roof=gabled|tiered entrance=auto|door|gate overhang=on|off porch=on|off trim=on|off crest=auto|none|dragon|raven | doors clear | doors <x,z>... | status | resume | stairs | entrances | pieces | ui | clear | confirm | undo | restoreground | keepground | reload: local Hallwright previews; only confirm creates shared ghosts; undo removes the last shape's unbuilt ghosts",
                     new Func<string[],Action<JObject>,Action<string>,IEnumerator>(HallCommand)});
                 found.GetType().GetMethod("RegisterFrame",BindingFlags.Static|BindingFlags.Public)?.Invoke(null,new object[]{Name,new Func<string,float[]>(HallFrame)});
             }
@@ -37,6 +37,8 @@ namespace BuildShapes
         }
         private JObject HallReadout()=>new JObject
         {
+            ["style"]=_staveTemple?"Stave temple":"Longhouse",["innerEntrances"]=_hallDesign?.InnerEntrances.Count,["chamberHeight"]=_staveHeight,["crowns"]=_staveCrowns,["gallery"]=_staveGallery,["roofHeight"]=_hallDesign?.RoofHeight,
+            ["chamber"]=_hallDesign?.Sanctum==null?null:new JArray(_hallDesign.Sanctum.Width*2,_hallDesign.Sanctum.Length*2),
             ["sharing"]=new JObject{["send"]=_shareDrafts.Value,["receive"]=_showSharedDrafts.Value,["connectedViewers"]=_sharedParticipants.Count,["receivedDrafts"]=_sharedDraftSet.Entries.Count,["packetBytes"]=_sharedPacket?.Length??0},
             ["wholeBuildingApi"]=_planner.WholeShell,["savedDraft"]=System.IO.File.Exists(CurrentHallDraftPath),["mode"]=_tool.ToString(),["corners"]=_markers.Count,["pieces"]=_output.Count,["floorY"]=_hallFloorY,
             ["entrances"]=new JArray((_hallDesign?.Entrances??new System.Collections.Generic.List<HallDoors.Entrance>()).Select(d=>new JObject{["x"]=d.At.X,["z"]=d.At.Z,["yaw"]=d.Yaw,["edge"]=d.Edge})),["entranceMarkers"]=_hallDoorPoints.Count,["preview"]=_hallGuideOnly?"Layout":_hallSolid?"Materials":"Ghosts",
@@ -160,12 +162,17 @@ namespace BuildShapes
                 }
                 if(action=="options")
                 {
+                    int chamber=_staveHeight,crowns=_staveCrowns;bool temple=_staveTemple,gallery=_staveGallery;
                     int height=_hallHeight,detail=_hallDetail,material=_hallMaterialMode,entrance=_hallEntranceMode,crest=_hallCrestMode,storeys=_hallStoreys;bool basement=_hallBasement,steep=_hallRoof45,tiered=_hallTiered,overhang=_hallOverhang,porch=_hallPorch,sweep=_hallSweep;float raise=_hallRaise;
                     foreach(string option in args.Skip(2))
                     {
                         string[] kv=option.Split('=');if(kv.Length!=2)throw new ArgumentException("Options use key=value.");
                         switch(kv[0])
                         {
+                            case "style": if(kv[1]!="hall"&&kv[1]!="temple")throw new ArgumentException("Style is hall or temple.");temple=kv[1]=="temple";if(temple){storeys=1;basement=false;}break;
+                            case "chamber": float ch=HallFloat(kv[1]);if(ch!=4&&ch!=6&&ch!=8)throw new ArgumentException("Chamber height is 4, 6 or 8 m.");chamber=(int)ch;break;
+                            case "crowns": float cr=HallFloat(kv[1]);if(cr!=1&&cr!=2)throw new ArgumentException("Choose one or two crowns.");crowns=(int)cr;break;
+                            case "gallery": gallery=HallBool(kv[1]);break;
                             case "height": float h=HallFloat(kv[1]);if(h!=Math.Round(h) || h<2 || h>4)throw new ArgumentException("Height must be 2, 3, or 4.");height=(int)h;break;
                             case "detail": float d=HallFloat(kv[1]);if(d!=Math.Round(d) || d<0 || d>4)throw new ArgumentException("Detail must be 0–4.");detail=(int)d;break;
                             case "storeys": float n=HallFloat(kv[1]);if(n!=Math.Round(n) || n<1 || n>3)throw new ArgumentException("Storeys must be 1–3.");storeys=(int)n;break;
@@ -182,6 +189,8 @@ namespace BuildShapes
                             default:throw new ArgumentException("Unknown hall option: "+kv[0]);
                         }
                     }
+                    if(temple&&(storeys!=1||basement))throw new ArgumentException("Stave temples use a single open chamber. Switch to hall for storeys or a basement.");
+                    _staveTemple=temple;_staveHeight=chamber;_staveCrowns=crowns;_staveGallery=gallery;
                     _hallStoreys=storeys;_hallBasement=basement;_hallHeight=height;_hallDetail=detail;_hallMaterialMode=material;_hallRoof45=steep;_hallRaise=raise;_hallTiered=tiered;_hallEntranceMode=entrance;_hallCrestMode=crest;_hallOverhang=overhang;_hallPorch=porch;_hallSweep=sweep;BuildHallPreview();output(HallReadout());return null;
                 }
                 if(action=="ui"){if(_markers.Count<3 && !System.IO.File.Exists(HallGroundFile))throw new ArgumentException("Draw a footprint first.");OpenHallMenu();output(HallReadout());return null;}

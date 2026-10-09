@@ -8,6 +8,8 @@ namespace BuildShapes
 {
     public sealed partial class Plugin
     {
+        private bool _staveTemple,_staveGallery=true;
+        private int _staveHeight=6,_staveCrowns=1;
         private bool _hallMenu, _hallRoof45=true, _hallSolid=true, _hallShowRoof=true, _hallTiered, _hallOverhang, _hallPorch, _hallSweep, _hallBasement;
         private int _hallHeight=3, _hallDetail=1, _hallEntrance, _hallMaterialMode, _hallEntranceMode, _hallCrestMode, _hallStoreys=1;
         private float _hallRaise=0.15f, _hallDue, _hallNextCatalog;
@@ -67,7 +69,7 @@ namespace BuildShapes
                 if(HallKnown("darkwood_arch"))kit.Arch="darkwood_arch";
                 if(HallKnown("darkwood_decowall"))kit.Lattice="darkwood_decowall";
             }
-            if(_hallStoreys>1 && _hallMaterialMode==0 && HallKnown("woodiron_pole"))kit.LoadPost="woodiron_pole";
+            if((_hallStoreys>1 || _staveTemple) && _hallMaterialMode==0 && HallKnown("woodiron_pole"))kit.LoadPost="woodiron_pole";
             bool steep=_hallRoof45;
             string roof=steep?"wood_roof_45":"wood_roof",ridge=steep?"wood_roof_top_45":"wood_roof_top",wedge=steep?"wood_wall_roof_45":"wood_wall_roof_a";
             foreach(string name in new[]{roof,ridge,wedge})if(!HallKnown(name))throw new ArgumentException("The selected roof pitch needs "+name+" unlocked.");
@@ -165,7 +167,8 @@ namespace BuildShapes
                 if(_markers.Count<3)throw new ArgumentException("Draw the boundary with Shift+click, then L opens the hall settings.");
                 _hallKit=HallKit(Player.m_localPlayer);
                 var corners=_markers.Select(p=>{Vector3 v=Quaternion.Inverse(_hallFrame)*(p-_hallOrigin);return new V3(Math.Round(v.x/2)*2,0,Math.Round(v.z/2)*2);}).ToArray();
-                _hallDesign=HallLayout.Plan(corners,_hallKit,_hallHeight,_hallDetail,_hallEntrance,_hallTiered,HallDetailsKit());
+                var details=HallDetailsKit();
+                _hallDesign=_staveTemple?StaveLayout.Plan(corners,_hallKit,_hallHeight,_hallDetail,_hallEntrance,details,new StaveLayout.Options{Height=_staveHeight,Crowns=_staveCrowns,Gallery=_staveGallery}):HallLayout.Plan(corners,_hallKit,_hallHeight,_hallDetail,_hallEntrance,_hallTiered,details);
                 _hallFloorY=_hallOrigin.y;
                 float highest=float.MinValue;
                 foreach(V3 v in _hallDesign.Vertices)highest=Mathf.Max(highest,HallGround(HallWorld(v)));
@@ -208,9 +211,14 @@ namespace BuildShapes
                 {
                     // Solve extra ridge columns against the actual terrain, then re-evaluate the whole shell.
                     string post=_hallMaterialMode==0 && HallKnown("woodiron_pole")?"woodiron_pole":_hallKit.Post;
-                    foreach(var wing in _hallDesign.Wings)
+                    if(_staveTemple)
                     {
-                        double length=wing.Length*2,peak=_hallHeight*_hallStoreys+wing.Width*_hallKit.Slope+wing.TierLift;
+                        foreach(var at in _hallDesign.StaveSupports.GroupBy(p=>new {p.X,p.Z}).Select(g=>g.OrderByDescending(p=>p.Y).First()))
+                        {HallColumn(new V3(at.X,0,at.Z),at.Y,post,"support");_hallAddedPosts++;}
+                    }
+                    else foreach(var wing in _hallDesign.Wings)
+                    {
+                        double length=wing.Length*2,peak=wing.RoofBase+wing.Width*_hallKit.Slope+wing.TierLift;
                         for(double v=length<=2?1:2;v<length;v+=4)
                         {
                             V3 at=wing.At(wing.Width,0,v);
@@ -223,10 +231,10 @@ namespace BuildShapes
                         }
                     }
                     ComputeHallSupport(Player.m_localPlayer);_hallFalls=_hallSupport.Values.Count(v=>v.Collapses);
-                    _hallNote=(_hallNote==null?"":_hallNote+" ")+$"Added {_hallAddedPosts} interior ridge supports"+(post=="woodiron_pole"?" using unlocked reinforced timber.":".");
+                    _hallNote=(_hallNote==null?"":_hallNote+" ")+$"Added {_hallAddedPosts} structural supports"+(post=="woodiron_pole"?" using unlocked reinforced timber.":".");
                 }
                 if(_hallSupport.Count!=_output.Count)throw new ArgumentException("Some pieces could not be checked for support.");
-                if(_hallFalls>0)_hallProblem=$"{_hallFalls} pieces would fall in the support estimate. Lower the walls, choose 26° roofs, or simplify the outline.";
+                if(_hallFalls>0)_hallProblem=$"{_hallFalls} pieces would fall in the support estimate. Lower the chamber or walls, choose 26° roofs, or simplify the outline.";
                 foreach(var pose in _output)
                 {
                     Piece piece=_hallCatalog[pose.Prefab].GetComponent<Piece>();
@@ -305,7 +313,7 @@ namespace BuildShapes
             if(_hallProblem!=null || _output.Count==0){Say(_hallProblem??"No hall preview.");return;}
             try
             {
-                string key=SubmitHall(player);int count=_output.Count;_lastPlan=key;Stop();Say($"Hall planned: {count} shared ghosts. E builds; U removes unbuilt pieces. Basement ground restoration is in Hallwright options.");
+                string key=SubmitHall(player);int count=_output.Count;_lastPlan=key;Stop();Say($"{(_staveTemple?"Temple":"Hall")} planned: {count} shared ghosts. E builds; U removes unbuilt pieces."+(_staveTemple?"":" Basement ground restoration is in Hallwright options."));
             }
             catch(Exception ex){Say(ex.GetBaseException().Message);}
         }
@@ -315,7 +323,7 @@ namespace BuildShapes
             GroundRecord ground=ApplyHallGround();
             try
             {
-                if(!_planner.CreateShell(player,"Hallwright",_output.Select(p=>p.Prefab).ToArray(),_output.Select(p=>p.Position).ToArray(),_output.Select(p=>p.Rotation).ToArray(),out string key,out string error))throw new ArgumentException(error);
+                if(!_planner.CreateShell(player,_staveTemple?"Stave Temple":"Hallwright",_output.Select(p=>p.Prefab).ToArray(),_output.Select(p=>p.Position).ToArray(),_output.Select(p=>p.Rotation).ToArray(),out string key,out string error))throw new ArgumentException(error);
                 _hallDraftSubmitted=true;DiscardHallDraft();return key;
             }
             catch

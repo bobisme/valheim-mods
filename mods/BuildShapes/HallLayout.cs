@@ -21,7 +21,9 @@ namespace BuildShapes
         {
             internal int X,Z,W,D;
             internal bool Across;
-            internal double TierLift;
+            internal double TierLift,RoofBase;
+            internal string Stage;
+            internal readonly HashSet<Cell> Cutout=new HashSet<Cell>();
             internal int Width => Across ? D : W;
             internal int Length => Across ? W : D;
             internal V3 At(double u,double y,double v) => Across ? new V3(X*2+v,y,Z*2+D*2-u) : new V3(X*2+u,y,Z*2+v);
@@ -55,6 +57,10 @@ namespace BuildShapes
             internal double DoorYaw;
             internal double RoofHeight;
             internal int BoundaryPanels;
+            internal bool StaveTemple;
+            internal Wing Sanctum;
+            internal readonly List<V3> StaveSupports=new List<V3>();
+            internal readonly List<HallDoors.Entrance> InnerEntrances=new List<HallDoors.Entrance>();
             internal int TieredWings;
             internal int Storeys=1, StoreyHeight;
             internal bool Basement;
@@ -67,10 +73,11 @@ namespace BuildShapes
         }
         internal sealed class Details
         {
-            internal bool Overhang, Porch, Sweep, Basement;
+            internal bool Overhang, Porch, Sweep, Basement,SuppressRoof,TallWalls,OpenGallery;
             internal int Storeys=1;
             internal string Finial;
             internal IReadOnlyList<V3> DoorPoints;
+            internal Func<IReadOnlyList<HallDoors.Entrance>,bool> EntranceAcceptance;
         }
 
         internal static List<Cell> Footprint(IReadOnlyList<V3> corners)
@@ -169,7 +176,7 @@ namespace BuildShapes
 
         internal static Design Plan(IReadOnlyList<V3> corners,Kit kit,int height,int detail,int entrance,bool tiered=false,Details details=null)
         {
-            if(kit==null || kit.DoorHeight<2 || kit.DoorHeight>height || kit.DoorHeight!=Math.Round(kit.DoorHeight) || height<2 || height>4 || detail<0 || detail>4 || kit.Slope!=1 && kit.Slope!=0.5)
+            if(kit==null || kit.DoorHeight<2 || kit.DoorHeight>height || kit.DoorHeight!=Math.Round(kit.DoorHeight) || height<2 || height>(details?.TallWalls==true?8:4) || detail<0 || detail>4 || kit.Slope!=1 && kit.Slope!=0.5)
                 throw new ArgumentException("Choose walls 2–4 m high, a native roof pitch, and intricacy 0–4.");
             var plan=new Design();plan.Cells.AddRange(Footprint(corners));plan.Wings.AddRange(SolveWings(plan.Cells,kit.SpanCells));
             var set=new HashSet<Cell>(plan.Cells);
@@ -217,7 +224,7 @@ namespace BuildShapes
             var stairAccept=details.Storeys>1 || details.Basement?HallStairs.Acceptance(plan,details.Basement?Math.Max(3,height):height):null;
             bool FitsEntrances(IReadOnlyList<HallDoors.Entrance> entries)
             {
-                if(stairAccept!=null && !stairAccept(entries))return false;
+                if(stairAccept!=null && !stairAccept(entries) || details.EntranceAcceptance!=null && !details.EntranceAcceptance(entries))return false;
                 for(int i=0;i<entries.Count;i++)
                 {
                     if(!details.Basement && !(details.Porch && i==0))continue;
@@ -286,6 +293,12 @@ namespace BuildShapes
                 // Header starts above the actual opening: a 3 m gate must not have a wall across its upper metre.
                 for(int storey=0;storey<details.Storeys;storey++)
                 {
+                    if(details.OpenGallery)
+                    {
+                        if(!door)Add(kit.Half,at,Anchor.Bottom,edge.yaw,"gallery railing");
+                        Rod(kit.Beam,edge.a+new V3(0,height,0),edge.b+new V3(0,height,0),kit.BeamLength,"gallery frame");
+                        continue;
+                    }
                     bool window=detail>=2 && height>=3 && !door && ((int)(Math.Abs(at.X)+Math.Abs(at.Z))/2)%2==0;
                     for(int h=storey==0 && door?(int)kit.DoorHeight:0;h<height;)
                     {
@@ -380,8 +393,10 @@ namespace BuildShapes
                     Rod(kit.Beam,new V3(c.X*2,level*height-kit.JoistDrop,c.Z*2),new V3(c.X*2+2,level*height-kit.JoistDrop,c.Z*2),kit.BeamLength,"floor joist");
                 }
             }
+            if(details.SuppressRoof){plan.Wings.Clear();return plan;}
             foreach(Wing wing in plan.Wings)
             {
+                wing.RoofBase=roofBase;
                 double yaw=wing.Across?90:0,width=wing.Width*2,length=wing.Length*2;
                 wing.TierLift=tiered && wing.Width>=3?1:0;
                 if(wing.TierLift>0)plan.TieredWings++;

@@ -15,7 +15,7 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.5.8";
+        public const string Version = "0.6.0";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
@@ -67,7 +67,7 @@ namespace BuildShapes
         private void Awake()
         {
             Instance = this;ConfigureSharedPreviews();
-            _enabled = Config.Bind("General", "Enabled", true, "Enable Curve, Arch, Mirror, Repeat, and Hallwright tools.");
+            _enabled = Config.Bind("General", "Enabled", true, "Enable Curve, Arch, Mirror, Repeat, Hallwright and Stave temple tools.");
             // Keep the original config key so existing custom F4 bindings survive the update.
             _toggle = Config.Bind("Controls", "ToggleCurve", KeyCode.F4, "Open/close the shape-mode picker: Curve, Arch, Mirror, Repeat, or Hallwright.");
             _modifier = Config.Bind("Controls", "MarkerModifier", KeyCode.LeftShift, "Hold with PlaceMarker to mark curve points, arch endpoints, or a mirror line.");
@@ -78,7 +78,7 @@ namespace BuildShapes
             _spacing = Config.Bind("Repeat", "Spacing", 2f, new ConfigDescription("Maximum repeat spacing in metres; adjusted evenly to meet both ends. [ and ] adjust by 0.25 m.", new AcceptableValueRange<float>(0.25f, 16f)));
             _follow = Config.Bind("Repeat", "FollowCurve", true, "Turn pieces around world up to follow the curve, keeping their original tilt. Home toggles this.");
             _harmony = new Harmony(Guid); _harmony.PatchAll(typeof(Plugin).Assembly);
-            Logger.LogInfo($"{Name} {Version} loaded; hammer + {_toggle.Value}: choose Hallwright, Curve, Arch, Mirror, or Repeat from the mode picker.");
+            Logger.LogInfo($"{Name} {Version} loaded; hammer + {_toggle.Value}: choose Hallwright, Stave temple, Curve, Arch, Mirror, or Repeat from the mode picker.");
         }
 
         private static bool HoldingHammer(Player player) => player != null &&

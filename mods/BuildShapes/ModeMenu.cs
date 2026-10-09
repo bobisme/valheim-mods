@@ -33,6 +33,16 @@ namespace BuildShapes
             }
             else Begin(player, requested);
         }
+        private void ChooseHallStyle(bool temple)
+        {
+            if(_tool!=Tool.Hall)Begin(Player.m_localPlayer,Tool.Hall);
+            CloseModeMenu();
+            if(_staveTemple!=temple && temple)
+            {_hallStoreys=1;_hallBasement=false;_hallDetail=2;_hallOverhang=true;_hallSweep=true;_hallPorch=true;_hallRoof45=true;_hallHeight=3;}
+            _staveTemple=temple;
+            if(_markers.Count>=3){BuildHallPreview();OpenHallMenu();}
+            Say(temple?"Stave temple: Shift+click its floor plan, then L for chamber height, tower crowns and galleries.":"Hallwright: Shift+click its floor plan, then L for options.");
+        }
         private void ModeContents(int id)
         {
             GUILayout.BeginArea(new Rect(20, 14, _modeRect.width-40, _modeRect.height-28));
@@ -48,7 +58,7 @@ namespace BuildShapes
             bool beam = selected.Contains("beam") || selected.Contains("pole");
             bool extended = _planner.Extended;
             bool enabled = GUI.enabled;
-            Tool chosen = Tool.None;
+            Tool chosen = Tool.None;bool? hallStyle=null;
             _modeScroll = GUILayout.BeginScrollView(_modeScroll);
             void Mode(Tool tool, string detail, bool available)
             {
@@ -59,7 +69,11 @@ namespace BuildShapes
                 GUILayout.Label(detail, _menuHint);
                 GUILayout.Space(10);
             }
-            Mode(Tool.Hall, "Draw a floor plan; solve a complete timber shell with live materials, roof, and intricacy options.", true);
+            GUI.enabled=enabled && piece!=null;
+            if(GUILayout.Button("Hallwright"+(_tool==Tool.Hall&&!_staveTemple?" · active":""),_tool==Tool.Hall&&!_staveTemple?_menuSelected:_menuButton,GUILayout.Height(36)))hallStyle=false;
+            GUILayout.Label("Draw a floor plan; solve a complete timber longhouse with live roofs and intricacy.",_menuHint);GUILayout.Space(10);
+            if(GUILayout.Button("Stave temple"+(_tool==Tool.Hall&&_staveTemple?" · active":""),_tool==Tool.Hall&&_staveTemple?_menuSelected:_menuButton,GUILayout.Height(36)))hallStyle=true;
+            GUI.enabled=enabled;GUILayout.Label("A tall open chamber, surrounding galleries and narrowing tower roofs, fitted to your floor plan.",_menuHint);GUILayout.Space(10);
             if(System.IO.File.Exists(CurrentHallDraftPath) && GUILayout.Button("Resume saved Hallwright draft",_menuButton,GUILayout.Height(36)))ResumeHallDraft();
             Mode(Tool.Curve, "Three points: start, bend, and end. Uses beams or poles.", beam);
             Mode(Tool.Arch, "Two endpoints, then adjust the center height. Uses beams or poles.", beam);
@@ -79,7 +93,8 @@ namespace BuildShapes
             GUILayout.EndArea();
             GUI.DragWindow(new Rect(0, 0, _modeRect.width-60, 50));
             // Defer switching until the current IMGUI layout is balanced.
-            if (chosen != Tool.None) ChooseMode(chosen);
+            if(hallStyle.HasValue)ChooseHallStyle(hallStyle.Value);
+            else if (chosen != Tool.None) ChooseMode(chosen);
         }
     }
 }

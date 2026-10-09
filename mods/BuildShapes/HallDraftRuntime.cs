@@ -24,7 +24,7 @@ namespace BuildShapes
             var draft=new HallDraft{World=_hallDraftWorld,Player=_hallDraftPlayer,Origin=DraftPoint(_hallOrigin),Yaw=_hallFrame.eulerAngles.y,
                 Corners=_markers.Select(DraftPoint).ToArray(),Doors=_hallDoorPoints.Select(p=>DraftPoint(V(p))).ToArray(),Raise=_hallRaise,
                 Height=_hallHeight,Detail=_hallDetail,Entrance=_hallEntrance,Material=_hallMaterialMode,Opening=_hallEntranceMode,Crest=_hallCrestMode,Storeys=_hallStoreys,
-                Roof45=_hallRoof45,Solid=_hallSolid,ShowRoof=_hallShowRoof,Tiered=_hallTiered,Overhang=_hallOverhang,Porch=_hallPorch,Sweep=_hallSweep,Basement=_hallBasement,GuideOnly=_hallGuideOnly};
+                StaveTemple=_staveTemple,StaveGallery=_staveGallery,StaveHeight=_staveHeight,StaveCrowns=_staveCrowns,Roof45=_hallRoof45,Solid=_hallSolid,ShowRoof=_hallShowRoof,Tiered=_hallTiered,Overhang=_hallOverhang,Porch=_hallPorch,Sweep=_hallSweep,Basement=_hallBasement,GuideOnly=_hallGuideOnly};
             string text=Newtonsoft.Json.JsonConvert.SerializeObject(draft);
             if(text==_hallDraftLast)return;
             try{HallDraftStore.Write(HallDraftPath(_hallDraftWorld,_hallDraftPlayer),draft);_hallDraftLast=text;}
@@ -37,6 +37,7 @@ namespace BuildShapes
                 var draft=HallDraftStore.Read(CurrentHallDraftPath,ZNet.instance.GetWorldUID(),Player.m_localPlayer.GetPlayerID());
                 Stop();_tool=Tool.Hall;StartHallDraft();_hallOrigin=DraftVector(draft.Origin);_hallFrame=Quaternion.Euler(0,draft.Yaw,0);
                 _markers.AddRange(draft.Corners.Select(DraftVector));_hallDoorPoints.AddRange(draft.Doors.Select(p=>V(DraftVector(p))));
+                _staveTemple=draft.StaveTemple;_staveGallery=draft.StaveGallery;_staveHeight=draft.StaveHeight;_staveCrowns=draft.StaveCrowns;
                 _hallRaise=draft.Raise;_hallHeight=draft.Height;_hallDetail=draft.Detail;_hallEntrance=draft.Entrance;_hallMaterialMode=draft.Material;
                 _hallEntranceMode=draft.Opening;_hallCrestMode=draft.Crest;_hallStoreys=draft.Storeys;_hallRoof45=draft.Roof45;_hallSolid=draft.Solid;
                 _hallShowRoof=draft.ShowRoof;_hallTiered=draft.Tiered;_hallOverhang=draft.Overhang;_hallPorch=draft.Porch;_hallSweep=draft.Sweep;_hallBasement=draft.Basement;_hallGuideOnly=draft.GuideOnly;

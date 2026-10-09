@@ -65,18 +65,26 @@ namespace BuildShapes
             if(closed && _hallBasement)Line(_markers.Concat(new[]{_markers[0]}).Select(p=>At(p,floor-3+0.06f)).ToArray(),0.045f);
             if(closed && _hallShowRoof)foreach(var wing in _hallDesign.Wings)
             {
-                double width=wing.Width*2,length=wing.Length*2,peak=_hallHeight*_hallStoreys+width*0.5*_hallKit.Slope+wing.TierLift;
+                double width=wing.Width*2,length=wing.Length*2,peak=wing.RoofBase+width*0.5*_hallKit.Slope+wing.TierLift;
                 Vector3 W(double u,double y,double v)=>HallWorld(wing.At(u,y,v));
                 foreach(double end in new[]{0.0,length})
                 {
-                    if(wing.TierLift==0)Line(new[]{W(0,_hallHeight*_hallStoreys,end),W(width/2,peak,end),W(width,_hallHeight*_hallStoreys,end)},0.04f);
+                    if(wing.TierLift==0)Line(new[]{W(0,wing.RoofBase,end),W(width/2,peak,end),W(width,wing.RoofBase,end)},0.04f);
                     else
                     {
-                        double shoulder=_hallHeight*_hallStoreys+2*_hallKit.Slope;
-                        Line(new[]{W(0,_hallHeight*_hallStoreys,end),W(2,shoulder,end),W(2,shoulder+wing.TierLift,end),W(width/2,peak,end),W(width-2,shoulder+wing.TierLift,end),W(width-2,shoulder,end),W(width,_hallHeight*_hallStoreys,end)},0.04f);
+                        double shoulder=wing.RoofBase+2*_hallKit.Slope;
+                        Line(new[]{W(0,wing.RoofBase,end),W(2,shoulder,end),W(2,shoulder+wing.TierLift,end),W(width/2,peak,end),W(width-2,shoulder+wing.TierLift,end),W(width-2,shoulder,end),W(width,wing.RoofBase,end)},0.04f);
                     }
                 }
-                Line(new[]{W(width/2,peak,0),W(width/2,peak,length)},0.045f);
+                if(wing.Cutout.Count==0)Line(new[]{W(width/2,peak,0),W(width/2,peak,length)},0.045f);
+                else
+                {
+                    for(int row=0;row<wing.Length;row++)
+                    {V3 mid=wing.At(width/2,0,row*2+1);if(wing.Cutout.Contains(new HallLayout.Cell((int)Math.Floor(mid.X/2),(int)Math.Floor(mid.Z/2))))continue;Line(new[]{W(width/2,peak,row*2),W(width/2,peak,row*2+2)},0.045f);}
+                    double x0=wing.Cutout.Min(c=>c.X)*2,x1=(wing.Cutout.Max(c=>c.X)+1)*2,z0=wing.Cutout.Min(c=>c.Z)*2,z1=(wing.Cutout.Max(c=>c.Z)+1)*2;
+                    var ring=new[]{new V3(x0,wing.RoofBase,z0),new V3(x1,wing.RoofBase,z0),new V3(x1,wing.RoofBase,z1),new V3(x0,wing.RoofBase,z1),new V3(x0,wing.RoofBase,z0)};
+                    Line(ring.Select(HallWorld).ToArray(),0.04f,true);
+                }
             }
             foreach(var door in _hallDoorPoints)
             {
@@ -85,7 +93,7 @@ namespace BuildShapes
                 HallMarkerLine(new[]{ground,top},0.05f);
                 HallMarkerLine(new[]{top-Vector3.right*0.25f,top+Vector3.right*0.25f},0.05f);
             }
-            if(closed)foreach(var door in _hallDesign.Entrances)
+            if(closed)foreach(var door in _hallDesign.Entrances.Concat(_hallDesign.InnerEntrances))
             {
                 Vector3 a=HallWorld(door.At+HallLayout.Turn(new V3(-1,0,0),door.Yaw)),b=HallWorld(door.At+HallLayout.Turn(new V3(1,0,0),door.Yaw));
                 HallMarkerLine(new[]{a,a+Vector3.up*(float)_hallKit.DoorHeight,b+Vector3.up*(float)_hallKit.DoorHeight,b},0.045f);

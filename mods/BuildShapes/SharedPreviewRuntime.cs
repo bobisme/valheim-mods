@@ -91,7 +91,7 @@ namespace BuildShapes
             var p=new SharedPreview{World=_sharedWorld,Revision=++_sharedRevision,Tool=active?(byte)_tool:(byte)0,Center=SharePoint(Vector3.zero)};
             if(!active)return p;
             Vector3 center=(_markers.Aggregate(Vector3.zero,(a,b)=>a+b))/_markers.Count;
-            center.y=_tool==Tool.Hall&&_hallGuideHasFloor?_hallFloorY+_hallHeight*_hallStoreys+1.5f:_markers.Max(v=>v.y)+3;
+            center.y=_tool==Tool.Hall&&_hallGuideHasFloor?_hallFloorY+(_staveTemple?(float)(_hallDesign?.RoofHeight??_staveHeight):_hallHeight*_hallStoreys)+1.5f:_markers.Max(v=>v.y)+3;
             p.Center=SharePoint(center);int points=0;
             foreach(var go in _visuals)
             {
