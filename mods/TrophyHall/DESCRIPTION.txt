@@ -1,6 +1,6 @@
 Hang your trophies and your hall remembers what you have slain.
 
-Creature trophies on item stands you have built inside a base give everyone in that base small themed perks, shown as a Trophy hall status effect that stays with you for 30 minutes after you leave (adjustable). Each kind counts once, however many heads you hang:
+Creature trophies on item stands you have built inside a base give everyone in that base small themed perks, shown as a Trophy hall status effect that stays with you for 30 minutes after you leave (adjustable), and never shrinks while it lasts. Each kind counts once, however many heads you hang:
 
 Trolls: +30 carry weight. Draugr: slight poison resistance. Wolves: +10% stamina regeneration. Necks and serpents: +10% swim speed. Greydwarfs: +10% woodcutting skill gain. Boars: +10% health regeneration. Deer: +5% movement speed.
 

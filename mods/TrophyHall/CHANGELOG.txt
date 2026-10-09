@@ -1,3 +1,5 @@
+0.1.3: The perks no longer shrink or vanish as you walk away. Before, the hall was re-read every two seconds from the trophies within 40 m of you, so heading for the door dropped perks one by one, and the whole effect went if the last heads in reach gave none. Now the effect you carry only grows while it lasts (trophies from another hall are added, up to six perks), stays full while you are near any themed trophy in a base, and counts down its 30 minutes once you leave.
+
 0.1.2: The hall's perks stay with you after you leave: 30 minutes by default (LingerMinutes in F7, 0 for the old behaviour), counted down on the status bar and kept full while you are in the hall. Comfort still needs the hall's roof.
 
 0.1.1: Smoother play: the hall keeps its own list of item stands as they load instead of searching every loaded object every two seconds (6–8 ms each time), and names the hall from the game's ward list.

@@ -12,7 +12,7 @@ namespace TrophyHall
     {
         public const string Guid="com.bobisme.trophyhall";
         public const string Name="TrophyHall";
-        public const string Version="0.1.2";
+        public const string Version="0.1.3";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled,Readings;
         internal ConfigEntry<float> Range,LingerMinutes;
@@ -76,7 +76,7 @@ namespace TrophyHall
             _comfort=Policy.Comfort(distinct);
             if(!_inHall)Greet(me,mounted.Count,perks);
             _inHall=true;
-            Apply(me,perks,mounted.FirstOrDefault(m=>perks.Count>0&&perks[0].Trophies.Contains(m.prefab)).icon??mounted[0].icon);
+            Apply(me,mounted.Select(m=>m.prefab),mounted.Select(m=>(m.prefab,m.icon)).ToList());
         }
 
         // Comfort for a spot near the hall's trophies, counted with the game's own (only under a roof, as other comfort is).
@@ -97,18 +97,27 @@ namespace TrophyHall
             me.Message(MessageHud.MessageType.Center,fallen==""?line:line+"\n"+fallen);
         }
 
-        private static void Apply(Player me,List<Theme> perks,Sprite icon)
+        // The trophies behind the effect you carry. While it lasts it only grows: walking to the far end of the base (some heads out of
+        // reach) or into a smaller hall never takes perks away; trophies seen anywhere are added. Being near any themed trophy in a base
+        // keeps the countdown full. Once it runs out, it starts again from the hall you are in.
+        private static readonly HashSet<string> Held=new HashSet<string>();
+        private static void Apply(Player me,IEnumerable<string> mounted,List<(string prefab,Sprite icon)> icons)
         {
-            string signature=string.Join(",",perks.Select(p=>p.Perk))+"|"+_comfort;
-            if(signature==_signature&&me.GetSEMan().GetStatusEffect(EffectName.GetStableHashCode()) is StatusEffect active)
-            {active.ResetTime();return;} // in the hall: the countdown stays full
+            int hash=EffectName.GetStableHashCode();
+            StatusEffect active=me.GetSEMan().GetStatusEffect(hash);
+            if(active==null){Held.Clear();_signature="";}
+            var held=new HashSet<string>(Held);held.UnionWith(mounted);
+            List<Theme> perks=Policy.Perks(held);
+            if(perks.Count==0)return; // nothing to give (and nothing given is taken away)
+            string signature=string.Join(",",perks.Select(p=>p.Perk));
+            if(active!=null&&signature==_signature){active.ResetTime();return;}
             Remove(me);
+            Held.Clear();Held.UnionWith(held);
             _signature=signature;
-            if(perks.Count==0&&_comfort==0)return;
+            Sprite icon=icons.FirstOrDefault(i=>perks[0].Trophies.Contains(i.prefab)).icon??icons[0].icon;
             var se=ScriptableObject.CreateInstance<SE_Stats>();
             se.name=EffectName;se.m_name="Trophy hall";se.m_icon=icon;
             se.m_tooltip=string.Join("\n",perks.Select(p=>$"{char.ToUpperInvariant(p.Plural[0])}{p.Plural.Substring(1)}: {p.Description}"))+
-                (_comfort>0?$"\nTrophies: +{_comfort} comfort under the hall's roof":"")+
                 (Linger>0?$"\nStays with you {Linger/60:0} minutes after you leave.":"");
             se.m_ttl=Linger;
             foreach(Theme perk in perks)
@@ -123,7 +132,7 @@ namespace TrophyHall
                     case Perk.Speed:se.m_speedModifier=0.05f;break;
                 }
             _template=se;
-            me.GetSEMan().AddStatusEffect(se); // the game keeps its own copy while you stay in the hall
+            me.GetSEMan().AddStatusEffect(se); // the game keeps its own copy
         }
         private static float Linger=>Mathf.Max(0,Plugin.Instance.LingerMinutes.Value)*60;
         // Leaving: the perks run down on their own timer (or go at once with no linger); the comfort stays with the hall.
@@ -133,12 +142,12 @@ namespace TrophyHall
             _inHall=false;_comfort=0;
             if(me!=null&&Linger<=0)Remove(me);
             else if(_template!=null){Object.Destroy(_template);_template=null;}
-            _signature="";
         }
         private static void Remove(Player me)
         {
             me.GetSEMan().RemoveStatusEffect(EffectName.GetStableHashCode(),true);
             if(_template!=null)Object.Destroy(_template);_template=null;
+            Held.Clear();_signature="";
         }
         // A lingering effect outlives a reload: the game owns its copy, and it runs down on its own.
         internal static void Clear(){Leave(Player.m_localPlayer);Greeted.Clear();Stands.Clear();}

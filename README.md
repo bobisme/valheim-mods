@@ -48,7 +48,8 @@ The release is compiled and checked against the native Linux installation; visua
 
 Hang your trophies and your hall remembers what you have slain. Creature trophies on **item stands you have built inside a base** give
 everyone in that base small themed perks, shown as a **Trophy hall** status effect. The perks stay with you for **30 minutes** after you
-leave (counted down on the status bar, kept full while you are in the hall; **LingerMinutes** in F7). Each kind counts once, however many heads you hang:
+leave (counted down on the status bar, kept full while you are near any themed trophy in a base; **LingerMinutes** in F7). While it lasts
+it never shrinks: walking to the door or into a smaller hall keeps every perk, and another hall's trophies are added. Each kind counts once, however many heads you hang:
 
 | Trophy | Perk |
 | --- | --- |
@@ -68,7 +69,7 @@ readings and the whole mod are in F7.
 
 Checks cover themes, boss exclusion, one perk per kind, the six-perk cap, comfort steps and the reading's wording, plus native hooks. First
 playtest: hang a troll, wolf and boar head inside a base and walk in; check the reading, the status effect's tooltip and carry weight. Add a
-fourth and eighth kind and check comfort under a roof. Leave the base; the effect goes. Check boss altars and stands outside bases are ignored.
+fourth and eighth kind and check comfort under a roof. Walk to the far end of the base and out: every perk stays, counting down from 30 minutes. Check boss altars and stands outside bases are ignored.
 
 ## DualWield
 
