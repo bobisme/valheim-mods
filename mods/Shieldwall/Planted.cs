@@ -199,7 +199,9 @@ namespace Shieldwall
                 if(Vector3.Distance(c.transform.position,transform.position)>Range||c.GetHealth()>=c.GetMaxHealth()-0.5f)continue;
                 c.Heal(amount,true);any=true;
             }
-            if(stone.Phase==Phase.Battle&&Vector3.Distance(stone.transform.position,transform.position)<=Range+5){Net.Damage(stone,-amount*3,stone.transform.position);any=true;}
+            // The stone: half a percent of its strength each pulse (more with upgrades), during a siege.
+            if(stone.Phase==Phase.Battle&&Vector3.Distance(stone.transform.position,transform.position)<=Range+5&&stone.Z.GetFloat(Shieldwall.Stone.HealthKey,0)<stone.Z.GetFloat(Shieldwall.Stone.MaxHealthKey,0))
+            {Net.Damage(stone,-stone.Z.GetFloat(Shieldwall.Stone.MaxHealthKey,0)*0.005f*Policy.Power(Quality),stone.transform.position);any=true;}
             if(any)Assets.Effect("vfx_HealthUpgrade",transform.position);
         }
 

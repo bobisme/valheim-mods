@@ -1,1 +1,3 @@
+0.1.1: A held siege now ends with a summary (how many fell, how the stone stood, its new rank, how many warshards it left) and a burst of light at the stone. The Hearth stave mends a besieged stone by half a percent of its strength each pulse (more when upgraded) instead of a token 30. Test helpers for Claude Tools: start a chosen horde, place a stone at coordinates, remove one.
+
 0.1.0: First release. The Warstone (ward, crafting station, war horn), sieges in waves from a rift with a shown road and breach point, seven hordes by world progress with sappers, flyers and warchiefs, spoils and marks, cracking, five plantable staves with upgrades, raids drawn to the stone, a siege bar and raid music.

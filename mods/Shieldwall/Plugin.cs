@@ -9,7 +9,7 @@ namespace Shieldwall
     {
         public const string Guid="com.bobisme.shieldwall";
         public const string Name="Shieldwall";
-        public const string Version="0.1.0";
+        public const string Version="0.1.1";
         internal static Plugin Instance;
         internal ConfigEntry<bool> DrawRaids;
         internal ConfigEntry<float> HornWarning,RaidWarning,WaveSeconds,MaxMinutes,CooldownMinutes;

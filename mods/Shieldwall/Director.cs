@@ -145,9 +145,11 @@ namespace Shieldwall
                 case Outcome.Held:
                     int now=cause==Cause.Test?marks:Policy.Marks(marks+1);
                     z.Set(Stone.MarksKey,now);z.Set(Stone.CrackedKey,false);z.Set(Stone.HeldKey,z.GetInt(Stone.HeldKey,0)+1);
-                    Reward(stone,roster,stage,marks,health/max,kills);
+                    int shards=Reward(stone,roster,stage,marks,health/max,kills);
                     Assets.Effect("sfx_fader_bell",stone.transform.position+Vector3.up*2);
-                    Net.Say($"The {roster.Name} breaks! The Warstone stands, {Policy.Title(now)}{(now>0?" ("+Policy.Numeral(now)+")":"")}. Spoils lie at its foot.",stone.transform.position,250);
+                    Assets.Effect("vfx_HealthUpgrade",stone.transform.position);Assets.Effect("fx_DvergerMage_Support_start",stone.transform.position+Vector3.up);
+                    string rank=now>marks?$" It is now {Policy.Title(now)} ({Policy.Numeral(now)}).":"";
+                    Net.Say($"The {roster.Name} breaks! {kills} slain, the stone at {Mathf.RoundToInt(100*health/max)}%.{rank} Spoils with {shards} warshards lie at its foot.",stone.transform.position,250);
                     break;
                 case Outcome.Fallen:
                     z.Set(Stone.CrackedKey,true);z.Set(Stone.FallenKey,z.GetInt(Stone.FallenKey,0)+1);
@@ -160,7 +162,7 @@ namespace Shieldwall
             }
             Plugin.Log($"Siege at {stone.transform.position:F0} ended: {outcome}, {kills} slain, stone {Mathf.RoundToInt(100*health/max)}%");
         }
-        private static void Reward(Warstone stone,Roster roster,int stage,int marks,float health,int kills)
+        private static int Reward(Warstone stone,Roster roster,int stage,int marks,float health,int kills)
         {
             Vector3 front=stone.transform.position+stone.transform.forward*-2.6f; // in front of the carved face
             if(ZoneSystem.instance.GetSolidHeight(front,out float height))front.y=height;
@@ -180,6 +182,7 @@ namespace Shieldwall
                 if(inventory!=null&&inventory.CanAddItem(item,amount))inventory.AddItem(item,amount);
                 else if(item.GetComponent<ItemDrop>() is ItemDrop drop){ItemDrop.ItemData data=drop.m_itemData.Clone();data.m_dropPrefab=item;ItemDrop.DropItem(data,amount,front+Vector3.up,Quaternion.identity);}
             }
+            return gifts[0].amount;
         }
 
         // ---- damage to the stone ----
