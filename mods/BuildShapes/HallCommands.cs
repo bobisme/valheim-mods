@@ -38,7 +38,7 @@ namespace BuildShapes
         private JObject HallReadout()=>new JObject
         {
             ["mode"]=_tool.ToString(),["corners"]=_markers.Count,["pieces"]=_output.Count,["floorY"]=_hallFloorY,
-            ["entrances"]=new JArray((_hallDesign?.Entrances??new System.Collections.Generic.List<HallDoors.Entrance>()).Select(d=>new JObject{["x"]=d.At.X,["z"]=d.At.Z,["yaw"]=d.Yaw,["edge"]=d.Edge})),["entranceMarkers"]=_hallDoorPoints.Count,
+            ["entrances"]=new JArray((_hallDesign?.Entrances??new System.Collections.Generic.List<HallDoors.Entrance>()).Select(d=>new JObject{["x"]=d.At.X,["z"]=d.At.Z,["yaw"]=d.Yaw,["edge"]=d.Edge})),["entranceMarkers"]=_hallDoorPoints.Count,["preview"]=_hallGuideOnly?"Layout":_hallSolid?"Materials":"Ghosts",
             ["area"]=_hallDesign?.Cells.Count*4,["porchArea"]=_hallDesign?.PorchFloors.Count*4,["wings"]=_hallDesign?.Wings.Count,["height"]=_hallHeight,["storeys"]=_hallStoreys,["basement"]=_hallBasement,["groundVertices"]=_hallGroundJob.Count,["stairHoles"]=_hallDesign?.StairHoles.Count,["pitch"]=_hallRoof45?45:26,
             ["overhang"]=_hallOverhang,["porch"]=_hallPorch,["sweep"]=_hallSweep,["crest"]=new[]{"Auto","None","Dragon","Raven"}[_hallCrestMode],["detail"]=_hallDetail,["roof"]=_hallTiered?"Tiered":"Gabled",["tieredWings"]=_hallDesign?.TieredWings,["entrance"]=_hallEntranceMode==0?"Auto":_hallEntranceMode==1?"Door":"Gate",["opening"]=_hallKit?.Door,["materials"]=HallMaterials[_hallMaterialMode],["addedSupports"]=_hallAddedPosts,["wouldFall"]=_hallFalls,
             ["checked"]=_hallSupport.Count,["solveMs"]=_hallSolveMs,["problem"]=_hallProblem,["note"]=_hallNote,
@@ -139,7 +139,7 @@ namespace BuildShapes
                     if(distance<2 || distance>24)throw new ArgumentException("Preview distance must be 2–24 metres.");
                     Stop();_tool=Tool.Hall;_hallFrame=Quaternion.Euler(0,player.transform.eulerAngles.y,0);
                     _hallOrigin=player.transform.position+_hallFrame*new Vector3(-4,0,distance);
-                    foreach(V3 v in local)_markers.Add(_hallOrigin+_hallFrame*V(v));
+                    foreach(V3 v in local)_markers.Add(HallMarkerGround(_hallOrigin+_hallFrame*V(v)));
                     BuildHallPreview();output(HallReadout());return null;
                 }
                 if(_tool!=Tool.Hall)throw new ArgumentException("Start Hallwright from F4 or use hall rectangle first.");

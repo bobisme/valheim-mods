@@ -88,10 +88,11 @@ namespace BuildShapes
                 if(GUILayout.Button("Keep excavation · discard recovery",_menuButton))try{RestoreHallGround(true);Say("Excavation kept; another basement can now be planned.");}catch(System.Exception ex){Say(ex.GetBaseException().Message);}
             }
             GUILayout.Space(10);
-            GUILayout.BeginHorizontal();
-            if(GUILayout.Button(_hallSolid?"Preview: materials":"Preview: ghosts",_menuButton))_hallSolid=!_hallSolid;
-            if(GUILayout.Button(_hallShowRoof?"Hide roof":"Show roof",_menuButton))_hallShowRoof=!_hallShowRoof;
-            GUILayout.EndHorizontal();
+            GUILayout.Label("Preview",_menuText);
+            int preview=GUILayout.SelectionGrid(_hallGuideOnly?2:_hallSolid?0:1,new[]{"Materials","Ghosts","Layout"},3,_menuButton,GUILayout.Height(34));
+            _hallGuideOnly=preview==2;if(preview!=2)_hallSolid=preview==0;
+            GUILayout.Label("Layout shows the footprint, storey heights and roof outline. Tall amber posts mark terrain corners even on slopes.",_menuHint);
+            if(GUILayout.Button(_hallShowRoof?"Hide roof":"Show roof",_menuButton)){_hallShowRoof=!_hallShowRoof;changed=true;}
             if(GUILayout.Button("Refresh unlocks and support",_menuButton)){_hallMeshes.Clear();changed=true;}
             if(changed)QueueHallPreview();
             GUILayout.Space(12);GUILayout.Label("Materials bill",_menuText);

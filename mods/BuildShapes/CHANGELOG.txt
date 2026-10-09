@@ -1,3 +1,5 @@
+0.5.4: Terrain-height corner markers with amber posts at least 4 m tall, capped at the planned wall height when taller. Footprint and storey-level outlines show the shell volume; gable/tiered ridge guides follow the chosen roof. Narrow marker posts remain visible through occlusion. New Layout preview mode hides piece meshes for easier outlining. Door markers get tall posts too; corrected planar corner comparisons on uneven ground. Guides are local visuals and clear with the draft.
+
 0.5.3: Raise Hallwright whole-shell capacity to 2,048 pieces, including foundations, storeys, stairs and ornamentation. Requires the matching 2,048-piece BuildOrders shell API. Existing 256-piece Curve/Arch/Mirror/Repeat limits and footprint/terrain budgets stay unchanged.
 
 0.5.2: Exterior stairs now rise toward the doorway or porch, with each native top snap joining the preceding landing. Fixes backwards entrance flights on every wall orientation, including additional marked doors. Existing plans and built stairs keep their original poses; regenerate the shell preview to use the corrected flights.

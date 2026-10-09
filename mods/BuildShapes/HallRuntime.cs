@@ -157,7 +157,7 @@ namespace BuildShapes
         private void BuildHallPreview()
         {
             var solveWatch=System.Diagnostics.Stopwatch.StartNew();
-            _hallDue=0;ClearVisuals();_output.Clear();_hallRoles.Clear();_hallBill.Clear();_hallStations.Clear();_hallSupport.Clear();
+            _hallDue=0;_hallGuideHasFloor=false;ClearVisuals();_output.Clear();_hallRoles.Clear();_hallBill.Clear();_hallStations.Clear();_hallSupport.Clear();
             _hallProblem=null;_hallNote=null;_hallFalls=0;_hallAddedPosts=0;_hallDesign=null;_hallGroundJob.Clear();_hallTargetMaps.Clear();
             try
             {
@@ -171,6 +171,7 @@ namespace BuildShapes
                 foreach(var c in _hallDesign.Cells)highest=Mathf.Max(highest,HallGround(HallWorld(new V3(c.X*2+1,0,c.Z*2+1))));
                 foreach(V3 at in _hallDesign.PorchFloors)highest=Mathf.Max(highest,HallGround(HallWorld(at)));
                 _hallFloorY=_hallBasement?HallGround(HallWorld(_hallDesign.EntryLanding))+_hallRaise:highest+_hallRaise;
+                _hallGuideHasFloor=true;
                 PrepareHallGround();
                 bool stone=(_hallMaterialMode==0 || _hallMaterialMode==3) && HallKnown("stone_floor_2x2");
                 if(stone && !_hallBasement)
@@ -238,18 +239,7 @@ namespace BuildShapes
                 _hallProblem=ex.GetBaseException().Message;
                 _output.Clear();_hallRoles.Clear();_hallBill.Clear();_hallStations.Clear();_hallSupport.Clear();
             }
-            foreach(Vector3 marker in _markers)Line(new[]{marker-Vector3.right*0.15f,marker+Vector3.right*0.15f},0.055f,true);
-            if(_markers.Count>1)Line(_markers.Concat(new[]{_markers[0]}).ToArray(),0.035f,true);
-            foreach(var door in _hallDoorPoints)
-            {
-                Vector3 point=HallWorld(door);point.y=_hallFloorY+0.15f;
-                Line(new[]{point-Vector3.right*0.25f,point+Vector3.right*0.25f,point,point+Vector3.up*0.7f},0.06f,true);
-            }
-            if(_hallDesign!=null)foreach(var door in _hallDesign.Entrances)
-            {
-                Vector3 a=HallWorld(door.At+HallLayout.Turn(new V3(-1,0,0),door.Yaw)),b=HallWorld(door.At+HallLayout.Turn(new V3(1,0,0),door.Yaw));
-                Line(new[]{a,a+Vector3.up*(float)_hallKit.DoorHeight,b+Vector3.up*(float)_hallKit.DoorHeight,b},0.045f,true);
-            }
+            DrawHallGuides();
             _previewError=_hallProblem;_hallSolveMs=solveWatch.ElapsedMilliseconds;
         }
         private void QueueHallPreview(){_hallDue=Time.unscaledTime+0.18f;}
@@ -284,7 +274,7 @@ namespace BuildShapes
             if(_markers.Count>=HallLayout.MaximumCorners){Say("Use at most 24 corners.");return;}
             if(!CameraRay(out Ray ray) || !Physics.Raycast(ray,out RaycastHit hit,80,BuildLayers,QueryTriggerInteraction.Ignore))return;
             if(Vector3.Distance(hit.point,player.transform.position)>40){Say("Move within 40 metres of the corner.");return;}
-            Vector3 point=hit.point;
+            Vector3 point=HallMarkerGround(hit.point);
             if(_markers.Count==0){_hallOrigin=point;_hallFrame=Quaternion.identity;_markers.Add(point);}
             else
             {
@@ -295,12 +285,13 @@ namespace BuildShapes
                     right.Normalize();_hallFrame=Quaternion.LookRotation(Vector3.Cross(right,Vector3.up),Vector3.up);
                 }
                 Vector3 local=Quaternion.Inverse(_hallFrame)*(point-_hallOrigin),last=Quaternion.Inverse(_hallFrame)*(_markers[_markers.Count-1]-_hallOrigin);
+                last.y=0;
                 local=new Vector3(Mathf.Round(local.x/2)*2,0,Mathf.Round(local.z/2)*2);
                 if(_markers.Count>=3 && local.sqrMagnitude<0.1f){BuildHallPreview();OpenHallMenu();return;}
                 if(_markers.Count>1 && Mathf.Abs(local.x-last.x)>0.01 && Mathf.Abs(local.z-last.z)>0.01)
                 {if(Mathf.Abs(local.x-last.x)>=Mathf.Abs(local.z-last.z))local.z=last.z;else local.x=last.x;}
                 if((local-last).sqrMagnitude<1){Say("Place a distinct corner on the grid.");return;}
-                _markers.Add(_hallOrigin+_hallFrame*local);
+                _markers.Add(HallMarkerGround(_hallOrigin+_hallFrame*local));
             }
             BuildHallPreview();
         }
@@ -330,11 +321,11 @@ namespace BuildShapes
         }
         private void ClearHall()
         {
-            CloseHallMenu();_hallDoorPoints.Clear();_hallGroundJob.Clear();_hallTargetMaps.Clear();_hallDesign=null;_hallDue=0;_hallProblem=_hallNote=_hallFingerprint=null;
+            CloseHallMenu();_hallGuideHasFloor=false;_hallDoorPoints.Clear();_hallGroundJob.Clear();_hallTargetMaps.Clear();_hallDesign=null;_hallDue=0;_hallProblem=_hallNote=_hallFingerprint=null;
             _hallRoles.Clear();_hallBill.Clear();_hallStations.Clear();_hallSupport.Clear();
         }
         private void DestroyHall()
-        {_hallCapture=null;_hallUnderlying=_hallBaseline=null;foreach(var material in _hallGhostMaterials.Values)if(material!=null)Destroy(material);_hallGhostMaterials.Clear();_hallMeshes.Clear();_hallMaterials.Clear();_hallColliderShapes.Clear();}
+        {if(_hallMarkerMaterial!=null)Destroy(_hallMarkerMaterial);_hallMarkerMaterial=null;_hallCapture=null;_hallUnderlying=_hallBaseline=null;foreach(var material in _hallGhostMaterials.Values)if(material!=null)Destroy(material);_hallGhostMaterials.Clear();_hallMeshes.Clear();_hallMaterials.Clear();_hallColliderShapes.Clear();}
 
         private List<HallMesh> HallMeshes(string name)
         {
@@ -361,6 +352,7 @@ namespace BuildShapes
         }
         private void DrawHallMeshes()
         {
+            if(_hallGuideOnly)return;
             for(int i=0;i<_output.Count;i++)
             {
                 var pose=_output[i];if(!_hallShowRoof && _hallRoles[i].EndsWith("roof",StringComparison.Ordinal))continue;
