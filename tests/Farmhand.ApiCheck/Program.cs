@@ -147,6 +147,16 @@ Method("Heightmap","FindHeightmap","Heightmap","UnityEngine.Vector3");
 Field("Plant","m_biome","Heightmap/Biome");
 Field("Plant","m_growRadius","System.Single");
 Field("Piece","m_placeEffect","EffectList");
+// Gary's caretaking: crops harvested by hand, falling trees, stray fire, trophies, and planting crops for the player.
+Method("Pickable","Interact","System.Boolean","Humanoid","System.Boolean","System.Boolean");
+Method("TreeLog","Awake","System.Void");
+Field("Fire","s_fires","System.Collections.Generic.List`1<Fire>");
+Method("ItemStand","GetAttachedItem","System.Int32");
+Method("Piece","SetCreator","System.Void","System.Int64","Splatform.PlatformUserID");
+Field("Plant","m_grownPrefabs","UnityEngine.GameObject[]");
+Field("Plant","m_needCultivatedGround","System.Boolean");
+Method("ZNetView","ClaimOwnership","System.Void");
+Method("ItemDrop","RemoveOne","System.Boolean");
 // Gary passengers pause native locomotion and synchronize a boat-relative deck position.
 Method("Character","UpdateMotion","System.Void","System.Single");
 Method("Character","IsAttached","System.Boolean");

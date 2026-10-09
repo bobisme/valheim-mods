@@ -32,4 +32,6 @@ Personality activities and Appearance accessories have separate F7 toggles. Fetc
 
 Settings are in F7 → Mod settings, or BepInEx/config/com.bobisme.gary.cfg. Compiled and checked against native Linux assemblies, including food-conservation, injury, defense, petting, reaction and retreat policy tests. Appearance, pathfinding, audio, live multiplayer, and save/restart behavior need in-game playtests.
 
-Reforestation: while you are near your bed, Gary now and then plants a real sapling on open wild ground nearby, beside a stump you left when he can, never in your base, near buildings, on farmland or paths. He pauses while six of his saplings are growing. Radius, interval and limit are in F7.
+Reforestation: while you are near your bed, Gary now and then plants a real sapling on open wild ground nearby, beside a stump you left when he can, never in your base, near buildings, on farmland or paths. Seeds and cones he picks up let him plant more. Radius, interval and limit are in F7.
+
+Caretaker: around home he stacks deadfall by his nest, gathers freshly dropped harvest for you, replants crops you harvest by hand (with your seeds) and stamps out stray fire. He listens to old trees, shows you berries he found, shouts Timber!, senses Omens' signs and skies, and has opinions about your trophies. Each job is in F7.

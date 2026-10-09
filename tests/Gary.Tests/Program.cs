@@ -194,4 +194,34 @@ Check(ReforestPolicy.Choose(2,meadows,0.9)==2&&ReforestPolicy.Choose(4,meadows,0
 Check(ReforestPolicy.Choose(-1,new bool[5],0.5)==-1&&ReforestPolicy.Choose(-1,null,0.5)==-1&&ReforestPolicy.Choose(-1,meadows,double.NaN)==0,"Nothing grows here: nothing planted");
 for(double r=0;r<1;r+=0.01){int k=ReforestPolicy.Choose(-1,meadows,r);Check(k==0||k==2,"Only trees that grow here");}
 Check(ReforestPolicy.Saplings.Length==ReforestPolicy.Names.Length,"Every sapling has a name");
+// Seeds are a bonus: free plantings on the normal schedule, seeded ones three times as often and up to twice as many.
+Check(!ReforestPolicy.Ready(true,20,60,200,480,0,6,false)&&ReforestPolicy.Ready(true,20,60,200,480,0,6,true),"With a seed he plants sooner");
+Check(!ReforestPolicy.Ready(true,20,60,100,480,0,6,true),"Even with seeds, not right away");
+Check(!ReforestPolicy.Ready(true,20,60,600,480,6,6,false)&&ReforestPolicy.Ready(true,20,60,600,480,6,6,true)&&!ReforestPolicy.Ready(true,20,60,600,480,12,6,true),"Seeds let twice as many grow, no more");
+Check(!ReforestPolicy.NeedsSeed(600,480,2,6)&&ReforestPolicy.NeedsSeed(200,480,2,6)&&ReforestPolicy.NeedsSeed(600,480,6,6),"Only early or extra plantings spend a seed");
+Check(ReforestPolicy.ChooseSeeded(-1,new[]{true,true,false,false,false},new[]{0,2,0,0,0},0.1)==1,"He plants a tree he has the seed for");
+Check(ReforestPolicy.ChooseSeeded(0,new[]{true,true,false,false,false},new[]{0,2,0,0,0},0.1)==1&&ReforestPolicy.ChooseSeeded(-1,new[]{true,false,false,false,false},new[]{0,3,0,0,0},0.5)==-1,
+    "Not the stump's kind without its seed; nothing when no seed of his grows here");
+Check(ReforestPolicy.ChooseSeeded(-1,new[]{true},null,0.5)==-1,"No pouch, no seeded planting");
+
+// Caretaking.
+for(int i=0;i<CarePolicy.Seeds.Length;i++)Check(CarePolicy.SeedKind(CarePolicy.Seeds[i])==i,"Every seed has its tree");
+Check(CarePolicy.SeedKind("Carrot")==-1&&CarePolicy.SeedKind(null)==-1,"Other things are not tree seeds");
+Check(CarePolicy.Seeds.Length==ReforestPolicy.Saplings.Length,"One seed per sapling kind");
+var basket=CarePolicy.Basket("Wood:5;Stone:2;Wood:3;bad;:4;X:-2;Y:abc");
+Check(basket.Count==2&&basket["Wood"]==8&&basket["Stone"]==2,"The basket reads its counts and skips nonsense");
+Check(CarePolicy.Save(basket)=="Stone:2;Wood:8"&&CarePolicy.Basket(CarePolicy.Save(basket))["Wood"]==8,"The basket saves and reloads the same");
+Check(CarePolicy.Basket(null).Count==0&&CarePolicy.Save(new Dictionary<string,int>{["A"]=0})=="","Empty baskets");
+Check(CarePolicy.Basket("Wood:999")["Wood"]==CarePolicy.BasketCapacity,"Never more than he can carry");
+Check(!CarePolicy.Deliver(0,999)&&CarePolicy.Deliver(12,0)&&CarePolicy.Deliver(1,40)&&!CarePolicy.Deliver(3,10),"He brings it back when heavy or after a while");
+int resin=0,seed=0,feather=0,none=0;
+for(double r=0;r<1;r+=0.001)switch(CarePolicy.Listen(r)){case CarePolicy.TreeGift.Resin:resin++;break;case CarePolicy.TreeGift.Seed:seed++;break;case CarePolicy.TreeGift.Feather:feather++;break;default:none++;break;}
+Check(resin>seed&&seed>feather&&none>0&&feather>0,"Trees most often give resin, then a seed, rarely a feather, sometimes nothing");
+Check(CarePolicy.Listen(double.NaN)==CarePolicy.TreeGift.None,"No roll, no gift");
+Check(CarePolicy.TreeKind("Beech1")==0&&CarePolicy.TreeKind("Birch2_aut")==1&&CarePolicy.TreeKind("Oak1")==2&&CarePolicy.TreeKind("PineTree")==3&&CarePolicy.TreeKind("FirTree_small")==4,"Trees by kind");
+Check(CarePolicy.TreeKind("Beech_Stub")==-1&&CarePolicy.TreeKind("Beech_log")==-1&&CarePolicy.TreeKind("Beech_Sapling")==-1&&CarePolicy.TreeKind("SwampTree1")==-1,"Stumps, logs, saplings and swamp trees are not his to talk to");
+Check(CarePolicy.OmenFeeling(0)<0&&CarePolicy.OmenFeeling(1)>0&&CarePolicy.OmenFeeling(17)>0&&CarePolicy.OmenFeeling(20)<0&&CarePolicy.OmenFeeling(-1)==0,"Bad omens unsettle him, good ones please him");
+Check(CarePolicy.Trophy("TrophyForestTroll")==CarePolicy.Feeling.Growl&&CarePolicy.Trophy("TrophyGreydwarfBrute")==CarePolicy.Feeling.Sad&&CarePolicy.Trophy("TrophyDeer")==CarePolicy.Feeling.Admire&&CarePolicy.Trophy(null)==CarePolicy.Feeling.Admire,
+    "Trolls make him growl, greydwarfs make him sad, the rest make him proud");
+Check(CarePolicy.Deadfall.Contains("Pickable_Branch")&&CarePolicy.Harvest.Contains("Carrot")&&!CarePolicy.Harvest.Contains("Coins"),"He tidies deadfall and the harvest, never valuables");
 Console.WriteLine($"Passed {checks} Gary injury, defense, food conservation, personality, petting, retreat, dungeon loot, guide and boat boarding checks.");

@@ -36,6 +36,12 @@ namespace Gary
             internal Vector3 SelfThreatOrigin;
             internal Vector3? Entrance,PlantSpot;
             internal int PlantKind;
+            internal bool PlantSeed;
+            // Caretaking errands (Chores): one at a time.
+            internal int Errand;internal Component ErrandTarget;internal Vector3 ErrandSpot;internal float ErrandUntil,ErrandStarted,NextErrand;
+            internal Replanting.Spot ErrandCrop;internal Pickable ShownTarget;
+            internal float NextDeadfall,NextTrophy,NextTreeTalk,NextShowSpot,NextWave,NextSense,NextSky,TimberUntil,NextTimberShout;
+            internal Vector3 TimberFrom;
             internal float NextPlantLook,PlantUntil,PlantStarted;
             internal string EntranceId;
             internal Vector3 LastPosition,GuideInterior;

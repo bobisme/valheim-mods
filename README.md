@@ -266,7 +266,17 @@ Gary also has these playful activities, each adjustable in F7:
 | **Forest accessories** | A small matte twig-and-feather crown, pouch and ear feather; toggle each under **Appearance**. |
 | **Quad friendship** | He greets your nearby AICompanion characters and watches or imitates their building/gathering work. |
 | **Show-and-tell** | Before a gift, he holds up a visual preview for two seconds, then tosses the real stash item. |
-| **Reforestation** | Spend time within **60 metres** of your bed. Every **8 minutes** or so he finds open wild ground nearby, preferring a spot beside a stump you left, works the soil a moment and plants a real sapling of a tree that grows there (the stump's own kind when it can). |
+| **Reforestation** | Spend time within **60 metres** of your bed. Every **8 minutes** or so he finds open wild ground nearby, preferring a spot beside a stump you left, works the soil a moment and plants a real sapling of a tree that grows there (the stump's own kind when it can). Seeds and cones he has picked up let him plant **three times as often** and keep **twice as many** growing. |
+| **Seed pouch** | Tree seeds and cones lying near you go into his pouch (up to 10), for extra trees around home. |
+| **Deadfall** | Around home he gathers loose branches and stones and stacks them by his nest's wood pile (or brings them to you). |
+| **Harvest help** | Around home he picks up freshly dropped crops, wood, stone, resin and forage out of your reach and brings it back in a little armful. |
+| **Crop replanting** | Harvest a crop by hand on cultivated ground: a few seconds later he replants it with the matching seeds from your bag. |
+| **Stray fire** | He stamps out fire burning near your buildings (never your fireplaces). |
+| **Tree talk** | Now and then he stops, a hand on an old tree, and listens. Sometimes it gives a little resin, a seed or a feather. |
+| **Show-me** | Out exploring, he sometimes runs ahead to berries or mushrooms he found and waves until you come to see. |
+| **Timber!** | When a tree falls near you he shouts and gets clear. |
+| **Omen sense** | With Omens installed he bristles near bad signs, perks up near good ones, hides from a blood moon, dances under the northern lights and flinches at Thor's thunder. |
+| **Trophies** | In your base he looks at your mounted trophies: proud of most, growling at trolls, quiet at greydwarfs. |
 
 Fetch uses **one Wood**, follows within **16 metres**, and expires after **35 seconds**. Combat, healing, waiting, boats, portals,
 F6 or an ownership split interrupt play; the actual Wood remains an ordinary dropped item and can be picked up. Fetch takes priority over emotes, foraging and crypt guiding; an accepted throw pauses guiding for a minute. Gary chases the ground landing
@@ -277,7 +287,9 @@ no armor, skill buffs, extra stash slots or free resources. Reforestation is the
 and grow into real trees. He never plants within 12 metres of your bed, inside your base, within 8 metres of anything built, on
 farmland or paths, under trees or roofs, on steep slopes, by the water or on others' warded land, and he pauses while **6** of his
 saplings are still growing around home. Radius, interval and that limit are under **Forest** in F7; only your own game plants (it
-knows where you sleep). Gary's native rig lacks wave/sleep/crouch animations, so these use small bone poses.
+knows where you sleep). The caretaking jobs are under **Caretaker** in F7. What he carries is counted only for plain
+items (no custom data or quality) and is spent before anything is dropped, so a reload can never duplicate it; only freshly dropped
+items count as harvest, never things laid down long ago. Gary's native rig lacks wave/sleep/crouch animations, so these use small bone poses.
 
 Your Gary has a **purple marker on the minimap and full map** that follows him while loaded. If only his known saved position is available,
 it shows **Gary (last seen)** there; it disappears when no position is known. Toggle **Companion → MapMarker** in F7. The marker is local,

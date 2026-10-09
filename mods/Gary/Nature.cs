@@ -103,7 +103,7 @@ namespace Gary
                 {
                     if(p==null||Vector3.Distance(p.transform.position,master.transform.position)>12)continue;
                     float distance=Vector3.Distance(p.transform.position,st.Body.transform.position);
-                    if(distance>=best||!FreeToPick(p,master)||!HavePath(ai,p.transform.position))continue;
+                    if(distance>=best||p==st.ShownTarget||!FreeToPick(p,master)||!HavePath(ai,p.transform.position))continue; // never eats what he is showing you
                     best=distance;st.ForageTarget=p;
                 }
                 if(st.ForageTarget!=null){st.ForageUntil=Time.time+12;st.StuckTime=0;st.LastPosition=st.Body.transform.position;}

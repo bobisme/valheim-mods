@@ -55,12 +55,14 @@ namespace Gary
             }
             if(Fetch.Tick(st,ai,master,dt)){BaseUpdate(ai,dt);result=true;return false;}
             Gift(st,master);
+            if(Chores.Urgent(st,ai,master,dt)){BaseUpdate(ai,dt);result=true;return false;}
             if(Activities.Tick(st,ai,master,dt)){BaseUpdate(ai,dt);result=true;return false;}
             if(Personality.Tick(st,ai,master,dt)){BaseUpdate(ai,dt);result=true;return false;}
             if(Guide.Tick(st,ai,master,dt))
             {Personality.CancelVibe(st);BaseUpdate(ai,dt);result=true;return false;}
             if(Nature.Forage(st,ai,master,dt)){Personality.CancelVibe(st);BaseUpdate(ai,dt);result=true;return false;}
             if(Reforest.Tick(st,ai,master,dt)){BaseUpdate(ai,dt);result=true;return false;}
+            if(Chores.Tick(st,ai,master,dt)){Personality.CancelVibe(st);BaseUpdate(ai,dt);result=true;return false;}
             Personality.CancelVibe(st);Status(st,"following");return true;
         }
         private static bool CanFollow(Player master,ZDO z) =>

@@ -14,11 +14,11 @@ namespace Gary
     {
         public const string Guid="com.bobisme.gary";
         public const string Name="Gary";
-        public const string Version="0.4.0";
+        public const string Version="0.5.0";
         internal static Plugin Instance;
         internal ConfigEntry<float> Health,GiftSeconds,GuideRange,ReforestRadius,ReforestMinutes;
         internal ConfigEntry<int> ReforestMax;
-        internal ConfigEntry<bool> Reforestation;
+        internal ConfigEntry<bool> Reforestation,SeedPouch,Deadfall,ReplantCrops,HarvestHelp,StompFires,TreeTalk,ShowSpots,TimberWarnings,OmenSense,TrophyHall;
         internal ConfigEntry<bool> Gifts,Guiding,Reactions,Warnings,Campfires,Building,ShowMapMarker,Boats;
         internal ConfigEntry<bool> FetchGame,CopyEmotes,Nests,RainAntics,SailingAntics,CompanionFriends,ShowAndTell,FlowerCrown,ForestPouch,EarFeather;
         private ConfigEntry<KeyboardShortcut> _fetch;
@@ -56,6 +56,16 @@ namespace Gary
             ReforestRadius=Config.Bind("Forest","ReforestRadius",60f,new ConfigDescription("Metres around your bed where Gary plants trees (none within 12 m of it).",new AcceptableValueRange<float>(20,150)));
             ReforestMinutes=Config.Bind("Forest","ReforestMinutes",8f,new ConfigDescription("Least real-time minutes between Gary's plantings.",new AcceptableValueRange<float>(1,120)));
             ReforestMax=Config.Bind("Forest","ReforestMaxSaplings",6,new ConfigDescription("Gary stops planting while this many of his saplings are still growing around your bed.",new AcceptableValueRange<int>(1,30)));
+            SeedPouch=Config.Bind("Caretaker","SeedPouch",true,"Gary picks up tree seeds and cones lying nearby (up to 10). Each lets him plant an extra tree near home: seeded plantings come three times as often and allow twice as many growing saplings. His free planting continues without seeds.");
+            Deadfall=Config.Bind("Caretaker","Deadfall",true,"Around home, Gary gathers loose branches and stones and stacks them by his nest's wood pile (or brings them to you without a nest).");
+            ReplantCrops=Config.Bind("Caretaker","ReplantCrops",true,"When you harvest a crop by hand on cultivated ground, Gary replants it a few seconds later using the matching seeds from your bag.");
+            HarvestHelp=Config.Bind("Caretaker","HarvestHelp",true,"Around home, Gary picks up freshly dropped crops, wood, stone, resin and forage out of your reach and brings them to you.");
+            StompFires=Config.Bind("Caretaker","StompFires",true,"Gary stamps out stray fire burning near your buildings (never your fireplaces).");
+            TreeTalk=Config.Bind("Caretaker","TreeTalk",true,"Now and then Gary stops to listen to an old tree. Sometimes it gives a little resin, a seed for his pouch, or a feather.");
+            ShowSpots=Config.Bind("Caretaker","ShowSpots",true,"Out exploring, Gary sometimes runs ahead to a berry patch or mushrooms he found and waves until you come to see.");
+            TimberWarnings=Config.Bind("Caretaker","TimberWarnings",true,"Gary shouts and gets clear when a tree falls near you.");
+            OmenSense=Config.Bind("Caretaker","OmenSense",true,"With Omens installed: Gary bristles near bad omen signs, perks up near good ones, and reacts to blood moons, northern lights and Thor's storms.");
+            TrophyHall=Config.Bind("Caretaker","TrophyReactions",true,"In your base, Gary looks at your mounted trophies: proud of most, growling at trolls, quiet at greydwarfs.");
             Guiding=Config.Bind("Forest","DungeonGuiding",true,"Notice nearby loaded crypt/cave entrances and skip dungeons confirmed fully looted for your player/world. Unknown or unfinished interiors remain eligible.");
             GuideRange=Config.Bind("Forest","NoticeRange",90f,new ConfigDescription("Distance at which Gary notices a loaded dungeon entrance.",new AcceptableValueRange<float>(20,120)));
             Reactions=Config.Bind("Personality","Reactions",true,"Happy chirps and short native dances for petting, reunions, victories, and relaxing.");

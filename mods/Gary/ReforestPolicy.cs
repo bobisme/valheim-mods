@@ -6,13 +6,30 @@ namespace Gary
     internal static class ReforestPolicy
     {
         internal const double MinFromBed=12,MinFromBuilding=8,PlantSeconds=2.5,GiveUpSeconds=20;
-        // Time to look: planting on, you near your bed, nothing else on his mind, his last tree long enough ago, and not too many
-        // of his saplings already growing around home.
-        internal static bool Ready(bool enabled,double fromBed,double radius,double sinceLast,double interval,int saplings,int maxSaplings)=>
-            enabled&&!double.IsNaN(fromBed)&&fromBed<=radius&&!(sinceLast<interval)&&saplings<maxSaplings;
+        // Time to look: planting on, you near your bed, his last tree long enough ago, and not too many of his saplings still growing
+        // around home. He always has a free tree in him on the normal schedule; seeds he has gathered let him plant three times as
+        // often and keep twice as many growing.
+        internal const double SeededPace=1/3.0;internal const int SeededCapFactor=2;
+        internal static bool Ready(bool enabled,double fromBed,double radius,double sinceLast,double interval,int saplings,int maxSaplings,bool haveSeeds=false)
+        {
+            if(!enabled||double.IsNaN(fromBed)||fromBed>radius)return false;
+            bool free=!(sinceLast<interval)&&saplings<maxSaplings;
+            bool seeded=haveSeeds&&!(sinceLast<interval*SeededPace)&&saplings<maxSaplings*SeededCapFactor;
+            return free||seeded;
+        }
+        // Whether this planting must use a seed (it came early, or past the free limit).
+        internal static bool NeedsSeed(double sinceLast,double interval,int saplings,int maxSaplings)=>sinceLast<interval||saplings>=maxSaplings;
         // A fair spot: around home but not in it, clear of buildings, on wild ground (not farmland or paths), dry and open to the sky.
         internal static bool Spot(double fromBed,double radius,double fromBuilding,bool inBase,bool cultivated,bool cleared,bool roofed,bool crowded,bool water)=>
             !double.IsNaN(fromBed)&&fromBed>=MinFromBed&&fromBed<=radius&&!(fromBuilding<MinFromBuilding)&&!inBase&&!cultivated&&!cleared&&!roofed&&!crowded&&!water;
+        // The tree to plant from his seeds: the stump's kind if he has its seed, else any seed of his that grows here.
+        internal static int ChooseSeeded(int stumpKind,bool[] grows,int[] seeds,double roll)
+        {
+            if(grows==null||seeds==null)return -1;
+            var usable=new bool[grows.Length];
+            for(int i=0;i<grows.Length;i++)usable[i]=grows[i]&&i<seeds.Length&&seeds[i]>0;
+            return Choose(stumpKind,usable,roll);
+        }
         // The tree to plant: the stump's own kind when he plants beside one, else one of those that grow here (by a 0–1 roll).
         internal static int Choose(int stumpKind,bool[] grows,double roll)
         {
