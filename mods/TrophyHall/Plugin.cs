@@ -12,10 +12,10 @@ namespace TrophyHall
     {
         public const string Guid="com.bobisme.trophyhall";
         public const string Name="TrophyHall";
-        public const string Version="0.1.1";
+        public const string Version="0.1.2";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled,Readings;
-        internal ConfigEntry<float> Range;
+        internal ConfigEntry<float> Range,LingerMinutes;
         private Harmony _harmony;
 
         private void Awake()
@@ -23,6 +23,7 @@ namespace TrophyHall
             Instance=this;
             Enabled=Config.Bind("General","Enabled",true,"Trophies on item stands in a base give everyone there small themed perks and comfort.");
             Readings=Config.Bind("General","Readings",true,"Show the hall's name, trophy count and fallen creatures when you walk in (at most every 10 minutes per hall).");
+            LingerMinutes=Config.Bind("General","LingerMinutes",30f,new ConfigDescription("Minutes the hall's perks stay with you after you leave (counted down on the status bar, kept full while you are there). 0: only while inside. Comfort always needs the hall's roof.",new AcceptableValueRange<float>(0,180)));
             Range=Config.Bind("General","Range",40f,new ConfigDescription("Metres around you in which mounted trophies count, inside a base.",new AcceptableValueRange<float>(15,80)));
             _harmony=new Harmony(Guid);_harmony.PatchAll(typeof(Plugin).Assembly);
             Hall.Seed(); // stands already loaded (a hot reload while in a world)
@@ -99,14 +100,17 @@ namespace TrophyHall
         private static void Apply(Player me,List<Theme> perks,Sprite icon)
         {
             string signature=string.Join(",",perks.Select(p=>p.Perk))+"|"+_comfort;
-            if(signature==_signature&&me.GetSEMan().HaveStatusEffect(EffectName.GetStableHashCode()))return;
+            if(signature==_signature&&me.GetSEMan().GetStatusEffect(EffectName.GetStableHashCode()) is StatusEffect active)
+            {active.ResetTime();return;} // in the hall: the countdown stays full
             Remove(me);
             _signature=signature;
             if(perks.Count==0&&_comfort==0)return;
             var se=ScriptableObject.CreateInstance<SE_Stats>();
             se.name=EffectName;se.m_name="Trophy hall";se.m_icon=icon;
             se.m_tooltip=string.Join("\n",perks.Select(p=>$"{char.ToUpperInvariant(p.Plural[0])}{p.Plural.Substring(1)}: {p.Description}"))+
-                (_comfort>0?$"\nTrophies: +{_comfort} comfort under a roof":"");
+                (_comfort>0?$"\nTrophies: +{_comfort} comfort under the hall's roof":"")+
+                (Linger>0?$"\nStays with you {Linger/60:0} minutes after you leave.":"");
+            se.m_ttl=Linger;
             foreach(Theme perk in perks)
                 switch(perk.Perk)
                 {
@@ -121,11 +125,14 @@ namespace TrophyHall
             _template=se;
             me.GetSEMan().AddStatusEffect(se); // the game keeps its own copy while you stay in the hall
         }
+        private static float Linger=>Mathf.Max(0,Plugin.Instance.LingerMinutes.Value)*60;
+        // Leaving: the perks run down on their own timer (or go at once with no linger); the comfort stays with the hall.
         private static void Leave(Player me)
         {
             if(!_inHall&&_template==null)return;
             _inHall=false;_comfort=0;
-            if(me!=null)Remove(me);
+            if(me!=null&&Linger<=0)Remove(me);
+            else if(_template!=null){Object.Destroy(_template);_template=null;}
             _signature="";
         }
         private static void Remove(Player me)
@@ -133,6 +140,7 @@ namespace TrophyHall
             me.GetSEMan().RemoveStatusEffect(EffectName.GetStableHashCode(),true);
             if(_template!=null)Object.Destroy(_template);_template=null;
         }
+        // A lingering effect outlives a reload: the game owns its copy, and it runs down on its own.
         internal static void Clear(){Leave(Player.m_localPlayer);Greeted.Clear();Stands.Clear();}
         private static List<PrivateArea> Wards()=>AccessTools.StaticFieldRefAccess<List<PrivateArea>>(typeof(PrivateArea),"m_allAreas");
     }

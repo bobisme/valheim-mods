@@ -47,7 +47,8 @@ The release is compiled and checked against the native Linux installation; visua
 ## TrophyHall
 
 Hang your trophies and your hall remembers what you have slain. Creature trophies on **item stands you have built inside a base** give
-everyone in that base small themed perks, shown as a **Trophy hall** status effect. Each kind counts once, however many heads you hang:
+everyone in that base small themed perks, shown as a **Trophy hall** status effect. The perks stay with you for **30 minutes** after you
+leave (counted down on the status bar, kept full while you are in the hall; **LingerMinutes** in F7). Each kind counts once, however many heads you hang:
 
 | Trophy | Perk |
 | --- | --- |
