@@ -7,7 +7,7 @@ namespace BuildShapes
     // Pure, bounded geometry. Coordinates are metres in the footprint's first-edge frame.
     internal static class HallLayout
     {
-        internal const int MaximumCells = 64, MaximumParts = 2048, MaximumCorners = 24;
+        internal const int MaximumCells = 256, MaximumParts = 2048, MaximumCorners = 24, MaximumExtent = 64;
         internal enum Anchor { Floor, Bottom, RoofLow, Point, Segment }
         internal readonly struct Cell : IEquatable<Cell>
         {
@@ -80,8 +80,8 @@ namespace BuildShapes
             for(int i=0;i<corners.Count;i++)
             {
                 V3 a=corners[i],b=corners[(i+1)%corners.Count];
-                if(!a.Finite || Math.Abs(a.X)>24 || Math.Abs(a.Z)>24 || Math.Abs(a.X/2-Math.Round(a.X/2))>0.001 || Math.Abs(a.Z/2-Math.Round(a.Z/2))>0.001)
-                    throw new ArgumentException("Footprint corners must follow the 2 m grid, within 24 m of the first corner.");
+                if(!a.Finite || Math.Abs(a.X)>MaximumExtent || Math.Abs(a.Z)>MaximumExtent || Math.Abs(a.X/2-Math.Round(a.X/2))>0.001 || Math.Abs(a.Z/2-Math.Round(a.Z/2))>0.001)
+                    throw new ArgumentException("Footprint corners must follow the 2 m grid, within 64 m along each grid direction from the first corner.");
                 if((a-b).Length<1.9 || (Math.Abs(a.X-b.X)>0.001 && Math.Abs(a.Z-b.Z)>0.001))
                     throw new ArgumentException("Use square corners: each edge follows one of the two grid directions.");
                 V3 previous=corners[(i+corners.Count-1)%corners.Count];
@@ -102,7 +102,7 @@ namespace BuildShapes
             var cells=new List<Cell>();
             for(int z=z0;z<z1;z++)for(int x=x0;x<x1;x++)
                 if(Inside(corners,x*2+1,z*2+1))
-                {if(cells.Count==MaximumCells)throw new ArgumentException("Keep the floor plan within 256 m² (64 floor tiles).");cells.Add(new Cell(x,z));}
+                {if(cells.Count==MaximumCells)throw new ArgumentException("Keep the floor plan within 1,024 m² (256 floor tiles).");cells.Add(new Cell(x,z));}
             if(cells.Count==0)throw new ArgumentException("No floor tiles fit the footprint.");
             return cells;
         }
@@ -127,6 +127,7 @@ namespace BuildShapes
         {
             if(cells==null || cells.Count==0 || cells.Count>MaximumCells || span<1 || span>6)throw new ArgumentException("Invalid wing solve.");
             var remaining=new HashSet<Cell>(cells);
+            int endX=cells.Max(c=>c.X)+1,endZ=cells.Max(c=>c.Z)+1;
             List<Wing> best=null;
             double bestCost=double.MaxValue;
             int budget=2500;
@@ -137,7 +138,10 @@ namespace BuildShapes
                 if(picked.Count>=12)return;
                 Cell first=remaining.OrderBy(p=>p.Z).ThenBy(p=>p.X).First();
                 var candidates=new List<Wing>();
-                for(int d=1;d<=12;d++)for(int w=1;w<=12;w++)
+                // Long ridges may span the full outline; roof width still follows the material kit.
+                // The signed metre bounds allow at most 64 two-metre cells along either axis.
+                for(int d=1;d<=Math.Min(endZ-first.Z,MaximumExtent);d++)
+                for(int w=1;w<=Math.Min(endX-first.X,d>span?span:MaximumExtent);w++)
                 {
                     if(Math.Min(w,d)>span || w*d>remaining.Count)continue;
                     bool all=true;

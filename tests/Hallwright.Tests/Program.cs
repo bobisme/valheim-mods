@@ -13,8 +13,8 @@ Check(HallLayout.Footprint(l).Count==14,"Concave L keeps its missing corner");
 Check(HallLayout.Footprint(u).Count==12,"U outline keeps its courtyard indentation");
 Check(HallLayout.Footprint(l.Reverse().ToArray()).ToHashSet().SetEquals(HallLayout.Footprint(l)),"Clockwise and counterclockwise cover identical tiles");
 Reject(()=>HallLayout.Footprint(Rect(3,8)),"off-grid");
-Reject(()=>HallLayout.Footprint(Rect(18,18)),"area cap");
-Reject(()=>HallLayout.Footprint(Rect(26,2)),"extent cap");
+Reject(()=>HallLayout.Footprint(Rect(34,32)),"area cap");
+Reject(()=>HallLayout.Footprint(Rect(66,2)),"extent cap");
 Reject(()=>HallLayout.Footprint(new[]{new V3(0,0,0),new V3(8,0,0),new V3(0,0,4)}),"diagonal closing edge");
 Reject(()=>HallLayout.Footprint(new[]{new V3(0,0,0),new V3(4,0,0),new V3(4,0,4),new V3(2,0,4),new V3(2,0,-2),new V3(0,0,-2)}),"crossing boundary");
 Reject(()=>HallLayout.Plan(Rect(8,8),new HallLayout.Kit(),5,1,0),"height bound");
@@ -303,3 +303,31 @@ var expandedRoyal=HallLayout.Plan(Rect(8,16),new HallLayout.Kit{Lattice="darkwoo
 Check(expandedRoyal.Parts.Count>1024&&expandedRoyal.Parts.Count<=2048,"Large three-storey royal cellar shell exceeds the old cap and fits the new bound");
 Console.WriteLine($"Expanded royal shell: {expandedRoyal.Parts.Count} pieces; {checks:N0} checks passed");
 Reject(()=>HallLayout.Plan(Rect(16,16),new HallLayout.Kit{Lattice="darkwood_decowall",LoadPost="woodiron_pole"},3,4,0,true,new HallLayout.Details{Storeys=3,Basement=true,Sweep=true,Finial="wood_dragon1"}),"Very large royal shell still respects the 2048 bound");
+
+
+// Exercise the expanded boundary and actual roofs, rather than accepting only larger markers.
+Check(HallLayout.Footprint(Rect(32,32)).Count==256,"A 1024 square-metre floor plan reaches the new area boundary");
+Check(HallLayout.Footprint(Rect(8,64)).Count==128,"A 64 metre longhouse reaches the new extent boundary");
+foreach(var (outline,intricacy,tiered) in new[]{(Rect(16,24),2,true),(Rect(32,32),0,false),(Rect(8,64),2,true)})
+{
+ var largeWatch=Stopwatch.StartNew();
+ Verify(outline,3,intricacy,true,tiered,true);
+ var wings=HallLayout.SolveWings(HallLayout.Footprint(outline),4);
+ Check(wings.All(w=>w.Width<=4),"Larger roofs retain the timber support-span limit");
+ Console.WriteLine($"Grand footprint {outline[2].X} x {outline[2].Z} m: native geometry validated in {largeWatch.ElapsedMilliseconds} ms.");
+}
+var longWings=HallLayout.SolveWings(HallLayout.Footprint(Rect(8,64)),4);
+Check(longWings.Count==1&&longWings[0].Length==32,"A longhouse receives one continuous 64 metre ridge instead of artificial 24 metre roof sections");
+var grandU=new[]{new V3(0,0,0),new V3(24,0,0),new V3(24,0,32),new V3(16,0,32),new V3(16,0,8),new V3(8,0,8),new V3(8,0,32),new V3(0,0,32)};
+Verify(grandU,3,2,true,true,true);
+Verify(grandU.Reverse().ToArray(),3,2,true,true,true);
+Check(HallLayout.Footprint(grandU.Reverse().ToArray()).ToHashSet().SetEquals(HallLayout.Footprint(grandU)),"Grand concave courtyard accepts both boundary directions");
+var grandRoyal=HallLayout.Plan(Rect(12,32),new HallLayout.Kit{Lattice="darkwood_decowall",LoadPost="woodiron_pole"},3,4,0,true,new HallLayout.Details{Sweep=true,Finial="wood_dragon1"});
+Check(grandRoyal.Cells.Count==96&&grandRoyal.Parts.Count<=2048,"384 square-metre royal hall generates within the independent piece budget");
+Console.WriteLine($"Grand royal hall: {grandRoyal.Parts.Count} pieces; {checks:N0} checks passed.");
+
+var signedLong=new[]{new V3(0,0,0),new V3(64,0,0),new V3(64,0,4),new V3(-64,0,4),new V3(-64,0,0)};
+Verify(signedLong,3,0,true,false,true);
+var signedWings=HallLayout.SolveWings(HallLayout.Footprint(signedLong),4);
+Check(signedWings.Count==1&&signedWings[0].Length==64,"Negative and positive extent bounds support a continuous ridge across the full signed span");
+Console.WriteLine($"Signed extent and grand courtyard roofs: {checks:N0} checks passed.");

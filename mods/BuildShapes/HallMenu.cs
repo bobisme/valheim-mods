@@ -17,7 +17,7 @@ namespace BuildShapes
             GUILayout.Label("A timber hall fitted to your floor plan",_menuHint);
             _hallScroll=GUILayout.BeginScrollView(_hallScroll);
             GUILayout.Space(12);
-            if(_hallDesign!=null)GUILayout.Label($"{_hallDesign.Cells.Count*4} m² · {_hallDesign.Wings.Count} roof wings · {_output.Count} pieces",_menuText);
+            if(_hallDesign!=null)GUILayout.Label($"{_hallDesign.Cells.Count*4} / {HallLayout.MaximumCells*4:N0} m² · {_hallDesign.Wings.Count} roof wings · {_output.Count} / {HallLayout.MaximumParts:N0} pieces",_menuText);
             bool changed=false;
             GUILayout.Space(10);GUILayout.Label("Materials",_menuText);
             int material=GUILayout.SelectionGrid(_hallMaterialMode,HallMaterials,3,_menuButton,GUILayout.Height(76));
