@@ -33,6 +33,8 @@ Method("GameCamera", "UpdateMouseCapture", "System.Void");
 Method("ZInput", "GetMouseScrollWheel", "System.Single");
 Method("Humanoid", "StartAttack", "System.Boolean", "Character", "System.Boolean");
 Method("ZNetView", "IsValid", "System.Boolean");
+Method("ZNetView", "IsOwner", "System.Boolean");
+Method("ZNetView", "ClaimOwnership", "System.Void");
 Method("Piece", "GetSnapPoints", "System.Void", "System.Collections.Generic.List`1<UnityEngine.Transform>");
 // Hallwright reads actual unlocked recipes, native collider geometry and support losses.
 Method("Player", "IsRecipeKnown", "System.Boolean", "System.String");

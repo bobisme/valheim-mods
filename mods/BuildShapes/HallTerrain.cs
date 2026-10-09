@@ -87,8 +87,6 @@ namespace BuildShapes
                 }
             }
         }
-        private static void HallOwner(TerrainComp comp)
-        {var view=comp?.GetComponent<ZNetView>();if(view==null || !view.IsValid() || !view.IsOwner())throw new ArgumentException("Basements need locally owned terrain. Plan on the host when the area is not owned by another player.");HallLoad.Invoke(comp,null);}
         private static void GroundArrays(TerrainComp comp,out float[] level,out float[] smooth,out bool[] modified)
         {level=(float[])HallLevels.GetValue(comp);smooth=(float[])HallSmooth.GetValue(comp);modified=(bool[])HallModified.GetValue(comp);if(level==null || smooth==null || modified==null || level.Length!=smooth.Length || level.Length!=modified.Length)throw new ArgumentException("Terrain compiler is not ready.");}
         private void WriteHallGround(GroundRecord record)
@@ -100,12 +98,17 @@ namespace BuildShapes
         {
             if(!_hallBasement)return null;
             if(File.Exists(HallGroundFile))throw new ArgumentException("A previous basement ground record is still available. Restore it or keep it before excavating another cellar.");
+            PrepareHallGround();
+            var terrain=new Dictionary<Heightmap,TerrainComp>();
+            foreach(var map in _hallGroundJob.Select(c=>c.Map).Distinct())
+            {var comp=map.GetAndCreateTerrainCompiler();HallOwner(comp,true);terrain.Add(map,comp);}
+            // Ownership acquisition may load newer terrain. Recheck the entire site before capture/edit.
             PrepareHallGround();var record=new GroundRecord{World=ZNet.instance.GetWorldUID()};
             var comps=new Dictionary<GroundTile,TerrainComp>();
             // Prepare and validate every tile and recovery data before editing any vertex.
             foreach(var group in _hallGroundJob.GroupBy(c=>c.Map))
             {
-                Heightmap map=group.Key;TerrainComp comp=map.GetAndCreateTerrainCompiler();HallOwner(comp);GroundArrays(comp,out var levels,out var smooth,out var modified);
+                Heightmap map=group.Key;if(!terrain.TryGetValue(map,out var comp))throw new ArgumentException("Loaded terrain changed. Refresh the preview and retry.");HallOwner(comp);GroundArrays(comp,out var levels,out var smooth,out var modified);
                 _hallCapture=comp;_hallUnderlying=_hallBaseline=null;
                 try{map.Poke();}finally{_hallCapture=null;}
                 if(_hallUnderlying==null || _hallBaseline==null)throw new ArgumentException("Unable to capture terrain's native height limits.");
@@ -145,6 +148,8 @@ namespace BuildShapes
             if(zdo.DataRevision==revision)throw new ArgumentException("Terrain save was not acknowledged by its owner.");
             try{ClutterSystem.instance?.ResetGrass(map.transform.position,tile.Width*tile.Scale/2);}catch(Exception){}
         }
+        private static bool HallGroundMatches(GroundVertex v,float level,float smooth,bool modified)=>
+            level==v.AfterLevel && smooth==v.AfterSmooth && modified==v.AfterModified || level==v.BeforeLevel && smooth==v.BeforeSmooth && modified==v.BeforeModified;
         private void RestoreHallGround(bool keep=false)
         {
             string path=HallGroundFile;if(!File.Exists(path))throw new ArgumentException("No basement ground record in this world.");
@@ -157,10 +162,10 @@ namespace BuildShapes
             {
                 var map=Heightmap.FindHeightmap(new Vector3(tile.X,tile.Y,tile.Z));
                 if(map==null || map.transform.position!=new Vector3(tile.X,tile.Y,tile.Z) || map.m_width!=tile.Width || map.m_scale!=tile.Scale)throw new ArgumentException("Move closer: saved terrain tile is not loaded.");
-                TerrainComp comp=map.GetAndCreateTerrainCompiler();HallOwner(comp);GroundArrays(comp,out var levels,out var smooth,out var modified);
+                TerrainComp comp=map.GetAndCreateTerrainCompiler();LoadHallGround(comp);GroundArrays(comp,out var levels,out var smooth,out var modified);
                 foreach(var v in tile.Vertices)
                 {
-                    if(v.Index<0 || v.Index>=levels.Length || !(levels[v.Index]==v.AfterLevel && smooth[v.Index]==v.AfterSmooth && modified[v.Index]==v.AfterModified || levels[v.Index]==v.BeforeLevel && smooth[v.Index]==v.BeforeSmooth && modified[v.Index]==v.BeforeModified))throw new ArgumentException("Ground has changed since excavation. Restoration would overwrite another edit; keep the record or accept the current ground.");
+                    if(v.Index<0 || v.Index>=levels.Length || !HallGroundMatches(v,levels[v.Index],smooth[v.Index],modified[v.Index]))throw new ArgumentException("Ground has changed since excavation. Restoration would overwrite another edit; keep the record or accept the current ground.");
                     int x=v.Index%(tile.Width+1),z=v.Index/(tile.Width+1);float now=map.GetHeight(x,z)+tile.Y;
                     var c=new GroundCell{Map=map,Index=v.Index,X=x,Z=z,Displayed=now,Target=now+v.BeforeLevel-v.AfterLevel+v.BeforeSmooth-v.AfterSmooth};occupied.Add(c);
                     Vector3 pos=map.transform.position+new Vector3((x-tile.Width/2)*tile.Scale,0,(z-tile.Width/2)*tile.Scale);
@@ -169,7 +174,13 @@ namespace BuildShapes
                 ready.Add((tile,comp));
             }
             CheckHallGroundClear(occupied);
-            foreach(var entry in ready){GroundArrays(entry.comp,out var levels,out var smooth,out var modified);foreach(var v in entry.tile.Vertices){levels[v.Index]=v.BeforeLevel;smooth[v.Index]=v.BeforeSmooth;modified[v.Index]=v.BeforeModified;}SaveHallTile(entry.comp,entry.tile);
+            // Validate access, conflicts and buildings across every tile before claiming ownership.
+            foreach(var entry in ready)
+            {
+                HallOwner(entry.comp,true);GroundArrays(entry.comp,out var levels,out var smooth,out var modified);
+                if(entry.tile.Vertices.Any(v=>!HallGroundMatches(v,levels[v.Index],smooth[v.Index],modified[v.Index])))throw new ArgumentException("Ground changed during ownership acquisition. Recovery retained; retry after the area settles.");
+            }
+            foreach(var entry in ready){HallOwner(entry.comp);GroundArrays(entry.comp,out var levels,out var smooth,out var modified);foreach(var v in entry.tile.Vertices){levels[v.Index]=v.BeforeLevel;smooth[v.Index]=v.BeforeSmooth;modified[v.Index]=v.BeforeModified;}SaveHallTile(entry.comp,entry.tile);
                 GroundArrays(entry.comp,out levels,out smooth,out modified);
                 if(entry.tile.Vertices.Any(v=>levels[v.Index]!=v.BeforeLevel || smooth[v.Index]!=v.BeforeSmooth || modified[v.Index]!=v.BeforeModified))throw new ArgumentException("Terrain restoration could not be verified; recovery record retained.");
             }
