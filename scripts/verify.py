@@ -29,3 +29,9 @@ if args.cigars_assembly:
         command.append("-")
     command.append(str(args.cigars_assembly.resolve()))
 subprocess.run(command, check=True)
+
+# Golf uses native Rigidbody synchronization with private owner/replica settings.
+golf = root / "dist/Golf.dll"
+if golf.is_file():
+    subprocess.run(["dotnet", "run", "--project", str(root / "tests/Golf.ApiCheck"), "-c", "Release",
+                    "-p:ValheimDir=" + str(game), "--", str(game), str(golf)], check=True)

@@ -2,6 +2,22 @@
 
 Bob's Valheim mods, built for native Linux and Windows and packaged for the in-game mod manager.
 
+## Meadow Golf
+
+Build a rustic golf course through your meadow or longhouse. Craft the **Meadow golf club** at a workbench
+(6 wood, 2 leather scraps); Hammer → Furniture has tees (2 wood) and flagged cups (4 wood, 1 stone).
+**Shift+E** labels matching tees/cups as `Course:Hole:Par`. Equip the club, **E** at the tee, choose
+Drive / Chip / Putt with the wheel, then hold/release left mouse to swing. Right click cancels charging.
+
+The amber path predicts actual flight, ricochets and rolling, with a ring at the stopping point and its sampled power.
+The ball launches on the animation's contact event, with swing, wooden impact and quiet bounce sounds.
+**G** shows nearby scorecards. Balls, courses and scores save in the world; **E** on your ball returns to the
+last lie (+1 penalty), and **Ctrl+E** at a tee starts a fresh round. Courses have up to 18 holes.
+
+Install on the host and every player, then restart before loading a world. No other mod is required.
+Native Creative physics, scoring, sound and reload checks passed; remote multiplayer/ownership transfer remains untested.
+[Full controls and validation](mods/Golf/README.md).
+
 ## Bob's Pipes
 
 A reusable **Carved Pipe**, crafted at a **workbench** from **4 wood, 2 core wood and 1 leather scraps**. It depends on

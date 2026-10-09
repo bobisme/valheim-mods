@@ -1,0 +1,1 @@
+Adds saved golf club, tee, cup and ball prefabs. Install Meadow Golf on the host and every player, then restart Valheim before loading the world. F6 alone is not the first-install workflow for a shared world.
