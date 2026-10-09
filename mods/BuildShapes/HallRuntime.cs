@@ -156,6 +156,7 @@ namespace BuildShapes
         }
         private void BuildHallPreview()
         {
+            SaveHallDraft();
             var solveWatch=System.Diagnostics.Stopwatch.StartNew();
             _hallDue=0;_hallGuideHasFloor=false;ClearVisuals();_output.Clear();_hallRoles.Clear();_hallBill.Clear();_hallStations.Clear();_hallSupport.Clear();
             _hallProblem=null;_hallNote=null;_hallFalls=0;_hallAddedPosts=0;_hallDesign=null;_hallGroundJob.Clear();_hallTargetMaps.Clear();
@@ -242,7 +243,7 @@ namespace BuildShapes
             DrawHallGuides();
             _previewError=_hallProblem;_hallSolveMs=solveWatch.ElapsedMilliseconds;
         }
-        private void QueueHallPreview(){_hallDue=Time.unscaledTime+0.18f;}
+        private void QueueHallPreview(){SaveHallDraft();_hallDue=Time.unscaledTime+0.18f;}
         private void UpdateHall()
         {
             if(_hallDue>0 && Time.unscaledTime>=_hallDue)BuildHallPreview();
@@ -310,11 +311,12 @@ namespace BuildShapes
         }
         private string SubmitHall(Player player)
         {
+            if(!_planner.CanCreateShell(_output.Count,out string capabilityError))throw new ArgumentException(capabilityError);
             GroundRecord ground=ApplyHallGround();
             try
             {
                 if(!_planner.CreateShell(player,"Hallwright",_output.Select(p=>p.Prefab).ToArray(),_output.Select(p=>p.Position).ToArray(),_output.Select(p=>p.Rotation).ToArray(),out string key,out string error))throw new ArgumentException(error);
-                return key;
+                _hallDraftSubmitted=true;DiscardHallDraft();return key;
             }
             catch
             {if(ground!=null)RestoreHallGround();throw;}

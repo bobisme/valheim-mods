@@ -60,6 +60,7 @@ namespace BuildShapes
                 GUILayout.Space(10);
             }
             Mode(Tool.Hall, "Draw a floor plan; solve a complete timber shell with live materials, roof, and intricacy options.", true);
+            if(System.IO.File.Exists(CurrentHallDraftPath) && GUILayout.Button("Resume saved Hallwright draft",_menuButton,GUILayout.Height(36)))ResumeHallDraft();
             Mode(Tool.Curve, "Three points: start, bend, and end. Uses beams or poles.", beam);
             Mode(Tool.Arch, "Two endpoints, then adjust the center height. Uses beams or poles.", beam);
             Mode(Tool.Mirror, "Reflect a group of pieces across a marked line.", extended);

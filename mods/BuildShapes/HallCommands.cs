@@ -21,7 +21,7 @@ namespace BuildShapes
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Static|BindingFlags.Public)?.Invoke(null,new object[]{Name,"hall",
-                    "hall catalog | rectangle <width> <length> [distance=10] | outline <x,z>... | options height=2|3|4 detail=0..4 storeys=1|2|3 basement=on|off pitch=26|45 material=auto|timber|core|stone|dark raise=0..2 roof=gabled|tiered entrance=auto|door|gate overhang=on|off porch=on|off trim=on|off crest=auto|none|dragon|raven | doors clear | doors <x,z>... | status | stairs | entrances | pieces | ui | clear | confirm | undo | restoreground | keepground | reload: local Hallwright previews; only confirm creates shared ghosts; undo removes the last shape's unbuilt ghosts",
+                    "hall catalog | rectangle <width> <length> [distance=10] | outline <x,z>... | options height=2|3|4 detail=0..4 storeys=1|2|3 basement=on|off pitch=26|45 material=auto|timber|core|stone|dark raise=0..2 roof=gabled|tiered entrance=auto|door|gate overhang=on|off porch=on|off trim=on|off crest=auto|none|dragon|raven | doors clear | doors <x,z>... | status | resume | stairs | entrances | pieces | ui | clear | confirm | undo | restoreground | keepground | reload: local Hallwright previews; only confirm creates shared ghosts; undo removes the last shape's unbuilt ghosts",
                     new Func<string[],Action<JObject>,Action<string>,IEnumerator>(HallCommand)});
                 found.GetType().GetMethod("RegisterFrame",BindingFlags.Static|BindingFlags.Public)?.Invoke(null,new object[]{Name,new Func<string,float[]>(HallFrame)});
             }
@@ -37,7 +37,7 @@ namespace BuildShapes
         }
         private JObject HallReadout()=>new JObject
         {
-            ["mode"]=_tool.ToString(),["corners"]=_markers.Count,["pieces"]=_output.Count,["floorY"]=_hallFloorY,
+            ["wholeBuildingApi"]=_planner.WholeShell,["savedDraft"]=System.IO.File.Exists(CurrentHallDraftPath),["mode"]=_tool.ToString(),["corners"]=_markers.Count,["pieces"]=_output.Count,["floorY"]=_hallFloorY,
             ["entrances"]=new JArray((_hallDesign?.Entrances??new System.Collections.Generic.List<HallDoors.Entrance>()).Select(d=>new JObject{["x"]=d.At.X,["z"]=d.At.Z,["yaw"]=d.Yaw,["edge"]=d.Edge})),["entranceMarkers"]=_hallDoorPoints.Count,["preview"]=_hallGuideOnly?"Layout":_hallSolid?"Materials":"Ghosts",
             ["area"]=_hallDesign?.Cells.Count*4,["porchArea"]=_hallDesign?.PorchFloors.Count*4,["wings"]=_hallDesign?.Wings.Count,["height"]=_hallHeight,["storeys"]=_hallStoreys,["basement"]=_hallBasement,["groundVertices"]=_hallGroundJob.Count,["stairHoles"]=_hallDesign?.StairHoles.Count,["pitch"]=_hallRoof45?45:26,
             ["overhang"]=_hallOverhang,["porch"]=_hallPorch,["sweep"]=_hallSweep,["crest"]=new[]{"Auto","None","Dragon","Raven"}[_hallCrestMode],["detail"]=_hallDetail,["roof"]=_hallTiered?"Tiered":"Gabled",["tieredWings"]=_hallDesign?.TieredWings,["entrance"]=_hallEntranceMode==0?"Auto":_hallEntranceMode==1?"Door":"Gate",["opening"]=_hallKit?.Door,["materials"]=HallMaterials[_hallMaterialMode],["addedSupports"]=_hallAddedPosts,["wouldFall"]=_hallFalls,
@@ -114,6 +114,7 @@ namespace BuildShapes
                 if(action=="restoreground" || action=="keepground")
                 {RestoreHallGround(action=="keepground");output(new JObject{["ground"]=action=="keepground"?"kept":"restored"});return null;}
                 if(!Ready(player) || !_planner.Available(player))throw new ArgumentException("Equip the hammer, close other menus, and finish any bridge/blueprint placement first.");
+                if(action=="resume"){if(!ResumeHallDraft())throw new ArgumentException("Saved draft could not be reopened. Check the log and the current character/world.");output(HallReadout());return null;}
                 if(action=="undo")
                 {
                     if(_lastPlan==null)throw new ArgumentException("No shape to undo in this session.");

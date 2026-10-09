@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings>
+    <ValheimDir Condition="'$(ValheimDir)' == ''">$(VALHEIM_DIR)</ValheimDir>
+    <ValheimDir Condition="'$(ValheimDir)' == '' and Exists('$(HOME)/.local/share/Steam/steamapps/common/Valheim/valheim_Data/Managed/Newtonsoft.Json.dll')">$(HOME)/.local/share/Steam/steamapps/common/Valheim</ValheimDir>
+    <ValheimDir Condition="'$(ValheimDir)' == '' and Exists('$(HOME)/.steam/steam/steamapps/common/Valheim/valheim_Data/Managed/Newtonsoft.Json.dll')">$(HOME)/.steam/steam/steamapps/common/Valheim</ValheimDir>
+    <ValheimDir Condition="'$(ValheimDir)' == ''">$(HOME)/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Valheim</ValheimDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../mods/BuildShapes/HallDraft.cs" Link="HallDraft.cs" />
+    <Reference Include="Newtonsoft.Json"><HintPath>$(ValheimDir)/valheim_Data/Managed/Newtonsoft.Json.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

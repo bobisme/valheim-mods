@@ -32,6 +32,7 @@ Method("PlayerController", "TakeInput", "System.Boolean", "System.Boolean");
 Method("GameCamera", "UpdateMouseCapture", "System.Void");
 Method("ZInput", "GetMouseScrollWheel", "System.Single");
 Method("Humanoid", "StartAttack", "System.Boolean", "Character", "System.Boolean");
+Method("Player", "GetPlayerID", "System.Int64");
 Method("ZNetView", "IsValid", "System.Boolean");
 Method("ZNetView", "IsOwner", "System.Boolean");
 Method("ZNetView", "ClaimOwnership", "System.Void");
@@ -324,9 +325,15 @@ foreach (var entry in catalog.RootElement.GetProperty("mods").EnumerateArray())
 }
 if (args.Length >= 3 && args[2] != "-")
 {
-    using var planner = AssemblyDefinition.ReadAssembly(args[2], new ReaderParameters { ReadSymbols = true, AssemblyResolver = resolver });
+    string plannerPdb=Path.ChangeExtension(args[2],".pdb");
+    if(!File.Exists(plannerPdb))throw new Exception("Planner PDB is missing.");
+    byte[] pdbHeader;using(var input=File.OpenRead(plannerPdb)){pdbHeader=new byte[32];input.ReadExactly(pdbHeader);}
+    bool portablePlannerPdb=System.Text.Encoding.ASCII.GetString(pdbHeader,0,4)=="BSJB";
+    if(!portablePlannerPdb && !System.Text.Encoding.ASCII.GetString(pdbHeader).StartsWith("Microsoft C/C++ MSF 7.00"))
+        throw new Exception("Unrecognized planner PDB format.");
+    using var planner = AssemblyDefinition.ReadAssembly(args[2], new ReaderParameters { ReadSymbols = portablePlannerPdb, AssemblyResolver = resolver });
     var plugin = planner.MainModule.Types.Single(t => t.FullName == "BuildOrders.Plugin");
-    if (!planner.MainModule.HasSymbols || !plugin.Fields.Any(f => f.Name == "PlanningApiVersion" && f.HasConstant && (int)f.Constant == 1))
+    if ((portablePlannerPdb && !planner.MainModule.HasSymbols) || !plugin.Fields.Any(f => f.Name == "PlanningApiVersion" && f.HasConstant && (int)f.Constant == 1))
         throw new Exception("Planner symbols or API version are incompatible.");
     void Api(string name, params string[] parameters)
     {
@@ -335,12 +342,14 @@ if (args.Length >= 3 && args[2] != "-")
             throw new Exception("Planner API signature mismatch: " + name);
     }
     Api("TryCreateGhostPlan", "Player", "System.String", "System.String[]", "UnityEngine.Vector3[]", "UnityEngine.Quaternion[]", "System.String&", "System.String&");
-    if(plugin.Fields.Any(f=>f.Name=="MaximumShellPieces"))
-        Api("TryCreateBuildingShell", "Player", "System.String", "System.String[]", "UnityEngine.Vector3[]", "UnityEngine.Quaternion[]", "System.String&", "System.String&");
+    var shellLimit=plugin.Fields.SingleOrDefault(f=>f.Name=="MaximumShellPieces");
+    if(shellLimit==null || !shellLimit.HasConstant || (int)shellLimit.Constant<2048)
+        throw new Exception("BuildOrders lacks the 2,048-piece whole-building capability required by Hallwright.");
+    Api("TryCreateBuildingShell", "Player", "System.String", "System.String[]", "UnityEngine.Vector3[]", "UnityEngine.Quaternion[]", "System.String&", "System.String&");
     Api("TryRemoveGhostPlan", "Player", "System.String", "System.Int32&", "System.String&");
     Api("IsPlanningInputAvailable", "Player");
     Api("TryGetGhostAtRay", "Player", "UnityEngine.Vector3", "UnityEngine.Vector3", "System.String&", "System.String&", "UnityEngine.Vector3&", "UnityEngine.Quaternion&", "System.Single&");
-    Console.WriteLine("BuildOrders: public planning API and symbols verified; BuildShapes has no planner assembly binding.");
+    Console.WriteLine(portablePlannerPdb?"BuildOrders: public planning API and symbols verified; BuildShapes has no planner assembly binding.":"BuildOrders: public planning API verified; Windows PDB matching/readability is not validated by this Linux check. BuildShapes has no planner assembly binding.");
 }
 if (args.Length == 4)
 {

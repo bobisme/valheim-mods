@@ -15,7 +15,7 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.5.6";
+        public const string Version = "0.5.7";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
@@ -55,7 +55,8 @@ namespace BuildShapes
             { Id = id; Prefab = prefab; Position = position; Rotation = rotation; }
         }
         private bool ShapeActive => _tool != Tool.None || _modeMenu;
-        internal bool ReservesHammer => ShapeActive && _enabled.Value && HoldingHammer(Player.m_localPlayer);
+        internal bool ReservesHammer => ShapeActive && _enabled.Value && HoldingHammer(Player.m_localPlayer) && _planner.Available(Player.m_localPlayer) &&
+            ((_tool!=Tool.Mirror && _tool!=Tool.Repeat) || _planner.Extended);
         internal static bool OptionsMenuOpen => Instance != null && (Instance._modeMenu || Instance._repeatMenu || Instance._archMenu || Instance._hallMenu) && Instance.ReservesHammer;
         private int RequiredMarkers => _tool == Tool.Mirror || _tool == Tool.Arch ? 2 : 3;
         internal static bool ProbingInput => Instance?._probingInput == true;
@@ -99,11 +100,8 @@ namespace BuildShapes
             UpdateHallCommands();
             if (!_enabled.Value || !HoldingHammer(player) || player.IsDead())
             { if (ShapeActive) Stop(); if (player != null && player.IsDead()) _lastPlan = null; return; }
-            if (!_planner.Ready()) { if (ShapeActive) Stop(); return; }
-            if ((_tool == Tool.Mirror || _tool == Tool.Repeat) && !_planner.Extended)
-            { Stop(); Say("Mirror/Repeat canceled: update BuildOrders with the ghost-selection API."); return; }
-            if (!_planner.Available(player))
-            { if (ShapeActive) { Stop(); Say("Finish or cancel the planner's blueprint/bridge first."); } return; }
+            if (!_planner.Ready() || ((_tool == Tool.Mirror || _tool == Tool.Repeat) && !_planner.Extended) || !_planner.Available(player))
+            { CloseModeMenu(); CloseRepeatMenu(); CloseArchMenu(); CloseHallMenu(); return; }
             if (!Ready(player)) { CloseModeMenu(); CloseRepeatMenu(); CloseArchMenu(); CloseHallMenu(); return; }
             if (_tool == Tool.Hall) UpdateHall();
             if (Input.GetKeyDown(_toggle.Value))
@@ -131,7 +129,7 @@ namespace BuildShapes
                 {_lastAction=Time.unscaledTime;UndoShape(player);}
                 return; // Menu mouse/keyboard input must never select pieces or mark the world.
             }
-            if (_tool == Tool.Hall && Input.GetKeyDown(KeyCode.Delete)) { _markers.Clear(); _hallDoorPoints.Clear(); BuildHallPreview(); return; }
+            if (_tool == Tool.Hall && Input.GetKeyDown(KeyCode.Delete)) { DiscardHallDraft(); _markers.Clear(); _hallDoorPoints.Clear(); BuildHallPreview(); return; }
             if (_tool == Tool.Repeat)
             {
                 bool changed = _previewSpacing != SafeSpacing() || _previewFollow != _follow.Value;
@@ -147,6 +145,7 @@ namespace BuildShapes
                 if (_tool == Tool.Hall && Input.GetKey(KeyCode.LeftControl)) { if(_hallDoorPoints.Count>0)_hallDoorPoints.RemoveAt(_hallDoorPoints.Count-1); }
                 else if (_tool == Tool.Mirror && Input.GetKey(KeyCode.LeftControl) && _sources.Count > 0) _sources.RemoveAt(_sources.Count - 1);
                 else if (_markers.Count > 0) _markers.RemoveAt(_markers.Count - 1);
+                if(_tool==Tool.Hall && _markers.Count==0)DiscardHallDraft();
                 Preview();
             }
             else if (_tool == Tool.Hall && Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(_mark.Value)) MarkHallDoor(player);
@@ -171,7 +170,7 @@ namespace BuildShapes
         private void Begin(Player player, Tool requested)
         {
             Stop();
-            if (requested == Tool.Hall) { _tool=Tool.Hall; if(System.IO.File.Exists(HallGroundFile))OpenHallMenu(); Say("Hallwright: Shift+click square corners; the first edge sets the grid. Ctrl+click entrances; L opens settings; Backspace edits; Delete clears."); return; }
+            if (requested == Tool.Hall) { _tool=Tool.Hall; StartHallDraft(); if(System.IO.File.Exists(HallGroundFile))OpenHallMenu(); Say("Hallwright: Shift+click square corners; the first edge sets the grid. Ctrl+click entrances; L opens settings; Backspace edits; Delete clears."); return; }
             if ((requested == Tool.Mirror || requested == Tool.Repeat) && !_planner.Extended)
             { Say("Update BuildOrders with the ghost-selection API for Mirror/Repeat."); return; }
             Piece piece = player.GetSelectedPiece();
@@ -445,7 +444,7 @@ namespace BuildShapes
         }
         private void ClearVisuals() { foreach (GameObject go in _visuals) if (go != null) Destroy(go); _visuals.Clear(); }
         private void ClearShape() { CloseModeMenu(); CloseRepeatMenu(); CloseArchMenu(); ClearHall(); _archRiseSet = false; _markers.Clear(); _sources.Clear(); _output.Clear(); _previewError = null; ClearVisuals(); }
-        private void Stop() { _tool = Tool.None; _yaw = _pitch = _roll = 0; _seed = default; ResetRepeatAnchors(); _bounds.Clear(); _mirrorProfiles.Clear(); ClearShape(); }
+        private void Stop() { SaveHallDraft(); _hallDraftWorld=_hallDraftPlayer=0; _hallDraftSubmitted=false; _hallDraftLast=null; _tool = Tool.None; _yaw = _pitch = _roll = 0; _seed = default; ResetRepeatAnchors(); _bounds.Clear(); _mirrorProfiles.Clear(); ClearShape(); }
         private static void Say(string text) { Player.m_localPlayer?.Message(MessageHud.MessageType.Center, "BuildShapes: " + (text ?? "Planner unavailable.")); }
         private void OnDestroy()
         {

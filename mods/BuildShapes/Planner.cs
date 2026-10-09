@@ -11,6 +11,7 @@ namespace BuildShapes
         internal const string Guid = "com.dhack.buildorders";
         private BaseUnityPlugin _instance;
         private MethodInfo _create, _shell, _remove, _ray, _available;
+        internal bool WholeShell => Ready() && _shell!=null;
         internal bool Extended => Ready() && _ray != null && _available != null;
         internal string Status { get; private set; } = "Update BuildOrders to a version with add-on support.";
         internal bool Ready()
@@ -51,10 +52,24 @@ namespace BuildShapes
             try { bool ok = (bool)_create.Invoke(_instance, args); key = args[5] as string; error = args[6] as string; return ok; }
             catch (Exception ex) { error = ex.GetBaseException().Message; return false; }
         }
+        internal bool CanCreateShell(int pieces,out string error)
+        {
+            error=null;if(!Ready()){error=Status;return false;}
+            if(pieces<=256)return true;
+            string version=_instance.GetType().GetField("Version",BindingFlags.Public|BindingFlags.Static)?.GetRawConstantValue() as string??"unknown";
+            if(_shell!=null)
+            {
+                object limit=_instance.GetType().GetField("MaximumShellPieces",BindingFlags.Public|BindingFlags.Static)?.GetRawConstantValue();
+                if(!(limit is int maximum) || pieces<=maximum)return true;
+                error=$"Loaded BuildOrders {version} supports at most {maximum} shell pieces; this draft has {pieces}. Install the 2,048-piece Hallwright-compatible build and reload only BuildOrders in F7. Your draft stays open.";return false;
+            }
+            error=$"Loaded BuildOrders {version} lacks the whole-building API for this {pieces}-piece shell. Install BuildOrders 1.11.0 or newer with the whole-building API and reload only BuildOrders in F7. Your draft stays open.";
+            return false;
+        }
         internal bool CreateShell(Player player, string title, string[] names, Vector3[] positions, Quaternion[] rotations, out string key, out string error)
         {
-            key=null; error=null; if (!Ready()) { error=Status; return false; }
-            if (_shell==null) { if(names.Length<=256) return Create(player,title,names,positions,rotations,out key,out error); error="Update BuildOrders with the whole-building planning API (this shell exceeds 256 pieces)."; return false; }
+            key=null; if(!CanCreateShell(names.Length,out error))return false;
+            if(_shell==null)return Create(player,title,names,positions,rotations,out key,out error);
             object[] args={player,title,names,positions,rotations,null,null};
             try { bool ok=(bool)_shell.Invoke(_instance,args);key=args[5] as string;error=args[6] as string;return ok; }
             catch(Exception ex){error=ex.GetBaseException().Message;return false;}
