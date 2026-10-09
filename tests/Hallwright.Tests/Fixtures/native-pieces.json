@@ -388,5 +388,16 @@
       ]
     },
     "material": "Wood"
+  },
+  "wood_dragon1": {
+    "p": "wood_dragon1",
+    "snaps": {
+      "attach": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "material": "Wood"
   }
 }

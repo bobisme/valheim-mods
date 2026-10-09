@@ -8,8 +8,8 @@ namespace BuildShapes
 {
     public sealed partial class Plugin
     {
-        private bool _hallMenu, _hallRoof45=true, _hallSolid=true, _hallShowRoof=true, _hallTiered;
-        private int _hallHeight=3, _hallDetail=1, _hallEntrance, _hallMaterialMode, _hallEntranceMode;
+        private bool _hallMenu, _hallRoof45=true, _hallSolid=true, _hallShowRoof=true, _hallTiered, _hallOverhang, _hallPorch, _hallSweep;
+        private int _hallHeight=3, _hallDetail=1, _hallEntrance, _hallMaterialMode, _hallEntranceMode, _hallCrestMode;
         private float _hallRaise=0.15f, _hallDue, _hallNextCatalog;
         private Vector3 _hallOrigin;
         private Quaternion _hallFrame=Quaternion.identity;
@@ -73,6 +73,17 @@ namespace BuildShapes
             Vector3[] ends=HallEnds(_hallCatalog[kit.Beam]);kit.BeamLength=(ends[1]-ends[0]).magnitude;
             ends=HallEnds(_hallCatalog[kit.ShortBeam]);kit.ShortLength=(ends[1]-ends[0]).magnitude;
             return kit;
+        }
+        private HallLayout.Details HallDetailsKit()
+        {
+            if(_hallOverhang && !HallKnown("wood_roof"))throw new ArgumentException("Unlock 26° thatch roofs for the 2 m overhang apron.");
+            string carving=null;
+            if(_hallCrestMode==2)carving="wood_dragon1";
+            else if(_hallCrestMode==3)carving="darkwood_raven";
+            else if(_hallCrestMode==0 && _hallDetail>=2)
+                carving=HallKnown("wood_dragon1")?"wood_dragon1":HallKnown("darkwood_raven")?"darkwood_raven":null;
+            if(carving!=null && !HallKnown(carving))throw new ArgumentException("Unlock the "+(_hallCrestMode==2?"dragon":"raven")+" carving before planning.");
+            return new HallLayout.Details{Overhang=_hallOverhang,Porch=_hallPorch,Sweep=_hallSweep,Finial=carving};
         }
         private static Vector3[] HallSnaps(GameObject prefab)
         {
@@ -143,18 +154,19 @@ namespace BuildShapes
                 if(_markers.Count<3)throw new ArgumentException("Draw the boundary with Shift+click, then L opens the hall settings.");
                 _hallKit=HallKit(Player.m_localPlayer);
                 var corners=_markers.Select(p=>{Vector3 v=Quaternion.Inverse(_hallFrame)*(p-_hallOrigin);return new V3(Math.Round(v.x/2)*2,0,Math.Round(v.z/2)*2);}).ToArray();
-                _hallDesign=HallLayout.Plan(corners,_hallKit,_hallHeight,_hallDetail,_hallEntrance,_hallTiered);
+                _hallDesign=HallLayout.Plan(corners,_hallKit,_hallHeight,_hallDetail,_hallEntrance,_hallTiered,HallDetailsKit());
                 _hallFloorY=_hallOrigin.y;
                 float highest=float.MinValue;
                 foreach(V3 v in _hallDesign.Vertices)highest=Mathf.Max(highest,HallGround(HallWorld(v)));
                 foreach(var c in _hallDesign.Cells)highest=Mathf.Max(highest,HallGround(HallWorld(new V3(c.X*2+1,0,c.Z*2+1))));
+                foreach(V3 at in _hallDesign.PorchFloors)highest=Mathf.Max(highest,HallGround(HallWorld(at)));
                 _hallFloorY=highest+_hallRaise;
                 bool stone=(_hallMaterialMode==0 || _hallMaterialMode==3) && HallKnown("stone_floor_2x2");
                 if(stone)
                 {
-                    foreach(var c in _hallDesign.Cells)
+                    foreach(V3 at in _hallDesign.Cells.Select(c=>new V3(c.X*2+1,0,c.Z*2+1)).Concat(_hallDesign.PorchFloors))
                     {
-                        V3 at=new V3(c.X*2+1,0,c.Z*2+1);float ground=HallGround(HallWorld(at));
+                        float ground=HallGround(HallWorld(at));
                         double depth=_hallFloorY-ground;
                         if(depth>6)throw new ArgumentException("Stone foundations would exceed 6 metres. Use a flatter site.");
                         // Native stone top snaps are Y +0.5; floor skins sit 0.06 m above the plinth.
@@ -168,8 +180,8 @@ namespace BuildShapes
                 V3 outward=V(Quaternion.Euler(0,(float)_hallDesign.DoorYaw,0)*Vector3.back);
                 for(int stair=0;stair<6;stair++)
                 {
-                    V3 low=_hallDesign.Door+outward*(2*(stair+1))+new V3(0,-stair-1,0);
-                    if(_hallFloorY-stair<=HallGround(HallWorld(_hallDesign.Door+outward*(2*stair)))+0.25)break;
+                    V3 low=_hallDesign.EntryLanding+outward*(2*(stair+1))+new V3(0,-stair-1,0);
+                    if(_hallFloorY-stair<=HallGround(HallWorld(_hallDesign.EntryLanding+outward*(2*stair)))+0.25)break;
                     if(!HallKnown("wood_stair"))throw new ArgumentException("Unlock wooden stairs to reach the raised entrance.");
                     AddHallPart(new HallLayout.Part{Prefab="wood_stair",At=low,Kind=HallLayout.Anchor.RoofLow,Yaw=_hallDesign.DoorYaw+180,Role="entrance steps"});
                     if(_hallFloorY+low.Y<=HallGround(HallWorld(low))+0.15)break;
@@ -295,7 +307,7 @@ namespace BuildShapes
         {
             for(int i=0;i<_output.Count;i++)
             {
-                var pose=_output[i];if(!_hallShowRoof && _hallRoles[i]=="roof")continue;
+                var pose=_output[i];if(!_hallShowRoof && _hallRoles[i].EndsWith("roof",StringComparison.Ordinal))continue;
                 _hallSupport.TryGetValue(i.ToString(),out var support);
                 _hallTint.Clear();
                 _hallTint.SetColor("_Color",support?.Collapses==true?new Color(1,0.3f,0.2f,0.75f):_hallSolid?Color.white:new Color(0.65f,0.9f,0.82f,0.65f));

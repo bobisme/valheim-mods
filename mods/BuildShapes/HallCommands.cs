@@ -21,7 +21,7 @@ namespace BuildShapes
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Static|BindingFlags.Public)?.Invoke(null,new object[]{Name,"hall",
-                    "hall catalog | rectangle <width> <length> [distance=10] | outline <x,z>... | options height=2|3|4 detail=0..3 pitch=26|45 material=auto|timber|core|stone|dark raise=0..2 roof=gabled|tiered entrance=auto|door|gate | status | ui | clear | confirm | undo | reload: local Hallwright previews; only confirm creates shared ghosts; undo removes the last shape's unbuilt ghosts",
+                    "hall catalog | rectangle <width> <length> [distance=10] | outline <x,z>... | options height=2|3|4 detail=0..3 pitch=26|45 material=auto|timber|core|stone|dark raise=0..2 roof=gabled|tiered entrance=auto|door|gate overhang=on|off porch=on|off trim=on|off crest=auto|none|dragon|raven | status | ui | clear | confirm | undo | reload: local Hallwright previews; only confirm creates shared ghosts; undo removes the last shape's unbuilt ghosts",
                     new Func<string[],Action<JObject>,Action<string>,IEnumerator>(HallCommand)});
                 found.GetType().GetMethod("RegisterFrame",BindingFlags.Static|BindingFlags.Public)?.Invoke(null,new object[]{Name,new Func<string,float[]>(HallFrame)});
             }
@@ -38,13 +38,15 @@ namespace BuildShapes
         private JObject HallReadout()=>new JObject
         {
             ["mode"]=_tool.ToString(),["corners"]=_markers.Count,["pieces"]=_output.Count,["floorY"]=_hallFloorY,
-            ["area"]=_hallDesign?.Cells.Count*4,["wings"]=_hallDesign?.Wings.Count,["height"]=_hallHeight,["pitch"]=_hallRoof45?45:26,
-            ["detail"]=_hallDetail,["roof"]=_hallTiered?"Tiered":"Gabled",["tieredWings"]=_hallDesign?.TieredWings,["entrance"]=_hallEntranceMode==0?"Auto":_hallEntranceMode==1?"Door":"Gate",["opening"]=_hallKit?.Door,["materials"]=HallMaterials[_hallMaterialMode],["addedSupports"]=_hallAddedPosts,["wouldFall"]=_hallFalls,
+            ["area"]=_hallDesign?.Cells.Count*4,["porchArea"]=_hallDesign?.PorchFloors.Count*4,["wings"]=_hallDesign?.Wings.Count,["height"]=_hallHeight,["pitch"]=_hallRoof45?45:26,
+            ["overhang"]=_hallOverhang,["porch"]=_hallPorch,["sweep"]=_hallSweep,["crest"]=new[]{"Auto","None","Dragon","Raven"}[_hallCrestMode],["detail"]=_hallDetail,["roof"]=_hallTiered?"Tiered":"Gabled",["tieredWings"]=_hallDesign?.TieredWings,["entrance"]=_hallEntranceMode==0?"Auto":_hallEntranceMode==1?"Door":"Gate",["opening"]=_hallKit?.Door,["materials"]=HallMaterials[_hallMaterialMode],["addedSupports"]=_hallAddedPosts,["wouldFall"]=_hallFalls,
             ["checked"]=_hallSupport.Count,["solveMs"]=_hallSolveMs,["problem"]=_hallProblem,["note"]=_hallNote,
             ["bill"]=JObject.FromObject(_hallBill),["stations"]=new JArray(_hallStations),
             ["weakest"]=new JArray(_hallSupport.OrderBy(k=>k.Value.Support/k.Value.Max).Take(8).Select(k=>new JObject
                 {["piece"]=_output[int.Parse(k.Key)].Prefab,["role"]=_hallRoles[int.Parse(k.Key)],["support"]=k.Value.Support,["minimum"]=k.Value.Min,["maximum"]=k.Value.Max})),
         };
+        private static bool HallBool(string text)
+        {if(text!="on" && text!="off")throw new ArgumentException("Use on or off for detail switches.");return text=="on";}
         private static float HallFloat(string text)
         {if(!float.TryParse(text,NumberStyles.Float,CultureInfo.InvariantCulture,out float value) || float.IsNaN(value) || float.IsInfinity(value))throw new ArgumentException("Use finite numbers.");return value;}
         private IEnumerator HallCommand(string[] args,Action<JObject> output,Action<string> error)
@@ -56,7 +58,7 @@ namespace BuildShapes
                 if(action=="catalog")
                 {
                     RefreshHallCatalog(player);
-                    string[] candidates={"wood_floor","woodwall","wood_wall_half","wood_wall_quarter","wood_door","wood_gate","wood_pole2","wood_beam","wood_beam_1","wood_roof","wood_roof_top","wood_wall_roof_a","wood_roof_45","wood_roof_top_45","wood_wall_roof_45","wood_pole_log","wood_wall_log","woodiron_pole","stone_floor_2x2","darkwood_beam","darkwood_raven","darkwood_arch"};
+                    string[] candidates={"wood_floor","woodwall","wood_wall_half","wood_wall_quarter","wood_door","wood_gate","wood_dragon1","wood_pole2","wood_beam","wood_beam_1","wood_roof","wood_roof_top","wood_wall_roof_a","wood_roof_45","wood_roof_top_45","wood_wall_roof_45","wood_pole_log","wood_wall_log","woodiron_pole","stone_floor_2x2","darkwood_beam","darkwood_raven","darkwood_arch"};
                     output(new JObject{["unlocked"]=new JArray(candidates.Select(n=>new JObject{["prefab"]=n,["known"]=HallKnown(n),["material"]=_hallCatalog.TryGetValue(n,out var p)?p.GetComponent<WearNTear>()?.m_materialType.ToString():null}))});return null;
                 }
                 if(action=="status"){output(HallReadout());return null;}
@@ -94,7 +96,7 @@ namespace BuildShapes
                 if(_tool!=Tool.Hall)throw new ArgumentException("Start Hallwright from F4 or use hall rectangle first.");
                 if(action=="options")
                 {
-                    int height=_hallHeight,detail=_hallDetail,material=_hallMaterialMode,entrance=_hallEntranceMode;bool steep=_hallRoof45,tiered=_hallTiered;float raise=_hallRaise;
+                    int height=_hallHeight,detail=_hallDetail,material=_hallMaterialMode,entrance=_hallEntranceMode,crest=_hallCrestMode;bool steep=_hallRoof45,tiered=_hallTiered,overhang=_hallOverhang,porch=_hallPorch,sweep=_hallSweep;float raise=_hallRaise;
                     foreach(string option in args.Skip(2))
                     {
                         string[] kv=option.Split('=');if(kv.Length!=2)throw new ArgumentException("Options use key=value.");
@@ -106,11 +108,15 @@ namespace BuildShapes
                             case "raise": raise=HallFloat(kv[1]);if(raise<0 || raise>2)throw new ArgumentException("Raise is 0–2 m.");break;
                             case "roof": if(kv[1]!="gabled" && kv[1]!="tiered")throw new ArgumentException("Roof is gabled or tiered.");tiered=kv[1]=="tiered";break;
                             case "entrance": entrance=Array.IndexOf(new[]{"auto","door","gate"},kv[1]);if(entrance<0)throw new ArgumentException("Entrance is auto, door, or gate.");break;
+                            case "overhang": overhang=HallBool(kv[1]);break;
+                            case "porch": porch=HallBool(kv[1]);break;
+                            case "trim": sweep=HallBool(kv[1]);break;
+                            case "crest": crest=Array.IndexOf(new[]{"auto","none","dragon","raven"},kv[1]);if(crest<0)throw new ArgumentException("Ridge ends are auto, none, dragon, or raven.");break;
                             case "material": material=Array.IndexOf(new[]{"auto","timber","core","stone","dark"},kv[1]);if(material<0)throw new ArgumentException("Unknown material choice.");break;
                             default:throw new ArgumentException("Unknown hall option: "+kv[0]);
                         }
                     }
-                    _hallHeight=height;_hallDetail=detail;_hallMaterialMode=material;_hallRoof45=steep;_hallRaise=raise;_hallTiered=tiered;_hallEntranceMode=entrance;BuildHallPreview();output(HallReadout());return null;
+                    _hallHeight=height;_hallDetail=detail;_hallMaterialMode=material;_hallRoof45=steep;_hallRaise=raise;_hallTiered=tiered;_hallEntranceMode=entrance;_hallCrestMode=crest;_hallOverhang=overhang;_hallPorch=porch;_hallSweep=sweep;BuildHallPreview();output(HallReadout());return null;
                 }
                 if(action=="ui"){if(_markers.Count<3)throw new ArgumentException("Draw a footprint first.");OpenHallMenu();output(HallReadout());return null;}
                 if(action=="confirm")

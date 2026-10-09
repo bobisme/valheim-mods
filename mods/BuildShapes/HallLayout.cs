@@ -48,11 +48,18 @@ namespace BuildShapes
             internal readonly List<Wing> Wings=new List<Wing>();
             internal readonly List<Part> Parts=new List<Part>();
             internal readonly List<V3> Vertices=new List<V3>();
+            internal readonly List<V3> PorchFloors=new List<V3>();
             internal V3 Door;
+            internal V3 EntryLanding;
             internal double DoorYaw;
             internal double RoofHeight;
             internal int BoundaryPanels;
             internal int TieredWings;
+        }
+        internal sealed class Details
+        {
+            internal bool Overhang, Porch, Sweep;
+            internal string Finial;
         }
 
         internal static List<Cell> Footprint(IReadOnlyList<V3> corners)
@@ -142,12 +149,13 @@ namespace BuildShapes
             return best;
         }
 
-        internal static Design Plan(IReadOnlyList<V3> corners,Kit kit,int height,int detail,int entrance,bool tiered=false)
+        internal static Design Plan(IReadOnlyList<V3> corners,Kit kit,int height,int detail,int entrance,bool tiered=false,Details details=null)
         {
             if(kit==null || kit.DoorHeight<2 || kit.DoorHeight>height || kit.DoorHeight!=Math.Round(kit.DoorHeight) || height<2 || height>4 || detail<0 || detail>3 || kit.Slope!=1 && kit.Slope!=0.5)
                 throw new ArgumentException("Choose walls 2–4 m high, a native roof pitch, and intricacy 0–3.");
             var plan=new Design();plan.Cells.AddRange(Footprint(corners));plan.Wings.AddRange(SolveWings(plan.Cells,kit.SpanCells));
             var set=new HashSet<Cell>(plan.Cells);
+            details=details??new Details{Finial=detail>=3?kit.Raven:null};
             var unique=new HashSet<string>(StringComparer.Ordinal);
             void Add(string name,V3 at,Anchor kind,double yaw=0,string role="shell",V3 end=default)
             {
@@ -188,6 +196,22 @@ namespace BuildShapes
             plan.Door=desired;plan.DoorYaw=doorway.yaw;
             double doorAngle=doorway.yaw*Math.PI/180;
             V3 tangent=new V3(Math.Cos(doorAngle),0,-Math.Sin(doorAngle));
+            V3 outward=new V3(-Math.Sin(doorAngle),0,-Math.Cos(doorAngle));
+            V3 PorchAt(double u,double y,double v)=>plan.Door-tangent*u+outward*v+new V3(0,y,0);
+            plan.EntryLanding=plan.Door;
+            // All footprint edges and roof tiles are orthogonal in this frame, including rotated wings.
+            (double x0,double x1,double z0,double z1) Rect(V3 a,V3 b)=>(Math.Min(a.X,b.X),Math.Max(a.X,b.X),Math.Min(a.Z,b.Z),Math.Max(a.Z,b.Z));
+            bool Overlap((double x0,double x1,double z0,double z1) a,(double x0,double x1,double z0,double z1) b)=>
+                a.x1>b.x0+0.001 && b.x1>a.x0+0.001 && a.z1>b.z0+0.001 && b.z1>a.z0+0.001;
+            bool Outside((double x0,double x1,double z0,double z1) r)=>!plan.Cells.Any(c=>Overlap(r,(c.X*2,c.X*2+2,c.Z*2,c.Z*2+2)));
+            var extensions=new List<(double x0,double x1,double z0,double z1)>();
+            if(details.Porch)
+            {
+                if((eb-ea).Length<4)throw new ArgumentException("A covered porch needs a straight entrance edge at least 4 m long.");
+                var deck=Rect(PorchAt(-2,0,0),PorchAt(2,0,2));
+                if(!Outside(deck))throw new ArgumentException("The porch reaches another wing. Choose an entrance with 2 m of clear space outside.");
+                extensions.Add(deck);plan.EntryLanding=PorchAt(0,0,2);
+            }
             Add(kit.Door,plan.Door,Anchor.Bottom,doorway.yaw,"entrance");plan.BoundaryPanels=boundaries.Count;
             foreach(var edge in boundaries)
             {
@@ -206,6 +230,39 @@ namespace BuildShapes
             var vertices=new HashSet<Cell>();
             foreach(Cell c in plan.Cells)for(int dz=0;dz<=1;dz++)for(int dx=0;dx<=1;dx++)vertices.Add(new Cell(c.X+dx,c.Z+dz));
             plan.Vertices.AddRange(vertices.OrderBy(v=>v.Z).ThenBy(v=>v.X).Select(v=>new V3(v.X*2,0,v.Z*2)));
+            if(details.Porch)
+            {
+                double yaw=doorway.yaw+180,peak=height+2*kit.Slope;
+                for(int side=0;side<2;side++)
+                {
+                    double u=side==0?-1:1;
+                    V3 floor=PorchAt(u,0,1);plan.PorchFloors.Add(floor);
+                    Add(kit.Floor,floor,Anchor.Floor,yaw,"porch floor");
+                    Add(kit.Roof,PorchAt(side==0?-2:2,height,1),Anchor.RoofLow,yaw+(side==0?270:90),"porch roof");
+                    V3 inside=PorchAt(u,0,-0.1);
+                    var behind=plan.Wings.FirstOrDefault(w=>inside.X>w.X*2 && inside.X<(w.X+w.W)*2 && inside.Z>w.Z*2 && inside.Z<(w.Z+w.D)*2);
+                    bool gableBack=behind!=null && (behind.Across
+                        ?Math.Abs(plan.Door.X-behind.X*2)<0.001 || Math.Abs(plan.Door.X-(behind.X+behind.W)*2)<0.001
+                        :Math.Abs(plan.Door.Z-behind.Z*2)<0.001 || Math.Abs(plan.Door.Z-(behind.Z+behind.D)*2)<0.001);
+                    if(!gableBack)Add(kit.Wedge,PorchAt(u,height,0),Anchor.Bottom,yaw+(side==0?0:180),"porch gable");
+                }
+                foreach(double u in new[]{-2.0,0,2.0})foreach(double v in new[]{0.0,2})
+                {
+                    V3 point=PorchAt(u,0,v);
+                    if(!plan.Vertices.Any(p=>(p-point).Length<0.001))plan.Vertices.Add(point);
+                    if(u==0)continue;
+                    for(int h=0;h<height;h+=2)Add(kit.Post,PorchAt(u,Math.Min(h,height-2),v),Anchor.Bottom,0,"porch post");
+                }
+                foreach(double v in new[]{0.0,2})
+                {
+                    Rod(kit.Beam,PorchAt(-2,height,v),PorchAt(2,height,v),kit.BeamLength,"porch frame");
+                    Rod(kit.Beam,PorchAt(-2,height,v),PorchAt(0,peak,v),kit.BeamLength,"porch frame");
+                    Rod(kit.Beam,PorchAt(2,height,v),PorchAt(0,peak,v),kit.BeamLength,"porch frame");
+                    foreach(double u in new[]{-2.0,2})Rod(kit.ShortBeam,PorchAt(u,height-1,v),PorchAt(u+(u<0?1:-1),height,v),kit.ShortLength,"porch brace");
+                }
+                foreach(double u in new[]{-2.0,2})Rod(kit.Beam,PorchAt(u,height,0),PorchAt(u,height,2),kit.BeamLength,"porch frame");
+                Rod(kit.Beam,PorchAt(0,peak,0),PorchAt(0,peak,2),kit.BeamLength,"porch frame");
+            }
             foreach(var edge in boundaries)
             {
                 foreach(V3 v in new[]{edge.a,edge.b})
@@ -282,7 +339,50 @@ namespace BuildShapes
                         Rod(kit.Beam,wing.At(width*0.25,height,v),crest,kit.BeamLength,"ornament");
                         Rod(kit.Beam,wing.At(width*0.75,height,v),crest,kit.BeamLength,"ornament");
                     }
-                    if(detail>=3 && kit.Raven!=null)Add(kit.Raven,wing.At(width/2,peak,v),Anchor.Point,yaw+(end==0?180:0),"ornament");
+                    double sign=end==0?-1:1;
+                    bool exposed=Outside(Rect(wing.At(0,0,v),wing.At(width,0,v+sign*0.5)));
+                    if(details.Sweep && exposed && width>=4)
+                    {
+                        foreach(bool left in new[]{true,false})
+                        {
+                            double edge=left?0:width,mid=left?width*0.25:width*0.75;
+                            foreach(var segment in Curve.Plan(wing.At(edge,height,v+sign*0.15),
+                                wing.At(mid,height+(peak-height)*0.3,v+sign*0.15),wing.At(width/2,peak+0.6,v+sign*0.15),kit.ShortLength))
+                                Add(kit.ShortBeam,segment.Start,Anchor.Segment,0,"gable trim",segment.End);
+                        }
+                    }
+                    string finial=details.Finial;
+                    if(finial!=null && Outside(Rect(wing.At(width/2-0.3,0,v),wing.At(width/2+0.3,0,v+sign*3.4))))
+                        Add(finial,wing.At(width/2,peak,v),Anchor.Point,yaw+(end==0?180:0),"ridge carving");
+                }
+                if(details.Overhang)
+                {
+                    bool Extend(V3 a,V3 b)
+                    {
+                        var rectangle=Rect(a,b);
+                        if(!Outside(rectangle) || extensions.Any(r=>Overlap(r,rectangle)))return false;
+                        extensions.Add(rectangle);return true;
+                    }
+                    // A native 26° apron drops only 1 m over its 2 m depth, preserving useful headroom.
+                    for(int row=-1;row<=wing.Length;row++)foreach(bool left in new[]{true,false})
+                    {
+                        double outer=left?-2:width+2,inner=left?0:width,v=row*2+1;
+                        if(!Extend(wing.At(outer,0,row*2),wing.At(inner,0,row*2+2)))continue;
+                        Add("wood_roof",wing.At(outer,height-1,v),Anchor.RoofLow,yaw+(left?270:90),"overhang roof");
+                        // Brackets under side aisles; end corners connect through the extended end roof.
+                        if(row>=0 && row<wing.Length)
+                            Rod(kit.Beam,wing.At(inner,height-2,v),wing.At(outer,height-1,v),kit.BeamLength,"eave bracket");
+                    }
+                    foreach(int row in new[]{-1,wing.Length})for(int col=0;col<wing.Width;col++)
+                    {
+                        if(!Extend(wing.At(col*2,0,row*2),wing.At(col*2+2,0,row*2+2)))continue;
+                        bool center=wing.Width%2==1 && col==wing.Width/2,left=col<wing.Width/2;
+                        double low=height+Math.Min(col,wing.Width-1-col)*2*kit.Slope+Lift(col),v=row*2+1;
+                        if(center)Add(kit.Ridge,wing.At(col*2+1,low,v),Anchor.Floor,yaw+90,"overhang roof");
+                        else Add(kit.Roof,wing.At(left?col*2:(col+1)*2,low,v),Anchor.RoofLow,yaw+(left?270:90),"overhang roof");
+                        double boundary=row<0?0:length,tip=row<0?-2:length+2;
+                        Rod(kit.Beam,wing.At(col*2+1,low+kit.Slope,boundary),wing.At(col*2+1,low+kit.Slope,tip),kit.BeamLength,"eave outrigger");
+                    }
                 }
                 // Repeated structural trusses, independently of decorative intricacy.
                 for(int bay=0;bay<=wing.Length;bay+=2)

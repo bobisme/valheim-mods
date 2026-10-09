@@ -34,6 +34,20 @@ namespace BuildShapes
             GUILayout.Space(12);GUILayout.Label("Roof pitch",_menuText);
             int pitch=GUILayout.SelectionGrid(_hallRoof45?1:0,new[]{"26° · low","45° · steep"},2,_menuButton,GUILayout.Height(34));
             if((pitch==1)!=_hallRoof45){_hallRoof45=pitch==1;changed=true;}
+            GUILayout.Space(12);GUILayout.Label("Longhouse details",_menuText);
+            bool DetailSwitch(bool value,string label)
+            {
+                if(!GUILayout.Button((value?"On · ":"Off · ")+label,value?_menuSelected:_menuButton))return value;
+                changed=true;return !value;
+            }
+            _hallOverhang=DetailSwitch(_hallOverhang,"Deep roof overhangs · 2 m");
+            _hallPorch=DetailSwitch(_hallPorch,"Covered entrance porch · 4 × 2 m");
+            _hallSweep=DetailSwitch(_hallSweep,"Sweeping gable timberwork");
+            GUILayout.Label("Overhangs fit around other wings and the porch. A porch needs a 4 m edge and clear ground outside. All pieces use normal materials and support.",_menuHint);
+            GUILayout.Label("Ridge ends",_menuText);
+            int crest=GUILayout.SelectionGrid(_hallCrestMode,new[]{"Auto","None","Dragon","Raven"},2,_menuButton,GUILayout.Height(70));
+            if(crest!=_hallCrestMode){_hallCrestMode=crest;changed=true;}
+            GUILayout.Label("Auto adds unlocked carvings at Ornate/Grand. Carvings and swept trim appear on exposed gables.",_menuHint);
             GUILayout.Space(12);GUILayout.Label("Intricacy: "+HallDetails[_hallDetail],_menuText);
             int detail=Mathf.RoundToInt(GUILayout.HorizontalSlider(_hallDetail,0,3));
             if(detail!=_hallDetail){_hallDetail=detail;changed=true;}
