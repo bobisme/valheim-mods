@@ -11,7 +11,7 @@ namespace Omens
     {
         public const string Guid="com.bobisme.omens";
         public const string Name="Omens";
-        public const string Version="0.6.0";
+        public const string Version="0.6.1";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled;
         private readonly Dictionary<Kind,ConfigEntry<bool>> _omens=new Dictionary<Kind,ConfigEntry<bool>>();

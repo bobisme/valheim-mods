@@ -71,6 +71,20 @@ namespace BobsPipes
             }
             return true;
         }
+        // Everything already in place (the common case, checked every second): no scan of the game's thousands of prefabs.
+        internal static bool Settled()
+        {
+            ObjectDB db=ObjectDB.instance;ZNetScene scene=ZNetScene.instance;
+            if(db==null||scene==null||Prefabs.Count==0||Recipes.Count<1+Blend.All.Length)return false;
+            foreach(var pair in Prefabs)
+            {
+                int hash=pair.Key.GetStableHashCode();
+                if(pair.Value==null||db.GetItemPrefab(hash)!=pair.Value||scene.GetPrefab(hash)!=pair.Value)return false;
+            }
+            foreach(PipeEffect effect in Effects)if(effect==null||db.GetStatusEffect(effect.name.GetStableHashCode())!=effect)return false;
+            foreach(Recipe recipe in Recipes.Values)if(recipe==null||!db.m_recipes.Contains(recipe))return false;
+            return true;
+        }
         internal static void Register(ObjectDB db=null,bool refresh=true)
         {
             if(_busy)return;

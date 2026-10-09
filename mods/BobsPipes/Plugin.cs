@@ -13,7 +13,7 @@ namespace BobsPipes
     {
         public const string Guid = "com.bobisme.bobspipes";
         public const string Name = "Bob's Pipes";
-        public const string Version = "0.1.3";
+        public const string Version = "0.1.4";
         internal static Plugin Instance;
         internal ConfigEntry<float> Minutes, Strength;
         internal ConfigEntry<bool> ShowSmoke, Rain;
@@ -47,7 +47,8 @@ namespace BobsPipes
             if (Time.unscaledTime >= _nextRegister)
             {
                 _nextRegister = Time.unscaledTime+1;
-                Items.Register(); Items.Relink(Player.m_localPlayer?.GetInventory());
+                if (!Items.Settled()) Items.Register();
+                Items.Relink(Player.m_localPlayer?.GetInventory());
                 Tobacco.Ready();
             }
             if (_pipe == null) return;

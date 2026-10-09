@@ -19,8 +19,8 @@ namespace Omens
         {
             if(Time.unscaledTime<_nextCheck)return;
             _nextCheck=Time.unscaledTime+5;
-            BaseUnityPlugin found=Resources.FindObjectsOfTypeAll<BaseUnityPlugin>().Where(p=>p!=null&&p.gameObject.scene.IsValid())
-                .FirstOrDefault(p=>MetadataHelper.GetMetadata(p)?.GUID==ClaudeToolsGuid);
+            // BepInEx's own list (ScriptEngine registers hot-loaded plugins there): searching every loaded object costs ~10 ms.
+            BaseUnityPlugin found=BepInEx.Bootstrap.Chainloader.PluginInfos.TryGetValue(ClaudeToolsGuid,out PluginInfo info)?info.Instance:null;
             if(found==_tools)return;
             _tools=found;
             if(found==null)return;
