@@ -21,7 +21,7 @@ namespace BuildShapes
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Static|BindingFlags.Public)?.Invoke(null,new object[]{Name,"hall",
-                    "hall catalog | rectangle <width> <length> [distance=10] | outline <x,z>... | options style=hall|temple chamber=4|6|8 crowns=1|2 gallery=on|off height=2|3|4 detail=0..4 storeys=1|2|3 basement=on|off pitch=26|45 material=auto|timber|core|stone|dark raise=0..2 roof=gabled|tiered entrance=auto|door|gate overhang=on|off porch=on|off trim=on|off crest=auto|none|dragon|raven | doors clear | doors <x,z>... | status | resume | stairs | entrances | pieces | ui | clear | confirm | undo | restoreground | keepground | reload: local Hallwright previews; only confirm creates shared ghosts; undo removes the last shape's unbuilt ghosts",
+                    "hall testsite find <size> | testsite make <x> <z> <height> <size> <worldID> | testsite clear <x> <z> <size> <worldID> | catalog | rectangle <width> <length> [distance=10] | outline <x,z>... | options style=hall|temple chamber=4|6|8 crowns=1|2 gallery=on|off height=2|3|4 detail=0..4 storeys=1|2|3 basement=on|off pitch=26|45 material=auto|timber|core|stone|dark raise=0..2 roof=gabled|tiered entrance=auto|door|gate overhang=on|off porch=on|off trim=on|off crest=auto|none|dragon|raven | doors clear | doors <x,z>... | status | resume | stairs | entrances | pieces | ui | clear | confirm | undo | restoreground | keepground | reload: local Hallwright previews; only confirm creates shared ghosts; undo removes the last shape's unbuilt ghosts",
                     new Func<string[],Action<JObject>,Action<string>,IEnumerator>(HallCommand)});
                 found.GetType().GetMethod("RegisterFrame",BindingFlags.Static|BindingFlags.Public)?.Invoke(null,new object[]{Name,new Func<string,float[]>(HallFrame)});
             }
@@ -59,6 +59,15 @@ namespace BuildShapes
             {
                 string action=args.Length>1?args[1].ToLowerInvariant():"status";
                 Player player=Player.m_localPlayer;
+                if(action=="testsite")
+                {
+                    if(args.Length==4 && args[2]=="find"){output(FindTestSite(HallFloat(args[3])));return null;}
+                    if(args.Length==7 && args[2]=="clear" && long.TryParse(args[6],out long clearWorld))
+                    {output(new JObject{["clearedObjects"]=ClearTestSite(new Vector3(HallFloat(args[3]),player.transform.position.y,HallFloat(args[4])),HallFloat(args[5]),clearWorld)});return null;}
+                    if(args.Length==8 && args[2]=="make" && long.TryParse(args[7],out long siteWorld))
+                        return MakeTestSite(new Vector3(HallFloat(args[3]),HallFloat(args[5]),HallFloat(args[4])),HallFloat(args[6]),siteWorld,output,error);
+                    throw new ArgumentException("hall testsite find <size> | make <x> <z> <height> <size> <worldID> | clear <x> <z> <size> <worldID>: clear/flatten/teleport in the local Creative world only.");
+                }
                 if(action=="catalog")
                 {
                     RefreshHallCatalog(player);
