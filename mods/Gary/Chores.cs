@@ -243,7 +243,9 @@ namespace Gary
             ZNetView view=p.GetComponent<ZNetView>();ZDO z=Companion.Data(st.Body);
             if(view==null||!view.IsValid()||!view.IsOwner()||p.m_itemPrefab==null){End(st,2);return true;}
             int amount=p.m_dontScale?p.m_amount:Mathf.Max(p.m_minAmountScaled,Game.instance.ScaleDrops(p.m_itemPrefab,p.m_amount));
-            p.SetPicked(true);view.InvokeRPC(ZNetView.Everybody,"RPC_SetPicked",true); // deplete before crediting
+            // Deplete before crediting. The game's own pick (run here too, as the owner) may remove a deadfall that never regrows, so
+            // nothing may touch the view after it.
+            view.InvokeRPC(ZNetView.Everybody,"RPC_SetPicked",true);
             Carry(z,PileKey,Basket(z,PileKey),p.m_itemPrefab.name,amount);
             End(st,2);return true;
         }
