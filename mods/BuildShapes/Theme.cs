@@ -11,7 +11,7 @@ namespace BuildShapes
             ButtonFill=new Color(0.25f,0.2f,0.14f,1),ButtonHover=new Color(0.33f,0.27f,0.18f,1),ButtonDown=new Color(0.18f,0.14f,0.1f,1),
             InputFill=new Color(0.22f,0.19f,0.14f,1),Track=new Color(0.06f,0.05f,0.03f,1);
         private GUISkin _skin;
-        private GUIStyle _menuHint,_menuWarning,_menuSelected,_menuClose,_hud;
+        private GUIStyle _menuHint,_menuWarning,_menuSelected,_menuClose,_hud,_hallNotice;
         private readonly List<Texture2D> _themeTextures=new List<Texture2D>();
 
         private Texture2D Fill(Color fill,Color? edge=null)
@@ -86,6 +86,7 @@ namespace BuildShapes
             _menuClose=new GUIStyle(_skin.button){fontSize=20,padding=new RectOffset(0,0,0,2)};
             _menuNumber=_skin.textField;
             _hud=_skin.box;
+            _hallNotice=new GUIStyle(_skin.box){fontSize=22,alignment=TextAnchor.MiddleCenter};Text(_hallNotice,Warning);
             return _skin;
         }
         private void DestroyTheme()

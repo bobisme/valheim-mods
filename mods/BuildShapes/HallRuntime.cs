@@ -22,6 +22,7 @@ namespace BuildShapes
         private string _hallProblem, _hallNote, _hallFingerprint;
         private string _hallAnnouncedProblem;
         private int _hallAnnouncedCorners=-1;
+        private float _hallProblemUntil;
         private int _hallFalls, _hallAddedPosts;
         private long _hallSolveMs;
         private Rect _hallRect;
@@ -258,12 +259,20 @@ namespace BuildShapes
         {
             // Incomplete outlines stay quiet; successful edits re-arm the same reason.
             if(_markers.Count<4 || _hallProblem==null)
-            {_hallAnnouncedProblem=null;_hallAnnouncedCorners=-1;return;}
+            {_hallAnnouncedProblem=null;_hallAnnouncedCorners=-1;_hallProblemUntil=0;return;}
             if(_hallMenu)return;
             // Catalog refreshes and repeated solves must not queue duplicate HUD messages.
             if(_hallProblem==_hallAnnouncedProblem && _markers.Count==_hallAnnouncedCorners)return;
             _hallAnnouncedProblem=_hallProblem;_hallAnnouncedCorners=_markers.Count;
-            Say($"{(_staveTemple?"Temple":"Hall")} outline: {_hallProblem}");
+            _hallProblemUntil=Time.unscaledTime+7;
+        }
+        private void DrawHallDrawingProblem(float scale)
+        {
+            if(_hallProblem==null || Time.unscaledTime>=_hallProblemUntil)return;
+            float width=Mathf.Min(800,Screen.width/scale-40);
+            string text=$"{(_staveTemple?"Temple":"Hall")} outline needs a change\n{_hallProblem}";
+            float height=_hallNotice.CalcHeight(new GUIContent(text),width);
+            GUI.Box(new Rect((Screen.width/scale-width)/2,Screen.height/scale*0.22f,width,height),text,_hallNotice);
         }
         private void QueueHallPreview(){SaveHallDraft();_hallDue=Time.unscaledTime+0.18f;}
         private void UpdateHall()
@@ -345,7 +354,7 @@ namespace BuildShapes
         }
         private void ClearHall()
         {
-            CloseHallMenu();_hallAnnouncedProblem=null;_hallAnnouncedCorners=-1;_hallGuideHasFloor=false;_hallDoorPoints.Clear();_hallGroundJob.Clear();_hallTargetMaps.Clear();_hallDesign=null;_hallDue=0;_hallProblem=_hallNote=_hallFingerprint=null;
+            CloseHallMenu();_hallProblemUntil=0;_hallAnnouncedProblem=null;_hallAnnouncedCorners=-1;_hallGuideHasFloor=false;_hallDoorPoints.Clear();_hallGroundJob.Clear();_hallTargetMaps.Clear();_hallDesign=null;_hallDue=0;_hallProblem=_hallNote=_hallFingerprint=null;
             _hallRoles.Clear();_hallBill.Clear();_hallStations.Clear();_hallSupport.Clear();
         }
         private void DestroyHall()

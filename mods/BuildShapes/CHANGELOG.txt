@@ -1,3 +1,5 @@
+0.6.3: Wrap automatic Hallwright/temple outline errors in a readable seven-second notification instead of Valheim's single-line center message. Clears immediately when the outline becomes valid; keeps drawing input free.
+
 0.6.2: Hallwright and Stave temple explain invalid outlines with a center-screen message while drawing, starting at four corners. New corner edits can repeat the reason; unchanged background solves stay quiet. Settings keep their existing error readout and do not interrupt drawing.
 
 0.6.1: ClaudeTools hall testsite developer command finds dry 32–64 m meadow/forest pads and can flatten, clear natural objects and teleport in a locally hosted world named Creative, bound to its explicit world ID. Validates loaded terrain, existing buildings, access and native height limits before edits; records previous height deltas, keeps characters/player pieces, clears saplings/stumps and resource debris, and reports measured flatness. A clear-only command cleans an existing pad without teleporting or changing terrain. Normal designer actions are unchanged.

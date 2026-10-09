@@ -15,7 +15,7 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.6.2";
+        public const string Version = "0.6.3";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
@@ -425,6 +425,7 @@ namespace BuildShapes
             {
                 Matrix4x4 savedHall=GUI.matrix;
                 try { Theme(); float hs=Mathf.Max(0.6f,Screen.height/1080f); GUI.matrix=Matrix4x4.Scale(new Vector3(hs,hs,1));
+                    DrawHallDrawingProblem(hs);
                     string hint="Hallwright: Shift+click corners · Ctrl+click entrances · Ctrl+Backspace: last entrance · L: settings · Delete: clear · F4: modes · Esc: exit\n"+(_hallProblem??$"{_markers.Count} corners · {_output.Count} pieces · support estimate passed");
                     GUI.Box(new Rect(20,Screen.height/hs-160,Mathf.Min(1000,Screen.width/hs-40),95),hint,_hud);
                 } finally { GUI.matrix=savedHall; } return;
