@@ -60,6 +60,14 @@ namespace BuildShapes
                 yield return new HallLayout.Part{Prefab="wood_stair",Role="interior stair",At=new V3(x+(plan.StairAcross?along:1),i,z+(plan.StairAcross?1:along)),Kind=HallLayout.Anchor.RoofLow,Yaw=plan.StairAcross?270:180};
             }
         }
+        internal static HallLayout.Part Exterior(HallDoors.Entrance entry,int step)
+        {
+            if(step<0 || step>=6)throw new ArgumentException("Exterior stairs are limited to six sections.");
+            V3 outward=HallLayout.Turn(new V3(0,0,-1),entry.Yaw);
+            // Native bottom snaps are at +Z and the top at -Z. Rise back toward the doorway.
+            return new HallLayout.Part{Prefab="wood_stair",Role="entry stair",Kind=HallLayout.Anchor.RoofLow,
+                At=entry.Landing+outward*(2*(step+1))+new V3(0,-step-1,0),Yaw=entry.Yaw+180};
+        }
         internal static bool Blocks(HallLayout.Design plan,V3 point)
         {
             // Beam/pole radius plus the player's width; keep structural fixes out of the walking route.

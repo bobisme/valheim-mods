@@ -274,3 +274,27 @@ Check(fitted.Entrances.Count==2&&fitted.StairHoles.Count==3,"Joint door fit find
 Check(fitted.Entrances.Any(d=>d.At.Z<=1||d.At.Z>=9),"Door hint can move to a landing bay to preserve interior stairs");
 Check(fitted.Entrances.Zip(tightHints,(door,hint)=>(door.At-hint).Length).All(distance=>distance<=4),"Stair-aware fit stays within the hint tolerance");
 Console.WriteLine($"Joint entrances and stairs: {checks:N0} checks passed");
+
+// Use captured native snap endpoints, not the helper's yaw, as the exterior-stair oracle.
+var exteriorSnaps=fixture.GetProperty("wood_stair").GetProperty("snaps").EnumerateObject().Select(s=>Vector(s.Value)).ToArray();
+double exteriorLowY=exteriorSnaps.Min(v=>v.Y),exteriorHighY=exteriorSnaps.Max(v=>v.Y);
+V3 SnapMean(IEnumerable<V3> points){var all=points.ToArray();return all.Aggregate(new V3(0,0,0),(a,b)=>a+b)*(1.0/all.Length);}
+var nativeBottom=SnapMean(exteriorSnaps.Where(v=>Math.Abs(v.Y-exteriorLowY)<1e-6));
+var nativeTop=SnapMean(exteriorSnaps.Where(v=>Math.Abs(v.Y-exteriorHighY)<1e-6));
+foreach(double yaw in new[]{0.0,90,180,270})foreach(double hallYaw in new[]{0.0,37})
+{
+ var entrance=new HallDoors.Entrance{At=new V3(4,0,0),Landing=new V3(4,0,-2),Yaw=yaw};
+ V3 previousLow=Turn(entrance.Landing,hallYaw);
+ for(int i=0;i<6;i++)
+ {
+  var stair=HallStairs.Exterior(entrance,i);
+  V3 origin=Turn(stair.At,hallYaw)-Turn(nativeBottom,stair.Yaw+hallYaw);
+  V3 actualTop=origin+Turn(nativeTop,stair.Yaw+hallYaw),actualBottom=origin+Turn(nativeBottom,stair.Yaw+hallYaw);
+  Check((actualTop-previousLow).Length<1e-6,"Exterior stair top joins the porch/door landing or the preceding stair bottom");
+  Check(Math.Abs(actualTop.Y-actualBottom.Y-1)<1e-6,"Native exterior stair rises exactly one metre toward the door");
+  V3 expectedOutward=Turn(new V3(0,0,-2),yaw+hallYaw);
+  Check(((actualBottom-actualTop)-expectedOutward-new V3(0,-1,0)).Length<1e-6,"Exterior stair descends outward for every wall and rotated hall");
+  previousLow=actualBottom;
+ }
+}
+Console.WriteLine($"Exterior native stair endpoints: {checks:N0} checks passed");

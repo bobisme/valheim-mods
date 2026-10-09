@@ -193,9 +193,9 @@ namespace BuildShapes
                     V3 outward=V(Quaternion.Euler(0,(float)entry.Yaw,0)*Vector3.back);
                     for(int stair=0;stair<6;stair++)
                     {
-                        V3 low=entry.Landing+outward*(2*(stair+1))+new V3(0,-stair-1,0);
+                        var step=HallStairs.Exterior(entry,stair);V3 low=step.At;
                         if(_hallFloorY-stair<=HallGround(HallWorld(entry.Landing+outward*(2*stair)))+0.25)break;
-                        AddHallPart(new HallLayout.Part{Prefab="wood_stair",At=low,Kind=HallLayout.Anchor.RoofLow,Yaw=entry.Yaw,Role="entry stair"});
+                        AddHallPart(step);
                         HallColumn(low,low.Y,_hallKit.Post,"foundation");
                         if(stair==5)throw new ArgumentException("An entrance needs more than six stair sections. Move its marker or use flatter ground.");
                     }
