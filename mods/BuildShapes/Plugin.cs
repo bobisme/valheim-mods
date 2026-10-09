@@ -15,7 +15,7 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.5.7";
+        public const string Version = "0.5.8";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
@@ -66,7 +66,7 @@ namespace BuildShapes
 
         private void Awake()
         {
-            Instance = this;
+            Instance = this;ConfigureSharedPreviews();
             _enabled = Config.Bind("General", "Enabled", true, "Enable Curve, Arch, Mirror, Repeat, and Hallwright tools.");
             // Keep the original config key so existing custom F4 bindings survive the update.
             _toggle = Config.Bind("Controls", "ToggleCurve", KeyCode.F4, "Open/close the shape-mode picker: Curve, Arch, Mirror, Repeat, or Hallwright.");
@@ -97,7 +97,7 @@ namespace BuildShapes
             long world = ZNet.World?.m_uid ?? 0;
             if (_player != player || _session != ZNet.instance || _world != world)
             { Stop(); DestroyHall(); _lastPlan = null; _bounds.Clear(); _player = player; _session = ZNet.instance; _world = world; }
-            UpdateHallCommands();
+            UpdateHallCommands();UpdateSharedPreviews();
             if (!_enabled.Value || !HoldingHammer(player) || player.IsDead())
             { if (ShapeActive) Stop(); if (player != null && player.IsDead()) _lastPlan = null; return; }
             if (!_planner.Ready() || ((_tool == Tool.Mirror || _tool == Tool.Repeat) && !_planner.Extended) || !_planner.Available(player))
@@ -392,6 +392,7 @@ namespace BuildShapes
         }
         private void Line(Vector3[] points, float width, bool anchor=false)
         {
+            DirtySharedPreview();
             if (_material == null)
             {
                 Shader shader = Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Color");
@@ -414,6 +415,7 @@ namespace BuildShapes
         }
         private void OnGUI()
         {
+            DrawSharedLabels();
             if (!ShapeActive || !Ready(Player.m_localPlayer) || !_planner.Available(Player.m_localPlayer)) return;
             if (_modeMenu) { DrawModeMenu(); return; }
             if (_repeatMenu) { DrawRepeatMenu(); return; }
@@ -442,13 +444,13 @@ namespace BuildShapes
             }
             finally { GUI.matrix = saved; }
         }
-        private void ClearVisuals() { foreach (GameObject go in _visuals) if (go != null) Destroy(go); _visuals.Clear(); }
+        private void ClearVisuals() { DirtySharedPreview(); foreach (GameObject go in _visuals) if (go != null) Destroy(go); _visuals.Clear(); }
         private void ClearShape() { CloseModeMenu(); CloseRepeatMenu(); CloseArchMenu(); ClearHall(); _archRiseSet = false; _markers.Clear(); _sources.Clear(); _output.Clear(); _previewError = null; ClearVisuals(); }
         private void Stop() { SaveHallDraft(); _hallDraftWorld=_hallDraftPlayer=0; _hallDraftSubmitted=false; _hallDraftLast=null; _tool = Tool.None; _yaw = _pitch = _roll = 0; _seed = default; ResetRepeatAnchors(); _bounds.Clear(); _mirrorProfiles.Clear(); ClearShape(); }
         private static void Say(string text) { Player.m_localPlayer?.Message(MessageHud.MessageType.Center, "BuildShapes: " + (text ?? "Planner unavailable.")); }
         private void OnDestroy()
         {
-            Stop(); _harmony?.UnpatchSelf(); if (_material != null) Destroy(_material);
+            DestroySharedPreviews();Stop(); _harmony?.UnpatchSelf(); if (_material != null) Destroy(_material);
             if(_anchorMaterial!=null)Destroy(_anchorMaterial);
             DestroyHall(); UnregisterHallCommands(); DestroyTheme();
             if (Instance == this) Instance = null;

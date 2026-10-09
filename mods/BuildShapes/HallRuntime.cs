@@ -332,7 +332,11 @@ namespace BuildShapes
         private List<HallMesh> HallMeshes(string name)
         {
             if(_hallMeshes.TryGetValue(name,out var cached))return cached;
-            var list=new List<HallMesh>();GameObject prefab=_hallCatalog[name];
+            var list=ReadHallMeshes(_hallCatalog[name]);_hallMeshes[name]=list;return list;
+        }
+        private static List<HallMesh> ReadHallMeshes(GameObject prefab)
+        {
+            var list=new List<HallMesh>();
             foreach(MeshFilter filter in prefab.GetComponentsInChildren<MeshFilter>(true))
             {
                 MeshRenderer renderer=filter.GetComponent<MeshRenderer>();
@@ -341,7 +345,7 @@ namespace BuildShapes
                 if(hidden)continue;
                 list.Add(new HallMesh{Mesh=filter.sharedMesh,Local=prefab.transform.worldToLocalMatrix*filter.transform.localToWorldMatrix,Materials=renderer.sharedMaterials});
             }
-            _hallMeshes[name]=list;return list;
+            return list;
         }
         private Material HallGhostMaterial(Material source)
         {

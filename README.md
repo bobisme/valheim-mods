@@ -332,6 +332,8 @@ First-playtest checklist (automated policy checks and assembly verification do n
 
 ## BuildShapes
 
+**Live draft sharing:** players with **BuildShapes 0.5.8+** see your corner posts, outline, roof/storey guides and piece previews in cyan, labeled with your name. Sharing is on by default in all five modes. Hallwright options let you share the draft and include piece meshes; **F7 → Shared drafts** also controls receiving and viewing meshes. Layout sends guides alone; hidden roofs stay hidden. Draft visuals have no collision, terrain effects or build actions. They clear when you submit/exit, and expire after disconnects. Viewers show the nearest four drafts within 120 m, with at most 4,096 shared pieces visible. These limits affect shared visuals, not the plan.
+
 **Hallwright** designs a complete Viking timber shell from your floor plan. Equip a hammer, press **F4 → Hallwright**, and **Shift+click** each corner in boundary order. The first edge sets a **2 m grid**; later edges follow its square directions. **L** opens the live settings. Concave L/U shapes work.
 
 Choose wall height (2–4 m), native roof pitch (26°/45°), entrance type and edge, foundation lift, and **Simple → Crafted → Ornate → Grand → King’s hall** intricacy. Floors, walls, entrance, joined roof wings, gable infill, trusses and terrain-reaching foundations update together. On raised sites, steps descend from the entrance. Ornate styles add patterned timberwork, curved darkwood braces and raven crest ornaments as they unlock. Roof visibility and materials/ghost preview buttons make the framing easy to inspect. Small odd-width gable peaks are intentional vents.
@@ -344,7 +346,7 @@ Choose wall height (2–4 m), native roof pitch (26°/45°), entrance type and e
 
 **Saved drafts:** Hallwright auto-saves corner positions, entrance hints and every design setting per character/world. Use **F4 → Resume saved Hallwright draft** after F6/restarting or leaving the tool. It rechecks the local preview against current ground, unlocks and support; reopening does not change terrain or submit ghosts. **Delete** clears the outline and its saved copy, and successful submission removes it. Planner-only reloads and temporarily busy planner menus pause shape input without discarding markers. Large-shell API availability is checked before any excavation.
 
-**Layout guides:** corner markers follow the actual terrain and have amber posts at least **4 m tall**, extending to the planned wall height for taller halls. Posts stay visible through occlusion; footprint/storey outlines and roof ridge/gable lines show the intended building volume. Select **Layout** in the preview controls for a clean outline without piece meshes, or switch back to **Materials/Ghosts**. Roof visibility also controls the roof guide. Door markers get tall posts too. These guides stay local, have no colliders and clear with the draft.
+**Layout guides:** corner markers follow the actual terrain and have amber posts at least **4 m tall**, extending to the planned wall height for taller halls. Posts stay visible through occlusion; footprint/storey outlines and roof ridge/gable lines show the intended building volume. Select **Layout** in the preview controls for a clean outline without piece meshes, or switch back to **Materials/Ghosts**. Roof visibility also controls the roof guide. Door markers get tall posts too. These guides have no colliders, can be shared live and clear with the draft.
 
 **Storeys:** choose one, two or three. Wall height applies to each storey. Floors follow the same concave footprint, with native interior stairs, a landing at either end, guarded floor openings and structural joists. The solver keeps columns out of the stair route. Straight flights require a 2 m-wide run of **8 / 10 / 12 m** for 2 / 3 / 4 m storeys including landings, with space beside it. If no flight fits, the preview explains how to enlarge a wing. Auto uses unlocked reinforced timber for taller load-bearing columns. The 2,048-piece limit includes every storey and ornament; large royal designs may need lower intricacy or a smaller footprint.
 
@@ -432,7 +434,7 @@ are excluded. Curve, Arch, Mirror and Repeat never alter terrain. Hallwright alt
 
 Use **Exit shape mode** in the F4 picker, or press **Escape** outside the options, before selecting another hammer piece or building normally with **E**. Modes reserve normal hammer placement,
 and yield to planner blueprint/bridge placement and menus. The Plans window lists generated groups with Move/Level disabled.
-Only the designer needs BuildShapes; participating players should use the updated BuildOrders and chosen piece prefabs. Older planners
+Only the designer needs BuildShapes for submitted plans; live draft sharing requires BuildShapes 0.5.8+ on designer and viewer. Participating builders should use the updated BuildOrders and chosen piece prefabs. Older planners
 can receive/build ghosts but still expose terrain actions on add-on groups.
 
 U removes only remaining ghosts; built pieces and terrain stay intact. Undo is one step across all shape tools in the current session,
@@ -440,7 +442,7 @@ and clears on death/respawn, F6, or world changes. Saved/shared ghosts remain af
 `BepInEx/config/com.bobisme.buildshapes.cfg`. Radial repeat and ornament presets are future additions.
 
 Automated checks cover two-endpoint arch height/symmetry, curve/station geometry, independently integrated arc spacing, reflected tilted frames, offset pivots, 33 captured native snap layouts (including triangular gables), repeat
-bounds and vertical heading, plus reflection dispatch across original/extended/missing/reloaded planners. The upstream API has separate
+bounds and vertical heading, plus reflection dispatch across original/extended/missing/reloaded planners. Shared-preview checks cover full-size packets, malformed data, revision ordering, clear/expiry/rejoin behavior, peer bounds and update cadence. The upstream API has separate
 batch, ghost-ray, input-conflict, undo, and world tests. Rendering, multiplayer delivery, and fresh-launch behavior still need playtests:
 
 Open the F4 picker with no mode active and during each tool. Try resuming, switching, Escape/F4/×, Exit shape mode, changing hammer piece, opening another menu, and F6. Picker clicks must never place/attack/mark; switching clears the local preview while submitted ghosts and undo remain.

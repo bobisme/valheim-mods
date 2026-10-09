@@ -37,6 +37,7 @@ namespace BuildShapes
         }
         private JObject HallReadout()=>new JObject
         {
+            ["sharing"]=new JObject{["send"]=_shareDrafts.Value,["receive"]=_showSharedDrafts.Value,["connectedViewers"]=_sharedParticipants.Count,["receivedDrafts"]=_sharedDraftSet.Entries.Count,["packetBytes"]=_sharedPacket?.Length??0},
             ["wholeBuildingApi"]=_planner.WholeShell,["savedDraft"]=System.IO.File.Exists(CurrentHallDraftPath),["mode"]=_tool.ToString(),["corners"]=_markers.Count,["pieces"]=_output.Count,["floorY"]=_hallFloorY,
             ["entrances"]=new JArray((_hallDesign?.Entrances??new System.Collections.Generic.List<HallDoors.Entrance>()).Select(d=>new JObject{["x"]=d.At.X,["z"]=d.At.Z,["yaw"]=d.Yaw,["edge"]=d.Edge})),["entranceMarkers"]=_hallDoorPoints.Count,["preview"]=_hallGuideOnly?"Layout":_hallSolid?"Materials":"Ghosts",
             ["area"]=_hallDesign?.Cells.Count*4,["porchArea"]=_hallDesign?.PorchFloors.Count*4,["wings"]=_hallDesign?.Wings.Count,["height"]=_hallHeight,["storeys"]=_hallStoreys,["basement"]=_hallBasement,["groundVertices"]=_hallGroundJob.Count,["stairHoles"]=_hallDesign?.StairHoles.Count,["pitch"]=_hallRoof45?45:26,

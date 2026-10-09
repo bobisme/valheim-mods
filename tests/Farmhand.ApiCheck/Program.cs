@@ -172,6 +172,8 @@ var inventorySave=game.MainModule.Types.Single(t=>t.Name=="Inventory").Methods.S
 if(!inventorySave.Body.Instructions.Any(i=>i.OpCode.Code==Mono.Cecil.Cil.Code.Ldc_I4_S&&Convert.ToInt32(i.Operand)==109)||
    !inventorySave.Body.Instructions.Any(i=>i.Operand is MethodReference m&&m.DeclaringType.Name=="ZPackage"&&m.Name=="Write"&&m.Parameters.Count==1&&m.Parameters[0].ParameterType.FullName=="System.UInt16"))
     throw new Exception("Native inventory header changed; review Gary's read-only chest parser.");
+Method("ZPackage","Size","System.Int32");
+Method("ZPackage","GetArray","System.Byte[]");
 Field("ZRoutedRpc","m_functions","System.Collections.Generic.Dictionary`2<System.Int32,RoutedMethodBase>");
 
 // ChestSearch uses native permission/ownership and displays cloned slot visuals, never synthetic inventory transfers.
