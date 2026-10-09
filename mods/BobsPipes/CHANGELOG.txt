@@ -1,3 +1,5 @@
+0.1.3: Works with Quad's released Cigars. The smoking API is now optional and treated as a minimum (v1 or newer): with it, pipes and cigars share one active smoke; without it, pipes light on their own instead of asking you to update Cigars.
+
 0.1.2: A lit pipe stays in the character's mouth, with its bowl hanging below the stem. Remove the cigar-style hand grip and hand-to-mouth eating gestures; occasional quiet exhalations remain.
 
 0.1.1: Fix the pipe's hand pose: follow the actual fingers and palm, grip the leather-wrapped stem, and keep the bowl outside the hand. The pipe stays upright and still moves to the mouth for puffs.

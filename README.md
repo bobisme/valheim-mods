@@ -5,9 +5,9 @@ Bob's Valheim mods, built for native Linux and Windows and packaged for the in-g
 ## Bob's Pipes
 
 A reusable **Carved Pipe**, crafted at a **workbench** from **4 wood, 2 core wood and 1 leather scraps**. It depends on
-[Quad's Cigars](https://github.com/HardHeadHackerHead/valheim-mods) with **smoking API v1 (0.2.1)**, and uses its tobacco growing,
-drying, aging, rolling table and humidor. The API is proposed in [upstream PR #4](https://github.com/HardHeadHackerHead/valheim-mods/pull/4);
-until it is merged, the matching Cigars DLL/PDB are published on its `bob/pipes-smoking-api` branch. Bob's Pipes supplies the pipe and three blend tins:
+[Quad's Cigars](https://github.com/HardHeadHackerHead/valheim-mods) (any version with the tobacco chain), and uses its tobacco growing,
+drying, aging, rolling table and humidor. Cigars with **smoking API v1 or newer**, proposed in
+[upstream PR #4](https://github.com/HardHeadHackerHead/valheim-mods/pull/4), also lets pipes and cigars share one active smoke. Bob's Pipes supplies the pipe and three blend tins:
 
 | Tobacco | Recipe at the Cigar Rolling Table | Bonus while lit |
 | --- | --- | --- |
@@ -24,13 +24,13 @@ The pipe has a hollow wooden bowl, bent stem and leather wrap, a tiny ember and 
 with its bowl hanging below the stem and occasional quiet exhalations at rest.
 With use, the smoking pipe gradually darkens to a seasoned finish. Fighting, blocking, swimming, bed and exposed rain put it away;
 its unfinished bowl stays with the actual inventory item through saves, transfers and deaths. Smoking does not consume stamina or
-force you to stay seated. Cigars and pipes share **one active smoke**, preserving unrelated status effects. Set **EffectStrength = 0**
+force you to stay seated. With the smoking API, cigars and pipes share **one active smoke**, preserving unrelated status effects. Set **EffectStrength = 0**
 in F7 → Mod settings for cosmetic smoking; bowl duration, smoke and rain behavior are adjustable too. There are no new function keys.
 
 **Install both mods on the host and every player, and restart before loading your world.** The pipe and tins are new saved item prefabs.
 For later F6 reloads, the add-on resolves the live Cigars instance and registers its effect names again; it never binds its reloadable
 assembly identity. Recipes wait for Quad's actual resources and station and reconnect after a reload. A reload snuffs and saves a lit bowl.
-Without API v1, using a pipe shows an update message and spends no tobacco.
+Without the API (Quad's released Cigars), pipes work on their own: lighting a pipe cannot put out a cigar, or the other way round.
 
 Checks cover saved bowls, accounting, malformed data, reloads and dependency failure, both directions of the shared smoking rule,
 and the exact native inventory/tooltip/registration hooks. First playtest:

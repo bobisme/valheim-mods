@@ -11,40 +11,56 @@ namespace BobsPipes
         internal const string Guid = "com.dhack.cigarsmoking";
         private BaseUnityPlugin _instance;
         private MethodInfo _register, _unregister, _stop;
+        private bool _checked;
+        // Shared: Cigars offers smoking API v1 or newer, so a pipe and a cigar share the one-active-smoke rule.
+        // Without it (Quad's released Cigars), pipes still work on their own; lighting one just cannot put out a cigar.
+        internal bool Shared => _stop != null;
         internal bool Ready()
         {
             BaseUnityPlugin current = Chainloader.PluginInfos.TryGetValue(Guid, out var info) ? info.Instance : null;
-            if (current == null) { _instance = null; _register = _unregister = _stop = null; return false; }
-            if (current == _instance && _stop != null) return true;
-            _instance = current; _register = _unregister = _stop = null;
+            if (current == null) { _instance = null; _register = _unregister = _stop = null; _checked = false; return false; }
+            if (current == _instance && _checked) return true;
+            _instance = current; _register = _unregister = _stop = null; _checked = true;
+            if (!Bind(current)) _register = _unregister = _stop = null;
+            return true;
+        }
+        private bool Bind(BaseUnityPlugin current)
+        {
             Type type = current.GetType();
             FieldInfo version = type.GetField("SmokingApiVersion", BindingFlags.Public|BindingFlags.Static);
-            if (version == null || !version.IsLiteral || version.FieldType != typeof(int) || !Equals(version.GetRawConstantValue(), 1)) return false;
-            _register = type.GetMethod("RegisterSmokingEffect", new[] { typeof(string) });
-            _unregister = type.GetMethod("UnregisterSmokingEffect", new[] { typeof(string) });
-            _stop = type.GetMethod("StopOtherSmoking", new[] { typeof(Character), typeof(string) });
-            if (_register?.ReturnType != typeof(bool) || _unregister?.ReturnType != typeof(void) || _stop?.ReturnType != typeof(bool) || _register.IsStatic || _unregister.IsStatic || _stop.IsStatic)
-            { _stop = null; return false; }
+            if (version == null || !version.IsLiteral || version.FieldType != typeof(int) || !(version.GetRawConstantValue() is int v) || v < 1) return false;
+            MethodInfo register = type.GetMethod("RegisterSmokingEffect", new[] { typeof(string) });
+            MethodInfo unregister = type.GetMethod("UnregisterSmokingEffect", new[] { typeof(string) });
+            MethodInfo stop = type.GetMethod("StopOtherSmoking", new[] { typeof(Character), typeof(string) });
+            if (register?.ReturnType != typeof(bool) || unregister?.ReturnType != typeof(void) || stop?.ReturnType != typeof(bool) || register.IsStatic || unregister.IsStatic || stop.IsStatic)
+                return false;
+            _register = register; _unregister = unregister;
             try
             {
                 foreach (Blend blend in Blend.All)
-                    if (!(bool)_register.Invoke(current, new object[] { blend.Effect })) { Release(); return false; }
-                return true;
+                    if (!(bool)_register.Invoke(current, new object[] { blend.Effect })) { Unregister(current); return false; }
             }
-            catch { Release(); return false; }
+            catch { Unregister(current); return false; }
+            _stop = stop;
+            return true;
         }
         internal bool Exclusive(Character character, string effect)
         {
             if (!Ready()) return false;
+            if (!Shared) return true; // nothing to coordinate with
             try { return (bool)_stop.Invoke(_instance, new object[] { character, effect }); }
             catch { return false; }
         }
+        private void Unregister(BaseUnityPlugin current)
+        {
+            if (_unregister != null)
+                foreach (Blend blend in Blend.All)
+                    try { _unregister.Invoke(current, new object[] { blend.Effect }); } catch { }
+        }
         internal void Release()
         {
-            if (_instance != null && _unregister != null)
-                foreach (Blend blend in Blend.All)
-                    try { _unregister.Invoke(_instance, new object[] { blend.Effect }); } catch { }
-            _instance = null; _register = _unregister = _stop = null;
+            if (_instance != null) Unregister(_instance);
+            _instance = null; _register = _unregister = _stop = null; _checked = false;
         }
     }
     internal sealed class Blend

@@ -13,7 +13,7 @@ namespace BobsPipes
     {
         public const string Guid = "com.bobisme.bobspipes";
         public const string Name = "Bob's Pipes";
-        public const string Version = "0.1.2";
+        public const string Version = "0.1.3";
         internal static Plugin Instance;
         internal ConfigEntry<float> Minutes, Strength;
         internal ConfigEntry<bool> ShowSmoke, Rain;
@@ -108,7 +108,7 @@ namespace BobsPipes
             if (!Items.IsPipe(item) && Items.BlendIndex(item) < 0) return false;
             if (player != Player.m_localPlayer || inventory != player.GetInventory() || !inventory.ContainsItem(item)) return true;
             if (player.IsDead() || player.InCutscene() || player.InBed()) return true;
-            if (!Tobacco.Ready()) { Say(player, "Bob's Pipes needs Quad's Cigars with smoking API v1 (0.2.1). Update it, then restart."); return true; }
+            if (!Tobacco.Ready()) { Say(player, "Bob's Pipes needs Quad's Cigars. Install it, then restart."); return true; }
             if (!Items.IsPipe(item))
             {
                 ItemDrop.ItemData pipe = inventory.GetAllItems().FirstOrDefault(i => Items.IsPipe(i) && Read(i).Empty);

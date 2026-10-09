@@ -3,10 +3,10 @@
     {
       "guid": "com.bobisme.bobspipes",
       "name": "Bob's Pipes",
-      "version": "0.1.2",
-      "description": "Bob's Pipes: a reusable carved corewood pipe, made at the workbench. Prepare Meadow, Honeywood or Cloudberry pipe tobacco at Quad's Cigar Rolling Table. Use a tin to pack an empty pipe, then use your hotbar pipe near a burning fire or holding a torch to light it. Use it again to put it out and save the unfinished bowl. The lit pipe rests in your mouth, with a small ember, quiet smoke, occasional exhalations and a slowly seasoned finish. Combat, swimming and exposed rain put it away. One active smoke, with small blend bonuses configurable down to cosmetic only. Requires Quad's Cigars smoking API v1 (0.2.1).",
-      "notes": "0.1.2: A lit pipe stays in the character's mouth, with its bowl hanging below the stem. Remove the cigar-style hand grip and hand-to-mouth eating gestures; occasional quiet exhalations remain.",
-      "restart": "Adds saved pipe and tobacco item prefabs. Install Bob's Pipes and Quad's Cigars with smoking API v1 (0.2.1) on the host and every player, then restart Valheim before loading the world.",
+      "version": "0.1.3",
+      "description": "Bob's Pipes: a reusable carved corewood pipe, made at the workbench. Prepare Meadow, Honeywood or Cloudberry pipe tobacco at Quad's Cigar Rolling Table. Use a tin to pack an empty pipe, then use your hotbar pipe near a burning fire or holding a torch to light it. Use it again to put it out and save the unfinished bowl. The lit pipe rests in your mouth, with a small ember, quiet smoke, occasional exhalations and a slowly seasoned finish. Combat, swimming and exposed rain put it away. Small blend bonuses, configurable down to cosmetic only. Requires Quad's Cigars; with its smoking API (v1 or newer), pipes and cigars share one active smoke.",
+      "notes": "0.1.3: Works with Quad's released Cigars. The smoking API is now optional and treated as a minimum (v1 or newer): with it, pipes and cigars share one active smoke; without it, pipes light on their own instead of asking you to update Cigars.",
+      "restart": "Adds saved pipe and tobacco item prefabs. Install Bob's Pipes and Quad's Cigars on the host and every player, then restart Valheim before loading the world.",
       "cover": "BobsPipes.cover.jpg",
       "files": [
         "BobsPipes.dll",

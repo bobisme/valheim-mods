@@ -340,7 +340,7 @@ if (args.Length == 4)
 {
     using var cigars=AssemblyDefinition.ReadAssembly(args[3],new ReaderParameters{ReadSymbols=true,AssemblyResolver=resolver});
     var plugin=cigars.MainModule.Types.Single(t=>t.FullName=="CigarSmoking.Plugin");
-    if(!cigars.MainModule.HasSymbols || !plugin.Fields.Any(f=>f.Name=="SmokingApiVersion"&&f.HasConstant&&(int)f.Constant==1))
+    if(!cigars.MainModule.HasSymbols || !plugin.Fields.Any(f=>f.Name=="SmokingApiVersion"&&f.HasConstant&&(int)f.Constant>=1))
         throw new Exception("Cigars symbols or smoking API version are incompatible.");
     void SmokeApi(string name,string result,params string[] parameters)
     {

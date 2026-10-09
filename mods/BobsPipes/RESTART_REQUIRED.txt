@@ -1,1 +1,1 @@
-Adds saved pipe and tobacco item prefabs. Install Bob's Pipes and Quad's Cigars with smoking API v1 (0.2.1) on the host and every player, then restart Valheim before loading the world.
+Adds saved pipe and tobacco item prefabs. Install Bob's Pipes and Quad's Cigars on the host and every player, then restart Valheim before loading the world.

@@ -26,11 +26,12 @@ Throws(()=>Bowl.Pack(3,300),"Unknown blend");
 var bridge=new Tobacco();
 Check(!bridge.Ready(),"Missing dependency disables lighting");
 void Install(BaseUnityPlugin plugin)=>Chainloader.PluginInfos[Tobacco.Guid]=new PluginInfo{Instance=plugin};
-Install(new OldCigars());Check(!bridge.Ready(),"Old Cigars API disables lighting");
-Install(new NonConstantVersion());Check(!bridge.Ready(),"Nonconstant API field cannot throw in the inventory hook");
-Install(new BadSignatures());Check(!bridge.Ready(),"Matching names with wrong signatures are rejected");
+Install(new OldCigars());Check(bridge.Ready()&&!bridge.Shared&&bridge.Exclusive(new Character(),Blend.All[0].Effect),"Cigars without the API: pipes still light, on their own");
+Install(new NonConstantVersion());Check(bridge.Ready()&&!bridge.Shared,"Nonconstant API field cannot throw in the inventory hook");
+Install(new FutureCigars());Check(bridge.Ready()&&bridge.Shared,"A newer smoking API version counts as v1 or newer");bridge.Release();
+Install(new BadSignatures());Check(bridge.Ready()&&!bridge.Shared,"Matching names with wrong signatures are not used");
 var cigars=new Cigars();Install(cigars);
-Check(bridge.Ready()&&cigars.Names.SetEquals(Blend.All.Select(b=>b.Effect)),"Register each smoke with the live dependency");
+Check(bridge.Ready()&&bridge.Shared&&cigars.Names.SetEquals(Blend.All.Select(b=>b.Effect)),"Register each smoke with the live dependency");
 Check(bridge.Ready()&&cigars.RegisterCalls==3,"Cached lookups do not register every frame");
 var character=new Character();Check(bridge.Exclusive(character,Blend.All[1].Effect)&&cigars.Character==character&&cigars.Keep==Blend.All[1].Effect,"Exclusive request uses actual character and effect");
 var replacement=new Cigars();Install(replacement);
@@ -40,13 +41,14 @@ bridge.Release();Check(replacement.Names.Count==0,"Unload unregisters add-on nam
 Check(bridge.Ready()&&replacement.RegisterCalls==6,"Reloaded add-on can register again");
 Chainloader.PluginInfos.Clear();Check(!bridge.Ready(),"Missing live instance is not satisfied by stale MethodInfo");
 Install(cigars);Check(bridge.Ready()&&cigars.RegisterCalls==6,"Reappearing instance gets fresh registration");bridge.Release();
-var refusing=new Cigars{RefuseAfter=1};Install(refusing);Check(!bridge.Ready()&&refusing.Names.Count==0,"Failed partial registration rolls back");
-var throwing=new Cigars{Throw=true};Install(throwing);Check(!bridge.Ready()&&throwing.Names.Count==0,"Registration failure leaves smoking disabled");
+var refusing=new Cigars{RefuseAfter=1};Install(refusing);Check(bridge.Ready()&&!bridge.Shared&&refusing.Names.Count==0,"Failed partial registration rolls back and falls back to pipes alone");
+var throwing=new Cigars{Throw=true};Install(throwing);Check(bridge.Ready()&&!bridge.Shared&&throwing.Names.Count==0,"Registration failure falls back to pipes alone");
 Install(new Cigars{ThrowOnStop=true});Check(!bridge.Exclusive(character,Blend.All[0].Effect),"Dependency callback failure cannot start a pipe");
 Console.WriteLine($"Bob's Pipes: {checks} state and dependency checks passed");
 
 public class NonConstantVersion:BaseUnityPlugin{public static int SmokingApiVersion=1;}
 public class OldCigars:BaseUnityPlugin { }
+public class FutureCigars:Cigars{public new const int SmokingApiVersion=2;}
 public class BadSignatures:BaseUnityPlugin
 {
  public const int SmokingApiVersion=1;
