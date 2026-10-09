@@ -160,7 +160,12 @@ namespace Gary
         internal static void Scan()
         {
             ActiveDrops.Clear();
-            foreach(ItemDrop drop in UnityEngine.Object.FindObjectsByType<ItemDrop>(FindObjectsSortMode.None))
+            // Fetch sticks are always near their thrower or their Gary: look only around you and the Garys loaded here.
+            var near=new System.Collections.Generic.List<ItemDrop>();
+            if(Player.m_localPlayer!=null)near.AddRange(Nature.ItemsNear(Player.m_localPlayer.transform.position,40));
+            foreach(Companion.State st in Companion.States.Values)
+                if(st.Body!=null)foreach(ItemDrop d in Nature.ItemsNear(st.Body.transform.position,25))if(!near.Contains(d))near.Add(d);
+            foreach(ItemDrop drop in near)
             {
                 ZDO z=Companion.Data(drop);if(z==null||z.GetZDOID(For).IsNone())continue;
                 if(Active(drop))ActiveDrops.Add(drop);

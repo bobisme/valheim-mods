@@ -19,6 +19,30 @@ namespace Gary
         internal static ForestStash Load(ZDO z) => new ForestStash(z.GetInt(Pocket[0],0),z.GetInt(Pocket[1],0),z.GetInt(Pocket[2],0),z.GetInt(Pocket[3],0));
         internal static void Save(ZDO z,ForestStash stash)
         {z.Set(Pocket[0],stash.Berries);z.Set(Pocket[1],stash.Blueberries);z.Set(Pocket[2],stash.Mushrooms);z.Set(Pocket[3],stash.Feathers);}
+        // Items on the ground near a point, from the physics "item" layer the game's own auto-pickup uses: a scan of every loaded item
+        // in the world costs ~10 ms, this a fraction of one.
+        private static readonly Collider[] Hits=new Collider[512];
+        private static readonly int ItemLayer=LayerMask.GetMask("item");
+        // Any kind of thing near a point (plants, trees, stumps, item stands), through the physics scene instead of every loaded object.
+        private static readonly Collider[] Wide=new Collider[4096];
+        internal static System.Collections.Generic.List<T> Near<T>(Vector3 center,float radius) where T:Component
+        {
+            var found=new System.Collections.Generic.HashSet<T>();
+            int n=Physics.OverlapSphereNonAlloc(center,radius,Wide,~0,QueryTriggerInteraction.Collide);
+            for(int i=0;i<n;i++){T t=Wide[i]!=null?Wide[i].GetComponentInParent<T>():null;if(t!=null)found.Add(t);}
+            return new System.Collections.Generic.List<T>(found);
+        }
+        internal static System.Collections.Generic.List<ItemDrop> ItemsNear(Vector3 center,float radius)
+        {
+            var found=new System.Collections.Generic.List<ItemDrop>();
+            int n=Physics.OverlapSphereNonAlloc(center,radius,Hits,ItemLayer,QueryTriggerInteraction.Collide);
+            for(int i=0;i<n;i++)
+            {
+                ItemDrop drop=Hits[i]!=null?Hits[i].GetComponentInParent<ItemDrop>():null;
+                if(drop!=null&&!found.Contains(drop))found.Add(drop);
+            }
+            return found;
+        }
         internal static bool Ground(MonsterAI ai,Vector3 candidate,out Vector3 spot)
         {
             spot=candidate;
@@ -65,7 +89,7 @@ namespace Gary
         private static bool GatherFeather(Companion.State st,MonsterAI ai,Player master,ZDO z)
         {
             if(!Load(z).TryAdd(3,1,out ForestStash next))return false;
-            foreach(ItemDrop drop in UnityEngine.Object.FindObjectsByType<ItemDrop>(FindObjectsSortMode.None))
+            foreach(ItemDrop drop in ItemsNear(st.Body.transform.position,2.5f))
             {
                 if(drop==null||!drop.isActiveAndEnabled||!drop.m_autoPickup||drop.IsPiece()||drop.InTar()||
                     Vector3.Distance(drop.transform.position,st.Body.transform.position)>2||
@@ -99,7 +123,7 @@ namespace Gary
                 st.NextForage=Time.time+8;
                 if(GatherFeather(st,ai,master,z))return true;
                 float best=10;
-                foreach(Pickable p in UnityEngine.Object.FindObjectsByType<Pickable>(FindObjectsSortMode.None))
+                foreach(Pickable p in Near<Pickable>(master.transform.position,12))
                 {
                     if(p==null||Vector3.Distance(p.transform.position,master.transform.position)>12)continue;
                     float distance=Vector3.Distance(p.transform.position,st.Body.transform.position);

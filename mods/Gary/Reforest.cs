@@ -62,9 +62,18 @@ namespace Gary
         private static void Stop(Companion.State st,float wait){st.PlantSpot=null;st.NextPlantLook=Time.time+wait;}
 
         // His saplings still growing around home (only those loaded: home is where you are).
-        private static int Young(Vector3 bed,float radius)=>
-            UnityEngine.Object.FindObjectsByType<global::Plant>(FindObjectsSortMode.None).Count(p=>p!=null&&Utils.DistanceXZ(p.transform.position,bed)<=radius&&
-                Companion.Data(p)?.GetBool(Sapling,false)==true);
+        // From the world's saved objects, not the loaded scene: only the five sapling kinds, so it is cheap, and unloaded ones count too.
+        private static int Young(Vector3 bed,float radius)
+        {
+            int count=0;var found=new System.Collections.Generic.List<ZDO>();
+            foreach(string name in ReforestPolicy.Saplings)
+            {
+                found.Clear();int index=0;
+                while(!ZDOMan.instance.GetAllZDOsWithPrefabIterative(name,found,ref index)){}
+                count+=found.Count(z=>z.GetBool(Sapling,false)&&Utils.DistanceXZ(z.GetPosition(),bed)<=radius);
+            }
+            return count;
+        }
 
         // seeds: only trees he has a seed for (a bonus planting); null: any tree that grows there (his free one).
         private static bool Find(Companion.State st,MonsterAI ai,Player master,Vector3 bed,float radius,int[] seeds,out Vector3 spot,out int kind)
@@ -72,7 +81,7 @@ namespace Gary
             spot=Vector3.zero;kind=-1;
             Vector3 from=st.Body.transform.position;
             // First choice: beside a stump you left, within a short walk.
-            var stumps=UnityEngine.Object.FindObjectsByType<Destructible>(FindObjectsSortMode.None)
+            var stumps=Nature.Near<Destructible>(from,25)
                 .Where(d=>d!=null&&ReforestPolicy.StumpKind(d.name)>=0&&Vector3.Distance(d.transform.position,from)<=25&&Utils.DistanceXZ(d.transform.position,bed)<=radius)
                 .OrderBy(d=>Vector3.Distance(d.transform.position,from)).Take(6).ToList();
             foreach(Destructible stump in stumps)

@@ -129,7 +129,7 @@ namespace Gary
             bool pouchFull=Reforest.Pouch(z).Sum()>=CarePolicy.SeedCapacity,basketFull=CarePolicy.Count(Basket(z,BasketKey))>=CarePolicy.BasketCapacity;
             long now=ZNet.instance.GetTime().Ticks;
             ItemDrop best=null;float bestD=20;
-            foreach(ItemDrop drop in Object.FindObjectsByType<ItemDrop>(FindObjectsSortMode.None))
+            foreach(ItemDrop drop in Nature.ItemsNear(st.Body.transform.position,20))
             {
                 if(drop==null||!drop.isActiveAndEnabled||!drop.m_autoPickup||drop.IsPiece()||drop.InTar())continue;
                 float d=Vector3.Distance(drop.transform.position,st.Body.transform.position);
@@ -222,7 +222,7 @@ namespace Gary
         private static Pickable FindDeadfall(Companion.State st,Player master)
         {
             Pickable best=null;float bestD=25;
-            foreach(Pickable p in Object.FindObjectsByType<Pickable>(FindObjectsSortMode.None))
+            foreach(Pickable p in Nature.Near<Pickable>(master.transform.position,25))
             {
                 if(p==null||!p.isActiveAndEnabled||p.GetPicked()||!p.CanBePicked())continue;
                 float d=Vector3.Distance(p.transform.position,st.Body.transform.position);
@@ -290,7 +290,7 @@ namespace Gary
         private static TreeBase FindTree(Companion.State st)
         {
             TreeBase best=null;float bestD=15;
-            foreach(TreeBase tree in Object.FindObjectsByType<TreeBase>(FindObjectsSortMode.None))
+            foreach(TreeBase tree in Nature.Near<TreeBase>(st.Body.transform.position,15))
             {
                 if(tree==null||CarePolicy.TreeKind(tree.name)<0)continue;
                 float d=Vector3.Distance(tree.transform.position,st.Body.transform.position);
@@ -338,7 +338,7 @@ namespace Gary
         {
             if(master.InInterior()||EffectArea.IsPointInsideArea(master.transform.position,EffectArea.Type.PlayerBase)!=null)return null; // out exploring, not at home
             Pickable best=null;float bestD=float.MaxValue;
-            foreach(Pickable p in Object.FindObjectsByType<Pickable>(FindObjectsSortMode.None))
+            foreach(Pickable p in Nature.Near<Pickable>(master.transform.position,45))
             {
                 if(p==null||!p.isActiveAndEnabled||p.GetPicked()||!p.CanBePicked()||!Patches.Contains(Utils.GetPrefabName(p.gameObject)))continue;
                 float d=Vector3.Distance(p.transform.position,master.transform.position);
@@ -367,7 +367,7 @@ namespace Gary
         private static ItemStand FindTrophy(Player master)
         {
             if(EffectArea.IsPointInsideArea(master.transform.position,EffectArea.Type.PlayerBase)==null)return null;
-            var stands=Object.FindObjectsByType<ItemStand>(FindObjectsSortMode.None)
+            var stands=Nature.Near<ItemStand>(master.transform.position,14)
                 .Where(s=>s!=null&&s.m_guardianPower==null&&s.HaveAttachment()&&Vector3.Distance(s.transform.position,master.transform.position)<14).ToList();
             return stands.Count==0?null:stands[Random.Range(0,stands.Count)];
         }
