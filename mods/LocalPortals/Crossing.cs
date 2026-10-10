@@ -202,7 +202,7 @@ namespace LocalPortals
         {
             if(_cutFrame!=Time.frameCount)Cut.Clear();
             foreach(LocalPortal p in WasCut)if(p!=null&&!Cut.Contains(p))p.Hide(false);
-            foreach(LocalPortal p in Cut)if(p!=null){p.Hide(true);p.Ghost();}
+            foreach(LocalPortal p in Cut)if(p!=null)p.Hide(true);
             WasCut.Clear();WasCut.AddRange(Cut);
         }
 
@@ -228,7 +228,7 @@ namespace LocalPortals
             if(_blurUntil>=0&&_blurProfile!=null)_blurProfile.motionBlur.enabled=_blurWas;
             _blurUntil=-1;_blurProfile=null;_exit=null;
             Wanted.Clear();Unwall(Player.m_localPlayer);
-            foreach(LocalPortal p in WasCut)if(p!=null)p.Hide(false);
+            foreach(LocalPortal p in LocalPortal.Live)if(p!=null)p.Unfade();
             WasCut.Clear();Cut.Clear();Reblock();
         }
 

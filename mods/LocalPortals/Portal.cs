@@ -61,6 +61,7 @@ namespace LocalPortals
         }
         private void OnDestroy()
         {
+            Unfade();
             Live.Remove(this);
             if(Picture!=null){Picture.Release();Destroy(Picture);Picture=null;}
             if(_view!=null)Destroy(_view);
@@ -218,35 +219,77 @@ namespace LocalPortals
             }
         }
 
-        // Cut away for the camera: the mirror still casts its shadow but is not drawn.
+        // Cut away for the camera: the wood fades to a faint glow in the mirror's colour (its inlay, gem and motes stay as
+        // they are, and it still casts its shadow), so the camera sees through it and the mirror is still seen to be there.
+        // It fades back to solid wood when the camera no longer looks through it.
         internal bool Hidden=>_hidden;
-
-        // While cut away the wood is drawn as a faint glow in the mirror's colour (its inlay, gem and motes stay as they are):
-        // the camera sees through it, and the mirror is still seen to be there. Called each frame it is cut away.
-        internal void Ghost()
+        internal float Faded=>_fade;
+        private const float FadeTime=0.35f;
+        private float _fade;                // 0 solid wood, 1 all glow
+        private bool _realOff;              // the wood's own renderers drawing their shadow only
+        private MaterialPropertyBlock _fadeBlock;
+        internal void Hide(bool hide)=>_hidden=hide;
+        internal static float HoldFade=-1;
+        internal static Color FadeTint=new Color(0.25f,0.2f,0.13f,1); // the standard shader lights wood brighter than the piece shader: darkened to match  // for the lportal command: every mirror held at this much faded
+        // Solid at once (the mod stopping, or this copy of the portal script going away).
+        internal void Unfade()
         {
-            if(!_hidden)return;
-            Material ghost=Views.Ghost();
-            if(ghost==null)return;
-            Color c=_shownColour>=0&&_shownColour<Colours.Length?Colours[_shownColour]:Unlinked;
-            _block??=new MaterialPropertyBlock();
-            _block.Clear();
-            _block.SetColor("_Color",c*0.16f);
+            _hidden=false;_fade=0;
+            if(!_realOff||_body==null)return;
+            _realOff=false;
+            for(int i=0;i<_body.Length;i++)if(_body[i]!=null)_body[i].shadowCastingMode=_bodyShadows[i];
+        }
+
+        private void LateUpdate()
+        {
+            if(_body==null)return;
+            float target=_hidden?1:0;
+            if(HoldFade>=0)_fade=target=Mathf.Clamp01(HoldFade);
+            if(_fade==target&&_fade==0&&!_realOff)return;
+            _fade=Mathf.MoveTowards(_fade,target,Time.deltaTime/FadeTime);
+            bool off=_fade>0;
+            if(off!=_realOff)
+            {
+                _realOff=off;
+                for(int i=0;i<_body.Length;i++)
+                    if(_body[i]!=null)_body[i].shadowCastingMode=off?UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly:_bodyShadows[i];
+            }
+            if(!off)return;
+            float k=Mathf.SmoothStep(0,1,_fade);
+            Color glow=(_shownColour>=0&&_shownColour<Colours.Length?Colours[_shownColour]:Unlinked)*(0.16f*k);
+            Material ghost=k>0.01f?Views.Ghost():null;
+            _fadeBlock??=new MaterialPropertyBlock();
             for(int i=0;i<_body.Length;i++)
             {
+                MeshRenderer r=_body[i];
                 MeshFilter f=_bodyShapes[i];
-                if(_body[i]==null||f==null||f.sharedMesh==null||!_body[i].gameObject.activeInHierarchy)continue;
+                if(r==null||f==null||f.sharedMesh==null||!r.gameObject.activeInHierarchy)continue;
                 Mesh mesh=f.sharedMesh;
+                Matrix4x4 at=r.localToWorldMatrix;
+                Material[] wood=r.sharedMaterials;
                 for(int sub=0;sub<mesh.subMeshCount;sub++)
-                    Graphics.DrawMesh(mesh,_body[i].localToWorldMatrix,ghost,_body[i].gameObject.layer,null,sub,_block,UnityEngine.Rendering.ShadowCastingMode.Off,false);
+                {
+                    if(k<0.99f)
+                    {
+                        Material source=wood.Length>0?wood[Mathf.Min(sub,wood.Length-1)]:null;
+                        Material fading=Views.Fading(source);
+                        if(fading!=null)
+                        {
+                            Color c=source.HasProperty("_Color")?source.color:Color.white;
+                            c*=FadeTint;c.a=1-k;
+                            _fadeBlock.Clear();
+                            _fadeBlock.SetColor("_Color",c);
+                            Graphics.DrawMesh(mesh,at,fading,r.gameObject.layer,null,sub,_fadeBlock,UnityEngine.Rendering.ShadowCastingMode.Off,true);
+                        }
+                    }
+                    if(ghost!=null)
+                    {
+                        _fadeBlock.Clear();
+                        _fadeBlock.SetColor("_Color",glow);
+                        Graphics.DrawMesh(mesh,at,ghost,r.gameObject.layer,null,sub,_fadeBlock,UnityEngine.Rendering.ShadowCastingMode.Off,false);
+                    }
+                }
             }
-        }
-        internal void Hide(bool hide)
-        {
-            if(hide==_hidden)return;
-            _hidden=hide;
-            for(int i=0;i<_body.Length;i++)
-                if(_body[i]!=null)_body[i].shadowCastingMode=hide?UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly:_bodyShadows[i];
         }
 
         public string GetHoverName()=>PortalPrefab.DisplayName;

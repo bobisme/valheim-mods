@@ -90,6 +90,31 @@ namespace LocalPortals
                     output(new JObject{["shaders"]=names});
                     break;
                 }
+                case "fade":
+                {
+                    // Holds every mirror at this much faded (0 solid wood, 1 all glow); no number lets them go again.
+                    LocalPortal.HoldFade=args.Length>2?Mathf.Clamp01(Arg(args,2,0)):-1;
+                    if(args.Length>5)LocalPortal.FadeTint=new Color(Arg(args,3,0.25f),Arg(args,4,0.2f),Arg(args,5,0.13f),1);
+                    output(new JObject{["hold"]=LocalPortal.HoldFade});
+                    break;
+                }
+                case "materials":
+                {
+                    // The materials on the nearest portal's model: shader, keywords and properties.
+                    var list=Nearby(100).ToList();
+                    if(list.Count==0){error("lportal materials: no portal");break;}
+                    var seen=new System.Collections.Generic.HashSet<Material>();var mats=new JArray();
+                    foreach(Renderer r in list[0].GetComponentsInChildren<Renderer>(true))
+                        foreach(Material m in r.sharedMaterials)
+                        {
+                            if(m==null||!seen.Add(m))continue;
+                            var props=new JArray();
+                            for(int i=0;i<m.shader.GetPropertyCount();i++)props.Add(m.shader.GetPropertyName(i)+":"+m.shader.GetPropertyType(i));
+                            mats.Add(new JObject{["material"]=m.name,["on"]=r.name,["shader"]=m.shader.name,["queue"]=m.renderQueue,["keywords"]=new JArray(m.shaderKeywords),["passes"]=m.passCount,["props"]=props});
+                        }
+                    output(new JObject{["materials"]=mats});
+                    break;
+                }
                 case "through":
                 {
                     var list=Nearby(100).ToList();
@@ -289,7 +314,7 @@ namespace LocalPortals
                 ["linked"]=!p.PartnerId().IsNone(),["partnerLoaded"]=p.Partner!=null,
                 ["partnerAt"]=p.Partner!=null?V(p.Partner.transform.position):null,
                 ["picture"]=p.Picture!=null?p.Picture.width+"x"+p.Picture.height:null,["drawnFramesAgo"]=p.PictureFrame<0?-1:Time.frameCount-p.PictureFrame,
-                ["surface"]=p.Surface!=null?p.Surface.sharedMaterial?.name:null,["name"]=p.Name,["hover"]=p.GetHoverText(),["test"]=p.View.GetZDO().GetBool(TestKey),["hidden"]=p.Hidden};
+                ["surface"]=p.Surface!=null?p.Surface.sharedMaterial?.name:null,["name"]=p.Name,["hover"]=p.GetHoverText(),["test"]=p.View.GetZDO().GetBool(TestKey),["hidden"]=p.Hidden,["faded"]=Math.Round(p.Faded,2)};
         }
 
         private static JObject Probe()

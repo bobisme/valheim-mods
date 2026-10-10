@@ -33,6 +33,8 @@ namespace LocalPortals
             _films=null;
             if(_ghost!=null)Object.Destroy(_ghost);
             _ghost=null;
+            foreach(Material m in Fades.Values)if(m!=null)Object.Destroy(m);
+            Fades.Clear();
         }
 
         private static Camera GameCam()=>GameCamera.instance!=null?GameCamera.instance.GetComponent<Camera>():null;
@@ -261,6 +263,40 @@ namespace LocalPortals
             m.SetOverrideTag("RenderType","Transparent");
             m.renderQueue=3000;
             return _ghost=m;
+        }
+        // A see-through copy of a wood material, for fading a mirror between solid and glow: the game's own piece shader
+        // draws solid only, so the copy uses the standard shader in its fade mode, with the same textures and colour.
+        private static readonly System.Collections.Generic.Dictionary<Material,Material> Fades=new System.Collections.Generic.Dictionary<Material,Material>();
+        private static Shader _standard;
+        internal static Material Fading(Material source)
+        {
+            if(source==null)return null;
+            if(Fades.TryGetValue(source,out Material m))return m;
+            if(_standard==null)foreach(Shader s in Resources.FindObjectsOfTypeAll<Shader>())if(s!=null&&s.name=="Standard"){_standard=s;break;}
+            if(_standard==null){Fades[source]=null;return null;}
+            m=new Material(_standard){name=source.name+" (fading)"};
+            if(source.HasProperty("_MainTex")){m.mainTexture=source.mainTexture;m.mainTextureScale=source.mainTextureScale;m.mainTextureOffset=source.mainTextureOffset;}
+            if(source.HasProperty("_BumpMap")&&source.GetTexture("_BumpMap")!=null)
+            {
+                m.SetTexture("_BumpMap",source.GetTexture("_BumpMap"));
+                if(source.HasProperty("_BumpScale"))m.SetFloat("_BumpScale",source.GetFloat("_BumpScale"));
+                m.EnableKeyword("_NORMALMAP");
+            }
+            // matte, like the piece shader's wood: no shine or sky reflection (which turned it pale and blue)
+            m.SetFloat("_Glossiness",0);m.SetFloat("_Metallic",0);
+            m.SetFloat("_SpecularHighlights",0);m.SetFloat("_GlossyReflections",0);
+            m.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");m.EnableKeyword("_GLOSSYREFLECTIONS_OFF");
+            if(source.IsKeywordEnabled("_EMISSION")&&source.HasProperty("_EmissionColor"))
+            {
+                m.EnableKeyword("_EMISSION");
+                m.SetColor("_EmissionColor",source.GetColor("_EmissionColor"));
+            }
+            m.SetFloat("_Mode",2);m.SetFloat("_SrcBlend",5);m.SetFloat("_DstBlend",10);m.SetFloat("_ZWrite",1);
+            m.DisableKeyword("_ALPHATEST_ON");m.EnableKeyword("_ALPHABLEND_ON");m.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+            m.SetOverrideTag("RenderType","Transparent");
+            m.renderQueue=2990;
+            Fades[source]=m;
+            return m;
         }
         internal static Material Film(int colour)
         {
