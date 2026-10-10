@@ -29,7 +29,7 @@ namespace LocalPortals
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name,"lportal",
-                    "lportal place [ahead=6] [right=0] [turn=180] | info | probe | through <n> [steps=40] [film] | straddle <n> [depth=0.1] [turn=0] | shoot <n> [item=ArrowWood] [speed=40] [x] [y=1.2] [from=4] | toss <n> [item=Wood] [speed=5] [x] [y=1.2] [from=4] | walkin <n> [creature=Boar] [goal=4] [side=1.5] [seconds=20] [ahead=3.5] [keep] | name <n> [text] | perf [seconds=3] | camtest <n> [back=4] [rise=0.6] | shaders [filter] | back | remove: test local portals. place puts one ahead of the player (turn 180 faces the player); info lists nearby portals and their links; probe reports the cameras and shaders the views use; through walks the player into portal n (from info) and reports where they came out; back returns them to where through found them; remove takes away the portals this command placed",
+                    "lportal place [ahead=6] [right=0] [turn=180] [name] | info | probe | through <n> [steps=40] [film] | straddle <n> [depth=0.1] [turn=0] | shoot <n> [item=ArrowWood] [speed=40] [x] [y=1.2] [from=4] | toss <n> [item=Wood] [speed=5] [x] [y=1.2] [from=4] | walkin <n> [creature=Boar] [goal=4] [side=1.5] [seconds=20] [ahead=3.5] [keep] | name <n> [text] | perf [seconds=3] | camtest <n> [back=4] [rise=0.6] | shaders [filter] | back | remove: test local portals. place puts one ahead of the player (turn 180 faces the player); info lists nearby portals and their links; probe reports the cameras and shaders the views use; through walks the player into portal n (from info) and reports where they came out; back returns them to where through found them; remove takes away the portals this command placed",
                     (Func<string[],Action<JObject>,Action<string>,IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: lportal command added");
             }
@@ -60,13 +60,15 @@ namespace LocalPortals
                     if(PortalPrefab.Prefab==null){error("lportal place: prefab missing");break;}
                     Vector3 forward=me.transform.forward;forward.y=0;forward.Normalize();
                     Vector3 at=me.transform.position+forward*ahead+Vector3.Cross(Vector3.up,forward)*right;
-                    if(ZoneSystem.instance.GetSolidHeight(at,out float height))at.y=height;
+                    if(ZoneSystem.instance.IsZoneLoaded(at)&&ZoneSystem.instance.GetSolidHeight(at,out float height))at.y=height;
+                    else at.y=WorldGenerator.instance.GetHeight(at.x,at.z); // (far off, not loaded: the generated ground)
                     GameObject go=Object.Instantiate(PortalPrefab.Prefab,at,Quaternion.LookRotation(forward)*Quaternion.Euler(0,turn,0));
                     go.GetComponent<ZNetView>()?.GetZDO()?.Set(TestKey,true);
-                    output(new JObject{["placed"]=V(at),["facing"]=Math.Round(go.transform.eulerAngles.y,1)});
+                    if(args.Length>5)go.GetComponent<ZNetView>()?.GetZDO()?.Set("bob_lportal_name",args[5]);
+                    output(new JObject{["placed"]=V(at),["facing"]=Math.Round(go.transform.eulerAngles.y,1),["water"]=at.y<ZoneSystem.instance.m_waterLevel,["biome"]=WorldGenerator.instance.GetBiome(at).ToString()});
                     break;
                 }
-                case "info":output(new JObject{["portals"]=new JArray(Nearby(100).Select(Describe)),["drawnLastFrame"]=Views.Drawn,["trips"]=Crossing.Count,["cutting"]=Doubles.PartCount,["cutMs"]=Math.Round(Doubles.Ms,2),["wallsIgnored"]=Crossing.WallsIgnored,["thrown"]=Missiles.Count,["lastThrown"]=Missiles.LastThrough});break;
+                case "info":output(new JObject{["portals"]=new JArray(Nearby(300).Select(Describe)),["drawnLastFrame"]=Views.Drawn,["trips"]=Crossing.Count,["cutting"]=Doubles.PartCount,["cutMs"]=Math.Round(Doubles.Ms,2),["wallsIgnored"]=Crossing.WallsIgnored,["thrown"]=Missiles.Count,["farZones"]=Far.Zones.Count,["farScanned"]=Far.Portals.Count,["farSpawned"]=Far.Spawned,["creaturesThrough"]=new JArray(Creatures.Recent),["farReclaims"]=Far.Reclaims,["farReclaimed"]=Far.Reclaimed,["lastThrown"]=Missiles.LastThrough});break;
                 case "probe":output(Probe());break;
                 case "camtest":
                 {
@@ -255,6 +257,11 @@ namespace LocalPortals
                         if(!p.View.IsOwner())p.View.ClaimOwnership();
                         ZNetScene.instance.Destroy(p.gameObject);removed++;
                     }
+                    Far.Scan(true);
+                    foreach(ZDO zdo in Far.Portals.Where(z=>z.GetBool(TestKey)&&ZNetScene.instance.FindInstance(z)==null).ToList())
+                    {
+                        zdo.SetOwner(ZDOMan.GetSessionID());ZDOMan.instance.DestroyZDO(zdo);removed++; // (one too far off to be loaded)
+                    }
                     output(new JObject{["removed"]=removed});
                     break;
                 }
@@ -287,7 +294,11 @@ namespace LocalPortals
                 if(Creatures.Count>was&&Vector3.Distance(go.transform.position,marker.transform.position)<3.5f)break;
                 yield return null;
             }
-            var result=new JObject{["what"]=what,["fits"]=fits,["size"]=Creatures.Size(c).ToString(),["through"]=Creatures.Count-was,["last"]=Creatures.LastThrough,["ended"]=go!=null?Where(a,b,go.transform.position):"gone",["routed"]=Creatures.Routed,["path"]=path};
+            var state=go==null?null:new JObject{["owner"]=go.GetComponent<ZNetView>().GetZDO().GetOwner()==ZDOMan.GetSessionID(),["ownerId"]=go.GetComponent<ZNetView>().GetZDO().GetOwner().ToString(),["persistent"]=go.GetComponent<ZNetView>().GetZDO().Persistent,["inFar"]=Far.Zones.Contains(ZoneSystem.GetZone(go.transform.position)),["zdoZone"]=go.GetComponent<ZNetView>().GetZDO().GetSector().ToString(),["kinematic"]=go.GetComponent<Rigidbody>()?.isKinematic,
+                ["path"]=ai!=null?Traverse.Create(ai).Field("m_lastFindPathResult").GetValue<bool>():(bool?)null,["moveDir"]=V(Traverse.Create(c).Field("m_moveDir").GetValue<Vector3>()),
+                ["vel"]=V(go.GetComponent<Rigidbody>()?.linearVelocity??Vector3.zero),["zoneLoaded"]=ZoneSystem.instance.IsZoneLoaded(go.transform.position),["toGoal"]=Math.Round(Vector3.Distance(go.transform.position,marker.transform.position),2),
+                ["sleeping"]=ai!=null&&ai.IsSleeping(),["activeArea"]=ZNetScene.InActiveArea(go.transform.position,ZNet.instance.GetReferencePosition())};
+            var result=new JObject{["what"]=what,["state"]=state,["fits"]=fits,["size"]=Creatures.Size(c).ToString(),["through"]=Creatures.Count-was,["last"]=Creatures.LastThrough,["ended"]=go!=null?Where(a,b,go.transform.position):"gone",["routed"]=Creatures.Routed,["path"]=path};
             Object.Destroy(marker);
             if(!keep&&go!=null)ZNetScene.instance.Destroy(go);
             output(result);

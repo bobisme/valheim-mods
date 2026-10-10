@@ -62,6 +62,6 @@ Check(Policy.PictureSize(5000,1920,1)==1920,"Pictures never exceed the screen");
 Check(Policy.PictureSize(0,1920,1)==64&&Policy.PictureSize(double.NaN,1920,1)==64,"A portal off screen gets a tiny picture");
 Check(Policy.PictureSize(1000,1920,0.5)==512,"Lower resolution halves the picture");
 Check(!Policy.Resize(512,500)&&Policy.Resize(512,600)&&Policy.Resize(1280,600)&&!Policy.Resize(1024,600),"Pictures are only remade when much too small or too big");
-Check(Policy.LinkRange<Policy.ViewRange,"A linked portal is always close enough to show its view");
+Check(Policy.LinkRange+Policy.ViewRange<320,"Every partner of a mirror the player can see is within the far portals' scan (320 m)");
 
 Console.WriteLine($"LocalPortals: {checks} checks passed");

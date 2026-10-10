@@ -78,67 +78,91 @@ namespace LocalPortals
             get
             {
                 if(View==null||!View.IsValid())return -1;
-                if(Name.Length>0&&Partner!=null)return Id.CompareTo(Partner.Id)<0?0:1;
+                if(Name.Length>0){ZDOID other=PartnerId();if(!other.IsNone())return Id.CompareTo(other)<0?0:1;}
                 return View.GetZDO().GetInt(ColourKey,0);
             }
         }
 
-        // The portal this one is linked to, loaded or not.
+        // The portal this one is linked to, loaded or not. Worked out from the portals' saved data (Far keeps a list of the
+        // portals around the player, loaded or not), so a partner too far off to be loaded is still found, and then loaded.
         internal ZDOID PartnerId()
         {
-            _problem=null;
-            string name=Name;
+            if(View==null||!View.IsValid())return ZDOID.None;
+            ZDOID id=PartnerOf(View.GetZDO(),out _problem);
+            return id;
+        }
+        private static ZDOID PartnerOf(ZDO me,out string problem)
+        {
+            problem=null;
+            string name=me.GetString(NameKey);
             if(name.Length>0)
             {
-                LocalPortal other=OnlyOther(this,name);
+                ZDO other=OnlyOther(me,name,out problem);
                 if(other==null)return ZDOID.None;
-                return OnlyOther(other,name,quiet:true)==this?other.Id:ZDOID.None;
+                return OnlyOther(other,name,out _)==me?other.m_uid:ZDOID.None;
             }
-            ZDOID stored=Stored;
+            ZDOID stored=me.GetZDOID(PartnerKey);
             if(!stored.IsNone())
             {
                 ZDO zdo=ZDOMan.instance.GetZDO(stored);
                 if(zdo!=null&&!Named(zdo))return stored;
             }
-            ZDOID me=Id;
-            foreach(LocalPortal other in Live)
-                if(other!=this&&other.Stored==me&&other.Name.Length==0)return other.Id;
+            foreach(ZDO other in Far.Portals)
+                if(other!=me&&other.IsValid()&&other.GetZDOID(PartnerKey)==me.m_uid&&!Named(other))return other.m_uid;
             return ZDOID.None;
         }
         // The one other portal in range with this name, or none (and why) if there are none or more than one.
-        private LocalPortal OnlyOther(LocalPortal p,string name,bool quiet=false)
+        private static ZDO OnlyOther(ZDO p,string name,out string problem)
         {
-            LocalPortal found=null;
+            problem=null;
+            ZDO found=null;
             int count=0;
-            foreach(LocalPortal other in Live)
+            Vector3 at=p.GetPosition();
+            foreach(ZDO other in Far.Portals)
             {
-                if(other==p||other.View==null||!other.View.IsValid()||other.Name!=name)continue;
-                if(Vector3.Distance(other.transform.position,p.transform.position)>Policy.LinkRange)continue;
+                if(other==p||!other.IsValid()||other.GetString(NameKey)!=name)continue;
+                if(Vector3.Distance(other.GetPosition(),at)>Policy.LinkRange)continue;
                 found=other;count++;
             }
-            if(!quiet&&count==0)_problem="No other mirror named \""+name+"\" within "+Policy.LinkRange+" m";
-            if(count>1){if(!quiet)_problem="More than two mirrors named \""+name+"\" nearby: a name links just two";return null;}
-            if(!quiet&&count==1&&found!=null&&OnlyOther(found,name,quiet:true)!=p)_problem="More than two mirrors named \""+name+"\" nearby: a name links just two";
+            if(count==0)problem="No other mirror named \""+name+"\" within "+Policy.LinkRange+" m";
+            if(count>1){problem="More than two mirrors named \""+name+"\" nearby: a name links just two";return null;}
+            if(count==1&&OnlyOther(found,name)!=p)problem="More than two mirrors named \""+name+"\" nearby: a name links just two";
             return found;
+        }
+        private static ZDO OnlyOther(ZDO p,string name)
+        {
+            ZDO found=null;
+            int count=0;
+            Vector3 at=p.GetPosition();
+            foreach(ZDO other in Far.Portals)
+            {
+                if(other==p||!other.IsValid()||other.GetString(NameKey)!=name)continue;
+                if(Vector3.Distance(other.GetPosition(),at)>Policy.LinkRange)continue;
+                found=other;count++;
+            }
+            return count==1?found:null;
         }
 
         private void Link()
         {
             ZDO zdo=View.GetZDO();
             zdo.Set(LinkedKey,true);
-            LocalPortal best=null;
+            Far.Scan(true);
+            ZDO best=null;
             float bestDistance=(float)Policy.LinkRange;
-            foreach(LocalPortal other in Live)
+            foreach(ZDO other in Far.Portals)
             {
-                if(other==this||other.View==null||!other.View.IsValid()||other.Name.Length>0)continue;
-                float d=Vector3.Distance(other.transform.position,transform.position);
-                if(d<=bestDistance&&other.PartnerId().IsNone()){best=other;bestDistance=d;}
+                if(other==zdo||!other.IsValid()||Named(other))continue;
+                float d=Vector3.Distance(other.GetPosition(),transform.position);
+                if(d<=bestDistance&&PartnerOf(other,out _).IsNone()){best=other;bestDistance=d;}
             }
             if(best==null)return;
-            zdo.Set(PartnerKey,best.Id);
-            zdo.Set(ColourKey,Policy.ColourFor(best.Colour));
+            zdo.Set(PartnerKey,best.m_uid);
+            zdo.Set(ColourKey,Policy.ColourFor(ColourOf(best)));
             Plugin.Log($"Linked a new local portal to one {bestDistance:0.#} m away");
         }
+        // A portal's colour from its data alone (a named pair's colour is by which is older, as Colour works it out).
+        private static int ColourOf(ZDO zdo)=>zdo.GetInt(ColourKey,0);
 
         private void Update()
         {

@@ -423,6 +423,15 @@ Field("MonsterAI","m_beenAtLastPos","System.Boolean");
 Field("Character","m_currentVel","UnityEngine.Vector3");
 Field("Character","m_moveDir","UnityEngine.Vector3");
 Method("Character","GetAllCharacters","System.Collections.Generic.List`1<Character>");
+// ...and keeps the area round a far mirror loaded and alive.
+Method("ZNetScene","CreateDestroyObjects","System.Void");
+Method("ZNetScene","CreateObjects","System.Void","System.Collections.Generic.List`1<ZDO>","System.Collections.Generic.List`1<ZDO>");
+Method("ZNetScene","RemoveObjects","System.Void","System.Collections.Generic.List`1<ZDO>","System.Collections.Generic.List`1<ZDO>");
+Field("ZNetScene","m_tempCurrentObjects","System.Collections.Generic.List`1<ZDO>");
+Field("ZNetScene","m_tempCurrentDistantObjects","System.Collections.Generic.List`1<ZDO>");
+Method("ZoneSystem","PokeLocalZone","System.Boolean","Vector2s");
+Method("ZDOMan","ReleaseZDOS","System.Void","System.Single");
+Field("ZDOMan","m_releaseZDOTimer","System.Single");
 Method("WearNTear","GetHighlightRenderers","System.Collections.Generic.List`1<UnityEngine.Renderer>");
 Field("WearNTear","m_renderers","System.Collections.Generic.List`1<UnityEngine.Renderer>");
 Field("WearNTear","m_new","UnityEngine.GameObject");

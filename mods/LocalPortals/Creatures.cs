@@ -21,6 +21,7 @@ namespace LocalPortals
         private static readonly AccessTools.FieldRef<Character,float> MaxAirAltitude=AccessTools.FieldRefAccess<Character,float>("m_maxAirAltitude");
         internal static int Count;              // creatures through, this session
         internal static string LastThrough;     // for the lportal command
+        internal static readonly List<string> Recent=new List<string>();
         internal static int Routed=>Routes.Count;
 
         // Small enough for the opening, and walking (fliers and swimmers stay out).
@@ -122,6 +123,8 @@ namespace LocalPortals
             foreach(LocalPortal p in LocalPortal.Live)Last.Remove((c,p));
             Count++;
             LastThrough=c.m_name+" through "+(from.Name==""?"a mirror":from.Name);
+            if(Recent.Count>=20)Recent.RemoveAt(0);
+            Recent.Add($"{Time.time:0.0} {c.GetHoverName()} ({c.name.Replace("(Clone)","")}) through {from.Name}/{from.Colour}");
             Gone(c,from);
         }
 

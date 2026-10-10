@@ -277,6 +277,8 @@ namespace LocalPortals
             }
             Last.Clear();
             Count++;
+            ZNet.instance?.SetReferencePosition(position); // (the game does this later in the frame; everything after the step goes by it)
+            Far.Tick(now:true); // the side just left becomes the far side: kept loaded from this moment, not after it is unloaded
             Creatures.Gone(me,from);
         }
     }

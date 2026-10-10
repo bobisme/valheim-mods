@@ -13,7 +13,7 @@ namespace LocalPortals
         internal static double CentreY=>(Bottom+Top)/2;
         internal const double BackZ=-0.09,BackThickness=0.04;   // the solid board behind the glass
         internal const double FrameDepth=0.17;                  // the frame, front to back
-        internal const double LinkRange=80;         // a new portal links to an unlinked one this close: both stay loaded together
+        internal const double LinkRange=200;        // a new portal links to an unlinked one this close (the far one is kept loaded: Far)
         internal const double ViewRange=90;         // portals farther from the camera than this keep their last picture
         internal const double BodyHeight=1.0;       // the point of the body that has to pass through
         internal const double StepDepth=1.5;        // a crossing counts only from this close to the surface (not a jump across the world)
