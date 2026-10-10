@@ -89,11 +89,20 @@ namespace Shieldwall
             int teen=n%100;string suffix=teen>=11&&teen<=13?"th":(n%10)switch{1=>"st",2=>"nd",3=>"rd",_=>"th"};
             return n+suffix;
         }
-        // In the game's own rune-stone window (Use or Escape closes it).
+        // In the game's own rune-stone window. Use or Escape closes it, and it goes by itself after half a minute or when you walk off.
+        private static float _shownAt=-1;private static Vector3 _shownWhere;
         internal static void Show(string topic,string text)
         {
             if(TextViewer.instance==null||Player.m_localPlayer==null||string.IsNullOrEmpty(text))return;
             TextViewer.instance.ShowText(TextViewer.Style.Rune,topic,text,false);
+            _shownAt=Time.time;_shownWhere=Player.m_localPlayer.transform.position;
+        }
+        internal static void Tick()
+        {
+            if(_shownAt<0)return;
+            TextViewer viewer=TextViewer.instance;Player me=Player.m_localPlayer;
+            if(viewer==null||me==null||!viewer.IsVisible()){_shownAt=-1;return;}
+            if(Time.time-_shownAt>30||Vector3.Distance(me.transform.position,_shownWhere)>12){viewer.Hide();_shownAt=-1;}
         }
     }
 }

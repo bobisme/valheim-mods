@@ -344,6 +344,30 @@ namespace Shieldwall
         // Any other staff with a projectile can be planted too, at a fraction of its power and a slow pace.
         internal const float BorrowedPower=0.4f,BorrowedCooldown=3f,BorrowedRange=25;
 
+        // ---- veterans: a stave earns a rank and a name by its kills (kept on the stave itself, wherever it stands) ----
+        internal static readonly (int kills,string title)[] Ranks={(25,"Veteran"),(100,"Elder"),(300,"Legend")};
+        internal static int Rank(int kills){int r=0;foreach(var (k,_) in Ranks)if(kills>=k)r++;return r;}
+        internal static string RankTitle(int rank)=>rank<=0?"":Ranks[Math.Min(rank,Ranks.Length)-1].title;
+        internal static float RankPower(int rank)=>1+0.1f*Math.Max(0,Math.Min(Ranks.Length,rank));  // +10% a rank
+        internal static int NextRank(int kills)=>Ranks.Select(r=>r.kills).Where(k=>k>kills).DefaultIfEmpty(0).First();
+        private static readonly Dictionary<StaveKind,string[]> Names=new Dictionary<StaveKind,string[]>
+        {
+            {StaveKind.Ember,new[]{"Brand","Glod","Eldr","Logi","Funi","Sindri"}},
+            {StaveKind.Frost,new[]{"Hrim","Isa","Frosti","Jokul","Kari","Snaer"}},
+            {StaveKind.Thunder,new[]{"Thrym","Brak","Gnyr","Thruma","Reidr","Skrugga"}},
+            {StaveKind.Blast,new[]{"Sprengja","Brestr","Hvellr","Duna","Gneisti","Bresta"}},
+            {StaveKind.Hearth,new[]{"Hlyr","Varma","Gaeta","Bota","Eir","Lif"}},
+            {StaveKind.None,new[]{"Grimr","Ulfr","Hrafn","Skarp","Bjolf","Ylfa"}},
+        };
+        private static readonly string[] Epithets={"the Hungry","Wolf-biter","Skull-splitter","Trollbane","the Unsleeping","Bone-breaker","the Patient",
+            "Widow-maker","the Grim","Shield-biter","the Watchful","Raven-feeder","the Red","Oath-keeper","the Unbowed","Fang-breaker"};
+        internal static string VeteranName(int seed,StaveKind kind)
+        {
+            var rng=new Rng(seed);for(int i=0;i<3;i++)rng.Next(); // nearby seeds start alike
+            string[] names=Names.TryGetValue(kind,out var n)?n:Names[StaveKind.None];
+            return names[rng.Index(names.Length)]+" "+Epithets[rng.Index(Epithets.Length)];
+        }
+
         // A launch direction that lands a shot of speed v at a point dx away (horizontally) and dy up under gravity g: the low arc.
         // Returns false when it is out of reach (then aim straight at it and hope).
         internal static bool Arc(double dx,double dy,double v,double g,out double angle)

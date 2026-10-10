@@ -118,7 +118,7 @@ wave holds, and once a wave is all out of the rift, **Shift+E** on the stone cal
 - **Undermined**: if the land under the stone sinks a metre below where it was set (diggers at its foot, or a moat dug too close), the
   stone **topples** into the pit: it cracks, loses a mark, and a siege on is lost.
 
-**The war council** (Shift+E on a stone at rest) is a small window in the game's dark wood. It names the horde that will come and offers
+**The war council** (Shift+E on a stone at rest) is a window made of the game's own crafting panel: its wood, fonts and Craft buttons. It names the horde that will come and offers
 two **boasts** to swear before you sound the horn: each makes the siege harder and adds its share of warshards if the stone holds. The
 offer is the same for everyone and changes after each siege.
 
@@ -140,8 +140,12 @@ farther), **Chieftain's bane** (staves strike warchiefs and guards half again as
 often), **Old blood** (the ward two marks stronger) and **Many hands** (borrowed staffs at 70%). The stone's hover lists its boons.
 
 **The saga.** When a siege ends, everyone near the stone reads its saga in the game's own rune-stone window: the horde and the boasts, who
-slew how many (each player, companion and stave), the mightiest stave, the stone's closest call, and what each warshard was for. The war
-council can show the last one again.
+slew how many (each player, companion and stave), the mightiest stave, the stone's closest call, and what each warshard was for. It goes
+by itself after half a minute or when you walk off (Use or Escape closes it at once), and the war council can show the last one again.
+
+**Veteran staves.** A stave remembers its kills, wherever it stands (they are kept on the stave, not the socket). At **25** slain it becomes
+a **Veteran** and earns a name ("Brand the Hungry"), at **100** an **Elder**, at **300** a **Legend**: each rank strikes 10% harder and
+burns brighter. Its name and record show on the socket and on its tooltip, and the saga tells its deeds by name.
 
 The horn rests **20 minutes** after a siege. A stone can't be taken down while a siege is on. Raiders carry warshards now and then
 (warchiefs 3–6) and drop their trophies more often.

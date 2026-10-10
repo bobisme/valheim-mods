@@ -9,7 +9,7 @@ namespace Shieldwall
     {
         public const string Guid="com.bobisme.shieldwall";
         public const string Name="Shieldwall";
-        public const string Version="0.4.0";
+        public const string Version="0.4.1";
         internal static Plugin Instance;
         internal ConfigEntry<bool> DrawRaids,DebugHits,ShowRoad;
         internal ConfigEntry<float> HornWarning,RaidWarning,WaveSeconds,MaxMinutes,CooldownMinutes;
@@ -39,12 +39,11 @@ namespace Shieldwall
         {
             Net.Tick();
             Tools.Tick();
-            try{Ward.Tick();Route.Tick();SiegeBar.Tick();Council.Tick();}catch(System.Exception e){Logger.LogError("Shieldwall: "+e);}
+            try{Ward.Tick();Route.Tick();SiegeBar.Tick();Council.Tick();Saga.Tick();}catch(System.Exception e){Logger.LogError("Shieldwall: "+e);}
         }
-        private void OnGUI(){try{Council.Draw();}catch(System.Exception e){Logger.LogError("Shieldwall council: "+e);Council.Close();}}
         private void OnDestroy()
         {
-            Council.Close();Theme.Destroy();
+            Council.Close();
             Tools.Stop();
             Net.Unregister();
             _harmony?.UnpatchSelf();

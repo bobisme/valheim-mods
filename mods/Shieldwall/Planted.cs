@@ -31,12 +31,14 @@ namespace Shieldwall
             if(View==null||!View.IsValid())return;
             Loaded.Add(this);
             if(_wear!=null)_wear.m_onDestroyed+=Fallen;
+            View.Register(KillRpc,_=>OnKill());
             Load();
             _next=Time.time+Random.Range(0.5f,1.5f);
         }
         private void OnDestroy()
         {
             Loaded.Remove(this);
+            if(View!=null&&View.IsValid())View.Unregister(KillRpc);
             if(_shot!=null)Shots.Remove(_shot);
             if(_wear!=null)_wear.m_onDestroyed-=Fallen;
         }
@@ -52,7 +54,7 @@ namespace Shieldwall
             if(item!=null&&!Items.Plantable(item)){Refuse(slot,item);item=null;}
             string prefab=PrefabOf(item);
             string signature=item==null||prefab==null?"":prefab+"|"+item.m_quality;
-            if(signature==_loaded)return;
+            if(signature==_loaded){if(item!=null)_item=item;return;} // the same stave, perhaps reloaded from its owner's save (new kills, a name)
             _loaded=signature;
             if(_shot!=null)Shots.Remove(_shot);
             _item=null;_shot=null;_stave=null;
@@ -65,6 +67,7 @@ namespace Shieldwall
             _shot=item.Clone();_shot.m_dropPrefab=source;
             _stave=Policy.Staves.FirstOrDefault(st=>st.Name==item.m_shared.m_name);
             Shots[_shot]=this;
+            Carry();
             Build(source);
         }
         // A socket from before the slot (0.2.0) kept its stave in its own data: move it into the slot.
@@ -135,7 +138,7 @@ namespace Shieldwall
             _look.transform.localPosition=new Vector3(0,Pieces.SocketTop,0);
             _length=Mathf.Clamp(standing.max.y*k,1.5f,5.5f);
             var lit=new GameObject("StaveGlow");lit.transform.SetParent(transform,false);lit.transform.localPosition=new Vector3(0,Pieces.SocketTop+_length-0.4f,0);
-            _light=lit.AddComponent<Light>();_light.type=LightType.Point;_light.range=6;_light.intensity=1.8f;_light.shadows=LightShadows.None;
+            _light=lit.AddComponent<Light>();_light.type=LightType.Point;_light.range=6+Rank;_light.intensity=1.8f;_light.shadows=LightShadows.None;
             _light.color=_stave!=null&&Items.Colours.TryGetValue(_stave.Kind,out var c)?c.glow*1.6f:new Color(0.6f,0.6f,1f);
         }
         // The staff's shaft: the long axis of its longest mesh, in the frame given, pointing at its head (the end farther from where a hand
@@ -272,7 +275,7 @@ namespace Shieldwall
         // Boons reach farther; the Fog of war boast cuts every stave's sight to two thirds.
         private float Range=>((_stave!=null?Policy.RangeAt(_stave,Quality):Policy.BorrowedRange)+Policy.BoonRange(Kind,Boons))*(_stone!=null&&Policy.Has(_stone.Boasts,Boast.Fog)?0.67f:1);
         private float Cooldown=>(_stave!=null?_stave.Cooldown:Policy.BorrowedCooldown)*Policy.BoonCooldown(Kind,Boons);
-        internal string Title=>_item==null?"Stave socket":Localization.instance.Localize(_item.m_shared.m_name);
+        internal string Title=>_item==null?"Stave socket":VeteranName??Localization.instance.Localize(_item.m_shared.m_name);
 
         // ---- watching and shooting (on the game that owns the socket) ----
         private float _nextLoad;
@@ -298,7 +301,7 @@ namespace Shieldwall
             if(_light!=null)
             {
                 _light.enabled=on;
-                if(on)_light.intensity=1.8f+0.5f*Mathf.Sin(Time.time*2.2f+transform.position.x);
+                if(on)_light.intensity=(1.8f+0.5f*Mathf.Sin(Time.time*2.2f+transform.position.x))*(1+0.3f*Rank); // a veteran burns brighter
             }
             if(_shown==(on?1:0)||_look==null)return;
             _shown=on?1:0;
@@ -391,7 +394,7 @@ namespace Shieldwall
             bool chief=foe.GetComponent<Raider>() is Raider r&&(r.Role==Role.Champion||r.Role==Role.Guard);
             if(_stave!=null)
             {
-                float power=Policy.Power(Quality)*Policy.BoonDamage(_stave.Kind,Boons,chief);
+                float power=Policy.Power(Quality)*Policy.BoonDamage(_stave.Kind,Boons,chief)*Policy.RankPower(Rank);
                 switch(_stave.Type)
                 {
                     case "fire":hit.m_damage.m_fire=_stave.Damage*power;break;
@@ -401,13 +404,48 @@ namespace Shieldwall
                 }
                 hit.m_damage.m_blunt+=_stave.Splash*power;
             }
-            else{hit.m_damage=_item.GetDamage();hit.m_damage.Modify(Policy.BoonBorrowed(Boons)*Policy.BoonDamage(StaveKind.None,Boons,chief));}
+            else{hit.m_damage=_item.GetDamage();hit.m_damage.Modify(Policy.BoonBorrowed(Boons)*Policy.BoonDamage(StaveKind.None,Boons,chief)*Policy.RankPower(Rank));}
             StatusEffect status=_item.m_shared.m_attackStatusEffect;
             if(status!=null)hit.m_statusEffectHash=status.NameHash();
             shot.GetComponent<IProjectile>()?.Setup(null,dir*speed,-1,hit,_shot,null);
             if(attack!=null)attack.m_startEffect.Create(tip,Quaternion.LookRotation(dir));
         }
-        internal void Killed(){if(View!=null&&View.IsValid())View.GetZDO().Set(KillsKey,View.GetZDO().GetInt(KillsKey,0)+1);}
+        // ---- veterans: its kills, rank and name are kept on the stave itself, so they go wherever it stands ----
+        private const string KillRpc="bob_sw_stavekill",ItemKills="bob_sw_kills",ItemName="bob_sw_name";
+        internal void Killed(){if(View!=null&&View.IsValid())View.InvokeRPC(KillRpc);} // to the socket's owner, who keeps its slot
+        internal int Kills=>_item!=null&&_item.m_customData.TryGetValue(ItemKills,out string k)&&int.TryParse(k,out int n)?n:0;
+        internal int Rank=>Policy.Rank(Kills);
+        internal string VeteranName=>_item!=null&&_item.m_customData.TryGetValue(ItemName,out string n)?n:null;
+        private void OnKill()
+        {
+            if(!View.IsOwner()||_item==null)return;
+            ZDO z=View.GetZDO();z.Set(KillsKey,z.GetInt(KillsKey,0)+1);
+            int before=Rank;
+            _item.m_customData[ItemKills]=(Kills+1).ToString();
+            if(Rank>before)
+            {
+                string old=Title;
+                GiveName();
+                Net.Say(before==0?$"The {old.ToLowerInvariant()} has slain {Kills}: a veteran now, and they call it {VeteranName}!":$"{VeteranName} has slain {Kills}: {Policy.RankTitle(Rank).ToLowerInvariant()} of the wall!",transform.position,80);
+                Assets.Effect("fx_DvergerMage_Support_start",Tip);
+                _loaded="";
+            }
+            Save();
+        }
+        private void GiveName(){if(_item!=null&&VeteranName==null)_item.m_customData[ItemName]=Policy.VeteranName(Random.Range(1,int.MaxValue),Kind);}
+        private void Save()=>Changed.Invoke(Box.GetInventory(),Changed.GetParameters().Length==0?null:Changed.GetParameters().Select(pp=>(object)false).ToArray());
+        // Kills counted on the socket before 0.4.1 go to the stave standing in it.
+        private void Carry()
+        {
+            ZDO z=View.GetZDO();
+            if(_item==null||!View.IsOwner()||z.GetBool("bob_sw_killsmoved",false))return;
+            z.Set("bob_sw_killsmoved",true);
+            int old=z.GetInt(KillsKey,0);
+            if(old<=Kills)return;
+            _item.m_customData[ItemKills]=old.ToString();
+            if(Rank>0)GiveName();
+            Save();
+        }
         // The Hearth stave: friends near it heal; during a siege the stone itself is mended too.
         private void Mend(Warstone stone)
         {
@@ -440,11 +478,13 @@ namespace Shieldwall
             Power();
             if(_item==null)return Localization.instance.Localize("Stave socket ( empty )\n[<color=yellow><b>$KEY_Use</b></color>] Choose a stave");
             string stars=_item.m_quality>1?" "+new string('★',_item.m_quality-1):"";
-            string name=_item.m_shared.m_name+stars+(_stave==null?" (borrowed: weak)":"");
+            string kind=Localization.instance.Localize(_item.m_shared.m_name);
+            string name=VeteranName!=null?$"<color=#FFCE00>{VeteranName}</color>, {kind.ToLowerInvariant()}{stars} · {Policy.RankTitle(Rank)}":kind+stars;
+            if(_stave==null)name+=" (borrowed: weak)";
             string state=!_powered?$"<color=#A0A0A0>{_why}</color>":_stave!=null&&_stave.Kind==StaveKind.Hearth?$"Mending friends within {Range:0} m":
                 $"Watching {Range:0} m{(_stave!=null&&_stave.Kind==StaveKind.Thunder?", the strongest first":", the nearest to the stone first")}";
-            int kills=View.GetZDO().GetInt(KillsKey,0);
-            if(kills>0)state+=$" · {kills} slain";
+            int kills=Kills;
+            if(kills>0)state+=$" · {kills} slain"+(Policy.NextRank(kills)>0?$" ({Policy.RankTitle(Rank+1).ToLowerInvariant()} at {Policy.NextRank(kills)})":"");
             if(_wear!=null&&_wear.GetHealthPercentage()<0.99f)state+=$" · socket {Mathf.RoundToInt(_wear.GetHealthPercentage()*100)}%";
             string line=$"{name}\n{state}\n[<color=yellow><b>$KEY_Use</b></color>] Change the stave";
             if(_stave!=null&&_item.m_quality<Policy.MaxQuality)
@@ -506,6 +546,19 @@ namespace Shieldwall
             go.GetComponent<Container>()?.GetInventory().AddItem(item);
             go.GetComponent<Planted>()?.Load();
             return go;
+        }
+    }
+
+    // A veteran stave's name and record on its tooltip, in your bag or anywhere.
+    [HarmonyPatch(typeof(ItemDrop.ItemData),nameof(ItemDrop.ItemData.GetTooltip),new[]{typeof(ItemDrop.ItemData),typeof(int),typeof(bool),typeof(float),typeof(int),typeof(bool)})]
+    internal static class VeteranTooltip
+    {
+        private static void Postfix(ItemDrop.ItemData item,ref string __result)
+        {
+            if(item?.m_customData==null||!item.m_customData.TryGetValue("bob_sw_kills",out string k)||!int.TryParse(k,out int kills)||kills<=0)return;
+            int rank=Policy.Rank(kills);
+            string name=item.m_customData.TryGetValue("bob_sw_name",out string n)?$"<color=#FFCE00>{n}</color>, {Policy.RankTitle(rank).ToLowerInvariant()} of the wall · ":"";
+            __result+=$"\n\n{name}<color=orange>{kills}</color> slain"+(rank>0?$" · strikes {Mathf.RoundToInt((Policy.RankPower(rank)-1)*100)}% harder":"");
         }
     }
 

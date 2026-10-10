@@ -146,6 +146,14 @@ Check(Policy.Carried(Role.Grunt,0.2,true)==1&&Policy.Carried(Role.Grunt,0.2,fals
 // The saga's shard breakdown adds up.
 Check(Policy.ShardParts(3,4,0.8,30).Sum(p=>p.amount)==Policy.Shards(3,4,0.8,30)&&Policy.Shards(3,4,0.8,30)==3+3+2+4+2,"Every warshard is accounted for");
 
+// Veterans: a stave earns a rank and a name by its kills.
+Check(Policy.Rank(0)==0&&Policy.Rank(24)==0&&Policy.Rank(25)==1&&Policy.Rank(99)==1&&Policy.Rank(100)==2&&Policy.Rank(300)==3&&Policy.Rank(5000)==3,"Ranks at 25, 100 and 300 slain");
+Check(Policy.RankTitle(0)==""&&Policy.RankTitle(1)=="Veteran"&&Policy.RankTitle(3)=="Legend","Rank titles");
+Check(Policy.RankPower(0)==1&&Math.Abs(Policy.RankPower(3)-1.3f)<0.001f,"Each rank strikes 10% harder");
+Check(Policy.NextRank(3)==25&&Policy.NextRank(25)==100&&Policy.NextRank(300)==0,"The next rank, and none past Legend");
+Check(Policy.VeteranName(9,StaveKind.Ember)==Policy.VeteranName(9,StaveKind.Ember)&&Policy.VeteranName(9,StaveKind.Ember).Contains(" "),"A name and an epithet, the same for the same seed");
+Check(Enumerable.Range(1,50).Select(i=>Policy.VeteranName(i,StaveKind.Frost)).Distinct().Count()>20,"Plenty of different names");
+
 var rng=new Policy.Rng(7);var rolls=Enumerable.Range(0,1000).Select(_=>rng.Next()).ToList();
 Check(rolls.All(r=>r>=0&&r<1)&&rolls.Average()>0.45&&rolls.Average()<0.55,"Rolls are even");
 Console.WriteLine($"Passed {checks} Warstone, horde, pacing, reward, stave and aiming checks.");

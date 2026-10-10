@@ -242,6 +242,24 @@ namespace Shieldwall
                     else Net.Choose(stone,args[2],Player.m_localPlayer.GetPlayerName());
                     output(new JObject{["boons"]=new JArray(stone.Boons.ToArray()),["boonOffer"]=new JArray(stone.BoonOffer)});
                     break;
+                case "uitree":
+                {
+                    // uitree [player|crafting|container]: the game's own inventory panels, part by part (for building windows that match).
+                    var gui=InventoryGui.instance;
+                    if(gui==null){error("siege uitree: no inventory");break;}
+                    Transform root=args.Length>2&&args[2]=="player"?gui.m_player:args.Length>2&&args[2]=="container"?gui.m_container:(Transform)gui.m_crafting;
+                    var lines=new JArray();
+                    void Walk(Transform t,int depth)
+                    {
+                        if(depth>5||lines.Count>160)return;
+                        var img=t.GetComponent<UnityEngine.UI.Image>();var txt=t.GetComponent<TMPro.TMP_Text>();
+                        lines.Add($"{new string(' ',depth*2)}{t.name}{(img!=null?$" [img {img.sprite?.name} {img.type} {ColorUtility.ToHtmlStringRGBA(img.color)}]":"")}{(txt!=null?$" [text '{txt.text}' {txt.font?.name} {txt.fontSize} {ColorUtility.ToHtmlStringRGBA(txt.color)}]":"")}{(t.GetComponent<UnityEngine.UI.Button>()!=null?" [button]":"")} {((RectTransform)t).rect.size}");
+                        foreach(Transform c in t)Walk(c,depth+1);
+                    }
+                    Walk(root,0);
+                    output(new JObject{["tree"]=lines});
+                    break;
+                }
                 case "saga":
                     if(stone==null){error("siege saga: no Warstone loaded");break;}
                     Saga.Show(stone.Z.GetString(Stone.SagaTopicKey,""),stone.Z.GetString(Stone.SagaKey,""));
