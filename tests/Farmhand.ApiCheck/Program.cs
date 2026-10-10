@@ -390,6 +390,7 @@ Field("GameCamera","m_skyCamera","UnityEngine.Camera");
 Field("GameCamera","m_blockCameraMask","UnityEngine.LayerMask");
 Field("Character","m_maxAirAltitude","System.Single");
 Field("Player","m_lookPitch","System.Single");
+Method("Character","GetCollider","UnityEngine.CapsuleCollider");
 Method("Character","GetVisual","UnityEngine.GameObject");
 Method("Character","SetLookDir","System.Void","UnityEngine.Vector3","System.Single");
 Method("Character","GetLookDir","UnityEngine.Vector3");

@@ -24,20 +24,25 @@ namespace LocalPortals
             {
                 Last.Clear();
                 foreach(LocalPortal p in LocalPortal.Live)if(p!=null)Open(p,false);
+                Wanted.Clear();Unwall(me);
                 return;
             }
             Vector3 body=me.transform.position+Vector3.up*(float)Policy.BodyHeight;
             LocalPortal through=null;
+            Wanted.Clear();
             foreach(LocalPortal p in LocalPortal.Live)
             {
                 if(p==null)continue;
                 if((p.transform.position-body).sqrMagnitude>36){Last.Remove(p);Open(p,false);continue;}
                 Vector3 now=p.transform.InverseTransformPoint(body);
                 // The board behind the glass gives way to a player in front, so they can step in; from behind it is solid.
-                Open(p,p.Partner!=null&&now.z>0&&Mathf.Abs(now.x)<Policy.HalfWidth+0.4);
+                bool open=p.Partner!=null&&now.z>0&&Mathf.Abs(now.x)<Policy.HalfWidth+0.4;
+                Open(p,open);
+                if(open&&now.z<1.5f)BehindGlass(p);
                 if(through==null&&p.Partner!=null&&Last.TryGetValue(p,out Vector3 before)&&Policy.Crossed((before.x,before.y,before.z),(now.x,now.y,now.z)))through=p;
                 Last[p]=now;
             }
+            Unwall(me);
             if(through==null)return;
             if(PullingCart(me))
             {
@@ -51,6 +56,42 @@ namespace LocalPortals
         {
             if(p.Back!=null&&p.Back.enabled==open)p.Back.enabled=!open;
         }
+
+        // A mirror against a wall: the body has to reach the glass with its middle, so whatever stands just behind the
+        // opening (above the floor) does not stop the player in front of it. Floors and the ground still hold them up;
+        // the frame still keeps them from going round the glass.
+        private static readonly HashSet<Collider> Wanted=new HashSet<Collider>(),Ignored=new HashSet<Collider>();
+        private static readonly Collider[] Behind=new Collider[32];
+        private static readonly List<Collider> Swap=new List<Collider>();
+        private static int _wallMask;
+        private static void BehindGlass(LocalPortal p)
+        {
+            if(_wallMask==0)_wallMask=LayerMask.GetMask("Default","static_solid","Default_small","piece","piece_nonsolid");
+            Transform t=p.transform;
+            float z0=(float)(Policy.BackZ-Policy.BackThickness)-0.005f,z1=-1.0f,y0=0.35f,y1=(float)Policy.Top;
+            Vector3 centre=t.TransformPoint(new Vector3(0,(y0+y1)/2,(z0+z1)/2));
+            Vector3 half=new Vector3((float)Policy.HalfWidth,(y1-y0)/2,(z0-z1)/2);
+            int n=Physics.OverlapBoxNonAlloc(centre,half,Behind,t.rotation,_wallMask,QueryTriggerInteraction.Ignore);
+            for(int i=0;i<n;i++)
+            {
+                Collider c=Behind[i];
+                if(c==null||c.GetComponentInParent<Heightmap>()!=null)continue; // (the ground)
+                if(c.transform.IsChildOf(t)||(p.Partner!=null&&c.transform.IsChildOf(p.Partner.transform)))continue;
+                if(c.attachedRigidbody!=null&&!c.attachedRigidbody.isKinematic)continue; // (loose things are pushed, not walked through)
+                if(c.GetComponentInParent<Character>()!=null)continue;
+                Wanted.Add(c);
+            }
+        }
+        private static void Unwall(Player me)
+        {
+            Collider body=me!=null?me.GetCollider():null;
+            Swap.Clear();
+            foreach(Collider c in Ignored)if(!Wanted.Contains(c))Swap.Add(c);
+            foreach(Collider c in Swap){Ignored.Remove(c);if(c!=null&&body!=null)Physics.IgnoreCollision(body,c,false);}
+            if(body==null)return;
+            foreach(Collider c in Wanted)if(Ignored.Add(c))Physics.IgnoreCollision(body,c,true);
+        }
+        internal static int WallsIgnored=>Ignored.Count;
 
         // The game camera stays behind the player, so it reaches a portal after them. Having stepped through, the player is in
         // the exit portal's world while the camera, following, is still in front of the entry portal: it goes on looking at the
@@ -183,6 +224,7 @@ namespace LocalPortals
         {
             if(_blurUntil>=0&&_blurProfile!=null)_blurProfile.motionBlur.enabled=_blurWas;
             _blurUntil=-1;_blurProfile=null;_exit=null;
+            Wanted.Clear();Unwall(Player.m_localPlayer);
             foreach(LocalPortal p in WasCut)if(p!=null)p.Hide(false);
             WasCut.Clear();Cut.Clear();Reblock();
         }

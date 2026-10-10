@@ -64,7 +64,7 @@ namespace LocalPortals
                     output(new JObject{["placed"]=V(at),["facing"]=Math.Round(go.transform.eulerAngles.y,1)});
                     break;
                 }
-                case "info":output(new JObject{["portals"]=new JArray(Nearby(100).Select(Describe)),["drawnLastFrame"]=Views.Drawn,["trips"]=Crossing.Count,["cutting"]=Doubles.PartCount,["cutMs"]=Math.Round(Doubles.Ms,2)});break;
+                case "info":output(new JObject{["portals"]=new JArray(Nearby(100).Select(Describe)),["drawnLastFrame"]=Views.Drawn,["trips"]=Crossing.Count,["cutting"]=Doubles.PartCount,["cutMs"]=Math.Round(Doubles.Ms,2),["wallsIgnored"]=Crossing.WallsIgnored});break;
                 case "probe":output(Probe());break;
                 case "camtest":
                 {
