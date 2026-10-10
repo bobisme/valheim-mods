@@ -334,6 +334,20 @@ Field("SE_Stats","m_addMaxCarryWeight","System.Single");
 Field("SE_Stats","m_raiseSkillModifier","System.Single");
 Field("Recipe","m_craftingStation","CraftingStation");
 
+// PassengerCart clones the game's cart into a bigger hammer piece and seats passengers through the native attach.
+Method("Player","AttachStart","System.Void","UnityEngine.Transform","UnityEngine.GameObject","System.Boolean","System.Boolean","System.Boolean","System.String","UnityEngine.Vector3","UnityEngine.Transform");
+Method("Player","AttachStop","System.Void");
+Method("Player","GetAttachPoint","UnityEngine.Transform");
+Method("Vagon","IsAttached","System.Boolean","Character");
+Field("Vagon","m_baseMass","System.Single");
+Field("Vagon","m_loadVis","System.Collections.Generic.List`1<Vagon/LoadData>");
+Field("Vagon","m_name","System.String");
+Field("Container","m_name","System.String");
+Field("WearNTear","m_health","System.Single");
+Field("PieceTable","m_pieces","System.Collections.Generic.List`1<UnityEngine.GameObject>");
+Field("ZNetScene","m_namedPrefabs","System.Collections.Generic.Dictionary`2<System.Int32,UnityEngine.GameObject>");
+Method("ZNetScene","Awake","System.Void");
+
 // Bob's Pipes: hotbar dispatch, saved item bowls, mutual smoking and native item registrations.
 Method("Player","UseHotbarItem","System.Void","System.Int32");
 Method("Player","OnDeath","System.Void");

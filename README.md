@@ -2,6 +2,25 @@
 
 Bob's Valheim mods, built for native Linux and Windows and packaged for the in-game mod manager.
 
+## Passenger Cart
+
+A bigger cart with **seats for four**. Hammer → next to the cart (30 wood, 16 bronze nails, 4 deer hide, near a workbench).
+
+It is the game's cart made 30% bigger in every direction, with two plank benches facing the handle. One player pulls it as usual while
+up to four ride: look into the cart at a seat and press **E** to sit, move or jump to get off (you step down beside the cart on your
+side). Storage opens from the cargo crates behind the back bench and holds as much as the regular cart. The cargo pile the regular cart
+shows as it fills is left out, because the seats are where it would go.
+
+It has **twice the health** (1,000) and is **steadier**: a wider track, bigger wheels, a centre of mass below the axle, damped
+rocking and 20% more weight. In a live test the same sideways knock that flipped the regular cart onto its back rocked this one 13°.
+Passengers' bodies are kept out of the cart's own colliders on every player's screen, so sitting or riding never shoves it. If it does go
+over, passengers are thrown off.
+
+**Install on the host and every player**: a host without it deletes passenger carts when their area loads. With Quad's Claude Tools, `pcart`
+places one (or a vanilla cart) near the player, sits the player in a seat and stands them back where they were, knocks nearby carts to
+compare how far they roll, and removes the test carts. Placing, seating and the steadiness comparison were tested in a live
+world; pulling it with passengers aboard and seating remote players in multiplayer still need a playtest.
+
 ## Meadow Golf
 
 Build a rustic golf course through your meadow or longhouse. Craft the **Meadow golf club** at a workbench

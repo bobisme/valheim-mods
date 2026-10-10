@@ -105,6 +105,19 @@
       ]
     },
     {
+      "guid": "com.bobisme.passengercart",
+      "name": "Passenger Cart",
+      "version": "0.1.0",
+      "description": "A passenger cart, built with the hammer next to the regular cart (workbench nearby; 30 wood, 16 bronze nails, 4 deer hide).\n\nIt is the game's cart made 30% bigger in every direction, with two plank benches inside: seats for four passengers, facing the handle. One player pulls it like the regular cart while the others ride. Look into the cart at a seat and press E to sit; move or jump to get off, and you step down beside the cart on your own side. A seat someone is sitting in shows as taken.\n\nIt has twice the regular cart's health, and it is steadier: a wider track, bigger wheels, a lower centre of mass and damped rocking, so it rolls back upright from knocks that would tip the small cart. Passengers' bodies never push the cart around, on any player's screen. If it does go over, passengers are thrown off.\n\nThe cart's storage is opened from the cargo crates behind the back bench (same size as the regular cart's). The load pile the regular cart shows as it fills is left out, since the seats are where it would be.\n\nEveryone in a multiplayer game needs the mod: a host without it deletes passenger carts when their area loads. Removing the mod removes built passenger carts.",
+      "notes": "0.1.0: First Passenger Cart. A hammer piece next to the cart (30 wood, 16 bronze nails, 4 deer hide, at a workbench): the game's cart 30% bigger, with two benches seating four facing the handle, cargo crates at the back that open its storage, twice the health, and a lower centre of mass with damped rocking so it stays upright. Passengers' bodies are kept out of the cart's on every client, and passengers are thrown off a cart that tips over.",
+      "restart": "",
+      "cover": "PassengerCart.cover.jpg",
+      "files": [
+        "PassengerCart.dll",
+        "PassengerCart.pdb"
+      ]
+    },
+    {
       "guid": "com.bobisme.polygonleveler",
       "name": "PolygonLeveler",
       "version": "0.1.3",
