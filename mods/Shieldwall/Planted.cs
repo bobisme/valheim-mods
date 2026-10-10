@@ -6,116 +6,147 @@ using Object=UnityEngine.Object;
 
 namespace Shieldwall
 {
-    // A staff planted upright in the ground near a Warstone. It looses its own magic at foes in reach (a Hearth stave mends friends
-    // instead) and never hurts players, companions, tames or buildings. Pull it out to take it back; if the horde knocks it down,
-    // it drops where it stood.
-    internal sealed class Planted:MonoBehaviour,Hoverable,Interactable,IDestructible
+    // A stave set in a stave socket. The socket is a building piece (on the ground, a wall or a tower); the stave in it looses its magic at
+    // foes in reach (a Hearth stave mends friends instead) and never hurts players, companions, tames or buildings. A Warstone feeds only
+    // so many staves, nearest first, and only so far, both growing with its level. Use takes a stave out or sets one in; Shift+Use spends
+    // warshards to strengthen it. If the horde brings the socket down, its stave falls where it stood.
+    internal sealed class Planted:MonoBehaviour,Hoverable,Interactable
     {
-        internal const string PrefabName="BobPlantedStave",ItemKey="bob_sw_item",HealthKey="bob_sw_stavehealth";
-        internal static int Hash=>PrefabName.GetStableHashCode();
+        internal const string LegacyName="BobPlantedStave",ItemKey="bob_sw_item",KillsKey="bob_sw_kills";
         internal static readonly List<Planted> Loaded=new List<Planted>();
-        // Our shots carry the planted staff's own item; that is how the friendly-fire guard knows them.
-        internal static readonly HashSet<ItemDrop.ItemData> Shots=new HashSet<ItemDrop.ItemData>();
-        private static GameObject _prefab;
-        internal static GameObject Prefab=>Ensure();
+        // Our shots carry the socket's own item; that is how the friendly-fire guard (and the kill count) knows them.
+        internal static readonly Dictionary<ItemDrop.ItemData,Planted> Shots=new Dictionary<ItemDrop.ItemData,Planted>();
         private static int _sight=-1;
 
-        internal ZNetView View;internal StaticTarget Target;
+        internal ZNetView View;internal StaticTarget Target;private WearNTear _wear;
         private ItemDrop.ItemData _item;private Stave _stave;
-        private float _length=2,_next;private Light _light;
-        internal Vector3 Tip=>transform.position+Vector3.up*(_length-0.45f);
-
-        internal static GameObject Ensure()
-        {
-            if(_prefab!=null)return _prefab;
-            var go=new GameObject(PrefabName);
-            go.transform.SetParent(Assets.Holder,false);
-            ZNetView view=go.AddComponent<ZNetView>();
-            view.m_persistent=true;view.m_type=ZDO.ObjectType.Default;view.m_distant=false;
-            go.AddComponent<StaticTarget>().m_randomTarget=false;
-            go.AddComponent<Planted>();
-            _prefab=go;
-            return go;
-        }
-        internal static void Forget(){_prefab=null;}
+        private GameObject _look;private Light _light;
+        private float _length=3,_next;
+        internal bool Holding=>_item!=null;
+        internal Vector3 Tip=>transform.position+Vector3.up*(Pieces.SocketTop+_length-0.5f);
 
         private void Awake()
         {
-            View=GetComponent<ZNetView>();Target=GetComponent<StaticTarget>();
+            View=GetComponent<ZNetView>();Target=GetComponent<StaticTarget>();_wear=GetComponent<WearNTear>();
             if(View==null||!View.IsValid())return;
             Loaded.Add(this);
-            string prefab=View.GetZDO().GetString(ItemKey,"");
-            GameObject source=Items.Get(prefab)??Assets.Find(prefab);
+            if(_wear!=null)_wear.m_onDestroyed+=Fallen;
+            Load();
+            _next=Time.time+Random.Range(0.5f,1.5f);
+        }
+        private void OnDestroy()
+        {
+            Loaded.Remove(this);
+            if(_item!=null)Shots.Remove(_item);
+            if(_wear!=null)_wear.m_onDestroyed-=Fallen;
+        }
+        // The stave in the socket, from the socket's saved data (it changes when someone sets, takes or strengthens one).
+        private string _loaded="";
+        internal void Load()
+        {
+            ZDO z=View.GetZDO();
+            string prefab=z.GetString(ItemKey,"");
+            string signature=prefab+"|"+z.GetInt(ZDOVars.s_quality,1);
+            if(signature==_loaded)return;
+            _loaded=signature;
+            if(_item!=null)Shots.Remove(_item);
+            _item=null;_stave=null;
+            if(_look!=null)Object.Destroy(_look);
+            if(_light!=null)Object.Destroy(_light.gameObject);
+            GameObject source=string.IsNullOrEmpty(prefab)?null:Items.Get(prefab)??Assets.Find(prefab);
             ItemDrop drop=source!=null?source.GetComponent<ItemDrop>():null;
             if(drop==null)return;
             _item=drop.m_itemData.Clone();_item.m_dropPrefab=source;
-            ItemDrop.LoadFromZDO(_item,View.GetZDO());
+            ItemDrop.LoadFromZDO(_item,z);
             _stave=Policy.Staves.FirstOrDefault(s=>s.Name==_item.m_shared.m_name);
-            Shots.Add(_item);
+            Shots[_item]=this;
             Build(source);
-            _next=Time.time+Random.Range(0.5f,1.5f);
         }
-        private void OnDestroy(){Loaded.Remove(this);if(_item!=null)Shots.Remove(_item);}
-        internal static void DetachAll(){foreach(Planted p in Loaded.ToList())if(p!=null){foreach(Transform t in p.transform.Cast<Transform>().ToList())Object.Destroy(t.gameObject);Object.Destroy(p);}Loaded.Clear();Shots.Clear();}
+        internal static void DetachAll(){foreach(Planted p in Loaded.ToList())if(p!=null){if(p._look!=null)Object.Destroy(p._look);if(p._light!=null)Object.Destroy(p._light.gameObject);Object.Destroy(p);}Loaded.Clear();Shots.Clear();}
         internal static void AttachAll()
         {
-            foreach(ZNetView view in Assets.Instances(Hash))
+            foreach(ZNetView view in Assets.Instances(Pieces.SocketName.GetStableHashCode()))
             {
                 foreach(MonoBehaviour stale in view.GetComponents<MonoBehaviour>())if(stale!=null&&stale.GetType().Name==nameof(Planted)&&stale.GetType()!=typeof(Planted))Object.DestroyImmediate(stale);
-                foreach(Transform t in view.transform.Cast<Transform>().ToList())Object.Destroy(t.gameObject);
+                foreach(Transform t in view.transform.Cast<Transform>().Where(t=>t.name=="StaveLook"||t.name=="StaveGlow").ToList())Object.Destroy(t.gameObject);
                 if(view.GetComponent<Planted>()==null)view.gameObject.AddComponent<Planted>();
             }
         }
 
-        // The staff stands on its butt with its head up (the head is the end farthest from where a hand holds it), sunk a little into the ground.
+        // The stave stands in the pedestal head up (the head is the end farthest from where a hand holds it): big, thick and heavy.
         private void Build(GameObject source)
         {
             Transform attach=source.transform.Find("attach");
-            GameObject look=Assets.Model(attach!=null?attach.gameObject:source,transform,Vector3.zero,Quaternion.identity,1.4f,r=>r.GetComponent<MeshFilter>()!=null);
-            if(look==null)return;
-            Renderer[] renderers=look.GetComponentsInChildren<Renderer>();
-            if(renderers.Length==0)return;
-            Bounds local=new Bounds(transform.InverseTransformPoint(renderers[0].bounds.center),Vector3.zero);
-            foreach(Renderer r in renderers){local.Encapsulate(transform.InverseTransformPoint(r.bounds.min));local.Encapsulate(transform.InverseTransformPoint(r.bounds.max));}
+            _look=new GameObject("StaveLook");
+            _look.transform.SetParent(transform,false);
+            GameObject model=Assets.Model(attach!=null?attach.gameObject:source,_look.transform,Vector3.zero,Quaternion.identity,1,r=>r.GetComponent<MeshFilter>()!=null);
+            if(model==null)return;
+            Bounds local=Local(model,_look.transform);
             Vector3 head=local.center.sqrMagnitude>0.01f?local.center.normalized:Vector3.forward;
-            look.transform.localRotation=Quaternion.FromToRotation(head,Vector3.up);
-            // Measure again upright and sink the butt 0.3 m.
-            float low=float.MaxValue,high=float.MinValue;
-            foreach(Renderer r in look.GetComponentsInChildren<Renderer>()){low=Mathf.Min(low,r.bounds.min.y);high=Mathf.Max(high,r.bounds.max.y);}
-            look.transform.localPosition=new Vector3(0,transform.position.y-low-0.3f,0);
-            _length=Mathf.Clamp(high-low-0.3f,0.8f,3f);
-            int layer=LayerMask.NameToLayer("piece_nonsolid");
-            var body=new GameObject("Body"){layer=layer};body.transform.SetParent(transform,false);
-            var capsule=body.AddComponent<CapsuleCollider>();capsule.radius=0.25f;capsule.height=_length;capsule.center=new Vector3(0,_length/2,0);
-            var lit=new GameObject("Glow");lit.transform.SetParent(transform,false);lit.transform.localPosition=new Vector3(0,_length-0.3f,0);
-            _light=lit.AddComponent<Light>();_light.type=LightType.Point;_light.range=4;_light.intensity=1.1f;_light.shadows=LightShadows.None;
+            model.transform.localRotation=Quaternion.FromToRotation(head,Vector3.up);
+            Bounds upright=Local(model,_look.transform);
+            model.transform.localPosition=new Vector3(-upright.center.x,-upright.min.y-0.35f,-upright.center.z);
+            _look.transform.localScale=new Vector3(4.2f,2f,4.2f); // four times as thick, twice as long: no hand could swing it
+            _look.transform.localPosition=new Vector3(0,Pieces.SocketTop,0);
+            _length=Mathf.Clamp(upright.size.y*2f-0.7f,1.5f,5.5f);
+            var lit=new GameObject("StaveGlow");lit.transform.SetParent(transform,false);lit.transform.localPosition=new Vector3(0,Pieces.SocketTop+_length-0.4f,0);
+            _light=lit.AddComponent<Light>();_light.type=LightType.Point;_light.range=5;_light.intensity=1.2f;_light.shadows=LightShadows.None;
             _light.color=_stave!=null&&Items.Colours.TryGetValue(_stave.Kind,out var c)?c.glow*1.6f:new Color(0.6f,0.6f,1f);
         }
-
-        // The stone that powers it (looked up once a second, not every frame).
-        private Warstone _stone;private float _nextStone;
-        internal Warstone Stone()
+        private static Bounds Local(GameObject model,Transform frame)
         {
-            if(Time.time<_nextStone&&(_stone==null||_stone.View!=null&&_stone.View.IsValid()))return _stone;
-            _nextStone=Time.time+1;
-            _stone=Warstone.Loaded.Where(w=>w!=null).OrderBy(w=>Vector3.Distance(w.transform.position,transform.position)).FirstOrDefault(w=>Policy.Powered(Vector3.Distance(w.transform.position,transform.position)));
-            return _stone;
+            bool any=false;Bounds b=new Bounds();
+            foreach(MeshFilter f in model.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if(f.sharedMesh==null)continue;
+                Bounds m=f.sharedMesh.bounds;Matrix4x4 to=frame.worldToLocalMatrix*f.transform.localToWorldMatrix;
+                for(int i=0;i<8;i++)
+                {
+                    Vector3 p=to.MultiplyPoint3x4(m.center+Vector3.Scale(m.extents,new Vector3((i&1)==0?-1:1,(i&2)==0?-1:1,(i&4)==0?-1:1)));
+                    if(!any){b=new Bounds(p,Vector3.zero);any=true;}else b.Encapsulate(p);
+                }
+            }
+            return b;
         }
-        internal static Planted Nearest(Vector3 at,float range)=>Loaded.Where(p=>p!=null&&p._item!=null&&Vector3.Distance(p.transform.position,at)<=range).OrderBy(p=>Vector3.Distance(p.transform.position,at)).FirstOrDefault();
+
+        // ---- power: the nearest stone in reach feeds it, if the stone has room (nearest staves first) ----
+        private Warstone _stone;private bool _powered;private float _nextPower;private string _why="";
+        internal Warstone Stone(){Power();return _powered?_stone:null;}
+        private void Power()
+        {
+            if(Time.time<_nextPower)return;
+            _nextPower=Time.time+1;
+            _stone=null;_powered=false;
+            if(_item==null){_why="Empty";return;}
+            Warstone near=Warstone.Loaded.Where(w=>w!=null&&w.Z!=null).OrderBy(w=>Vector3.Distance(w.transform.position,transform.position)).FirstOrDefault();
+            if(near==null){_why="Asleep: no Warstone near";return;}
+            int level=near.Level;float reach=Policy.PowerRadius(level),d=Vector3.Distance(near.transform.position,transform.position);
+            if(d>reach){_why=$"Asleep: {d:0} m from the Warstone, which reaches {reach:0} m (raise its level)";return;}
+            int capacity=Policy.Capacity(level);
+            int rank=Loaded.Count(p=>p!=null&&p!=this&&p._item!=null&&Vector3.Distance(p.transform.position,near.transform.position)<d);
+            _stone=near;
+            if(rank>=capacity){_why=$"Asleep: the Warstone feeds only {capacity} staves (raise its level)";return;}
+            _powered=true;_why="";
+        }
+        internal static Planted Nearest(Vector3 at,float range)=>Loaded.Where(p=>p!=null&&p._item!=null&&p.Stone()!=null&&Vector3.Distance(p.transform.position,at)<=range)
+            .OrderBy(p=>Vector3.Distance(p.transform.position,at)).FirstOrDefault();
         private int Quality=>_item?.m_quality??1;
         private float Range=>_stave!=null?Policy.RangeAt(_stave,Quality):Policy.BorrowedRange;
         private float Cooldown=>_stave!=null?_stave.Cooldown:Policy.BorrowedCooldown;
 
-        // ---- watching and shooting (on the game that owns it) ----
+        // ---- watching and shooting (on the game that owns the socket) ----
+        private float _nextLoad;
         private void Update()
         {
-            if(View==null||!View.IsValid()||_item==null)return;
+            if(View==null||!View.IsValid())return;
+            if(Time.time>=_nextLoad){_nextLoad=Time.time+0.5f;Load();}
+            if(_item==null)return;
             Warstone stone=Stone();
             if(_light!=null)_light.enabled=stone!=null;
             if(!View.IsOwner()||stone==null||Time.time<_next)return;
             _next=Time.time+Cooldown;
             if(_stave!=null&&_stave.Kind==StaveKind.Hearth){Mend(stone);return;}
-            Character foe=Choose();
+            Character foe=Choose(stone);
             if(foe==null){_next=Time.time+0.5f;return;}
             Shoot(foe);
         }
@@ -128,7 +159,8 @@ namespace Shieldwall
             BaseAI ai=c.GetBaseAI();
             return ai==null||!ai.IsAggravatable()||ai.IsAggravated(); // a calm passive thing (a Dverger, a hare) is left alone
         }
-        private Character Choose()
+        // Who to shoot: Thunder seeks the strongest; the rest whoever is closest to the stone (the one about to strike it).
+        private Character Choose(Warstone stone)
         {
             if(_sight<0)_sight=LayerMask.GetMask("Default","static_solid","terrain","piece");
             Vector3 tip=Tip;float range=Range;
@@ -139,10 +171,9 @@ namespace Shieldwall
                 Vector3 at=c.GetCenterPoint();
                 float d=Vector3.Distance(at,tip);
                 if(d>range)continue;
-                // Thunder seeks the strongest; the rest the nearest.
-                float score=_stave!=null&&_stave.Kind==StaveKind.Thunder?-c.GetMaxHealth()+d:d;
+                float score=_stave!=null&&_stave.Kind==StaveKind.Thunder?-c.GetMaxHealth()+d*0.1f:Vector3.Distance(c.transform.position,stone.transform.position);
                 if(score>=bestScore)continue;
-                if(Physics.Linecast(tip,at,out RaycastHit hit,_sight,QueryTriggerInteraction.Ignore)&&hit.collider.GetComponentInParent<Character>()!=c)continue;
+                if(Physics.Linecast(tip,at,out RaycastHit hit,_sight,QueryTriggerInteraction.Ignore)&&hit.collider.GetComponentInParent<Character>()!=c&&hit.collider.GetComponentInParent<Planted>()!=this)continue;
                 best=c;bestScore=score;
             }
             return best;
@@ -162,7 +193,7 @@ namespace Shieldwall
             Vector3 dir=(aim-tip).normalized;
             if(Policy.Arc(flat.magnitude,aim.y-tip.y,speed,gravity,out double angle))
                 dir=Quaternion.AngleAxis(-(float)angle*Mathf.Rad2Deg,Vector3.Cross(flat.normalized,Vector3.up)*-1)*flat.normalized;
-            GameObject shot=Object.Instantiate(prefab,tip+dir*0.4f,Quaternion.LookRotation(dir));
+            GameObject shot=Object.Instantiate(prefab,tip+dir*0.6f,Quaternion.LookRotation(dir));
             CinderSpawner cinders=shot.GetComponent<CinderSpawner>();
             if(cinders!=null)
             {
@@ -188,7 +219,8 @@ namespace Shieldwall
             shot.GetComponent<IProjectile>()?.Setup(null,dir*speed,-1,hit,_item,null);
             if(attack!=null)attack.m_startEffect.Create(tip,Quaternion.LookRotation(dir));
         }
-        // The Hearth stave: friends near it heal; during a siege the stone itself is mended a little too.
+        internal void Killed(){if(View!=null&&View.IsValid())View.GetZDO().Set(KillsKey,View.GetZDO().GetInt(KillsKey,0)+1);}
+        // The Hearth stave: friends near it heal; during a siege the stone itself is mended too.
         private void Mend(Warstone stone)
         {
             float amount=_stave.Damage*Policy.Power(Quality);
@@ -200,112 +232,168 @@ namespace Shieldwall
                 c.Heal(amount,true);any=true;
             }
             // The stone: half a percent of its strength each pulse (more with upgrades), during a siege.
-            if(stone.Phase==Phase.Battle&&Vector3.Distance(stone.transform.position,transform.position)<=Range+5&&stone.Z.GetFloat(Shieldwall.Stone.HealthKey,0)<stone.Z.GetFloat(Shieldwall.Stone.MaxHealthKey,0))
-            {Net.Damage(stone,-stone.Z.GetFloat(Shieldwall.Stone.MaxHealthKey,0)*0.005f*Policy.Power(Quality),stone.transform.position);any=true;}
-            if(any)Assets.Effect("vfx_HealthUpgrade",transform.position);
+            ZDO z=stone.Z;
+            if(stone.Phase==Phase.Battle&&Vector3.Distance(stone.transform.position,transform.position)<=Range+5&&z.GetFloat(Shieldwall.Stone.HealthKey,0)<z.GetFloat(Shieldwall.Stone.MaxHealthKey,0))
+            {Net.Damage(stone,-z.GetFloat(Shieldwall.Stone.MaxHealthKey,0)*0.005f*Policy.Power(Quality),stone.transform.position);any=true;}
+            if(any)Assets.Effect("vfx_HealthUpgrade",transform.position+Vector3.up*Pieces.SocketTop);
         }
 
-        // ---- the horde's blows ----
-        public DestructibleType GetDestructibleType()=>DestructibleType.Default;
-        public void Damage(HitData hit)
+        // ---- the socket brought down (by the horde, or taken down with the hammer): the stave falls where it stood ----
+        private void Fallen()
         {
-            if(hit==null||!View.IsValid()||_item==null)return;
-            Character attacker=hit.GetAttacker();
-            if(attacker==null||attacker.IsPlayer()||attacker.IsTamed())return;
-            Net.StaveHit(this,hit.GetTotalDamage());
-        }
-        internal void Struck(float damage)
-        {
-            if(!View.IsOwner()||_item==null)return;
-            ZDO z=View.GetZDO();
-            float health=z.GetFloat(HealthKey,Policy.StaveHealth)-damage;
-            z.Set(HealthKey,health);
-            if(health>0)return;
-            // Knocked down: it falls where it stood, as an item, for anyone to pick up and plant again.
-            ItemDrop.DropItem(_item,1,transform.position+Vector3.up*0.6f,Quaternion.Euler(0,Random.Range(0,360f),90));
-            Net.Say($"A {_item.m_shared.m_name.ToLowerInvariant()} was knocked down!",transform.position,60);
-            _item=null;
-            ZNetScene.instance.Destroy(gameObject);
+            if(_item==null||View==null||!View.IsValid()||!View.IsOwner())return;
+            ItemDrop.DropItem(_item,1,transform.position+Vector3.up*1.2f,Quaternion.Euler(0,Random.Range(0,360f),90));
+            Net.Say($"A tower has fallen! Its {_item.m_shared.m_name.ToLowerInvariant()} lies on the ground.",transform.position,60);
+            View.GetZDO().Set(ItemKey,"");_item=null;
         }
 
-        // ---- hover and pulling it out ----
-        public string GetHoverName()=>_item?.m_shared.m_name??"Staff";
+        // ---- hover, setting, taking out and strengthening ----
+        public string GetHoverName()=>_item!=null?_item.m_shared.m_name:"Stave socket";
         public float GetHoverOffset()=>0;
         public string GetHoverText()
         {
-            if(_item==null)return "";
-            string name=_item.m_shared.m_name+(_item.m_quality>1?$" ★{_item.m_quality}":"")+(_stave==null?" (borrowed: weak)":"");
-            string state=Stone()==null?"<color=#A0A0A0>Asleep: no Warstone near</color>":_stave!=null&&_stave.Kind==StaveKind.Hearth?$"Mending friends within {Range:0} m":$"Watching {Range:0} m";
-            float health=View.IsValid()?View.GetZDO().GetFloat(HealthKey,Policy.StaveHealth):Policy.StaveHealth;
-            if(health<Policy.StaveHealth)state+=$" · {Mathf.RoundToInt(100*health/Policy.StaveHealth)}%";
-            return Localization.instance.Localize($"{name}\n{state}\n[<color=yellow><b>$KEY_Use</b></color>] Pull it out");
+            if(View==null||!View.IsValid())return "";
+            Power();
+            if(_item==null)return Localization.instance.Localize("Stave socket\n[<color=yellow><b>$KEY_Use</b></color>] Set a stave from your bag");
+            string stars=_item.m_quality>1?" "+new string('★',_item.m_quality-1):"";
+            string name=_item.m_shared.m_name+stars+(_stave==null?" (borrowed: weak)":"");
+            string state=!_powered?$"<color=#A0A0A0>{_why}</color>":_stave!=null&&_stave.Kind==StaveKind.Hearth?$"Mending friends within {Range:0} m":
+                $"Watching {Range:0} m{(_stave!=null&&_stave.Kind==StaveKind.Thunder?", the strongest first":", the nearest to the stone first")}";
+            int kills=View.GetZDO().GetInt(KillsKey,0);
+            if(kills>0)state+=$" · {kills} slain";
+            if(_wear!=null&&_wear.GetHealthPercentage()<0.99f)state+=$" · socket {Mathf.RoundToInt(_wear.GetHealthPercentage()*100)}%";
+            string line=$"{name}\n{state}\n[<color=yellow><b>$KEY_Use</b></color>] Take it out";
+            if(_stave!=null&&_item.m_quality<Policy.MaxQuality)
+                line+=$"\n[<color=yellow><b>$KEY_AltPlace + $KEY_Use</b></color>] Strengthen: {Policy.UpgradeShards(_item.m_quality+1)} warshards, Warstone level {Policy.UpgradeLevel(_item.m_quality+1)}";
+            return Localization.instance.Localize(line);
         }
         public bool Interact(Humanoid user,bool hold,bool alt)
         {
-            if(hold||_item==null||!(user is Player player)||player!=Player.m_localPlayer)return false;
+            if(hold||!(user is Player player)||player!=Player.m_localPlayer||View==null||!View.IsValid())return false;
             if(!PrivateArea.CheckAccess(transform.position))return false;
+            if(alt)return Strengthen(player);
+            if(_item!=null)return TakeOut(player);
+            // Empty: the best stave in the bag (Shieldwall's own first, strongest first).
+            ItemDrop.ItemData best=player.GetInventory().GetAllItems().Where(Items.Plantable).OrderByDescending(i=>Items.IsStave(i)).ThenByDescending(i=>i.m_quality).FirstOrDefault();
+            if(best==null){player.Message(MessageHud.MessageType.Center,"You carry no stave to set in it.");return true;}
+            return Set(player,best);
+        }
+        public bool UseItem(Humanoid user,ItemDrop.ItemData item)
+        {
+            if(!(user is Player player)||player!=Player.m_localPlayer||View==null||!View.IsValid()||!Items.Plantable(item))return false;
+            if(_item!=null){player.Message(MessageHud.MessageType.Center,"A stave already stands here.");return true;}
+            return Set(player,item);
+        }
+        private bool Set(Player player,ItemDrop.ItemData item)
+        {
             View.ClaimOwnership();
-            ItemDrop.ItemData item=_item.Clone();
-            if(!player.GetInventory().AddItem(item))ItemDrop.DropItem(item,1,player.transform.position+Vector3.up,Quaternion.identity);
-            else player.ShowPickupMessage(item,1);
-            _item=null;
-            ZNetScene.instance.Destroy(gameObject);
-            return true;
-        }
-        public bool UseItem(Humanoid user,ItemDrop.ItemData item)=>false;
-
-        internal static void Make(ItemDrop.ItemData item,Vector3 at,Quaternion rotation)
-        {
-            GameObject go=Object.Instantiate(Ensure(),at,rotation);
-            ZNetView view=go.GetComponent<ZNetView>();
-            // The item goes onto the planted staff after it woke up empty, so the empty one comes off and a fresh one builds itself.
-            view.GetZDO().Set(ItemKey,item.m_dropPrefab!=null?item.m_dropPrefab.name:"");
-            ItemDrop.SaveToZDO(item,view.GetZDO());
-            Planted planted=go.GetComponent<Planted>();
-            if(planted!=null){Loaded.Remove(planted);Object.DestroyImmediate(planted);}
-            go.AddComponent<Planted>();
-        }
-        // ---- planting: Use with a staff in hand and nothing in front of you ----
-        internal static bool TryPlant(Player player)
-        {
-            ItemDrop.ItemData item=player.RightItem;
-            if(item==null||!Items.Plantable(item))return false;
-            // An ordinary staff far from any stone: Use on nothing does nothing, as it always did.
-            if(!Items.IsStave(item)&&!Warstone.Loaded.Any(w=>w!=null&&Vector3.Distance(w.transform.position,player.transform.position)<100))return false;
-            if(!Physics.Raycast(GameCamera.instance.transform.position,GameCamera.instance.transform.forward,out RaycastHit hit,8,LayerMask.GetMask("terrain","static_solid","Default","piece"),QueryTriggerInteraction.Ignore)||
-                Vector3.Distance(hit.point,player.transform.position)>5||hit.normal.y<0.6f)
-            {player.Message(MessageHud.MessageType.Center,"Look at open ground close by to plant it.");return true;}
-            Vector3 at=hit.point;
-            Warstone stone=Warstone.Loaded.Where(w=>w!=null).OrderBy(w=>Vector3.Distance(w.transform.position,at)).FirstOrDefault();
-            if(stone==null||!Policy.Powered(Vector3.Distance(stone.transform.position,at)))
-            {player.Message(MessageHud.MessageType.Center,$"A staff draws its power from a Warstone: plant it within {Policy.WardRadius+10:0} m of one.");return true;}
-            if(Loaded.Any(p=>p!=null&&Vector3.Distance(p.transform.position,at)<1.5f)){player.Message(MessageHud.MessageType.Center,"Too close to another staff.");return true;}
-            if(!PrivateArea.CheckAccess(at))return true;
-            Make(item,at,Quaternion.Euler(0,player.transform.eulerAngles.y,0));
+            ZDO z=View.GetZDO();
+            z.Set(ItemKey,item.m_dropPrefab!=null?item.m_dropPrefab.name:"");
+            ItemDrop.SaveToZDO(item,z);
+            z.Set(ZDOVars.s_quality,item.m_quality);
             player.UnequipItem(item,false);
             player.GetInventory().RemoveItem(item);
-            Assets.Effect("vfx_HealthUpgrade",at);
-            player.Message(MessageHud.MessageType.TopLeft,$"Planted the {item.m_shared.m_name.ToLowerInvariant()}.");
+            Load();
+            Assets.Effect("vfx_HealthUpgrade",transform.position+Vector3.up*Pieces.SocketTop);
+            player.Message(MessageHud.MessageType.TopLeft,$"Set the {item.m_shared.m_name.ToLowerInvariant()} in its socket.");
+            return true;
+        }
+        private bool TakeOut(Player player)
+        {
+            View.ClaimOwnership();
+            ItemDrop.ItemData item=_item.Clone();
+            if(!player.GetInventory().AddItem(item))ItemDrop.DropItem(item,1,transform.position+Vector3.up*1.2f,Quaternion.identity);
+            else player.ShowPickupMessage(item,1);
+            View.GetZDO().Set(ItemKey,"");
+            Load();
+            return true;
+        }
+        private bool Strengthen(Player player)
+        {
+            if(_item==null||_stave==null){player.Message(MessageHud.MessageType.Center,"Only a war stave can be strengthened here.");return true;}
+            int to=_item.m_quality+1;
+            if(to>Policy.MaxQuality){player.Message(MessageHud.MessageType.Center,"It is as strong as a stave can be.");return true;}
+            _nextPower=0;Power();
+            int level=_stone!=null?_stone.Level:0,need=Policy.UpgradeLevel(to),shards=Policy.UpgradeShards(to);
+            if(level<need){player.Message(MessageHud.MessageType.Center,$"The Warstone must be level {need} to strengthen it further. Build its upgrades.");return true;}
+            Inventory bag=player.GetInventory();
+            if(bag.CountItems("Warshard")<shards){player.Message(MessageHud.MessageType.Center,$"It takes {shards} warshards.");return true;}
+            bag.RemoveItem("Warshard",shards);
+            View.ClaimOwnership();
+            ItemDrop.ItemData item=_item.Clone();item.m_quality=to;
+            ItemDrop.SaveToZDO(item,View.GetZDO());View.GetZDO().Set(ZDOVars.s_quality,to);
+            Load();
+            Assets.Effect("fx_DvergerMage_Support_start",transform.position+Vector3.up*Pieces.SocketTop);
+            player.Message(MessageHud.MessageType.Center,$"The {item.m_shared.m_name.ToLowerInvariant()} grows stronger: {new string('★',to-1)}");
+            return true;
+        }
+
+        // ---- for tests ----
+        internal static GameObject Make(ItemDrop.ItemData item,Vector3 at,Quaternion rotation)
+        {
+            GameObject go=Object.Instantiate(Pieces.Socket,at,rotation);
+            Piece piece=go.GetComponent<Piece>();
+            if(Player.m_localPlayer!=null)piece?.SetCreator(Player.m_localPlayer.GetPlayerID(),Splatform.PlatformManager.DistributionPlatform.LocalUser.PlatformUserID);
+            if(item==null)return go;
+            ZDO z=go.GetComponent<ZNetView>().GetZDO();
+            z.Set(ItemKey,item.m_dropPrefab!=null?item.m_dropPrefab.name:"");
+            ItemDrop.SaveToZDO(item,z);z.Set(ZDOVars.s_quality,item.m_quality);
+            go.GetComponent<Planted>()?.Load();
+            return go;
+        }
+    }
+
+    // Staves planted in the ground by version 0.1: they fall over as items (to be set in a socket), and the old marker goes.
+    internal sealed class LegacyPlanted:MonoBehaviour
+    {
+        private static GameObject _prefab;
+        internal static GameObject Prefab
+        {
+            get
+            {
+                if(_prefab!=null)return _prefab;
+                var go=new GameObject(Planted.LegacyName);go.transform.SetParent(Assets.Holder,false);
+                ZNetView view=go.AddComponent<ZNetView>();view.m_persistent=true;view.m_type=ZDO.ObjectType.Default;
+                go.AddComponent<LegacyPlanted>();
+                return _prefab=go;
+            }
+        }
+        internal static void Forget(){_prefab=null;}
+        private void Start()
+        {
+            ZNetView view=GetComponent<ZNetView>();
+            if(view==null||!view.IsValid()||!view.IsOwner())return;
+            string prefab=view.GetZDO().GetString(Planted.ItemKey,"");
+            GameObject source=string.IsNullOrEmpty(prefab)?null:Items.Get(prefab)??Assets.Find(prefab);
+            if(source!=null&&source.GetComponent<ItemDrop>() is ItemDrop drop)
+            {
+                ItemDrop.ItemData item=drop.m_itemData.Clone();item.m_dropPrefab=source;ItemDrop.LoadFromZDO(item,view.GetZDO());
+                ItemDrop.DropItem(item,1,transform.position+Vector3.up,Quaternion.identity);
+            }
+            ZNetScene.instance.Destroy(gameObject);
+        }
+    }
+
+    // A socket placed too close to another: refused, with the reason.
+    [HarmonyPatch(typeof(Player),nameof(Player.TryPlacePiece))]
+    internal static class SocketSpacing
+    {
+        private static readonly AccessTools.FieldRef<Player,GameObject> Ghost=AccessTools.FieldRefAccess<Player,GameObject>("m_placementGhost");
+        private static bool Prefix(Player __instance,Piece piece,ref bool __result)
+        {
+            if(piece==null||Utils.GetPrefabName(piece.gameObject)!=Pieces.SocketName)return true;
+            GameObject ghost=Ghost(__instance);
+            Vector3 at=ghost!=null?ghost.transform.position:__instance.transform.position;
+            if(Planted.Loaded.Any(p=>p!=null&&Vector3.Distance(p.transform.position,at)<Policy.SocketSpacing))
+            {
+                __instance.Message(MessageHud.MessageType.Center,$"Too close to another stave socket (keep {Policy.SocketSpacing:0} m apart).");
+                __result=false;return false;
+            }
             return true;
         }
     }
 
-    // Use with nothing hovered and a staff in hand plants it.
-    [HarmonyPatch(typeof(Player),"Update")]
-    internal static class PlantKey
-    {
-        private static readonly System.Reflection.MethodInfo TakeInput=AccessTools.Method(typeof(Player),"TakeInput");
-        private static void Postfix(Player __instance)
-        {
-            if(__instance!=Player.m_localPlayer||Plugin.Instance==null)return;
-            if(!ZInput.GetButtonDown("Use")&&!ZInput.GetButtonDown("JoyUse"))return;
-            if(!(bool)TakeInput.Invoke(__instance,null)||__instance.InPlaceMode()||__instance.IsDead())return;
-            if(__instance.GetHoverObject()!=null)return; // Use on something: the game handles it
-            Planted.TryPlant(__instance);
-        }
-    }
-
-    // Shots from planted staves never hurt players, companions, tames or buildings: only foes.
+    // Shots from staves never hurt players, companions, tames or buildings: only foes. The raider struck remembers who shot it.
     [HarmonyPatch(typeof(Projectile),"IsValidTarget")]
     internal static class StaveShotTargets
     {
@@ -313,8 +401,10 @@ namespace Shieldwall
         private static readonly AccessTools.FieldRef<Projectile,ItemDrop.ItemData> Weapon=AccessTools.FieldRefAccess<Projectile,ItemDrop.ItemData>("m_weapon");
         private static bool Prefix(Projectile __instance,IDestructible destr,ref bool __result)
         {
-            if(Owner(__instance)!=null||!Planted.Shots.Contains(Weapon(__instance)))return true;
+            ItemDrop.ItemData weapon=Weapon(__instance);
+            if(Owner(__instance)!=null||weapon==null||!Planted.Shots.TryGetValue(weapon,out Planted socket))return true;
             __result=destr is Character c&&Planted.IsFoe(c);
+            if(__result&&destr is Character foe&&socket!=null)Raider.ShotBy(foe,socket);
             return false;
         }
     }
@@ -325,9 +415,21 @@ namespace Shieldwall
         private static readonly AccessTools.FieldRef<Aoe,ItemDrop.ItemData> Weapon=AccessTools.FieldRefAccess<Aoe,ItemDrop.ItemData>("m_itemData");
         private static bool Prefix(Aoe __instance,Collider collider,ref bool __result)
         {
-            if(Owner(__instance)!=null||!Planted.Shots.Contains(Weapon(__instance)))return true;
+            ItemDrop.ItemData weapon=Weapon(__instance);
+            if(Owner(__instance)!=null||weapon==null||!Planted.Shots.TryGetValue(weapon,out Planted socket))return true;
             __result=collider!=null&&collider.GetComponentInParent<Character>() is Character c&&Planted.IsFoe(c);
+            if(__result&&collider.GetComponentInParent<Character>() is Character foe&&socket!=null)Raider.ShotBy(foe,socket);
             return __result; // a foe: let the game's own checks run; anything else: no hit
+        }
+    }
+    // The killing blow from a stave counts on its socket.
+    [HarmonyPatch(typeof(Character),"OnDeath")]
+    internal static class StaveKills
+    {
+        private static void Prefix(Character __instance)
+        {
+            if(Raider.LastShot.TryGetValue(__instance,out var shot)&&shot.socket!=null&&Time.time-shot.at<4)shot.socket.Killed();
+            Raider.LastShot.Remove(__instance);
         }
     }
 }

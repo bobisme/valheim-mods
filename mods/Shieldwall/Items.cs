@@ -42,18 +42,16 @@ namespace Shieldwall
             if(stave!=null)
             {
                 var (tint,glow)=Colours[stave.Kind];
-                Assets.Tint(go,tint,glow);
+                Assets.Tint(go,tint,Color.black); // coloured, not glowing: the light at its head does the glowing
                 shared.m_name=stave.Name;
-                shared.m_description=stave.Description+"\n\nHold it and press <color=yellow>Use</color> with nothing in front of you to plant it in the ground; use it again to pull it out. "+
-                    "Upgrade it at the Warstone for more power and reach. In hand it is a weaker weapon.";
+                shared.m_description=stave.Description+"\n\nFar too heavy and thick to swing: it is set in a stave socket by a Warstone (Use on the socket, or drag it there from your hotbar). "+
+                    "Strengthen it in its socket with warshards.";
+                // A relic to set, not a weapon to wield.
+                shared.m_itemType=ItemDrop.ItemData.ItemType.Misc;shared.m_weight=25;shared.m_maxStackSize=1;shared.m_autoStack=false;
                 shared.m_maxQuality=Policy.MaxQuality;shared.m_useDurability=false;shared.m_teleportable=true;shared.m_value=0;
-                // In hand: half its planted power, paid in stamina rather than eitr, so anyone can try it.
-                if(stave.Projectile!=null)
-                {
-                    shared.m_attack=shared.m_attack.Clone();
-                    shared.m_attack.m_attackEitr=0;shared.m_attack.m_attackStamina=14;shared.m_attack.m_attackHealth=0;shared.m_attack.m_attackHealthPercentage=0;
-                    shared.m_damages=Damage(stave,0.5f);shared.m_damagesPerLevel=Damage(stave,0.15f);
-                }
+                shared.m_damages=new HitData.DamageTypes();shared.m_damagesPerLevel=new HitData.DamageTypes();
+                Transform attach=go.transform.Find("attach");
+                if(attach!=null)attach.localScale=attach.localScale*1.7f; // big on the ground too
                 Sprite icon=Assets.Icon(go,prefab,Quaternion.Euler(0,0,-35));
                 if(icon!=null)shared.m_icons=new[]{icon};
             }
@@ -70,14 +68,6 @@ namespace Shieldwall
             drop.m_itemData.m_shared=shared;drop.m_itemData.m_stack=1;drop.m_itemData.m_quality=1;drop.m_itemData.m_dropPrefab=go;
             Prefabs[prefab]=go;
             return go;
-        }
-        private static HitData.DamageTypes Damage(Stave stave,float scale)
-        {
-            var d=new HitData.DamageTypes();
-            float main=stave.Damage*scale;
-            switch(stave.Type){case "fire":d.m_fire=main;break;case "frost":d.m_frost=main;break;case "lightning":d.m_lightning=main;break;default:d.m_blunt=main;break;}
-            d.m_blunt+=stave.Splash*scale;
-            return d;
         }
         internal static IEnumerable<string> All=>Policy.Staves.Select(s=>s.Prefab).Append(Policy.ShardPrefab);
 
@@ -120,15 +110,20 @@ namespace Shieldwall
             GameObject stone=Stone.Prefab;
             PieceTable table=Find(db,"Hammer")?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces;
             if(table==null||stone==null)return;
-            table.m_pieces.RemoveAll(p=>p==null||p.name==Stone.PrefabName&&p!=stone);
-            if(!table.m_pieces.Contains(stone))table.m_pieces.Add(stone);
+            Pieces.Ensure();
+            var ours=new List<GameObject>{stone};ours.AddRange(Pieces.All);
+            var names=new HashSet<string>(ours.Select(o=>o.name));
+            table.m_pieces.RemoveAll(p=>p==null||names.Contains(p.name)&&!ours.Contains(p));
+            foreach(GameObject piece in ours)if(!table.m_pieces.Contains(piece))table.m_pieces.Add(piece);
         }
         internal static void RegisterScene(ZNetScene scene)
         {
             Stone.Ensure();
             foreach(string name in All){GameObject prefab=Ensure(name);if(prefab!=null)Assets.Register(scene,prefab);}
             Assets.Register(scene,Stone.Prefab);
-            Assets.Register(scene,Planted.Prefab);
+            Pieces.Ensure();
+            foreach(GameObject piece in Pieces.All)Assets.Register(scene,piece);
+            Assets.Register(scene,LegacyPlanted.Prefab);
             if(ObjectDB.instance!=null){AddRecipes(ObjectDB.instance);AddPiece(ObjectDB.instance);}
         }
         // Hot reload while in a world: rebuild the database's lookups with our things in place, and point carried items at the new prefabs.
@@ -153,7 +148,7 @@ namespace Shieldwall
                 ObjectDB db=ObjectDB.instance;
                 bool had=db.m_items.RemoveAll(i=>i!=null&&Prefabs.Values.Contains(i))>0;
                 db.m_recipes.RemoveAll(r=>r!=null&&Recipes.Values.Contains(r));
-                Find(db,"Hammer")?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces?.m_pieces.RemoveAll(p=>p==null||p==Stone.Prefab);
+                Find(db,"Hammer")?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces?.m_pieces.RemoveAll(p=>p==null||p==Stone.Prefab||Pieces.All.Contains(p));
                 if(had)UpdateRegisters.Invoke(db,null);
             }
             foreach(Recipe r in Recipes.Values)if(r!=null)Object.Destroy(r);

@@ -73,7 +73,6 @@ Check(Policy.Staves.All(s=>s.StationLevel>=1&&s.StationLevel<=4),"Every stave is
 Check(Policy.StaveOf(StaveKind.Hearth).Projectile==null&&Policy.Staves.Where(s=>s.Kind!=StaveKind.Hearth).All(s=>s.Projectile!=null),"Only the hearth stave throws nothing");
 Check(Policy.Power(1)==1&&Policy.Power(4)>2&&Policy.Power(9)==Policy.Power(4),"Upgrades add power, up to four");
 Check(Policy.RangeAt(Policy.StaveOf(StaveKind.Ember),4)==Policy.StaveOf(StaveKind.Ember).Range+6,"And reach");
-Check(Policy.Powered(30)&&Policy.Powered(50)&&!Policy.Powered(51),"Staves wake within 50 m of a stone");
 
 // Aiming.
 Check(Policy.Arc(20,0,30,0,out double flat)&&Math.Abs(flat)<1e-9,"No gravity: straight at it");
@@ -89,6 +88,19 @@ Check(!Policy.Arc(500,0,30,9.81,out _),"Out of reach");
 var lead=Policy.Lead((0,0,0),(30,0,0),(0,0,5),30);
 Check(Math.Abs(lead.z-5)<0.6&&lead.x==30,"Leads a moving target");
 Check(Policy.Lead((0,0,0),(10,0,0),(0,0,0),30)==(10,0,0),"A still target is aimed at directly");
+
+// The stone's level, power and stave upgrades.
+Check(Policy.Level(0)==1&&Policy.Level(4)==5&&Policy.Level(9)==Policy.MaxLevel&&Policy.Level(-2)==1,"Level is 1 plus its upgrades, five at most");
+Check(Policy.Upgrades.Length==Policy.MaxLevel-1,"One upgrade piece for each level above the first");
+Check(Policy.Upgrades.Select(u=>u.prefab).Distinct().Count()==Policy.Upgrades.Length,"Each upgrade is its own piece (the game counts each kind once)");
+Check(Policy.Upgrades.Zip(Policy.Upgrades.Skip(1),(a,b)=>b.shards>a.shards).All(x=>x),"Each upgrade costs more warshards than the last");
+for(int l=1;l<Policy.MaxLevel;l++)Check(Policy.Capacity(l+1)>Policy.Capacity(l)&&Policy.PowerRadius(l+1)>Policy.PowerRadius(l),$"A higher level feeds more staves, farther ({l})");
+Check(Policy.Capacity(1)==2&&Policy.Capacity(5)==10&&Policy.PowerRadius(1)==26&&Policy.PowerRadius(5)==50,"Two staves within 26 m at first; ten within 50 m at most");
+Check(Policy.PowerRadius(Policy.MaxLevel)<=Policy.WardRadius+10,"Staves are never fed beyond where the stone can be seen to matter");
+Check(Policy.SocketSpacing>=4,"Sockets keep apart");
+Check(Policy.UpgradeShards(2)==4&&Policy.UpgradeShards(3)==7&&Policy.UpgradeShards(4)==10,"Strengthening costs more each step");
+Check(Policy.UpgradeLevel(2)==2&&Policy.UpgradeLevel(4)==4&&Enumerable.Range(2,Policy.MaxQuality-1).All(q=>Policy.UpgradeLevel(q)<=Policy.MaxLevel),"Every step is reachable by raising the stone");
+Check(Policy.EarlyBonus(3)==1&&Policy.EarlyBonus(25)==2&&Policy.EarlyBonus(300)==4,"Calling a wave early pays for the time saved, a little");
 
 var rng=new Policy.Rng(7);var rolls=Enumerable.Range(0,1000).Select(_=>rng.Next()).ToList();
 Check(rolls.All(r=>r>=0&&r<1)&&rolls.Average()>0.45&&rolls.Average()<0.55,"Rolls are even");

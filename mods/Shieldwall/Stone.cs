@@ -69,6 +69,7 @@ namespace Shieldwall
             CraftingStation station=go.GetComponent<CraftingStation>();
             station.m_name=StationName;station.m_icon=piece.m_icon;
             station.m_craftRequireRoof=false;station.m_craftRequireFire=false;station.m_showBasicRecipies=false;station.m_useDistance=3.5f;
+            station.m_rangeBuild=Policy.PowerRadius(Policy.MaxLevel); // sockets and upgrades are built within its farthest reach
 
             var target=go.AddComponent<StaticTarget>();target.m_primaryTarget=false;target.m_randomTarget=false; // only sieges aim at it
             go.AddComponent<Warstone>();
@@ -85,18 +86,21 @@ namespace Shieldwall
         internal ZNetView View;
         internal StaticTarget Target;
         private GameObject _glow;
-        private float _askedAt=-100;
+        private float _askedAt=-100,_nextMarker;private CircleProjector _marker;
         internal ZDO Z=>View!=null&&View.IsValid()?View.GetZDO():null;
         internal Phase Phase=>(Phase)(Z?.GetInt(Stone.PhaseKey,0)??0);
         internal int Marks=>Z?.GetInt(Stone.MarksKey,0)??0;
         internal bool Cracked=>Z?.GetBool(Stone.CrackedKey,false)??false;
         internal int Strength=>Policy.Strength(Marks,Cracked);
+        // Its level: 1 + the upgrades built around it (the game's own station extensions).
+        private CraftingStation _station;
+        internal int Level=>Policy.Level(_station!=null?_station.GetExtentionCount(true):0);
         internal long Siege=>Z?.GetLong(Stone.SiegeKey,0L)??0L;
         internal Vector3 Rift=>Z?.GetVec3(Stone.RiftKey,transform.position)??transform.position;
 
         private void Awake()
         {
-            View=GetComponent<ZNetView>();Target=GetComponent<StaticTarget>();
+            View=GetComponent<ZNetView>();Target=GetComponent<StaticTarget>();_station=GetComponent<CraftingStation>();_marker=GetComponentInChildren<CircleProjector>(true);
             if(View==null||!View.IsValid())return;
             Transform glow=transform.Find("SiegeGlow");_glow=glow!=null?glow.gameObject:null;
             Loaded.Add(this);
@@ -106,6 +110,8 @@ namespace Shieldwall
         {
             if(View==null||!View.IsValid())return;
             if(_glow!=null&&_glow.activeSelf!=(Phase!=Phase.Idle))_glow.SetActive(Phase!=Phase.Idle);
+            // The ring shown while you look at it marks how far it feeds staves.
+            if(_marker!=null&&Time.time>=_nextMarker){_nextMarker=Time.time+2;float reach=Policy.PowerRadius(Level);if(Mathf.Abs(_marker.m_radius-reach)>0.1f)_marker.m_radius=reach;}
             if(View.IsOwner())Director.Run(this);
         }
 
@@ -123,7 +129,8 @@ namespace Shieldwall
         // ---- the horn ----
         internal bool Horn(Player player)
         {
-            if(Phase!=Phase.Idle){player.Message(MessageHud.MessageType.Center,"The horde is already coming.");return true;}
+            if(Phase==Phase.Battle&&Director.CanCallEarly(this,out int bonus)){Net.Call(this,Cause.Early);return true;}
+            if(Phase!=Phase.Idle){player.Message(MessageHud.MessageType.Center,Phase==Phase.Battle?"The horn can call the next wave once this one is all out of the rift.":"The horde is already coming.");return true;}
             double cooldown=(Z.GetLong(Stone.CooldownKey,0L)-ZNet.instance.GetTime().Ticks)/(double)System.TimeSpan.TicksPerSecond;
             if(cooldown>0){player.Message(MessageHud.MessageType.Center,$"The stone is still ringing from the last siege. Wait {Mathf.CeilToInt((float)cooldown/60)} more minutes.");return true;}
             if(Time.time-_askedAt>6)
@@ -150,13 +157,19 @@ namespace Shieldwall
                 case Phase.Battle:
                     float health=Z.GetFloat(Stone.HealthKey,1),max=Mathf.Max(1,Z.GetFloat(Stone.MaxHealthKey,1));
                     var plan=Policy.Load(Z.GetString(Stone.PlanKey,""));
-                    line+=$"\n<color=#FF7050>Siege: wave {Mathf.Min(plan.Count,Z.GetInt(Stone.WaveKey,0)+1)} of {plan.Count} · stone {Mathf.RoundToInt(100*health/max)}%</color>";break;
+                    line+=$"\n<color=#FF7050>Siege: wave {Mathf.Min(plan.Count,Z.GetInt(Stone.WaveKey,0)+1)} of {plan.Count} · stone {Mathf.RoundToInt(100*health/max)}%</color>";
+                    string next=Director.NextWaveText(this);
+                    if(next!="")line+=$"\n<color=#C0C0C0>Next: {next}</color>";
+                    if(Director.CanCallEarly(this,out int early))line+=$"\n[<color=yellow><b>$KEY_AltPlace + $KEY_Use</b></color>] Call the next wave now (+{early} warshards)";
+                    break;
                 default:
                     line+="\n[<color=yellow><b>$KEY_Use</b></color>] Staves   [<color=yellow><b>$KEY_AltPlace + $KEY_Use</b></color>] Sound the war horn";
                     if(Player.m_localPlayer!=null&&!Player.m_localPlayer.IsRecipeKnown(Policy.Staves[0].Name))
                         line+="\n<color=#A0A0A0>Hold a siege: the horde's warshards teach you its staves</color>";
                     break;
             }
+            int level=Level,fed=Planted.Loaded.Count(p=>p!=null&&p.Holding&&p.Stone()==this);
+            line+=$"\n<color=#C0C0C0>Level {level} of {Policy.MaxLevel}: feeds {fed}/{Policy.Capacity(level)} staves within {Policy.PowerRadius(level):0} m</color>";
             int held=Z.GetInt(Stone.HeldKey,0),fallen=Z.GetInt(Stone.FallenKey,0);
             if(held+fallen>0)line+=$"\n<color=#A0A0A0>Sieges held {held}, fallen {fallen}</color>";
             return Localization.instance.Localize(line);
@@ -196,17 +209,6 @@ namespace Shieldwall
         {
             Warstone stone=__instance.GetComponent<Warstone>();
             if(stone!=null&&Player.m_localPlayer!=null&&__instance.InUseDistance(Player.m_localPlayer))__result=stone.Hover();
-        }
-    }
-    [HarmonyPatch(typeof(CraftingStation),nameof(CraftingStation.GetLevel))]
-    internal static class StoneLevel
-    {
-        private static bool Prefix(CraftingStation __instance,ref int __result)
-        {
-            Warstone stone=__instance.GetComponent<Warstone>();
-            if(stone==null)return true;
-            __result=1+stone.Strength;
-            return false;
         }
     }
     // Not while a siege is on.

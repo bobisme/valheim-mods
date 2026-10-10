@@ -320,6 +320,23 @@ Method("ItemDrop","LoadFromZDO","System.Void","ItemDrop/ItemData","ZDO","System.
 Method("Cover","GetCoverForPoint","System.Void","UnityEngine.Vector3","System.Single&","System.Boolean&","System.Single");
 Field("SE_Stats","m_addArmor","System.Single");
 Field("SE_Stats","m_eitrRegenMultiplier","System.Single");
+// Shieldwall 0.2: stave sockets and Warstone upgrades (station extensions), the native boss bar, kills and tower damage.
+Field("StationExtension","m_craftingStation","CraftingStation");
+Field("StationExtension","m_maxStationDistance","System.Single");
+Field("StationExtension","m_stack","System.Boolean");
+Method("CraftingStation","GetExtentionCount","System.Int32","System.Boolean");
+Field("CraftingStation","m_rangeBuild","System.Single");
+Field("EnemyHud","m_hudRoot","UnityEngine.GameObject");
+Field("EnemyHud","m_baseHudBoss","UnityEngine.GameObject");
+Field("WearNTear","m_onDestroyed","System.Action");
+Field("WearNTear","m_new","UnityEngine.GameObject");
+Field("WearNTear","m_health","System.Single");
+Method("WearNTear","Damage","System.Void","HitData");
+Method("WearNTear","GetHealthPercentage","System.Single");
+Method("Character","OnDeath","System.Void");
+Method("Player","TeleportTo","System.Boolean","UnityEngine.Vector3","UnityEngine.Quaternion","System.Boolean");
+Method("Inventory","CountItems","System.Int32","System.String","System.Int32","System.Boolean");
+Method("Inventory","RemoveItem","System.Void","System.String","System.Int32","System.Int32","System.Boolean");
 
 // Cheap instance lists instead of whole-scene searches: plants via SlowUpdate, item stands as they wake.
 Method("SlowUpdate","GetAllInstaces","System.Collections.Generic.List`1<SlowUpdate>");

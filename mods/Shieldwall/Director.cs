@@ -26,7 +26,9 @@ namespace Shieldwall
         internal static void OnCall(Warstone stone,Cause cause)
         {
             ZDO z=stone.Z;
-            if(z==null||stone.Phase!=Phase.Idle)return;
+            if(z==null)return;
+            if(cause==Cause.Early){CallEarly(stone);return;}
+            if(stone.Phase!=Phase.Idle)return;
             if(cause==Cause.Horn&&z.GetLong(Stone.CooldownKey,0L)>Now)return;
             Vector3 rift=FindRift(stone.transform.position);
             int stage=TestStage>=0&&cause==Cause.Test?TestStage:StageNow(),marks=stone.Strength;
@@ -126,6 +128,47 @@ namespace Shieldwall
             z.Set(Raider.RoleKey,(int)unit.Role);z.Set(Raider.SiegeKey,siege);z.Set(Raider.StoneKey,stone.transform.position);
             body.SetLevel(unit.Level);
             Raider.Attach(go);
+        }
+
+        // ---- calling the next wave early: the rift is empty, the horn calls the next wave at once, and the stone pays for the time saved ----
+        internal static bool CanCallEarly(Warstone stone,out int bonus)
+        {
+            bonus=0;ZDO z=stone.Z;
+            if(z==null||stone.Phase!=Phase.Battle)return false;
+            var plan=Policy.Load(z.GetString(Stone.PlanKey,""));
+            int wave=z.GetInt(Stone.WaveKey,0);
+            if(plan.Count==0||wave>=plan.Count-1||z.GetInt(Stone.QueueKey,0)<plan[wave].Count)return false;
+            double left=Plugin.Instance.WaveSeconds.Value-Since(z.GetLong(Stone.WaveAtKey,Now));
+            if(left<5)return false;
+            bonus=Policy.EarlyBonus(left);
+            return true;
+        }
+        private static void CallEarly(Warstone stone)
+        {
+            if(!CanCallEarly(stone,out int bonus))return;
+            ZDO z=stone.Z;
+            var plan=Policy.Load(z.GetString(Stone.PlanKey,""));
+            int wave=z.GetInt(Stone.WaveKey,0)+1;
+            z.Set(Stone.WaveKey,wave);z.Set(Stone.QueueKey,0);z.Set(Stone.WaveAtKey,Now);
+            GameObject shard=Items.Get(Policy.ShardPrefab);
+            if(shard!=null&&shard.GetComponent<ItemDrop>() is ItemDrop drop)
+            {ItemDrop.ItemData data=drop.m_itemData.Clone();data.m_dropPrefab=shard;ItemDrop.DropItem(data,bonus,stone.transform.position+Vector3.up*3.5f,Quaternion.identity);}
+            Assets.Effect("sfx_gdking_scream",stone.Rift);Assets.Effect("sfx_fader_bell",stone.transform.position+Vector3.up*2);
+            Net.Say($"The horn calls them on! Wave {wave+1} of {plan.Count} comes now. +{bonus} warshards for your daring.",stone.transform.position,250);
+        }
+        // What the next wave holds, for the stone's hover: "6 Greydwarfs, 2 Necks, a warchief".
+        internal static string NextWaveText(Warstone stone)
+        {
+            ZDO z=stone.Z;if(z==null)return "";
+            var plan=Policy.Load(z.GetString(Stone.PlanKey,""));
+            int wave=z.GetInt(Stone.WaveKey,0)+1;
+            if(wave>=plan.Count)return "";
+            return string.Join(", ",plan[wave].GroupBy(u=>u.Role==Role.Champion?"warchief":u.Prefab).Select(g=>
+            {
+                if(g.Key=="warchief")return "a warchief";
+                string name=ZNetScene.instance?.GetPrefab(g.Key)?.GetComponent<Character>()?.m_name??g.Key;
+                return $"{g.Count()} {Localization.instance.Localize(name)}";
+            }));
         }
 
         // ---- the end ----

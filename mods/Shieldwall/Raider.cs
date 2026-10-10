@@ -109,13 +109,24 @@ namespace Shieldwall
             if(foe!=null){TargetCreature(_ai)=foe;TargetStatic(_ai)=null;_stuckSince=Time.time;_lastPos=transform.position;return;}
             TargetCreature(_ai)=null;
 
-            // Sappers make for planted staves first.
-            // Sappers make for planted staves first (one that cannot get to its stave for a while marches with the rest instead).
-            if(Role==Role.Sapper&&Time.time>_sapUntil&&Planted.Nearest(transform.position,30) is Planted stave)
+            // Towers: sappers make for the nearest powered stave socket, and a raider a stave just shot sometimes turns on its tower.
+            // A socket up on a tower is reached through the tower: the piece under it is torn down first.
+            Planted tower=null;
+            if(Role==Role.Sapper&&Time.time>_sapUntil)tower=Planted.Nearest(transform.position,40);
+            if(tower==null&&_vengeance!=null&&Time.time<_vengeanceUntil&&_vengeance.Holding)tower=_vengeance;
+            if(tower!=null)
             {
-                TargetStatic(_ai)=stave.Target;
+                StaticTarget aim=Footing(tower);
+                if(_blocker!=null&&_blocker.gameObject.activeInHierarchy&&Time.time<_blockerUntil)aim=_blocker;
+                TargetStatic(_ai)=aim;
                 if(Vector3.Distance(transform.position,_lastPos)>1){_lastPos=transform.position;_stuckSince=Time.time;}
-                else if(Time.time-_stuckSince>6&&!Body.InAttack()){_sapUntil=Time.time+30;_stuckSince=Time.time;}
+                else if(Time.time-_stuckSince>4&&!Body.InAttack())
+                {
+                    // Walled off from it: break toward it; after long enough, give up and march with the rest.
+                    _blocker=Blocker(tower.transform.position);
+                    if(_blocker!=null){_blockerUntil=Time.time+20;_stuckSince=Time.time;}
+                    else if(Time.time-_stuckSince>10){_sapUntil=Time.time+30;_vengeance=null;_stuckSince=Time.time;}
+                }
                 return;
             }
             // Breaking through: a piece in the way, until it falls or a while passes.
@@ -137,7 +148,32 @@ namespace Shieldwall
                 if(_blocker!=null){_blockerUntil=Time.time+25;TargetStatic(_ai)=_blocker;_stuckSince=Time.time;}
             }
         }
-        private bool _seesStone;private float _sapUntil;
+        private bool _seesStone;private float _sapUntil,_vengeanceUntil;private Planted _vengeance;
+        // The piece to strike to bring a socket down: the socket itself if it is within reach of the ground, else what holds it up.
+        private static readonly RaycastHit[] Under=new RaycastHit[8];
+        private StaticTarget Footing(Planted socket)
+        {
+            if(socket.transform.position.y-transform.position.y<2.2f)return socket.Target;
+            int count=Physics.RaycastNonAlloc(socket.transform.position+Vector3.down*0.05f,Vector3.down,Under,30,LayerMask.GetMask("piece"),QueryTriggerInteraction.Ignore);
+            WearNTear lowest=null;float y=float.MaxValue;
+            for(int i=0;i<count;i++)
+            {
+                WearNTear piece=Built(Under[i].collider);
+                if(piece==null||piece.gameObject==socket.gameObject)continue;
+                float py=Under[i].point.y;
+                if(py<y){lowest=piece;y=py;} // the tower's foot: the lowest piece under the socket
+            }
+            return lowest!=null?lowest.GetComponent<StaticTarget>():socket.Target;
+        }
+        // Struck by a stave: now and then a raider turns on the tower that shot it (for a while).
+        internal static readonly Dictionary<Character,(Planted socket,float at)> LastShot=new Dictionary<Character,(Planted,float)>();
+        internal static void ShotBy(Character c,Planted socket)
+        {
+            LastShot[c]=(socket,Time.time);
+            Raider r=c.GetComponent<Raider>();
+            if(r==null||r._vengeance!=null&&Time.time<r._vengeanceUntil)return;
+            if(Vector3.Distance(c.transform.position,socket.transform.position)<15&&Random.value<(r.Role==Role.Champion?0.25f:0.12f)){r._vengeance=socket;r._vengeanceUntil=Time.time+20;}
+        }
         private Character Foe(float range)
         {
             Character best=null;float bestDistance=range;
@@ -240,6 +276,22 @@ namespace Shieldwall
                 GameObject trophy=__instance.m_drops.Select(d=>d.m_prefab).FirstOrDefault(p=>p!=null&&p.name.StartsWith("Trophy"));
                 if(trophy!=null)__result.Add(new KeyValuePair<GameObject,int>(trophy,1));
             }
+        }
+    }
+    // Warchiefs are siege breakers: their blows on walls and towers land half again as hard.
+    [HarmonyPatch(typeof(WearNTear),nameof(WearNTear.Damage))]
+    internal static class Breakers
+    {
+        private static void Prefix(WearNTear __instance,HitData hit)
+        {
+            if(hit==null)return;
+            Character attacker=hit.GetAttacker();
+            if(attacker==null||!(attacker.GetComponent<Raider>() is Raider r))return;
+            if(r.Role==Role.Champion)hit.m_damage.Modify(1.5f);
+            if(Plugin.Instance.DebugHits.Value&&(__instance.GetComponent<Planted>()!=null||__instance.GetComponent<StationExtension>()!=null))
+                Plugin.Log($"[hit] {r.Body.m_name} ({r.Role}, {r.Doing()}) struck {Utils.GetPrefabName(__instance.gameObject)} for {hit.GetTotalDamage():0}");
+            // The stone's upgrades are warded: the horde barely scratches them.
+            if(__instance.GetComponent<StationExtension>() is StationExtension ext&&ext.m_craftingStation!=null&&ext.m_craftingStation.m_name==Stone.StationName)hit.m_damage.Modify(0.25f);
         }
     }
 }

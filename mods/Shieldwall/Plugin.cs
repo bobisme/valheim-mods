@@ -9,9 +9,9 @@ namespace Shieldwall
     {
         public const string Guid="com.bobisme.shieldwall";
         public const string Name="Shieldwall";
-        public const string Version="0.1.2";
+        public const string Version="0.2.0";
         internal static Plugin Instance;
-        internal ConfigEntry<bool> DrawRaids;
+        internal ConfigEntry<bool> DrawRaids,DebugHits;
         internal ConfigEntry<float> HornWarning,RaidWarning,WaveSeconds,MaxMinutes,CooldownMinutes;
         internal ConfigEntry<int> MaxAlive;
         private Harmony _harmony;
@@ -20,6 +20,7 @@ namespace Shieldwall
         {
             Instance=this;
             DrawRaids=Config.Bind("Sieges","DrawRaids",true,"A base raid near a Warstone becomes a siege at the stone instead. Only the host's setting matters (a vanilla dedicated server raids as usual).");
+            DebugHits=Config.Bind("Debug","LogTowerHits",false,"Log every blow the horde lands on stave sockets and Warstone upgrades (for balancing).");
             HornWarning=Config.Bind("Sieges","HornWarningSeconds",90f,new ConfigDescription("Seconds between sounding the horn and the horde marching: time to get ready.",new AcceptableValueRange<float>(15,600)));
             RaidWarning=Config.Bind("Sieges","RaidWarningSeconds",180f,new ConfigDescription("Seconds of warning when the stone draws a raid to itself.",new AcceptableValueRange<float>(30,900)));
             WaveSeconds=Config.Bind("Sieges","WaveSeconds",40f,new ConfigDescription("Most seconds between waves (the next comes sooner when the last is mostly down).",new AcceptableValueRange<float>(20,300)));
@@ -36,9 +37,8 @@ namespace Shieldwall
         {
             Net.Tick();
             Tools.Tick();
-            try{Ward.Tick();Route.Tick();}catch(System.Exception e){Logger.LogError("Shieldwall: "+e);}
+            try{Ward.Tick();Route.Tick();SiegeBar.Tick();}catch(System.Exception e){Logger.LogError("Shieldwall: "+e);}
         }
-        private void OnGUI(){try{SiegeBar.Draw();}catch(System.Exception){}}
         private void OnDestroy()
         {
             Tools.Stop();
@@ -48,7 +48,7 @@ namespace Shieldwall
             Warstone.DetachAll();Planted.DetachAll();Raider.DetachAll();
             Items.Unregister();
             Assets.UnregisterAll();
-            Stone.Forget();Planted.Forget();
+            Stone.Forget();Pieces.Forget();LegacyPlanted.Forget();
             if(Instance==this)Instance=null;
         }
     }

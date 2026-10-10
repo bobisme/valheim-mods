@@ -26,7 +26,7 @@ namespace Shieldwall
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name,"siege",
-                    "siege status | plan [stage] [marks] [players] | route | start [stage 0-6] | end | marks <n> | place [metres | x z] | remove | horn | tryplant | craftui [close] | raid [event] | plant <stave prefab> [metres] [angle] | unplant | raiders | wall [radius] [gap degrees] | unwall | hover: Warstones near the player and their sieges; a preview of a siege's waves; "+
+                    "siege status | plan [stage] [marks] [players] | route | start [stage 0-6] | end | marks <n> | place [metres | x z] | remove | horn | craftui [close] | raid [event] | plant <stave prefab|none> [metres] [angle] | tower <stave> [metres] [angle] [storeys] | line x1 z1 x2 z2 [piece] | unbuild | put <prefab> <metres> <angle> | goto x z | unplant | raiders | wall [radius] [gap degrees] | unwall | hover: Warstones near the player and their sieges; a preview of a siege's waves; "+
                     "the road the horde would take; start a short-warning test siege at the nearest stone (no mark for holding it); end the siege now; set a stone's marks; place a Warstone ahead of the player (test); plant a staff from nothing beside the nearest stone (test); remove every planted staff (test); what each raider is doing; ring the stone with test stake walls (open toward the rift by gap degrees) and remove them; the hover text of the stone and staves",
                     (Func<string[],Action<JObject>,Action<string>,IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: siege command added");
@@ -37,6 +37,15 @@ namespace Shieldwall
         {
             try{_tools?.GetType().GetMethod("UnregisterAll",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name});}catch(Exception){}
             _tools=null;
+        }
+        private const string TestKey="bob_sw_testwall";
+        // A piece made by a test command: player-built (the horde treats it as yours), marked for unbuild.
+        private static void Built(GameObject go)
+        {
+            if(go==null)return;
+            Player me=Player.m_localPlayer;
+            if(me!=null)go.GetComponent<Piece>()?.SetCreator(me.GetPlayerID(),Splatform.PlatformManager.DistributionPlatform.LocalUser.PlatformUserID);
+            go.GetComponent<ZNetView>()?.GetZDO()?.Set(TestKey,true);
         }
         private static Warstone Nearest()
         {
@@ -183,16 +192,6 @@ namespace Shieldwall
                     output(new JObject{["first"]=first,["second"]=second,["phase"]=stone.Phase.ToString()});
                     break;
                 }
-                case "tryplant":
-                {
-                    // The Use path: plant whatever the player holds where they look.
-                    Player me=Player.m_localPlayer;
-                    if(me==null){error("siege tryplant: no player");break;}
-                    int before=Planted.Loaded.Count;
-                    bool handled=Planted.TryPlant(me);
-                    output(new JObject{["handled"]=handled,["held"]=me.RightItem?.m_shared.m_name,["planted"]=Planted.Loaded.Count-before});
-                    break;
-                }
                 case "craftui":
                 {
                     // Open (or with "close", shut) the stone's crafting menu, as E does.
@@ -212,6 +211,30 @@ namespace Shieldwall
                     RandEventSystem.instance.SetRandomEventByName(name,stone.transform.position+Vector3.forward*20);
                     RandomEvent running=RandEventSystem.instance.GetCurrentRandomEvent();
                     output(new JObject{["raid"]=name,["gameRaidRunning"]=running!=null?running.m_name:null,["stonePhase"]=stone.Phase.ToString()});
+                    break;
+                }
+                case "goto":
+                {
+                    // goto <x> <z>: move the player there (test worlds: so this game owns and runs what is built there).
+                    Player me=Player.m_localPlayer;
+                    if(me==null||args.Length<4||!float.TryParse(args[2],out float gx)||!float.TryParse(args[3],out float gz)){error("siege goto <x> <z>");break;}
+                    Vector3 to=new Vector3(gx,0,gz);
+                    to.y=ZoneSystem.instance.GetGroundHeight(to,out float gh)?gh+0.5f:me.transform.position.y;
+                    me.TeleportTo(to,me.transform.rotation,false);
+                    output(new JObject{["goto"]=new JArray(Math.Round(to.x,1),Math.Round(to.y,1),Math.Round(to.z,1))});
+                    break;
+                }
+                case "put":
+                {
+                    // put <prefab> <metres> <angle>: any piece beside the nearest stone, facing it (test).
+                    if(stone==null||args.Length<5||!float.TryParse(args[3],out float pm)||!float.TryParse(args[4],out float pa)){error("siege put <prefab> <metres> <angle>");break;}
+                    GameObject prefab=ZNetScene.instance.GetPrefab(args[2]);
+                    if(prefab==null){error("siege put: no prefab "+args[2]);break;}
+                    Vector3 at=stone.transform.position+Quaternion.Euler(0,pa,0)*Vector3.forward*pm;
+                    if(ZoneSystem.instance.GetGroundHeight(at,out float h))at.y=h;
+                    Vector3 face=stone.transform.position-at;face.y=0;
+                    Built(UnityEngine.Object.Instantiate(prefab,at,Quaternion.LookRotation(face.sqrMagnitude>0.01f?face:Vector3.forward)));
+                    output(new JObject{["put"]=args[2],["level"]=stone.Level});
                     break;
                 }
                 case "remove":
@@ -237,17 +260,56 @@ namespace Shieldwall
                     break;
                 }
                 case "plant":
+                case "tower":
                 {
-                    if(stone==null||args.Length<3){error("siege plant <prefab> [metres] [angle]: needs a loaded Warstone");break;}
-                    GameObject item=Items.Get(args[2])??Assets.Find(args[2]);
-                    ItemDrop drop=item!=null?item.GetComponent<ItemDrop>():null;
-                    if(drop==null){error("siege plant: no item "+args[2]);break;}
-                    float metres=args.Length>3&&float.TryParse(args[3],out float f)?f:5,angle=args.Length>4&&float.TryParse(args[4],out float a)?a:0;
+                    // plant <stave> [metres] [angle]: a socket with that stave on the ground beside the stone.
+                    // tower <stave> [metres] [angle] [storeys]: stone pillars (2 m each) with the socket on top.
+                    if(stone==null||args.Length<3){error($"siege {args[1]} <stave prefab|none> [metres] [angle] [storeys]: needs a loaded Warstone");break;}
+                    ItemDrop.ItemData data=null;
+                    if(args[2]!="none")
+                    {
+                        GameObject item=Items.Get(args[2])??Assets.Find(args[2]);
+                        ItemDrop drop=item!=null?item.GetComponent<ItemDrop>():null;
+                        if(drop==null){error("siege plant: no item "+args[2]);break;}
+                        data=drop.m_itemData.Clone();data.m_dropPrefab=item;
+                    }
+                    float metres=args.Length>3&&float.TryParse(args[3],out float f)?f:6,angle=args.Length>4&&float.TryParse(args[4],out float a2)?a2:0;
+                    int storeys=args[1]=="tower"?(args.Length>5&&int.TryParse(args[5],out int st2)?st2:2):0;
                     Vector3 at=stone.transform.position+Quaternion.Euler(0,angle,0)*Vector3.forward*metres;
                     if(ZoneSystem.instance.GetGroundHeight(at,out float h))at.y=h;
-                    ItemDrop.ItemData data=drop.m_itemData.Clone();data.m_dropPrefab=item;
-                    Planted.Make(data,at,Quaternion.identity);
-                    output(new JObject{["planted"]=args[2],["at"]=new JArray(Math.Round(at.x,1),Math.Round(at.y,1),Math.Round(at.z,1))});
+                    GameObject pillar=ZNetScene.instance.GetPrefab("stone_pillar");
+                    for(int i=0;i<storeys&&pillar!=null;i++)Built(UnityEngine.Object.Instantiate(pillar,at+Vector3.up*(1+2*i),Quaternion.identity));
+                    at.y+=2*storeys-(storeys>0?0.05f:0); // seated a little into the pillar, as the hammer would
+                    Built(Planted.Make(data,at,Quaternion.LookRotation(stone.transform.position-at,Vector3.up)*Quaternion.identity));
+                    output(new JObject{["socket"]=args[2],["at"]=new JArray(Math.Round(at.x,1),Math.Round(at.y,1),Math.Round(at.z,1)),["storeys"]=storeys});
+                    break;
+                }
+                case "line":
+                {
+                    // line <x1> <z1> <x2> <z2> [piece=stake_wall]: a wall of pieces between two points (test).
+                    if(args.Length<6||!float.TryParse(args[2],out float x1)||!float.TryParse(args[3],out float z1)||!float.TryParse(args[4],out float x2)||!float.TryParse(args[5],out float z2))
+                    {error("siege line <x1> <z1> <x2> <z2> [piece]");break;}
+                    GameObject wall=ZNetScene.instance.GetPrefab(args.Length>6?args[6]:"stake_wall");
+                    if(wall==null){error("siege line: no piece "+(args.Length>6?args[6]:""));break;}
+                    float width=wall.GetComponentsInChildren<BoxCollider>().Select(c=>c.size.x*c.transform.lossyScale.x).DefaultIfEmpty(2).Max();
+                    Vector3 start=new Vector3(x1,0,z1),end=new Vector3(x2,0,z2);
+                    int count=Mathf.Max(1,Mathf.CeilToInt(Vector3.Distance(start,end)/(width*0.95f)));
+                    Quaternion facing=Quaternion.LookRotation(Vector3.Cross(Vector3.up,(end-start).normalized));
+                    for(int i=0;i<count;i++)
+                    {
+                        Vector3 at=Vector3.Lerp(start,end,(i+0.5f)/count);
+                        if(ZoneSystem.instance.GetGroundHeight(at,out float h))at.y=h;
+                        Built(UnityEngine.Object.Instantiate(wall,at,facing));
+                    }
+                    output(new JObject{["walls"]=count,["piece"]=wall.name});
+                    break;
+                }
+                case "unbuild":
+                {
+                    // Remove every test piece (walls, pillars, sockets) placed by these commands.
+                    int removed=0;
+                    foreach(ZNetView v in Assets.AllInstances().Where(v=>v.GetZDO().GetBool(TestKey,false)).ToList()){v.ClaimOwnership();ZNetScene.instance.Destroy(v.gameObject);removed++;}
+                    output(new JObject{["removed"]=removed});
                     break;
                 }
                 default:error("siege: status, plan, route, start, end, marks, place or plant");break;

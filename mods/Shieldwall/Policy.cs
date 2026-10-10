@@ -8,7 +8,7 @@ namespace Shieldwall
     // line earns, and the staves. No Unity or game types, so every number can be tested.
     internal enum Role{Grunt=1,Sapper=2,Flyer=3,Champion=4}
     internal enum Phase{Idle=0,Gathering=1,Battle=2}
-    internal enum Cause{Horn=0,Raid=1,Test=2}
+    internal enum Cause{Horn=0,Raid=1,Test=2,Early=3}
     internal enum StaveKind{None=-1,Ember=0,Frost=1,Thunder=2,Blast=3,Hearth=4}
 
     internal sealed class Unit
@@ -192,6 +192,27 @@ namespace Shieldwall
         internal static int Carried(Role role,double roll)=>role==Role.Champion?3+(int)(Clamp01(roll)*3):roll<0.12?1:0;
         private static double Clamp01(double v)=>double.IsNaN(v)?0:Math.Max(0,Math.Min(1,v));
 
+        // ---- the stone's level: 1 + the upgrades built around it (a banner, a totem, a brazier, an obelisk) ----
+        internal const int MaxLevel=5;
+        internal static int Level(int extensions)=>Math.Max(1,Math.Min(MaxLevel,1+extensions));
+        // How many staves it can feed, and how far its power reaches.
+        internal static int Capacity(int level)=>2*Math.Max(1,Math.Min(MaxLevel,level));
+        internal static float PowerRadius(int level)=>20+6*Math.Max(1,Math.Min(MaxLevel,level));
+        internal const float SocketSpacing=5;                // no two stave sockets closer than this
+        // The upgrades, in order: each needs more warshards (the horde's loot is the gate).
+        internal static readonly (string prefab,string name,string source,int shards,(string item,int amount)[] also)[] Upgrades=
+        {
+            ("BobWarBanner","War banner","goblin_banner",4,new[]{("Wood",4),("LeatherScraps",4)}),
+            ("BobWarTotem","Trophy totem","goblin_totempole",8,new[]{("Wood",6),("BoneFragments",10)}),
+            ("BobWarBrazier","Horned brazier","piece_brazierfloor02",14,new[]{("Bronze",4),("Coal",10)}),
+            ("BobWarObelisk","Rune obelisk","Piece_grausten_pillarbase_tapered",22,new[]{("Stone",30),("Iron",4)}),
+        };
+        // Upgrading a planted stave in its socket: shards per step, and the stone level the step needs.
+        internal static int UpgradeShards(int toQuality)=>3*Math.Max(2,toQuality)-2;   // to ★2: 4, ★3: 7, ★4: 10
+        internal static int UpgradeLevel(int toQuality)=>Math.Max(1,toQuality);        // ★2 needs level 2, ★4 level 4
+        // Calling the next wave early pays: shards for the time it saves.
+        internal static int EarlyBonus(double secondsSaved)=>Math.Max(1,Math.Min(4,(int)(secondsSaved/10)));
+
         // ---- the staves ----
         internal const string ShardPrefab="BobWarshard";
         internal static readonly Stave[] Staves=
@@ -219,9 +240,6 @@ namespace Shieldwall
         internal static float RangeAt(Stave s,int quality)=>s.Range+2*(Math.Max(1,Math.Min(MaxQuality,quality))-1);
         // Any other staff with a projectile can be planted too, at a fraction of its power and a slow pace.
         internal const float BorrowedPower=0.4f,BorrowedCooldown=3f,BorrowedRange=25;
-        internal const float StaveHealth=120;
-        // Planted staves draw on a Warstone: within its ward, or they sleep.
-        internal static bool Powered(double distanceToStone)=>distanceToStone<=WardRadius+10;
 
         // A launch direction that lands a shot of speed v at a point dx away (horizontally) and dy up under gravity g: the low arc.
         // Returns false when it is out of reach (then aim straight at it and hope).

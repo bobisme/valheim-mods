@@ -65,6 +65,13 @@ namespace Shieldwall
                 if(view is ZNetView v&&v!=null&&v.IsValid()&&v.GetZDO().GetPrefab()==prefabHash)yield return v;
         }
 
+        internal static IEnumerable<ZNetView> AllInstances()
+        {
+            if(ZNetScene.instance==null)yield break;
+            var all=AccessTools.Field(typeof(ZNetScene),"m_instances").GetValue(ZNetScene.instance) as IDictionary;
+            if(all==null)yield break;
+            foreach(object view in all.Values.Cast<object>().ToList())if(view is ZNetView v&&v!=null&&v.IsValid())yield return v;
+        }
         // A networked effect everyone sees (made once, by whoever runs the siege).
         internal static void Effect(string prefab,Vector3 at,Quaternion? rotation=null)
         {

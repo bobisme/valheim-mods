@@ -10,7 +10,7 @@ namespace Shieldwall
     // dedicated server that does not have the mod: players send the horn and the horde's blows to that game, and it tells everyone.
     internal static class Net
     {
-        private const string Call_="bob_sw_call_v1",Damage_="bob_sw_damage_v1",Say_="bob_sw_say_v1",StaveHit_="bob_sw_stavehit_v1";
+        private const string Call_="bob_sw_call_v1",Damage_="bob_sw_damage_v1",Say_="bob_sw_say_v1";
         private static ZRoutedRpc _rpc;
         private static readonly Dictionary<string,object> Handlers=new Dictionary<string,object>();
 
@@ -46,17 +46,6 @@ namespace Shieldwall
             _rpc.InvokeRoutedRPC(ZRoutedRpc.Everybody,Say_,text,at,radius);
         }
 
-        internal static void StaveHit(Planted stave,float damage)
-        {
-            ZDO z=stave.View.GetZDO();if(z==null||_rpc==null)return;
-            if(stave.View.IsOwner())stave.Struck(damage);
-            else _rpc.InvokeRoutedRPC(z.GetOwner(),StaveHit_,z.m_uid,damage);
-        }
-        private static void OnStaveHit(long sender,ZDOID id,float damage)
-        {
-            Planted stave=Planted.Loaded.FirstOrDefault(p=>p!=null&&p.View.IsValid()&&p.View.GetZDO().m_uid==id);
-            if(stave!=null)stave.Struck(damage);
-        }
         private static Warstone Find(ZDOID id)=>Warstone.Loaded.FirstOrDefault(w=>w!=null&&w.Z!=null&&w.Z.m_uid==id);
         private static void OnCall(long sender,ZDOID id,int cause)
         {
@@ -82,9 +71,8 @@ namespace Shieldwall
             _rpc.Register<ZDOID,int>(Call_,OnCall);
             _rpc.Register<ZDOID,float,Vector3>(Damage_,OnDamage);
             _rpc.Register<string,Vector3,float>(Say_,OnSay);
-            _rpc.Register<ZDOID,float>(StaveHit_,OnStaveHit);
             var table=AccessTools.Field(typeof(ZRoutedRpc),"m_functions").GetValue(_rpc) as IDictionary;
-            foreach(string name in new[]{Call_,Damage_,Say_,StaveHit_})Handlers[name]=table?[name.GetStableHashCode()];
+            foreach(string name in new[]{Call_,Damage_,Say_})Handlers[name]=table?[name.GetStableHashCode()];
         }
         internal static void Unregister()
         {

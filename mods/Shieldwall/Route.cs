@@ -55,7 +55,7 @@ namespace Shieldwall
         private static Drawn Make(Warstone stone)
         {
             var drawn=new Drawn{Root=new GameObject("ShieldwallRoute")};
-            drawn.Road=Line(drawn.Root.transform,"Road",new Color(1f,0.55f,0.15f,0.6f),0.1f);
+            drawn.Road=Line(drawn.Root.transform,"Road",new Color(1f,0.55f,0.15f,0.5f),0.18f);
             drawn.Breach=Line(drawn.Root.transform,"Breach",new Color(1f,0.15f,0.1f,0.75f),0.16f);
             drawn.Beacon=Line(drawn.Root.transform,"Beacon",new Color(1f,0.2f,0.1f,0.6f),0.9f);
             drawn.Beacon.widthCurve=new AnimationCurve(new Keyframe(0,1.1f),new Keyframe(0.3f,0.6f),new Keyframe(1,0.15f));
@@ -125,7 +125,7 @@ namespace Shieldwall
         private static void Pulse(Drawn drawn)
         {
             float t=0.65f+0.35f*Mathf.Sin(Time.time*3);
-            if(drawn.Road!=null){Color c=drawn.Road.startColor;c.a=0.6f*t;drawn.Road.startColor=drawn.Road.endColor=c;}
+            if(drawn.Road!=null){Color c=drawn.Road.startColor;c.a=0.5f*t;drawn.Road.startColor=drawn.Road.endColor=c;}
             if(drawn.RiftLight!=null)drawn.RiftLight.intensity=2+1.5f*t;
         }
         private static void Hide(Warstone stone)
