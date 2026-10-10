@@ -337,6 +337,9 @@ Method("Character","OnDeath","System.Void");
 Method("Player","TeleportTo","System.Boolean","UnityEngine.Vector3","UnityEngine.Quaternion","System.Boolean");
 Method("Inventory","CountItems","System.Int32","System.String","System.Int32","System.Boolean");
 Method("Inventory","RemoveItem","System.Void","System.String","System.Int32","System.Int32","System.Boolean");
+// Shieldwall 0.3.2: asking the host whether it has the mod before building pieces it would delete.
+Method("ZNet","GetServerPeer","ZNetPeer");
+Field("ZNetPeer","m_uid","System.Int64");
 // Shieldwall 0.3: sockets as one-slot containers, the pickaxe's dig and the hoe's raise for earthworks.
 Field("Container","m_bkg","UnityEngine.Sprite");
 Field("Container","m_width","System.Int32");

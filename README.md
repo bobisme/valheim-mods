@@ -121,7 +121,9 @@ The horn rests **20 minutes** after a siege. A stone can't be taken down while a
 server raids as usual.
 
 A siege runs on the game of the player nearest the stone (its owner, in Valheim's terms) and everything about it is saved on the stone, so
-it carries on if that player leaves and works on a dedicated server without the mod. Everyone who joins in needs Shieldwall. Warnings,
+it carries on if that player leaves and works on a dedicated server without the mod (away from the middle of the world, which such a
+server keeps loaded and clears of objects it doesn't know). A game hosted by a player needs Shieldwall on the host too, or the host's game
+deletes the stone; the stone, sockets and upgrades refuse to be built there, so nothing is lost. Everyone who joins in needs Shieldwall. Warnings,
 wave pacing, the most raiders at once (40), the time limit and the horn's cooldown are in F7. With Claude Tools, `siege status | plan | route |
 start [stage] | end | marks | raiders | hover | recipes | horn | raid` and test builders (`place`, `put`, `plant`, `tower`, `line`, `wall`,
 `unbuild`, `remove`, `goto`) check stones, watch what each raider is doing and run short test sieges.
