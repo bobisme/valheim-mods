@@ -38,3 +38,21 @@ First Creative checks: craft/equip the club and check its grip; build a matching
 Optional **ClaudeTools** commands: `golf reload` reloads only Golf in local Creative; `golf card open|close` operates the scorecard. `golf predict <mode> <power> <dx> <dz>` inspects a prediction. Creative-only `golf playtest <mode> <power> <dx> <dz>` compares a disposable physics ball against it without changing your real score; `golf fixture floor|basement|ramp` builds temporary unsaved collision fixtures far above/below play and cleans them up, including on reload. `golf starttest` starts the nearest tagged test tee. `golf animation` and `golf listen` inspect native contact events and sound playback. Other commands: `golf status`, `golf shot drive|chip|putt <power=0..1> <dx> <dz>`, `golf testcourse <length=2..30>`, `golf testclear`. Status is read-only; shots need the equipped club and a nearby stationary own ball. Testcourse/testclear require the locally hosted world named Creative; they add/remove only tagged test tees/cups, never terrain or existing buildings. Start the test hole with E. Clear a previous test pair before creating another with the same label.
 
 ![Meadow Golf cover](cover.jpg)
+
+## Matches and terrain (0.2.0)
+
+Equip the club and press **G** near hole 1. **1** starts nine holes, **2** starts eighteen,
+**J** joins an open match, **X** stops your round, and **M** ends the shared match for its starter,
+the first tee's builder or the server host. **R** refreshes scores. E at each next tee continues.
+Every hole needs exactly one tee and one cup named `Course:Hole:Par`. The host validates the
+whole saved course; distinct course names separate layouts. An eighteen-hole layout supports
+nine-hole matches too. Finished cards survive stops and reloads. Starting another round replaces
+your prior card; restarting within the same match is prevented.
+
+Uncleared grass, forest rough, swamp mud and snow slow the ball; hoe-cleared surfaces and built
+floors roll farther. Trees, rocks, structures and slopes use their real collision geometry.
+Entering water costs +1 and returns to the last lie. A blue predicted path warns of water entry.
+The preview and live ball share these rules, including wave-independent liquid levels.
+
+The panel uses the game's inventory wood artwork, recessed frame and Averia font. Keyboard
+controls keep the native cursor state intact; normal player controls pause while the card is open.

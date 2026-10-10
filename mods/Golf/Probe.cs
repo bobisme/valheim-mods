@@ -5,10 +5,16 @@ namespace MeadowGolf
     // Disposable Creative physics probe: no save/network/item components, never edits terrain.
     internal sealed class GolfProbe:MonoBehaviour
     {
+        internal bool Hazard;
         internal Rigidbody Body;private float _still;private float _expires;
         private void Awake(){_expires=Time.time+30;}
         private void Update(){if(Plugin.Instance==null||Time.time>_expires)Destroy(gameObject);}
-        private void FixedUpdate(){if(Body!=null&&!Body.IsSleeping())ShotPhysics.Roll(Body,Physics.defaultPhysicsScene,Time.fixedDeltaTime,ref _still);}
+        private void FixedUpdate()
+        {
+            if(Body==null||Body.IsSleeping())return;
+            if(ShotPhysics.Water(Body.position)){Hazard=true;Body.linearVelocity=Vector3.zero;Body.angularVelocity=Vector3.zero;Body.Sleep();return;}
+            ShotPhysics.Roll(Body,Physics.defaultPhysicsScene,Time.fixedDeltaTime,ref _still);
+        }
         internal static GolfProbe Create(GolfBall source,Vector3? start=null)
         {
             var go=new GameObject("Disposable Golf playtest"){layer=LayerMask.NameToLayer("item")};
@@ -25,6 +31,12 @@ namespace MeadowGolf
     {
         private Plugin _owner;private float _expires;
         private void Awake(){_owner=Plugin.Instance;_expires=Time.time+30;}
-        private void Update(){if(_owner==null||Time.time>_expires)Destroy(gameObject);}
+        internal void Extend(float seconds){_expires=Time.time+Mathf.Clamp(seconds,1,120);}
+        private void Update()
+        {
+            if(_owner!=null&&Time.time<=_expires)return;
+            var view=GetComponent<ZNetView>();
+            if(view!=null&&view.IsValid()&&ZNetScene.instance!=null){view.ClaimOwnership();ZNetScene.instance.Destroy(gameObject);}else Destroy(gameObject);
+        }
     }
 }

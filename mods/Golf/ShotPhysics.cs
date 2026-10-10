@@ -3,6 +3,7 @@ using UnityEngine;
 namespace MeadowGolf
 {
     // Both the live ball and the isolated aim simulation use these exact rules.
+    internal sealed class GolfSurface:MonoBehaviour {internal Heightmap Map;internal Rules.Surface? Override;}
     internal static class ShotPhysics
     {
         internal static int SoundsCreated;internal static ZSFX LastSound;internal static string LastSoundName="";
@@ -30,13 +31,34 @@ namespace MeadowGolf
             body.WakeUp();body.linearVelocity=velocity;
             body.angularVelocity=Vector3.Cross(Vector3.up,direction)*(mode==2?velocity.magnitude/Radius:8f);
         }
+        internal static bool Water(Vector3 position)=>Rules.Submerged(position.y,Floating.GetLiquidLevel(position,0,LiquidType.All));
+        internal static Rules.Surface Ground(Collider collider,Vector3 position)
+        {
+            GolfSurface surface=collider.GetComponent<GolfSurface>();if(surface?.Override!=null)return surface.Override.Value;
+            Heightmap map=surface?.Map??collider.GetComponentInParent<Heightmap>();
+            if(map==null||map.IsCleared(position))return Rules.Surface.Firm;
+            switch(map.GetBiome(position))
+            {
+                case Heightmap.Biome.BlackForest:case Heightmap.Biome.Mistlands:return Rules.Surface.Forest;
+                case Heightmap.Biome.Swamp:return Rules.Surface.Marsh;
+                case Heightmap.Biome.Mountain:case Heightmap.Biome.DeepNorth:return Rules.Surface.Snow;
+                default:return Rules.Surface.Grass;
+            }
+        }
+        internal static string Lie(Vector3 position)
+        {
+            if(Water(position))return "Water hazard";
+            if(Physics.defaultPhysicsScene.SphereCast(position+Vector3.up*.025f,.105f,Vector3.down,out RaycastHit hit,.10f,Surfaces,QueryTriggerInteraction.Ignore))
+                return Ground(hit.collider,hit.point).ToString();
+            return "Airborne";
+        }
         internal static void Roll(Rigidbody body,PhysicsScene scene,float dt,ref float stillTime)
         {
             if(body.linearVelocity.sqrMagnitude<.09f)stillTime+=dt;else stillTime=0;
             if(scene.SphereCast(body.position+Vector3.up*.025f,.105f,Vector3.down,out RaycastHit ground,.10f,Surfaces,QueryTriggerInteraction.Ignore)&&ground.normal.y>.2f)
             {
                 Vector3 tangent=Vector3.ProjectOnPlane(body.linearVelocity,ground.normal);
-                body.linearVelocity-=tangent-Vector3.MoveTowards(tangent,Vector3.zero,.65f*dt);
+                body.linearVelocity-=tangent-Vector3.MoveTowards(tangent,Vector3.zero,Rules.Resistance(Ground(ground.collider,ground.point))*dt);
                 if(stillTime>.65f&&ground.normal.y>.97f)
                 {body.linearVelocity=Vector3.zero;body.angularVelocity=Vector3.zero;body.Sleep();}
             }

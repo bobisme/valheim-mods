@@ -72,6 +72,30 @@ namespace MeadowGolf
             rows.Sort((a,b)=>a.Hole.CompareTo(b.Hole));
             return string.Join(";",rows.ConvertAll(r=>r.Hole+","+r.Par+","+r.Strokes));
         }
+        internal static int NextHole(string card,int holes)
+        {
+            if(holes!=9&&holes!=18)return 0;
+            var rows=ReadCard(card);var completed=new HashSet<int>(rows.ConvertAll(r=>r.Hole));
+            for(int h=1;h<=holes;h++)if(!completed.Contains(h))return h;
+            return 0;
+        }
+        internal sealed class CourseMarker {internal int Hole;internal bool Cup;internal double X,Y,Z;}
+        internal static string CourseError(List<CourseMarker> markers,int holes)
+        {
+            if(holes!=9&&holes!=18)return "Choose a 9- or 18-hole match.";
+            for(int h=1;h<=holes;h++)
+            {
+                var tees=markers.FindAll(m=>m.Hole==h&&!m.Cup);var cups=markers.FindAll(m=>m.Hole==h&&m.Cup);
+                if(tees.Count!=1)return $"Hole {h}: expected one tee, found {tees.Count}.";
+                if(cups.Count!=1)return $"Hole {h}: expected one cup, found {cups.Count}.";
+                double dx=tees[0].X-cups[0].X,dy=tees[0].Y-cups[0].Y,dz=tees[0].Z-cups[0].Z;
+                if(!Finite(dx)||!Finite(dy)||!Finite(dz)||dx*dx+dy*dy+dz*dz>240*240)return $"Hole {h}: cup must be within 240 m of its tee.";
+            }
+            return "";
+        }
+        internal enum Surface {Firm,Grass,Forest,Marsh,Snow}
+        internal static float Resistance(Surface surface)=>surface==Surface.Forest?1.8f:surface==Surface.Marsh?2.4f:surface==Surface.Snow?1.4f:surface==Surface.Grass?1.1f:.65f;
+        internal static bool Submerged(double height,double liquid)=>Finite(height)&&Finite(liquid)&&liquid>-9999&&height<liquid-.03;
         internal static string Outcome(int strokes,int par)=>strokes==1?"Hole in one!":strokes==par?"Par":strokes==par-1?"Birdie":
             strokes==par-2?"Eagle":strokes==par+1?"Bogey":(strokes-par>0?"+":"")+(strokes-par)+" to par";
     }

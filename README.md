@@ -11,8 +11,11 @@ Drive / Chip / Putt with the wheel, then hold/release left mouse to swing. Right
 
 The amber path predicts actual flight, ricochets and rolling, with a ring at the stopping point and its sampled power.
 The ball launches on the animation's contact event, with swing, wooden impact and quiet bounce sounds.
-**G** shows nearby scorecards. Balls, courses and scores save in the world; **E** on your ball returns to the
-last lie (+1 penalty), and **Ctrl+E** at a tee starts a fresh round. Courses have up to 18 holes.
+**G** opens a match window using Valheim's own wooden panels. Near hole 1: **1** starts nine holes,
+**2** starts eighteen, **J** joins, **X** stops your round and **M** ends the shared match.
+Cards and match state save; E at each next tee continues. The host validates the entire course.
+Grass, forest rough, mud and snow slow rolls; trees, rocks, buildings and slopes shape shots.
+Water returns the ball to its last lie (+1), with a blue hazard preview. **Ctrl+E** starts fresh practice.
 
 Install on the host and every player, then restart before loading a world. No other mod is required.
 Native Creative physics, scoring, sound and reload checks passed; remote multiplayer/ownership transfer remains untested.

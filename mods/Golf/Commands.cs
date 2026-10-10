@@ -21,7 +21,7 @@ namespace MeadowGolf
             try
             {
                 tools.GetType().GetMethod("RegisterCommand",BindingFlags.Static|BindingFlags.Public)?.Invoke(null,new object[]{Name,"golf",
-                    "golf status | card open|close | shot drive|chip|putt <power=0..1> <dx> <dz> | predict <mode> <power> <dx> <dz> | playtest <mode> <power> <dx> <dz> | fixture floor|basement|ramp | animation | listen | reload | testcourse <length=2..30> | starttest | testclear: tests/reload only in local Creative; ordinary shots require the club and a nearby own ball",
+                    "golf status | match 9|18|join|end|stop|scores | roundtest 9|18 | card open|close | shot drive|chip|putt <power=0..1> <dx> <dz> | predict <mode> <power> <dx> <dz> | playtest <mode> <power> <dx> <dz> | fixture floor|basement|ramp | animation | listen | reload | testcourse <length=2..30> | starttest | testclear: tests/reload only in local Creative; ordinary shots require the club and a nearby own ball",
                     new Func<string[],Action<JObject>,Action<string>,IEnumerator>(GolfCommand)});
             }
             catch(Exception e){Logger.LogWarning("Golf ClaudeTools link: "+e.GetBaseException().Message);}
@@ -37,6 +37,11 @@ namespace MeadowGolf
             try
             {
                 string command=args.Length>1?args[1]:"status";
+                if(command=="roundtest"&&args.Length==3)
+                {
+                    if(!Creative()||(args[2]!="9"&&args[2]!="18"))throw new InvalidOperationException("golf roundtest 9|18 requires local Creative.");
+                    return RoundTest(int.Parse(args[2],CultureInfo.InvariantCulture),output);
+                }
                 if(command=="animation")
                 {
                     var animator=Player.m_localPlayer?.GetComponentInChildren<Animator>();
@@ -48,27 +53,41 @@ namespace MeadowGolf
                     if(!Creative())throw new InvalidOperationException("Developer reload is restricted to locally hosted Creative.");
                     GolfReload.Schedule();output(new JObject{["golfReloadScheduled"]=true});return null;
                 }
+                if(command=="match"&&args.Length==3)
+                {
+                    if(args[2]=="9"||args[2]=="18")GolfMatches.RequestMatch(int.Parse(args[2],CultureInfo.InvariantCulture));
+                    else if(args[2]=="join")GolfMatches.RequestMatch(0,true);
+                    else if(args[2]=="end")GolfMatches.EndMatch();
+                    else if(args[2]=="stop")GolfMatches.StopRound();
+                    else if(args[2]=="scores")GolfMatches.RefreshBoard();
+                    else throw new ArgumentException("golf match 9|18|join|end|stop|scores");
+                    output(new JObject{["matchRequest"]=args[2]});return null;
+                }
                 if(command=="status")
                 {
                     var club=Prefabs.ClubPrefab?.GetComponent<ItemDrop>();
-                    output(new JObject{["version"]=Version,["previewScenes"]=Enumerable.Range(0,UnityEngine.SceneManagement.SceneManager.sceneCount).Count(i=>UnityEngine.SceneManagement.SceneManager.GetSceneAt(i).name.StartsWith("MeadowGolfAim-")),["assembly"]=typeof(Plugin).Assembly.ManifestModule.ModuleVersionId.ToString(),["instance"]=GetInstanceID(),["sounds"]=new JObject{["created"]=ShotPhysics.SoundsCreated,["last"]=ShotPhysics.LastSoundName,["playing"]=ShotPhysics.LastSound!=null&&ShotPhysics.LastSound.IsPlaying(),["swingClips"]=ZNetScene.instance?.GetPrefab("sfx_club_swing")?.GetComponent<ZSFX>()?.m_audioClips.Length??0,["hitClips"]=ZNetScene.instance?.GetPrefab("sfx_wood_hit")?.GetComponent<ZSFX>()?.m_audioClips.Length??0},["active"]=Active,["preview"]=new JObject{["complete"]=_preview.Complete,["reason"]=_preview.Reason,["distance"]=_preview.Distance,["end"]=Vec(_preview.End),["surfaces"]=_preview.SurfaceCount,["maximumSlice"]=_preview.MaximumSlice,["milliseconds"]=_preview.Milliseconds},["clubRegistered"]=club!=null,["clubAnimation"]=club?.m_itemData.m_shared.m_attack.m_attackAnimation,
+                    output(new JObject{["version"]=Version,["cardOpen"]=_card,["nativeUI"]=_nativeUI!=null&&_nativeUI.activeInHierarchy,["uiFont"]=_nativeFont?.name,["headingFont"]=_titleFont?.name,["previewScenes"]=Enumerable.Range(0,UnityEngine.SceneManagement.SceneManager.sceneCount).Count(i=>UnityEngine.SceneManagement.SceneManager.GetSceneAt(i).name.StartsWith("MeadowGolfAim-")),["assembly"]=typeof(Plugin).Assembly.ManifestModule.ModuleVersionId.ToString(),["instance"]=GetInstanceID(),["sounds"]=new JObject{["created"]=ShotPhysics.SoundsCreated,["last"]=ShotPhysics.LastSoundName,["playing"]=ShotPhysics.LastSound!=null&&ShotPhysics.LastSound.IsPlaying(),["swingClips"]=ZNetScene.instance?.GetPrefab("sfx_club_swing")?.GetComponent<ZSFX>()?.m_audioClips.Length??0,["hitClips"]=ZNetScene.instance?.GetPrefab("sfx_wood_hit")?.GetComponent<ZSFX>()?.m_audioClips.Length??0},["active"]=Active,["preview"]=new JObject{["complete"]=_preview.Complete,["hazard"]=_preview.Hazard,["reason"]=_preview.Reason,["distance"]=_preview.Distance,["end"]=Vec(_preview.End),["surfaces"]=_preview.SurfaceCount,["maximumSlice"]=_preview.MaximumSlice,["milliseconds"]=_preview.Milliseconds},["clubRegistered"]=club!=null,["clubAnimation"]=club?.m_itemData.m_shared.m_attack.m_attackAnimation,
                         ["markers"]=new JArray(GolfMarker.Loaded.Where(m=>m!=null&&m.View.IsValid()).Select(m=>new JObject{["kind"]=m.Cup?"cup":"tee",["label"]=m.GetText(),["position"]=Vec(m.transform.position)})),
-                        ["balls"]=new JArray(GolfBall.Loaded.Where(b=>b!=null&&b.Data!=null).Select(b=>new JObject{["id"]=b.Data.m_uid.ToString(),["sequence"]=b.Data.GetLong("bob_golf_sequence",0),["pending"]=b.Pending,["impactDelay"]=b.LastImpactDelay,["impactSource"]=b.LastImpactSource,["spin"]=Vec(b.Body.angularVelocity),["player"]=b.Data.GetString(GolfWorld.NameKey,""),["mine"]=b.Mine,
+                        ["balls"]=new JArray(GolfBall.Loaded.Where(b=>b!=null&&b.Data!=null).Select(b=>new JObject{["id"]=b.Data.m_uid.ToString(),["sequence"]=b.Data.GetLong("bob_golf_sequence",0),["pending"]=b.Pending,["impactDelay"]=b.LastImpactDelay,["impactSource"]=b.LastImpactSource,["shotRejection"]=b.LastRejectedShot,["spin"]=Vec(b.Body.angularVelocity),["player"]=b.Data.GetString(GolfWorld.NameKey,""),["mine"]=b.Mine,
                             ["owner"]=b.View.IsOwner(),["position"]=Vec(b.transform.position),["velocity"]=Vec(b.Body.linearVelocity),["kinematic"]=b.Body.isKinematic,["still"]=b.Still,["done"]=b.Done,
-                            ["strokes"]=b.Strokes,["label"]=b.Data.GetString(GolfWorld.LabelKey,""),["card"]=b.Data.GetString(GolfWorld.CardKey,"")}))});return null;
+                            ["strokes"]=b.Strokes,["label"]=b.Data.GetString(GolfWorld.LabelKey,""),["card"]=b.Data.GetString(GolfWorld.CardKey,""),["match"]=b.Data.GetString(GolfMatches.Id,""),["holes"]=b.Data.GetInt(GolfMatches.Length,0),["matchState"]=GolfMatches.State(b.Data),["closed"]=b.Closed}))});return null;
                 }
+                if(command=="ui")
+                {output(new JObject{["images"]=new JArray((InventoryGui.instance?.m_player?.GetComponentsInChildren<UnityEngine.UI.Image>(true)??new UnityEngine.UI.Image[0]).Where(i=>i.sprite!=null).Take(40).Select(i=>new JObject{["name"]=i.name,["sprite"]=i.sprite.name,["type"]=i.type.ToString(),["size"]=new JArray(i.rectTransform.rect.width,i.rectTransform.rect.height),["color"]=new JArray(i.color.r,i.color.g,i.color.b,i.color.a),["border"]=new JArray(i.sprite.border.x,i.sprite.border.y,i.sprite.border.z,i.sprite.border.w)}))});return null;}
+                if(command=="scores")
+                {output(new JObject{["match"]=GolfMatches.BoardId,["rows"]=new JArray(GolfMatches.Board.Select(row=>new JObject{["name"]=row.Name,["holes"]=row.Holes,["card"]=row.Card,["state"]=row.State}))});return null;}
                 if(command=="listen")return SoundCheck(output);
                 if(command=="card"&&args.Length==3)
                 {
                     if(!Active)throw new InvalidOperationException("Equip the club with menus closed.");
                     if(args[2]!="open"&&args[2]!="close")throw new ArgumentException("golf card open|close");
-                    _card=args[2]=="open";_charging=false;output(new JObject{["cardOpen"]=_card});return null;
+                    _card=args[2]=="open";if(_card)GolfMatches.RefreshBoard();_charging=false;output(new JObject{["cardOpen"]=_card});return null;
                 }
                 if(command=="fixture"&&args.Length==3)
                 {
                     if(!Creative())throw new InvalidOperationException("Disposable fixtures are restricted to local Creative.");
                     GolfBall ball=MyBall();if(ball==null)throw new InvalidOperationException("Start a hole first.");
-                    if(args[2]!="floor"&&args[2]!="basement"&&args[2]!="ramp")throw new ArgumentException("golf fixture floor|basement|ramp");
+                    if(args[2]!="floor"&&args[2]!="basement"&&args[2]!="ramp"&&args[2]!="forest"&&args[2]!="water")throw new ArgumentException("golf fixture floor|basement|ramp|forest|water");
                     return FixtureTest(ball,args[2],output);
                 }
                 if(command=="predict"&&args.Length==6)
@@ -77,7 +96,7 @@ namespace MeadowGolf
                     Vector3 direction=new Vector3(Number(args[4]),0,Number(args[5]));GolfBall ball=MyBall();
                     if(ball==null||mode<0||power<0||power>1||direction.sqrMagnitude<.001f)throw new ArgumentException("Supply mode, power 0..1 and a nonzero direction; start a hole first.");
                     _preview.Predict(ball,mode,power,direction.normalized,true);
-                    output(new JObject{["complete"]=_preview.Complete,["reason"]=_preview.Reason,["distance"]=_preview.Distance,["end"]=Vec(_preview.End),["maximumSlice"]=_preview.MaximumSlice,["milliseconds"]=_preview.Milliseconds,["surfaces"]=_preview.SurfaceCount});return null;
+                    output(new JObject{["complete"]=_preview.Complete,["hazard"]=_preview.Hazard,["reason"]=_preview.Reason,["distance"]=_preview.Distance,["end"]=Vec(_preview.End),["maximumSlice"]=_preview.MaximumSlice,["milliseconds"]=_preview.Milliseconds,["surfaces"]=_preview.SurfaceCount});return null;
                 }
                 if(command=="playtest"&&args.Length==6)
                 {
@@ -142,7 +161,7 @@ namespace MeadowGolf
             using(var preview=new ShotPreview())
             {
                 preview.Predict(source,mode,power,direction,true,start);
-                var result=new JObject{["mode"]=Modes[mode],["power"]=power,["predictedComplete"]=preview.Complete,["predictedDistance"]=preview.Distance,
+                var result=new JObject{["mode"]=Modes[mode],["power"]=power,["predictedComplete"]=preview.Complete,["predictedHazard"]=preview.Hazard,["predictedDistance"]=preview.Distance,
                     ["predictedEnd"]=Vec(preview.End),["predictionMilliseconds"]=preview.Milliseconds,["surfaces"]=preview.SurfaceCount};
                 Vector3 origin=start??source.Body.position;GolfProbe probe=GolfProbe.Create(source,start);
                 try
@@ -158,7 +177,7 @@ namespace MeadowGolf
                     Vector3 delta=probe.Body.position-origin;
                     result["actualEnd"]=Vec(probe.Body.position);result["actualDistance"]=new Vector2(delta.x,delta.z).magnitude;
                     result["endpointError"]=preview.Complete?Vector3.Distance(preview.End,probe.Body.position):-1;
-                    result["seconds"]=Time.time-started;result["settled"]=probe.Body.IsSleeping();output(result);
+                    result["actualHazard"]=probe.Hazard;result["seconds"]=Time.time-started;result["settled"]=probe.Body.IsSleeping();output(result);
                 }
                 finally {if(probe!=null)Destroy(probe.gameObject);}
             }
@@ -173,6 +192,20 @@ namespace MeadowGolf
                 var floor=new GameObject("Disposable Golf floor"){layer=LayerMask.NameToLayer("piece")};fixtures.Add(floor);floor.AddComponent<GolfTestLifetime>();
                 floor.transform.position=origin+Vector3.forward*8-Vector3.up*(ShotPhysics.Radius+.1f);
                 var box=floor.AddComponent<BoxCollider>();box.size=new Vector3(6,.2f,30);box.sharedMaterial=material;
+                if(kind=="forest")
+                {
+                    floor.AddComponent<GolfSurface>().Override=Rules.Surface.Forest;
+                    var tree=new GameObject("Disposable Golf tree collider"){layer=LayerMask.NameToLayer("static_solid")};fixtures.Add(tree);tree.AddComponent<GolfTestLifetime>();
+                    tree.transform.position=origin+Vector3.forward*3+Vector3.right*.38f+Vector3.up*1.5f;
+                    var trunk=tree.AddComponent<CapsuleCollider>();trunk.radius=.35f;trunk.height=3.5f;trunk.sharedMaterial=material;
+                }
+                if(kind=="water")
+                {
+                    var pool=new GameObject("Disposable Golf water volume"){layer=LayerMask.NameToLayer("WaterVolume")};fixtures.Add(pool);pool.AddComponent<GolfTestLifetime>();
+                    pool.transform.position=origin+Vector3.forward*5+Vector3.up*.15f;
+                    var trigger=pool.AddComponent<BoxCollider>();trigger.isTrigger=true;trigger.size=new Vector3(6,1,6);
+                    var water=pool.AddComponent<WaterVolume>();water.enabled=false;water.m_forceDepth=0;
+                }
                 if(kind=="ramp")
                 {
                     var ramp=new GameObject("Disposable Golf ramp"){layer=LayerMask.NameToLayer("piece")};fixtures.Add(ramp);ramp.AddComponent<GolfTestLifetime>();
@@ -188,7 +221,8 @@ namespace MeadowGolf
                 }
                 foreach(var go in fixtures)foreach(Character c in Character.GetAllCharacters())if(c!=null)foreach(var collider in c.GetComponentsInChildren<Collider>())Physics.IgnoreCollision(go.GetComponent<Collider>(),collider);
                 yield return new WaitForFixedUpdate();
-                yield return PhysicsTest(source,kind=="basement"?1:2,kind=="floor"?.6f:kind=="basement"?.5f:.25f,direction,r=>{r["fixture"]=kind;output(r);},origin);
+                yield return PhysicsTest(source,kind=="basement"?1:2,kind=="floor"||kind=="forest"||kind=="water"?.6f:kind=="basement"?.5f:.25f,direction,r=>{r["fixture"]=kind;output(r);},origin);
+                if(kind=="water")yield return HazardTest(origin,output);
             }
             finally {foreach(var go in fixtures)if(go!=null)Destroy(go);}
         }

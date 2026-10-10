@@ -12,22 +12,22 @@ namespace MeadowGolf
     {
         public const string Guid="com.bobisme.golf";
         public const string Name="Meadow Golf";
-        public const string Version="0.1.0";
+        public const string Version="0.2.0";
         internal static Plugin Instance;
         private Harmony _harmony;
         private ConfigEntry<KeyboardShortcut> _cardKey;
-        private bool _charging,_card,_sawDone;
+        private bool _charging,_card,_sawDone,_roundTest,_roundCancel;private int _roundHole;
         private int _mode;
         private float _started,_nextMessage;
         private GolfBall _chargedBall,_observed;
         private GUIStyle _label,_heading,_small;
-        private Texture2D _panel,_bar;
         private LineRenderer _aim,_aimEnd;
         private readonly ShotPreview _preview=new ShotPreview();
         private static int _escapeFrame=-10;
         internal static bool ReservesEscape=>_escapeFrame==Time.frameCount||_escapeFrame==Time.frameCount-1||
             (Instance!=null&&Instance._card&&Input.GetKeyDown(KeyCode.Escape));
         internal static bool ReadingScroll;
+        internal static bool CardOpen=>Instance!=null&&Instance._card&&Active;
         internal static bool Active=>Instance!=null&&CanPlay(Player.m_localPlayer)&&Prefabs.IsClub(Prefabs.Right(Player.m_localPlayer));
         private void Awake()
         {
@@ -48,20 +48,31 @@ namespace MeadowGolf
         {
             GolfWorld.Tick();CommandsTick();
             Player player=Player.m_localPlayer;
-            if(!Active){_charging=false;_card=false;DrawAim(null,Vector3.forward);return;}
-            if(_cardKey.Value.IsDown()){_card=!_card;_charging=false;}
+            if(_roundTest){if(Input.GetKeyDown(KeyCode.Escape)){_roundCancel=true;_escapeFrame=Time.frameCount;}DrawAim(null,Vector3.forward);return;}
+            if(!Active){if(_nativeUI!=null)_nativeUI.SetActive(false);_charging=false;_card=false;DrawAim(null,Vector3.forward);return;}
+            if(_cardKey.Value.IsDown()){_card=!_card;_charging=false;if(_card)GolfMatches.RefreshBoard();}
             if(_card&&Input.GetKeyDown(KeyCode.Escape)){_escapeFrame=Time.frameCount;_card=false;return;}
             GolfBall ball=MyBall();
             if(ball!=_observed){_observed=ball;_sawDone=ball!=null&&ball.Done;}
             if(ball!=null&&ball.Done&&!_sawDone)
             {
                 _sawDone=true;Rules.Parse(ball.Data.GetString(GolfWorld.LabelKey,""),out var hole);
-                GolfWorld.Say($"{Rules.Outcome(ball.Strokes,hole?.Par??3)} — {ball.Strokes} strokes. G shows your scorecard.");_charging=false;
+                int length=ball.Data.GetInt(GolfMatches.Length,0),next=Rules.NextHole(ball.Data.GetString(GolfWorld.CardKey,""),length);
+                GolfWorld.Say($"{Rules.Outcome(ball.Strokes,hole?.Par??3)} — {ball.Strokes} strokes. "+(length>0?(next==0?"Match complete! G shows the results.":$"Next: hole {next}. E at its tee continues your match."):"G shows your scorecard."));_charging=false;
             }
-            if(_card){DrawAim(null,Vector3.forward);return;}
+            if(_card)
+            {
+                if(Input.GetKeyDown(KeyCode.Alpha1))GolfMatches.RequestMatch(9);
+                if(Input.GetKeyDown(KeyCode.Alpha2))GolfMatches.RequestMatch(18);
+                if(Input.GetKeyDown(KeyCode.J))GolfMatches.RequestMatch(0,true);
+                if(Input.GetKeyDown(KeyCode.X))GolfMatches.StopRound();
+                if(Input.GetKeyDown(KeyCode.M))GolfMatches.EndMatch();
+                if(Input.GetKeyDown(KeyCode.R))GolfMatches.RefreshBoard();
+                DrawAim(null,Vector3.forward);return;
+            }
             ReadingScroll=true;float wheel;try{wheel=ZInput.GetMouseScrollWheel();}finally{ReadingScroll=false;}
             if(!_charging&&Mathf.Abs(wheel)>.01f)_mode=(_mode+(wheel>0?1:2))%3;
-            bool close=ball!=null&&!ball.Done&&Vector3.Distance(player.transform.position,ball.transform.position)<3f;
+            bool close=ball!=null&&!ball.Done&&!ball.Closed&&Vector3.Distance(player.transform.position,ball.transform.position)<3f;
             if(_charging&&Input.GetMouseButtonDown(1)){_charging=false;_chargedBall=null;}
             if(Input.GetMouseButtonDown(0))
             {
@@ -98,6 +109,8 @@ namespace MeadowGolf
                 _aimEnd.useWorldSpace=true;_aimEnd.widthMultiplier=.025f;_aimEnd.startColor=_aimEnd.endColor=new Color(.95f,.78f,.42f,.7f);
                 _aimEnd.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;_aimEnd.receiveShadows=false;_aimEnd.positionCount=25;
             }
+            Color aimColor=_preview.Hazard&&_preview.DisplayComplete?new Color(.35f,.7f,1f,.85f):new Color(.95f,.78f,.42f,.85f);
+            _aim.startColor=aimColor;_aim.endColor=new Color(aimColor.r,aimColor.g,aimColor.b,.25f);_aimEnd.startColor=_aimEnd.endColor=aimColor;
             _aimEnd.enabled=_preview.DisplayComplete;
             if(_aimEnd.enabled)for(int i=0;i<25;i++){float a=i*Mathf.PI/12;_aimEnd.SetPosition(i,_preview.End+new Vector3(Mathf.Cos(a)*.17f,.035f,Mathf.Sin(a)*.17f));}
         }
@@ -110,60 +123,68 @@ namespace MeadowGolf
         private static readonly string[] Modes={"Drive","Chip","Putt"};
         private void OnGUI()
         {
-            if(!Active)return;Theme();
-            GolfBall ball=MyBall();float scale=Mathf.Max(.75f,Screen.height/900f);Matrix4x4 prior=GUI.matrix;Color priorColor=GUI.color,priorContent=GUI.contentColor;GUI.color=GUI.contentColor=Color.white;
-            GUI.matrix=Matrix4x4.TRS(Vector3.zero,Quaternion.identity,new Vector3(scale,scale,1));
+            if(!Active){if(_nativeUI!=null)_nativeUI.SetActive(false);return;}Theme();
+            GolfBall ball=MyBall();float scale=Mathf.Max(.75f,Screen.height/900f);
+            if(!BeginNative(scale))return;
             try
             {
                 float width=Screen.width/scale,height=Screen.height/scale;
                 if(_card){DrawCard(width,height);return;}
-                var rect=new Rect(width/2-225,height-175,450,110);GUI.DrawTexture(rect,_panel);
+                var rect=new Rect(width/2-225,height-175,450,110);Panel(rect);
                 string info="E at a tee to start a hole";
                 if(ball!=null&&Rules.Parse(ball.Data.GetString(GolfWorld.LabelKey,""),out var hole))
                 {
                     ZDO cup=ZDOMan.instance?.GetZDO(ball.Data.GetZDOID(GolfWorld.CupKey));
-                    info=$"{hole.Course} · {hole.Number} / par {hole.Par} · {ball.Strokes} strokes"+
-                        (ball.Done?" · finished":cup!=null?$" · {Vector3.Distance(ball.transform.position,cup.GetPosition()):0.0} m to cup":"");
+                    info=$"{hole.Course} · {hole.Number}"+(ball.Data.GetInt(GolfMatches.Length,0)>0?$"/{ball.Data.GetInt(GolfMatches.Length,0)}":"")+$" / par {hole.Par} · {ball.Strokes} strokes"+
+                        (ball.Closed?" · stopped":ball.Done?" · finished":cup!=null?$" · {Vector3.Distance(ball.transform.position,cup.GetPosition()):0.0} m to cup":"");
                 }
-                GUI.Label(new Rect(rect.x+15,rect.y+7,420,24),Modes[_mode]+(_aim!=null&&_aim.enabled?(_preview.DisplayComplete?$" · ~{_preview.Distance:0.0} m ({_preview.PredictedPower*100:0}%)":" · aim guide"):"")+(_charging?$" — {Power*100:0}%":ball!=null&&!ball.Done&&!ball.Still?" — ball moving":""),_heading);
-                GUI.Label(new Rect(rect.x+15,rect.y+35,420,22),info,_label);
-                GUI.Label(new Rect(rect.x+15,rect.y+64,420,25),$"Wheel: shot · hold/release left mouse · {_cardKey.Value}: scores",_small);
-                if(_charging){GUI.color=new Color(.84f,.63f,.30f);GUI.DrawTexture(new Rect(rect.x+15,rect.y+96,420*Power,5),_bar);GUI.color=Color.white;}
+                NativeLabel(new Rect(rect.x+15,rect.y+4,420,36),Modes[_mode]+(_aim!=null&&_aim.enabled?(_preview.DisplayComplete?$" · ~{_preview.Distance:0.0} m ({_preview.PredictedPower*100:0}%)":" · aim guide"):"")+(_charging?$" — {Power*100:0}%":ball!=null&&!ball.Done&&!ball.Still?" — ball moving":""),_heading);
+                NativeLabel(new Rect(rect.x+15,rect.y+35,420,22),info,_label);
+                NativeLabel(new Rect(rect.x+15,rect.y+64,420,25),(_preview.DisplayComplete&&_preview.Hazard?"Water hazard — last lie +1":ball!=null&&!ball.Done&&!ball.Closed?$"{ShotPhysics.Lie(ball.Body.position)} · Wheel: shot · {_cardKey.Value}: match / scores":$"Wheel: shot · hold/release left mouse · {_cardKey.Value}: match / scores"),_small);
+                if(_charging){UIBox(new Rect(rect.x+15,rect.y+96,420*Power,5),null,new Color(.84f,.63f,.30f));}
             }
-            finally{GUI.matrix=prior;GUI.color=priorColor;GUI.contentColor=priorContent;}
+            finally{EndNative();}
         }
         private void DrawCard(float width,float height)
         {
-            var golfers=GolfBall.Loaded.Where(b=>b!=null&&b.Data!=null&&Vector3.Distance(Player.m_localPlayer.transform.position,b.transform.position)<120)
-                .OrderBy(b=>b.Mine?0:1).ThenBy(b=>b.Data.GetString(GolfWorld.NameKey,"")).Take(8).ToArray();
-            Rect r=new Rect(width/2-390,Mathf.Max(50,height/2-255),780,510);GUI.DrawTexture(r,_panel);
-            GUI.Label(new Rect(r.x+22,r.y+15,730,30),"MEADOW GOLF — SCORECARD",_heading);
-            GUI.Label(new Rect(r.x+22,r.y+52,730,24),"Each golfer's current course · finished holes · nearby players",_small);
-            float y=r.y+91;
+            ZDO mine=GolfMatches.MyData;string match=GolfMatches.MyMatch;
+            var scores=GolfMatches.BoardId==match&&match.Length>0?GolfMatches.Board.Select(row=>new GolfMatches.Score{Name=row.Name,Player=row.Player,Card=row.Card,Holes=row.Holes,State=row.State}).ToList():new System.Collections.Generic.List<GolfMatches.Score>();
+            foreach(GolfBall b in GolfBall.Loaded.Where(b=>b!=null&&b.Data!=null&&(match.Length>0?b.Data.GetString(GolfMatches.Id,"")==match:Vector3.Distance(Player.m_localPlayer.transform.position,b.transform.position)<120)))
+            {
+                long player=b.Data.GetLong(GolfWorld.PlayerKey,0);scores.RemoveAll(row=>row.Player==player);
+                scores.Add(new GolfMatches.Score{Name=b.Data.GetString(GolfWorld.NameKey,"Golfer"),Player=player,Card=b.Data.GetString(GolfWorld.CardKey,""),Holes=b.Data.GetInt(GolfMatches.Length,18),State=GolfMatches.State(b.Data)});
+            }
+            var golfers=scores.OrderByDescending(row=>Rules.ReadCard(row.Card).Count).ThenBy(row=>Rules.ReadCard(row.Card).Sum(h=>h.Strokes-h.Par)).ThenBy(row=>row.Name).Take(8).ToArray();
+            Rect r=new Rect(width/2-390,Mathf.Max(50,height/2-255),780,575);Panel(r);
+            NativeLabel(new Rect(r.x+22,r.y+12,730,40),(_roundTest?$"GOLF TEST · HOLE {_roundHole} · ESCAPE CANCELS":"MEADOW GOLF — MATCH & SCORECARD"),_heading);
+            NativeLabel(new Rect(r.x+22,r.y+52,730,24),"At hole 1: [1] Start 9 holes   [2] Start 18 holes   [J] Join match",_small);
+            NativeLabel(new Rect(r.x+22,r.y+78,730,24),"[X] Stop your round · [M] End match (starter / builder / host) · [R] Refresh scores",_small);
+            GolfMarker first=GolfMatches.FirstTee();
+            NativeLabel(new Rect(r.x+22,r.y+104,730,24),first==null?(mine!=null&&Rules.Parse(mine.GetString(GolfWorld.LabelKey,""),out var cardHole)?$"Course: {cardHole.Course} · E at the next tee continues":"Stand near the first tee to start / join; E at each next tee continues."):$"Course: {first.Hole.Course} · "+(first.View.GetZDO().GetBool(GolfMatches.Open,false)?$"Open {first.View.GetZDO().GetInt(GolfMatches.Length,0)}-hole match":"No open match"),_small);
+            Panel(new Rect(r.x+16,r.y+137,748,387),true);
+            float y=r.y+143;
             foreach(var golfer in golfers)
             {
-                ZDO z=golfer.Data;Rules.Parse(z.GetString(GolfWorld.LabelKey,""),out var hole);
-                var rows=Rules.ReadCard(z.GetString(GolfWorld.CardKey,""));int total=rows.Sum(row=>row.Strokes),par=rows.Sum(row=>row.Par);
-                string scores=string.Join("  ·  ",rows.Select(row=>$"{row.Hole}: {row.Strokes}"));
-                GUI.Label(new Rect(r.x+22,y,730,24),$"{z.GetString(GolfWorld.NameKey,"Golfer")} — {hole?.Course??"Meadow"}   {total} / par {par}"+ (rows.Count>0?$"  ({(total-par>0?"+":"")}{total-par})":""),_label);
-                GUI.Label(new Rect(r.x+22,y+25,730,22),scores.Length>0?scores:"No finished holes yet",_small);y+=44;
+                var rows=Rules.ReadCard(golfer.Card);int total=rows.Sum(row=>row.Strokes),par=rows.Sum(row=>row.Par);
+                NativeLabel(new Rect(r.x+22,y,730,24),$"{golfer.Name} · {golfer.State} · {rows.Count}/{golfer.Holes} holes   {total} / par {par}"+(rows.Count>0?$"  ({(total-par>0?"+":"")}{total-par})":""),_label);
+                for(int h=1;h<=golfer.Holes;h++)
+                {var result=rows.FirstOrDefault(row=>row.Hole==h);NativeLabel(new Rect(r.x+22+(h-1)*40,y+25,40,22),$"{h}:{(result==null?"—":result.Strokes.ToString())}",_small);}
+                y+=46;
             }
-            if(golfers.Length==0)GUI.Label(new Rect(r.x+22,y,730,30),"Start a hole at a tee to begin your card.",_label);
-            GUI.Label(new Rect(r.x+22,r.y+471,730,24),$"{_cardKey.Value} / Escape: close · E on your ball: last lie (+1) · E on tee: return (+1)",_small);
+            if(golfers.Length==0)NativeLabel(new Rect(r.x+22,y,730,30),"Start a hole at a tee to begin your card.",_label);
+            NativeLabel(new Rect(r.x+22,r.y+535,730,24),$"{_cardKey.Value} / Escape: close · E on your ball: last lie (+1) · E on tee: return (+1)",_small);
         }
         private void Theme()
         {
-            if(_panel!=null)return;
-            _panel=new Texture2D(1,1,TextureFormat.RGBA32,false);_panel.SetPixel(0,0,new Color(.006f,.004f,.003f,.94f));_panel.Apply();
-            _bar=new Texture2D(1,1,TextureFormat.RGBA32,false);_bar.SetPixel(0,0,Color.white);_bar.Apply();
-            Font font=Resources.FindObjectsOfTypeAll<Font>().FirstOrDefault(f=>f.name=="AveriaSerifLibre-Bold");
-            _label=new GUIStyle{font=font,fontSize=16,normal={textColor=new Color(.94f,.89f,.77f)}};
-            _heading=new GUIStyle(_label){fontSize=21,fontStyle=FontStyle.Bold};_small=new GUIStyle(_label){fontSize=14,normal={textColor=new Color(.77f,.73f,.64f)}};
+            if(_label!=null)return;
+            _label=new GUIStyle{fontSize=16,normal={textColor=new Color(.94f,.89f,.77f)}};
+            _heading=new GUIStyle(_label){fontSize=26,fontStyle=FontStyle.Bold,normal={textColor=new Color(1f,.77f,.2f)}};_small=new GUIStyle(_label){fontSize=14,normal={textColor=new Color(.77f,.73f,.64f)}};
         }
         private void OnDestroy()
         {
+            if(_nativeUI!=null)Destroy(_nativeUI);
             _preview.Dispose();CommandsStop();GolfWorld.Stop();_harmony?.UnpatchSelf();Prefabs.Unregister();
-            if(_aimEnd!=null)Destroy(_aimEnd.gameObject);if(_aim!=null){Destroy(_aim.sharedMaterial);Destroy(_aim.gameObject);}if(_panel!=null)Destroy(_panel);if(_bar!=null)Destroy(_bar);
+            if(_aimEnd!=null)Destroy(_aimEnd.gameObject);if(_aim!=null){Destroy(_aim.sharedMaterial);Destroy(_aim.gameObject);}
             if(Instance==this)Instance=null;
         }
     }
@@ -214,12 +235,18 @@ namespace MeadowGolf
         private static bool Prefix(ZSyncTransform __instance)
         {
             if(!GolfBall.Syncs.TryGetValue(__instance,out var ball)||ball==null||ball.Data==null)return true;
-            ball.PreparePhysics();Gravity(__instance)=!ball.Done;
-            return !ball.Done; // Completed balls already stored their final pose and zero velocities.
+            ball.PreparePhysics();Gravity(__instance)=!ball.Done&&!ball.Closed;
+            return !ball.Done&&!ball.Closed; // Completed balls already stored their final pose and zero velocities.
         }
     }
     [HarmonyPatch(typeof(Menu),"Update")]
     internal static class CardEscape{private static bool Prefix()=>!Plugin.ReservesEscape;}
+    [HarmonyPatch(typeof(Player),"TakeInput")]
+    internal static class CardPlayerInput
+    {private static void Postfix(Player __instance,ref bool __result){if(__instance==Player.m_localPlayer&&Plugin.CardOpen)__result=false;}}
+    [HarmonyPatch(typeof(PlayerController),"TakeInput")]
+    internal static class CardControllerInput
+    {private static void Postfix(ref bool __result){if(Plugin.CardOpen)__result=false;}}
     [HarmonyPatch(typeof(Character),"Awake")]
     internal static class WalkThroughBalls
     {private static void Postfix(Character __instance){foreach(GolfBall b in GolfBall.Loaded)if(b!=null)b.Ignore(__instance.GetComponentsInChildren<Collider>());}}

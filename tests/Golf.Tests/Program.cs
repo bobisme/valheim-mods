@@ -32,3 +32,33 @@ Check(Rules.Begin("Meadow:1:3","1,3,2",2,true,next,false).Card=="1,3,2","next ho
 Check(Rules.Begin("Elsewhere:1:3","1,3,2",2,true,next,false).Card=="","changing courses starts fresh");
 Check(Rules.Begin("Meadow:1:3","1,3,2",2,true,next,true).Card=="","explicit new round clears card");
 Console.WriteLine("Golf rules passed: marker matching, shot bounds, cup capture, penalties/card bounds and hole replay.");
+
+// Complete both course lengths, including duplicate/missing endpoints and an extra back nine.
+foreach(int holes in new[]{9,18})
+{
+    var markers=new List<Rules.CourseMarker>();
+    for(int h=1;h<=18;h++)
+    {markers.Add(new Rules.CourseMarker{Hole=h,X=h*1000,Z=0});markers.Add(new Rules.CourseMarker{Hole=h,Cup=true,X=h*1000+30,Z=0});}
+    Check(Rules.CourseError(markers,holes)=="","course can span many loaded zones");
+    string round="";
+    for(int h=1;h<=holes;h++)
+    {
+        Check(Rules.NextHole(round,holes)==h,"sequential match hole "+h);
+        round=Rules.Record(round,h,3,3);
+    }
+    Check(Rules.NextHole(round,holes)==0,"match completes at its declared length");
+    markers.RemoveAt(3);Check(Rules.CourseError(markers,holes).Contains("Hole 2"),"missing cup named");
+    markers.Add(new Rules.CourseMarker{Hole=2,Cup=true,X=2030});
+    markers.Add(new Rules.CourseMarker{Hole=1});Check(Rules.CourseError(markers,holes).Contains("found 2"),"duplicate tee rejected");
+}
+Check(Rules.NextHole("1,3,2;3,3,4",9)==2,"unfinished hole cannot be skipped");
+Check(Rules.NextHole("",0)==0&&Rules.CourseError(new(),10)!="","only 9 and 18 hole matches");
+var far=new List<Rules.CourseMarker>{new(){Hole=1},new(){Hole=1,Cup=true,X=241}};
+Check(Rules.CourseError(far,9).Contains("240"),"maximum hole distance checked");
+Check(Rules.Resistance(Rules.Surface.Forest)>Rules.Resistance(Rules.Surface.Grass)&&Rules.Resistance(Rules.Surface.Marsh)>Rules.Resistance(Rules.Surface.Forest)&&Rules.Resistance(Rules.Surface.Snow)>Rules.Resistance(Rules.Surface.Firm),"rough, marsh and snow affect roll");
+Check(!Rules.Submerged(30.02,30)&&Rules.Submerged(29.95,30),"hazards activate on actual water entry, not above the surface");
+Check(!Rules.Submerged(-10,-10000)&&!Rules.Submerged(30,double.NaN),"absent liquid and invalid level stay dry");
+Console.WriteLine("Golf matches passed: complete 9/18-hole rounds, missing/duplicate endpoints, progression and terrain hazards.");
+
+var vertical=new List<Rules.CourseMarker>{new(){Hole=1,Y=0},new(){Hole=1,Cup=true,Y=241}};
+Check(Rules.CourseError(vertical,9).Contains("240"),"extreme vertical hole separation rejected");

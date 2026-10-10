@@ -1,3 +1,32 @@
+# Meadow Golf 0.2.0 validation
+
+Native Linux Creative session, 9 October 2026. Mise-managed .NET 10.0.300, net48.
+Published, build and installed DLL SHA-256: `9d95004312b60093a265ca2785f4156ca265338474165f32636cff043f6af6cf`.
+Final running/native-checked MVID: `4fd004ec-d9d5-4144-8d9d-8e3e8c8f22e9`.
+
+## Checked
+
+- Rule suite covers full nine- and eighteen-hole progression; missing/duplicate markers, horizontal and vertical hole limits, extra back-nine markers, scoring bounds, rough resistance and dry/submerged liquid thresholds.
+- Native API validation resolves 508 installed-game, Unity, TMP and BepInEx member references. All Harmony targets and private sync fields are checked. Build has no warnings or Windows dependency.
+- Full real-shot Creative matches completed nine and eighteen holes with one scored stroke each. The tests use the real host RPCs, ball-owner shot validation, native swing animation/contact and native cup capture; they do not inject completed scores. The nine-hole test was repeated after adding host-routed personal stops and state/score retrieval. Eighteen-hole testing also exercises cup lookup without passing a client-loaded cup view.
+- Skipping an unfinished hole and joining twice leave the original ball/card intact. Personal stop and shared match end preserve every finished score. The host scoreboard retains the complete card.
+- Reloads preserve ball ID, match ID, declared hole count, finished/stopped flags and the card. Independent physics scenes and temporary course markers clean up.
+- Final-artifact forest fixture: 60% putt through heavy rough and a trunk-shaped obstacle, predicted/actual displacement 4.3398 m, endpoint error 0. Water fixture: predicted/actual entry at 2.0491 m, endpoint error 0. Both use unsaved colliders 100 m above play.
+- An independent unsaved live GolfBall entering native water returned to its exact last lie, added exactly one penalty, and remained stable after recovery. It did not change the player's card.
+- Native window inspected in a live screenshot. It renders through the game's UI canvas with inventory wood/recessed sprites, `Valheim-AveriaSerifLibre` headings and `Valheim-AveriaSansLibre` body text. Title bounds and contrast are checked; closing it restores normal input. Catalog metadata and matching portable DLL/PDB symbols pass verification.
+
+Temporary tests do not teleport, terraform, damage, remove or modify existing structures. Course markers are individually tracked, unsaved, and have timeout/reload cleanup. In an initial test on stairs, the ball correctly rolled out of reach before a shot; a separate tiny flat test slab made subsequent lifecycle tests reproducible.
+
+## Remaining qualification
+
+A second real player, dedicated-server startup, disconnect/ownership handoff and network latency have not been exercised in this single-player session. Multiplayer paths validate peer identity and player ID; the host creates shared match IDs, course validation, scoreboards and stop/end changes, while each ball owner runs physics. Far-away ball state and personal stop use host routing, and ownership revisions guard against stale owner packets, but static inspection and a local routed test do not substitute for a two-player session.
+
+Prediction is bounded and remains approximate for moving geometry, weather changes and geometry modified during a shot. Surface/obstacle rules use the real terrain/colliders; the forest fixture exercises the same resistance with an explicit fixture surface override and trunk collider. Snow/swamp resistance is rule-tested, not separately live-tested in those biomes. Liquid levels omit waves for stable rules. Existing unrelated Gary, cloth and CinderSpawner errors appeared in the shared log; the completed Golf tests produced no Golf exception.
+
+The following historical measurements describe 0.1.0 before rough and liquid hazards were added; ranges on uncleared terrain now differ.
+
+---
+
 # Meadow Golf 0.1.0 validation
 
 Native Linux Creative session, 9 October 2026. Compiled with mise-managed .NET 10.0.300 for net48.

@@ -26,6 +26,7 @@ namespace MeadowGolf
         private bool _geometryComplete;
         internal int Count {get;private set;}
         internal bool Complete {get;private set;}
+        internal bool Hazard {get;private set;}
         internal string Reason {get;private set;}="";
         internal float Distance {get;private set;}
         internal double Milliseconds {get;private set;}
@@ -77,7 +78,7 @@ namespace MeadowGolf
         private IEnumerator Run(GolfBall ball,int mode,float power,Vector3 direction,Vector3 origin)
         {
             _cpu=_maxSlice=0;Ensure(ball);
-            _seen.Clear();_visited.Clear();_geometryComplete=true;Reason="";
+            _seen.Clear();_visited.Clear();_geometryComplete=true;Reason="";Hazard=false;
             foreach(var proxy in _surfaces.Values)if(proxy!=null){proxy.SetActive(false);if(Budget())yield return null;}
             _body.position=origin;_body.rotation=Quaternion.identity;ShotPhysics.Launch(_body,mode,power,direction);
             int count=1;_working[0]=origin;bool complete=false;float still=0;
@@ -100,6 +101,7 @@ namespace MeadowGolf
                 Vector3 pos=_body.position,delta=pos-origin;
                 if((pos-_working[count-1]).sqrMagnitude>.16f&&count<_working.Length-1)_working[count++]=pos;
                 if(new Vector2(delta.x,delta.z).sqrMagnitude>10000||Mathf.Abs(delta.y)>40){Reason="Shot travels beyond the preview limit";break;}
+                if(ShotPhysics.Water(pos)){Hazard=true;Reason="Water hazard · last lie +1";complete=_geometryComplete;break;}
                 if(cup!=null)
                 {
                     Vector3 c=pos-(cup.GetPosition()+Vector3.up*ShotPhysics.Radius);
@@ -157,6 +159,8 @@ namespace MeadowGolf
                 else if(source is CapsuleCollider capsule){var c=go.AddComponent<CapsuleCollider>();c.center=capsule.center;c.radius=capsule.radius;c.height=capsule.height;c.direction=capsule.direction;copy=c;}
                 else if(source is MeshCollider mesh){var c=go.AddComponent<MeshCollider>();c.cookingOptions=mesh.cookingOptions;c.sharedMesh=mesh.sharedMesh;c.convex=mesh.convex;copy=c;}
                 else {_geometryComplete=false;Reason="Unsupported collider: "+source.GetType().Name;UnityEngine.Object.Destroy(go);return;}
+                GolfSurface original=source.GetComponent<GolfSurface>();Heightmap map=original?.Map??source.GetComponentInParent<Heightmap>();
+                if(map!=null||original?.Override!=null){var surface=go.AddComponent<GolfSurface>();surface.Map=map;surface.Override=original?.Override;}
                 copy.sharedMaterial=source.sharedMaterial;_surfaces[id]=go;
         }
         public void Dispose()
