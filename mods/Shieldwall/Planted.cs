@@ -255,9 +255,9 @@ namespace Shieldwall
             if(_item==null){_why="Empty";return;}
             Warstone near=Warstone.Loaded.Where(w=>w!=null&&w.Z!=null).OrderBy(w=>Vector3.Distance(w.transform.position,transform.position)).FirstOrDefault();
             if(near==null){_why="Asleep: no Warstone near";return;}
-            int level=near.Level;float reach=Policy.PowerRadius(level),d=Vector3.Distance(near.transform.position,transform.position);
+            float reach=near.Reach,d=Vector3.Distance(near.transform.position,transform.position);
             if(d>reach){_why=$"Asleep: {d:0} m from the Warstone, which reaches {reach:0} m (raise its level)";return;}
-            int capacity=Policy.Capacity(level);
+            int capacity=near.Capacity;
             int rank=Loaded.Count(p=>p!=null&&p!=this&&p._item!=null&&Vector3.Distance(p.transform.position,near.transform.position)<d);
             _stone=near;
             if(rank>=capacity){_why=$"Asleep: the Warstone feeds only {capacity} staves (raise its level)";return;}
@@ -266,8 +266,13 @@ namespace Shieldwall
         internal static Planted Nearest(Vector3 at,float range)=>Loaded.Where(p=>p!=null&&p._item!=null&&p.Stone()!=null&&Vector3.Distance(p.transform.position,at)<=range)
             .OrderBy(p=>Vector3.Distance(p.transform.position,at)).FirstOrDefault();
         private int Quality=>_item?.m_quality??1;
-        private float Range=>_stave!=null?Policy.RangeAt(_stave,Quality):Policy.BorrowedRange;
-        private float Cooldown=>_stave!=null?_stave.Cooldown:Policy.BorrowedCooldown;
+        private static readonly HashSet<string> NoBoons=new HashSet<string>();
+        private HashSet<string> Boons=>_stone!=null?_stone.Boons:NoBoons;
+        private StaveKind Kind=>_stave?.Kind??StaveKind.None;
+        // Boons reach farther; the Fog of war boast cuts every stave's sight to two thirds.
+        private float Range=>((_stave!=null?Policy.RangeAt(_stave,Quality):Policy.BorrowedRange)+Policy.BoonRange(Kind,Boons))*(_stone!=null&&Policy.Has(_stone.Boasts,Boast.Fog)?0.67f:1);
+        private float Cooldown=>(_stave!=null?_stave.Cooldown:Policy.BorrowedCooldown)*Policy.BoonCooldown(Kind,Boons);
+        internal string Title=>_item==null?"Stave socket":Localization.instance.Localize(_item.m_shared.m_name);
 
         // ---- watching and shooting (on the game that owns the socket) ----
         private float _nextLoad;
@@ -383,9 +388,10 @@ namespace Shieldwall
                 if(shot.GetComponent<Projectile>() is Projectile p)p.m_onHit=null; // the spawner's own hook on the shot
             }
             var hit=new HitData{m_pushForce=10,m_staggerMultiplier=1,m_hitType=HitData.HitType.Turret,m_itemWorldLevel=(byte)Game.m_worldLevel,m_blockable=true,m_dodgeable=true};
+            bool chief=foe.GetComponent<Raider>() is Raider r&&(r.Role==Role.Champion||r.Role==Role.Guard);
             if(_stave!=null)
             {
-                float power=Policy.Power(Quality);
+                float power=Policy.Power(Quality)*Policy.BoonDamage(_stave.Kind,Boons,chief);
                 switch(_stave.Type)
                 {
                     case "fire":hit.m_damage.m_fire=_stave.Damage*power;break;
@@ -395,7 +401,7 @@ namespace Shieldwall
                 }
                 hit.m_damage.m_blunt+=_stave.Splash*power;
             }
-            else{hit.m_damage=_item.GetDamage();hit.m_damage.Modify(Policy.BorrowedPower);}
+            else{hit.m_damage=_item.GetDamage();hit.m_damage.Modify(Policy.BoonBorrowed(Boons)*Policy.BoonDamage(StaveKind.None,Boons,chief));}
             StatusEffect status=_item.m_shared.m_attackStatusEffect;
             if(status!=null)hit.m_statusEffectHash=status.NameHash();
             shot.GetComponent<IProjectile>()?.Setup(null,dir*speed,-1,hit,_shot,null);
@@ -405,7 +411,7 @@ namespace Shieldwall
         // The Hearth stave: friends near it heal; during a siege the stone itself is mended too.
         private void Mend(Warstone stone)
         {
-            float amount=_stave.Damage*Policy.Power(Quality);
+            float amount=_stave.Damage*Policy.Power(Quality)*Policy.BoonDamage(StaveKind.Hearth,Boons,false);
             bool any=false;
             foreach(Character c in Character.GetAllCharacters())
             {
@@ -416,7 +422,7 @@ namespace Shieldwall
             // The stone: half a percent of its strength each pulse (more with upgrades), during a siege.
             ZDO z=stone.Z;
             if(stone.Phase==Phase.Battle&&Vector3.Distance(stone.transform.position,transform.position)<=Range+5&&z.GetFloat(Shieldwall.Stone.HealthKey,0)<z.GetFloat(Shieldwall.Stone.MaxHealthKey,0))
-            {Net.Damage(stone,-z.GetFloat(Shieldwall.Stone.MaxHealthKey,0)*0.005f*Policy.Power(Quality),stone.transform.position);any=true;}
+            {Net.Damage(stone,-z.GetFloat(Shieldwall.Stone.MaxHealthKey,0)*0.005f*Policy.Power(Quality)*Policy.BoonDamage(StaveKind.Hearth,Boons,false),stone.transform.position);any=true;}
             if(any)Assets.Effect("vfx_HealthUpgrade",transform.position+Vector3.up*Pieces.SocketTop);
         }
 
@@ -553,13 +559,13 @@ namespace Shieldwall
             Warstone near=Warstone.Loaded.Where(w=>w!=null).OrderBy(w=>Vector3.Distance(w.transform.position,at)).FirstOrDefault();
             if(near!=null)
             {
-                int level=near.Level;float reach=Policy.PowerRadius(level);
+                int level=near.Level;float reach=near.Reach;
                 string refused=null;
                 if(Vector3.Distance(near.transform.position,at)>reach)refused=$"Beyond the Warstone's reach ({reach:0} m at level {level}). Raise its level to build farther.";
                 else
                 {
                     int built=Planted.Loaded.Count(p=>p!=null&&Vector3.Distance(p.transform.position,near.transform.position)<=reach);
-                    if(built>=Policy.Capacity(level))refused=$"The Warstone feeds only {Policy.Capacity(level)} staves at level {level}. Raise its level to build more sockets.";
+                    if(built>=near.Capacity)refused=$"The Warstone feeds only {near.Capacity} staves at level {level}. Raise its level to build more sockets.";
                 }
                 if(refused!=null){__instance.Message(MessageHud.MessageType.Center,refused);__result=false;return false;}
             }
@@ -602,8 +608,11 @@ namespace Shieldwall
     {
         private static void Prefix(Character __instance)
         {
-            if(Raider.LastShot.TryGetValue(__instance,out var shot)&&shot.socket!=null&&Time.time-shot.at<4)shot.socket.Killed();
+            Planted stave=Raider.LastShot.TryGetValue(__instance,out var shot)&&shot.socket!=null&&Time.time-shot.at<4?shot.socket:null;
+            stave?.Killed();
             Raider.LastShot.Remove(__instance);
+            // A raider of a siege: told in its saga.
+            if(__instance.GetComponent<Raider>() is Raider raider&&raider.Siege!=0)Net.Tally(raider.StoneAt,raider.Siege,Saga.Killer(__instance,stave));
         }
     }
     // The socket is the game's own one-slot container; it speaks for itself on hover, strengthens on Shift+Use, takes a stave from the hotbar.

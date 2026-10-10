@@ -26,6 +26,7 @@ namespace Shieldwall
         internal static void Tick()
         {
             Warstone stone=Near();
+            Fog(stone!=null&&Policy.Has(stone.Boasts,Boast.Fog));
             bool show=stone!=null&&stone.Z!=null&&!Hidden();
             if(!show){if(_bar!=null&&_bar.activeSelf)_bar.SetActive(false);return;}
             if(_bar==null&&!Make())return;
@@ -75,7 +76,19 @@ namespace Shieldwall
             _music=events?.Where(e=>e!=null&&!string.IsNullOrEmpty(e.m_forceMusic)).OrderByDescending(e=>e.m_name.StartsWith("army_")).Select(e=>e.m_forceMusic).FirstOrDefault()??"";
             return _music;
         }
-        internal static void Clear(){_stone=null;_music=null;if(_bar!=null)Object.Destroy(_bar);_bar=null;}
+        // Fog of war (a boast): a mist rolls in for everyone near the siege, unless the sky is already forced by something else.
+        private static readonly AccessTools.FieldRef<EnvMan,string> ForcedSky=AccessTools.FieldRefAccess<EnvMan,string>("m_forceEnv");
+        private const string Mist="Misty";
+        private static bool _fogged;
+        private static void Fog(bool on)
+        {
+            EnvMan env=EnvMan.instance;
+            if(env==null||on==_fogged)return;
+            string sky=ForcedSky(env);
+            if(on){if(string.IsNullOrEmpty(sky)&&env.m_environments.Any(e=>e.m_name==Mist)){env.SetForceEnvironment(Mist);_fogged=true;}}
+            else{if(sky==Mist)env.SetForceEnvironment("");_fogged=false;}
+        }
+        internal static void Clear(){Fog(false);_stone=null;_music=null;if(_bar!=null)Object.Destroy(_bar);_bar=null;}
     }
 
     [HarmonyPatch(typeof(RandEventSystem),nameof(RandEventSystem.GetMusicOverride))]

@@ -6,7 +6,12 @@ namespace Shieldwall
 {
     // Pure rules for Shieldwall: the Warstone's marks and ward, who comes to a siege and how many, when waves come, what holding the
     // line earns, and the staves. No Unity or game types, so every number can be tested.
-    internal enum Role{Grunt=1,Sapper=2,Flyer=3,Champion=4,Digger=5}
+    internal enum Role{Grunt=1,Sapper=2,Flyer=3,Champion=4,Digger=5,Guard=6}
+    // Boasts: sworn at the horn, each makes the siege harder and its warshards richer.
+    internal enum Boast{BloodMoon=0,Fog=1,Burrowers=2,Wings=3,Chosen=4,Tide=5,BareStone=6}
+    internal sealed class BoastInfo{internal Boast Id;internal string Name,Text;internal double Bonus;}
+    // Boons: one kept for good each time the stone holds a siege.
+    internal sealed class Boon{internal string Id,Name,Text;}
     internal enum Phase{Idle=0,Gathering=1,Battle=2}
     internal enum Cause{Horn=0,Raid=1,Test=2,Early=3}
     internal enum StaveKind{None=-1,Ember=0,Frost=1,Thunder=2,Blast=3,Hearth=4}
@@ -120,8 +125,10 @@ namespace Shieldwall
         internal const int MinAlive=4;
 
         // A deterministic plan: the same seed always makes the same siege, so a new owner of the stone carries on the same one.
-        internal static List<List<Unit>> Plan(int stage,int marks,int players,int seed)
+        internal static List<List<Unit>> Plan(int stage,int marks,int players,int seed,int boasts=0)
         {
+            double digChance=Has(boasts,Boast.Burrowers)?0.22:0.06,flyChance=Has(boasts,Boast.Wings)?0.24:0.08;
+            int digFrom=Has(boasts,Boast.Burrowers)?0:1,flyFrom=Has(boasts,Boast.Wings)?1:2;
             var rng=new Rng(seed);
             stage=Math.Max(0,Math.Min(Rosters.Length-1,stage));
             Roster roster=Rosters[stage],earlier=Rosters[Math.Max(0,stage-1)];
@@ -138,8 +145,8 @@ namespace Shieldwall
                     Role role=Role.Grunt;
                     double roll=rng.Next();
                     if(w>=1&&roster.Sappers.Length>0&&roll<0.10)role=Role.Sapper;
-                    else if(w>=1&&roll<0.16)role=Role.Digger;
-                    else if(w>=2&&roster.Flyers.Length>0&&rng.Next()<0.08)role=Role.Flyer;
+                    else if(w>=digFrom&&roll>=0.10&&roll<0.10+digChance)role=Role.Digger;
+                    else if(w>=flyFrom&&roster.Flyers.Length>0&&rng.Next()<flyChance)role=Role.Flyer;
                     string prefab;
                     switch(role)
                     {
@@ -155,6 +162,9 @@ namespace Shieldwall
             int chiefs=1+m/4;
             for(int i=0;i<chiefs;i++)plan[waves-1].Insert(0,new Unit{Prefab=roster.Champions[i%roster.Champions.Length],Level=3,Role=Role.Champion});
             if(m>=3)plan[waves/2].Add(new Unit{Prefab=roster.Champions[0],Level=2,Role=Role.Champion});
+            // The chosen chief's guard march at his side.
+            if(Has(boasts,Boast.Chosen))for(int i=0;i<3;i++)plan[waves-1].Insert(1,new Unit{Prefab=Pick(roster,rng),Level=2,Role=Role.Guard});
+            if(Has(boasts,Boast.BloodMoon))foreach(Unit u in plan.SelectMany(w=>w))u.Level=Math.Min(3,u.Level+1);
             return plan;
         }
         private static string Pick(Roster roster,Rng rng)
@@ -190,17 +200,99 @@ namespace Shieldwall
 
         // ---- pacing ----
         // The next wave comes when this one is mostly down, or after a while regardless.
-        internal static bool NextWave(int alive,int waveSize,double sinceWave,double maxGap)=>sinceWave>=maxGap||alive<=Math.Max(MinAlive/2,waveSize*0.3)&&sinceWave>=12;
+        // No respite (a boast): half the wait, and the next comes when this one is half down.
+        internal static bool NextWave(int alive,int waveSize,double sinceWave,double maxGap,bool tide=false)=>
+            sinceWave>=maxGap*(tide?0.5:1)||alive<=Math.Max(MinAlive/2,waveSize*(tide?0.5:0.3))&&sinceWave>=(tide?6:12);
         // Raiders stream out of the rift a few at a time while there is room.
         internal static int Release(int queued,int alive,int cap)=>Math.Max(0,Math.Min(Math.Min(queued,3),cap-alive));
 
         // ---- what holding the line earns ----
-        internal static int Shards(int stage,int marks,double health,int kills)=>3+stage+Marks(marks)/2+(int)Math.Round(5*Clamp01(health))+kills/12;
+        internal static int Shards(int stage,int marks,double health,int kills)=>ShardParts(stage,marks,health,kills).Sum(p=>p.amount);
+        // The same, part by part, for the saga: what each warshard was for.
+        internal static (string why,int amount)[] ShardParts(int stage,int marks,double health,int kills)=>new[]
+        {
+            ("holding the line",3+stage),("the stone's marks",Marks(marks)/2),($"the stone standing at {Math.Round(100*Clamp01(health))}%",(int)Math.Round(5*Clamp01(health))),($"{Math.Max(0,kills)} slain",Math.Max(0,kills)/12),
+        };
+        // Boasts sworn at the horn add their share on top.
+        internal static int Boasted(int shards,int boasts)=>(int)Math.Round(shards*(1+BoastBonus(boasts)));
         // A fallen stone still pays a little for the raiders it took with it, so even a lost siege brings the first staves closer.
         internal static int Consolation(int kills)=>Math.Max(0,kills)/6;
         internal static int Coins(int min,int max,int marks,double roll)=>(int)Math.Round((min+(max-min)*Clamp01(roll))*(1+0.1*Marks(marks)));
         // A raider sometimes carries a shard; a warchief always carries several.
-        internal static int Carried(Role role,double roll)=>role==Role.Champion?3+(int)(Clamp01(roll)*3):roll<0.12?1:0;
+        internal static int Carried(Role role,double roll,bool lucky=false)=>role==Role.Champion?3+(int)(Clamp01(roll)*3):roll<(lucky?0.24:0.12)?1:0;
+
+        // ---- boasts: offered two at a time at the horn ----
+        internal static readonly BoastInfo[] Boasts=
+        {
+            new BoastInfo{Id=Boast.BloodMoon,Name="Blood moon",Bonus=0.6,Text="Every raider comes with a star more."},
+            new BoastInfo{Id=Boast.Fog,Name="Fog of war",Bonus=0.4,Text="A mist rolls in: staves see only two thirds as far."},
+            new BoastInfo{Id=Boast.Burrowers,Name="Burrowers",Bonus=0.35,Text="Many diggers from the first wave on: guard the stone's footing."},
+            new BoastInfo{Id=Boast.Wings,Name="Black wings",Bonus=0.35,Text="Three times as many fliers come over the walls."},
+            new BoastInfo{Id=Boast.Chosen,Name="Chosen chief",Bonus=0.5,Text="The warchief brings a guard of three, and no blow touches him while one of them lives."},
+            new BoastInfo{Id=Boast.Tide,Name="No respite",Bonus=0.4,Text="Each wave comes when the last is half down, and twice as soon."},
+            new BoastInfo{Id=Boast.BareStone,Name="Bare stone",Bonus=0.4,Text="The stone stands at only 60% of its strength."},
+        };
+        internal static bool Has(int boasts,Boast b)=>(boasts&(1<<(int)b))!=0;
+        internal static int Mask(params Boast[] boasts)=>boasts.Aggregate(0,(m,b)=>m|1<<(int)b);
+        internal static double BoastBonus(int boasts)=>Boasts.Where(b=>Has(boasts,b.Id)).Sum(b=>b.Bonus);
+        internal static IEnumerable<BoastInfo> Sworn(int boasts)=>Boasts.Where(b=>Has(boasts,b.Id));
+        // The two the stone offers before a siege: the same on every player's game (seeded by the stone and how many sieges it has seen).
+        internal static Boast[] OfferBoasts(int seed,int stage)
+        {
+            var rng=new Rng(seed);
+            var pool=Boasts.Select(b=>b.Id).Where(b=>b!=Boast.Wings||Rosters[Math.Max(0,Math.Min(Rosters.Length-1,stage))].Flyers.Length>0).ToList();
+            var offer=new List<Boast>();
+            while(offer.Count<2&&pool.Count>0){int i=rng.Index(pool.Count);offer.Add(pool[i]);pool.RemoveAt(i);}
+            return offer.ToArray();
+        }
+        // Only what was offered can be sworn.
+        internal static int Allowed(int asked,Boast[] offered)=>asked&Mask(offered);
+
+        // ---- boons: three offered after a held siege, one kept ----
+        internal static readonly Boon[] Boons=
+        {
+            new Boon{Id="ember",Name="Hungry flame",Text="Ember staves strike 35% harder."},
+            new Boon{Id="frost",Name="Deep winter",Text="Frost staves strike 35% harder and see 4 m farther."},
+            new Boon{Id="thunder",Name="Thor's ear",Text="Thunder staves strike a third faster."},
+            new Boon{Id="blast",Name="Black powder",Text="Blast staves strike 35% harder."},
+            new Boon{Id="hearth",Name="Warm hearth",Text="Hearth staves mend twice as much."},
+            new Boon{Id="blood",Name="Bloodstone",Text="The stone mends half a percent of its strength for every raider slain."},
+            new Boon{Id="rooted",Name="Deep roots",Text="The stone is a quarter stronger in a siege."},
+            new Boon{Id="veins",Name="Wide veins",Text="The stone feeds two more staves."},
+            new Boon{Id="reach",Name="Long reach",Text="The stone's power reaches 8 m farther."},
+            new Boon{Id="eyes",Name="Raven's eyes",Text="Every stave sees 4 m farther."},
+            new Boon{Id="bane",Name="Chieftain's bane",Text="Staves strike warchiefs and their guards half again as hard."},
+            new Boon{Id="luck",Name="Shard-luck",Text="Raiders carry warshards twice as often."},
+            new Boon{Id="ward",Name="Old blood",Text="The stone's ward is as strong as two marks more."},
+            new Boon{Id="hands",Name="Many hands",Text="Borrowed staffs in sockets strike at 70% instead of 40%."},
+        };
+        internal static Boon BoonOf(string id)=>Boons.FirstOrDefault(b=>b.Id==id);
+        internal static HashSet<string> ParseBoons(string saved)=>new HashSet<string>((saved??"").Split(new[]{','},StringSplitOptions.RemoveEmptyEntries).Where(id=>BoonOf(id)!=null));
+        internal static string[] OfferBoons(int seed,ICollection<string> kept)
+        {
+            var rng=new Rng(seed);
+            var pool=Boons.Select(b=>b.Id).Where(id=>!kept.Contains(id)).ToList();
+            var offer=new List<string>();
+            while(offer.Count<3&&pool.Count>0){int i=rng.Index(pool.Count);offer.Add(pool[i]);pool.RemoveAt(i);}
+            return offer.ToArray();
+        }
+        // What the boons do to a stave and to the stone.
+        internal static float BoonDamage(StaveKind kind,ICollection<string> boons,bool chief)
+        {
+            float k=1;
+            if(kind==StaveKind.Ember&&boons.Contains("ember")||kind==StaveKind.Frost&&boons.Contains("frost")||kind==StaveKind.Blast&&boons.Contains("blast"))k*=1.35f;
+            if(kind==StaveKind.Hearth&&boons.Contains("hearth"))k*=2;
+            if(chief&&boons.Contains("bane"))k*=1.5f;
+            return k;
+        }
+        internal static float BoonRange(StaveKind kind,ICollection<string> boons)=>(kind==StaveKind.Frost&&boons.Contains("frost")?4:0)+(boons.Contains("eyes")?4:0);
+        internal static float BoonCooldown(StaveKind kind,ICollection<string> boons)=>kind==StaveKind.Thunder&&boons.Contains("thunder")?0.75f:1;
+        internal static int BoonCapacity(ICollection<string> boons)=>boons.Contains("veins")?2:0;
+        internal static float BoonReach(ICollection<string> boons)=>boons.Contains("reach")?8:0;
+        internal static float BoonHealth(ICollection<string> boons)=>boons.Contains("rooted")?1.25f:1;
+        internal static int BoonWard(ICollection<string> boons)=>boons.Contains("ward")?2:0;
+        internal static float BoonBorrowed(ICollection<string> boons)=>boons.Contains("hands")?0.7f:BorrowedPower;
+        internal const float BloodMend=0.005f;                // Bloodstone: share of the stone's strength mended per raider slain
         private static double Clamp01(double v)=>double.IsNaN(v)?0:Math.Max(0,Math.Min(1,v));
 
         // ---- the stone's level: 1 + the upgrades built around it (a banner, a totem, a brazier, an obelisk) ----

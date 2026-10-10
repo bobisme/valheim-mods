@@ -50,7 +50,7 @@ comes for it.
 **The Warstone** (hammer → misc; 30 stone, 10 wood, 5 flint, 5 resin, near a workbench) wards everyone within **40 m**: faster health
 and stamina regeneration, then carry weight, eitr regeneration and armor as it gains **marks** (one for each siege it holds). Under a roof
 with a fire burning within 10 m it stands at a **hearth**: the ward doubles and adds comfort. One stone to a home (none within 80 m of
-another). **E** opens its stave crafting; **Shift+E** sounds the **war horn**.
+another). **E** opens its stave crafting; **Shift+E** opens the **war council**, where you sound the **war horn**.
 
 | Marks | Title | Ward at a hearth (half in the open, no comfort) |
 | --- | --- | --- |
@@ -118,6 +118,31 @@ wave holds, and once a wave is all out of the rift, **Shift+E** on the stone cal
 - **Undermined**: if the land under the stone sinks a metre below where it was set (diggers at its foot, or a moat dug too close), the
   stone **topples** into the pit: it cracks, loses a mark, and a siege on is lost.
 
+**The war council** (Shift+E on a stone at rest) is a small window in the game's dark wood. It names the horde that will come and offers
+two **boasts** to swear before you sound the horn: each makes the siege harder and adds its share of warshards if the stone holds. The
+offer is the same for everyone and changes after each siege.
+
+| Boast | The siege | Warshards |
+| --- | --- | --- |
+| Blood moon | every raider comes with a star more | +60% |
+| Fog of war | a mist rolls in; staves see only two thirds as far | +40% |
+| Burrowers | many diggers, from the first wave | +35% |
+| Black wings | three times the fliers (hordes that have them) | +35% |
+| Chosen chief | the warchief brings a guard of three; no blow touches him while one lives (he glows blue till then) | +50% |
+| No respite | each wave comes when the last is half down, and twice as soon | +40% |
+| Bare stone | the stone stands at 60% of its strength | +40% |
+
+Each time the stone holds, it offers three **boons** at the council; choose one and it keeps it for good (a stone with them all is offered
+none): **Hungry flame** (Ember +35%), **Deep winter** (Frost +35% and 4 m), **Thor's ear** (Thunder a third faster), **Black powder**
+(Blast +35%), **Warm hearth** (Hearth mends twice as much), **Bloodstone** (the stone mends 0.5% for each raider slain), **Deep roots**
+(the stone a quarter stronger), **Wide veins** (two more staves fed), **Long reach** (8 m more reach), **Raven's eyes** (every stave sees 4 m
+farther), **Chieftain's bane** (staves strike warchiefs and guards half again as hard), **Shard-luck** (raiders carry warshards twice as
+often), **Old blood** (the ward two marks stronger) and **Many hands** (borrowed staffs at 70%). The stone's hover lists its boons.
+
+**The saga.** When a siege ends, everyone near the stone reads its saga in the game's own rune-stone window: the horde and the boasts, who
+slew how many (each player, companion and stave), the mightiest stave, the stone's closest call, and what each warshard was for. The war
+council can show the last one again.
+
 The horn rests **20 minutes** after a siege. A stone can't be taken down while a siege is on. Raiders carry warshards now and then
 (warchiefs 3–6) and drop their trophies more often.
 
@@ -130,7 +155,7 @@ it carries on if that player leaves and works on a dedicated server without the 
 server keeps loaded and clears of objects it doesn't know). A game hosted by a player needs Shieldwall on the host too, or the host's game
 deletes the stone; the stone, sockets and upgrades refuse to be built there, so nothing is lost. Everyone who joins in needs Shieldwall. Warnings,
 wave pacing, the most raiders at once (40), the time limit and the horn's cooldown are in F7. With Claude Tools, `siege status | plan | route |
-start [stage] | end | marks | raiders | hover | sight | recipes | horn | raid` and test builders (`place`, `put`, `plant`, `tower`, `line`, `wall`,
+start [stage] [boasts] | end | marks | raiders | hover | sight | recipes | council | horn [boasts] | boasts | offer | boon | saga | raid` and test builders (`place`, `put`, `plant`, `tower`, `line`, `wall`,
 `unbuild`, `remove`, `goto`) check stones, watch what each raider is doing and run short test sieges.
 
 Checks cover the ward table, levels, power, rosters, siege plans (sizes, growth, warchiefs, saved plans), pacing, rewards, staves and the

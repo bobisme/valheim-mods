@@ -16,7 +16,9 @@ namespace Shieldwall
         internal const string MarksKey="bob_sw_marks",CrackedKey="bob_sw_cracked",PhaseKey="bob_sw_phase",HealthKey="bob_sw_health",MaxHealthKey="bob_sw_maxhealth",
             RiftKey="bob_sw_rift",StartKey="bob_sw_start",SiegeKey="bob_sw_siege",PlanKey="bob_sw_plan",WaveKey="bob_sw_wave",QueueKey="bob_sw_queue",
             WaveAtKey="bob_sw_waveat",SpawnedKey="bob_sw_spawned",StageKey="bob_sw_stage",CauseKey="bob_sw_cause",CooldownKey="bob_sw_cooldown",
-            CalledKey="bob_sw_called",HeldKey="bob_sw_held",BaseKey="bob_sw_base",FallenKey="bob_sw_fallen",KillsKey="bob_sw_kills",QuietKey="bob_sw_quiet";
+            CalledKey="bob_sw_called",HeldKey="bob_sw_held",BaseKey="bob_sw_base",FallenKey="bob_sw_fallen",KillsKey="bob_sw_kills",QuietKey="bob_sw_quiet",
+            BoastsKey="bob_sw_boasts",BoonsKey="bob_sw_boons",OfferKey="bob_sw_offer",TallyKey="bob_sw_tally",LowKey="bob_sw_low",LowWaveKey="bob_sw_lowwave",
+            SagaKey="bob_sw_saga",SagaTopicKey="bob_sw_sagatopic";
         private static GameObject _prefab;
         internal static GameObject Prefab=>_prefab;
         internal static CraftingStation Station=>_prefab!=null?_prefab.GetComponent<CraftingStation>():null;
@@ -71,7 +73,7 @@ namespace Shieldwall
             CraftingStation station=go.GetComponent<CraftingStation>();
             station.m_name=StationName;station.m_icon=piece.m_icon;
             station.m_craftRequireRoof=false;station.m_craftRequireFire=false;station.m_showBasicRecipies=false;station.m_useDistance=3.5f;
-            station.m_rangeBuild=Policy.PowerRadius(Policy.MaxLevel); // sockets and upgrades are built within its farthest reach
+            station.m_rangeBuild=Policy.PowerRadius(Policy.MaxLevel)+8; // sockets and upgrades are built within its farthest reach (with the Long reach boon)
 
             var target=go.AddComponent<StaticTarget>();target.m_primaryTarget=false;target.m_randomTarget=false; // only sieges aim at it
             go.AddComponent<Warstone>();
@@ -88,7 +90,7 @@ namespace Shieldwall
         internal ZNetView View;
         internal StaticTarget Target;
         private GameObject _glow;
-        private float _askedAt=-100,_nextMarker;private CircleProjector _marker;
+        private float _nextMarker;private CircleProjector _marker;
         internal ZDO Z=>View!=null&&View.IsValid()?View.GetZDO():null;
         internal Phase Phase=>(Phase)(Z?.GetInt(Stone.PhaseKey,0)??0);
         internal int Marks=>Z?.GetInt(Stone.MarksKey,0)??0;
@@ -97,6 +99,25 @@ namespace Shieldwall
         // Its level: 1 + the upgrades built around it (the game's own station extensions).
         private CraftingStation _station;
         internal int Level=>Policy.Level(_station!=null?_station.GetExtentionCount(true):0);
+        // How many staves it feeds and how far, with its boons.
+        internal int Capacity=>Policy.Capacity(Level)+Policy.BoonCapacity(Boons);
+        internal float Reach=>Policy.PowerRadius(Level)+Policy.BoonReach(Boons);
+        // The boons it keeps (parsed once per change), and the boasts sworn for its siege.
+        private string _boonText;private HashSet<string> _boons=new HashSet<string>();
+        internal HashSet<string> Boons
+        {
+            get
+            {
+                string saved=Z?.GetString(Stone.BoonsKey,"")??"";
+                if(saved!=_boonText){_boonText=saved;_boons=Policy.ParseBoons(saved);}
+                return _boons;
+            }
+        }
+        internal int Boasts=>Phase==Phase.Idle?0:Z?.GetInt(Stone.BoastsKey,0)??0;
+        // What it offers to swear at its next horn: the same on every game (seeded by the stone and the sieges it has seen).
+        internal int Seed=>Z==null?0:(int)(Z.m_uid.UserID^Z.m_uid.ID*7919)^(Z.GetInt(Stone.HeldKey,0)+Z.GetInt(Stone.FallenKey,0))*104729;
+        internal Boast[] BoastOffer=>Policy.OfferBoasts(Seed,Policy.SiegeStage(Director.StageNow(),Strength));
+        internal string[] BoonOffer=>(Z?.GetString(Stone.OfferKey,"")??"").Split(new[]{','},System.StringSplitOptions.RemoveEmptyEntries).Where(id=>Policy.BoonOf(id)!=null).ToArray();
         internal long Siege=>Z?.GetLong(Stone.SiegeKey,0L)??0L;
         internal Vector3 Rift=>Z?.GetVec3(Stone.RiftKey,transform.position)??transform.position;
 
@@ -113,7 +134,7 @@ namespace Shieldwall
             if(View==null||!View.IsValid())return;
             if(_glow!=null&&_glow.activeSelf!=(Phase!=Phase.Idle))_glow.SetActive(Phase!=Phase.Idle);
             // The ring shown while you look at it marks how far it feeds staves.
-            if(_marker!=null&&Time.time>=_nextMarker){_nextMarker=Time.time+2;float reach=Policy.PowerRadius(Level);if(Mathf.Abs(_marker.m_radius-reach)>0.1f)_marker.m_radius=reach;}
+            if(_marker!=null&&Time.time>=_nextMarker){_nextMarker=Time.time+2;float reach=Reach;if(Mathf.Abs(_marker.m_radius-reach)>0.1f)_marker.m_radius=reach;}
             if(View.IsOwner()){Director.Run(this);Director.Footing(this);}
         }
 
@@ -133,18 +154,11 @@ namespace Shieldwall
         {
             if(Phase==Phase.Battle&&Director.CanCallEarly(this,out int bonus)){Net.Call(this,Cause.Early);return true;}
             if(Phase!=Phase.Idle){player.Message(MessageHud.MessageType.Center,Phase==Phase.Battle?"The horn can call the next wave once this one is all out of the rift.":"The horde is already coming.");return true;}
-            double cooldown=(Z.GetLong(Stone.CooldownKey,0L)-ZNet.instance.GetTime().Ticks)/(double)System.TimeSpan.TicksPerSecond;
-            if(cooldown>0){player.Message(MessageHud.MessageType.Center,$"The stone is still ringing from the last siege. Wait {Mathf.CeilToInt((float)cooldown/60)} more minutes.");return true;}
-            if(Time.time-_askedAt>6)
-            {
-                _askedAt=Time.time;
-                player.Message(MessageHud.MessageType.Center,$"Sound the war horn? A {Policy.Rosters[Policy.SiegeStage(Director.StageNow(),Strength)].Name} will gather and march on this stone.\nShift+E again to call them.");
-                return true;
-            }
-            _askedAt=-100;
-            Net.Call(this,Cause.Horn);
+            // The war council: choose a boon the stone has earned, swear boasts and sound the horn.
+            Council.Open(this);
             return true;
         }
+        internal double CooldownLeft=>Z==null?0:(Z.GetLong(Stone.CooldownKey,0L)-ZNet.instance.GetTime().Ticks)/(double)System.TimeSpan.TicksPerSecond;
 
         // ---- the hover line ----
         internal string Hover()
@@ -160,18 +174,21 @@ namespace Shieldwall
                     float health=Z.GetFloat(Stone.HealthKey,1),max=Mathf.Max(1,Z.GetFloat(Stone.MaxHealthKey,1));
                     var plan=Policy.Load(Z.GetString(Stone.PlanKey,""));
                     line+=$"\n<color=#FF7050>Siege: wave {Mathf.Min(plan.Count,Z.GetInt(Stone.WaveKey,0)+1)} of {plan.Count} · stone {Mathf.RoundToInt(100*health/max)}%</color>";
+                    if(Boasts!=0)line+=$"\n<color=#E8C070>Sworn: {string.Join(", ",Policy.Sworn(Boasts).Select(b=>b.Name))}</color>";
                     string next=Director.NextWaveText(this);
                     if(next!="")line+=$"\n<color=#C0C0C0>Next: {next}</color>";
                     if(Director.CanCallEarly(this,out int early))line+=$"\n[<color=yellow><b>$KEY_AltPlace + $KEY_Use</b></color>] Call the next wave now (+{early} warshards)";
                     break;
                 default:
-                    line+="\n[<color=yellow><b>$KEY_Use</b></color>] Staves   [<color=yellow><b>$KEY_AltPlace + $KEY_Use</b></color>] Sound the war horn";
+                    line+="\n[<color=yellow><b>$KEY_Use</b></color>] Staves   [<color=yellow><b>$KEY_AltPlace + $KEY_Use</b></color>] War council";
+                    if(BoonOffer.Length>0)line+="\n<color=#E8C070>The stone has earned a boon: choose it at the war council</color>";
                     if(Player.m_localPlayer!=null&&!Player.m_localPlayer.IsRecipeKnown(Policy.Staves[0].Name))
                         line+="\n<color=#A0A0A0>Hold a siege: the horde's warshards teach you its staves</color>";
                     break;
             }
             int level=Level,fed=Planted.Loaded.Count(p=>p!=null&&p.Holding&&p.Stone()==this);
-            line+=$"\n<color=#C0C0C0>Level {level} of {Policy.MaxLevel}: feeds {fed}/{Policy.Capacity(level)} staves within {Policy.PowerRadius(level):0} m</color>";
+            line+=$"\n<color=#C0C0C0>Level {level} of {Policy.MaxLevel}: feeds {fed}/{Capacity} staves within {Reach:0} m</color>";
+            if(Boons.Count>0)line+=$"\n<color=#A0A0A0>Boons: {string.Join(", ",Boons.Select(b=>Policy.BoonOf(b).Name))}</color>";
             int held=Z.GetInt(Stone.HeldKey,0),fallen=Z.GetInt(Stone.FallenKey,0);
             if(held+fallen>0)line+=$"\n<color=#A0A0A0>Sieges held {held}, fallen {fallen}</color>";
             return Localization.instance.Localize(line);

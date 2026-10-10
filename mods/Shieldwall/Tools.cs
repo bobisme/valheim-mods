@@ -28,7 +28,7 @@ namespace Shieldwall
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name,"siege",
-                    "siege status | plan [stage] [marks] [players] | route | start [stage 0-6] | end | marks <n> | place [metres | x z] | remove | horn | craftui [close] | raid [event] | plant <stave prefab|none> [metres] [angle] | tower <stave> [metres] [angle] [storeys] | line x1 z1 x2 z2 [piece] | unbuild | put <prefab> <metres> <angle> | goto x z | moat [radius] [passes] | focus [x z] | unplant | raiders | wall [radius] [gap degrees] | unwall | hover: Warstones near the player and their sieges; a preview of a siege's waves; "+
+                    "siege status | plan [stage] [marks] [players] [boasts] | route | start [stage 0-6] [boasts] | end | council [close] | horn [boasts] | offer | boon <id> | saga | boasts | marks <n> | place [metres | x z] | remove | horn | craftui [close] | raid [event] | plant <stave prefab|none> [metres] [angle] | tower <stave> [metres] [angle] [storeys] | line x1 z1 x2 z2 [piece] | unbuild | put <prefab> <metres> <angle> | goto x z | moat [radius] [passes] | focus [x z] | unplant | raiders | wall [radius] [gap degrees] | unwall | hover: Warstones near the player and their sieges; a preview of a siege's waves; "+
                     "the road the horde would take; start a short-warning test siege at the nearest stone (no mark for holding it); end the siege now; set a stone's marks; place a Warstone ahead of the player (test); plant a staff from nothing beside the nearest stone (test); remove every planted staff (test); what each raider is doing; ring the stone with test stake walls (open toward the rift by gap degrees) and remove them; the hover text of the stone and staves",
                     (Func<string[],Action<JObject>,Action<string>,IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: siege command added");
@@ -75,6 +75,14 @@ namespace Shieldwall
                 ["staves"]=new JArray(Planted.Loaded.Where(p=>p!=null&&Vector3.Distance(p.transform.position,w.transform.position)<=Policy.WardRadius+10).Select(p=>p.Name).ToArray()),
             };
         }
+        // Boasts by name or number, comma-separated: "BloodMoon,Fog" or "0,1".
+        private static int Boasts(string text)
+        {
+            int mask=0;
+            foreach(string part in text.Split(','))
+                if(Enum.TryParse(part.Trim(),true,out Boast b)&&Enum.IsDefined(typeof(Boast),b))mask|=1<<(int)b;
+            return mask;
+        }
         private static IEnumerator Run(string[] args,Action<JObject> output,Action<string> error)
         {
             string sub=args.Length>1?args[1]:"status";
@@ -90,7 +98,8 @@ namespace Shieldwall
                     int stage=args.Length>2&&int.TryParse(args[2],out int s)?s:-1,marks=args.Length>3&&int.TryParse(args[3],out int m)?m:stone?.Strength??0,
                         players=args.Length>4&&int.TryParse(args[4],out int p)?p:1;
                     if(stage<0)stage=Policy.SiegeStage(Director.StageNow(),marks);
-                    var plan=Policy.Plan(stage,marks,players,12345);
+                    int planBoasts=args.Length>5?Boasts(args[5]):0;
+                    var plan=Policy.Plan(stage,marks,players,12345,planBoasts);
                     output(new JObject{["stage"]=stage,["marks"]=marks,["players"]=players,["health"]=Policy.StoneHealth(stage,marks),
                         ["waves"]=new JArray(plan.Select(w=>new JObject{["count"]=w.Count,["units"]=new JObject(w.GroupBy(u=>$"{u.Prefab}{(u.Level>1?"*"+u.Level:"")}{(u.Role!=Role.Grunt?" "+u.Role:"")}")
                             .Select(g=>new JProperty(g.Key,g.Count())))}).ToArray())});
@@ -108,6 +117,7 @@ namespace Shieldwall
                 case "start":
                     if(stone==null){error("siege start: no Warstone loaded");break;}
                     Director.TestStage=args.Length>2&&int.TryParse(args[2],out int st)?Mathf.Clamp(st,0,Policy.Rosters.Length-1):-1;
+                    Director.TestBoasts=args.Length>3?Boasts(args[3]):0;
                     Net.Call(stone,Cause.Test);
                     output(new JObject{["start"]="a test siege gathers (10 s warning); holding it gives spoils but no mark"});
                     break;
@@ -200,13 +210,43 @@ namespace Shieldwall
                 }
                 case "horn":
                 {
-                    // The Shift+E path, pressed twice as a player would (the first asks, the second calls).
-                    Player me=Player.m_localPlayer;
-                    if(stone==null||me==null){error("siege horn: no Warstone loaded");break;}
-                    bool first=stone.Horn(me),second=stone.Horn(me);
-                    output(new JObject{["first"]=first,["second"]=second,["phase"]=stone.Phase.ToString()});
+                    // The war council's horn, with boasts (names or numbers, comma-separated; only those the stone offers count).
+                    if(stone==null){error("siege horn: no Warstone loaded");break;}
+                    Net.Horn(stone,args.Length>2?Boasts(args[2]):0);
+                    output(new JObject{["phase"]=stone.Phase.ToString(),["boasts"]=stone.Z.GetInt(Stone.BoastsKey,0)});
                     break;
                 }
+                case "council":
+                {
+                    // Open (or close) the war council, as Shift+E on an idle stone does.
+                    if(args.Length>2&&args[2]=="close"){Council.Close();output(new JObject{["open"]=false});break;}
+                    if(stone==null||Player.m_localPlayer==null){error("siege council: no Warstone loaded");break;}
+                    output(new JObject{["horn"]=stone.Horn(Player.m_localPlayer),["open"]=Council.IsOpen});
+                    break;
+                }
+                case "boasts":
+                    if(stone==null){error("siege boasts: no Warstone loaded");break;}
+                    output(new JObject{["offer"]=new JArray(stone.BoastOffer.Select(b=>b.ToString()).ToArray()),["sworn"]=stone.Z.GetInt(Stone.BoastsKey,0),
+                        ["boons"]=new JArray(stone.Boons.ToArray()),["boonOffer"]=new JArray(stone.BoonOffer),["capacity"]=stone.Capacity,["reach"]=stone.Reach});
+                    break;
+                case "offer":
+                    // Offer the stone a boon now, as a held siege does (test).
+                    if(stone==null||!stone.View.IsOwner()){error("siege offer: on a stone this game owns");break;}
+                    Director.Offer(stone);
+                    output(new JObject{["offer"]=new JArray(stone.BoonOffer)});
+                    break;
+                case "boon":
+                    // boon <id>: choose one of the offered boons; boon clear: forget every boon (test).
+                    if(stone==null||args.Length<3||Player.m_localPlayer==null){error("siege boon <id|clear>");break;}
+                    if(args[2]=="clear"){if(!stone.View.IsOwner()){error("siege boon clear: on a stone this game owns");break;}stone.Z.Set(Stone.BoonsKey,"");stone.Z.Set(Stone.OfferKey,"");}
+                    else Net.Choose(stone,args[2],Player.m_localPlayer.GetPlayerName());
+                    output(new JObject{["boons"]=new JArray(stone.Boons.ToArray()),["boonOffer"]=new JArray(stone.BoonOffer)});
+                    break;
+                case "saga":
+                    if(stone==null){error("siege saga: no Warstone loaded");break;}
+                    Saga.Show(stone.Z.GetString(Stone.SagaTopicKey,""),stone.Z.GetString(Stone.SagaKey,""));
+                    output(new JObject{["topic"]=stone.Z.GetString(Stone.SagaTopicKey,""),["saga"]=stone.Z.GetString(Stone.SagaKey,""),["tally"]=stone.Z.GetString(Stone.TallyKey,"")});
+                    break;
                 case "craftui":
                 {
                     // Open (or with "close", shut) the stone's crafting menu, as E does.

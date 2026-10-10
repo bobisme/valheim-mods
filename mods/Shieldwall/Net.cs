@@ -10,7 +10,8 @@ namespace Shieldwall
     // dedicated server that does not have the mod: players send the horn and the horde's blows to that game, and it tells everyone.
     internal static class Net
     {
-        private const string Call_="bob_sw_call_v1",Damage_="bob_sw_damage_v1",Say_="bob_sw_say_v1",Hello_="bob_sw_hello_v1";
+        private const string Call_="bob_sw_call_v1",Damage_="bob_sw_damage_v1",Say_="bob_sw_say_v1",Hello_="bob_sw_hello_v1",
+            Horn_="bob_sw_horn_v1",Choose_="bob_sw_choose_v1",Tally_="bob_sw_tally_v1",Saga_="bob_sw_saga_v1";
         private static ZRoutedRpc _rpc;
         private static readonly Dictionary<string,object> Handlers=new Dictionary<string,object>();
         private static bool _hostAnswered;
@@ -55,6 +56,36 @@ namespace Shieldwall
             _rpc.InvokeRoutedRPC(stone.GetOwner(),Call_,stone.m_uid,(int)cause);
             return true;
         }
+        // The horn sounded at the war council, with the boasts sworn.
+        internal static void Horn(Warstone stone,int boasts)
+        {
+            ZDO z=stone.Z;if(z==null||_rpc==null)return;
+            if(z.GetOwner()==0)stone.View.ClaimOwnership();
+            if(stone.View.IsOwner())Director.OnCall(stone,Cause.Horn,boasts);
+            else _rpc.InvokeRoutedRPC(z.GetOwner(),Horn_,z.m_uid,boasts);
+        }
+        // A boon chosen at the war council.
+        internal static void Choose(Warstone stone,string boon,string who)
+        {
+            ZDO z=stone.Z;if(z==null||_rpc==null)return;
+            if(z.GetOwner()==0)stone.View.ClaimOwnership();
+            if(stone.View.IsOwner())Director.Choose(stone,boon,who);
+            else _rpc.InvokeRoutedRPC(z.GetOwner(),Choose_,z.m_uid,boon,who);
+        }
+        // A raider slain (on the game that owned it): counted in the saga by the stone's owner.
+        internal static void Tally(Vector3 stoneAt,long siege,string who)
+        {
+            Warstone stone=Warstone.Loaded.FirstOrDefault(w=>w!=null&&w.Z!=null&&Vector3.Distance(w.transform.position,stoneAt)<3);
+            if(stone==null||_rpc==null)return;
+            if(stone.View.IsOwner())Shieldwall.Saga.Count(stone,siege,who);
+            else _rpc.InvokeRoutedRPC(stone.Z.GetOwner(),Tally_,stone.Z.m_uid,siege,who);
+        }
+        // The saga, for everyone near the stone.
+        internal static void Saga(string topic,string text,Vector3 at,float radius)
+        {
+            if(_rpc==null)return;
+            _rpc.InvokeRoutedRPC(ZRoutedRpc.Everybody,Saga_,topic,text,at,radius);
+        }
         // Positive: the horde's blows. Negative: a hearth stave mending it.
         internal static void Damage(Warstone stone,float amount,Vector3 at)
         {
@@ -80,6 +111,27 @@ namespace Shieldwall
             Warstone stone=Find(id);
             if(stone!=null&&stone.View.IsOwner())Director.OnDamage(stone,amount,at);
         }
+        private static void OnHorn(long sender,ZDOID id,int boasts)
+        {
+            Warstone stone=Find(id);
+            if(stone!=null&&stone.View.IsOwner())Director.OnCall(stone,Cause.Horn,boasts);
+        }
+        private static void OnChoose(long sender,ZDOID id,string boon,string who)
+        {
+            Warstone stone=Find(id);
+            if(stone!=null&&stone.View.IsOwner())Director.Choose(stone,boon,who);
+        }
+        private static void OnTally(long sender,ZDOID id,long siege,string who)
+        {
+            Warstone stone=Find(id);
+            if(stone!=null&&stone.View.IsOwner())Shieldwall.Saga.Count(stone,siege,who);
+        }
+        private static void OnSaga(long sender,string topic,string text,Vector3 at,float radius)
+        {
+            Player me=Player.m_localPlayer;
+            if(me==null||radius>0&&Vector3.Distance(me.transform.position,at)>radius)return;
+            Shieldwall.Saga.Show(topic,text);
+        }
         private static void OnHello(long sender,string version)
         {
             if(ZNet.instance!=null&&ZNet.instance.IsServer())_rpc?.InvokeRoutedRPC(sender,Hello_,Plugin.Version);
@@ -100,8 +152,12 @@ namespace Shieldwall
             _rpc.Register<ZDOID,float,Vector3>(Damage_,OnDamage);
             _rpc.Register<string,Vector3,float>(Say_,OnSay);
             _rpc.Register<string>(Hello_,OnHello);
+            _rpc.Register<ZDOID,int>(Horn_,OnHorn);
+            _rpc.Register<ZDOID,string,string>(Choose_,OnChoose);
+            _rpc.Register<ZDOID,long,string>(Tally_,OnTally);
+            _rpc.Register<string,string,Vector3,float>(Saga_,OnSaga);
             var table=AccessTools.Field(typeof(ZRoutedRpc),"m_functions").GetValue(_rpc) as IDictionary;
-            foreach(string name in new[]{Call_,Damage_,Say_,Hello_})Handlers[name]=table?[name.GetStableHashCode()];
+            foreach(string name in new[]{Call_,Damage_,Say_,Hello_,Horn_,Choose_,Tally_,Saga_})Handlers[name]=table?[name.GetStableHashCode()];
         }
         internal static void Unregister()
         {

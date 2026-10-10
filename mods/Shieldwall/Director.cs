@@ -23,7 +23,8 @@ namespace Shieldwall
         private static double Since(long ticks)=>(Now-ticks)/(double)TimeSpan.TicksPerSecond;
 
         // ---- calling a siege: the horn, a raid the stone draws to itself, or a test ----
-        internal static void OnCall(Warstone stone,Cause cause)
+        internal static int TestBoasts; // the test command's boasts
+        internal static void OnCall(Warstone stone,Cause cause,int boasts=0)
         {
             ZDO z=stone.Z;
             if(z==null)return;
@@ -34,20 +35,24 @@ namespace Shieldwall
             int marks=stone.Strength,stage=TestStage>=0&&cause==Cause.Test?TestStage:Policy.SiegeStage(StageNow(),marks);
             int players=Player.GetAllPlayers().Count(p=>p!=null&&Vector3.Distance(p.transform.position,stone.transform.position)<80);
             int seed=Random.Range(1,int.MaxValue);
-            var plan=Policy.Plan(stage,marks,Math.Max(1,players),seed);
+            // Boasts: only those the stone offered (a test may swear any).
+            boasts=cause==Cause.Test?TestBoasts:cause==Cause.Horn?Policy.Allowed(boasts,stone.BoastOffer):0;
+            var plan=Policy.Plan(stage,marks,Math.Max(1,players),seed,boasts);
             double gather=cause==Cause.Test?10:cause==Cause.Raid?Plugin.Instance.RaidWarning.Value:Plugin.Instance.HornWarning.Value;
-            float health=Policy.StoneHealth(stage,marks);
+            float health=Policy.StoneHealth(stage,marks)*Policy.BoonHealth(stone.Boons)*(Policy.Has(boasts,Boast.BareStone)?0.6f:1);
             z.Set(Stone.SiegeKey,((long)Random.Range(1,int.MaxValue)<<16)^Now);
             z.Set(Stone.RiftKey,rift);z.Set(Stone.StartKey,After(gather));z.Set(Stone.CalledKey,Now);z.Set(Stone.PlanKey,Policy.Save(plan));
             z.Set(Stone.WaveKey,0);z.Set(Stone.QueueKey,0);z.Set(Stone.SpawnedKey,0);z.Set(Stone.KillsKey,0);z.Set(Stone.StageKey,stage);z.Set(Stone.CauseKey,(int)cause);
             z.Set(Stone.HealthKey,health);z.Set(Stone.MaxHealthKey,health);
+            z.Set(Stone.BoastsKey,boasts);z.Set(Stone.TallyKey,"");z.Set(Stone.LowKey,1f);z.Set(Stone.LowWaveKey,0);
             z.Set(Stone.PhaseKey,(int)Phase.Gathering);
             Assets.Effect("sfx_fader_bell",stone.transform.position+Vector3.up*2);
             Assets.Effect("vfx_prespawn",rift);Assets.Effect("sfx_prespawn",rift);
             Roster roster=Policy.Rosters[stage];
             string opening=cause==Cause.Raid?$"The Warstone draws the raid to itself! A {roster.Name} gathers to the {Compass(stone.transform.position,rift)}.":
                 $"The war horn sounds! A {roster.Name} gathers to the {Compass(stone.transform.position,rift)}.";
-            Net.Say($"{opening} They march in {gather:0} seconds: {plan.Count} waves, {plan.Sum(w=>w.Count)} strong.",stone.transform.position,250);
+            string sworn=boasts!=0?$" Sworn: {string.Join(", ",Policy.Sworn(boasts).Select(b=>b.Name))} (+{Math.Round(100*Policy.BoastBonus(boasts))}% warshards).":"";
+            Net.Say($"{opening} They march in {gather:0} seconds: {plan.Count} waves, {plan.Sum(w=>w.Count)} strong.{sworn}",stone.transform.position,250);
             Plugin.Log($"Siege called ({cause}) at {stone.transform.position:F0}: {roster.Name}, {plan.Count} waves, {plan.Sum(w=>w.Count)} raiders, rift {rift:F0}");
         }
 
@@ -100,7 +105,7 @@ namespace Shieldwall
             double since=Since(z.GetLong(Stone.WaveAtKey,Now));
             if(wave<plan.Count-1)
             {
-                if(!Policy.NextWave(alive,units.Count,since,Plugin.Instance.WaveSeconds.Value))return;
+                if(!Policy.NextWave(alive,units.Count,since,Plugin.Instance.WaveSeconds.Value,Policy.Has(stone.Boasts,Boast.Tide)))return;
                 wave++;
                 z.Set(Stone.WaveKey,wave);z.Set(Stone.QueueKey,0);z.Set(Stone.WaveAtKey,Now);
                 Assets.Effect("sfx_gdking_scream",rift);
@@ -188,11 +193,13 @@ namespace Shieldwall
                 case Outcome.Held:
                     int now=cause==Cause.Test?marks:Policy.Marks(marks+1);
                     z.Set(Stone.MarksKey,now);z.Set(Stone.CrackedKey,false);z.Set(Stone.HeldKey,z.GetInt(Stone.HeldKey,0)+1);
-                    int shards=Reward(stone,roster,stage,marks,health/max,kills);
+                    int shards=Reward(stone,roster,stage,marks,health/max,kills,out var parts);
+                    if(cause!=Cause.Test)Offer(stone);
                     Assets.Effect("sfx_fader_bell",stone.transform.position+Vector3.up*2);
                     Assets.Effect("vfx_HealthUpgrade",stone.transform.position);Assets.Effect("fx_DvergerMage_Support_start",stone.transform.position+Vector3.up);
                     string rank=now>marks?$" It is now {Policy.Title(now)} ({Policy.Numeral(now)}).":"";
                     Net.Say($"The {roster.Name} breaks! {kills} slain, the stone at {Mathf.RoundToInt(100*health/max)}%.{rank} Spoils with {shards} warshards lie at its foot.",stone.transform.position,250);
+                    Saga.Tell(stone,outcome,roster,kills,health/max,parts,shards);
                     break;
                 case Outcome.Fallen:
                     z.Set(Stone.CrackedKey,true);z.Set(Stone.FallenKey,z.GetInt(Stone.FallenKey,0)+1);
@@ -201,6 +208,7 @@ namespace Shieldwall
                     if(left>0)DropShards(stone,left);
                     Net.Say("The Warstone cracks! The horde howls and melts away. Its ward is weaker until it holds a siege again."+
                         (left>0?$" {left} warshards lie at its foot, won from the {kills} slain.":""),stone.transform.position,250);
+                    Saga.Tell(stone,outcome,roster,kills,0,new[]{($"{kills} slain before it cracked",left)},left);
                     break;
                 default:
                     Net.Say("With no one to face them, the horde melts back into the wilds.",stone.transform.position,250);
@@ -217,7 +225,23 @@ namespace Shieldwall
             ItemDrop.ItemData data=drop.m_itemData.Clone();data.m_dropPrefab=item;
             ItemDrop.DropItem(data,amount,stone.transform.position+away*3f+Vector3.up,Quaternion.identity);
         }
-        private static int Reward(Warstone stone,Roster roster,int stage,int marks,float health,int kills)
+        // The boons the stone may choose from, saved on it until someone chooses at the war council.
+        internal static void Offer(Warstone stone)
+        {
+            string[] offer=Policy.OfferBoons(stone.Seed^0x5bd1e995,stone.Boons);
+            if(offer.Length==0)return;
+            stone.Z.Set(Stone.OfferKey,string.Join(",",offer));
+        }
+        internal static void Choose(Warstone stone,string boon,string who)
+        {
+            ZDO z=stone.Z;
+            if(z==null||!stone.BoonOffer.Contains(boon))return;
+            z.Set(Stone.BoonsKey,string.Join(",",stone.Boons.Concat(new[]{boon}).Distinct()));
+            z.Set(Stone.OfferKey,"");
+            Assets.Effect("fx_DvergerMage_Support_start",stone.transform.position+Vector3.up);
+            Net.Say($"{who} chose the stone's boon: {Policy.BoonOf(boon).Name}. {Policy.BoonOf(boon).Text}",stone.transform.position,100);
+        }
+        private static int Reward(Warstone stone,Roster roster,int stage,int marks,float health,int kills,out (string why,int amount)[] parts)
         {
             // On the far side from the rift, out of the next horde's way.
             Vector3 away=stone.transform.position-stone.Rift;away.y=0;
@@ -231,7 +255,10 @@ namespace Shieldwall
                 GameObject chest=Object.Instantiate(prefab,front,Quaternion.LookRotation(stone.transform.position-front));
                 inventory=chest.GetComponent<Container>()?.GetInventory();
             }
-            var gifts=new List<(string prefab,int amount)>{(Policy.ShardPrefab,Policy.Shards(stage,marks,health,kills))};
+            parts=Policy.ShardParts(stage,marks,health,kills);
+            int boasts=stone.Z.GetInt(Stone.BoastsKey,0),plain=parts.Sum(p=>p.amount),shards=Policy.Boasted(plain,boasts);
+            if(shards>plain)parts=parts.Concat(new[]{($"boasts sworn (+{Math.Round(100*Policy.BoastBonus(boasts))}%)",shards-plain)}).ToArray();
+            var gifts=new List<(string prefab,int amount)>{(Policy.ShardPrefab,shards)};
             foreach(var (name,min,max) in roster.Spoils)gifts.Add((name,Policy.Coins(min,max,marks,Random.value)));
             foreach(var (name,amount) in gifts)
             {
@@ -251,6 +278,7 @@ namespace Shieldwall
             float max=Mathf.Max(1,z.GetFloat(Stone.MaxHealthKey,1)),before=z.GetFloat(Stone.HealthKey,max);
             float after=Mathf.Clamp(before-(amount>0?amount*Policy.Toughness:amount),0,max);
             z.Set(Stone.HealthKey,after);
+            if(after/max<z.GetFloat(Stone.LowKey,1)){z.Set(Stone.LowKey,after/max);z.Set(Stone.LowWaveKey,z.GetInt(Stone.WaveKey,0)+1);} // its closest call, for the saga
             if(amount>0)
             {
                 foreach(float mark in new[]{0.5f,0.25f,0.1f})

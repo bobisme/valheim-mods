@@ -111,6 +111,41 @@ Check(Policy.Toppled(30,new double[]{28.5,28.9,28.7,29.1,28.8}),"Dug out from un
 Check(!Policy.Toppled(30,new double[0])&&!Policy.Toppled(30,null),"No ground read, no topple");
 Check(Policy.Plan(2,4,2,77).SelectMany(w=>w).Any(u=>u.Role==Role.Digger)&&Policy.Plan(2,4,2,77).First().All(u=>u.Role!=Role.Digger),"Diggers come from the second wave");
 
+// Boasts: sworn at the horn, each makes the siege harder and pays more.
+var plain=Policy.Plan(3,4,2,99);
+Check(Policy.Save(Policy.Plan(3,4,2,99,0))==Policy.Save(plain),"No boasts, the same siege as ever");
+Check(Policy.Plan(3,4,2,99,Policy.Mask(Boast.BloodMoon)).SelectMany(w=>w).Zip(plain.SelectMany(w=>w),(b,u)=>b.Level==Math.Min(3,u.Level+1)).All(x=>x),"Blood moon: a star more on every raider");
+Check(Policy.Plan(3,4,2,99,Policy.Mask(Boast.Burrowers)).SelectMany(w=>w).Count(u=>u.Role==Role.Digger)>2*plain.SelectMany(w=>w).Count(u=>u.Role==Role.Digger),"Burrowers: many more diggers");
+Check(Policy.Plan(3,4,2,99,Policy.Mask(Boast.Burrowers)).First().Any(u=>u.Role==Role.Digger),"Burrowers dig from the first wave");
+Check(Policy.Plan(3,4,2,99,Policy.Mask(Boast.Wings)).SelectMany(w=>w).Count(u=>u.Role==Role.Flyer)>plain.SelectMany(w=>w).Count(u=>u.Role==Role.Flyer),"Black wings: more fliers");
+var chosen=Policy.Plan(3,4,2,99,Policy.Mask(Boast.Chosen));
+Check(chosen.Last().Count(u=>u.Role==Role.Guard)==3&&chosen.Last().Any(u=>u.Role==Role.Champion),"The chosen chief comes with three guards");
+Check(Policy.Load(Policy.Save(chosen)).Last().Count(u=>u.Role==Role.Guard)==3,"Guards are saved with the plan");
+Check(Policy.Boasted(10,0)==10&&Policy.Boasted(10,Policy.Mask(Boast.BloodMoon))==16&&Policy.Boasted(10,Policy.Mask(Boast.BloodMoon,Boast.Fog))==20,"Boasts add their share of warshards");
+Check(Enumerable.Range(0,200).All(seed=>{var o=Policy.OfferBoasts(seed,3);return o.Length==2&&o[0]!=o[1];}),"Two different boasts are offered");
+Check(Enumerable.Range(0,200).All(seed=>!Policy.OfferBoasts(seed,0).Contains(Boast.Wings)),"No fliers to swear by where the horde has none");
+Check(Policy.OfferBoasts(42,3).SequenceEqual(Policy.OfferBoasts(42,3)),"Every game offers the same boasts");
+Check(Policy.Allowed(Policy.Mask(Boast.Fog,Boast.Tide),new[]{Boast.Fog,Boast.Chosen})==Policy.Mask(Boast.Fog),"Only what was offered can be sworn");
+Check(Policy.NextWave(10,20,7,40,true)&&!Policy.NextWave(10,20,7,40,false)&&Policy.NextWave(0,20,20,40,true)&&!Policy.NextWave(15,20,15,40,true),"No respite: the next wave comes at half down and sooner");
+Check(Policy.Boasts.Select(b=>b.Id).Distinct().Count()==Enum.GetValues(typeof(Boast)).Length,"Every boast is described once");
+
+// Boons: three offered after a held siege, one kept for good.
+Check(Policy.OfferBoons(5,new string[0]).Length==3&&Policy.OfferBoons(5,new string[0]).Distinct().Count()==3,"Three different boons are offered");
+Check(Policy.OfferBoons(5,Policy.Boons.Select(b=>b.Id).Skip(1).ToArray()).SequenceEqual(new[]{Policy.Boons[0].Id}),"Only boons not yet kept are offered");
+Check(Policy.OfferBoons(5,Policy.Boons.Select(b=>b.Id).ToArray()).Length==0,"A stone with every boon is offered none");
+Check(Policy.ParseBoons("ember,nonsense,,veins").SetEquals(new[]{"ember","veins"}),"Saved boons read back, unknown ones dropped");
+var kept=new HashSet<string>{"ember","bane","veins","reach","eyes","thunder","rooted","hands","ward","hearth"};
+Check(Math.Abs(Policy.BoonDamage(StaveKind.Ember,kept,false)-1.35f)<0.001f&&Math.Abs(Policy.BoonDamage(StaveKind.Ember,kept,true)-2.025f)<0.001f&&Policy.BoonDamage(StaveKind.Frost,kept,false)==1,"Hungry flame and Chieftain's bane");
+Check(Policy.BoonDamage(StaveKind.Hearth,kept,false)==2&&Policy.BoonCooldown(StaveKind.Thunder,kept)==0.75f&&Policy.BoonCooldown(StaveKind.Ember,kept)==1,"Warm hearth and Thor's ear");
+Check(Policy.BoonCapacity(kept)==2&&Policy.BoonReach(kept)==8&&Policy.BoonRange(StaveKind.Ember,kept)==4&&Policy.BoonHealth(kept)==1.25f&&Policy.BoonWard(kept)==2&&Policy.BoonBorrowed(kept)==0.7f,"The stone's boons");
+Check(Policy.BoonCapacity(new string[0])==0&&Policy.BoonBorrowed(new string[0])==Policy.BorrowedPower,"No boons, no change");
+Check(Policy.Boons.Select(b=>b.Id).Distinct().Count()==Policy.Boons.Length&&Policy.Boons.All(b=>!b.Id.Contains(",")),"Boon ids are unique and save cleanly");
+Check(Policy.PowerRadius(Policy.MaxLevel)+8<=Policy.WardRadius+20,"Long reach stays near the stone");
+Check(Policy.Carried(Role.Grunt,0.2,true)==1&&Policy.Carried(Role.Grunt,0.2,false)==0,"Shard-luck doubles the carriers");
+
+// The saga's shard breakdown adds up.
+Check(Policy.ShardParts(3,4,0.8,30).Sum(p=>p.amount)==Policy.Shards(3,4,0.8,30)&&Policy.Shards(3,4,0.8,30)==3+3+2+4+2,"Every warshard is accounted for");
+
 var rng=new Policy.Rng(7);var rolls=Enumerable.Range(0,1000).Select(_=>rng.Next()).ToList();
 Check(rolls.All(r=>r>=0&&r<1)&&rolls.Average()>0.45&&rolls.Average()<0.55,"Rolls are even");
 Console.WriteLine($"Passed {checks} Warstone, horde, pacing, reward, stave and aiming checks.");

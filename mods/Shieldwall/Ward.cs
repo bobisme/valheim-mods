@@ -25,8 +25,8 @@ namespace Shieldwall
                 .OrderByDescending(w=>w.Strength).FirstOrDefault();
             if(stone==null){_signature="";return;} // the effect runs down on its own
             bool hearth=AtHearth(stone);
-            WardStats ward=Policy.WardOf(stone.Strength,hearth);
-            string signature=$"{stone.Strength}|{hearth}|{stone.Cracked}";
+            WardStats ward=Policy.WardOf(stone.Strength+Policy.BoonWard(stone.Boons),hearth);
+            string signature=$"{stone.Strength}|{hearth}|{stone.Cracked}|{Policy.BoonWard(stone.Boons)}";
             int hash=EffectName.GetStableHashCode();
             if(signature==_signature&&me.GetSEMan().GetStatusEffect(hash) is StatusEffect active){active.ResetTime();return;}
             me.GetSEMan().RemoveStatusEffect(hash,true);
@@ -61,7 +61,7 @@ namespace Shieldwall
         internal static int ComfortAt(Vector3 position)
         {
             Warstone stone=Warstone.Loaded.FirstOrDefault(w=>w!=null&&w.Z!=null&&Vector3.Distance(w.transform.position,position)<=Policy.HearthRadius);
-            return stone!=null&&AtHearth(stone)?Policy.WardOf(stone.Strength,true).Comfort:0;
+            return stone!=null&&AtHearth(stone)?Policy.WardOf(stone.Strength+Policy.BoonWard(stone.Boons),true).Comfort:0;
         }
         internal static void Clear()
         {

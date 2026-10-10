@@ -55,6 +55,30 @@ namespace Shieldwall
                     Light light=glow.AddComponent<Light>();light.type=LightType.Point;light.color=new Color(1f,0.2f,0.1f);light.range=5;light.intensity=2;light.shadows=LightShadows.None;
                 }
             }
+            // The chosen chief's guard: a cold blue glow, the same as the shield they hold over him.
+            if(Role==Role.Guard&&transform.Find("GuardGlow")==null)
+            {
+                var glow=new GameObject("GuardGlow");glow.transform.SetParent(transform,false);glow.transform.localPosition=Vector3.up*1.4f;
+                Light light=glow.AddComponent<Light>();light.type=LightType.Point;light.color=Shield;light.range=4;light.intensity=1.6f;light.shadows=LightShadows.None;
+            }
+        }
+        internal static readonly Color Shield=new Color(0.35f,0.6f,1f);
+        // A warchief sworn as the chosen chief takes no blow while one of his guard lives.
+        internal bool Shielded()
+        {
+            if(Role!=Role.Champion)return false;
+            Warstone stone=Stone();
+            if(stone==null||!Policy.Has(stone.Boasts,Boast.Chosen))return false;
+            return Loaded.Any(r=>r!=null&&r!=this&&r.Role==Role.Guard&&r.Siege==Siege&&r.Body!=null&&!r.Body.IsDead());
+        }
+        // Everyone sees the chief's glow turn blue while he is shielded.
+        private float _nextShieldLook;private Light _chiefLight;
+        private void Update()
+        {
+            if(Role!=Role.Champion||Time.time<_nextShieldLook)return;
+            _nextShieldLook=Time.time+0.5f;
+            if(_chiefLight==null)_chiefLight=transform.Find("WarchiefGlow")?.GetComponent<Light>();
+            if(_chiefLight!=null)_chiefLight.color=Shielded()?Shield:new Color(1f,0.2f,0.1f);
         }
         private bool _grown;
 
@@ -81,7 +105,7 @@ namespace Shieldwall
             if(t.GetComponent<Planted>()!=null)return "sapping a stave";
             return "targeting "+t.name;
         }
-        private Warstone Stone()
+        internal Warstone Stone()
         {
             if(_stone!=null&&_stone.View!=null&&_stone.View.IsValid())return _stone;
             _stone=Warstone.Loaded.FirstOrDefault(w=>w!=null&&Vector3.Distance(w.transform.position,StoneAt)<3);
@@ -292,7 +316,7 @@ namespace Shieldwall
         {
             Raider raider=__instance.GetComponent<Raider>();
             if(raider==null||__result==null)return;
-            int shards=Policy.Carried(raider.Role,Random.value);
+            int shards=Policy.Carried(raider.Role,Random.value,raider.Stone()?.Boons.Contains("luck")==true);
             GameObject shard=Items.Get(Policy.ShardPrefab);
             if(shards>0&&shard!=null)__result.Add(new KeyValuePair<GameObject,int>(shard,shards));
             if(__result.All(d=>d.Key==null||!d.Key.name.StartsWith("Trophy"))&&Random.value<0.15f)
@@ -300,6 +324,17 @@ namespace Shieldwall
                 GameObject trophy=__instance.m_drops.Select(d=>d.m_prefab).FirstOrDefault(p=>p!=null&&p.name.StartsWith("Trophy"));
                 if(trophy!=null)__result.Add(new KeyValuePair<GameObject,int>(trophy,1));
             }
+        }
+    }
+    // The chosen chief: blows on him do nothing while a guard lives (on the game that owns him, which applies the damage).
+    [HarmonyPatch(typeof(Character),nameof(Character.ApplyDamage))]
+    internal static class ChosenChief
+    {
+        private static bool Prefix(Character __instance,HitData hit)
+        {
+            if(!(__instance.GetComponent<Raider>() is Raider r)||!r.Shielded())return true;
+            DamageText.instance?.ShowText(HitData.DamageModifier.Immune,hit.m_point,0);
+            return false;
         }
     }
     // Warchiefs are siege breakers: their blows on walls and towers land half again as hard.
