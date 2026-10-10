@@ -102,6 +102,12 @@ Check(Policy.UpgradeShards(2)==4&&Policy.UpgradeShards(3)==7&&Policy.UpgradeShar
 Check(Policy.UpgradeLevel(2)==2&&Policy.UpgradeLevel(4)==4&&Enumerable.Range(2,Policy.MaxQuality-1).All(q=>Policy.UpgradeLevel(q)<=Policy.MaxLevel),"Every step is reachable by raising the stone");
 Check(Policy.EarlyBonus(3)==1&&Policy.EarlyBonus(25)==2&&Policy.EarlyBonus(300)==4,"Calling a wave early pays for the time saved, a little");
 
+// Earthworks: a stone topples once the land under it sinks a metre below where it was set.
+Check(!Policy.Toppled(30,new double[]{30,30.2,29.8,30,30})&&!Policy.Toppled(30,new double[]{29.5,29.4,29.2,29.6,29.3}),"A little digging round it is fine");
+Check(Policy.Toppled(30,new double[]{28.5,28.9,28.7,29.1,28.8}),"Dug out from under it, it topples");
+Check(!Policy.Toppled(30,new double[0])&&!Policy.Toppled(30,null),"No ground read, no topple");
+Check(Policy.Plan(2,4,2,77).SelectMany(w=>w).Any(u=>u.Role==Role.Digger)&&Policy.Plan(2,4,2,77).First().All(u=>u.Role!=Role.Digger),"Diggers come from the second wave");
+
 var rng=new Policy.Rng(7);var rolls=Enumerable.Range(0,1000).Select(_=>rng.Next()).ToList();
 Check(rolls.All(r=>r>=0&&r<1)&&rolls.Average()>0.45&&rolls.Average()<0.55,"Rolls are even");
 Console.WriteLine($"Passed {checks} Warstone, horde, pacing, reward, stave and aiming checks.");

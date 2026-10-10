@@ -337,6 +337,18 @@ Method("Character","OnDeath","System.Void");
 Method("Player","TeleportTo","System.Boolean","UnityEngine.Vector3","UnityEngine.Quaternion","System.Boolean");
 Method("Inventory","CountItems","System.Int32","System.String","System.Int32","System.Boolean");
 Method("Inventory","RemoveItem","System.Void","System.String","System.Int32","System.Int32","System.Boolean");
+// Shieldwall 0.3: sockets as one-slot containers, the pickaxe's dig and the hoe's raise for earthworks.
+Field("Container","m_bkg","UnityEngine.Sprite");
+Field("Container","m_width","System.Int32");
+Field("Container","m_height","System.Int32");
+Field("Container","m_checkGuardStone","System.Boolean");
+Field("Container","m_openEffects","EffectList");
+Method("Container","GetHoverText","System.String");
+Method("Container","Interact","System.Boolean","Humanoid","System.Boolean","System.Boolean");
+Method("Container","UseItem","System.Boolean","Humanoid","ItemDrop/ItemData");
+Method("Container","IsInUse","System.Boolean");
+Method("Container","GetInventory","Inventory");
+Method("ObjectDB","TryGetItemPrefab","System.Boolean","ItemDrop/ItemData/SharedData","UnityEngine.GameObject&");
 
 // Cheap instance lists instead of whole-scene searches: plants via SlowUpdate, item stands as they wake.
 Method("SlowUpdate","GetAllInstaces","System.Collections.Generic.List`1<SlowUpdate>");

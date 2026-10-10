@@ -26,7 +26,7 @@ namespace Shieldwall
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name,"siege",
-                    "siege status | plan [stage] [marks] [players] | route | start [stage 0-6] | end | marks <n> | place [metres | x z] | remove | horn | craftui [close] | raid [event] | plant <stave prefab|none> [metres] [angle] | tower <stave> [metres] [angle] [storeys] | line x1 z1 x2 z2 [piece] | unbuild | put <prefab> <metres> <angle> | goto x z | unplant | raiders | wall [radius] [gap degrees] | unwall | hover: Warstones near the player and their sieges; a preview of a siege's waves; "+
+                    "siege status | plan [stage] [marks] [players] | route | start [stage 0-6] | end | marks <n> | place [metres | x z] | remove | horn | craftui [close] | raid [event] | plant <stave prefab|none> [metres] [angle] | tower <stave> [metres] [angle] [storeys] | line x1 z1 x2 z2 [piece] | unbuild | put <prefab> <metres> <angle> | goto x z | moat [radius] [passes] | focus [x z] | unplant | raiders | wall [radius] [gap degrees] | unwall | hover: Warstones near the player and their sieges; a preview of a siege's waves; "+
                     "the road the horde would take; start a short-warning test siege at the nearest stone (no mark for holding it); end the siege now; set a stone's marks; place a Warstone ahead of the player (test); plant a staff from nothing beside the nearest stone (test); remove every planted staff (test); what each raider is doing; ring the stone with test stake walls (open toward the rift by gap degrees) and remove them; the hover text of the stone and staves",
                     (Func<string[],Action<JObject>,Action<string>,IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: siege command added");
@@ -47,10 +47,13 @@ namespace Shieldwall
             if(me!=null)go.GetComponent<Piece>()?.SetCreator(me.GetPlayerID(),Splatform.PlatformManager.DistributionPlatform.LocalUser.PlatformUserID);
             go.GetComponent<ZNetView>()?.GetZDO()?.Set(TestKey,true);
         }
+        private static Vector3? _focus; // "siege focus x z": the stone the commands act on is the one nearest there, not the player
         private static Warstone Nearest()
         {
             Player me=Player.m_localPlayer;
-            return me==null?null:Warstone.Loaded.Where(w=>w!=null&&w.Z!=null).OrderBy(w=>Vector3.Distance(w.transform.position,me.transform.position)).FirstOrDefault();
+            if(me==null)return null;
+            Vector3 from=_focus??me.transform.position;
+            return Warstone.Loaded.Where(w=>w!=null&&w.Z!=null).OrderBy(w=>Utils.DistanceXZ(w.transform.position,from)).FirstOrDefault();
         }
         private static JObject Describe(Warstone w)
         {
@@ -67,7 +70,7 @@ namespace Shieldwall
                 ["rift"]=w.Phase==Phase.Idle?null:new JArray(Math.Round(w.Rift.x,1),Math.Round(w.Rift.y,1),Math.Round(w.Rift.z,1)),
                 ["raidersAlive"]=Raider.Loaded.Count(r=>r!=null&&r.Siege==siege&&r.Body!=null&&!r.Body.IsDead()),
                 ["held"]=z.GetInt(Stone.HeldKey,0),["fallen"]=z.GetInt(Stone.FallenKey,0),
-                ["staves"]=new JArray(Planted.Loaded.Where(p=>p!=null&&Vector3.Distance(p.transform.position,w.transform.position)<=Policy.WardRadius+10).Select(p=>p.GetHoverName()).ToArray()),
+                ["staves"]=new JArray(Planted.Loaded.Where(p=>p!=null&&Vector3.Distance(p.transform.position,w.transform.position)<=Policy.WardRadius+10).Select(p=>p.Name).ToArray()),
             };
         }
         private static IEnumerator Run(string[] args,Action<JObject> output,Action<string> error)
@@ -168,7 +171,7 @@ namespace Shieldwall
                 {
                     if(stone==null){error("siege hover: no Warstone loaded");break;}
                     var lines=new JArray(stone.Hover());
-                    foreach(Planted staff in Planted.Loaded.Where(p=>p!=null))lines.Add(staff.GetHoverText());
+                    foreach(Planted staff in Planted.Loaded.Where(p=>p!=null))lines.Add(staff.Hover());
                     output(new JObject{["hover"]=lines,["station"]=stone.GetComponent<CraftingStation>().GetLevel()});
                     break;
                 }
@@ -235,6 +238,28 @@ namespace Shieldwall
                     Vector3 face=stone.transform.position-at;face.y=0;
                     Built(UnityEngine.Object.Instantiate(prefab,at,Quaternion.LookRotation(face.sqrMagnitude>0.01f?face:Vector3.forward)));
                     output(new JObject{["put"]=args[2],["level"]=stone.Level});
+                    break;
+                }
+                case "moat":
+                {
+                    // moat [radius=12] [depth passes=4]: dig a ring of pits round the stone with the game's own digging (test).
+                    if(stone==null){error("siege moat: needs a loaded Warstone");break;}
+                    float radius=args.Length>2&&float.TryParse(args[2],out float mr)?mr:12;int passes=args.Length>3&&int.TryParse(args[3],out int mp)?mp:4;
+                    int count=Mathf.CeilToInt(2*Mathf.PI*radius/1.5f);
+                    for(int pass=0;pass<passes;pass++)
+                        for(int i=0;i<count;i++)
+                        {
+                            Vector3 at=stone.transform.position+Quaternion.Euler(0,360f*i/count,0)*Vector3.forward*radius;
+                            if(ZoneSystem.instance.GetGroundHeight(at,out float h))at.y=h;
+                            Assets.Dig(at);
+                        }
+                    output(new JObject{["moat"]=radius,["digs"]=count*passes});
+                    break;
+                }
+                case "focus":
+                {
+                    if(args.Length>3&&float.TryParse(args[2],out float fx)&&float.TryParse(args[3],out float fz))_focus=new Vector3(fx,0,fz);else _focus=null;
+                    output(new JObject{["focus"]=_focus.HasValue?new JArray(_focus.Value.x,_focus.Value.z):null});
                     break;
                 }
                 case "remove":

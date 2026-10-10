@@ -73,9 +73,9 @@ craft, and how strong they can be made.
 | Rune obelisk | 22 warshards, 30 stone, 4 iron | 5 | 10 | 50 m |
 
 **War staves** are huge relics, too heavy and thick to wield (25 weight). They stand in **stave sockets**: stone pedestals (hammer → misc;
-10 stone, 2 resin) built on the ground, on a wall or on top of a tower, at least **5 m apart**. **Use** an empty socket to set your best
-stave in it (or drag one onto it from the hotbar), Use it again to take the stave out, and **Shift+Use** to **strengthen** it in place with
-warshards (★ 4, 7 and 10 shards; the stone must be at least the stave's new level). The stone feeds the sockets nearest to it first; a
+10 stone, 2 resin) built on the ground, on a wall or on top of a tower, at least **5 m apart**. **Use** a socket to open its one slot (the
+game's own chest window, with your bag beside it) and put in the stave you want, or take it out; a stave dragged onto it from the hotbar
+goes straight in. **Shift+Use** **strengthens** it in place with warshards (★ 4, 7 and 10 shards; the stone must be at least the stave's new level). The stone feeds the sockets nearest to it first; a
 stave beyond its reach or its count sleeps, and says why. Staves fire on raiders and monsters in reach (not on passive creatures or
 Dverger), aim at whoever is closest to the stone (Thunder at the strongest), count their kills, and never hurt players, companions, tames
 or buildings. You learn them once you carry a warshard, so the first siege is fought by hand.
@@ -97,7 +97,9 @@ host (trolls lead); the drowned dead; a mountain pack (golems); Fulings (brutes)
 (morgen). A glowing line shows the road the horde will take, recomputed as you build: walls turn it aside, and where the road is shut a red
 line marks the **breach**. Raiders fight only what stands within about 10 m, smash the piece in their way when stuck, and strike the stone
 when they reach it. **Sappers** go for stave sockets, tearing down the tower under one that stands high; a raider a stave keeps hitting may
-turn on its tower; **warchiefs** strike buildings half again as hard; **flyers** cross the walls. The game's own boss bar shows the
+turn on its tower; **warchiefs** strike buildings half again as hard; **flyers** cross the walls. **Diggers** (from the second wave)
+answer a moat or a cliff by raising a ramp of earth to climb it, and any raider stuck behind bare land long enough starts building one;
+a digger that reaches the stone digs at its foot. The game's own boss bar shows the
 countdown, then the wave, how many are left and the stone's strength, with the game's raid music. The stone's hover names what the next
 wave holds, and once a wave is all out of the rift, **Shift+E** on the stone calls the next one at once for bonus warshards.
 
@@ -107,6 +109,8 @@ wave holds, and once a wave is all out of the rift, **Shift+E** on the stone cal
 - **Fallen** (the horde wears the stone to nothing; it feels only 40% of each blow): the stone **cracks** and works two marks lower until it
   holds a siege again. The stone itself is never destroyed and nothing is lost: a fallen tower's stave lies where it stood.
 - **Abandoned** (no player within 150 m for a minute): the horde melts away; nothing changes.
+- **Undermined**: if the land under the stone sinks a metre below where it was set (diggers at its foot, or a moat dug too close), the
+  stone **topples** into the pit: it cracks, loses a mark, and a siege on is lost.
 
 The horn rests **20 minutes** after a siege. A stone can't be taken down while a siege is on. Raiders carry warshards now and then
 (warchiefs 3–6) and drop their trophies more often.

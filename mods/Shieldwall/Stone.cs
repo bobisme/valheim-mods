@@ -16,7 +16,7 @@ namespace Shieldwall
         internal const string MarksKey="bob_sw_marks",CrackedKey="bob_sw_cracked",PhaseKey="bob_sw_phase",HealthKey="bob_sw_health",MaxHealthKey="bob_sw_maxhealth",
             RiftKey="bob_sw_rift",StartKey="bob_sw_start",SiegeKey="bob_sw_siege",PlanKey="bob_sw_plan",WaveKey="bob_sw_wave",QueueKey="bob_sw_queue",
             WaveAtKey="bob_sw_waveat",SpawnedKey="bob_sw_spawned",StageKey="bob_sw_stage",CauseKey="bob_sw_cause",CooldownKey="bob_sw_cooldown",
-            CalledKey="bob_sw_called",HeldKey="bob_sw_held",FallenKey="bob_sw_fallen",KillsKey="bob_sw_kills",QuietKey="bob_sw_quiet";
+            CalledKey="bob_sw_called",HeldKey="bob_sw_held",BaseKey="bob_sw_base",FallenKey="bob_sw_fallen",KillsKey="bob_sw_kills",QuietKey="bob_sw_quiet";
         private static GameObject _prefab;
         internal static GameObject Prefab=>_prefab;
         internal static CraftingStation Station=>_prefab!=null?_prefab.GetComponent<CraftingStation>():null;
@@ -112,7 +112,7 @@ namespace Shieldwall
             if(_glow!=null&&_glow.activeSelf!=(Phase!=Phase.Idle))_glow.SetActive(Phase!=Phase.Idle);
             // The ring shown while you look at it marks how far it feeds staves.
             if(_marker!=null&&Time.time>=_nextMarker){_nextMarker=Time.time+2;float reach=Policy.PowerRadius(Level);if(Mathf.Abs(_marker.m_radius-reach)>0.1f)_marker.m_radius=reach;}
-            if(View.IsOwner())Director.Run(this);
+            if(View.IsOwner()){Director.Run(this);Director.Footing(this);}
         }
 
         // ---- hot reload: the old copy's component comes off, the new one goes on ----

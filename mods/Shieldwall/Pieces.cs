@@ -32,6 +32,11 @@ namespace Shieldwall
                         "The horde's sappers will try to tear it down.";
                     piece.m_resources=Needs(("Stone",10),("Resin",2));
                     socket.GetComponent<WearNTear>().m_health=1500;
+                    // One slot, opened with Use like a chest: the game's own window, with your bag beside it, to choose the stave.
+                    Container box=socket.AddComponent<Container>();
+                    Container chest=Assets.Find("piece_chest_wood")?.GetComponent<Container>();
+                    box.m_name="Stave socket";box.m_width=1;box.m_height=1;box.m_privacy=Container.PrivacySetting.Public;box.m_checkGuardStone=true;
+                    if(chest!=null){box.m_bkg=chest.m_bkg;box.m_openEffects=chest.m_openEffects;box.m_closeEffects=chest.m_closeEffects;}
                     socket.AddComponent<Planted>();
                 }
             }

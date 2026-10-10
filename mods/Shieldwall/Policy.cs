@@ -6,7 +6,7 @@ namespace Shieldwall
 {
     // Pure rules for Shieldwall: the Warstone's marks and ward, who comes to a siege and how many, when waves come, what holding the
     // line earns, and the staves. No Unity or game types, so every number can be tested.
-    internal enum Role{Grunt=1,Sapper=2,Flyer=3,Champion=4}
+    internal enum Role{Grunt=1,Sapper=2,Flyer=3,Champion=4,Digger=5}
     internal enum Phase{Idle=0,Gathering=1,Battle=2}
     internal enum Cause{Horn=0,Raid=1,Test=2,Early=3}
     internal enum StaveKind{None=-1,Ember=0,Frost=1,Thunder=2,Blast=3,Hearth=4}
@@ -109,7 +109,10 @@ namespace Shieldwall
         internal static int Total(int marks,int players)=>Math.Min(220,30+8*Marks(marks)+14*Math.Max(0,Math.Min(6,players)-1));
         internal static float StoneHealth(int stage,int marks)=>4000f*(1+stage*0.75f)*(1+0.05f*Marks(marks));
         internal const float Reach=3.5f;
-        internal const float Toughness=0.4f;                  // the stone feels this share of each blow                      // a raider this close to the stone strikes it
+        internal const float Toughness=0.4f;                  // the stone feels this share of each blow
+        // Earthworks: a stone whose ground sinks this far below where it was set topples (dug out by diggers, or by its owner's moat).
+        internal const float Undermined=1.0f;
+        internal static bool Toppled(double baseHeight,double[] ground)=>ground!=null&&ground.Length>0&&baseHeight-ground.Average()>Undermined;                      // a raider this close to the stone strikes it
         internal const int MinAlive=4;
 
         // A deterministic plan: the same seed always makes the same siege, so a new owner of the stone carries on the same one.
@@ -129,7 +132,9 @@ namespace Shieldwall
                 for(int i=0;i<count;i++)
                 {
                     Role role=Role.Grunt;
-                    if(w>=1&&roster.Sappers.Length>0&&rng.Next()<0.10)role=Role.Sapper;
+                    double roll=rng.Next();
+                    if(w>=1&&roster.Sappers.Length>0&&roll<0.10)role=Role.Sapper;
+                    else if(w>=1&&roll<0.16)role=Role.Digger;
                     else if(w>=2&&roster.Flyers.Length>0&&rng.Next()<0.08)role=Role.Flyer;
                     string prefab;
                     switch(role)
@@ -223,7 +228,7 @@ namespace Shieldwall
             new Stave{Kind=StaveKind.Frost,Prefab="BobStaveFrost",Name="Frost stave",Source="StaffIceShards",Projectile="staff_iceshard_projectile",Type="frost",
                 Damage=9,Splash=4,Range=28,Cooldown=0.7f,StationLevel=2,Cost=new[]{("FreezeGland",4,2),("Crystal",2,1),(ShardPrefab,4,3)},
                 Description="Planted near a Warstone, it looses a stream of ice shards that chill and slow whatever they hit."},
-            new Stave{Kind=StaveKind.Thunder,Prefab="BobStaveThunder",Name="Thunder stave",Source="StaffLightning",Projectile="staff_lightning_projectile",Type="lightning",
+            new Stave{Kind=StaveKind.Thunder,Prefab="BobStaveThunder",Name="Thunder stave",Source="StaffRedTroll",Projectile="staff_lightning_projectile",Type="lightning",
                 Damage=55,Splash=0,Range=42,Cooldown=4f,StationLevel=3,Cost=new[]{("Iron",4,2),("Feathers",6,0),(ShardPrefab,6,4)},
                 Description="Planted near a Warstone, it calls down a heavy bolt on the strongest foe within 42 m: the champions' bane."},
             new Stave{Kind=StaveKind.Blast,Prefab="BobStaveBlast",Name="Blast stave",Source="StaffClusterbomb",Projectile="staff_clusterbombstaff_projectile",Type="fire",

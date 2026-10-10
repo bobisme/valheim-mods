@@ -146,9 +146,33 @@ namespace Shieldwall
                     !Pathfinding.instance.HavePath(transform.position,stone.Target.FindClosestPoint(transform.position),_ai.m_pathAgentType);
                 _blocker=shut?Blocker(stone.transform.position):null;
                 if(_blocker!=null){_blockerUntil=Time.time+25;TargetStatic(_ai)=_blocker;_stuckSince=Time.time;}
+                // Shut by the land itself (a moat, a cliff): nothing to break, so they build a ramp. Diggers start at once, the rest in a while.
+                else if(shut&&!close&&(Role==Role.Digger||Time.time-_stuckSince>8))Earthwork(stone.transform.position);
             }
+            // Diggers that reach the stone dig at its foot: let them, and it topples.
+            if(Role==Role.Digger&&_seesStone&&Time.time>=_nextDig){_nextDig=Time.time+4;Undermine(stone);}
         }
-        private bool _seesStone;private float _sapUntil,_vengeanceUntil;private Planted _vengeance;
+        private bool _seesStone;private float _nextDig,_nextRamp;
+        // A ramp of earth: the ground just ahead (toward the stone) raised to where the raider stands, a little at a time.
+        private void Earthwork(Vector3 stone)
+        {
+            if(Time.time<_nextRamp)return;
+            _nextRamp=Time.time+(Role==Role.Digger?1.5f:3f);
+            Vector3 toward=stone-transform.position;toward.y=0;toward.Normalize();
+            // A step a metre above where it stands, up to the land around the stone (or level with it, to fill a ditch): a ramp, one step at a time.
+            float top=ZoneSystem.instance.GetGroundHeight(stone,out float g)?g:stone.y;
+            Vector3 at=transform.position+toward*1.8f;
+            at.y=Mathf.Min(transform.position.y+1f,top)-0.3f;
+            Assets.Raise(at);
+            Assets.Effect("vfx_Place_stone_wall_2x1",at);
+        }
+        private void Undermine(Warstone stone)
+        {
+            Vector3 foot=stone.Target.FindClosestPoint(transform.position);
+            if(ZoneSystem.instance.GetGroundHeight(foot,out float ground))foot.y=ground;
+            Vector3 under=Vector3.Lerp(foot,stone.transform.position,0.5f);under.y=foot.y;
+            Assets.Dig(under);
+        }private float _sapUntil,_vengeanceUntil;private Planted _vengeance;
         // The piece to strike to bring a socket down: the socket itself if it is within reach of the ground, else what holds it up.
         private static readonly RaycastHit[] Under=new RaycastHit[8];
         private StaticTarget Footing(Planted socket)

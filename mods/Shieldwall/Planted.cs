@@ -10,7 +10,7 @@ namespace Shieldwall
     // foes in reach (a Hearth stave mends friends instead) and never hurts players, companions, tames or buildings. A Warstone feeds only
     // so many staves, nearest first, and only so far, both growing with its level. Use takes a stave out or sets one in; Shift+Use spends
     // warshards to strengthen it. If the horde brings the socket down, its stave falls where it stood.
-    internal sealed class Planted:MonoBehaviour,Hoverable,Interactable
+    internal sealed class Planted:MonoBehaviour
     {
         internal const string LegacyName="BobPlantedStave",ItemKey="bob_sw_item",KillsKey="bob_sw_kills";
         internal static readonly List<Planted> Loaded=new List<Planted>();
@@ -18,8 +18,8 @@ namespace Shieldwall
         internal static readonly Dictionary<ItemDrop.ItemData,Planted> Shots=new Dictionary<ItemDrop.ItemData,Planted>();
         private static int _sight=-1;
 
-        internal ZNetView View;internal StaticTarget Target;private WearNTear _wear;
-        private ItemDrop.ItemData _item;private Stave _stave;
+        internal ZNetView View;internal StaticTarget Target;private WearNTear _wear;internal Container Box;
+        private ItemDrop.ItemData _item,_shot;private Stave _stave; // the stave in the socket's one slot, and the copy its shots carry
         private GameObject _look;private Light _light;
         private float _length=3,_next;
         internal bool Holding=>_item!=null;
@@ -27,7 +27,7 @@ namespace Shieldwall
 
         private void Awake()
         {
-            View=GetComponent<ZNetView>();Target=GetComponent<StaticTarget>();_wear=GetComponent<WearNTear>();
+            View=GetComponent<ZNetView>();Target=GetComponent<StaticTarget>();_wear=GetComponent<WearNTear>();Box=GetComponent<Container>();
             if(View==null||!View.IsValid())return;
             Loaded.Add(this);
             if(_wear!=null)_wear.m_onDestroyed+=Fallen;
@@ -37,32 +37,59 @@ namespace Shieldwall
         private void OnDestroy()
         {
             Loaded.Remove(this);
-            if(_item!=null)Shots.Remove(_item);
+            if(_shot!=null)Shots.Remove(_shot);
             if(_wear!=null)_wear.m_onDestroyed-=Fallen;
         }
-        // The stave in the socket, from the socket's saved data (it changes when someone sets, takes or strengthens one).
+        // The stave in the socket: whatever stands in its one slot (the game's own container keeps it, saves it and drops it if the socket
+        // falls). Anything that is not a stave is handed back.
         private string _loaded="";
         internal void Load()
         {
-            ZDO z=View.GetZDO();
-            string prefab=z.GetString(ItemKey,"");
-            string signature=prefab+"|"+z.GetInt(ZDOVars.s_quality,1);
+            Inventory slot=Box!=null?Box.GetInventory():null;
+            if(slot==null)return;
+            Migrate(slot);
+            ItemDrop.ItemData item=slot.GetAllItems().FirstOrDefault();
+            if(item!=null&&!Items.Plantable(item)){Refuse(slot,item);item=null;}
+            string prefab=PrefabOf(item);
+            string signature=item==null||prefab==null?"":prefab+"|"+item.m_quality;
             if(signature==_loaded)return;
             _loaded=signature;
-            if(_item!=null)Shots.Remove(_item);
-            _item=null;_stave=null;
+            if(_shot!=null)Shots.Remove(_shot);
+            _item=null;_shot=null;_stave=null;
             if(_look!=null)Object.Destroy(_look);
             if(_light!=null)Object.Destroy(_light.gameObject);
-            GameObject source=string.IsNullOrEmpty(prefab)?null:Items.Get(prefab)??Assets.Find(prefab);
-            ItemDrop drop=source!=null?source.GetComponent<ItemDrop>():null;
-            if(drop==null)return;
-            _item=drop.m_itemData.Clone();_item.m_dropPrefab=source;
-            ItemDrop.LoadFromZDO(_item,z);
-            _stave=Policy.Staves.FirstOrDefault(s=>s.Name==_item.m_shared.m_name);
-            Shots[_item]=this;
+            GameObject source=prefab==null?null:Items.Get(prefab)??Assets.Find(prefab);
+            if(source==null)return;
+            _item=item;
+            _shot=item.Clone();_shot.m_dropPrefab=source;
+            _stave=Policy.Staves.FirstOrDefault(st=>st.Name==item.m_shared.m_name);
+            Shots[_shot]=this;
             Build(source);
         }
-        internal static void DetachAll(){foreach(Planted p in Loaded.ToList())if(p!=null){if(p._look!=null)Object.Destroy(p._look);if(p._light!=null)Object.Destroy(p._light.gameObject);Object.Destroy(p);}Loaded.Clear();Shots.Clear();}
+        // A socket from before the slot (0.2.0) kept its stave in its own data: move it into the slot.
+        private void Migrate(Inventory slot)
+        {
+            ZDO z=View.GetZDO();
+            string prefab=z.GetString(ItemKey,"");
+            if(prefab==""||!View.IsOwner())return;
+            GameObject source=Items.Get(prefab)??Assets.Find(prefab);
+            if(source!=null&&source.GetComponent<ItemDrop>() is ItemDrop drop)
+            {
+                ItemDrop.ItemData item=drop.m_itemData.Clone();item.m_dropPrefab=source;ItemDrop.LoadFromZDO(item,z);item.m_quality=z.GetInt(ZDOVars.s_quality,item.m_quality);
+                if(!slot.AddItem(item))ItemDrop.DropItem(item,1,transform.position+Vector3.up*1.2f,Quaternion.identity);
+            }
+            z.Set(ItemKey,"");
+        }
+        // Something else put in the slot goes back to whoever put it there (they have the socket open, so their game owns it).
+        private void Refuse(Inventory slot,ItemDrop.ItemData item)
+        {
+            if(!View.IsOwner())return;
+            slot.RemoveItem(item);
+            Player me=Player.m_localPlayer;
+            if(me!=null&&Box.IsInUse()&&me.GetInventory().AddItem(item))me.Message(MessageHud.MessageType.Center,"Only a staff can stand in a stave socket.");
+            else ItemDrop.DropItem(item,item.m_stack,transform.position+Vector3.up*1.2f,Quaternion.identity);
+        }
+        internal static void DetachAll(){foreach(Planted p in Loaded.ToList())if(p!=null){if(p._shot!=null)Shots.Remove(p._shot);if(p._look!=null)Object.Destroy(p._look);if(p._light!=null)Object.Destroy(p._light.gameObject);Object.Destroy(p);}Loaded.Clear();Shots.Clear();}
         internal static void AttachAll()
         {
             foreach(ZNetView view in Assets.Instances(Pieces.SocketName.GetStableHashCode()))
@@ -81,17 +108,124 @@ namespace Shieldwall
             _look.transform.SetParent(transform,false);
             GameObject model=Assets.Model(attach!=null?attach.gameObject:source,_look.transform,Vector3.zero,Quaternion.identity,1,r=>r.GetComponent<MeshFilter>()!=null);
             if(model==null)return;
-            Bounds local=Local(model,_look.transform);
-            Vector3 head=local.center.sqrMagnitude>0.01f?local.center.normalized:Vector3.forward;
-            model.transform.localRotation=Quaternion.FromToRotation(head,Vector3.up);
-            Bounds upright=Local(model,_look.transform);
-            model.transform.localPosition=new Vector3(-upright.center.x,-upright.min.y-0.35f,-upright.center.z);
-            _look.transform.localScale=new Vector3(4.2f,2f,4.2f); // four times as thick, twice as long: no hand could swing it
+            Vector3 shaft=Shaft(model,_look.transform,out Vector3 butt);
+            Quaternion upright=Quaternion.FromToRotation(shaft,Vector3.up);
+            model.transform.localRotation=upright;
+            // The butt of the shaft stands at the socket's centre, sunk 0.35 m into it.
+            Vector3 foot=upright*butt;
+            model.transform.localPosition=new Vector3(-foot.x,-foot.y-0.35f,-foot.z);
+            Bounds standing=Local(model,_look.transform);
+            // Centre on where the shaft really is: look up the staff from below at its bottom slice only (once per kind of staff).
+            string kind=source.name;
+            // The shaft's own axis already stands it upright; only its butt needs centring (measured once per kind of staff).
+            if(!Trued.TryGetValue(kind,out var fix))fix=(Quaternion.identity,null);
+            // Turn about the butt, then put the butt's middle at the socket's centre.
+            Vector3 pivot=new Vector3(0,standing.min.y,0);
+            model.transform.localPosition=fix.lean*(model.transform.localPosition-pivot)+pivot;
+            model.transform.localRotation=fix.lean*model.transform.localRotation;
+            standing=Local(model,_look.transform);
+            if(fix.bottom==null){fix.bottom=Centre(model,_look.transform,standing,0.04f)??Vector2.zero;Trued[kind]=fix;}
+            model.transform.localPosition-=new Vector3(fix.bottom.Value.x,0,fix.bottom.Value.y);
+            model.transform.localPosition+=Vector3.up*(-0.35f-Local(model,_look.transform).min.y);
+            standing=Local(model,_look.transform);
+            // Every stave stands about four metres over its socket, and as thick for its height as a tree limb: no hand could swing it.
+            float k=Mathf.Clamp(4f/Mathf.Max(0.3f,standing.max.y),0.8f,4f);
+            _look.transform.localScale=new Vector3(Mathf.Min(k*2.1f,4.5f),k,Mathf.Min(k*2.1f,4.5f)); // a short staff grows tall, not wide
             _look.transform.localPosition=new Vector3(0,Pieces.SocketTop,0);
-            _length=Mathf.Clamp(upright.size.y*2f-0.7f,1.5f,5.5f);
+            _length=Mathf.Clamp(standing.max.y*k,1.5f,5.5f);
             var lit=new GameObject("StaveGlow");lit.transform.SetParent(transform,false);lit.transform.localPosition=new Vector3(0,Pieces.SocketTop+_length-0.4f,0);
             _light=lit.AddComponent<Light>();_light.type=LightType.Point;_light.range=5;_light.intensity=1.2f;_light.shadows=LightShadows.None;
             _light.color=_stave!=null&&Items.Colours.TryGetValue(_stave.Kind,out var c)?c.glow*1.6f:new Color(0.6f,0.6f,1f);
+        }
+        // The staff's shaft: the long axis of its longest mesh, in the frame given, pointing at its head (the end farther from where a hand
+        // holds it, the item's origin). A staff's mesh is modelled along its length, whatever angle it is carried at.
+        private static Vector3 Shaft(GameObject model,Transform frame,out Vector3 butt)
+        {
+            butt=Vector3.zero;
+            MeshFilter longest=null;float length=0;int axis=1;
+            foreach(MeshFilter f in model.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if(f.sharedMesh==null)continue;
+                Vector3 size=Vector3.Scale(f.sharedMesh.bounds.size,f.transform.lossyScale);
+                int a=size.x>=size.y&&size.x>=size.z?0:size.y>=size.z?1:2;
+                if(size[a]>length){length=size[a];longest=f;axis=a;}
+            }
+            if(longest==null)return Vector3.up;
+            Bounds m=longest.sharedMesh.bounds;
+            Vector3 along=Vector3.zero;along[axis]=m.extents[axis];
+            Matrix4x4 to=frame.worldToLocalMatrix*longest.transform.localToWorldMatrix;
+            Vector3 a1=to.MultiplyPoint3x4(m.center+along),a2=to.MultiplyPoint3x4(m.center-along);
+            // The grip is the frame's origin (where the hand holds the item); the head is the far end.
+            butt=a1.sqrMagnitude>=a2.sqrMagnitude?a2:a1;
+            Vector3 dir=(a1.sqrMagnitude>=a2.sqrMagnitude?a1-a2:a2-a1).normalized;
+            // The butt's true centre: the middle of the mesh's own points in its bottom tenth (a lopsided head pulls the box, not the shaft).
+            // The butt's true centre. A staff's head often pulls its bounding box off the shaft, so centre on the shaft itself: the mesh's
+            // longest, thinnest part (each material is its own part, and the wood of the shaft is usually one).
+            Mesh mesh=longest.sharedMesh;
+            float best=0;Vector3 line=Vector3.zero;bool found=false;
+            for(int i=0;i<mesh.subMeshCount;i++)
+            {
+                Bounds part=mesh.GetSubMesh(i).bounds;
+                float length2=part.size[axis],width=0;
+                for(int k=0;k<3;k++)if(k!=axis)width=Mathf.Max(width,part.size[k]);
+                float slender=length2/Mathf.Max(0.01f,width);
+                if(length2>m.size[axis]*0.4f&&slender>best){best=slender;line=to.MultiplyPoint3x4(part.center);found=true;}
+            }
+            if(found)butt=line+dir*(Vector3.Dot(butt,dir)-Vector3.Dot(line,dir));
+            return dir;
+        }
+        private static readonly Dictionary<string,(Quaternion lean,Vector2? bottom)> Trued=new Dictionary<string,(Quaternion,Vector2?)>();
+        // The middle of the shaft (frame x/z) in a thin slice at some fraction of its height: two orthographic side views of just that slice.
+        private static Vector2? Centre(GameObject model,Transform frame,Bounds standing,float at)
+        {
+            float slice=Mathf.Max(0.04f,standing.size.y*0.08f),half=Mathf.Max(standing.extents.x,standing.extents.z)+0.05f;
+            float height=standing.min.y+standing.size.y*at;
+            float? x=Side(model,frame,standing,height,frame.forward,frame.right,slice,half),z=Side(model,frame,standing,height,frame.right,frame.forward,slice,half);
+            return x==null||z==null?(Vector2?)null:new Vector2(x.Value,z.Value);
+        }
+        // Looking along "look", how far along "across" (in metres from the bounds' centre line) the middle of the bottom slice lies.
+        private static float? Side(GameObject model,Transform frame,Bounds standing,float height2,Vector3 look,Vector3 across,float slice,float half)
+        {
+            var renderers=model.GetComponentsInChildren<Renderer>(true);
+            var layers=renderers.Select(r=>r.gameObject.layer).ToArray();
+            int layer=31;for(int l=31;l>8;l--)if(string.IsNullOrEmpty(LayerMask.LayerToName(l))){layer=l;break;}
+            int width=128,height=Mathf.Clamp(Mathf.RoundToInt(width*slice/(2*half)),4,128);
+            var holder=new GameObject("ShieldwallButtCamera");
+            RenderTexture target=RenderTexture.GetTemporary(width,height,16,RenderTextureFormat.ARGB32);
+            RenderTexture previous=RenderTexture.active;
+            try
+            {
+                foreach(Renderer r in renderers)r.gameObject.layer=layer;
+                Vector3 middle=frame.TransformPoint(new Vector3(standing.center.x,height2,standing.center.z));
+                float distance=half+2;
+                holder.transform.position=middle-look*distance;
+                holder.transform.rotation=Quaternion.LookRotation(look,frame.up);
+                Camera camera=holder.AddComponent<Camera>();
+                camera.enabled=false;camera.orthographic=true;camera.orthographicSize=slice/2;camera.aspect=(float)width/height;camera.cullingMask=1<<layer;
+                camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(1,0,1,1); // magenta: some staff shaders write no alpha
+                camera.nearClipPlane=0.1f;camera.farClipPlane=distance*2;camera.allowHDR=false;camera.allowMSAA=false;
+                var light=new GameObject("Light");light.transform.SetParent(holder.transform,false);
+                Light sun=light.AddComponent<Light>();sun.type=LightType.Directional;sun.cullingMask=1<<layer;sun.intensity=1;
+                camera.targetTexture=target;camera.Render();
+                RenderTexture.active=target;
+                var texture=new Texture2D(width,height,TextureFormat.RGBA32,false);
+                texture.ReadPixels(new Rect(0,0,width,height),0,0);texture.Apply();
+                Color32[] pixels=texture.GetPixels32();Object.Destroy(texture);
+                // The median column of what it sees (a feather or a hook to one side barely moves it).
+                var columns=new List<int>();
+                for(int y=0;y<height;y++)for(int xx=0;xx<width;xx++){Color32 c=pixels[y*width+xx];if(c.g>30||c.r<225||c.b<225)columns.Add(xx);}
+                if(columns.Count==0)return null;
+                columns.Sort();
+                float px=(columns[columns.Count/2]+0.5f)/width*2-1; // -1..1 across the view, along the camera's right
+                Vector3 world=middle+holder.transform.right*px*(slice/2*camera.aspect);
+                return Vector3.Dot(frame.InverseTransformPoint(world)-new Vector3(0,0,0),frame.InverseTransformDirection(across).normalized);
+            }
+            catch(System.Exception e){Debug.LogWarning("[Shieldwall] could not find a staff's butt: "+e.Message);return null;}
+            finally
+            {
+                for(int i=0;i<renderers.Length;i++)if(renderers[i]!=null)renderers[i].gameObject.layer=layers[i];
+                RenderTexture.active=previous;RenderTexture.ReleaseTemporary(target);Object.DestroyImmediate(holder);
+            }
         }
         private static Bounds Local(GameObject model,Transform frame)
         {
@@ -216,7 +350,7 @@ namespace Shieldwall
             else{hit.m_damage=_item.GetDamage();hit.m_damage.Modify(Policy.BorrowedPower);}
             StatusEffect status=_item.m_shared.m_attackStatusEffect;
             if(status!=null)hit.m_statusEffectHash=status.NameHash();
-            shot.GetComponent<IProjectile>()?.Setup(null,dir*speed,-1,hit,_item,null);
+            shot.GetComponent<IProjectile>()?.Setup(null,dir*speed,-1,hit,_shot,null);
             if(attack!=null)attack.m_startEffect.Create(tip,Quaternion.LookRotation(dir));
         }
         internal void Killed(){if(View!=null&&View.IsValid())View.GetZDO().Set(KillsKey,View.GetZDO().GetInt(KillsKey,0)+1);}
@@ -242,19 +376,15 @@ namespace Shieldwall
         private void Fallen()
         {
             if(_item==null||View==null||!View.IsValid()||!View.IsOwner())return;
-            ItemDrop.DropItem(_item,1,transform.position+Vector3.up*1.2f,Quaternion.Euler(0,Random.Range(0,360f),90));
-            Net.Say($"A tower has fallen! Its {_item.m_shared.m_name.ToLowerInvariant()} lies on the ground.",transform.position,60);
-            View.GetZDO().Set(ItemKey,"");_item=null;
+            Net.Say($"A tower has fallen! Its {_item.m_shared.m_name.ToLowerInvariant()} lies on the ground.",transform.position,60); // the slot drops it
         }
 
-        // ---- hover, setting, taking out and strengthening ----
-        public string GetHoverName()=>_item!=null?_item.m_shared.m_name:"Stave socket";
-        public float GetHoverOffset()=>0;
-        public string GetHoverText()
+        // ---- hover and strengthening (the socket's own container opens on Use: pick a stave from your bag into its slot) ----
+        internal string Hover()
         {
             if(View==null||!View.IsValid())return "";
             Power();
-            if(_item==null)return Localization.instance.Localize("Stave socket\n[<color=yellow><b>$KEY_Use</b></color>] Set a stave from your bag");
+            if(_item==null)return Localization.instance.Localize("Stave socket ( empty )\n[<color=yellow><b>$KEY_Use</b></color>] Choose a stave");
             string stars=_item.m_quality>1?" "+new string('★',_item.m_quality-1):"";
             string name=_item.m_shared.m_name+stars+(_stave==null?" (borrowed: weak)":"");
             string state=!_powered?$"<color=#A0A0A0>{_why}</color>":_stave!=null&&_stave.Kind==StaveKind.Hearth?$"Mending friends within {Range:0} m":
@@ -262,65 +392,37 @@ namespace Shieldwall
             int kills=View.GetZDO().GetInt(KillsKey,0);
             if(kills>0)state+=$" · {kills} slain";
             if(_wear!=null&&_wear.GetHealthPercentage()<0.99f)state+=$" · socket {Mathf.RoundToInt(_wear.GetHealthPercentage()*100)}%";
-            string line=$"{name}\n{state}\n[<color=yellow><b>$KEY_Use</b></color>] Take it out";
+            string line=$"{name}\n{state}\n[<color=yellow><b>$KEY_Use</b></color>] Change the stave";
             if(_stave!=null&&_item.m_quality<Policy.MaxQuality)
                 line+=$"\n[<color=yellow><b>$KEY_AltPlace + $KEY_Use</b></color>] Strengthen: {Policy.UpgradeShards(_item.m_quality+1)} warshards, Warstone level {Policy.UpgradeLevel(_item.m_quality+1)}";
             return Localization.instance.Localize(line);
-        }
-        public bool Interact(Humanoid user,bool hold,bool alt)
-        {
-            if(hold||!(user is Player player)||player!=Player.m_localPlayer||View==null||!View.IsValid())return false;
-            if(!PrivateArea.CheckAccess(transform.position))return false;
-            if(alt)return Strengthen(player);
-            if(_item!=null)return TakeOut(player);
-            // Empty: the best stave in the bag (Shieldwall's own first, strongest first).
-            ItemDrop.ItemData best=player.GetInventory().GetAllItems().Where(Items.Plantable).OrderByDescending(i=>Items.IsStave(i)).ThenByDescending(i=>i.m_quality).FirstOrDefault();
-            if(best==null){player.Message(MessageHud.MessageType.Center,"You carry no stave to set in it.");return true;}
-            return Set(player,best);
-        }
-        public bool UseItem(Humanoid user,ItemDrop.ItemData item)
-        {
-            if(!(user is Player player)||player!=Player.m_localPlayer||View==null||!View.IsValid()||!Items.Plantable(item))return false;
-            if(_item!=null){player.Message(MessageHud.MessageType.Center,"A stave already stands here.");return true;}
-            return Set(player,item);
         }
         // Which prefab an item is: its own link if alive, else by its name (a stave picked up across a reload can carry a dead link).
         internal static string PrefabOf(ItemDrop.ItemData item)
         {
             if(item==null)return null;
             if(item.m_dropPrefab!=null)return item.m_dropPrefab.name;
-            Stave stave=Policy.Staves.FirstOrDefault(s=>s.Name==item.m_shared?.m_name);
+            Stave stave=Policy.Staves.FirstOrDefault(st=>st.Name==item.m_shared?.m_name);
             if(stave!=null)return stave.Prefab;
             return ObjectDB.instance!=null&&ObjectDB.instance.TryGetItemPrefab(item.m_shared,out GameObject prefab)&&prefab!=null?prefab.name:null;
         }
-        private bool Set(Player player,ItemDrop.ItemData item)
+        internal string Name=>_item!=null?_item.m_shared.m_name:"Stave socket";
+        private static readonly System.Reflection.MethodInfo Changed=AccessTools.Method(typeof(Inventory),"Changed");
+        // A stave dragged onto the socket from the hotbar goes straight into an empty slot.
+        internal bool Drop(Player player,ItemDrop.ItemData item)
         {
-            string prefab=PrefabOf(item);
-            GameObject source=prefab==null?null:Items.Get(prefab)??Assets.Find(prefab);
-            if(source==null){player.Message(MessageHud.MessageType.Center,"That stave will not take to the socket.");return true;} // never take an item it cannot keep
+            if(!Items.Plantable(item)||Box==null)return false;
+            if(_item!=null){player.Message(MessageHud.MessageType.Center,"A stave already stands here.");return true;}
+            if(PrefabOf(item)==null){player.Message(MessageHud.MessageType.Center,"That stave will not take to the socket.");return true;}
             View.ClaimOwnership();
-            ZDO z=View.GetZDO();
-            z.Set(ItemKey,prefab);
-            ItemDrop.SaveToZDO(item,z);
-            z.Set(ZDOVars.s_quality,item.m_quality);
             player.UnequipItem(item,false);
+            if(!Box.GetInventory().AddItem(item.Clone()))return true;
             player.GetInventory().RemoveItem(item);
-            Load();
+            _nextLoad=0;
             Assets.Effect("vfx_HealthUpgrade",transform.position+Vector3.up*Pieces.SocketTop);
-            player.Message(MessageHud.MessageType.TopLeft,$"Set the {item.m_shared.m_name.ToLowerInvariant()} in its socket.");
             return true;
         }
-        private bool TakeOut(Player player)
-        {
-            View.ClaimOwnership();
-            ItemDrop.ItemData item=_item.Clone();
-            if(!player.GetInventory().AddItem(item))ItemDrop.DropItem(item,1,transform.position+Vector3.up*1.2f,Quaternion.identity);
-            else player.ShowPickupMessage(item,1);
-            View.GetZDO().Set(ItemKey,"");
-            Load();
-            return true;
-        }
-        private bool Strengthen(Player player)
+        internal bool Strengthen(Player player)
         {
             if(_item==null||_stave==null){player.Message(MessageHud.MessageType.Center,"Only a war stave can be strengthened here.");return true;}
             int to=_item.m_quality+1;
@@ -332,9 +434,9 @@ namespace Shieldwall
             if(bag.CountItems("Warshard")<shards){player.Message(MessageHud.MessageType.Center,$"It takes {shards} warshards.");return true;}
             bag.RemoveItem("Warshard",shards);
             View.ClaimOwnership();
-            ItemDrop.ItemData item=_item.Clone();item.m_quality=to;
-            ItemDrop.SaveToZDO(item,View.GetZDO());View.GetZDO().Set(ZDOVars.s_quality,to);
-            Load();
+            ItemDrop.ItemData item=_item;item.m_quality=to;
+            Changed.Invoke(Box.GetInventory(),Changed.GetParameters().Length==0?null:Changed.GetParameters().Select(pp=>(object)false).ToArray()); // the container saves the stronger stave
+            _loaded="";Load();
             Assets.Effect("fx_DvergerMage_Support_start",transform.position+Vector3.up*Pieces.SocketTop);
             player.Message(MessageHud.MessageType.Center,$"The {item.m_shared.m_name.ToLowerInvariant()} grows stronger: {new string('★',to-1)}");
             return true;
@@ -347,9 +449,7 @@ namespace Shieldwall
             Piece piece=go.GetComponent<Piece>();
             if(Player.m_localPlayer!=null)piece?.SetCreator(Player.m_localPlayer.GetPlayerID(),Splatform.PlatformManager.DistributionPlatform.LocalUser.PlatformUserID);
             if(item==null)return go;
-            ZDO z=go.GetComponent<ZNetView>().GetZDO();
-            z.Set(ItemKey,PrefabOf(item)??"");
-            ItemDrop.SaveToZDO(item,z);z.Set(ZDOVars.s_quality,item.m_quality);
+            go.GetComponent<Container>()?.GetInventory().AddItem(item);
             go.GetComponent<Planted>()?.Load();
             return go;
         }
@@ -442,6 +542,36 @@ namespace Shieldwall
         {
             if(Raider.LastShot.TryGetValue(__instance,out var shot)&&shot.socket!=null&&Time.time-shot.at<4)shot.socket.Killed();
             Raider.LastShot.Remove(__instance);
+        }
+    }
+    // The socket is the game's own one-slot container; it speaks for itself on hover, strengthens on Shift+Use, takes a stave from the hotbar.
+    [HarmonyPatch(typeof(Container),nameof(Container.GetHoverText))]
+    internal static class SocketHover
+    {
+        private static void Postfix(Container __instance,ref string __result)
+        {
+            if(__instance.GetComponent<Planted>() is Planted socket&&PrivateArea.CheckAccess(__instance.transform.position,0,false))__result=socket.Hover();
+        }
+    }
+    [HarmonyPatch(typeof(Container),nameof(Container.Interact))]
+    internal static class SocketStrengthen
+    {
+        private static bool Prefix(Container __instance,Humanoid character,bool hold,bool alt,ref bool __result)
+        {
+            if(!alt||hold||!(__instance.GetComponent<Planted>() is Planted socket)||!(character is Player player)||player!=Player.m_localPlayer)return true;
+            if(!PrivateArea.CheckAccess(__instance.transform.position)){__result=true;return false;}
+            __result=socket.Strengthen(player);
+            return false;
+        }
+    }
+    [HarmonyPatch(typeof(Container),nameof(Container.UseItem))]
+    internal static class SocketFromHotbar
+    {
+        private static bool Prefix(Container __instance,Humanoid user,ItemDrop.ItemData item,ref bool __result)
+        {
+            if(!(__instance.GetComponent<Planted>() is Planted socket)||!(user is Player player)||player!=Player.m_localPlayer)return true;
+            __result=socket.Drop(player,item);
+            return false;
         }
     }
 }

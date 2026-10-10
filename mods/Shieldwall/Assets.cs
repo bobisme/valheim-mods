@@ -72,6 +72,18 @@ namespace Shieldwall
             if(all==null)yield break;
             foreach(object view in all.Values.Cast<object>().ToList())if(view is ZNetView v&&v!=null&&v.IsValid())yield return v;
         }
+        // The game's own earthworks: the pickaxe's dig (taken from the pickaxe itself) and the hoe's raise.
+        internal static void Dig(Vector3 at)
+        {
+            GameObject dig=null;
+            foreach(string tool in new[]{"PickaxeIron","PickaxeBronze","PickaxeAntler"})
+            {
+                dig=ObjectDB.instance?.GetItemPrefab(tool)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_spawnOnHitTerrain;
+                if(dig!=null)break;
+            }
+            if(dig!=null)Object.Instantiate(dig,at,Quaternion.identity);
+        }
+        internal static void Raise(Vector3 at){GameObject raise=Find("raise_v2");if(raise!=null)Object.Instantiate(raise,at,Quaternion.identity);}
         // A networked effect everyone sees (made once, by whoever runs the siege).
         internal static void Effect(string prefab,Vector3 at,Quaternion? rotation=null)
         {

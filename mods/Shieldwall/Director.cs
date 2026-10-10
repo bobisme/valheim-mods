@@ -271,7 +271,32 @@ namespace Shieldwall
             string[] names={"north","north-east","east","south-east","south","south-west","west","north-west"};
             return names[((int)Mathf.Round(((angle%360)+360)%360/45f))%8];
         }
-        internal static void Forget(Warstone stone){NextTick.Remove(stone);NextRelease.Remove(stone);NextGlow.Remove(stone);Lonely.Remove(stone);}
+        // ---- the stone's footing: dig the ground out from under it (a digger, or a moat too close) and it topples ----
+        private static readonly Dictionary<Warstone,float> NextFooting=new Dictionary<Warstone,float>();
+        internal static void Footing(Warstone stone)
+        {
+            if(NextFooting.TryGetValue(stone,out float next)&&Time.time<next)return;
+            NextFooting[stone]=Time.time+2;
+            ZDO z=stone.Z;if(z==null)return;
+            Vector3 at=stone.transform.position;
+            var ground=new List<double>();
+            foreach(Vector3 offset in new[]{Vector3.zero,new Vector3(0.7f,0,0),new Vector3(-0.7f,0,0),new Vector3(0,0,0.5f),new Vector3(0,0,-0.5f)})
+                if(ZoneSystem.instance.GetGroundHeight(at+stone.transform.rotation*offset,out float h))ground.Add(h);
+            if(ground.Count==0)return;
+            // The land under it when it was set (a stone on a floor indoors stands above it, and that is fine): it topples if that land is dug away.
+            if(!z.GetBool(Stone.BaseKey+"_set",false)){z.Set(Stone.BaseKey,(float)ground.Average());z.Set(Stone.BaseKey+"_set",true);return;}
+            if(!Policy.Toppled(z.GetFloat(Stone.BaseKey,0),ground.ToArray()))return;
+            // It topples into the pit: cracked, a mark lost, and if a siege is on, the siege lost.
+            float settle=Mathf.Min(at.y,(float)ground.Average());
+            stone.transform.position=new Vector3(at.x,settle,at.z);
+            z.SetPosition(stone.transform.position);z.Set(Stone.BaseKey,settle);
+            z.Set(Stone.MarksKey,Policy.Marks(stone.Marks-1));
+            Assets.Effect("sfx_gdking_scream",at);Assets.Effect("vfx_spawn_large",at);
+            if(stone.Phase==Phase.Battle){z.Set(Stone.HealthKey,0f);End(stone,Outcome.Fallen);}
+            else z.Set(Stone.CrackedKey,true);
+            Net.Say("The ground gives way beneath the Warstone and it topples into the pit! It cracks and loses a mark.",at,250);
+        }
+        internal static void Forget(Warstone stone){NextFooting.Remove(stone);NextTick.Remove(stone);NextRelease.Remove(stone);NextGlow.Remove(stone);Lonely.Remove(stone);}
         internal static void Reset(){NextTick.Clear();NextRelease.Clear();NextGlow.Clear();Lonely.Clear();}
     }
 }
