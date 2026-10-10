@@ -39,6 +39,8 @@ namespace Shieldwall
             model.AddComponent<MeshFilter>().sharedMesh=source.GetComponent<MeshFilter>().sharedMesh;
             model.AddComponent<MeshRenderer>().sharedMaterials=source.GetComponent<MeshRenderer>().sharedMaterials;
             var solid=model.AddComponent<MeshCollider>();solid.sharedMesh=source.GetComponent<MeshCollider>()?.sharedMesh??source.GetComponent<MeshFilter>().sharedMesh;
+            // Convex: the game sets a ghost down by its nearest convex collider, and with none it puts it far off in the sky.
+            solid.convex=true;
             // The boss stone's glow and light, lit while a siege is on.
             Transform effects=look.transform.Find("active_effects");
             if(effects!=null)
