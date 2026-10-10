@@ -70,11 +70,9 @@ namespace PassengerCart
                 Transform crate=crates[i];
                 foreach(Collider c in crate.GetComponentsInChildren<Collider>(true))Object.DestroyImmediate(c);
                 crate.SetParent(fittings,false);
-                crate.localPosition=new Vector3((i==0?-1:1)*(float)Policy.CargoWidth/4,(float)Policy.Floor,(float)Policy.CargoZ);
-                crate.localRotation=Quaternion.Euler(0,i==0?4:-7,0);
-                crate.localScale=Vector3.one;
                 crate.gameObject.SetActive(true);
             }
+            PlaceCrates(fittings);
             if(load!=null)Object.DestroyImmediate(load.gameObject);
 
             Transform box=root.Find("Container");
@@ -88,6 +86,19 @@ namespace PassengerCart
             hover.size=new Vector3((float)Policy.CargoWidth,(float)Policy.CargoHeight,(float)Policy.CargoDepth);
             Container container=box.GetComponent<Container>();
             if(container!=null)container.m_name=DisplayName;
+        }
+
+        internal static void PlaceCrates(Transform fittings)
+        {
+            for(int i=0;i<2;i++)
+            {
+                Transform crate=fittings.Find(i==0?"default":"default (1)");
+                if(crate==null)continue;
+                float side=i==0?-1:1;
+                crate.localPosition=new Vector3(side*(float)Policy.CrateX,(float)Policy.Floor,(float)Policy.CargoZ);
+                crate.localRotation=Quaternion.Euler(0,side*(float)Policy.CrateTurn,0);
+                crate.localScale=Vector3.one;
+            }
         }
 
         // Plank benches from the cart's own wood: a seat, a backrest and two end blocks per row. Looks only; no colliders.
@@ -148,6 +159,9 @@ namespace PassengerCart
                     if(stale!=null&&(stale.GetType().FullName==typeof(Carriage).FullName||stale.GetType().FullName==typeof(Seat).FullName))Object.DestroyImmediate(stale);
                 Transform fittings=view.transform.Find("Fittings");
                 if(fittings==null)continue;
+                PlaceCrates(fittings);
+                Transform box=fittings.Find("Container");
+                if(box!=null&&box.GetComponent<BoxCollider>() is BoxCollider hover)hover.size=new Vector3((float)Policy.CargoWidth,(float)Policy.CargoHeight,(float)Policy.CargoDepth);
                 for(int i=0;i<Policy.Seats().Length;i++)
                 {
                     Transform seat=fittings.Find("Seat"+i);

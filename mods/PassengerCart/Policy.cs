@@ -22,7 +22,8 @@ namespace PassengerCart
         internal const double SeatWidth=0.75,SeatDepth=0.45,BenchWidth=1.6;
         internal static readonly double[] Rows={0.6,-0.35}; // front and back bench centres
         internal const double SeatX=0.4;
-        internal const double CargoZ=-1.0,CargoDepth=0.57,CargoWidth=1.2,CargoHeight=0.62;
+        internal const double CargoZ=-0.98,CargoDepth=0.57,CargoWidth=1.36,CargoHeight=0.62;
+        internal const double CrateSize=0.57,CrateX=0.35,CrateTurn=2.5; // two crates with a clear gap: touching faces flicker
 
         internal static double SeatTop=>Floor+SeatRise;
 

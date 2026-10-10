@@ -22,6 +22,11 @@ double front=Policy.Rows.Max(),back=Policy.Rows.Min();
 Check(front+0.55<=Policy.FrontZ+0.05,"The front row's feet fit before the front wall");
 Check(back+0.55<=front-Policy.SeatDepth/2-0.02+0.15,"The back row's feet reach under the front bench, not through its backrest");
 Check(Policy.CargoZ-Policy.CargoDepth/2>=Policy.BackZ-0.01&&Policy.CargoZ+Policy.CargoDepth/2<=back-Policy.SeatDepth/2,"The cargo crate sits behind the back bench, inside the back wall");
+// Each crate's footprint, turned, as half-extent along x; the two must not meet (touching faces flicker).
+double half=Policy.CrateSize/2*(Math.Cos(Policy.CrateTurn*Math.PI/180)+Math.Sin(Policy.CrateTurn*Math.PI/180));
+Check(2*(Policy.CrateX-half)>=0.05,"The two crates stand apart with a clear gap");
+Check(Policy.CrateX+half<=Policy.WallX-0.02&&Policy.CrateX+half<=Policy.CargoWidth/2+1e-9,"The crates fit inside the side walls and the cargo hover box");
+Check(Policy.CargoZ-half>=Policy.BackZ+0.005,"The turned crates clear the back wall");
 Check(Policy.SeatTop>Policy.Floor&&Policy.SeatTop<Policy.WallTop,"Seats sit above the floor and below the wall top");
 Check(Math.Abs(Policy.SeatTop-Policy.SitDrop-Policy.Floor)<0.05,"The sitting pose puts a passenger's feet on the floor");
 Check(Policy.CenterOfMassHeight<0.52*Policy.Scale,"The centre of mass sits below the axle");

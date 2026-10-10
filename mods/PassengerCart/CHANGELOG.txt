@@ -1,1 +1,3 @@
+0.1.1: Fixed the two cargo crates at the back flickering where they met: they overlapped by a few centimetres. They now stand apart with a clear gap, and carts already built get the fix on the next reload.
+
 0.1.0: First Passenger Cart. A hammer piece next to the cart (30 wood, 16 bronze nails, 4 deer hide, at a workbench): the game's cart 30% bigger, with two benches seating four facing the handle, cargo crates at the back that open its storage, twice the health, and a lower centre of mass with damped rocking so it stays upright. Passengers' bodies are kept out of the cart's on every client, and passengers are thrown off a cart that tips over.
