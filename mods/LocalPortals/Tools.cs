@@ -64,7 +64,7 @@ namespace LocalPortals
                     output(new JObject{["placed"]=V(at),["facing"]=Math.Round(go.transform.eulerAngles.y,1)});
                     break;
                 }
-                case "info":output(new JObject{["portals"]=new JArray(Nearby(100).Select(Describe)),["drawnLastFrame"]=Views.Drawn,["trips"]=Crossing.Count});break;
+                case "info":output(new JObject{["portals"]=new JArray(Nearby(100).Select(Describe)),["drawnLastFrame"]=Views.Drawn,["trips"]=Crossing.Count,["cutting"]=Doubles.PartCount,["cutMs"]=Math.Round(Doubles.Ms,2)});break;
                 case "probe":output(Probe());break;
                 case "camtest":
                 {
@@ -115,7 +115,8 @@ namespace LocalPortals
                     var rb=me.GetComponent<Rigidbody>();
                     if(rb!=null){rb.position=at;rb.linearVelocity=Vector3.zero;}
                     me.SetLookDir(facing*Vector3.forward);
-                    output(new JObject{["at"]=V(at),["doubles"]=Doubles.Count});
+                    Level(me);
+                    output(new JObject{["at"]=V(at),["doubles"]=Doubles.Count,["parts"]=Doubles.PartCount});
                     break;
                 }
                 case "name":
@@ -159,6 +160,10 @@ namespace LocalPortals
         }
         private static float Arg(string[] args,int i,float fallback)=>args.Length>i&&float.TryParse(args[i],System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out float v)?v:fallback;
 
+        // Looks a little down, as a player walking would (a pointer jump while the game was not focused can leave it at the floor).
+        private static readonly HarmonyLib.AccessTools.FieldRef<Player,float> LookPitch=HarmonyLib.AccessTools.FieldRefAccess<Player,float>("m_lookPitch");
+        private static void Level(Player me)=>LookPitch(me)=10;
+
         // Puts the player a step in front of the portal, facing it, and moves them in a little at a time through the physics.
         private static IEnumerator Through(Player me,LocalPortal p,int steps,Action<JObject> output,bool film)
         {
@@ -169,6 +174,7 @@ namespace LocalPortals
             me.transform.SetPositionAndRotation(start,facing);
             if(body!=null){body.position=start;body.linearVelocity=Vector3.zero;}
             me.SetLookDir(facing*Vector3.forward);
+            Level(me);
             int before=Crossing.Count;
             var frames=new JArray();
             int frame=0,after=0;
@@ -261,7 +267,7 @@ namespace LocalPortals
                 ["linked"]=!p.PartnerId().IsNone(),["partnerLoaded"]=p.Partner!=null,
                 ["partnerAt"]=p.Partner!=null?V(p.Partner.transform.position):null,
                 ["picture"]=p.Picture!=null?p.Picture.width+"x"+p.Picture.height:null,["drawnFramesAgo"]=p.PictureFrame<0?-1:Time.frameCount-p.PictureFrame,
-                ["surface"]=p.Surface!=null?p.Surface.sharedMaterial?.name:null,["name"]=p.Name,["hover"]=p.GetHoverText(),["test"]=p.View.GetZDO().GetBool(TestKey)};
+                ["surface"]=p.Surface!=null?p.Surface.sharedMaterial?.name:null,["name"]=p.Name,["hover"]=p.GetHoverText(),["test"]=p.View.GetZDO().GetBool(TestKey),["hidden"]=p.Hidden};
         }
 
         private static JObject Probe()

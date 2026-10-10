@@ -10,7 +10,7 @@ namespace LocalPortals
     {
         public const string Guid="com.bobisme.localportals";
         public const string Name="Local Portals";
-        public const string Version="0.1.0";
+        public const string Version="0.1.1";
         internal static Plugin Instance;
         internal static ConfigEntry<int> MaxViews;
         internal static ConfigEntry<float> Resolution;

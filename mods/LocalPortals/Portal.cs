@@ -217,6 +217,7 @@ namespace LocalPortals
         }
 
         // Cut away for the camera: the mirror still casts its shadow but is not drawn.
+        internal bool Hidden=>_hidden;
         internal void Hide(bool hide)
         {
             if(hide==_hidden)return;
