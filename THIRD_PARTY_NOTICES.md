@@ -1,5 +1,11 @@
 # Third-party notices
 
+## Quad’s Claude Tools server settings template
+
+`mods/LocalPortals/ServerSettings.cs` is Claude Tools' `templates/ServerSettings.cs` from
+[HardHeadHackerHead/valheim-mods](https://github.com/HardHeadHackerHead/valheim-mods), with its namespace changed.
+It is under the MIT License below.
+
 ## Quad’s BuildOrders support estimator
 
 `mods/BuildShapes/HallSupport.cs` adapts collider contact and structural support calculations from

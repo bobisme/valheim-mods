@@ -13,11 +13,14 @@ namespace LocalPortals
     {
         public const string Guid="com.bobisme.localportals";
         public const string Name="Local Portals";
-        public const string Version="0.1.8";
+        public const string Version="0.1.9";
         internal static Plugin Instance;
         internal static ConfigEntry<int> MaxViews;
         internal static ConfigEntry<float> Resolution;
         internal static ConfigEntry<bool> BodyDoubles;
+        internal static ConfigEntry<float> MaxDistance;
+        internal static ConfigEntry<bool> Preload;
+        internal static ServerSettings Synced;
         private Harmony _harmony;
 
         private void Awake()
@@ -26,6 +29,11 @@ namespace LocalPortals
             MaxViews=Config.Bind("Views","MaxViews",2,new ConfigDescription("How many portals show a live view at once (the nearest ones the camera sees). Each one draws the world again, so more costs frame rate.",new AcceptableValueRange<int>(0,8)));
             Resolution=Config.Bind("Views","Resolution",1f,new ConfigDescription("Sharpness of the views: 1 matches the screen; lower is blurrier and faster.",new AcceptableValueRange<float>(0.25f,1f)));
             BodyDoubles=Config.Bind("Views","BodyDoubles",true,"While someone is partway through a portal, show the part of them that has gone through coming out of the other mirror.");
+            Synced=new ServerSettings(Guid,Config,Logger);
+            MaxDistance=Synced.Add(Config.Bind("Linking","MaxDistance",200f,new ConfigDescription("The farthest apart two mirrors link, in metres. A mirror farther than about 100 m from you has the area round it kept loaded while you are near its partner (about the same few zones at any distance). [Synced with Server]",new AcceptableValueRange<float>((float)Policy.MinLinkRange,(float)Policy.MaxLinkRange))));
+            Preload=Config.Bind("Linking","PreloadOnApproach",true,"Within 25 m of a mirror whose partner is far off, load all of the area round the partner (about 9 more zones), so stepping through is smooth. Off: only the partner's own zone or few, and a short hitch on arriving. (The host's or single player's setting: only they load far areas.)");
+            Policy.LinkRange=MaxDistance.Value;
+            MaxDistance.SettingChanged+=(s,e)=>Policy.LinkRange=MaxDistance.Value;
             _harmony=new Harmony(Guid);_harmony.PatchAll(typeof(Plugin).Assembly);
             if(ZNetScene.instance!=null)PortalPrefab.Register(ZNetScene.instance); // hot reload while in a world
             PortalPrefab.Refresh();
@@ -35,6 +43,7 @@ namespace LocalPortals
         internal static void Log(string text)=>Instance?.Logger.LogInfo(text);
         private void Update()
         {
+            Synced?.Update();
             Tools.Tick();
             Far.Tick();
             Crossing.Tick();
@@ -44,6 +53,7 @@ namespace LocalPortals
         private void OnDestroy()
         {
             Tools.Stop();
+            Synced?.Dispose();
             Views.Stop();
             Doubles.Stop();
             Crossing.Stop();

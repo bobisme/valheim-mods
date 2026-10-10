@@ -12,31 +12,36 @@ namespace LocalPortals
     // so nothing falls down. Only on the host (or alone): a client is sent only what is near itself.
     internal static class Far
     {
-        internal static readonly List<ZDO> Portals=new List<ZDO>();      // every portal within ScanRange of the player
+        internal static readonly List<ZDO> Portals=new List<ZDO>();      // every portal of this kind in the world (as this game knows it)
         internal static readonly HashSet<Vector2s> Zones=new HashSet<Vector2s>(); // far zones kept loaded now
-        internal const float ScanRange=320;     // past LinkRange + ViewRange: the partner of any mirror the player can see
         private const float KeepRange=110;      // a mirror this close to the player has its partner's area kept loaded
         private const float ReadyRange=25;      // ...and this close, all of the area around the partner, ready to arrive in
         private static float _nextScan,_nextKeep;
         private static int _spawnedBefore;
-        private static readonly List<ZDO> Found=new List<ZDO>();
         private static readonly Func<ZoneSystem,Vector2s,bool> Poke=AccessTools.MethodDelegate<Func<ZoneSystem,Vector2s,bool>>(AccessTools.Method(typeof(ZoneSystem),"PokeLocalZone"));
         internal static int Spawned,Reclaims,Reclaimed;            // zones this mod had loaded, this session
 
+        // The world's portals of this kind, found a slice at a time (the game's own search, a few hundred sectors a frame), so
+        // the cost does not grow with the link distance; the loaded ones are always in it at once.
+        private static readonly List<ZDO> Sweep=new List<ZDO>(),Swept=new List<ZDO>();
+        private static int _sweepAt;
         internal static void Scan(bool now=false)
         {
+            if(ZDOMan.instance==null)return;
+            if(ZDOMan.instance.GetAllZDOsWithPrefabIterative(PortalPrefab.Name,Sweep,ref _sweepAt))
+            {
+                Swept.Clear();Swept.AddRange(Sweep);Sweep.Clear();_sweepAt=0;
+                now=true;
+            }
             if(!now&&Time.time<_nextScan)return;
-            _nextScan=Time.time+1;
+            _nextScan=Time.time+0.5f;
             Portals.Clear();
-            if(ZDOMan.instance==null||ZNet.instance==null||ZoneSystem.instance==null)return;
-            Vector3 at=ZNet.instance.GetReferencePosition();
-            int hash=PortalPrefab.Hash;
-            int reach=Mathf.CeilToInt(ScanRange/ZoneSystem.instance.m_zoneSize);
-            Found.Clear();
-            ZDOMan.instance.FindSectorObjects(ZoneSystem.GetZone(at),new SimulationDistance(reach,0,classic:true),Found);
-            foreach(ZDO zdo in Found)
-                if(zdo!=null&&zdo.GetPrefab()==hash&&zdo.IsValid())Portals.Add(zdo);
-            Found.Clear();
+            foreach(ZDO zdo in Swept)if(zdo!=null&&zdo.IsValid())Portals.Add(zdo);
+            foreach(LocalPortal p in LocalPortal.Live)
+            {
+                ZDO zdo=p!=null&&p.View!=null&&p.View.IsValid()?p.View.GetZDO():null;
+                if(zdo!=null&&!Portals.Contains(zdo))Portals.Add(zdo);
+            }
         }
 
         internal static void Tick(bool now=false)
@@ -60,7 +65,7 @@ namespace LocalPortals
                 Vector2s zone=ZoneSystem.GetZone(there);
                 // about to step through: all the area the game would load around someone standing there, so nothing is left to
                 // load (or to generate) when they arrive
-                if((p.transform.position-me.transform.position).sqrMagnitude<ReadyRange*ReadyRange)
+                if(Plugin.Preload.Value&&(p.transform.position-me.transform.position).sqrMagnitude<ReadyRange*ReadyRange)
                 {
                     int n=ZNet.instance.GetSyncedSimulationDistance().NearSimulationDistance;
                     for(int y=-n;y<=n;y++)
@@ -132,7 +137,7 @@ namespace LocalPortals
             Mine.Clear();
         }
 
-        internal static void Stop(){Zones.Clear();Portals.Clear();}
+        internal static void Stop(){Zones.Clear();Portals.Clear();Sweep.Clear();Swept.Clear();_sweepAt=0;}
     }
 
     [HarmonyPatch(typeof(ZDOMan),"ReleaseZDOS")]
