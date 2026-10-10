@@ -63,7 +63,7 @@ namespace Shieldwall
                 shared.m_name="Warshard";
                 shared.m_description="A splinter of the horde's war-luck, taken from those who broke against your Warstone. Used to craft and strengthen staves at the stone.";
                 shared.m_itemType=ItemDrop.ItemData.ItemType.Material;shared.m_maxStackSize=50;shared.m_weight=0.3f;shared.m_teleportable=true;shared.m_value=0;
-                Sprite icon=Assets.Icon(go,prefab,Quaternion.Euler(10,30,0));
+                Sprite icon=Assets.Icon(go,prefab,Quaternion.Euler(0,20,38)); // the long crystal on the diagonal fills the slot
                 if(icon!=null)shared.m_icons=new[]{icon};
             }
             ItemDrop drop=go.GetComponent<ItemDrop>();

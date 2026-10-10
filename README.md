@@ -44,7 +44,8 @@ line marks the **breach**. Raiders fight only what stands within about 10 m, sma
 when they reach it. **Sappers** go for planted staves; **flyers** cross the walls. A bar across the top of the screen shows the countdown,
 then the wave, how many are left and the stone's strength, with the game's raid music.
 
-- **Held** (the last raider falls, or the stone outlasts 25 minutes): spoils appear at the stone's foot (a treasure chest of that land with
+- **Held** (the last raider falls, or the stone outlasts 25 minutes; one or two stuck out of sight for 75 s count as fallen): spoils appear
+  beside the stone on the side away from the rift (a treasure chest of that land with
   **warshards**, coins and materials, more for an unscathed stone and a long fight), and the stone gains a mark (ten at most).
 - **Fallen** (the horde wears the stone to nothing; it feels only 40% of each blow): the stone **cracks** and works two marks lower until it holds a siege again. The
   stone itself is never destroyed and nothing is lost.
@@ -74,7 +75,7 @@ server raids as usual.
 A siege runs on the game of the player nearest the stone (its owner, in Valheim's terms) and everything about it is saved on the stone, so
 it carries on if that player leaves and works on a dedicated server without the mod. Everyone who joins in needs Shieldwall. Warnings,
 wave pacing, the most raiders at once (40), the time limit and the horn's cooldown are in F7. With Claude Tools, `siege status | plan | route |
-start [stage] | end | marks | raiders | hover | recipes` and test helpers (`place`, `plant`, `wall`, `remove`) check stones,
+start [stage] | end | marks | raiders | hover | recipes | horn | raid` and test helpers (`place`, `plant`, `wall`, `remove`) check stones,
 watch what each raider is doing and run short test sieges.
 
 Checks cover the ward table, rosters, siege plans (sizes, growth, warchiefs, saved plans), pacing, rewards, staves and the aiming arcs, plus

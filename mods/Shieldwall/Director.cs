@@ -106,7 +106,7 @@ namespace Shieldwall
                 return;
             }
             // The last wave is out: the siege is won when it is down (stragglers hiding past a while count as down).
-            if(alive==0||alive<=2&&since>150)End(stone,Outcome.Held);
+            if(alive==0||alive<=2&&since>75)End(stone,Outcome.Held); // a straggler or two stuck out of sight does not hold the siege open
         }
 
         private static void Spawn(Warstone stone,Unit unit,Vector3 rift,long siege)
@@ -164,7 +164,10 @@ namespace Shieldwall
         }
         private static int Reward(Warstone stone,Roster roster,int stage,int marks,float health,int kills)
         {
-            Vector3 front=stone.transform.position+stone.transform.forward*-2.6f; // in front of the carved face
+            // On the far side from the rift, out of the next horde's way.
+            Vector3 away=stone.transform.position-stone.Rift;away.y=0;
+            away=away.sqrMagnitude>1?away.normalized:-stone.transform.forward;
+            Vector3 front=stone.transform.position+away*4.5f;
             if(ZoneSystem.instance.GetSolidHeight(front,out float height))front.y=height;
             GameObject prefab=ZNetScene.instance.GetPrefab(roster.Chest);
             Inventory inventory=null;
@@ -225,6 +228,7 @@ namespace Shieldwall
             string[] names={"north","north-east","east","south-east","south","south-west","west","north-west"};
             return names[((int)Mathf.Round(((angle%360)+360)%360/45f))%8];
         }
+        internal static void Forget(Warstone stone){NextTick.Remove(stone);NextRelease.Remove(stone);NextGlow.Remove(stone);Lonely.Remove(stone);}
         internal static void Reset(){NextTick.Clear();NextRelease.Clear();NextGlow.Clear();Lonely.Clear();}
     }
 }

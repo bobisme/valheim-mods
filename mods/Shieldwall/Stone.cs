@@ -101,7 +101,7 @@ namespace Shieldwall
             Transform glow=transform.Find("SiegeGlow");_glow=glow!=null?glow.gameObject:null;
             Loaded.Add(this);
         }
-        private void OnDestroy()=>Loaded.Remove(this);
+        private void OnDestroy(){Loaded.Remove(this);Director.Forget(this);}
         private void Update()
         {
             if(View==null||!View.IsValid())return;

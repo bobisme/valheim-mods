@@ -26,7 +26,7 @@ namespace Shieldwall
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name,"siege",
-                    "siege status | plan [stage] [marks] [players] | route | start [stage 0-6] | end | marks <n> | place [metres | x z] | remove | plant <stave prefab> [metres] [angle] | unplant | raiders | wall [radius] [gap degrees] | unwall | hover: Warstones near the player and their sieges; a preview of a siege's waves; "+
+                    "siege status | plan [stage] [marks] [players] | route | start [stage 0-6] | end | marks <n> | place [metres | x z] | remove | horn | tryplant | craftui [close] | raid [event] | plant <stave prefab> [metres] [angle] | unplant | raiders | wall [radius] [gap degrees] | unwall | hover: Warstones near the player and their sieges; a preview of a siege's waves; "+
                     "the road the horde would take; start a short-warning test siege at the nearest stone (no mark for holding it); end the siege now; set a stone's marks; place a Warstone ahead of the player (test); plant a staff from nothing beside the nearest stone (test); remove every planted staff (test); what each raider is doing; ring the stone with test stake walls (open toward the rift by gap degrees) and remove them; the hover text of the stone and staves",
                     (Func<string[],Action<JObject>,Action<string>,IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: siege command added");
@@ -68,7 +68,7 @@ namespace Shieldwall
             switch(sub)
             {
                 case "status":
-                    output(new JObject{["stage"]=Director.StageNow(),["roster"]=Policy.Rosters[Director.StageNow()].Name,
+                    output(new JObject{["fps"]=Math.Round(1/Mathf.Max(0.001f,Time.smoothDeltaTime)),["stage"]=Director.StageNow(),["roster"]=Policy.Rosters[Director.StageNow()].Name,
                         ["keys"]=new JArray(ZoneSystem.instance!=null?ZoneSystem.instance.GetGlobalKeys().ToArray():new string[0]),
                         ["stones"]=new JArray(Warstone.Loaded.Where(w=>w!=null&&w.Z!=null).Select(Describe).ToArray())});
                     break;
@@ -172,6 +172,46 @@ namespace Shieldwall
                     PieceTable hammer=ObjectDB.instance.GetItemPrefab("Hammer")?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces;
                     output(new JObject{["recipes"]=new JArray(list),["inHammer"]=hammer!=null&&hammer.m_pieces.Any(p=>p!=null&&p.name==Stone.PrefabName),
                         ["pieceKnown"]=me!=null&&me.IsRecipeKnown(Stone.StationName)});
+                    break;
+                }
+                case "horn":
+                {
+                    // The Shift+E path, pressed twice as a player would (the first asks, the second calls).
+                    Player me=Player.m_localPlayer;
+                    if(stone==null||me==null){error("siege horn: no Warstone loaded");break;}
+                    bool first=stone.Horn(me),second=stone.Horn(me);
+                    output(new JObject{["first"]=first,["second"]=second,["phase"]=stone.Phase.ToString()});
+                    break;
+                }
+                case "tryplant":
+                {
+                    // The Use path: plant whatever the player holds where they look.
+                    Player me=Player.m_localPlayer;
+                    if(me==null){error("siege tryplant: no player");break;}
+                    int before=Planted.Loaded.Count;
+                    bool handled=Planted.TryPlant(me);
+                    output(new JObject{["handled"]=handled,["held"]=me.RightItem?.m_shared.m_name,["planted"]=Planted.Loaded.Count-before});
+                    break;
+                }
+                case "craftui":
+                {
+                    // Open (or with "close", shut) the stone's crafting menu, as E does.
+                    Player me=Player.m_localPlayer;
+                    if(args.Length>2&&args[2]=="close"){InventoryGui.instance.Hide();output(new JObject{["closed"]=true});break;}
+                    if(stone==null||me==null){error("siege craftui: no Warstone loaded");break;}
+                    me.SetCraftingStation(stone.GetComponent<CraftingStation>());InventoryGui.instance.Show(null,3);
+                    output(new JObject{["open"]=InventoryGui.IsVisible()});
+                    break;
+                }
+                case "raid":
+                {
+                    // The host starting a base raid at the stone, as the game would: Shieldwall should turn it into a siege.
+                    if(stone==null||RandEventSystem.instance==null){error("siege raid: needs a loaded Warstone");break;}
+                    string name=args.Length>2?args[2]:RandEventSystem.instance.m_events.Where(e=>e!=null&&e.m_enabled&&e.m_random&&e.m_nearBaseOnly&&e.m_spawn.Count>0).Select(e=>e.m_name).FirstOrDefault();
+                    if(name==null||!RandEventSystem.instance.HaveEvent(name)){error("siege raid: no such raid "+name);break;}
+                    RandEventSystem.instance.SetRandomEventByName(name,stone.transform.position+Vector3.forward*20);
+                    RandomEvent running=RandEventSystem.instance.GetCurrentRandomEvent();
+                    output(new JObject{["raid"]=name,["gameRaidRunning"]=running!=null?running.m_name:null,["stonePhase"]=stone.Phase.ToString()});
                     break;
                 }
                 case "remove":
