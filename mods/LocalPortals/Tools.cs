@@ -134,6 +134,28 @@ namespace LocalPortals
                     float seconds=Arg(args,2,3);
                     return Perf(seconds,output);
                 }
+                case "walls":
+                {
+                    // What is let through behind the nearest portal, and everything the player's capsule would hit walking into it.
+                    var list=Nearby(100).ToList();
+                    if(list.Count==0){error("lportal walls: no portal");break;}
+                    Transform t=list[0].transform;
+                    var ignored=new JArray();
+                    foreach(Collider c in Crossing.IgnoredWalls)if(c!=null)ignored.Add(c.name+" ("+c.transform.root.name+") layer "+LayerMask.LayerToName(c.gameObject.layer));
+                    CapsuleCollider capsule=me.GetCollider();
+                    var hits=new JArray();
+                    Vector3 dir=-t.forward;
+                    Vector3 p0=capsule.transform.TransformPoint(capsule.center+Vector3.up*(capsule.height/2-capsule.radius)),p1=capsule.transform.TransformPoint(capsule.center-Vector3.up*(capsule.height/2-capsule.radius));
+                    foreach(RaycastHit h in Physics.CapsuleCastAll(p0,p1,capsule.radius*0.98f,dir,3f,~0,QueryTriggerInteraction.Ignore))
+                    {
+                        if(h.collider==capsule||h.collider.transform.IsChildOf(me.transform))continue;
+                        Vector3 l=t.InverseTransformPoint(h.point);
+                        hits.Add(h.collider.name+" ("+h.collider.transform.root.name+") layer "+LayerMask.LayerToName(h.collider.gameObject.layer)+
+                            " at "+Math.Round(h.distance,2)+" m, portal x,y,z "+V(l)+(Physics.GetIgnoreCollision(capsule,h.collider)?" IGNORED":"")+(h.collider.enabled?"":" disabled"));
+                    }
+                    output(new JObject{["me"]=V(t.InverseTransformPoint(me.transform.position)),["radius"]=Math.Round(capsule.radius,2),["ignored"]=ignored,["hits"]=hits});
+                    break;
+                }
                 case "back":
                     if(Time.time-_beforeAt>600){error("lportal back: nothing to go back to");break;}
                     me.transform.SetPositionAndRotation(_before,_beforeTurn);
