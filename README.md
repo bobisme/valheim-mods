@@ -26,7 +26,8 @@ world; pulling it with passengers aboard and seating remote players in multiplay
 Build a rustic golf course through your meadow or longhouse. Craft the **Meadow golf club** at a workbench
 (6 wood, 2 leather scraps); Hammer → Furniture has tees (2 wood) and flagged cups (4 wood, 1 stone).
 Tall wooden flagstaffs carry large red swallowtail banners with ivory runes for visibility at a distance.
-**Shift+E** labels matching tees/cups as `Course:Hole:Par`. Equip the club, **E** at the tee, choose
+New tees and cups automatically pair and increment Meadow hole numbers.
+**Shift+E** sets a course name (keeping hole/par), or a full `Course:Hole:Par` label, on matching tees/cups. Equip the club, **E** at the tee, choose
 Drive / Chip / Putt with the wheel, then hold/release left mouse to swing. Right click cancels charging.
 
 The amber path predicts actual flight, ricochets and rolling, with a ring at the stopping point and its sampled power.

@@ -35,7 +35,7 @@ namespace MeadowGolf
         internal static bool FromServer(long sender)=>ZNet.instance!=null&&(ZNet.instance.IsServer()?sender==ZNet.GetUID():ZNet.instance.GetPeer(sender)?.m_server==true);
         internal static void Tick()
         {
-            GolfMatches.Tick();
+            GolfMatches.Tick();CourseLabels.Tick();
             if(Rpc!=ZRoutedRpc.instance)
             {
                 StopRpc();Rpc=ZRoutedRpc.instance;
@@ -49,7 +49,7 @@ namespace MeadowGolf
             if(Manager!=ZDOMan.instance)
             {
                 if(IndexJob!=null)Plugin.Instance.StopCoroutine(IndexJob);
-                IndexJob=null;Manager=ZDOMan.instance;Indexed=false;Active.Clear();Cups.Clear();Requests.Clear();
+                IndexJob=null;Manager=ZDOMan.instance;Indexed=false;Active.Clear();Cups.Clear();Requests.Clear();CourseLabels.Clear();
             }
             if(Manager!=null&&!Indexed&&IndexJob==null&&ZNetScene.instance!=null&&ZNet.instance!=null&&ZNet.instance.IsServer())
                 IndexJob=Plugin.Instance.StartCoroutine(Index(Manager));
@@ -58,7 +58,7 @@ namespace MeadowGolf
         private static IEnumerator Index(ZDOMan manager)
         {
             var found=new List<ZDO>();
-            foreach(string prefab in new[]{Prefabs.Ball,Prefabs.Cup})
+            foreach(string prefab in new[]{Prefabs.Ball,Prefabs.Cup,Prefabs.Tee})
             {
                 int index=0;bool finished=false;
                 while(!finished&&Manager==manager)
@@ -66,7 +66,7 @@ namespace MeadowGolf
                     finished=manager.GetAllZDOsWithPrefabIterative(prefab,found,ref index);
                     foreach(ZDO z in found)
                     {
-                        if(prefab==Prefabs.Cup){Cups.Add(z.m_uid);continue;}
+                        if(prefab!=Prefabs.Ball){CourseLabels.Remember(z,true);if(prefab==Prefabs.Cup)Cups.Add(z.m_uid);continue;}
                         long player=z.GetLong(PlayerKey,0);if(player<=0)continue;
                         if(!Active.TryGetValue(player,out ZDOID old)||(manager.GetZDO(old)==null||manager.GetZDO(old).GetLong("bob_golf_sequence",0)<z.GetLong("bob_golf_sequence",0)))Active[player]=z.m_uid;
                     }
@@ -174,7 +174,7 @@ namespace MeadowGolf
         }
         internal static void Stop()
         {
-            GolfMatches.Stop();
+            GolfMatches.Stop();CourseLabels.Stop();
             if(IndexJob!=null)Plugin.Instance.StopCoroutine(IndexJob);IndexJob=null;Manager=null;Active.Clear();Cups.Clear();Requests.Clear();Indexed=false;
             StopRpc();
             foreach(var ball in GolfBall.Loaded.ToArray())if(ball!=null)Object.DestroyImmediate(ball);
@@ -192,34 +192,63 @@ namespace MeadowGolf
         }
     }
 
-    internal sealed class GolfMarker:MonoBehaviour,Hoverable,Interactable,TextReceiver
+    internal sealed class GolfMarker:MonoBehaviour,Hoverable,Interactable,TextReceiver,IPlaced
     {
         internal static readonly List<GolfMarker> Loaded=new List<GolfMarker>();
         internal ZNetView View;
+        internal string LastLabelResult="";
+        private bool _labelWaiting,_labelTimedOut;
         internal bool Cup=>View!=null&&View.GetZDO()?.GetPrefab()==Prefabs.Cup.GetStableHashCode();
         internal Rules.Hole Hole=>Rules.Parse(GetText(),out var h)?h:null;
         private void Awake()
         {
             View=GetComponent<ZNetView>();if(View==null||!View.IsValid())return;
             Models.RefreshMarker(transform,Cup);
-            View.Register<string>("GolfLabel",Rename);Loaded.Add(this);if(Cup)GolfWorld.RememberCup(View.GetZDO());
+            View.Register<string>("GolfLabel",Rename);View.Register<string>("GolfLabelResult",LabelResult);Loaded.Add(this);CourseLabels.Remember(View.GetZDO());if(Cup)GolfWorld.RememberCup(View.GetZDO());
             foreach(GolfBall ball in GolfBall.Loaded)if(ball!=null)ball.Ignore(GetComponentsInChildren<Collider>());
         }
-        private void OnDestroy(){Loaded.Remove(this);if(View!=null)View.Unregister("GolfLabel");}
-        public string GetText()=>View?.GetZDO()?.GetString(GolfWorld.LabelKey,"Meadow:1:3")??"Meadow:1:3";
+        private void OnDestroy(){Loaded.Remove(this);if(View!=null){View.Unregister("GolfLabel");View.Unregister("GolfLabelResult");}}
+        public void OnPlaced()=>CourseLabels.Request(this);
+        private void Start()
+        {if(View!=null&&View.IsValid()&&View.GetZDO().GetBool(CourseLabels.Pending,false))CourseLabels.Request(this);}
+        private bool AwaitingLabel=>View!=null&&View.IsValid()&&View.GetZDO().GetBool(CourseLabels.Pending,false)&&View.GetZDO().GetString(GolfWorld.LabelKey,"").Length==0;
+        public string GetText()=>AwaitingLabel&&!_labelTimedOut?"Assigning hole…":
+            View?.GetZDO()?.GetString(GolfWorld.LabelKey,"Meadow:1:3")??"Meadow:1:3";
+        internal void WatchLabel(){if(!_labelWaiting)StartCoroutine(LabelWait());}
+        private IEnumerator LabelWait()
+        {
+            _labelWaiting=true;_labelTimedOut=false;float deadline=Time.unscaledTime+25;
+            while(AwaitingLabel&&Time.unscaledTime<deadline)yield return null;
+            _labelWaiting=false;if(!AwaitingLabel)yield break;_labelTimedOut=true;
+            GolfWorld.Say("Hole numbering timed out. The host needs current Golf; Shift+E can set a full Course:Hole:Par label manually.");
+        }
         public void SetText(string text)
         {
-            if(!Rules.Parse(text,out var hole)){GolfWorld.Say("Use Course:Hole:Par, e.g. Meadow:1:3. Holes 1–18; par 2–8.");return;}
-            if(View.IsValid())View.InvokeRPC("GolfLabel",hole.Label);
+            if(!Rules.EditLabel(text,GetText(),out var hole))
+            {GolfWorld.Say("Enter a course name (1–48 characters), or Course:Hole:Par. Holes 1–18; par 2–8.");return;}
+            if(View==null||!View.IsValid()){GolfWorld.Say("This marker is no longer loaded. Open its label again.");return;}
+            View.InvokeRPC("GolfLabel",hole.Label);
+        }
+        private void Respond(long sender,string message)=>View.InvokeRPC(sender,"GolfLabelResult",message);
+        private void LabelResult(long sender,string message)
+        {
+            if(View!=null&&View.IsValid()&&sender==View.GetZDO().GetOwner()&&message!=null&&message.Length<=256)
+            {LastLabelResult=message;GolfWorld.Say(message);}
         }
         private void Rename(long sender,string label)
         {
-            if(!View.IsOwner()||!Rules.Parse(label,out var hole))return;
-            ZDO actor=GolfWorld.Actor(sender);if(actor==null||Vector3.Distance(actor.GetPosition(),transform.position)>5)return;
-            long creator=GetComponent<Piece>()?.GetCreator()??0;
-            if(creator!=0&&creator!=actor.GetLong(ZDOVars.s_playerID,0))return;
-            if(View.GetZDO().GetBool(GolfMatches.Open,false)){GolfWorld.Say("End this tee's open match before relabeling it.");return;}
-            View.GetZDO().Set(GolfWorld.LabelKey,hole.Label);
+            if(!View.IsOwner())return;
+            if(!Rules.Parse(label,out var hole)){Respond(sender,"That label is invalid. Use a course name or Course:Hole:Par.");return;}
+            ZDO actor=GolfWorld.Actor(sender);
+            if(actor==null||Vector3.Distance(actor.GetPosition(),transform.position)>5)
+            {Respond(sender,"Stay within 5 metres of the marker while changing its label.");return;}
+            long creator=View.GetZDO().GetLong(ZDOVars.s_creator,0);
+            if(creator!=0&&creator!=actor.GetLong(ZDOVars.s_playerID,0))
+            {Respond(sender,"Only the builder can relabel this hole.");return;}
+            if(View.GetZDO().GetBool(GolfMatches.Open,false))
+            {Respond(sender,"End this tee's open match before relabeling it.");return;}
+            View.GetZDO().Set(GolfWorld.LabelKey,hole.Label);View.GetZDO().Set(CourseLabels.Pending,false);
+            Respond(sender,$"Saved {GetHoverName()}: {hole.Label}");
         }
         public string GetHoverName()=>Cup?"Golf cup":"Golf tee";
         public float GetHoverOffset()=>0;
@@ -230,9 +259,11 @@ namespace MeadowGolf
             if(!PrivateArea.CheckAccess(transform.position))return false;
             if(alt)
             {
-                long creator=GetComponent<Piece>()?.GetCreator()??0;
+                if(AwaitingLabel&&!_labelTimedOut){GolfWorld.Say("The host is numbering this hole. Try Shift+E again in a moment.");return true;}
+                long creator=View.GetZDO().GetLong(ZDOVars.s_creator,0);
                 if(creator!=0&&creator!=player.GetPlayerID()){GolfWorld.Say("Only the builder can relabel this hole.");return true;}
-                TextInput.instance.RequestText(this,"Course:Hole:Par",64);return true;
+                if(View.GetZDO().GetBool(GolfMatches.Open,false)){GolfWorld.Say("End this tee's open match before relabeling it.");return true;}
+                TextInput.instance.RequestText(this,"Course name (or Course:Hole:Par)",64);return true;
             }
             if(Cup)return false;
             if(!Prefabs.IsClub(Prefabs.Right(player))){GolfWorld.Say("Equip your Meadow golf club first.");return true;}

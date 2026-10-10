@@ -4,6 +4,13 @@ Check(Rules.Parse("Meadow:1:3",out var first),"valid hole");
 Check(Rules.Parse("meadow:1:5",out var same)&&first.Matches(same),"course case and cup par do not split a hole");
 foreach(string s in new[]{"",":1:3","Meadow:0:3","Meadow:19:3","Meadow:1:1","Meadow:1:9","<b>bad:1:3","bad\nname:1:3","a:1:3:4",new string('a',49)+":1:3"})
     Check(!Rules.Parse(s,out _),"reject invalid marker: "+s);
+Check(Rules.EditLabel("test2","Meadow:4:5",out var renamed)&&renamed.Label=="test2:4:5","plain course name keeps hole/par");
+Check(Rules.EditLabel("  Bob's Course  ","Meadow:1:3",out renamed)&&renamed.Label=="Bob's Course:1:3","trimmed plain course name");
+Check(Rules.EditLabel(" Bob : 2 : 4 ","Meadow:1:3",out renamed)&&renamed.Label=="Bob:2:4","full label edits hole/par and trims spaces");
+Check(Rules.EditLabel(new string('a',48),"Meadow:18:8",out renamed)&&renamed.Number==18&&renamed.Par==8,"longest course name");
+foreach(string text in new[]{"","  ","<b>test</b>","bad\nname",new string('a',49),"test:2","test:19:3","test:2:9","test:2:3:4"})
+    Check(!Rules.EditLabel(text,"Meadow:4:5",out _),"invalid edit rejected: "+text);
+Check(!Rules.EditLabel(null,"Meadow:1:3",out _)&&!Rules.EditLabel("test2","corrupt",out _),"invalid current label is not guessed");
 for(int mode=0;mode<3;mode++)
 {
     double previous=0;
@@ -62,3 +69,24 @@ Console.WriteLine("Golf matches passed: complete 9/18-hole rounds, missing/dupli
 
 var vertical=new List<Rules.CourseMarker>{new(){Hole=1,Y=0},new(){Hole=1,Cup=true,Y=241}};
 Check(Rules.CourseError(vertical,9).Contains("240"),"extreme vertical hole separation rejected");
+
+// Sequential pairs, reversed placement, multiple incomplete holes and course bounds.
+foreach(bool cupFirst in new[]{false,true})
+{
+    var placed=new List<Rules.CourseMarker>();
+    for(int h=1;h<=18;h++)foreach(bool cup in new[]{cupFirst,!cupFirst})
+    {
+        int n=Rules.NextMarker(placed,cup,h*4,0,cup?2:0,out int par);
+        Check(n==h&&par==3,"automatic pair number "+h+" / cup="+cup);
+        placed.Add(new Rules.CourseMarker{Hole=n,Par=par,Cup=cup,X=h*4,Z=cup?2:0});
+    }
+    Check(Rules.NextMarker(placed,false,0,0,0,out _)==0,"19th hole never silently duplicates an existing hole");
+}
+var incomplete=new List<Rules.CourseMarker>{new(){Hole=1,Par=4,X=0},new(){Hole=2,Par=5,X=100}};
+Check(Rules.NextMarker(incomplete,true,99,0,0,out int copiedPar)==2&&copiedPar==5,"closest unpaired tee and its par");
+Check(Rules.NextMarker(incomplete,true,1000,0,0,out _)==3,"faraway unmatched marker starts a new hole");
+Check(Rules.NextMarker(incomplete,false,99,0,0,out _)==3,"two tees are never paired together");
+incomplete.Add(new(){Hole=1,Cup=true});incomplete.Add(new(){Hole=2});
+Check(Rules.NextMarker(incomplete,true,99,0,0,out _)==3,"ambiguous duplicates are never auto-paired");
+Check(Rules.NextMarker(new(),false,double.NaN,0,0,out _)==0,"nonfinite auto-placement rejected");
+Console.WriteLine("Golf automatic labels passed: 18 complete pairs in either order, nearest unmatched marker, inherited par, distance, duplicate and hole-limit checks.");

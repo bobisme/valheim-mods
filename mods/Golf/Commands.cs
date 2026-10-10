@@ -21,7 +21,7 @@ namespace MeadowGolf
             try
             {
                 tools.GetType().GetMethod("RegisterCommand",BindingFlags.Static|BindingFlags.Public)?.Invoke(null,new object[]{Name,"golf",
-                    "golf status | match 9|18|join|end|stop|scores | roundtest 9|18 | card open|close | shot drive|chip|putt <power=0..1> <dx> <dz> | predict <mode> <power> <dx> <dz> | playtest <mode> <power> <dx> <dz> | fixture floor|basement|ramp | animation | listen | reload | testcourse <length=2..30> | starttest | testclear: tests/reload only in local Creative; ordinary shots require the club and a nearby own ball",
+                    "golf status | labeltest | match 9|18|join|end|stop|scores | roundtest 9|18 | card open|close | shot drive|chip|putt <power=0..1> <dx> <dz> | predict <mode> <power> <dx> <dz> | playtest <mode> <power> <dx> <dz> | fixture floor|basement|ramp | animation | listen | reload | testcourse <length=2..30> | starttest | testclear: tests/reload only in local Creative; ordinary shots require the club and a nearby own ball",
                     new Func<string[],Action<JObject>,Action<string>,IEnumerator>(GolfCommand)});
             }
             catch(Exception e){Logger.LogWarning("Golf ClaudeTools link: "+e.GetBaseException().Message);}
@@ -37,6 +37,8 @@ namespace MeadowGolf
             try
             {
                 string command=args.Length>1?args[1]:"status";
+                if(command=="labeltest")
+                {if(!Creative())throw new InvalidOperationException("Label tests require local Creative.");return LabelTest(output);}
                 if(command=="roundtest"&&args.Length==3)
                 {
                     if(!Creative()||(args[2]!="9"&&args[2]!="18"))throw new InvalidOperationException("golf roundtest 9|18 requires local Creative.");

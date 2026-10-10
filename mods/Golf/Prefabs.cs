@@ -51,7 +51,7 @@ namespace MeadowGolf
             foreach(Transform child in go.transform.Cast<Transform>().ToArray())Object.DestroyImmediate(child.gameObject);
             foreach(Collider c in go.GetComponents<Collider>())Object.DestroyImmediate(c);
             var piece=go.GetComponent<Piece>();
-            piece.m_name=cup?"Golf cup & flag":"Golf tee";piece.m_description="Shift+E: set Course:Hole:Par (for example Meadow:1:3). Match a tee and cup. E on the tee starts your hole.";
+            piece.m_name=cup?"Golf cup & flag":"Golf tee";piece.m_description="Shift+E: set a course name, or Course:Hole:Par (for example Meadow:2:4). Match a tee and cup. E on the tee starts your hole.";
             piece.m_category=Piece.PieceCategory.Furniture;piece.m_icon=Models.Icon(cup?2:1);piece.m_comfort=0;
             piece.m_resources=cup?new[]{Resource("Wood",4,db),Resource("Stone",1,db)}:new[]{Resource("Wood",2,db)};
             piece.m_craftingStation=null;piece.m_groundOnly=false;piece.m_groundPiece=false;piece.m_notOnWood=false;

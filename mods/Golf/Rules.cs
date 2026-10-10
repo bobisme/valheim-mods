@@ -28,6 +28,19 @@ namespace MeadowGolf
                !int.TryParse(parts[2],NumberStyles.None,CultureInfo.InvariantCulture,out int par)||par<2||par>8)return false;
             hole=new Hole{Course=course,Number=n,Par=par};return true;
         }
+        // Editing accepts a course name, retaining this marker's hole and par. Network
+        // and persisted labels still use the same strict, canonical three-part format.
+        internal static bool EditLabel(string text,string current,out Hole hole)
+        {
+            hole=null;if(text==null||text.Length>64)return false;
+            text=text.Trim();
+            if(text.IndexOf(':')>=0)
+            {
+                string[] parts=text.Split(':');if(parts.Length!=3)return false;
+                return Parse(parts[0].Trim()+":"+parts[1].Trim()+":"+parts[2].Trim(),out hole);
+            }
+            return Parse(current,out var previous)&&Parse(text+":"+previous.Number+":"+previous.Par,out hole);
+        }
         internal static bool Finite(double n)=>!double.IsNaN(n)&&!double.IsInfinity(n);
         internal static bool ValidShot(int mode,float power,double directionLength,double vertical)=>
             mode>=0&&mode<=2&&Finite(power)&&power>=0&&power<=1&&Finite(directionLength)&&
@@ -79,7 +92,23 @@ namespace MeadowGolf
             for(int h=1;h<=holes;h++)if(!completed.Contains(h))return h;
             return 0;
         }
-        internal sealed class CourseMarker {internal int Hole;internal bool Cup;internal double X,Y,Z;}
+        internal sealed class CourseMarker {internal int Hole,Par=3;internal bool Cup;internal double X,Y,Z;}
+        internal static int NextMarker(List<CourseMarker> markers,bool cup,double x,double y,double z,out int par)
+        {
+            par=3;if(!Finite(x)||!Finite(y)||!Finite(z))return 0;
+            var tees=new int[19];var cups=new int[19];int highest=0;
+            foreach(var m in markers)
+            {if(m.Hole<1||m.Hole>18)continue;highest=Math.Max(highest,m.Hole);if(m.Cup)cups[m.Hole]++;else tees[m.Hole]++;}
+            int match=0;double closest=240*240+1;
+            foreach(var m in markers)
+            {
+                if(m.Hole<1||m.Hole>18||m.Cup==cup||tees[m.Hole]!=(cup?1:0)||cups[m.Hole]!=(cup?0:1))continue;
+                double dx=x-m.X,dy=y-m.Y,dz=z-m.Z,distance=dx*dx+dy*dy+dz*dz;
+                if(!Finite(distance)||distance>240*240||distance>closest||distance==closest&&m.Hole>=match)continue;
+                closest=distance;match=m.Hole;par=m.Par>=2&&m.Par<=8?m.Par:3;
+            }
+            return match>0?match:highest<18?highest+1:0;
+        }
         internal static string CourseError(List<CourseMarker> markers,int holes)
         {
             if(holes!=9&&holes!=18)return "Choose a 9- or 18-hole match.";

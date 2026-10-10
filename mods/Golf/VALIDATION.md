@@ -1,3 +1,34 @@
+# Meadow Golf 0.2.2 label and placement validation
+
+Built and installed against native Linux Valheim, 10 October 2026. Build, dist and
+installed DLL SHA-256: `0c40e86e9cbc6ae03dfff556a8e52c323af1edd80f170e262fadee63e5368556`.
+Final artifact MVID: `d80762a8-5934-44fe-8935-c5b31408f38a`.
+
+- Clean build. All 528 game/Unity/GUI-framework/BepInEx member references resolve;
+  native placement interface and private highlight cache are checked.
+- Rule tests accept `test2` while preserving the existing hole and par, trim course
+  names and full labels, and reject malformed labels, markup, invalid hole/par,
+  overlong names and invalid previous data. Existing match/shot rule tests pass.
+- Automatic-label tests complete 18 tee-first and 18 cup-first pairs. They cover
+  nearest unmatched counterpart, copied par, distance limits, incomplete holes,
+  duplicate counterparts and refusing to duplicate a nineteenth hole.
+- Saved labels are preserved. The host indexes saved tees/cups once in yielding
+  batches, deduplicates IDs and serializes assignment; no periodic world scans.
+  Numbering requests validate builder identity and reach, retain explicit manual
+  labels, and use native ownership revisions. Local waiting is bounded and gives
+  an old/unavailable-host explanation with a manual-label fallback.
+- `golf labeltest` is a Creative-only disposable native editor/owner-RPC regression
+  check for plain names, full labels, invalid input, open-match and builder rejection.
+  It has not been run on this final artifact: the player switched to Quadbobheim
+  during development. The Creative-only reload guard refused the attempted reload;
+  the shared game was left running. No player courses or structures were changed.
+
+The final DLL is installed for F6/next launch. Host and clients need the update for
+automatic numbering. Native placement/RPC testing and two-player qualification of
+this final artifact remain outstanding; static checks are not a multiplayer playtest.
+
+---
+
 # Meadow Golf 0.2.1 visual validation
 
 Native Linux Creative session, 9 October 2026. Build, dist and installed DLL SHA-256:
