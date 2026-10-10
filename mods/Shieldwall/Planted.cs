@@ -284,11 +284,23 @@ namespace Shieldwall
             if(_item!=null){player.Message(MessageHud.MessageType.Center,"A stave already stands here.");return true;}
             return Set(player,item);
         }
+        // Which prefab an item is: its own link if alive, else by its name (a stave picked up across a reload can carry a dead link).
+        internal static string PrefabOf(ItemDrop.ItemData item)
+        {
+            if(item==null)return null;
+            if(item.m_dropPrefab!=null)return item.m_dropPrefab.name;
+            Stave stave=Policy.Staves.FirstOrDefault(s=>s.Name==item.m_shared?.m_name);
+            if(stave!=null)return stave.Prefab;
+            return ObjectDB.instance!=null&&ObjectDB.instance.TryGetItemPrefab(item.m_shared,out GameObject prefab)&&prefab!=null?prefab.name:null;
+        }
         private bool Set(Player player,ItemDrop.ItemData item)
         {
+            string prefab=PrefabOf(item);
+            GameObject source=prefab==null?null:Items.Get(prefab)??Assets.Find(prefab);
+            if(source==null){player.Message(MessageHud.MessageType.Center,"That stave will not take to the socket.");return true;} // never take an item it cannot keep
             View.ClaimOwnership();
             ZDO z=View.GetZDO();
-            z.Set(ItemKey,item.m_dropPrefab!=null?item.m_dropPrefab.name:"");
+            z.Set(ItemKey,prefab);
             ItemDrop.SaveToZDO(item,z);
             z.Set(ZDOVars.s_quality,item.m_quality);
             player.UnequipItem(item,false);
@@ -336,7 +348,7 @@ namespace Shieldwall
             if(Player.m_localPlayer!=null)piece?.SetCreator(Player.m_localPlayer.GetPlayerID(),Splatform.PlatformManager.DistributionPlatform.LocalUser.PlatformUserID);
             if(item==null)return go;
             ZDO z=go.GetComponent<ZNetView>().GetZDO();
-            z.Set(ItemKey,item.m_dropPrefab!=null?item.m_dropPrefab.name:"");
+            z.Set(ItemKey,PrefabOf(item)??"");
             ItemDrop.SaveToZDO(item,z);z.Set(ZDOVars.s_quality,item.m_quality);
             go.GetComponent<Planted>()?.Load();
             return go;

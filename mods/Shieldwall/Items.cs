@@ -131,15 +131,19 @@ namespace Shieldwall
         {
             if(ZNetScene.instance!=null)RegisterScene(ZNetScene.instance);
             if(ObjectDB.instance!=null)UpdateRegisters.Invoke(ObjectDB.instance,null);
+            // Our items carried or lying about still point at the unloaded copy's prefab (or at nothing): point them at the new one.
+            foreach(ItemDrop drop in AccessTools.StaticFieldRefAccess<List<ItemDrop>>(typeof(ItemDrop),"s_instances").ToList())if(drop!=null)Relink(drop.m_itemData);
             Inventory inventory=Player.m_localPlayer?.GetInventory();
             if(inventory==null)return;
-            foreach(ItemDrop.ItemData item in inventory.GetAllItems())
-            {
-                string prefab=item.m_dropPrefab!=null?item.m_dropPrefab.name:null;
-                if(prefab==null||!Prefabs.TryGetValue(prefab,out GameObject mine)||item.m_dropPrefab==mine)continue;
-                item.m_shared=mine.GetComponent<ItemDrop>().m_itemData.m_shared;item.m_dropPrefab=mine;
-            }
+            foreach(ItemDrop.ItemData item in inventory.GetAllItems())Relink(item);
             AccessTools.Method(typeof(Player),"UpdateKnownRecipesList")?.Invoke(Player.m_localPlayer,null);
+        }
+        private static void Relink(ItemDrop.ItemData item)
+        {
+            if(item?.m_shared==null)return;
+            string prefab=item.m_shared.m_name=="Warshard"?Policy.ShardPrefab:Policy.Staves.FirstOrDefault(st=>st.Name==item.m_shared.m_name)?.Prefab;
+            if(prefab==null||!Prefabs.TryGetValue(prefab,out GameObject mine)||mine==null||item.m_dropPrefab==mine)return;
+            item.m_shared=mine.GetComponent<ItemDrop>().m_itemData.m_shared;item.m_dropPrefab=mine;
         }
         internal static void Unregister()
         {
