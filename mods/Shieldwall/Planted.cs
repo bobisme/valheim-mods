@@ -124,7 +124,7 @@ namespace Shieldwall
             model.transform.localPosition=fix.lean*(model.transform.localPosition-pivot)+pivot;
             model.transform.localRotation=fix.lean*model.transform.localRotation;
             standing=Local(model,_look.transform);
-            if(fix.bottom==null){fix.bottom=Centre(model,_look.transform,standing,0.04f)??Vector2.zero;Trued[kind]=fix;}
+            if(fix.bottom==null){fix.bottom=Centre(model,_look.transform,standing,0.16f,0.3f)??Vector2.zero;Trued[kind]=fix;Plugin.Log($"Stave {kind}: shaft centred by {fix.bottom.Value.x:0.00},{fix.bottom.Value.y:0.00}");}
             model.transform.localPosition-=new Vector3(fix.bottom.Value.x,0,fix.bottom.Value.y);
             model.transform.localPosition+=Vector3.up*(-0.35f-Local(model,_look.transform).min.y);
             standing=Local(model,_look.transform);
@@ -176,9 +176,9 @@ namespace Shieldwall
         }
         private static readonly Dictionary<string,(Quaternion lean,Vector2? bottom)> Trued=new Dictionary<string,(Quaternion,Vector2?)>();
         // The middle of the shaft (frame x/z) in a thin slice at some fraction of its height: two orthographic side views of just that slice.
-        private static Vector2? Centre(GameObject model,Transform frame,Bounds standing,float at)
+        private static Vector2? Centre(GameObject model,Transform frame,Bounds standing,float at,float band=0.08f)
         {
-            float slice=Mathf.Max(0.04f,standing.size.y*0.08f),half=Mathf.Max(standing.extents.x,standing.extents.z)+0.05f;
+            float slice=Mathf.Max(0.04f,standing.size.y*band),half=Mathf.Max(standing.extents.x,standing.extents.z)+0.05f;
             float height=standing.min.y+standing.size.y*at;
             float? x=Side(model,frame,standing,height,frame.forward,frame.right,slice,half),z=Side(model,frame,standing,height,frame.right,frame.forward,slice,half);
             return x==null||z==null?(Vector2?)null:new Vector2(x.Value,z.Value);

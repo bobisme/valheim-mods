@@ -102,7 +102,7 @@ namespace Shieldwall
             foreach(MeshRenderer r in source.GetComponentsInChildren<MeshRenderer>(true))
             {
                 MeshFilter f=r.GetComponent<MeshFilter>();
-                if(f==null||f.sharedMesh==null||lodded.Contains(r)&&!lod0.Contains(r)||!r.gameObject.activeSelf||keep!=null&&!keep(r))continue;
+                if(f==null||f.sharedMesh==null||lodded.Contains(r)&&!lod0.Contains(r)||!Shown(r.transform,source.transform)||keep!=null&&!keep(r))continue;
                 var part=new GameObject(r.name);part.transform.SetParent(model.transform,false);
                 part.transform.localPosition=source.transform.InverseTransformPoint(r.transform.position);
                 part.transform.localRotation=Quaternion.Inverse(source.transform.rotation)*r.transform.rotation;
@@ -111,6 +111,12 @@ namespace Shieldwall
                 part.AddComponent<MeshRenderer>().sharedMaterials=r.sharedMaterials;
             }
             return model;
+        }
+        // Switched on, and so is every part above it up to the source (a staff's hidden "loaded" glow is not part of its look).
+        private static bool Shown(Transform part,Transform root)
+        {
+            for(Transform t=part;t!=null&&t!=root;t=t.parent)if(!t.gameObject.activeSelf)return false;
+            return true;
         }
         private static Vector3 Divide(Vector3 a,Vector3 b)=>new Vector3(b.x!=0?a.x/b.x:a.x,b.y!=0?a.y/b.y:a.y,b.z!=0?a.z/b.z:a.z);
         internal static void Tint(GameObject root,Color tint,Color glow)
