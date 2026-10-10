@@ -8,7 +8,8 @@ namespace BuildShapes
 {
     internal sealed class Planner
     {
-        internal const string Guid = "com.dhack.buildorders";
+        internal const string Guid = "com.quad.buildorders";
+        internal const string OldGuid = "com.dhack.buildorders"; // (BuildOrders before 1.12.1)
         private BaseUnityPlugin _instance;
         private MethodInfo _create, _shell, _remove, _ray, _available;
         internal bool WholeShell => Ready() && _shell!=null;
@@ -17,7 +18,7 @@ namespace BuildShapes
         internal bool Ready()
         {
             BaseUnityPlugin current = null;
-            if (Chainloader.PluginInfos.TryGetValue(Guid, out var info)) current = info.Instance;
+            if (Chainloader.PluginInfos.TryGetValue(Guid, out var info) || Chainloader.PluginInfos.TryGetValue(OldGuid, out info)) current = info.Instance;
             if (current == null) { _instance = null; _create = _shell = _remove = _ray = _available = null; Status = "BuildOrders is missing or reloading."; return false; }
             if (current == _instance && _create != null && _remove != null) return true;
             _instance = current; _create = _shell = _remove = _ray = _available = null;

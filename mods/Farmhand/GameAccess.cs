@@ -27,7 +27,7 @@ namespace Farmhand
             if (info == null) return false;
             foreach (Patch patch in info.Prefixes)
             {
-                if (patch.owner != "com.dhack.buildorders") continue;
+                if (patch.owner != "com.quad.buildorders" && patch.owner != "com.dhack.buildorders") continue; // (its id before 1.12.1)
                 Type type = patch.PatchMethod.DeclaringType.Assembly.GetType("BuildOrders.Plugin");
                 object instance = AccessTools.Field(type, "Instance")?.GetValue(null);
                 PropertyInfo planning = AccessTools.Property(type, "PlanKeyHeld");

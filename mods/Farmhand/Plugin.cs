@@ -13,7 +13,7 @@ namespace Farmhand
     {
         public const string Guid = "com.bobisme.farmhand";
         public const string Name = "Farmhand";
-        public const string Version = "0.2.1";
+        public const string Version = "0.2.2";
 
         internal static Plugin Instance;
         internal bool Busy => _routine != null;

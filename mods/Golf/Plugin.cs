@@ -12,7 +12,7 @@ namespace MeadowGolf
     {
         public const string Guid="com.bobisme.golf";
         public const string Name="Meadow Golf";
-        public const string Version="0.2.2";
+        public const string Version="0.2.3";
         internal static Plugin Instance;
         private Harmony _harmony;
         private ConfigEntry<KeyboardShortcut> _cardKey;

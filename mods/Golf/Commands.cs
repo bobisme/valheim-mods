@@ -16,7 +16,7 @@ namespace MeadowGolf
         private void CommandsTick()
         {
             if(Time.unscaledTime<_nextTools)return;_nextTools=Time.unscaledTime+2;
-            BaseUnityPlugin tools=Chainloader.PluginInfos.TryGetValue("com.dhack.claudetools",out var info)?info.Instance:null;
+            BaseUnityPlugin tools=Chainloader.PluginInfos.TryGetValue("com.quad.claudetools",out var info)||Chainloader.PluginInfos.TryGetValue("com.dhack.claudetools",out info)?info.Instance:null;
             if(tools==_tools)return;_tools=tools;if(tools==null)return;
             try
             {

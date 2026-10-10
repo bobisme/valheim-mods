@@ -1,3 +1,5 @@
+0.2.3: Its Claude Tools commands work with Claude Tools under its new id (com.quad.claudetools, from 1.2.2), and still with older copies.
+
 0.2.2: New tees and cups automatically pair and advance Meadow hole numbers on the host, in either placement order. Shift+E accepts a plain course name, preserving the marker's hole number and par. Full Course:Hole:Par labels remain supported, including spaces around separators. Authoritative save confirmations and clear rejection messages replace silent rename failures.
 
 0.2.1: Taller 3.3-metre wooden flagstaffs with large red folded swallowtail banners and ivory runes, visible from farther away on both sides. Refined club head, leather grip winding, tee rims and pegs. Existing placed markers update their visuals on reload without losing course labels or match data.
