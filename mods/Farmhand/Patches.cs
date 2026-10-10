@@ -33,7 +33,7 @@ namespace Farmhand
     internal static class ValidateCrop
     {
         [HarmonyPriority(Priority.First)]
-        [HarmonyBefore("com.dhack.buildorders")]
+        [HarmonyBefore("com.quad.buildorders", "com.dhack.buildorders")]
         private static void Postfix(Player __instance, GameObject ___m_placementGhost, ref Player.PlacementStatus ___m_placementStatus)
         {
             if (__instance != Player.m_localPlayer || !GameAccess.Target.HasValue || ___m_placementGhost == null ||
@@ -52,7 +52,7 @@ namespace Farmhand
     internal static class RejectRedirectedCrop
     {
         [HarmonyPriority(Priority.Last)]
-        [HarmonyAfter("com.dhack.buildorders")]
+        [HarmonyAfter("com.quad.buildorders", "com.dhack.buildorders")]
         private static void Postfix(Player __instance, GameObject ___m_placementGhost, ref Player.PlacementStatus ___m_placementStatus)
         {
             if (__instance != Player.m_localPlayer || !GameAccess.Target.HasValue) return;

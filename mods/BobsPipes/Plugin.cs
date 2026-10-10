@@ -13,7 +13,7 @@ namespace BobsPipes
     {
         public const string Guid = "com.bobisme.bobspipes";
         public const string Name = "Bob's Pipes";
-        public const string Version = "0.1.4";
+        public const string Version = "0.1.5";
         internal static Plugin Instance;
         internal ConfigEntry<float> Minutes, Strength;
         internal ConfigEntry<bool> ShowSmoke, Rain;

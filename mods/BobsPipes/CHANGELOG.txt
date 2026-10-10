@@ -1,3 +1,5 @@
+0.1.5: Works with Quad's Cigars under its new id (com.quad.cigarsmoking, from 0.3.1), and still with older copies (com.dhack.cigarsmoking).
+
 0.1.4: Smoother play: the once-a-second check that pipe items and recipes are registered no longer reads the name of every prefab in the game when everything is already in place (about 6 ms each second).
 
 0.1.3: Works with Quad's released Cigars. The smoking API is now optional and treated as a minimum (v1 or newer): with it, pipes and cigars share one active smoke; without it, pipes light on their own instead of asking you to update Cigars.

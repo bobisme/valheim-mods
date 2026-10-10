@@ -8,7 +8,8 @@ namespace BobsPipes
     // Always reconnect to the live Cigars instance; no reference to its reloadable assembly identity.
     internal sealed class Tobacco
     {
-        internal const string Guid = "com.dhack.cigarsmoking";
+        internal const string Guid = "com.quad.cigarsmoking";
+        internal const string OldGuid = "com.dhack.cigarsmoking"; // (Quad's Cigars before 0.3.1)
         private BaseUnityPlugin _instance;
         private MethodInfo _register, _unregister, _stop;
         private bool _checked;
@@ -17,7 +18,7 @@ namespace BobsPipes
         internal bool Shared => _stop != null;
         internal bool Ready()
         {
-            BaseUnityPlugin current = Chainloader.PluginInfos.TryGetValue(Guid, out var info) ? info.Instance : null;
+            BaseUnityPlugin current = Chainloader.PluginInfos.TryGetValue(Guid, out var info) || Chainloader.PluginInfos.TryGetValue(OldGuid, out info) ? info.Instance : null;
             if (current == null) { _instance = null; _register = _unregister = _stop = null; _checked = false; return false; }
             if (current == _instance && _checked) return true;
             _instance = current; _register = _unregister = _stop = null; _checked = true;

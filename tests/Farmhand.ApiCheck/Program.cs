@@ -414,7 +414,7 @@ foreach (var entry in catalog.RootElement.GetProperty("mods").EnumerateArray())
         if (mod.MainModule.AssemblyReferences.Any(r => r.Name.StartsWith("BuildOrders", StringComparison.Ordinal)))
             throw new Exception("BuildShapes must not bind a hot-reloaded BuildOrders assembly identity.");
         if (!mod.MainModule.Types.SelectMany(t => t.CustomAttributes).Any(a => a.AttributeType.FullName == "BepInEx.BepInDependency" &&
-            (string)a.ConstructorArguments[0].Value == "com.dhack.buildorders"))
+            (string)a.ConstructorArguments[0].Value == "com.quad.buildorders"))
             throw new Exception("BuildShapes planner dependency is missing.");
     }
     if (entry.GetProperty("guid").GetString() == "com.bobisme.bobspipes")
@@ -422,7 +422,7 @@ foreach (var entry in catalog.RootElement.GetProperty("mods").EnumerateArray())
         if (mod.MainModule.AssemblyReferences.Any(r => r.Name.StartsWith("CigarSmoking", StringComparison.Ordinal)))
             throw new Exception("Pipes must not bind a hot-reloaded Cigars assembly identity.");
         if (!mod.MainModule.Types.SelectMany(t => t.CustomAttributes).Any(a => a.AttributeType.FullName == "BepInEx.BepInDependency" &&
-            (string)a.ConstructorArguments[0].Value == "com.dhack.cigarsmoking"))
+            (string)a.ConstructorArguments[0].Value == "com.quad.cigarsmoking"))
             throw new Exception("Pipes Cigars dependency is missing.");
         if (string.IsNullOrWhiteSpace(entry.GetProperty("restart").GetString()))
             throw new Exception("New saved pipe items require a published restart notice.");

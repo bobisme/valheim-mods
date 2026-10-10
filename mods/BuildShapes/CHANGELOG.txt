@@ -1,3 +1,5 @@
+0.6.5: Works with BuildOrders under its new id (com.quad.buildorders, from 1.12.1) and Claude Tools under its (com.quad.claudetools), and still with older copies.
+
 0.6.4: Use the live BepInEx plugin registry to reconnect to ClaudeTools instead of scanning every loaded Unity object every two seconds. Preserves late loading and reload detection while removing unnecessary main-thread scene scans, including while the designer is idle.
 
 0.6.3: Wrap automatic Hallwright/temple outline errors in a readable seven-second notification instead of Valheim's single-line center message. Clears immediately when the outline becomes valid; keeps drawing input free.

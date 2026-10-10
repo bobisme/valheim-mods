@@ -9,7 +9,7 @@ namespace PassengerCart
     {
         public const string Guid="com.bobisme.passengercart";
         public const string Name="Passenger Cart";
-        public const string Version="0.1.1";
+        public const string Version="0.1.2";
         internal static Plugin Instance;
         private Harmony _harmony;
 

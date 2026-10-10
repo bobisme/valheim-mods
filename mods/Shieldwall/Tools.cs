@@ -12,7 +12,8 @@ namespace Shieldwall
     // A "siege" command for Claude Tools, found while the game runs (no reference), so sieges can be checked and tried quickly.
     internal static class Tools
     {
-        private const string ClaudeToolsGuid="com.dhack.claudetools";
+        private const string ClaudeToolsGuid="com.quad.claudetools";
+        private const string OldClaudeToolsGuid="com.dhack.claudetools"; // (Claude Tools before 1.2.2)
         private static BaseUnityPlugin _tools;
         private static float _nextCheck;
 
@@ -20,7 +21,7 @@ namespace Shieldwall
         {
             if(Time.unscaledTime<_nextCheck)return;
             _nextCheck=Time.unscaledTime+5;
-            BaseUnityPlugin found=BepInEx.Bootstrap.Chainloader.PluginInfos.TryGetValue(ClaudeToolsGuid,out PluginInfo info)?info.Instance:null;
+            BaseUnityPlugin found=BepInEx.Bootstrap.Chainloader.PluginInfos.TryGetValue(ClaudeToolsGuid,out PluginInfo info)||BepInEx.Bootstrap.Chainloader.PluginInfos.TryGetValue(OldClaudeToolsGuid,out info)?info.Instance:null;
             if(found==_tools)return;
             _tools=found;
             if(found==null)return;
