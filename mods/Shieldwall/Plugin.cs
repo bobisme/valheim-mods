@@ -9,9 +9,9 @@ namespace Shieldwall
     {
         public const string Guid="com.bobisme.shieldwall";
         public const string Name="Shieldwall";
-        public const string Version="0.3.4";
+        public const string Version="0.3.5";
         internal static Plugin Instance;
-        internal ConfigEntry<bool> DrawRaids,DebugHits;
+        internal ConfigEntry<bool> DrawRaids,DebugHits,ShowRoad;
         internal ConfigEntry<float> HornWarning,RaidWarning,WaveSeconds,MaxMinutes,CooldownMinutes;
         internal ConfigEntry<int> MaxAlive;
         private Harmony _harmony;
@@ -20,6 +20,8 @@ namespace Shieldwall
         {
             Instance=this;
             DrawRaids=Config.Bind("Sieges","DrawRaids",true,"A base raid near a Warstone becomes a siege at the stone instead. Only the host's setting matters (a vanilla dedicated server raids as usual).");
+            ShowRoad=Config.Bind("Sieges","ShowRoad",false,"Draw a glowing line along the road the horde will take to the stone, and a red one where it will break through a wall. Off: only the rift's beacon and map pin show the way.");
+            ShowRoad.SettingChanged+=(_,__)=>Route.Clear();
             DebugHits=Config.Bind("Debug","LogTowerHits",false,"Log every blow the horde lands on stave sockets and Warstone upgrades (for balancing).");
             HornWarning=Config.Bind("Sieges","HornWarningSeconds",90f,new ConfigDescription("Seconds between sounding the horn and the horde marching: time to get ready.",new AcceptableValueRange<float>(15,600)));
             RaidWarning=Config.Bind("Sieges","RaidWarningSeconds",180f,new ConfigDescription("Seconds of warning when the stone draws a raid to itself.",new AcceptableValueRange<float>(30,900)));

@@ -87,6 +87,11 @@ namespace Shieldwall
                 if(drawn.Pin!=null&&Minimap.instance!=null)Minimap.instance.RemovePin(drawn.Pin);
                 if(Minimap.instance!=null)drawn.Pin=Minimap.instance.AddPin(rift,Minimap.PinType.Icon3,"Rift",false,false);
             }
+            if(!Plugin.Instance.ShowRoad.Value)
+            {
+                drawn.Road.positionCount=0;drawn.Breach.positionCount=0;drawn.BreachLight.enabled=false;
+                return;
+            }
             if(Pathfinding.instance==null||!Pathfinding.instance.GetPath(rift,goal,Path,Pathfinding.AgentType.Humanoid,false,true)||Path.Count<2)
             {
                 // No road found yet (the ground still loading): a straight line until there is.

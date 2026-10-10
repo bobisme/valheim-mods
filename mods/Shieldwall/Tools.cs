@@ -175,6 +175,15 @@ namespace Shieldwall
                     output(new JObject{["hover"]=lines,["station"]=stone.GetComponent<CraftingStation>().GetLevel()});
                     break;
                 }
+                case "sight":
+                {
+                    // For each socket: every foe in reach and everything on the line from the stave's head to it.
+                    var list=new JArray();
+                    foreach(Planted staff in Planted.Loaded.Where(p=>p!=null))
+                        list.Add(new JObject{["at"]=new JArray(staff.transform.position.x,staff.transform.position.y,staff.transform.position.z),["sight"]=new JArray(staff.Sightlines().ToArray())});
+                    output(new JObject{["sockets"]=list});
+                    break;
+                }
                 case "recipes":
                 {
                     Player me=Player.m_localPlayer;

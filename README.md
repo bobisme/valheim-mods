@@ -79,7 +79,7 @@ than it can feed (raise its level to build more or farther). **Use** a socket to
 game's own chest window, with your bag beside it) and put in the stave you want, or take it out; a stave dragged onto it from the hotbar
 goes straight in. **Shift+Use** **strengthens** it in place with warshards (★ 4, 7 and 10 shards; the stone must be at least the stave's new level). The stone feeds the sockets nearest to it first; a
 stave beyond its reach or its count (say an upgrade was torn down) sleeps, stands dark with no light, and says why; a fed stave glows
-in its colour. Staves fire on raiders and monsters in reach (not on passive creatures or
+in its colour. Staves fire on raiders and monsters in reach and in plain sight (no land, rock, tree or building between; not on passive creatures or
 Dverger), aim at whoever is closest to the stone (Thunder at the strongest), count their kills, and never hurt players, companions, tames
 or buildings. You learn them once you carry a warshard, so the first siege is fought by hand.
 
@@ -97,8 +97,8 @@ power.
 **A siege.** The horn opens a **rift** 60–95 m away (a red beacon and a map pin). After **90 s** the horde marches in **4–8 waves** (more with
 marks), sized for the players nearby, the last led by a **warchief**. Who comes depends on the bosses beaten: greydwarfs; the Black Forest's
 host (trolls lead); the drowned dead; a mountain pack (golems); Fulings (brutes); the swarm of the mist (gjall overhead); the Charred legion
-(morgen). A glowing line shows the road the horde will take, recomputed as you build: walls turn it aside, and where the road is shut a red
-line marks the **breach**. Raiders fight only what stands within about 10 m, smash the piece in their way when stuck, and strike the stone
+(morgen). With **ShowRoad** on in F7 (off by default), a glowing line shows the road the horde will take, recomputed as you build: walls
+turn it aside, and where the road is shut a red line marks the **breach**. Raiders fight only what stands within about 10 m, smash the piece in their way when stuck, and strike the stone
 when they reach it. **Sappers** go for stave sockets, tearing down the tower under one that stands high; a raider a stave keeps hitting may
 turn on its tower; **warchiefs** strike buildings half again as hard; **flyers** cross the walls. **Diggers** (from the second wave)
 answer a moat or a cliff by raising a ramp of earth to climb it, and any raider stuck behind bare land long enough starts building one;
@@ -127,7 +127,7 @@ it carries on if that player leaves and works on a dedicated server without the 
 server keeps loaded and clears of objects it doesn't know). A game hosted by a player needs Shieldwall on the host too, or the host's game
 deletes the stone; the stone, sockets and upgrades refuse to be built there, so nothing is lost. Everyone who joins in needs Shieldwall. Warnings,
 wave pacing, the most raiders at once (40), the time limit and the horn's cooldown are in F7. With Claude Tools, `siege status | plan | route |
-start [stage] | end | marks | raiders | hover | recipes | horn | raid` and test builders (`place`, `put`, `plant`, `tower`, `line`, `wall`,
+start [stage] | end | marks | raiders | hover | sight | recipes | horn | raid` and test builders (`place`, `put`, `plant`, `tower`, `line`, `wall`,
 `unbuild`, `remove`, `goto`) check stones, watch what each raider is doing and run short test sieges.
 
 Checks cover the ward table, levels, power, rosters, siege plans (sizes, growth, warchiefs, saved plans), pacing, rewards, staves and the

@@ -315,7 +315,6 @@ namespace Shieldwall
         // Who to shoot: Thunder seeks the strongest; the rest whoever is closest to the stone (the one about to strike it).
         private Character Choose(Warstone stone)
         {
-            if(_sight<0)_sight=LayerMask.GetMask("Default","static_solid","terrain","piece");
             Vector3 tip=Tip;float range=Range;
             Character best=null;float bestScore=float.MaxValue;
             foreach(Character c in Character.GetAllCharacters())
@@ -326,10 +325,39 @@ namespace Shieldwall
                 if(d>range)continue;
                 float score=_stave!=null&&_stave.Kind==StaveKind.Thunder?-c.GetMaxHealth()+d*0.1f:Vector3.Distance(c.transform.position,stone.transform.position);
                 if(score>=bestScore)continue;
-                if(Physics.Linecast(tip,at,out RaycastHit hit,_sight,QueryTriggerInteraction.Ignore)&&hit.collider.GetComponentInParent<Character>()!=c&&hit.collider.GetComponentInParent<Planted>()!=this)continue;
+                if(!Clear(tip,at,c))continue;
                 best=c;bestScore=score;
             }
             return best;
+        }
+        // A clear line from the stave's head to a spot: nothing solid between (land, rock, trees and their crowns, buildings), as a
+        // monster's own eyes see it. Only this socket and the target itself don't count.
+        private bool Clear(Vector3 from,Vector3 to,Character target)
+        {
+            if(_sight<0)_sight=LayerMask.GetMask("Default","static_solid","Default_small","terrain","piece","viewblock","vehicle");
+            Vector3 dir=to-from;float d=dir.magnitude;
+            if(d<0.01f)return true;
+            foreach(RaycastHit h in Physics.RaycastAll(from,dir/d,d,_sight,QueryTriggerInteraction.Collide))
+            {
+                if(h.collider.isTrigger&&LayerMask.LayerToName(h.collider.gameObject.layer)!="viewblock")continue; // tree crowns are triggers
+                if(h.collider.transform.IsChildOf(transform))continue;
+                if(target!=null&&h.collider.GetComponentInParent<Character>()==target)continue;
+                return false;
+            }
+            return true;
+        }
+        internal IEnumerable<string> Sightlines()
+        {
+            Vector3 tip=Tip;
+            foreach(Character c in Character.GetAllCharacters())
+            {
+                if(!IsFoe(c))continue;
+                Vector3 at=c.GetCenterPoint();float d=Vector3.Distance(at,tip);
+                if(d>Range+20)continue;
+                var hits=Physics.RaycastAll(tip,at-tip,d,~0,QueryTriggerInteraction.Collide).OrderBy(h=>h.distance)
+                    .Select(h=>$"{h.collider.name}[{LayerMask.LayerToName(h.collider.gameObject.layer)}{(h.collider.isTrigger?",trigger":"")}]@{h.distance:0.0}");
+                yield return $"{c.m_name} {d:0} m (reach {Range:0}) {(Clear(tip,at,c)?"CLEAR":"blocked")}: {string.Join(", ",hits)}";
+            }
         }
         private void Shoot(Character foe)
         {
@@ -342,6 +370,7 @@ namespace Shieldwall
             Vector3 tip=Tip,at=foe.GetCenterPoint(),v=foe.GetVelocity();
             var lead=Policy.Lead((tip.x,tip.y,tip.z),(at.x,at.y,at.z),(v.x,v.y,v.z),speed);
             Vector3 aim=new Vector3((float)lead.x,(float)lead.y,(float)lead.z);
+            if(!Clear(tip,aim,foe)){aim=at;if(!Clear(tip,at,foe)){_next=Time.time+0.5f;return;}} // where it's going is out of sight: shoot where it is, or not at all
             Vector3 flat=aim-tip;flat.y=0;
             Vector3 dir=(aim-tip).normalized;
             if(Policy.Arc(flat.magnitude,aim.y-tip.y,speed,gravity,out double angle))
