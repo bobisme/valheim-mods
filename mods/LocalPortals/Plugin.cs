@@ -3,6 +3,9 @@ using BepInEx.Configuration;
 using HarmonyLib;
 using UnityEngine;
 
+// Claude Tools may reload it in a world: the piece stays registered across a reload and standing portals get the new code (PortalPrefab).
+[assembly: System.Reflection.AssemblyMetadata("ClaudeTools.Reload","world")]
+
 namespace LocalPortals
 {
     [BepInPlugin(Guid,Name,Version)]
@@ -10,7 +13,7 @@ namespace LocalPortals
     {
         public const string Guid="com.bobisme.localportals";
         public const string Name="Local Portals";
-        public const string Version="0.1.5";
+        public const string Version="0.1.6";
         internal static Plugin Instance;
         internal static ConfigEntry<int> MaxViews;
         internal static ConfigEntry<float> Resolution;
@@ -35,6 +38,7 @@ namespace LocalPortals
             Tools.Tick();
             Crossing.Tick();
         }
+        private void FixedUpdate()=>Missiles.Tick();
         private void OnDestroy()
         {
             Tools.Stop();

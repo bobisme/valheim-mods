@@ -33,6 +33,22 @@ Check(!Policy.Crossed((0,1,30),(0,1,-30)),"A jump across a long way is not a ste
 Check(Policy.Crossed((0.7,1.3,0.1),(0.0,1.3,-0.1)),"Where the step meets the surface decides, not where it ends");
 Check(!Policy.Crossed((0.7,0.3,0.1),(0.7,0.3,-0.1)),"Walking into a post does not cross");
 
+// Things in flight: put through where their front reaches the glass, if they fit the opening.
+Check(Math.Abs(Policy.Pass((0,1,1),(0,1,-0.2),0)-1/1.2)<1e-9,"An arrow goes through where it meets the glass");
+Check(Math.Abs(Policy.Pass((0,1,1),(0,1,0),0.2)-0.8)<1e-9,"A bomb goes through where its front meets the glass, before it can reach the board behind");
+Check(Policy.Pass((0,1,0.1),(0,1,-0.3),0.2)==0,"A bomb already touching the glass goes through at once");
+Check(Policy.Pass((0,1,1),(0,1,0.5),0.2)<0,"Something still short of the glass stays on this side");
+Check(Policy.Pass((0,1,-0.1),(0,1,-0.5),0)<0&&Policy.Pass((0,1,0.1),(0,1,0.3),0.2)<0,"Nothing goes through backwards or while moving away");
+Check(Policy.Pass((0.55,1,1),(0.55,1,-1),0.2)<0&&Policy.Pass((0.55,1,1),(0.55,1,-1),0)>0,"An arrow fits past the frame's edge where a bomb hits the frame");
+Check(Policy.Pass((0,1,40),(0,1,-40),0)<0,"A jump across the world is not a flight through");
+Check(Policy.Pass((0,1.5,1),(0,1.5,-1),1)<0,"Something wider than the opening does not fit");
+Check(Math.Abs(Policy.Pass((0,1.2,2),(0,1.2,0),0.6,0)-0.7)<1e-9,"A log coming end first goes through where its end meets the glass");
+
+Check(Math.Abs(Policy.Loosed((0,1.2,0.2),(0.1,1.4,-0.3))-0.4)<1e-9,"A bow already past the glass looses its arrow out of the other mirror");
+Check(Policy.Loosed((0,1.2,0.2),(0,1.4,0.5))<0,"A shot in front of the glass is left alone");
+Check(Policy.Loosed((0,1.2,-0.2),(0,1.4,-0.5))<0,"Someone behind a mirror shoots into its back, not through it");
+Check(Policy.Loosed((1.2,1.2,0.2),(1.2,1.4,-0.3))<0,"A shot beside the frame is not through the glass");
+
 Check(Policy.ColourFor(0)==1&&Policy.ColourFor(1)==0,"A linked pair is one blue and one orange");
 
 Check(Policy.PictureSize(300,1920,1)==320,"Pictures round up to steps of 64");

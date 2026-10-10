@@ -18,11 +18,14 @@ namespace LocalPortals
         internal const double BodyHeight=1.0;       // the point of the body that has to pass through
         internal const double StepDepth=1.5;        // a crossing counts only from this close to the surface (not a jump across the world)
 
-        internal static bool InOpening(double x,double y)
+        // Inside the glass, and at least `room` from its sides and arch (the ground is no edge).
+        internal static bool InOpening(double x,double y,double room=0)
         {
-            if(Math.Abs(x)>HalfWidth||y<Bottom-0.3)return false; // (a little below the ground counts)
+            double hw=HalfWidth-room,rise=Rise-room;
+            if(hw<=0||rise<=0)return false;
+            if(Math.Abs(x)>hw||y<Bottom-0.3)return false; // (a little below the ground counts)
             if(y<=Spring)return true;
-            double u=x/HalfWidth,v=(y-Spring)/Rise;
+            double u=x/hw,v=(y-Spring)/rise;
             return u*u+v*v<=1;
         }
 
@@ -57,6 +60,31 @@ namespace LocalPortals
             double t=before.z/(before.z-now.z); // where along the step it met the surface
             double x=before.x+(now.x-before.x)*t,y=before.y+(now.y-before.y)*t;
             return InOpening(x,y);
+        }
+
+        // Something small in flight (an arrow, a bomb, a dropped item) moving from `before` to `after` in one step: the part of
+        // the step at which its front, `radius` ahead of its middle, reaches the glass with room to pass the frame, or -1 if it
+        // does not go through in this step. It is put through there, before it can touch the board behind the glass.
+        internal const double FlightDepth=5;    // the longest step that counts (not a jump across the world)
+        internal static double Pass((double x,double y,double z) before,(double x,double y,double z) after,double radius)=>Pass(before,after,radius,radius);
+        // The same for something longer than it is wide: its front `depth` ahead of its middle, and `room` across.
+        internal static double Pass((double x,double y,double z) before,(double x,double y,double z) after,double depth,double room)
+        {
+            double radius=depth;
+            if(!(before.z>0&&after.z<=radius&&after.z<before.z))return -1;
+            if(before.z>FlightDepth+radius||after.z<-FlightDepth)return -1;
+            double t=before.z>radius?(before.z-radius)/(before.z-after.z):0;
+            double x=before.x+(after.x-before.x)*t,y=before.y+(after.y-before.y)*t;
+            return InOpening(x,y,room)?t:-1;
+        }
+
+        // A shot appearing at `shot`, loosed by someone whose middle is at `body`: if the body is in front and the shot already past
+        // the glass, inside the opening, the part of the way from body to shot at which it crossed; otherwise -1.
+        internal static double Loosed((double x,double y,double z) body,(double x,double y,double z) shot)
+        {
+            if(!(shot.z<=0&&shot.z>-1&&body.z>0&&body.z<StepDepth))return -1;
+            double t=body.z/(body.z-shot.z);
+            return InOpening(body.x+(shot.x-body.x)*t,body.y+(shot.y-body.y)*t)?t:-1;
         }
 
         // The colour a new portal takes, opposite to the one it links to (0 blue, 1 orange).

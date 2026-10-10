@@ -287,6 +287,7 @@ namespace LocalPortals
             }
             if(prefab==null)return;
             var named=(Dictionary<int,GameObject>)AccessTools.Field(typeof(ZNetScene),"m_namedPrefabs").GetValue(scene);
+            scene.m_prefabs.RemoveAll(p=>p!=prefab&&p!=null&&p.name==prefab.name); // an earlier copy's, left registered by its unload
             if(!scene.m_prefabs.Contains(prefab))scene.m_prefabs.Add(prefab);
             named[Hash]=prefab; // a host without it deletes saved portals as invalid
             AddToHammer();
@@ -301,18 +302,15 @@ namespace LocalPortals
             int vanilla=table.m_pieces.FindIndex(p=>p!=null&&p.name=="portal_wood");
             if(vanilla>=0)table.m_pieces.Insert(vanilla+1,_prefab);else table.m_pieces.Add(_prefab);
         }
+        // Unloading: out of the hammer's menu. In a world the piece stays known to the game until the next copy's Register replaces
+        // it, so no area loading in between loses its portals (the host deletes what it cannot build).
         internal static void Unregister()
         {
             if(_prefab==null)return;
             PieceTable table=ObjectDB.instance?.GetItemPrefab("Hammer")?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces;
             table?.m_pieces.Remove(_prefab);
-            if(ZNetScene.instance!=null)
-            {
-                ZNetScene.instance.m_prefabs.Remove(_prefab);
-                var named=(Dictionary<int,GameObject>)AccessTools.Field(typeof(ZNetScene),"m_namedPrefabs").GetValue(ZNetScene.instance);
-                if(named.TryGetValue(Hash,out GameObject current)&&current==_prefab)named.Remove(Hash); // only our own entry
-            }
-            Object.Destroy(_holder);_holder=null;_prefab=null;
+            if(ZNetScene.instance==null)Object.Destroy(_holder);
+            _holder=null;_prefab=null;
         }
     }
 }

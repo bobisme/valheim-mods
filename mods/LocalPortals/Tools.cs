@@ -28,7 +28,7 @@ namespace LocalPortals
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name,"lportal",
-                    "lportal place [ahead=6] [right=0] [turn=180] | info | probe | through <n> [steps=40] [film] | straddle <n> [depth=0.1] [turn=0] | name <n> [text] | perf [seconds=3] | camtest <n> [back=4] [rise=0.6] | shaders [filter] | back | remove: test local portals. place puts one ahead of the player (turn 180 faces the player); info lists nearby portals and their links; probe reports the cameras and shaders the views use; through walks the player into portal n (from info) and reports where they came out; back returns them to where through found them; remove takes away the portals this command placed",
+                    "lportal place [ahead=6] [right=0] [turn=180] | info | probe | through <n> [steps=40] [film] | straddle <n> [depth=0.1] [turn=0] | shoot <n> [item=ArrowWood] [speed=40] [x] [y=1.2] [from=4] | toss <n> [item=Wood] [speed=5] [x] [y=1.2] [from=4] | name <n> [text] | perf [seconds=3] | camtest <n> [back=4] [rise=0.6] | shaders [filter] | back | remove: test local portals. place puts one ahead of the player (turn 180 faces the player); info lists nearby portals and their links; probe reports the cameras and shaders the views use; through walks the player into portal n (from info) and reports where they came out; back returns them to where through found them; remove takes away the portals this command placed",
                     (Func<string[],Action<JObject>,Action<string>,IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: lportal command added");
             }
@@ -64,7 +64,7 @@ namespace LocalPortals
                     output(new JObject{["placed"]=V(at),["facing"]=Math.Round(go.transform.eulerAngles.y,1)});
                     break;
                 }
-                case "info":output(new JObject{["portals"]=new JArray(Nearby(100).Select(Describe)),["drawnLastFrame"]=Views.Drawn,["trips"]=Crossing.Count,["cutting"]=Doubles.PartCount,["cutMs"]=Math.Round(Doubles.Ms,2),["wallsIgnored"]=Crossing.WallsIgnored});break;
+                case "info":output(new JObject{["portals"]=new JArray(Nearby(100).Select(Describe)),["drawnLastFrame"]=Views.Drawn,["trips"]=Crossing.Count,["cutting"]=Doubles.PartCount,["cutMs"]=Math.Round(Doubles.Ms,2),["wallsIgnored"]=Crossing.WallsIgnored,["thrown"]=Missiles.Count,["lastThrown"]=Missiles.LastThrough});break;
                 case "probe":output(Probe());break;
                 case "camtest":
                 {
@@ -144,6 +144,17 @@ namespace LocalPortals
                     output(new JObject{["at"]=V(at),["doubles"]=Doubles.Count,["parts"]=Doubles.PartCount});
                     break;
                 }
+                case "shoot":
+                case "toss":
+                {
+                    // Fires a shot (or throws an item) from in front of portal n straight at its glass and follows it.
+                    var list=Nearby(100).ToList();
+                    int n=(int)Arg(args,2,0);
+                    if(n<0||n>=list.Count||list[n].Partner==null){error("lportal "+sub+": no linked portal "+n);break;}
+                    string what=args.Length>3?args[3]:sub=="shoot"?"ArrowWood":"Wood";
+                    float speed=Arg(args,4,sub=="shoot"?40:5),x=Arg(args,5,0),y=Arg(args,6,1.2f),from=Arg(args,7,4);
+                    return Fire(me,list[n],sub=="shoot",what,speed,new Vector3(x,y,from),output,error);
+                }
                 case "name":
                 {
                     var list=Nearby(100).ToList();
@@ -204,6 +215,51 @@ namespace LocalPortals
                 default:error("lportal: place, info, probe, through, back or remove");break;
             }
             return null;
+        }
+        private static IEnumerator Fire(Player me,LocalPortal p,bool shoot,string what,float speed,Vector3 start,Action<JObject> output,Action<string> error)
+        {
+            GameObject prefab=ZNetScene.instance.GetPrefab(what);
+            if(prefab==null){error("lportal: no prefab "+what);yield break;}
+            Transform a=p.transform,b=p.Partner.transform;
+            Vector3 at=a.TransformPoint(start),aim=a.TransformPoint(new Vector3(start.x,start.y,0))-at;
+            Vector3 vel=aim.normalized*speed;
+            int was=Missiles.Count;Missiles.LastHit=null;
+            GameObject go,shotPrefab=null;
+            if(shoot)
+            {
+                var shared=prefab.GetComponent<ItemDrop>()?.m_itemData.m_shared;
+                GameObject shot=shared?.m_attack?.m_attackProjectile??shared?.m_secondaryAttack?.m_attackProjectile??prefab; // (a spear is thrown by its second attack)
+                shotPrefab=shot;
+                if(shot.GetComponent<Projectile>()==null){error("lportal shoot: "+what+" fires no projectile");yield break;}
+                go=Object.Instantiate(shot,at,Quaternion.LookRotation(vel));
+                go.GetComponent<Projectile>().Setup(me,vel,-1,null,null,null);
+                Missiles.Unstart(go.GetComponent<Projectile>()); // (its first hit test would run back from the player)
+            }
+            else
+            {
+                if(prefab.GetComponent<ItemDrop>()==null){error("lportal toss: "+what+" is not an item");yield break;}
+                go=Object.Instantiate(prefab,at,Quaternion.LookRotation(vel));
+                var rb=go.GetComponent<Rigidbody>();
+                if(rb!=null)rb.linearVelocity=vel;
+            }
+            var path=new JArray();
+            Vector3 last=at;
+            float until=Time.time+(shoot?2:4);
+            while(go!=null&&Time.time<until)
+            {
+                Vector3 now=go.transform.position;
+                if(path.Count<40)path.Add(Where(a,b,now));
+                last=now;
+                yield return null;
+            }
+            output(new JObject{["what"]=what,["radius"]=shoot?(float?)shotPrefab?.GetComponent<Projectile>()?.m_rayRadius:null,["through"]=Missiles.Count-was,["last"]=Missiles.LastThrough,["hit"]=Missiles.LastHit,["ended"]=Where(a,b,last),["gone"]=go==null,["path"]=path});
+        }
+        // A point described from whichever of the two portals it is in front of (and how far round from it).
+        private static string Where(Transform a,Transform b,Vector3 world)
+        {
+            Vector3 la=a.InverseTransformPoint(world),lb=b.InverseTransformPoint(world);
+            Vector3 l=la.sqrMagnitude<=lb.sqrMagnitude?la:lb;
+            return (la.sqrMagnitude<=lb.sqrMagnitude?"entry ":"exit ")+l.x.ToString("0.00")+","+l.y.ToString("0.00")+","+l.z.ToString("0.00");
         }
         private static float Arg(string[] args,int i,float fallback)=>args.Length>i&&float.TryParse(args[i],System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out float v)?v:fallback;
 
