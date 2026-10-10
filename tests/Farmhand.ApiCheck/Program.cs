@@ -380,6 +380,30 @@ Field("PieceTable","m_pieces","System.Collections.Generic.List`1<UnityEngine.Gam
 Field("ZNetScene","m_namedPrefabs","System.Collections.Generic.Dictionary`2<System.Int32,UnityEngine.GameObject>");
 Method("ZNetScene","Awake","System.Void");
 
+// LocalPortals clones the wood portal's building rules, draws views through linked mirrors with a second camera, carries the
+// game camera through the glass, and walks the player through with the camera's smoothing and fall height carried along.
+Method("GameCamera","LateUpdate","System.Void");
+Method("GameCamera","CollideRay2","System.Void","UnityEngine.Vector3","UnityEngine.Vector3","UnityEngine.Vector3&");
+Field("GameCamera","m_playerPos","UnityEngine.Vector3");
+Field("GameCamera","m_playerVel","UnityEngine.Vector3");
+Field("GameCamera","m_skyCamera","UnityEngine.Camera");
+Field("GameCamera","m_blockCameraMask","UnityEngine.LayerMask");
+Field("Character","m_maxAirAltitude","System.Single");
+Method("Character","GetVisual","UnityEngine.GameObject");
+Method("Character","SetLookDir","System.Void","UnityEngine.Vector3","System.Single");
+Method("Character","GetLookDir","UnityEngine.Vector3");
+Method("Character","ResetCloth","System.Void");
+Method("Player","GetAllPlayers","System.Collections.Generic.List`1<Player>");
+Field("Vagon","m_instances","System.Collections.Generic.List`1<Vagon>");
+Method("WearNTear","SetupColliders","System.Void");
+Method("WearNTear","GetHighlightRenderers","System.Collections.Generic.List`1<UnityEngine.Renderer>");
+Field("WearNTear","m_renderers","System.Collections.Generic.List`1<UnityEngine.Renderer>");
+Field("WearNTear","m_new","UnityEngine.GameObject");
+Field("WearNTear","m_fragmentRoots","UnityEngine.GameObject[]");
+Method("TextInput","RequestText","System.Void","TextReceiver","System.String","System.Int32");
+Method("PrivateArea","CheckAccess","System.Boolean","UnityEngine.Vector3","System.Single","System.Boolean","System.Boolean");
+Method("ZNetView","Unregister","System.Void","System.String");
+
 // Bob's Pipes: hotbar dispatch, saved item bowls, mutual smoking and native item registrations.
 Method("Player","UseHotbarItem","System.Void","System.Int32");
 Method("Player","OnDeath","System.Void");
