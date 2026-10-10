@@ -28,7 +28,7 @@ namespace LocalPortals
         }
         private sealed class Double
         {
-            internal Player Who;
+            internal Character Who;
             internal LocalPortal At;           // the portal whose glass the body is passing
             internal readonly Dictionary<Renderer,Part> Parts=new Dictionary<Renderer,Part>();
         }
@@ -55,9 +55,9 @@ namespace LocalPortals
         private static readonly System.Diagnostics.Stopwatch _watch=new System.Diagnostics.Stopwatch();
         private static void SyncAll()
         {
-            foreach(Player who in Player.GetAllPlayers())
+            foreach(Character who in Character.GetAllCharacters())
             {
-                if(who==null)continue;
+                if(who==null||!(who.IsPlayer()||Creatures.Fits(who)))continue;
                 LocalPortal at=who.IsDead()?null:Straddled(who);
                 Double d=All.Find(x=>x.Who==who);
                 if(at==null){if(d!=null){Drop(d);All.Remove(d);}continue;}
@@ -74,11 +74,12 @@ namespace LocalPortals
 
         // The portal whose glass a body is passing through, if any: its middle just in front of the glass, inside the opening.
         // (Once the middle passes the glass the body is moved to the other mirror, where it is again just in front.)
-        private static LocalPortal Straddled(Player who)
+        private static LocalPortal Straddled(Character who)
         {
-            Vector3 middle=who.transform.position+Vector3.up*(float)Policy.BodyHeight;
+            if(LocalPortal.Live.Count==0)return null;
+            Vector3 middle=Creatures.Middle(who);
             LocalPortal best=null;
-            float bestDepth=0.75f;
+            float bestDepth=who.IsPlayer()?0.75f:1.2f; // (a four-legged body is long: its head reaches the glass first)
             foreach(LocalPortal p in LocalPortal.Live)
             {
                 if(p==null||p.Partner==null||(p.transform.position-middle).sqrMagnitude>16)continue;

@@ -49,6 +49,12 @@ Check(Policy.Loosed((0,1.2,0.2),(0,1.4,0.5))<0,"A shot in front of the glass is 
 Check(Policy.Loosed((0,1.2,-0.2),(0,1.4,-0.5))<0,"Someone behind a mirror shoots into its back, not through it");
 Check(Policy.Loosed((1.2,1.2,0.2),(1.2,1.4,-0.3))<0,"A shot beside the frame is not through the glass");
 
+// Creatures: a mirror is taken only when it saves a good deal of walking.
+Check(Policy.TakeMirror(50,Policy.Detour(3,2),false),"A follower whose player stepped through 50 m away takes the mirror 3 m off");
+Check(!Policy.TakeMirror(20,Policy.Detour(10,8),false),"A mirror that saves only a little is not taken");
+Check(Policy.TakeMirror(20,Policy.Detour(9,8),true)&&!Policy.TakeMirror(20,Policy.Detour(9,8),false),"Once chosen, a mirror stays chosen while it saves any walking");
+Check(!Policy.TakeMirror(6,Policy.Detour(1,1),false),"Close by, a creature just walks");
+
 Check(Policy.ColourFor(0)==1&&Policy.ColourFor(1)==0,"A linked pair is one blue and one orange");
 
 Check(Policy.PictureSize(300,1920,1)==320,"Pictures round up to steps of 64");

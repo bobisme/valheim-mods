@@ -87,6 +87,12 @@ namespace LocalPortals
             return InOpening(body.x+(shot.x-body.x)*t,body.y+(shot.y-body.y)*t)?t:-1;
         }
 
+        // A creature's way to somewhere by a mirror: to the front of one mirror, through, and from the front of the other.
+        internal static double Detour(double toMirror,double fromMirror)=>toMirror+1+fromMirror;
+        // It takes the mirror only when that saves a good deal of walking (or, once it has chosen it, while it saves any), so it
+        // does not dither between two ways of about the same length.
+        internal static bool TakeMirror(double direct,double byMirror,bool alreadyChosen)=>alreadyChosen?byMirror<direct-1:byMirror<direct*0.7-2;
+
         // The colour a new portal takes, opposite to the one it links to (0 blue, 1 orange).
         internal static int ColourFor(int partnerColour)=>partnerColour==0?1:0;
 

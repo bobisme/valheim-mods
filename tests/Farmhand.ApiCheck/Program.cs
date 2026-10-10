@@ -411,6 +411,18 @@ Field("Projectile","m_gravity","System.Single");
 Field("Projectile","m_drag","System.Single");
 Field("Projectile","m_rayRadius","System.Single");
 Field("ItemDrop","m_nview","ZNetView");
+// ...and walks creatures through: their path to a mirror, their walking carried round, and their hunters told.
+Method("BaseAI","MoveTo","System.Boolean","System.Single","UnityEngine.Vector3","System.Single","System.Boolean");
+Method("BaseAI","MoveTowards","System.Void","UnityEngine.Vector3","System.Boolean");
+Field("BaseAI","m_character","Character");
+Field("BaseAI","m_lastFindPathTime","System.Single");
+Field("BaseAI","m_path","System.Collections.Generic.List`1<UnityEngine.Vector3>");
+Field("MonsterAI","m_targetCreature","Character");
+Field("MonsterAI","m_lastKnownTargetPos","UnityEngine.Vector3");
+Field("MonsterAI","m_beenAtLastPos","System.Boolean");
+Field("Character","m_currentVel","UnityEngine.Vector3");
+Field("Character","m_moveDir","UnityEngine.Vector3");
+Method("Character","GetAllCharacters","System.Collections.Generic.List`1<Character>");
 Method("WearNTear","GetHighlightRenderers","System.Collections.Generic.List`1<UnityEngine.Renderer>");
 Field("WearNTear","m_renderers","System.Collections.Generic.List`1<UnityEngine.Renderer>");
 Field("WearNTear","m_new","UnityEngine.GameObject");

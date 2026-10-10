@@ -3,6 +3,7 @@ using System.Collections;
 using System.Linq;
 using System.Reflection;
 using BepInEx;
+using HarmonyLib;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 using Object=UnityEngine.Object;
@@ -28,7 +29,7 @@ namespace LocalPortals
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name,"lportal",
-                    "lportal place [ahead=6] [right=0] [turn=180] | info | probe | through <n> [steps=40] [film] | straddle <n> [depth=0.1] [turn=0] | shoot <n> [item=ArrowWood] [speed=40] [x] [y=1.2] [from=4] | toss <n> [item=Wood] [speed=5] [x] [y=1.2] [from=4] | name <n> [text] | perf [seconds=3] | camtest <n> [back=4] [rise=0.6] | shaders [filter] | back | remove: test local portals. place puts one ahead of the player (turn 180 faces the player); info lists nearby portals and their links; probe reports the cameras and shaders the views use; through walks the player into portal n (from info) and reports where they came out; back returns them to where through found them; remove takes away the portals this command placed",
+                    "lportal place [ahead=6] [right=0] [turn=180] | info | probe | through <n> [steps=40] [film] | straddle <n> [depth=0.1] [turn=0] | shoot <n> [item=ArrowWood] [speed=40] [x] [y=1.2] [from=4] | toss <n> [item=Wood] [speed=5] [x] [y=1.2] [from=4] | walkin <n> [creature=Boar] [goal=4] [side=1.5] [seconds=20] [ahead=3.5] [keep] | name <n> [text] | perf [seconds=3] | camtest <n> [back=4] [rise=0.6] | shaders [filter] | back | remove: test local portals. place puts one ahead of the player (turn 180 faces the player); info lists nearby portals and their links; probe reports the cameras and shaders the views use; through walks the player into portal n (from info) and reports where they came out; back returns them to where through found them; remove takes away the portals this command placed",
                     (Func<string[],Action<JObject>,Action<string>,IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: lportal command added");
             }
@@ -36,6 +37,7 @@ namespace LocalPortals
         }
         internal static void Stop()
         {
+            if(_posed!=null&&ZNetScene.instance!=null)ZNetScene.instance.Destroy(_posed);
             try{_tools?.GetType().GetMethod("UnregisterAll",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name});}catch(Exception){}
             _tools=null;
         }
@@ -155,6 +157,50 @@ namespace LocalPortals
                     float speed=Arg(args,4,sub=="shoot"?40:5),x=Arg(args,5,0),y=Arg(args,6,1.2f),from=Arg(args,7,4);
                     return Fire(me,list[n],sub=="shoot",what,speed,new Vector3(x,y,from),output,error);
                 }
+                case "walkin":
+                {
+                    // A tame creature in front of portal n, following a marker in front of its partner: does it walk through?
+                    var list=Nearby(100).ToList();
+                    int n=(int)Arg(args,2,0);
+                    if(n<0||n>=list.Count||list[n].Partner==null){error("lportal walkin: no linked portal "+n);break;}
+                    string what=args.Length>3?args[3]:"Boar";
+                    return WalkIn(list[n],what,Arg(args,4,4),Arg(args,5,1.5f),Arg(args,6,20),Arg(args,7,3.5f),args.Contains("keep"),output,error);
+                }
+                case "hunt":
+                {
+                    // A tame hunter in front of portal n after a wild creature, which is put through the mirror: does it follow?
+                    var list=Nearby(100).ToList();
+                    int n=(int)Arg(args,2,0);
+                    if(n<0||n>=list.Count||list[n].Partner==null){error("lportal hunt: no linked portal "+n);break;}
+                    return Hunt(list[n],args.Length>3?args[3]:"Wolf",args.Length>4?args[4]:"Boar",Arg(args,5,20),output,error);
+                }
+                case "pose":
+                {
+                    // A creature held still partway into portal n's glass (its middle `depth` in front), for pictures; "pose 0 off" removes it.
+                    if(_posed!=null){ZNetScene.instance.Destroy(_posed);_posed=null;}
+                    if(args.Length>2&&args[2]=="off"){output(new JObject{["removed"]=true});break;}
+                    var list=Nearby(100).ToList();
+                    int n=(int)Arg(args,2,0);
+                    if(n<0||n>=list.Count||list[n].Partner==null){error("lportal pose: no linked portal "+n);break;}
+                    GameObject prefab=ZNetScene.instance.GetPrefab(args.Length>3?args[3]:"Boar");
+                    if(prefab?.GetComponent<Character>()==null){error("lportal pose: no creature");break;}
+                    Transform a=list[n].transform,b=list[n].Partner.transform;
+                    float depth=Arg(args,4,0.3f);
+                    Vector3 at=a.TransformPoint(new Vector3(0,0,depth));
+                    if(ZoneSystem.instance.GetSolidHeight(at,out float h))at.y=h;
+                    _posed=Object.Instantiate(prefab,at,Quaternion.LookRotation(-a.forward));
+                    var c=_posed.GetComponent<Character>();
+                    c.SetTamed(true);
+                    foreach(var ai in _posed.GetComponents<BaseAI>())ai.enabled=false;
+                    var rb=_posed.GetComponent<Rigidbody>();if(rb!=null)rb.isKinematic=true;
+                    Vector3 cam=b.TransformPoint(new Vector3(1.2f,1.3f,3.2f));
+                    float yaw=Quaternion.LookRotation(b.TransformPoint(new Vector3(0,0.6f,0))-cam).eulerAngles.y;
+                    Vector3 cam2=a.TransformPoint(new Vector3(1.6f,1.4f,-2.6f));
+                    float yaw2=Quaternion.LookRotation(a.position-cam2).eulerAngles.y;
+                    output(new JObject{["posed"]=c.m_name,["middle"]=V(a.InverseTransformPoint(Creatures.Middle(c))),["doubles"]=Doubles.Count,
+                        ["viewExit"]=$"view world {cam.x:F2} {cam.y:F2} {cam.z:F2} {yaw:F1} 12",["viewBehindEntry"]=$"view world {cam2.x:F2} {cam2.y:F2} {cam2.z:F2} {yaw2:F1} 12"});
+                    break;
+                }
                 case "name":
                 {
                     var list=Nearby(100).ToList();
@@ -215,6 +261,66 @@ namespace LocalPortals
                 default:error("lportal: place, info, probe, through, back or remove");break;
             }
             return null;
+        }
+        private static GameObject _posed;
+        private static IEnumerator WalkIn(LocalPortal p,string what,float goal,float side,float seconds,float ahead,bool keep,Action<JObject> output,Action<string> error)
+        {
+            GameObject prefab=ZNetScene.instance.GetPrefab(what);
+            if(prefab==null||prefab.GetComponent<Character>()==null){error("lportal walkin: no creature "+what);yield break;}
+            Transform a=p.transform,b=p.Partner.transform;
+            Vector3 at=a.TransformPoint(new Vector3(side,0.3f,ahead));
+            if(ZoneSystem.instance.GetSolidHeight(at,out float h))at.y=h+0.1f;
+            GameObject go=Object.Instantiate(prefab,at,Quaternion.LookRotation(-a.forward));
+            Character c=go.GetComponent<Character>();
+            c.SetTamed(true);
+            var marker=new GameObject("LocalPortalWalkInGoal");
+            marker.transform.position=b.TransformPoint(new Vector3(0,0,goal));
+            var ai=go.GetComponent<MonsterAI>();
+            ai?.SetFollowTarget(marker);
+            int was=Creatures.Count;
+            var path=new JArray();
+            float until=Time.time+seconds,next=0;
+            bool fits=Creatures.Fits(c);
+            while(go!=null&&Time.time<until)
+            {
+                if(Time.time>=next&&path.Count<40){next=Time.time+0.5f;path.Add(Where(a,b,go.transform.position));}
+                if(Creatures.Count>was&&Vector3.Distance(go.transform.position,marker.transform.position)<3.5f)break;
+                yield return null;
+            }
+            var result=new JObject{["what"]=what,["fits"]=fits,["size"]=Creatures.Size(c).ToString(),["through"]=Creatures.Count-was,["last"]=Creatures.LastThrough,["ended"]=go!=null?Where(a,b,go.transform.position):"gone",["routed"]=Creatures.Routed,["path"]=path};
+            Object.Destroy(marker);
+            if(!keep&&go!=null)ZNetScene.instance.Destroy(go);
+            output(result);
+        }
+        private static IEnumerator Hunt(LocalPortal p,string hunterName,string preyName,float seconds,Action<JObject> output,Action<string> error)
+        {
+            GameObject hp=ZNetScene.instance.GetPrefab(hunterName),pp=ZNetScene.instance.GetPrefab(preyName);
+            if(hp?.GetComponent<MonsterAI>()==null||pp?.GetComponent<Character>()==null){error("lportal hunt: no such creatures");yield break;}
+            Transform a=p.transform,b=p.Partner.transform;
+            Vector3 Ground(Vector3 v){if(ZoneSystem.instance.GetSolidHeight(v,out float h))v.y=h+0.1f;return v;}
+            GameObject prey=Object.Instantiate(pp,Ground(a.TransformPoint(new Vector3(0,0,2))),Quaternion.LookRotation(-a.forward));
+            GameObject hunter=Object.Instantiate(hp,Ground(a.TransformPoint(new Vector3(1.5f,0,6))),Quaternion.LookRotation(-a.forward));
+            Character pc=prey.GetComponent<Character>(),hc=hunter.GetComponent<Character>();
+            hc.SetTamed(true);
+            var ai=hunter.GetComponent<MonsterAI>();
+            yield return new WaitForSeconds(0.3f);
+            Traverse.Create(ai).Field("m_targetCreature").SetValue(pc);
+            ai.Alert();
+            yield return new WaitForSeconds(0.3f);
+            int was=Creatures.Count;
+            if(pc!=null)Creatures.Go(pc,p,p.Partner);
+            var path=new JArray();
+            float until=Time.time+seconds,next=0;
+            while(hunter!=null&&prey!=null&&Time.time<until)
+            {
+                if(Time.time>=next&&path.Count<40){next=Time.time+0.5f;path.Add(Where(a,b,hunter.transform.position)+" target "+(Traverse.Create(ai).Field("m_targetCreature").GetValue<Character>()==pc?"prey":"other"));}
+                if(Creatures.Count>was+1&&Vector3.Distance(hunter.transform.position,prey.transform.position)<3f)break;
+                yield return null;
+            }
+            output(new JObject{["hunter"]=hunterName,["fits"]=Creatures.Fits(hc),["through"]=Creatures.Count-was,["last"]=Creatures.LastThrough,["ended"]=hunter!=null?Where(a,b,hunter.transform.position):"gone",
+                ["prey"]=prey!=null?Where(a,b,prey.transform.position):"gone",["path"]=path});
+            if(hunter!=null)ZNetScene.instance.Destroy(hunter);
+            if(prey!=null)ZNetScene.instance.Destroy(prey);
         }
         private static IEnumerator Fire(Player me,LocalPortal p,bool shoot,string what,float speed,Vector3 start,Action<JObject> output,Action<string> error)
         {

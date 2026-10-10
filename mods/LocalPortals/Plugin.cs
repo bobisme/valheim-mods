@@ -13,7 +13,7 @@ namespace LocalPortals
     {
         public const string Guid="com.bobisme.localportals";
         public const string Name="Local Portals";
-        public const string Version="0.1.6";
+        public const string Version="0.1.7";
         internal static Plugin Instance;
         internal static ConfigEntry<int> MaxViews;
         internal static ConfigEntry<float> Resolution;
@@ -37,6 +37,7 @@ namespace LocalPortals
         {
             Tools.Tick();
             Crossing.Tick();
+            Creatures.Tick();
         }
         private void FixedUpdate()=>Missiles.Tick();
         private void OnDestroy()
@@ -45,6 +46,7 @@ namespace LocalPortals
             Views.Stop();
             Doubles.Stop();
             Crossing.Stop();
+            Creatures.Stop();
             _harmony?.UnpatchSelf();
             PortalPrefab.Unregister();
             if(Instance==this)Instance=null;

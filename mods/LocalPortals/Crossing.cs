@@ -65,9 +65,12 @@ namespace LocalPortals
         private static readonly Collider[] Behind=new Collider[32];
         private static readonly List<Collider> Swap=new List<Collider>();
         private static int _wallMask;
-        private static void BehindGlass(LocalPortal p,bool lined)
+        private static void BehindGlass(LocalPortal p,bool lined)=>WallsBehind(p,lined,Wanted);
+        // What stands in the way of a body going into this mirror's glass: walls just behind it, and (lined up with the opening)
+        // the frame's edges. Shared with creatures (Creatures).
+        internal static void WallsBehind(LocalPortal p,bool lined,ICollection<Collider> into)
         {
-            if(lined)foreach(Collider c in p.Solid)if(c!=null&&c!=p.Back)Wanted.Add(c);
+            if(lined)foreach(Collider c in p.Solid)if(c!=null&&c!=p.Back)into.Add(c);
             if(_wallMask==0)_wallMask=LayerMask.GetMask("Default","static_solid","Default_small","piece","piece_nonsolid");
             Transform t=p.transform;
             float z0=(float)(Policy.BackZ-Policy.BackThickness)-0.005f,z1=-1.0f,y0=0.12f,y1=(float)Policy.Top;
@@ -81,7 +84,7 @@ namespace LocalPortals
                 if(c.transform.IsChildOf(t)||(p.Partner!=null&&c.transform.IsChildOf(p.Partner.transform)))continue;
                 if(c.attachedRigidbody!=null&&!c.attachedRigidbody.isKinematic)continue; // (loose things are pushed, not walked through)
                 if(c.GetComponentInParent<Character>()!=null)continue;
-                Wanted.Add(c);
+                into.Add(c);
             }
         }
         private static void Unwall(Player me)
@@ -274,6 +277,7 @@ namespace LocalPortals
             }
             Last.Clear();
             Count++;
+            Creatures.Gone(me,from);
         }
     }
 }
