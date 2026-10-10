@@ -46,6 +46,7 @@ namespace MeadowGolf
         {
             GameObject source=scene.GetPrefab("sign");if(source==null)return null;
             GameObject go=Object.Instantiate(source,Holder.transform);go.name=name;
+            foreach(LODGroup lod in go.GetComponentsInChildren<LODGroup>(true))Object.DestroyImmediate(lod);
             var sign=go.GetComponent<Sign>();if(sign!=null)Object.DestroyImmediate(sign);
             foreach(Transform child in go.transform.Cast<Transform>().ToArray())Object.DestroyImmediate(child.gameObject);
             foreach(Collider c in go.GetComponents<Collider>())Object.DestroyImmediate(c);
@@ -62,8 +63,8 @@ namespace MeadowGolf
                 wear.m_noSupportWear=true;wear.m_noRoofWear=true;wear.m_supports=false;wear.m_health=80;
             }
             Models.Marker(go.transform,cup);if(wear!=null)wear.m_fragmentRoots=new[]{go.transform.Find("GolfModel").gameObject};
-            var box=go.AddComponent<BoxCollider>();box.center=cup?new Vector3(.43f,.85f,0):new Vector3(0,.12f,0);
-            box.size=cup?new Vector3(.20f,1.7f,.20f):new Vector3(.75f,.24f,.75f);
+            var box=go.AddComponent<BoxCollider>();box.center=cup?new Vector3(.43f,Models.FlagHeight/2,0):new Vector3(0,.12f,0);
+            box.size=cup?new Vector3(.20f,Models.FlagHeight,.20f):new Vector3(.75f,.24f,.75f);
             go.AddComponent<GolfMarker>();return go;
         }
         internal static void Scene(ZNetScene scene)

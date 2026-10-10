@@ -1,3 +1,19 @@
+# Meadow Golf 0.2.1 visual validation
+
+Native Linux Creative session, 9 October 2026. Build, dist and installed DLL SHA-256:
+`d1c37b890ccc5dcc96bc4b403b61e728790991b59e63acd13c9595134c52d60d`.
+Running assembly MVID: `dca3c8c6-412f-44f0-850e-05e3d7a19de9`.
+
+- Clean native build; 520 game/Unity/BepInEx references resolve, including mesh construction. The native WearNTear renderer-cache field is checked explicitly. Golf metadata and matching portable symbols pass.
+- Native renders inspected from front, reverse and oblique angles, including a 45 m / 60 degree field-of-view render. The red banner is 1.4 m wide by 0.82 m tall, on a 3.3 m pole. It renders on both sides with a folded swallowtail silhouette and an ivory rune; no emission, cloth simulation or per-frame mesh update.
+- Live separate-camera screenshot confirms an existing placed cup has the new flag. All three loaded saved markers report current visuals, retaining their positions and labels. The same saved ball, match identity and completed 18-hole scorecard survived Golf-only reloads.
+- Model refresh shares prefab meshes, replaces native fragment roots and repairs the highlight renderer cache. The pole interaction collider grows with the pole; banner and model details have no colliders. Ball physics and cup-scoring coordinates are unchanged.
+- Club head/grip, tee rim/pegs and dark cup cavity inspected in native renders. The player was not teleported; no existing structures or terrain were modified. Other mods were not reloaded.
+
+The 0.2.0 match/physics checks below remain historical; no repeat course run was needed for this visual update. Two-player qualification remains outstanding.
+
+---
+
 # Meadow Golf 0.2.0 validation
 
 Native Linux Creative session, 9 October 2026. Mise-managed .NET 10.0.300, net48.

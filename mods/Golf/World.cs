@@ -201,6 +201,7 @@ namespace MeadowGolf
         private void Awake()
         {
             View=GetComponent<ZNetView>();if(View==null||!View.IsValid())return;
+            Models.RefreshMarker(transform,Cup);
             View.Register<string>("GolfLabel",Rename);Loaded.Add(this);if(Cup)GolfWorld.RememberCup(View.GetZDO());
             foreach(GolfBall ball in GolfBall.Loaded)if(ball!=null)ball.Ignore(GetComponentsInChildren<Collider>());
         }

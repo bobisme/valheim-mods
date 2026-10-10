@@ -23,6 +23,8 @@ F6 cancels a charging swing, closes the HUD and reattaches custom scripts withou
 
 No other mod is required. There is no controller shot interface or Gary caddie behavior in this first release.
 
+The cup carries a 3.3-metre wooden flagstaff and a broad red swallowtail banner with an ivory rune. Existing tees and cups keep their labels and match data when their models update on reload.
+
 ## Validation
 
 Compiled against the native Linux game with mise-managed .NET 10.0.300, targeting .NET Framework 4.8. Rule tests cover label matching/rejection, all shot-power bounds, slow cup entry versus fast flyovers and vertical mismatch, bounded 18-hole scorecards, replay, course changes, fresh rounds and exact one-stroke tee penalties. The API checker resolves all native member references and checks private synchronization fields and Harmony hooks. Native Creative playtests passed for player-driven shots, cup completion, saved scorecard/replay and Golf-only reloads. Isolated floor, basement-ceiling and ramp fixtures matched actual endpoints; a live hall ricochet differed by 2.3 mm. Wind-up held the ball stationary, the animation contact launched it about 0.47 seconds after release, and native swing/impact audio reported playing. See [VALIDATION.md](VALIDATION.md). Remote multiplayer, disconnect/ownership transfer and latency remain untested.

@@ -21,5 +21,6 @@ foreach(var hook in new[]{("Player","TakeInput"),("PlayerController","TakeInput"
 foreach(string field in new[]{"m_isKinematicBody","m_useGravity"})
     if(!game.MainModule.Types.Single(t=>t.Name=="ZSyncTransform").Fields.Any(f=>f.Name==field&&f.FieldType.FullName=="System.Boolean"))throw new Exception("Missing sync field: "+field);
 if(!game.MainModule.Types.Single(t=>t.Name=="Humanoid").Fields.Any(f=>f.Name=="m_rightItem"&&f.FieldType.FullName=="ItemDrop/ItemData"))throw new Exception("Missing equipped-item field");
+if(!game.MainModule.Types.Single(t=>t.Name=="WearNTear").Fields.Any(f=>f.Name=="m_renderers"&&f.FieldType.FullName=="System.Collections.Generic.List`1<UnityEngine.Renderer>"))throw new Exception("Missing highlight renderer cache");
 if(golf.MainModule.AssemblyReferences.Any(r=>r.Name.Contains("Windows")||r.Name=="System.Windows.Forms"))throw new Exception("Windows-only dependency");
 Console.WriteLine($"Golf native API passed: {count} game/Unity/BepInEx member references resolved; Harmony hooks unambiguous; no Windows dependency. MVID {golf.MainModule.Mvid}.");
