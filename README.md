@@ -140,7 +140,7 @@ their power budget, sappers, the stone falling and holding, the horn, drawn raid
 ## Bob's Pipes
 
 A reusable **Carved Pipe**, crafted at a **workbench** from **4 wood, 2 core wood and 1 leather scraps**. It depends on
-[Quad's Cigars](https://github.com/HardHeadHackerHead/valheim-mods) (any version with the tobacco chain), and uses its tobacco growing,
+[Quad's Cigars](https://github.com/HardHeadHackerHead/valheim-mods) (any version with the tobacco chain, under its new id `com.quad.cigarsmoking` or the old `com.dhack.cigarsmoking`), and uses its tobacco growing,
 drying, aging, rolling table and humidor. Cigars with **smoking API v1 or newer**, proposed in
 [upstream PR #4](https://github.com/HardHeadHackerHead/valheim-mods/pull/4), also lets pipes and cigars share one active smoke. Bob's Pipes supplies the pipe and three blend tins:
 
@@ -526,7 +526,8 @@ Footprints are bounded to **24 corners / 256 tiles (1,024 m²)** and shells to *
 
 
 Curve, Arch, Mirror, and Repeat tools for **BuildOrders**, using normal pieces, materials, and support rules. The original Curve API has been
-merged upstream. Mirror/Repeat also need the new ghost-selection/input API; use the patched planner from [upstream PR #3](https://github.com/HardHeadHackerHead/valheim-mods/pull/3) until it merges. Curve still works with the original API release (BuildOrders 1.9.3 or newer).
+merged upstream. Mirror/Repeat also need the new ghost-selection/input API; use the patched planner from [upstream PR #3](https://github.com/HardHeadHackerHead/valheim-mods/pull/3) until it merges. Curve still works with the original API release (BuildOrders 1.9.3 or newer). BuildShapes finds BuildOrders under its new id
+(`com.quad.buildorders`, from 1.12.1) or the old `com.dhack.buildorders`.
 The add-on reconnects to the live planner after F6 or individual reloads, without referencing its assembly.
 
 Equip a **hammer**, select a building piece, and close the piece menu:
