@@ -15,10 +15,10 @@ namespace Shieldwall
         // Saved on the stone.
         internal const string MarksKey="bob_sw_marks",CrackedKey="bob_sw_cracked",PhaseKey="bob_sw_phase",HealthKey="bob_sw_health",MaxHealthKey="bob_sw_maxhealth",
             RiftKey="bob_sw_rift",StartKey="bob_sw_start",SiegeKey="bob_sw_siege",PlanKey="bob_sw_plan",WaveKey="bob_sw_wave",QueueKey="bob_sw_queue",
-            WaveAtKey="bob_sw_waveat",SpawnedKey="bob_sw_spawned",StageKey="bob_sw_stage",CauseKey="bob_sw_cause",CooldownKey="bob_sw_cooldown",
+            WaveAtKey="bob_sw_waveat",BreatherKey="bob_sw_breather",SpawnedKey="bob_sw_spawned",StageKey="bob_sw_stage",CauseKey="bob_sw_cause",CooldownKey="bob_sw_cooldown",
             CalledKey="bob_sw_called",HeldKey="bob_sw_held",BaseKey="bob_sw_base",FallenKey="bob_sw_fallen",KillsKey="bob_sw_kills",QuietKey="bob_sw_quiet",
             BoastsKey="bob_sw_boasts",BoonsKey="bob_sw_boons",OfferKey="bob_sw_offer",TallyKey="bob_sw_tally",LowKey="bob_sw_low",LowWaveKey="bob_sw_lowwave",
-            SagaKey="bob_sw_saga",SagaTopicKey="bob_sw_sagatopic";
+            SagaKey="bob_sw_saga",SagaTopicKey="bob_sw_sagatopic",ChiefsKey="bob_sw_chiefs",ChiefFellKey="bob_sw_chieffell";
         private static GameObject _prefab;
         internal static GameObject Prefab=>_prefab;
         internal static CraftingStation Station=>_prefab!=null?_prefab.GetComponent<CraftingStation>():null;
@@ -203,6 +203,7 @@ namespace Shieldwall
             if(attacker==null||attacker.GetComponent<Raider>()==null)return; // only the horde wears it down
             float damage=hit.GetTotalDamage();
             if(damage<=0)return;
+            if(Plugin.Instance.DebugHits.Value)Plugin.Log($"[hit] {attacker.m_name} ({attacker.GetComponent<Raider>().Role}) struck the Warstone for {damage:0} ({hit.m_hitType})");
             Net.Damage(this,damage,hit.m_point);
         }
     }

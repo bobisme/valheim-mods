@@ -112,8 +112,11 @@ or buildings. You learn them once you carry a warshard, so the first siege is fo
 Each ★ adds 35% power and 2 m reach. Any other staff that throws something (Staff of Embers, Dundr...) can be set in a socket too, at 40%
 power.
 
-**A siege.** The horn opens a **rift** 60–95 m away (a red beacon and a map pin). After **90 s** the horde marches in **4–8 waves** (more with
-marks), sized for the players nearby, the last led by a **warchief**. Who comes depends on the bosses beaten: greydwarfs; the Black Forest's
+**A siege.** The horn opens a **rift** (a red beacon and a map pin) as far out as the game keeps creatures alive around you, up to
+**150 m** (room for a fortress; how far depends on the Simulation distance in the game's graphics settings: beyond it creatures stand
+frozen), and at least **35 m** from anything anyone has built. After **90 s** the horde marches in **4–8 waves** (more with
+marks), sized for the players nearby, the last led by a **warchief**. When a wave breaks, a **25 s breather** (counted down on the siege
+bar) comes before the next marches. Who comes depends on the bosses beaten: greydwarfs; the Black Forest's
 host (trolls lead); the drowned dead; a mountain pack (golems); Fulings (brutes); the swarm of the mist (gjall overhead); the Charred legion
 (morgen). A stone's first siege is a **proving**: a horde two lands below the world's own (one below at the first mark, the full horde from
 the second), in 3 smaller waves (20 raiders, 10 more for each friend), so a new stone can be held with bows and walls and its warshards
@@ -126,9 +129,10 @@ a digger that reaches the stone digs at its foot. The game's own boss bar shows 
 countdown, then the wave, how many are left and the stone's strength, with the game's raid music. The stone's hover names what the next
 wave holds, and once a wave is all out of the rift, **Shift+E** on the stone calls the next one at once for bonus warshards.
 
-- **Held** (the last raider falls, or the stone outlasts 25 minutes; one or two stuck out of sight for 75 s count as fallen): spoils appear
-  beside the stone on the side away from the rift (a treasure chest of that land with **warshards**, coins and materials, more for an
-  unscathed stone and a long fight), and the stone gains a mark (ten at most).
+- **Held** (the last raider falls, or the stone outlasts 25 minutes; one or two stuck out of sight for 75 s count as fallen, but never the warchief): spoils appear
+  beside the stone on the side away from the rift (a treasure chest of that land with **warshards** and the hard-won building stuff of the horde's land, more for an
+  unscathed stone and a long fight, and only a handful of coins: flint and resin; bronze, fine wood and surtling cores; iron and ancient
+  bark; silver, iron and obsidian; black metal, iron and tar; black marble, yggdrasil wood and iron; flametal, grausten and blackwood), and the stone gains a mark (ten at most).
 - **Fallen** (the horde wears the stone to nothing; it feels only 40% of each blow): the stone **cracks** and works two marks lower until it
   holds a siege again. A warshard for every six raiders slain lies at its foot. The stone itself is never destroyed and nothing is lost: a
   fallen tower's stave lies where it stood.
@@ -165,6 +169,23 @@ by itself after half a minute or when you walk off (Use or Escape closes it at o
 a **Veteran** and earns a name ("Brand the Hungry"), at **100** an **Elder**, at **300** a **Legend**: each rank strikes 10% harder and
 burns brighter. Its name and record show on the socket and on its tooltip, and the saga tells its deeds by name.
 
+**Warchiefs.** Each horde's warchief has a name and a trick, shown on the siege bar and told in the saga (who brought him down, or that
+he lived to boast of it). His trophy always drops and remembers whose it was. A stuck warchief leaps for the stone, and a siege is never
+won while he stands.
+
+| Trick | What he does |
+| --- | --- |
+| Wallbreaker | his blows on buildings land three times as hard, and a ground slam shakes everything built near him |
+| Stone-hand | hurls boulders at your towers |
+| Grave-caller | raises skeletons beside him (eight at most) |
+| the Leaper | leaps over the walls in his way |
+| War-caller | a war cry heals the horde near him |
+| Iron-hide | staves bite half as deep |
+
+**The pitch pit** (hammer; 8 stone, 8 resin, on the ground): a ring of stones round a pool of black pitch. Raiders
+who wade in are slowed. Fire sets it alight (a fire stave's shot landing near it, a fire arrow) and it burns the horde standing in it
+for **12 s**, then seeps full again in **30 s**; the saga counts what it took.
+
 The horn rests **20 minutes** after a siege. A stone can't be taken down while a siege is on. Raiders carry warshards now and then
 (warchiefs 3–6) and drop their trophies more often.
 
@@ -177,12 +198,12 @@ it carries on if that player leaves and works on a dedicated server without the 
 server keeps loaded and clears of objects it doesn't know). A game hosted by a player needs Shieldwall on the host too, or the host's game
 deletes the stone; the stone, sockets and upgrades refuse to be built there, so nothing is lost. Everyone who joins in needs Shieldwall. Warnings,
 wave pacing, the most raiders at once (40), the time limit and the horn's cooldown are in F7. With Claude Tools, `siege status | plan | route |
-start [stage] [boasts] | end | marks | raiders | hover | sight | recipes | council | horn [boasts] | boasts | offer | boon | saga | raid` and test builders (`place`, `put`, `plant`, `tower`, `line`, `wall`,
+start [stage] [boasts] [trick] | end | marks | raiders | hover | sight | recipes | council | horn [boasts] | boasts | offer | boon | saga | ignite | raid` and test builders (`place`, `put`, `plant`, `tower`, `line`, `wall`,
 `unbuild`, `remove`, `goto`) check stones, watch what each raider is doing and run short test sieges.
 
 Checks cover the ward table, levels, power, rosters, siege plans (sizes, growth, warchiefs, saved plans), pacing, rewards, staves and the
 aiming arcs, plus every native hook. Live-tested in a test world: marching, breaching walls and porches, wall mazes, towers, sockets and
-their power budget, sappers, the stone falling and holding, the horn, drawn raids, recipe discovery, hot reload mid-siege, and each horde.
+their power budget, sappers, the stone falling and holding, the horn, drawn raids, recipe discovery, hot reload mid-siege, and each horde; the warchiefs' tricks, the breather's countdown, far rifts and the new spoils.
 
 ## Bob's Pipes
 

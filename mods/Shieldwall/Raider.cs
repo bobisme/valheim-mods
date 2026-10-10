@@ -10,7 +10,7 @@ namespace Shieldwall
     // close, breaks through whatever blocks the way, and strikes the stone when it reaches it. Sappers go for planted staves first.
     internal sealed class Raider:MonoBehaviour
     {
-        internal const string RoleKey="bob_sw_role",SiegeKey="bob_sw_siege",StoneKey="bob_sw_stone";
+        internal const string RoleKey="bob_sw_role",SiegeKey="bob_sw_siege",StoneKey="bob_sw_stone",TrickKey="bob_sw_trick",ChiefKey="bob_sw_chief";
         internal static readonly List<Raider> Loaded=new List<Raider>();
         private static readonly AccessTools.FieldRef<MonsterAI,Character> TargetCreature=AccessTools.FieldRefAccess<MonsterAI,Character>("m_targetCreature");
         private static readonly AccessTools.FieldRef<MonsterAI,StaticTarget> TargetStatic=AccessTools.FieldRefAccess<MonsterAI,StaticTarget>("m_targetStatic");
@@ -23,7 +23,7 @@ namespace Shieldwall
         private static readonly Collider[] Near=new Collider[64];
         private static int _pieces=-1;
 
-        internal Role Role;internal long Siege;internal Vector3 StoneAt;
+        internal Role Role;internal long Siege;internal Vector3 StoneAt;internal Trick Trick=(Trick)(-1);internal string ChiefName;
         internal Character Body;private MonsterAI _ai;private ZNetView _view;
         private float _think,_stuckSince,_blockerUntil,_disbandAt=-1;private Vector3 _lastPos;
         private StaticTarget _blocker;private Warstone _stone;
@@ -40,6 +40,7 @@ namespace Shieldwall
         {
             ZDO z=_view.GetZDO();
             Role=(Role)z.GetInt(RoleKey,0);Siege=z.GetLong(SiegeKey,0L);StoneAt=z.GetVec3(StoneKey,transform.position);
+            Trick=(Trick)z.GetInt(TrickKey,-1);ChiefName=z.GetString(ChiefKey,"");if(ChiefName=="")ChiefName=null;
             // Emboldened: no fear of fire, no fleeing, no going home at dawn.
             _ai.m_afraidOfFire=false;_ai.m_avoidFire=false;_ai.m_fleeIfLowHealth=0;_ai.m_fleeIfNotAlerted=false;_ai.m_fleeIfHurtWhenTargetCantBeReached=false;
             DespawnInDay(_ai)=false;
@@ -47,7 +48,7 @@ namespace Shieldwall
             if(Role==Role.Champion&&!_grown)
             {
                 _grown=true;
-                if(!Body.m_name.StartsWith("Warchief ")){transform.localScale*=1.25f;Body.m_name="Warchief "+Localization.instance.Localize(Body.m_name);} // not again after a reload
+                if(!Body.m_name.StartsWith("Warchief ")&&Body.m_name!=ChiefName){transform.localScale*=1.25f;Body.m_name=ChiefName??"Warchief "+Localization.instance.Localize(Body.m_name);} // not again after a reload
                 // A red glow about him, so the warchief stands out in the crowd.
                 if(transform.Find("WarchiefGlow")==null)
                 {
@@ -63,6 +64,7 @@ namespace Shieldwall
             }
         }
         internal static readonly Color Shield=new Color(0.35f,0.6f,1f);
+        internal const string TrophyKey="bob_sw_trophy";
         // A warchief sworn as the chosen chief takes no blow while one of his guard lives.
         internal bool Shielded()
         {
@@ -113,8 +115,12 @@ namespace Shieldwall
         }
 
         // Runs on the game that owns this raider, before the game's own AI: it picks the targets, the game does the walking and fighting.
+        internal bool Owned=>_view!=null&&_view.IsValid()&&_view.IsOwner();
+        internal bool AiOn=>_ai!=null&&_ai.isActiveAndEnabled;
+        internal float SinceThought=>Time.time-_thought;private float _thought;
         internal void Think(float dt)
         {
+            _thought=Time.time;
             if(!_view.IsOwner()||Body.IsDead())return;
             UpdateTargetTimer(_ai)=5; // the game never picks targets for a raider: Think does
             SinceSensed(_ai)=0;SinceAttacking(_ai)=0; // nor gives up on them (it drops every target after 30 s without a foe in sight)
@@ -124,6 +130,7 @@ namespace Shieldwall
             if(Time.time<_think)return;
             _think=Time.time+0.5f;
             if(!_ai.IsAlerted())SetAlerted.Invoke(_ai,new object[]{true});
+            if(Role==Role.Champion)Tricks(stone);
 
             // A foe close by: fight it (the game chases and strikes), but never far from the road.
             Character current=TargetCreature(_ai);
@@ -172,11 +179,118 @@ namespace Shieldwall
                 if(_blocker!=null){_blockerUntil=Time.time+25;TargetStatic(_ai)=_blocker;_stuckSince=Time.time;}
                 // Shut by the land itself (a moat, a cliff): nothing to break, so they build a ramp. Diggers start at once, the rest in a while.
                 else if(shut&&!close&&(Role==Role.Digger||Time.time-_stuckSince>8))Earthwork(stone.transform.position);
+                // A warchief does not sit out his own siege: stuck long enough, he leaps for the stone whatever his trick.
+                if(Role==Role.Champion&&!close&&Time.time-_stuckSince>12&&Leap(stone))_stuckSince=Time.time;
             }
+            if(Role==Role.Champion&&Plugin.Instance.DebugHits.Value&&Time.time>=_nextLog)
+            {_nextLog=Time.time+5;Plugin.Log($"[chief] {ChiefName} {Doing()} at {transform.position:F0}, {toStone:0} m from the stone, still for {Time.time-_stuckSince:0} s");}
             // Diggers that reach the stone dig at its foot: let them, and it topples.
             if(Role==Role.Digger&&_seesStone&&Time.time>=_nextDig){_nextDig=Time.time+4;Undermine(stone);}
         }
         private bool _seesStone;private float _nextDig,_nextRamp;
+
+        // ---- the warchief's trick (on the game that owns him) ----
+        private float _nextTrick=-1;private int _raised;
+        private static readonly AccessTools.FieldRef<Character,Rigidbody> BodyOf=AccessTools.FieldRefAccess<Character,Rigidbody>("m_body");
+        private void Tricks(Warstone stone)
+        {
+            if(_nextTrick<0){_nextTrick=Time.time+Random.Range(4f,8f);return;}
+            if(Time.time<_nextTrick||Body.InAttack())return;
+            Vector3 at=transform.position;
+            switch(Trick)
+            {
+                case Trick.Wallbreaker:
+                {
+                    // A ground slam: everything built within 4 m shakes.
+                    _nextTrick=Time.time+12;
+                    if(_pieces<0)_pieces=LayerMask.GetMask("piece","piece_nonsolid");
+                    int count=Physics.OverlapSphereNonAlloc(at,4,Near,_pieces,QueryTriggerInteraction.Ignore);
+                    var struck=new HashSet<WearNTear>();
+                    for(int i=0;i<count;i++){WearNTear piece=Built(Near[i]);if(piece!=null)struck.Add(piece);}
+                    if(struck.Count==0){_nextTrick=Time.time+2;return;}
+                    Assets.Effect("vfx_troll_groundslam",at);Assets.Effect("sfx_trollfire_attack_slam_impact",at);
+                    foreach(WearNTear piece in struck)
+                    {
+                        var hit=new HitData{m_point=piece.transform.position,m_dir=(piece.transform.position-at).normalized,m_toolTier=4,m_hitType=HitData.HitType.EnemyHit};
+                        hit.m_damage.m_blunt=120;hit.SetAttacker(Body);
+                        piece.Damage(hit);
+                    }
+                    break;
+                }
+                case Trick.Stonethrower:
+                {
+                    // A boulder at the nearest tower in sight, or the wall in his way.
+                    _nextTrick=Time.time+10;
+                    Planted tower=Planted.Nearest(at,35);
+                    Vector3? aim=tower!=null?tower.transform.position+Vector3.up*1.2f:_blocker!=null?_blocker.transform.position+Vector3.up:(Vector3?)null;
+                    if(aim==null){_nextTrick=Time.time+3;return;}
+                    Throw(aim.Value);
+                    break;
+                }
+                case Trick.Gravecaller:
+                {
+                    _nextTrick=Time.time+18;
+                    if(_raised>=Policy.MaxRaised)return;
+                    Assets.Effect("vfx_prespawn",at);
+                    for(int i=0;i<2&&_raised<Policy.MaxRaised;i++,_raised++)
+                    {
+                        Vector2 off=Random.insideUnitCircle.normalized*Random.Range(2f,4f);
+                        Director.Raise(stone,"Skeleton",at+new Vector3(off.x,0,off.y),Siege);
+                    }
+                    break;
+                }
+                case Trick.Leaper:
+                {
+                    // Over the wall: when he is stuck or a wall stands in his way, a great leap toward the stone.
+                    _nextTrick=Time.time+3;
+                    Vector3 to=stone.transform.position-at;to.y=0;
+                    if(to.magnitude<7)return;
+                    bool walled=_blocker!=null||Time.time-_stuckSince>2;
+                    if(!walled||!Leap(stone))return;
+                    _blocker=null;_stuckSince=Time.time;_nextTrick=Time.time+9;
+                    break;
+                }
+                case Trick.Warcaller:
+                {
+                    _nextTrick=Time.time+15;
+                    var hurt=Loaded.Where(r=>r!=null&&r.Siege==Siege&&r.Body!=null&&!r.Body.IsDead()&&Vector3.Distance(r.transform.position,at)<12&&r.Body.GetHealth()<r.Body.GetMaxHealth()*0.9f).ToList();
+                    if(hurt.Count==0){_nextTrick=Time.time+3;return;}
+                    Assets.Effect("sfx_goblinbrute_alerted",at);Assets.Effect("fx_DvergerMage_Support_start",at+Vector3.up);
+                    foreach(Raider r in hurt)r.Body.Heal(r.Body.GetMaxHealth()*Policy.WarcryHeal,true);
+                    break;
+                }
+                default:_nextTrick=Time.time+30;return; // Iron-hide's trick is always on
+            }
+            if(Plugin.Instance.DebugHits.Value)Plugin.Log($"[chief] {ChiefName}: {Trick}");
+        }
+        // A great leap toward the stone.
+        private bool Leap(Warstone stone)
+        {
+            Vector3 to=stone.transform.position-transform.position;to.y=0;
+            if(to.magnitude<7||Body.IsFlying()||!Body.IsOnGround())return false;
+            Rigidbody rb=BodyOf(Body);
+            if(rb==null)return false;
+            rb.linearVelocity=to.normalized*Mathf.Min(12,to.magnitude)+Vector3.up*12;
+            Assets.Effect("vfx_spawn_small",transform.position);
+            return true;
+        }
+        private float _nextLog;
+        private void Throw(Vector3 aim)
+        {
+            GameObject prefab=Assets.Find("troll_throw_projectile");
+            if(prefab==null)return;
+            Vector3 from=transform.position+Vector3.up*2.6f;
+            float speed=24,gravity=prefab.GetComponent<Projectile>()?.m_gravity??0;
+            Vector3 flat=aim-from;flat.y=0;
+            Vector3 dir=(aim-from).normalized;
+            if(flat.sqrMagnitude>0.01f&&Policy.Arc(flat.magnitude,aim.y-from.y,speed,gravity,out double angle))
+                dir=Quaternion.AngleAxis(-(float)angle*Mathf.Rad2Deg,Vector3.Cross(flat.normalized,Vector3.up)*-1)*flat.normalized;
+            GameObject rock=Object.Instantiate(prefab,from,Quaternion.LookRotation(dir));
+            var hit=new HitData{m_toolTier=4,m_pushForce=20,m_hitType=HitData.HitType.EnemyHit};
+            hit.m_damage.m_blunt=90;hit.SetAttacker(Body);
+            rock.GetComponent<IProjectile>()?.Setup(Body,dir*speed,-1,hit,null,null);
+            Assets.Effect("sfx_trollfire_attack_throw",from);
+        }
         // A ramp of earth: the ground just ahead (toward the stone) raised to where the raider stands, a little at a time.
         private void Earthwork(Vector3 stone)
         {
@@ -279,6 +393,15 @@ namespace Shieldwall
             return piece!=null&&piece.GetComponent<Piece>() is Piece p&&p.GetCreator()!=0?piece:null;
         }
         // The siege is over (or this one belongs to none): melt away in a puff of smoke after a moment.
+        // Gone from the field at a siege's end: here if this game owns it, else its owner's game disbands it as it thinks.
+        internal void Melt()
+        {
+            if(_view==null||!_view.IsValid())return;
+            if(!_view.IsOwner()&&!_view.GetZDO().HasOwner())_view.ClaimOwnership(); // frozen out where no game runs it
+            if(!_view.IsOwner())return;
+            Assets.Effect("vfx_spawn_small",transform.position+Vector3.up*0.5f);
+            ZNetScene.instance.Destroy(gameObject);
+        }
         private void Disband(Warstone stone)
         {
             TargetCreature(_ai)=null;TargetStatic(_ai)=null;
@@ -319,6 +442,19 @@ namespace Shieldwall
             int shards=Policy.Carried(raider.Role,Random.value,raider.Stone()?.Boons.Contains("luck")==true);
             GameObject shard=Items.Get(Policy.ShardPrefab);
             if(shards>0&&shard!=null)__result.Add(new KeyValuePair<GameObject,int>(shard,shards));
+            // A warchief always leaves his trophy, and it carries his name.
+            if(raider.Role==Role.Champion)
+            {
+                GameObject chiefTrophy=__instance.m_drops.Select(d=>d.m_prefab).FirstOrDefault(p=>p!=null&&p.name.StartsWith("Trophy"));
+                __result.RemoveAll(d=>d.Key!=null&&d.Key==chiefTrophy);
+                if(chiefTrophy!=null&&chiefTrophy.GetComponent<ItemDrop>() is ItemDrop drop)
+                {
+                    ItemDrop.ItemData data=drop.m_itemData.Clone();data.m_dropPrefab=chiefTrophy;
+                    data.m_customData[Raider.TrophyKey]=raider.ChiefName??raider.Body.m_name;
+                    ItemDrop.DropItem(data,1,__instance.transform.position+Vector3.up,Quaternion.identity);
+                }
+                return;
+            }
             if(__result.All(d=>d.Key==null||!d.Key.name.StartsWith("Trophy"))&&Random.value<0.15f)
             {
                 GameObject trophy=__instance.m_drops.Select(d=>d.m_prefab).FirstOrDefault(p=>p!=null&&p.name.StartsWith("Trophy"));
@@ -332,7 +468,9 @@ namespace Shieldwall
     {
         private static bool Prefix(Character __instance,HitData hit)
         {
-            if(!(__instance.GetComponent<Raider>() is Raider r)||!r.Shielded())return true;
+            if(!(__instance.GetComponent<Raider>() is Raider r))return true;
+            if(r.Trick==Trick.Ironhide&&r.Role==Role.Champion&&hit.m_hitType==HitData.HitType.Turret)hit.m_damage.Modify(Policy.IronhideStaves); // Iron-hide: staves bite half as deep
+            if(!r.Shielded())return true;
             DamageText.instance?.ShowText(HitData.DamageModifier.Immune,hit.m_point,0);
             return false;
         }
@@ -346,7 +484,7 @@ namespace Shieldwall
             if(hit==null)return;
             Character attacker=hit.GetAttacker();
             if(attacker==null||!(attacker.GetComponent<Raider>() is Raider r))return;
-            if(r.Role==Role.Champion)hit.m_damage.Modify(1.5f);
+            if(r.Role==Role.Champion)hit.m_damage.Modify(r.Trick==Trick.Wallbreaker?Policy.WallbreakerHit:Policy.ChiefHit);
             if(Plugin.Instance.DebugHits.Value&&(__instance.GetComponent<Planted>()!=null||__instance.GetComponent<StationExtension>()!=null))
                 Plugin.Log($"[hit] {r.Body.m_name} ({r.Role}, {r.Doing()}) struck {Utils.GetPrefabName(__instance.gameObject)} for {hit.GetTotalDamage():0}");
             // The stone's upgrades are warded: the horde barely scratches them.

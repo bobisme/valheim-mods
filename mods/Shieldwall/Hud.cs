@@ -46,7 +46,12 @@ namespace Shieldwall
                 long siege=stone.Siege;
                 int alive=Raider.Loaded.Count(r=>r!=null&&r.Siege==siege&&r.Body!=null&&!r.Body.IsDead());
                 fill=Mathf.Clamp01(z.GetFloat(Stone.HealthKey,1)/Mathf.Max(1,z.GetFloat(Stone.MaxHealthKey,1)));
-                text=$"Warstone · wave {wave} of {plan.Count} · {alive+left} to go";
+                string chief=Raider.Loaded.FirstOrDefault(r=>r!=null&&r.Siege==siege&&r.Role==Role.Champion&&r.ChiefName!=null&&r.Body!=null&&!r.Body.IsDead())?.ChiefName;
+                long breather=z.GetLong(Stone.BreatherKey,0L);
+                double rest=(breather-ZNet.instance.GetTime().Ticks)/(double)System.TimeSpan.TicksPerSecond;
+                text=breather!=0&&rest>0
+                    ?$"{(wave+1==plan.Count?"The warchief":$"Wave {wave+1} of {plan.Count}")} in {Mathf.CeilToInt((float)rest)} s · {alive+left} to go"
+                    :$"{chief??"Warstone"} · wave {wave} of {plan.Count} · {alive+left} to go";
             }
             if(!_bar.activeSelf)_bar.SetActive(true);
             if(_name.text!=text)_name.text=text;

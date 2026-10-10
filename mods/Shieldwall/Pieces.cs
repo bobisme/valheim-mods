@@ -40,6 +40,7 @@ namespace Shieldwall
                     socket.AddComponent<Planted>();
                 }
             }
+            if(!Made.TryGetValue(PitchPit.PrefabName,out GameObject made)||made==null)Pit();
             foreach(var up in Policy.Upgrades)
             {
                 if(Made.ContainsKey(up.prefab)&&Made[up.prefab]!=null)continue;
@@ -54,6 +55,40 @@ namespace Shieldwall
                 ext.m_craftingStation=Stone.Station;ext.m_maxStationDistance=10;ext.m_stack=false;
                 go.GetComponent<WearNTear>().m_health=2000;
             }
+        }
+        // The pitch pit: the campfire's ring of stones, wide, round a pool of pitch, with the campfire's own fire to show when it burns.
+        private static void Pit()
+        {
+            GameObject ring=Assets.Find("fire_pit");
+            GameObject pit=Build("stone_pillar",PitchPit.PrefabName,ring,Vector3.zero,Quaternion.identity,2.2f,r=>r is MeshRenderer&&!(r.sharedMaterial!=null&&r.sharedMaterial.name.StartsWith("fire_log"))); // the ring and ash, not the campfire's glowing logs
+            if(pit==null)return;
+            Bounds b=MeshBounds(pit.transform,pit.transform.Find("new").gameObject);
+            PitchPit.Radius=Mathf.Max(1.2f,Mathf.Min(b.extents.x,b.extents.z)*0.85f);
+            // The pool: a flat disc of black, just above the ground inside the ring.
+            GameObject pool=GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            Object.DestroyImmediate(pool.GetComponent<Collider>());
+            pool.name="Pitch";pool.transform.SetParent(pit.transform,false);
+            pool.transform.localPosition=new Vector3(b.center.x,0.06f,b.center.z);pool.transform.localScale=new Vector3(PitchPit.Radius*2,0.02f,PitchPit.Radius*2);
+            Renderer stone=pit.transform.Find("new").GetComponentInChildren<MeshRenderer>(true);
+            var renderer=pool.GetComponent<MeshRenderer>();
+            if(stone!=null){var m=new Material(stone.sharedMaterial){name="BobPitch"};m.color=new Color(0.04f,0.035f,0.03f);if(m.HasProperty("_Glossiness"))m.SetFloat("_Glossiness",0.85f);renderer.sharedMaterial=m;Assets.Owned.Add(m);}
+            pool.layer=LayerMask.NameToLayer("piece");
+            // The fire: three of the campfire's own flames round the pool, lit only while it burns.
+            GameObject flames=ring!=null?ring.GetComponent<Fireplace>()?.m_enabledObject:null;
+            var fire=new GameObject("PitchFire");fire.transform.SetParent(pit.transform,false);fire.SetActive(false);
+            if(flames!=null)for(int i=0;i<3;i++)
+            {
+                GameObject f=Object.Instantiate(flames,fire.transform,false);f.SetActive(true);
+                f.transform.localPosition=Quaternion.Euler(0,120*i,0)*Vector3.forward*PitchPit.Radius*0.5f;f.transform.localScale=Vector3.one*1.4f;
+            }
+            Piece piece=pit.GetComponent<Piece>();
+            piece.m_name="Pitch pit";
+            piece.m_description="A ring of stones round a pool of pitch. Raiders who wade in are slowed; set it alight with fire (an Ember or Blast stave's shot near it, a fire arrow) "+
+                "and it burns the horde standing in it, then must seep full again. Lay them where the horde will walk.";
+            piece.m_resources=Needs(("Stone",8),("Resin",8));
+            piece.m_groundOnly=true;
+            pit.GetComponent<WearNTear>().m_health=800;
+            pit.AddComponent<PitchPit>();
         }
         // A copy of a vanilla piece (its working parts: network view, piece, wear and tear) wearing another prefab's look.
         private static GameObject Build(string baseName,string name,GameObject look,Vector3 offset,Quaternion rotation,float scale,System.Func<Renderer,bool> keep)

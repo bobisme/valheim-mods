@@ -11,7 +11,7 @@ namespace Shieldwall
     internal static class Saga
     {
         private static readonly AccessTools.FieldRef<Character,HitData> LastHit=AccessTools.FieldRefAccess<Character,HitData>("m_lastHit");
-        internal const string StaveMark="stave:",Wilds="~";
+        internal const string StaveMark="stave:",Wilds="~",ChiefMark="chief:";
 
         // Who struck the killing blow (on the game that owns the raider): a stave, a player, a companion or tame, else the wilds.
         internal static string Killer(Character dead,Planted stave)
@@ -20,6 +20,7 @@ namespace Shieldwall
             Character attacker=LastHit(dead)?.GetAttacker();
             if(attacker is Player player)return Clean(player.GetPlayerName());
             if(attacker!=null&&(attacker.IsTamed()||attacker.GetFaction()==Character.Faction.Players))return Clean(Localization.instance.Localize(attacker.m_name));
+            if(PitchPit.Burned.TryGetValue(dead,out float burned)&&Time.time-burned<4)return "the pitch fire";
             return Wilds;
         }
         private static string Clean(string name)=>new string((name??"").Where(c=>c!='='&&c!=';').ToArray()).Trim();
@@ -40,6 +41,8 @@ namespace Shieldwall
         {
             ZDO z=stone.Z;
             if(z==null||stone.Phase!=Phase.Battle||stone.Siege!=siege)return;
+            // A warchief's fall: who brought him down, for the saga.
+            if(who.StartsWith(ChiefMark)){string fell=z.GetString(Stone.ChiefFellKey,"");z.Set(Stone.ChiefFellKey,fell==""?who.Substring(ChiefMark.Length):fell+";"+who.Substring(ChiefMark.Length));return;}
             var tally=Read(z.GetString(Stone.TallyKey,""));
             tally[who]=(tally.TryGetValue(who,out int n)?n:0)+1;
             z.Set(Stone.TallyKey,Write(tally));
@@ -54,6 +57,7 @@ namespace Shieldwall
             var plan=Policy.Load(z.GetString(Stone.PlanKey,""));
             int boasts=z.GetInt(Stone.BoastsKey,0),siege=z.GetInt(Stone.HeldKey,0)+z.GetInt(Stone.FallenKey,0);
             var tally=Read(z.GetString(Stone.TallyKey,"")).OrderByDescending(e=>e.Value).ToList();
+            kills=Math.Max(kills,tally.Sum(e=>e.Value)); // the dead a Grave-caller raised count too
             string topic=outcome==Director.Outcome.Held?$"The {Ordinal(siege)} siege: the stone held":$"The {Ordinal(siege)} siege: the stone cracked";
             var lines=new List<string>();
             string sworn=boasts!=0?", under boasts of "+And(Policy.Sworn(boasts).Select(b=>b.Name)):"";
@@ -64,7 +68,14 @@ namespace Shieldwall
                 lines.Add($"{kills} slain: "+string.Join(", ",tally.Select(e=>$"{Name(e.Key)} {e.Value}"))+".");
             else lines.Add($"{kills} slain.");
             var staves=tally.Where(e=>e.Key.StartsWith(StaveMark)).ToList();
-            if(staves.Count>0)lines.Add($"Mightiest stave: the {Name(staves[0].Key).ToLowerInvariant()}, {staves[0].Value} slain.");
+            if(staves.Count>0)lines.Add($"Mightiest stave: {Name(staves[0].Key)}, {staves[0].Value} slain.");
+            // The warchiefs: who brought each down, or that he lived.
+            var fell=z.GetString(Stone.ChiefFellKey,"").Split(new[]{';'},StringSplitOptions.RemoveEmptyEntries).Select(f=>f.Split('>')).Where(f=>f.Length==2).ToList();
+            foreach(string chief in z.GetString(Stone.ChiefsKey,"").Split(new[]{';'},StringSplitOptions.RemoveEmptyEntries).Distinct())
+            {
+                var by=fell.FirstOrDefault(f=>f[0]==chief);
+                lines.Add(by!=null?$"{chief} fell to {Name(by[1])}.":$"{chief} lived to boast of it.");
+            }
             float low=z.GetFloat(Stone.LowKey,1);
             if(outcome==Director.Outcome.Held)
                 lines.Add(low>=0.999f?"No raider laid a blow on the stone.":$"Closest call: the stone fell to {Mathf.Max(1,Mathf.RoundToInt(low*100))}% in wave {Mathf.Max(1,z.GetInt(Stone.LowWaveKey,1))}.");

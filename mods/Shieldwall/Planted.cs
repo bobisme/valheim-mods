@@ -408,6 +408,7 @@ namespace Shieldwall
             StatusEffect status=_item.m_shared.m_attackStatusEffect;
             if(status!=null)hit.m_statusEffectHash=status.NameHash();
             shot.GetComponent<IProjectile>()?.Setup(null,dir*speed,-1,hit,_shot,null);
+            if(hit.m_damage.m_fire>0)PitchPit.IgniteNear(aim,3); // a fire shot lands in the pitch
             if(attack!=null)attack.m_startEffect.Create(tip,Quaternion.LookRotation(dir));
         }
         // ---- veterans: its kills, rank and name are kept on the stave itself, so they go wherever it stands ----
@@ -555,7 +556,9 @@ namespace Shieldwall
     {
         private static void Postfix(ItemDrop.ItemData item,ref string __result)
         {
-            if(item?.m_customData==null||!item.m_customData.TryGetValue("bob_sw_kills",out string k)||!int.TryParse(k,out int kills)||kills<=0)return;
+            if(item?.m_customData==null)return;
+            if(item.m_customData.TryGetValue(Raider.TrophyKey,out string chief)){__result+=$"\n\nTaken from <color=#FFCE00>{chief}</color>, a warchief who came against the Warstone.";return;}
+            if(!item.m_customData.TryGetValue("bob_sw_kills",out string k)||!int.TryParse(k,out int kills)||kills<=0)return;
             int rank=Policy.Rank(kills);
             string name=item.m_customData.TryGetValue("bob_sw_name",out string n)?$"<color=#FFCE00>{n}</color>, {Policy.RankTitle(rank).ToLowerInvariant()} of the wall · ":"";
             __result+=$"\n\n{name}<color=orange>{kills}</color> slain"+(rank>0?$" · strikes {Mathf.RoundToInt((Policy.RankPower(rank)-1)*100)}% harder":"");
@@ -665,7 +668,13 @@ namespace Shieldwall
             stave?.Killed();
             Raider.LastShot.Remove(__instance);
             // A raider of a siege: told in its saga.
-            if(__instance.GetComponent<Raider>() is Raider raider&&raider.Siege!=0)Net.Tally(raider.StoneAt,raider.Siege,Saga.Killer(__instance,stave));
+            if(__instance.GetComponent<Raider>() is Raider raider&&raider.Siege!=0)
+            {
+                string killer=Saga.Killer(__instance,stave);
+                Net.Tally(raider.StoneAt,raider.Siege,killer);
+                if(raider.Role==Role.Champion&&raider.ChiefName!=null)Net.Tally(raider.StoneAt,raider.Siege,Saga.ChiefMark+raider.ChiefName+">"+killer);
+            }
+            PitchPit.Burned.Remove(__instance);
         }
     }
     // The socket is the game's own one-slot container; it speaks for itself on hover, strengthens on Shift+Use, takes a stave from the hotbar.

@@ -28,7 +28,7 @@ namespace Shieldwall
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name,"siege",
-                    "siege status | plan [stage] [marks] [players] [boasts] | route | start [stage 0-6] [boasts] | end | council [close] | horn [boasts] | offer | boon <id> | saga | boasts | marks <n> | place [metres | x z] | remove | horn | craftui [close] | raid [event] | plant <stave prefab|none> [metres] [angle] | tower <stave> [metres] [angle] [storeys] | line x1 z1 x2 z2 [piece] | unbuild | put <prefab> <metres> <angle> | goto x z | moat [radius] [passes] | focus [x z] | unplant | raiders | wall [radius] [gap degrees] | unwall | hover: Warstones near the player and their sieges; a preview of a siege's waves; "+
+                    "siege status | plan [stage] [marks] [players] [boasts] | route | start [stage 0-6] [boasts|-] [trick] | end | council [close] | horn [boasts] | offer | boon <id> | saga | boasts | marks <n> | place [metres | x z] | remove | horn | craftui [close] | raid [event] | plant <stave prefab|none> [metres] [angle] | tower <stave> [metres] [angle] [storeys] | line x1 z1 x2 z2 [piece] | unbuild | put <prefab> <metres> <angle> | goto x z | moat [radius] [passes] | focus [x z] | unplant | raiders | wall [radius] [gap degrees] | unwall | hover: Warstones near the player and their sieges; a preview of a siege's waves; "+
                     "the road the horde would take; start a short-warning test siege at the nearest stone (no mark for holding it); end the siege now; set a stone's marks; place a Warstone ahead of the player (test); plant a staff from nothing beside the nearest stone (test); remove every planted staff (test); what each raider is doing; ring the stone with test stake walls (open toward the rift by gap degrees) and remove them; the hover text of the stone and staves",
                     (Func<string[],Action<JObject>,Action<string>,IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: siege command added");
@@ -68,7 +68,7 @@ namespace Shieldwall
                 ["owner"]=w.View.IsOwner()?"this game":z.GetOwner().ToString(),
                 ["marks"]=w.Marks,["cracked"]=w.Cracked,["strength"]=w.Strength,["hearth"]=Ward.AtHearth(w),
                 ["phase"]=w.Phase.ToString(),["wave"]=z.GetInt(Stone.WaveKey,0),["queue"]=z.GetInt(Stone.QueueKey,0),["spawned"]=z.GetInt(Stone.SpawnedKey,0),
-                ["kills"]=z.GetInt(Stone.KillsKey,0),["health"]=Math.Round(z.GetFloat(Stone.HealthKey,0)),["maxHealth"]=Math.Round(z.GetFloat(Stone.MaxHealthKey,0)),
+                ["kills"]=z.GetInt(Stone.KillsKey,0),["breather"]=z.GetLong(Stone.BreatherKey,0L)==0?0:Math.Round((z.GetLong(Stone.BreatherKey,0L)-ZNet.instance.GetTime().Ticks)/(double)TimeSpan.TicksPerSecond),["health"]=Math.Round(z.GetFloat(Stone.HealthKey,0)),["maxHealth"]=Math.Round(z.GetFloat(Stone.MaxHealthKey,0)),
                 ["rift"]=w.Phase==Phase.Idle?null:new JArray(Math.Round(w.Rift.x,1),Math.Round(w.Rift.y,1),Math.Round(w.Rift.z,1)),
                 ["raidersAlive"]=Raider.Loaded.Count(r=>r!=null&&r.Siege==siege&&r.Body!=null&&!r.Body.IsDead()),
                 ["held"]=z.GetInt(Stone.HeldKey,0),["fallen"]=z.GetInt(Stone.FallenKey,0),
@@ -118,12 +118,14 @@ namespace Shieldwall
                     if(stone==null){error("siege start: no Warstone loaded");break;}
                     Director.TestStage=args.Length>2&&int.TryParse(args[2],out int st)?Mathf.Clamp(st,0,Policy.Rosters.Length-1):-1;
                     Director.TestBoasts=args.Length>3?Boasts(args[3]):0;
+                    Director.TestTrick=args.Length>4&&Enum.TryParse(args[4],true,out Trick trick)?(int)trick:-1;
                     Net.Call(stone,Cause.Test);
                     output(new JObject{["start"]="a test siege gathers (10 s warning); holding it gives spoils but no mark"});
                     break;
                 case "end":
                     if(stone==null||!stone.View.IsOwner()){error("siege end: only the game that owns the stone");break;}
                     stone.Z.Set(Stone.PhaseKey,(int)Phase.Idle);
+                    foreach(Raider r in Raider.Loaded.ToList())if(r!=null&&r.Stone()==stone)r.Melt();
                     output(new JObject{["end"]="the siege is called off; the horde melts away"});
                     break;
                 case "marks":
@@ -136,7 +138,7 @@ namespace Shieldwall
                     var list=Raider.Loaded.Where(r=>r!=null&&r.Body!=null&&!r.Body.IsDead()).Select(r=>new JObject{
                         ["name"]=r.Body.m_name,["role"]=r.Role.ToString(),["level"]=r.Body.GetLevel(),["health"]=Math.Round(r.Body.GetHealth()),
                         ["toStone"]=stone!=null?Math.Round(Vector3.Distance(r.transform.position,stone.transform.position),1):-1,
-                        ["doing"]=r.Doing(),["pos"]=new JArray(Math.Round(r.transform.position.x,1),Math.Round(r.transform.position.y,1),Math.Round(r.transform.position.z,1))}).ToArray();
+                        ["doing"]=r.Doing(),["owned"]=r.Owned,["thought"]=Math.Round(r.SinceThought,1),["aiOn"]=r.AiOn,["pos"]=new JArray(Math.Round(r.transform.position.x,1),Math.Round(r.transform.position.y,1),Math.Round(r.transform.position.z,1))}).ToArray();
                     output(new JObject{["raiders"]=new JArray(list)});
                     break;
                 }
@@ -242,6 +244,13 @@ namespace Shieldwall
                     else Net.Choose(stone,args[2],Player.m_localPlayer.GetPlayerName());
                     output(new JObject{["boons"]=new JArray(stone.Boons.ToArray()),["boonOffer"]=new JArray(stone.BoonOffer)});
                     break;
+                case "prefabs":
+                {
+                    // prefabs <part of a name>: the game's prefabs that match (finding effects and projectiles to use).
+                    string part=args.Length>2?args[2].ToLowerInvariant():"projectile";
+                    output(new JObject{["prefabs"]=new JArray(ZNetScene.instance.m_prefabs.Concat(ZNetScene.instance.m_nonNetViewPrefabs).Where(g=>g!=null&&g.name.ToLowerInvariant().Contains(part)).Select(g=>g.name).Distinct().OrderBy(n=>n).Take(200).ToArray())});
+                    break;
+                }
                 case "uitree":
                 {
                     // uitree [player|crafting|container]: the game's own inventory panels, part by part (for building windows that match).
@@ -297,6 +306,11 @@ namespace Shieldwall
                     output(new JObject{["goto"]=new JArray(Math.Round(to.x,1),Math.Round(to.y,1),Math.Round(to.z,1))});
                     break;
                 }
+                case "ignite":
+                    // ignite: light every loaded pitch pit (test).
+                    foreach(PitchPit pit in PitchPit.Loaded)pit?.Light();
+                    output(new JObject{["ignited"]=PitchPit.Loaded.Count,["pits"]=new JArray(PitchPit.Loaded.Where(q=>q!=null).Select(q=>q.GetHoverText()))});
+                    break;
                 case "put":
                 {
                     // put <prefab> <metres> <angle>: any piece beside the nearest stone, facing it (test).

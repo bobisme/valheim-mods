@@ -10,6 +10,8 @@ namespace Shieldwall
     // Boasts: sworn at the horn, each makes the siege harder and its warshards richer.
     internal enum Boast{BloodMoon=0,Fog=1,Burrowers=2,Wings=3,Chosen=4,Tide=5,BareStone=6}
     internal sealed class BoastInfo{internal Boast Id;internal string Name,Text;internal double Bonus;}
+    // A warchief's signature trick.
+    internal enum Trick{Wallbreaker=0,Stonethrower=1,Gravecaller=2,Leaper=3,Warcaller=4,Ironhide=5}
     // Boons: one kept for good each time the stone holds a siege.
     internal sealed class Boon{internal string Id,Name,Text;}
     internal enum Phase{Idle=0,Gathering=1,Battle=2}
@@ -87,19 +89,19 @@ namespace Shieldwall
         internal static readonly Roster[] Rosters=
         {
             new Roster{Key="",Name="greydwarf warband",Grunts=new[]{("Greyling",4),("Greydwarf",4),("Neck",1)},Sappers=new[]{"Greydwarf"},Flyers=new string[0],
-                Champions=new[]{"Greydwarf_Elite"},Chest="TreasureChest_meadows",Spoils=new[]{("Coins",20,40),("Flint",4,8),("DeerHide",2,4)}},
+                Champions=new[]{"Greydwarf_Elite"},Chest="TreasureChest_meadows",Spoils=new[]{("Flint",8,14),("Resin",8,14),("Coins",5,10)}},
             new Roster{Key="defeated_eikthyr",Name="host of the Black Forest",Grunts=new[]{("Greydwarf",5),("Greydwarf_Shaman",1),("Greydwarf_Elite",1),("Skeleton",2)},
-                Sappers=new[]{"Greydwarf"},Flyers=new string[0],Champions=new[]{"Troll"},Chest="TreasureChest_blackforest",Spoils=new[]{("Coins",30,60),("SurtlingCore",1,3),("TrollHide",1,3)}},
+                Sappers=new[]{"Greydwarf"},Flyers=new string[0],Champions=new[]{"Troll"},Chest="TreasureChest_blackforest",Spoils=new[]{("Bronze",3,6),("FineWood",10,20),("SurtlingCore",2,4),("Coins",5,15)}},
             new Roster{Key="defeated_gdking",Name="drowned dead",Grunts=new[]{("Draugr",4),("Skeleton",2),("Skeleton_Poison",1),("Draugr_Ranged",1),("Blob",1)},
-                Sappers=new[]{"Skeleton"},Flyers=new[]{"Bat"},Champions=new[]{"Draugr_Elite","Abomination"},Chest="TreasureChest_swamp",Spoils=new[]{("Coins",40,80),("Iron",4,8),("Guck",2,5)}},
+                Sappers=new[]{"Skeleton"},Flyers=new[]{"Bat"},Champions=new[]{"Draugr_Elite","Abomination"},Chest="TreasureChest_swamp",Spoils=new[]{("Iron",10,18),("ElderBark",10,20),("Coins",5,15)}},
             new Roster{Key="defeated_bonemass",Name="mountain pack",Grunts=new[]{("Wolf",4),("Ulv",2),("Fenring",1),("Draugr",2)},
-                Sappers=new[]{"Ulv"},Flyers=new[]{"Hatchling"},Champions=new[]{"StoneGolem","Fenring_Cultist"},Chest="TreasureChest_mountains",Spoils=new[]{("Coins",50,100),("Silver",4,8),("WolfPelt",2,4)}},
+                Sappers=new[]{"Ulv"},Flyers=new[]{"Hatchling"},Champions=new[]{"StoneGolem","Fenring_Cultist"},Chest="TreasureChest_mountains",Spoils=new[]{("Silver",6,10),("Iron",6,10),("Obsidian",6,12),("Coins",10,20)}},
             new Roster{Key="defeated_dragon",Name="Fuling warband",Grunts=new[]{("Goblin",5),("GoblinArcher",2),("GoblinShaman",1)},
-                Sappers=new[]{"Goblin"},Flyers=new[]{"Deathsquito"},Champions=new[]{"GoblinBrute"},Chest="TreasureChest_heath",Spoils=new[]{("Coins",60,120),("BlackMetalScrap",6,12),("Barley",6,12)}},
+                Sappers=new[]{"Goblin"},Flyers=new[]{"Deathsquito"},Champions=new[]{"GoblinBrute"},Chest="TreasureChest_heath",Spoils=new[]{("BlackMetal",6,12),("Iron",6,10),("Tar",6,10),("Coins",10,20)}},
             new Roster{Key="defeated_goblinking",Name="swarm of the mist",Grunts=new[]{("Seeker",4),("Tick",2),("Goblin",2),("GoblinArcher",1)},
-                Sappers=new[]{"Tick"},Flyers=new[]{"Gjall"},Champions=new[]{"SeekerBrute"},Chest="TreasureChest_dvergrtower",Spoils=new[]{("Coins",80,150),("BlackCore",1,2),("Softtissue",4,8)}},
+                Sappers=new[]{"Tick"},Flyers=new[]{"Gjall"},Champions=new[]{"SeekerBrute"},Chest="TreasureChest_dvergrtower",Spoils=new[]{("BlackMarble",12,24),("YggdrasilWood",12,24),("Iron",8,12),("Coins",10,25)}},
             new Roster{Key="defeated_queen",Name="Charred legion",Grunts=new[]{("Charred_Melee",4),("Charred_Archer",2),("Charred_Mage",1),("Asksvin",1),("Charred_Twitcher",1)},
-                Sappers=new[]{"Charred_Melee"},Flyers=new[]{"Volture"},Champions=new[]{"Morgen"},Chest="TreasureChest_dvergrtower",Spoils=new[]{("Coins",100,200),("FlametalOreNew",4,8),("CharredBone",4,8)}},
+                Sappers=new[]{"Charred_Melee"},Flyers=new[]{"Volture"},Champions=new[]{"Morgen"},Chest="TreasureChest_dvergrtower",Spoils=new[]{("FlametalNew",4,8),("Grausten",12,24),("Blackwood",12,24),("Coins",15,30)}},
         };
         // The furthest roster the world has unlocked (the keys it has).
         internal static int Stage(Func<string,bool> haveKey)
@@ -118,6 +120,7 @@ namespace Shieldwall
         internal static int SiegeStage(int worldStage,int marks)=>Math.Max(0,worldStage-Math.Max(0,2-Marks(marks)));
         internal static float StoneHealth(int stage,int marks)=>4000f*(1+stage*0.75f)*(1+0.05f*Marks(marks));
         internal const float Reach=3.5f;
+        internal const float RiftClear=35;                    // no building within this many metres of where the rift opens
         internal const float Toughness=0.4f;                  // the stone feels this share of each blow
         // Earthworks: a stone whose ground sinks this far below where it was set topples (dug out by diggers, or by its owner's moat).
         internal const float Undermined=1.0f;
@@ -203,6 +206,8 @@ namespace Shieldwall
         // No respite (a boast): half the wait, and the next comes when this one is half down.
         internal static bool NextWave(int alive,int waveSize,double sinceWave,double maxGap,bool tide=false)=>
             sinceWave>=maxGap*(tide?0.5:1)||alive<=Math.Max(MinAlive/2,waveSize*(tide?0.5:0.3))&&sinceWave>=(tide?6:12);
+        // The breather between a wave breaking and the next marching (No respite halves it).
+        internal static double Breather(double seconds,bool tide)=>Math.Max(0,seconds*(tide?0.5:1));
         // Raiders stream out of the rift a few at a time while there is room.
         internal static int Release(int queued,int alive,int cap)=>Math.Max(0,Math.Min(Math.Min(queued,3),cap-alive));
 
@@ -343,6 +348,33 @@ namespace Shieldwall
         internal static float RangeAt(Stave s,int quality)=>s.Range+2*(Math.Max(1,Math.Min(MaxQuality,quality))-1);
         // Any other staff with a projectile can be planted too, at a fraction of its power and a slow pace.
         internal const float BorrowedPower=0.4f,BorrowedCooldown=3f,BorrowedRange=25;
+
+        // ---- warchiefs: each has a name and a trick of his own ----
+        internal static readonly (Trick trick,string[] epithets,string does)[] Tricks=
+        {
+            (Trick.Wallbreaker,new[]{"Wallbreaker","Gate-crusher"},"breaks walls three times as hard and shakes all built near him"),
+            (Trick.Stonethrower,new[]{"Stone-hand","Boulder-flinger"},"hurls boulders at your towers"),
+            (Trick.Gravecaller,new[]{"Grave-caller","Bone-waker"},"raises the dead to fight beside him"),
+            (Trick.Leaper,new[]{"the Leaper","Wall-jumper"},"leaps over walls"),
+            (Trick.Warcaller,new[]{"War-caller","the Loud"},"cries war and his raiders' wounds close"),
+            (Trick.Ironhide,new[]{"Iron-hide","the Unscathed"},"shrugs off half of every stave's blow"),
+        };
+        private static readonly string[] ChiefNames={"Skarn","Hrok","Ulfgar","Brakki","Grimnir","Toki","Svarta","Ketil","Orm","Bjarg","Vagn","Hjalti","Kolbein","Starkad"};
+        internal static (Trick trick,string name) Chief(int seed)=>Chief(seed,-1);
+        internal static (Trick trick,string name) Chief(int seed,int trick)
+        {
+            var rng=new Rng(seed);for(int i=0;i<3;i++)rng.Next();
+            var t=Tricks[rng.Index(Tricks.Length)];
+            if(trick>=0)t=Tricks.First(x=>(int)x.trick==trick); // a test's choice
+            string name=ChiefNames[rng.Index(ChiefNames.Length)];
+            string epithet=t.epithets[rng.Index(t.epithets.Length)];
+            return (t.trick,$"{name} {epithet}");
+        }
+        internal static string Does(Trick trick)=>Tricks.First(t=>t.trick==trick).does;
+        // ---- the pitch pit ----
+        internal const float PitBurns=12,PitSeeps=30,PitFire=25;   // seconds alight, seconds to seep full again, fire a second
+        internal const int MaxRaised=8;                       // the most dead one Grave-caller raises in a siege
+        internal const float WallbreakerHit=3f,ChiefHit=1.5f,IronhideStaves=0.5f,WarcryHeal=0.25f;
 
         // ---- veterans: a stave earns a rank and a name by its kills (kept on the stave itself, wherever it stands) ----
         internal static readonly (int kills,string title)[] Ranks={(25,"Veteran"),(100,"Elder"),(300,"Legend")};

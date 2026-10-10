@@ -23,7 +23,7 @@ namespace Shieldwall
         private static double Since(long ticks)=>(Now-ticks)/(double)TimeSpan.TicksPerSecond;
 
         // ---- calling a siege: the horn, a raid the stone draws to itself, or a test ----
-        internal static int TestBoasts; // the test command's boasts
+        internal static int TestBoasts,TestTrick=-1; // the test command's boasts and warchief's trick
         internal static void OnCall(Warstone stone,Cause cause,int boasts=0)
         {
             ZDO z=stone.Z;
@@ -42,10 +42,11 @@ namespace Shieldwall
             float health=Policy.StoneHealth(stage,marks)*Policy.BoonHealth(stone.Boons)*(Policy.Has(boasts,Boast.BareStone)?0.6f:1);
             z.Set(Stone.SiegeKey,((long)Random.Range(1,int.MaxValue)<<16)^Now);
             z.Set(Stone.RiftKey,rift);z.Set(Stone.StartKey,After(gather));z.Set(Stone.CalledKey,Now);z.Set(Stone.PlanKey,Policy.Save(plan));
-            z.Set(Stone.WaveKey,0);z.Set(Stone.QueueKey,0);z.Set(Stone.SpawnedKey,0);z.Set(Stone.KillsKey,0);z.Set(Stone.StageKey,stage);z.Set(Stone.CauseKey,(int)cause);
+            z.Set(Stone.WaveKey,0);z.Set(Stone.QueueKey,0);z.Set(Stone.SpawnedKey,0);z.Set(Stone.BreatherKey,0L);z.Set(Stone.KillsKey,0);z.Set(Stone.StageKey,stage);z.Set(Stone.CauseKey,(int)cause);
             z.Set(Stone.HealthKey,health);z.Set(Stone.MaxHealthKey,health);
-            z.Set(Stone.BoastsKey,boasts);z.Set(Stone.TallyKey,"");z.Set(Stone.LowKey,1f);z.Set(Stone.LowWaveKey,0);
+            z.Set(Stone.BoastsKey,boasts);z.Set(Stone.TallyKey,"");z.Set(Stone.ChiefsKey,"");z.Set(Stone.ChiefFellKey,"");z.Set(Stone.LowKey,1f);z.Set(Stone.LowWaveKey,0);
             z.Set(Stone.PhaseKey,(int)Phase.Gathering);
+            foreach(Raider r in Raider.Loaded.ToList())if(r!=null&&r.Siege!=0&&r.Siege!=stone.Siege&&r.Stone()==stone)r.Melt(); // an old horde's stragglers
             Assets.Effect("sfx_fader_bell",stone.transform.position+Vector3.up*2);
             Assets.Effect("vfx_prespawn",rift);Assets.Effect("sfx_prespawn",rift);
             Roster roster=Policy.Rosters[stage];
@@ -105,7 +106,23 @@ namespace Shieldwall
             double since=Since(z.GetLong(Stone.WaveAtKey,Now));
             if(wave<plan.Count-1)
             {
-                if(!Policy.NextWave(alive,units.Count,since,Plugin.Instance.WaveSeconds.Value,Policy.Has(stone.Boasts,Boast.Tide)))return;
+                // The wave is broken (or has dragged on long enough): a breather, counted down, then the next marches.
+                long breather=z.GetLong(Stone.BreatherKey,0L);
+                bool tide=Policy.Has(stone.Boasts,Boast.Tide);
+                if(breather==0)
+                {
+                    if(!Policy.NextWave(alive,units.Count,since,Plugin.Instance.WaveSeconds.Value,tide))return;
+                    double rest=Policy.Breather(Plugin.Instance.BreatherSeconds.Value,tide);
+                    if(rest>=1)
+                    {
+                        z.Set(Stone.BreatherKey,After(rest));
+                        string coming=wave+1==plan.Count-1?"The warchief comes":$"Wave {wave+2} of {plan.Count} comes";
+                        Net.Say($"Wave {wave+1} is broken! {coming} in {Mathf.RoundToInt((float)rest)} s.",stone.transform.position,250);
+                        return;
+                    }
+                }
+                else if(Now<breather)return;
+                z.Set(Stone.BreatherKey,0L);
                 wave++;
                 z.Set(Stone.WaveKey,wave);z.Set(Stone.QueueKey,0);z.Set(Stone.WaveAtKey,Now);
                 Assets.Effect("sfx_gdking_scream",rift);
@@ -113,7 +130,9 @@ namespace Shieldwall
                 return;
             }
             // The last wave is out: the siege is won when it is down (stragglers hiding past a while count as down).
-            if(alive==0||alive<=2&&since>75)End(stone,Outcome.Held); // a straggler or two stuck out of sight does not hold the siege open
+            // A straggler or two stuck out of sight does not hold the siege open, but the warchief must be beaten (a stuck one leaps in).
+            bool chief=Raider.Loaded.Any(r=>r!=null&&r.Siege==siege&&r.Role==Role.Champion&&r.Body!=null&&!r.Body.IsDead());
+            if(alive==0||alive<=2&&since>75&&!chief)End(stone,Outcome.Held);
         }
 
         private static void Spawn(Warstone stone,Unit unit,Vector3 rift,long siege)
@@ -132,7 +151,31 @@ namespace Shieldwall
             ZDO z=view.GetZDO();
             z.Set(Raider.RoleKey,(int)unit.Role);z.Set(Raider.SiegeKey,siege);z.Set(Raider.StoneKey,stone.transform.position);
             body.SetLevel(unit.Level);
+            // A warchief: a name and a trick of his own, told to all, and remembered by the stone for the saga.
+            if(unit.Role==Role.Champion)
+            {
+                var (trick,name)=Policy.Chief(Random.Range(1,int.MaxValue),(Cause)stone.Z.GetInt(Stone.CauseKey,0)==Cause.Test?TestTrick:-1);
+                z.Set(Raider.TrickKey,(int)trick);z.Set(Raider.ChiefKey,name);
+                ZDO sz=stone.Z;string chiefs=sz.GetString(Stone.ChiefsKey,"");
+                sz.Set(Stone.ChiefsKey,chiefs==""?name:chiefs+";"+name);
+                Net.Say($"{name} leads them! He {Policy.Does(trick)}.",stone.transform.position,250);
+            }
             Raider.Attach(go);
+        }
+        // A Grave-caller's dead, risen beside him to fight for the siege.
+        internal static void Raise(Warstone stone,string prefab,Vector3 at,long siege)
+        {
+            GameObject source=ZNetScene.instance.GetPrefab(prefab);
+            if(source==null)return;
+            if(ZoneSystem.instance.GetSolidHeight(at,out float h))at.y=h+0.2f;
+            Vector3 face=stone.transform.position-at;face.y=0;
+            GameObject go=Object.Instantiate(source,at,Quaternion.LookRotation(face.sqrMagnitude>0.01f?face:Vector3.forward));
+            ZNetView view=go.GetComponent<ZNetView>();
+            if(view==null||!view.IsValid()||go.GetComponent<MonsterAI>()==null){if(view!=null&&view.IsValid())ZNetScene.instance.Destroy(go);else Object.Destroy(go);return;}
+            ZDO z=view.GetZDO();
+            z.Set(Raider.RoleKey,(int)Role.Grunt);z.Set(Raider.SiegeKey,siege);z.Set(Raider.StoneKey,stone.transform.position);
+            Raider.Attach(go);
+            Assets.Effect("vfx_spawn_small",at+Vector3.up*0.5f);
         }
 
         // ---- calling the next wave early: the rift is empty, the horn calls the next wave at once, and the stone pays for the time saved ----
@@ -143,7 +186,9 @@ namespace Shieldwall
             var plan=Policy.Load(z.GetString(Stone.PlanKey,""));
             int wave=z.GetInt(Stone.WaveKey,0);
             if(plan.Count==0||wave>=plan.Count-1||z.GetInt(Stone.QueueKey,0)<plan[wave].Count)return false;
-            double left=Plugin.Instance.WaveSeconds.Value-Since(z.GetLong(Stone.WaveAtKey,Now));
+            long breather=z.GetLong(Stone.BreatherKey,0L);
+            double rest=Policy.Breather(Plugin.Instance.BreatherSeconds.Value,Policy.Has(stone.Boasts,Boast.Tide));
+            double left=breather!=0?(breather-Now)/(double)TimeSpan.TicksPerSecond:Plugin.Instance.WaveSeconds.Value-Since(z.GetLong(Stone.WaveAtKey,Now))+rest;
             if(left<5)return false;
             bonus=Policy.EarlyBonus(left);
             return true;
@@ -154,7 +199,7 @@ namespace Shieldwall
             ZDO z=stone.Z;
             var plan=Policy.Load(z.GetString(Stone.PlanKey,""));
             int wave=z.GetInt(Stone.WaveKey,0)+1;
-            z.Set(Stone.WaveKey,wave);z.Set(Stone.QueueKey,0);z.Set(Stone.WaveAtKey,Now);
+            z.Set(Stone.WaveKey,wave);z.Set(Stone.QueueKey,0);z.Set(Stone.WaveAtKey,Now);z.Set(Stone.BreatherKey,0L);
             GameObject shard=Items.Get(Policy.ShardPrefab);
             if(shard!=null&&shard.GetComponent<ItemDrop>() is ItemDrop drop)
             {ItemDrop.ItemData data=drop.m_itemData.Clone();data.m_dropPrefab=shard;ItemDrop.DropItem(data,bonus,stone.transform.position+Vector3.up*3.5f,Quaternion.identity);}
@@ -188,6 +233,9 @@ namespace Shieldwall
             z.Set(Stone.PhaseKey,(int)Phase.Idle);
             z.Set(Stone.CooldownKey,After(Plugin.Instance.CooldownMinutes.Value*60));
             NextRelease.Remove(stone);Lonely.Remove(stone);
+            // Whoever of the horde still stands melts away, even one whose own wits have stalled (each game clears the ones it owns).
+            foreach(Raider r in Raider.Loaded.ToList())
+                if(r!=null&&r.Siege==stone.Siege&&r.Body!=null&&!r.Body.IsDead())r.Melt();
             switch(outcome)
             {
                 case Outcome.Held:
@@ -254,6 +302,7 @@ namespace Shieldwall
             {
                 GameObject chest=Object.Instantiate(prefab,front,Quaternion.LookRotation(stone.transform.position-front));
                 inventory=chest.GetComponent<Container>()?.GetInventory();
+                inventory?.RemoveAll(); // not the game's own treasure (a pile of coins and gems): the horde's land's building stuff instead
             }
             parts=Policy.ShardParts(stage,marks,health,kills);
             int boasts=stone.Z.GetInt(Stone.BoastsKey,0),plain=parts.Sum(p=>p.amount),shards=Policy.Boasted(plain,boasts);
@@ -288,22 +337,46 @@ namespace Shieldwall
         }
 
         // ---- where the rift opens: dry ground in reach of the stone by foot, not too near, inside the loaded world ----
+        // As far out as the game lets the horde live (up to 150 m: room for a fortress), on dry ground with a road to the stone, and well
+        // away from anything anyone has built. The farthest good spot of many tried wins; if none, the rules ease (nearer, less room).
         private static Vector3 FindRift(Vector3 stone)
         {
-            Vector3 fallback=stone+Vector3.forward*70;
-            for(int attempt=0;attempt<60;attempt++)
+            foreach(var (least,most,clear) in new[]{(70f,150f,Policy.RiftClear),(45f,150f,Policy.RiftClear/2),(35f,95f,0f)})
             {
-                Vector2 dir=Random.insideUnitCircle.normalized*Random.Range(60f,95f);
-                Vector3 at=new Vector3(stone.x+dir.x,stone.y,stone.z+dir.y);
-                if(!ZoneSystem.instance.IsZoneLoaded(at))continue;
-                if(!ZoneSystem.instance.GetSolidHeight(at,out float height)||height<ZoneSystem.instance.m_waterLevel+0.5f)continue;
-                at.y=height;
-                if(EffectArea.IsPointInsideArea(at,EffectArea.Type.PlayerBase,5)!=null)continue; // not in someone's yard
-                if(attempt==0||fallback==stone+Vector3.forward*70)fallback=at;
-                if(Pathfinding.instance!=null&&Pathfinding.instance.HavePath(at,stone,Pathfinding.AgentType.Humanoid))return at;
-                if(attempt>40)return fallback;
+                Vector3 best=Vector3.zero,roadless=Vector3.zero;float far=-1,farRoadless=-1;
+                for(int attempt=0;attempt<80;attempt++)
+                {
+                    Vector2 dir=Random.insideUnitCircle.normalized*Random.Range(least,most);
+                    if(dir.magnitude<=far)continue; // no farther than the best yet
+                    Vector3 at=new Vector3(stone.x+dir.x,stone.y,stone.z+dir.y);
+                    if(!ZoneSystem.instance.IsZoneLoaded(at)||!Alive(at))continue;
+                    if(!ZoneSystem.instance.GetSolidHeight(at,out float height)||height<ZoneSystem.instance.m_waterLevel+0.5f)continue;
+                    at.y=height;
+                    if(EffectArea.IsPointInsideArea(at,EffectArea.Type.PlayerBase,5)!=null||clear>0&&Built(at,clear))continue; // not in anyone's yard
+                    // A road to the stone if it can (the game's pathfinding may not reach that far yet; the horde breaks or ramps its way).
+                    if(Pathfinding.instance!=null&&!Pathfinding.instance.HavePath(at,stone,Pathfinding.AgentType.Humanoid))
+                    {if(dir.magnitude>farRoadless){roadless=at;farRoadless=dir.magnitude;}continue;}
+                    best=at;far=dir.magnitude;
+                }
+                if(far>0)return best;
+                if(farRoadless>0)return roadless;
             }
-            return fallback;
+            return stone+Vector3.forward*40;
+        }
+        private static readonly Collider[] Pieces=new Collider[1];private static int _pieceMask;
+        private static bool Built(Vector3 at,float radius)
+        {
+            if(_pieceMask==0)_pieceMask=LayerMask.GetMask("piece","piece_nonsolid");
+            return Physics.OverlapSphereNonAlloc(at,radius,Pieces,_pieceMask,QueryTriggerInteraction.Collide)>0;
+        }
+        // Inside the area this game simulates (with room for the horde to spread): beyond it creatures are loaded but stand frozen, their
+        // wits run by no one, and the game's simulation distance setting can make it as small as about one zone around the player.
+        private static bool Alive(Vector3 at)
+        {
+            Vector3 me=ZNet.instance.GetReferencePosition();
+            foreach(Vector3 off in new[]{Vector3.zero,new Vector3(8,0,0),new Vector3(-8,0,0),new Vector3(0,0,8),new Vector3(0,0,-8)})
+                if(!ZNetScene.InActiveArea(at+off,me))return false;
+            return true;
         }
         private static string Compass(Vector3 from,Vector3 to)
         {

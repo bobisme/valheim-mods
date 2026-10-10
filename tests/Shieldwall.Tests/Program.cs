@@ -61,6 +61,9 @@ Check(Policy.Level(0,0,0.99)==1&&Policy.Level(10,7,0.0)==3&&Policy.Level(0,0,0.0
 Check(Policy.NextWave(20,30,80,75),"After the longest gap, the next wave comes");
 Check(!Policy.NextWave(20,30,30,75),"Not while most still stand");
 Check(Policy.NextWave(5,30,20,75)&&!Policy.NextWave(5,30,5,75),"Sooner when the wave is mostly down, but not at once");
+Check(Policy.Breather(25,false)==25&&Policy.Breather(25,true)==12.5&&Policy.Breather(0,false)==0,"A breather between waves, halved under No respite");
+Check(Policy.RiftClear>=30,"The rift opens well away from anything built");
+foreach(Roster r in Policy.Rosters)Check(r.Spoils.Where(x=>x.prefab=="Coins").All(x=>x.max<=30)&&r.Spoils.Any(x=>x.prefab!="Coins"),"Spoils are mostly building stuff, little gold: "+r.Name);
 Check(Policy.Release(10,0,40)==3&&Policy.Release(10,39,40)==1&&Policy.Release(10,40,40)==0&&Policy.Release(0,0,40)==0&&Policy.Release(2,0,40)==2,"A few at a time, never past the cap");
 
 // Rewards.
@@ -153,6 +156,13 @@ Check(Policy.RankPower(0)==1&&Math.Abs(Policy.RankPower(3)-1.3f)<0.001f,"Each ra
 Check(Policy.NextRank(3)==25&&Policy.NextRank(25)==100&&Policy.NextRank(300)==0,"The next rank, and none past Legend");
 Check(Policy.VeteranName(9,StaveKind.Ember)==Policy.VeteranName(9,StaveKind.Ember)&&Policy.VeteranName(9,StaveKind.Ember).Contains(" "),"A name and an epithet, the same for the same seed");
 Check(Enumerable.Range(1,50).Select(i=>Policy.VeteranName(i,StaveKind.Frost)).Distinct().Count()>20,"Plenty of different names");
+
+// Warchiefs: a name and a trick of their own.
+var chiefs=Enumerable.Range(1,300).Select(s=>Policy.Chief(s)).ToList();
+Check(Enum.GetValues(typeof(Trick)).Cast<Trick>().All(t=>chiefs.Any(c=>c.trick==t)),"Every trick turns up");
+Check(chiefs.Select(c=>c.name).Distinct().Count()>40&&chiefs.All(c=>c.name.Contains(" ")),"Many warchiefs, each with an epithet");
+Check(Policy.Chief(77)==Policy.Chief(77),"The same seed, the same warchief");
+Check(Enum.GetValues(typeof(Trick)).Cast<Trick>().All(t=>Policy.Does(t).Length>0),"Every trick is told");
 
 var rng=new Policy.Rng(7);var rolls=Enumerable.Range(0,1000).Select(_=>rng.Next()).ToList();
 Check(rolls.All(r=>r>=0&&r<1)&&rolls.Average()>0.45&&rolls.Average()<0.55,"Rolls are even");
