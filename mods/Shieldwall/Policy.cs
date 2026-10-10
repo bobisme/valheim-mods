@@ -105,8 +105,12 @@ namespace Shieldwall
         }
 
         // ---- how big a siege is ----
-        internal static int Waves(int marks)=>4+Math.Min(4,Marks(marks)/2);
-        internal static int Total(int marks,int players)=>Math.Min(220,30+8*Marks(marks)+14*Math.Max(0,Math.Min(6,players)-1));
+        // A stone's first siege is a proving: three waves of a smaller horde, two lands below the world's own (one below at the first
+        // mark), so a new stone can be held by hand and its warshards buy the first staves.
+        internal static int Waves(int marks)=>Marks(marks)==0?3:4+Math.Min(4,Marks(marks)/2);
+        internal static int Total(int marks,int players)=>Marks(marks)==0?20+10*Math.Max(0,Math.Min(6,players)-1):
+            Math.Min(220,30+8*Marks(marks)+14*Math.Max(0,Math.Min(6,players)-1));
+        internal static int SiegeStage(int worldStage,int marks)=>Math.Max(0,worldStage-Math.Max(0,2-Marks(marks)));
         internal static float StoneHealth(int stage,int marks)=>4000f*(1+stage*0.75f)*(1+0.05f*Marks(marks));
         internal const float Reach=3.5f;
         internal const float Toughness=0.4f;                  // the stone feels this share of each blow
@@ -192,6 +196,8 @@ namespace Shieldwall
 
         // ---- what holding the line earns ----
         internal static int Shards(int stage,int marks,double health,int kills)=>3+stage+Marks(marks)/2+(int)Math.Round(5*Clamp01(health))+kills/12;
+        // A fallen stone still pays a little for the raiders it took with it, so even a lost siege brings the first staves closer.
+        internal static int Consolation(int kills)=>Math.Max(0,kills)/6;
         internal static int Coins(int min,int max,int marks,double roll)=>(int)Math.Round((min+(max-min)*Clamp01(roll))*(1+0.1*Marks(marks)));
         // A raider sometimes carries a shard; a warchief always carries several.
         internal static int Carried(Role role,double roll)=>role==Role.Champion?3+(int)(Clamp01(roll)*3):roll<0.12?1:0;

@@ -28,8 +28,11 @@ foreach(Roster r in Policy.Rosters)Check(r.Grunts.Length>0&&r.Champions.Length>0
 Check(Policy.Rosters.Select(r=>r.Key).Distinct().Count()==Policy.Rosters.Length,"One horde per key");
 
 // How big.
-Check(Policy.Waves(0)==4&&Policy.Waves(10)==8,"Four waves at first, eight at most");
-Check(Policy.Total(0,1)==30&&Policy.Total(0,3)>Policy.Total(0,1)&&Policy.Total(10,6)<=220,"Bigger with marks and friends, capped");
+Check(Policy.Waves(0)==3&&Policy.Waves(1)==4&&Policy.Waves(10)==8,"Three waves for a new stone, four at the first mark, eight at most");
+Check(Policy.Total(0,1)==20&&Policy.Total(0,2)==30&&Policy.Total(1,1)==38&&Policy.Total(0,3)>Policy.Total(0,1)&&Policy.Total(10,6)<=220,"A smaller first siege; bigger with marks and friends, capped");
+Check(Policy.SiegeStage(3,0)==1&&Policy.SiegeStage(3,1)==2&&Policy.SiegeStage(3,2)==3&&Policy.SiegeStage(3,9)==3,"A new stone meets a horde two lands back, the full horde from its second mark");
+Check(Policy.SiegeStage(0,0)==0&&Policy.SiegeStage(1,0)==0&&Policy.SiegeStage(6,1)==5,"Never below the meadows");
+Check(Policy.Consolation(12)==2&&Policy.Consolation(5)==0&&Policy.Consolation(-3)==0,"A fallen stone pays a shard for every six slain");
 Check(Policy.StoneHealth(6,10)>Policy.StoneHealth(0,0)*5,"The stone is tougher where the horde is fiercer");
 for(int stage=0;stage<Policy.Rosters.Length;stage++)
     for(int marks=0;marks<=10;marks+=3)

@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using BepInEx;
@@ -85,8 +86,9 @@ namespace Shieldwall
                         ["stones"]=new JArray(Warstone.Loaded.Where(w=>w!=null&&w.Z!=null).Select(Describe).ToArray())});
                     break;
                 case "plan":
-                    int stage=args.Length>2&&int.TryParse(args[2],out int s)?s:Director.StageNow(),marks=args.Length>3&&int.TryParse(args[3],out int m)?m:stone?.Strength??0,
+                    int stage=args.Length>2&&int.TryParse(args[2],out int s)?s:-1,marks=args.Length>3&&int.TryParse(args[3],out int m)?m:stone?.Strength??0,
                         players=args.Length>4&&int.TryParse(args[4],out int p)?p:1;
+                    if(stage<0)stage=Policy.SiegeStage(Director.StageNow(),marks);
                     var plan=Policy.Plan(stage,marks,players,12345);
                     output(new JObject{["stage"]=stage,["marks"]=marks,["players"]=players,["health"]=Policy.StoneHealth(stage,marks),
                         ["waves"]=new JArray(plan.Select(w=>new JObject{["count"]=w.Count,["units"]=new JObject(w.GroupBy(u=>$"{u.Prefab}{(u.Level>1?"*"+u.Level:"")}{(u.Role!=Role.Grunt?" "+u.Role:"")}")
@@ -269,6 +271,32 @@ namespace Shieldwall
                 {
                     if(args.Length>3&&float.TryParse(args[2],out float fx)&&float.TryParse(args[3],out float fz))_focus=new Vector3(fx,0,fz);else _focus=null;
                     output(new JObject{["focus"]=_focus.HasValue?new JArray(_focus.Value.x,_focus.Value.z):null});
+                    break;
+                }
+                case "strays":
+                {
+                    // Every Warstone this game knows of, loaded or not (a host knows the whole world; a client only what is near it).
+                    var zdos=new List<ZDO>();int index=0;
+                    while(!ZDOMan.instance.GetAllZDOsWithPrefabIterative(Stone.PrefabName,zdos,ref index)){}
+                    Vector3 me=Player.m_localPlayer!=null?Player.m_localPlayer.transform.position:Vector3.zero;
+                    output(new JObject{["host"]=ZNet.instance.IsServer(),["stones"]=new JArray(zdos.Select(z=>new JObject{
+                        ["position"]=new JArray(Math.Round(z.GetPosition().x,1),Math.Round(z.GetPosition().y,1),Math.Round(z.GetPosition().z,1)),
+                        ["distance"]=Math.Round(Vector3.Distance(z.GetPosition(),me)),["owner"]=z.GetOwner(),["marks"]=z.GetInt(Stone.MarksKey)}).ToArray())});
+                    break;
+                }
+                case "purge":
+                {
+                    // purge <x> <z>: delete the Warstone standing there, loaded or not (the strays of a build gone wrong).
+                    if(args.Length<4||!float.TryParse(args[2],out float px)||!float.TryParse(args[3],out float pz)){error("siege purge <x> <z>");break;}
+                    var zdos=new List<ZDO>();int index=0;
+                    while(!ZDOMan.instance.GetAllZDOsWithPrefabIterative(Stone.PrefabName,zdos,ref index)){}
+                    ZDO z=zdos.Where(o=>Utils.DistanceXZ(o.GetPosition(),new Vector3(px,0,pz))<3).OrderBy(o=>Utils.DistanceXZ(o.GetPosition(),new Vector3(px,0,pz))).FirstOrDefault();
+                    if(z==null){error("siege purge: no Warstone within 3 m of that spot");break;}
+                    if(z.GetInt(Stone.PhaseKey)!=0){error("siege purge: its siege is on");break;}
+                    ZNetView loaded=ZNetScene.instance.FindInstance(z);
+                    z.SetOwner(ZDOMan.GetSessionID());
+                    if(loaded!=null)ZNetScene.instance.Destroy(loaded.gameObject);else ZDOMan.instance.DestroyZDO(z);
+                    output(new JObject{["purged"]=new JArray(Math.Round(z.GetPosition().x,1),Math.Round(z.GetPosition().y,1),Math.Round(z.GetPosition().z,1))});
                     break;
                 }
                 case "remove":

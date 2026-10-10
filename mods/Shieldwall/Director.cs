@@ -31,7 +31,7 @@ namespace Shieldwall
             if(stone.Phase!=Phase.Idle)return;
             if(cause==Cause.Horn&&z.GetLong(Stone.CooldownKey,0L)>Now)return;
             Vector3 rift=FindRift(stone.transform.position);
-            int stage=TestStage>=0&&cause==Cause.Test?TestStage:StageNow(),marks=stone.Strength;
+            int marks=stone.Strength,stage=TestStage>=0&&cause==Cause.Test?TestStage:Policy.SiegeStage(StageNow(),marks);
             int players=Player.GetAllPlayers().Count(p=>p!=null&&Vector3.Distance(p.transform.position,stone.transform.position)<80);
             int seed=Random.Range(1,int.MaxValue);
             var plan=Policy.Plan(stage,marks,Math.Max(1,players),seed);
@@ -197,13 +197,25 @@ namespace Shieldwall
                 case Outcome.Fallen:
                     z.Set(Stone.CrackedKey,true);z.Set(Stone.FallenKey,z.GetInt(Stone.FallenKey,0)+1);
                     Assets.Effect("sfx_gdking_scream",stone.transform.position);
-                    Net.Say("The Warstone cracks! The horde howls and melts away. Its ward is weaker until it holds a siege again.",stone.transform.position,250);
+                    int left=Policy.Consolation(kills);
+                    if(left>0)DropShards(stone,left);
+                    Net.Say("The Warstone cracks! The horde howls and melts away. Its ward is weaker until it holds a siege again."+
+                        (left>0?$" {left} warshards lie at its foot, won from the {kills} slain.":""),stone.transform.position,250);
                     break;
                 default:
                     Net.Say("With no one to face them, the horde melts back into the wilds.",stone.transform.position,250);
                     break;
             }
             Plugin.Log($"Siege at {stone.transform.position:F0} ended: {outcome}, {kills} slain, stone {Mathf.RoundToInt(100*health/max)}%");
+        }
+        private static void DropShards(Warstone stone,int amount)
+        {
+            GameObject item=Items.Get(Policy.ShardPrefab);
+            if(item==null||item.GetComponent<ItemDrop>() is not ItemDrop drop)return;
+            Vector3 away=stone.transform.position-stone.Rift;away.y=0;
+            away=away.sqrMagnitude>1?away.normalized:-stone.transform.forward;
+            ItemDrop.ItemData data=drop.m_itemData.Clone();data.m_dropPrefab=item;
+            ItemDrop.DropItem(data,amount,stone.transform.position+away*3f+Vector3.up,Quaternion.identity);
         }
         private static int Reward(Warstone stone,Roster roster,int stage,int marks,float health,int kills)
         {

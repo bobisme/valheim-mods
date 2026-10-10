@@ -138,7 +138,7 @@ namespace Shieldwall
             if(Time.time-_askedAt>6)
             {
                 _askedAt=Time.time;
-                player.Message(MessageHud.MessageType.Center,$"Sound the war horn? A {Policy.Rosters[Director.StageNow()].Name} will gather and march on this stone.\nShift+E again to call them.");
+                player.Message(MessageHud.MessageType.Center,$"Sound the war horn? A {Policy.Rosters[Policy.SiegeStage(Director.StageNow(),Strength)].Name} will gather and march on this stone.\nShift+E again to call them.");
                 return true;
             }
             _askedAt=-100;

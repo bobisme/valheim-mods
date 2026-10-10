@@ -97,7 +97,9 @@ power.
 **A siege.** The horn opens a **rift** 60–95 m away (a red beacon and a map pin). After **90 s** the horde marches in **4–8 waves** (more with
 marks), sized for the players nearby, the last led by a **warchief**. Who comes depends on the bosses beaten: greydwarfs; the Black Forest's
 host (trolls lead); the drowned dead; a mountain pack (golems); Fulings (brutes); the swarm of the mist (gjall overhead); the Charred legion
-(morgen). With **ShowRoad** on in F7 (off by default), a glowing line shows the road the horde will take, recomputed as you build: walls
+(morgen). A stone's first siege is a **proving**: a horde two lands below the world's own (one below at the first mark, the full horde from
+the second), in 3 smaller waves (20 raiders, 10 more for each friend), so a new stone can be held with bows and walls and its warshards
+buy the first staves. With **ShowRoad** on in F7 (off by default), a glowing line shows the road the horde will take, recomputed as you build: walls
 turn it aside, and where the road is shut a red line marks the **breach**. Raiders fight only what stands within about 10 m, smash the piece in their way when stuck, and strike the stone
 when they reach it. **Sappers** go for stave sockets, tearing down the tower under one that stands high; a raider a stave keeps hitting may
 turn on its tower; **warchiefs** strike buildings half again as hard; **flyers** cross the walls. **Diggers** (from the second wave)
@@ -110,7 +112,8 @@ wave holds, and once a wave is all out of the rift, **Shift+E** on the stone cal
   beside the stone on the side away from the rift (a treasure chest of that land with **warshards**, coins and materials, more for an
   unscathed stone and a long fight), and the stone gains a mark (ten at most).
 - **Fallen** (the horde wears the stone to nothing; it feels only 40% of each blow): the stone **cracks** and works two marks lower until it
-  holds a siege again. The stone itself is never destroyed and nothing is lost: a fallen tower's stave lies where it stood.
+  holds a siege again. A warshard for every six raiders slain lies at its foot. The stone itself is never destroyed and nothing is lost: a
+  fallen tower's stave lies where it stood.
 - **Abandoned** (no player within 150 m for a minute): the horde melts away; nothing changes.
 - **Undermined**: if the land under the stone sinks a metre below where it was set (diggers at its foot, or a moat dug too close), the
   stone **topples** into the pit: it cracks, loses a mark, and a siege on is lost.
