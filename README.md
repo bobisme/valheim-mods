@@ -74,10 +74,12 @@ craft, and how strong they can be made.
 | Rune obelisk | 22 warshards, 30 stone, 4 iron | 5 | 10 | 50 m |
 
 **War staves** are huge relics, too heavy and thick to wield (25 weight). They stand in **stave sockets**: stone pedestals (hammer → misc;
-10 stone, 2 resin) built on the ground, on a wall or on top of a tower, at least **5 m apart**. **Use** a socket to open its one slot (the
+10 stone, 2 resin) built on the ground, on a wall or on top of a tower, at least **5 m apart**, within the stone's reach and no more
+than it can feed (raise its level to build more or farther). **Use** a socket to open its one slot (the
 game's own chest window, with your bag beside it) and put in the stave you want, or take it out; a stave dragged onto it from the hotbar
 goes straight in. **Shift+Use** **strengthens** it in place with warshards (★ 4, 7 and 10 shards; the stone must be at least the stave's new level). The stone feeds the sockets nearest to it first; a
-stave beyond its reach or its count sleeps, and says why. Staves fire on raiders and monsters in reach (not on passive creatures or
+stave beyond its reach or its count (say an upgrade was torn down) sleeps, stands dark with no light, and says why; a fed stave glows
+in its colour. Staves fire on raiders and monsters in reach (not on passive creatures or
 Dverger), aim at whoever is closest to the stone (Thunder at the strongest), count their kills, and never hurt players, companions, tames
 or buildings. You learn them once you carry a warshard, so the first siege is fought by hand.
 

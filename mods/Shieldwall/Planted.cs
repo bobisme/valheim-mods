@@ -58,6 +58,7 @@ namespace Shieldwall
             _item=null;_shot=null;_stave=null;
             if(_look!=null)Object.Destroy(_look);
             if(_light!=null)Object.Destroy(_light.gameObject);
+            _shown=-1;
             GameObject source=prefab==null?null:Items.Get(prefab)??Assets.Find(prefab);
             if(source==null)return;
             _item=item;
@@ -134,7 +135,7 @@ namespace Shieldwall
             _look.transform.localPosition=new Vector3(0,Pieces.SocketTop,0);
             _length=Mathf.Clamp(standing.max.y*k,1.5f,5.5f);
             var lit=new GameObject("StaveGlow");lit.transform.SetParent(transform,false);lit.transform.localPosition=new Vector3(0,Pieces.SocketTop+_length-0.4f,0);
-            _light=lit.AddComponent<Light>();_light.type=LightType.Point;_light.range=5;_light.intensity=1.2f;_light.shadows=LightShadows.None;
+            _light=lit.AddComponent<Light>();_light.type=LightType.Point;_light.range=6;_light.intensity=1.8f;_light.shadows=LightShadows.None;
             _light.color=_stave!=null&&Items.Colours.TryGetValue(_stave.Kind,out var c)?c.glow*1.6f:new Color(0.6f,0.6f,1f);
         }
         // The staff's shaft: the long axis of its longest mesh, in the frame given, pointing at its head (the end farther from where a hand
@@ -276,13 +277,31 @@ namespace Shieldwall
             if(Time.time>=_nextLoad){_nextLoad=Time.time+0.5f;Load();}
             if(_item==null)return;
             Warstone stone=Stone();
-            if(_light!=null)_light.enabled=stone!=null;
+            ShowPower(stone!=null);
             if(!View.IsOwner()||stone==null||Time.time<_next)return;
             _next=Time.time+Cooldown;
             if(_stave!=null&&_stave.Kind==StaveKind.Hearth){Mend(stone);return;}
             Character foe=Choose(stone);
             if(foe==null){_next=Time.time+0.5f;return;}
             Shoot(foe);
+        }
+        // A fed stave glows in its colour; a sleeping one stands dark as cold iron, with no light.
+        private int _shown=-1;
+        private static MaterialPropertyBlock _dark;
+        private void ShowPower(bool on)
+        {
+            if(_light!=null)
+            {
+                _light.enabled=on;
+                if(on)_light.intensity=1.8f+0.5f*Mathf.Sin(Time.time*2.2f+transform.position.x);
+            }
+            if(_shown==(on?1:0)||_look==null)return;
+            _shown=on?1:0;
+            if(_dark==null){_dark=new MaterialPropertyBlock();_dark.SetColor("_Color",new Color(0.22f,0.22f,0.25f,1));_dark.SetColor("_EmissionColor",Color.black);}
+            foreach(Renderer r in _look.GetComponentsInChildren<Renderer>(true))
+            {
+                if(on)r.SetPropertyBlock(null);else r.SetPropertyBlock(_dark);
+            }
         }
         internal static bool IsFoe(Character c)
         {
@@ -500,6 +519,20 @@ namespace Shieldwall
             {
                 __instance.Message(MessageHud.MessageType.Center,$"Too close to another stave socket (keep {Policy.SocketSpacing:0} m apart).");
                 __result=false;return false;
+            }
+            // Only as many sockets as the stone can feed, and only within its reach.
+            Warstone near=Warstone.Loaded.Where(w=>w!=null).OrderBy(w=>Vector3.Distance(w.transform.position,at)).FirstOrDefault();
+            if(near!=null)
+            {
+                int level=near.Level;float reach=Policy.PowerRadius(level);
+                string refused=null;
+                if(Vector3.Distance(near.transform.position,at)>reach)refused=$"Beyond the Warstone's reach ({reach:0} m at level {level}). Raise its level to build farther.";
+                else
+                {
+                    int built=Planted.Loaded.Count(p=>p!=null&&Vector3.Distance(p.transform.position,near.transform.position)<=reach);
+                    if(built>=Policy.Capacity(level))refused=$"The Warstone feeds only {Policy.Capacity(level)} staves at level {level}. Raise its level to build more sockets.";
+                }
+                if(refused!=null){__instance.Message(MessageHud.MessageType.Center,refused);__result=false;return false;}
             }
             return true;
         }
