@@ -28,7 +28,8 @@ namespace LocalPortals
         private Renderer[] _glow;
         private Light _light;
         private ParticleSystem _motes;
-        private MeshRenderer[] _body;       // the frame, back and crest: hidden (shadow only) while cut away for the camera
+        private MeshRenderer[] _body;       // the frame, back and crest: shadow and ghost only while cut away for the camera
+        private MeshFilter[] _bodyShapes;
         private UnityEngine.Rendering.ShadowCastingMode[] _bodyShadows;
         private bool _hidden;
         private Material _view;             // this portal's own surface material, showing Picture
@@ -47,7 +48,8 @@ namespace LocalPortals
             Solid=transform.Find("Frame")?.GetComponentsInChildren<Collider>(true)??new Collider[0];
             _light=transform.Find("Visual/Light")?.GetComponent<Light>();
             _motes=transform.Find("Visual/Motes")?.GetComponent<ParticleSystem>();
-            _body=visual!=null?visual.GetComponentsInChildren<MeshRenderer>(true).Where(r=>r.name!="Surface").ToArray():new MeshRenderer[0];
+            _body=visual!=null?visual.GetComponentsInChildren<MeshRenderer>(true).Where(r=>r.name!="Surface"&&!r.name.StartsWith("Trim")&&!r.name.StartsWith("Gem")).ToArray():new MeshRenderer[0];
+            _bodyShapes=_body.Select(r=>r.GetComponent<MeshFilter>()).ToArray();
             _bodyShadows=_body.Select(r=>r.shadowCastingMode).ToArray();
             _phase=Random.value*6.28f;
             ShowColour(-1);
@@ -218,6 +220,27 @@ namespace LocalPortals
 
         // Cut away for the camera: the mirror still casts its shadow but is not drawn.
         internal bool Hidden=>_hidden;
+
+        // While cut away the wood is drawn as a faint glow in the mirror's colour (its inlay, gem and motes stay as they are):
+        // the camera sees through it, and the mirror is still seen to be there. Called each frame it is cut away.
+        internal void Ghost()
+        {
+            if(!_hidden)return;
+            Material ghost=Views.Ghost();
+            if(ghost==null)return;
+            Color c=_shownColour>=0&&_shownColour<Colours.Length?Colours[_shownColour]:Unlinked;
+            _block??=new MaterialPropertyBlock();
+            _block.Clear();
+            _block.SetColor("_Color",c*0.16f);
+            for(int i=0;i<_body.Length;i++)
+            {
+                MeshFilter f=_bodyShapes[i];
+                if(_body[i]==null||f==null||f.sharedMesh==null||!_body[i].gameObject.activeInHierarchy)continue;
+                Mesh mesh=f.sharedMesh;
+                for(int sub=0;sub<mesh.subMeshCount;sub++)
+                    Graphics.DrawMesh(mesh,_body[i].localToWorldMatrix,ghost,_body[i].gameObject.layer,null,sub,_block,UnityEngine.Rendering.ShadowCastingMode.Off,false);
+            }
+        }
         internal void Hide(bool hide)
         {
             if(hide==_hidden)return;

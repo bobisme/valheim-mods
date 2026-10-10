@@ -11,7 +11,7 @@ namespace LocalPortals
     internal static class PortalPrefab
     {
         internal const string Name="BobLocalPortal",DisplayName="Local Portal";
-        private const string ModelVersion="Model3";
+        private const string ModelVersion="Model4";
         internal static int Hash=>Name.GetStableHashCode();
         internal static GameObject Prefab=>_prefab;
         private static GameObject _holder,_prefab;

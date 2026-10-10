@@ -202,7 +202,7 @@ namespace LocalPortals
         {
             if(_cutFrame!=Time.frameCount)Cut.Clear();
             foreach(LocalPortal p in WasCut)if(p!=null&&!Cut.Contains(p))p.Hide(false);
-            foreach(LocalPortal p in Cut)if(p!=null)p.Hide(true);
+            foreach(LocalPortal p in Cut)if(p!=null){p.Hide(true);p.Ghost();}
             WasCut.Clear();WasCut.AddRange(Cut);
         }
 

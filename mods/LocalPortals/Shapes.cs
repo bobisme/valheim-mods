@@ -146,6 +146,9 @@ namespace LocalPortals
             mesh.RecalculateNormals(); // (box faces have their own corners, so edges stay sharp)
             mesh.RecalculateTangents();
             mesh.RecalculateBounds();
+            var white=new Color[vertices.Count];
+            for(int i=0;i<white.Length;i++)white[i]=Color.white; // (the ghost drawn while a mirror is cut away tints by vertex colour)
+            mesh.colors=white;
             return mesh;
         }
 

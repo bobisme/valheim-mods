@@ -31,6 +31,8 @@ namespace LocalPortals
             _holder=null;_camera=_sky=null;
             if(_films!=null)foreach(Material m in _films)if(m!=null){Object.Destroy(m.mainTexture);Object.Destroy(m);}
             _films=null;
+            if(_ghost!=null)Object.Destroy(_ghost);
+            _ghost=null;
         }
 
         private static Camera GameCam()=>GameCamera.instance!=null?GameCamera.instance.GetComponent<Camera>():null;
@@ -245,6 +247,20 @@ namespace LocalPortals
                 m.renderQueue=2000;
             }
             return m;
+        }
+        // Faint and see-through: added onto what is behind, never hiding it, and tinted per portal (_Color).
+        private static Material _ghost;
+        internal static Material Ghost()
+        {
+            if(_ghost!=null)return _ghost;
+            Material m=ViewMaterial();
+            if(m==null||!m.shader.name.StartsWith("Particles/"))return null;
+            m.name="LocalPortalGhost";
+            m.mainTexture=Texture2D.whiteTexture;
+            m.SetFloat("_Mode",4);m.SetFloat("_SrcBlend",1);m.SetFloat("_DstBlend",1);m.SetFloat("_ZWrite",0);
+            m.SetOverrideTag("RenderType","Transparent");
+            m.renderQueue=3000;
+            return _ghost=m;
         }
         internal static Material Film(int colour)
         {
