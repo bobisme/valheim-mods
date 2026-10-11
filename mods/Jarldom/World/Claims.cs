@@ -221,7 +221,7 @@ namespace Jarldom
             int pick = h.GetInventory().GetAllItems().Where(i => i.GetDamage().m_pickaxe > 0).Select(i => i.m_shared.m_toolTier).DefaultIfEmpty(-1).Max();
             // (by weight: the heaviest ore there sets the load; a cart only where one can go)
             float weight = claim.Left.Keys.Select(k => Carts_Item(k)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_weight ?? 10f).DefaultIfEmpty(10f).Max();
-            var wanted = claim.Left.Where(kv => Need(c, kv.Key) > 0).ToDictionary(kv => kv.Key, kv => kv.Value); // (not what the stores already hold enough of)
+            var wanted = claim.Left.Where(kv => kv.Value.n > 0 && Need(c, kv.Key) > 0).ToDictionary(kv => kv.Key, kv => kv.Value); // (not what the stores already hold enough of, nor what's run out)
             var got = Mining.Take(wanted.Count > 0 ? wanted : claim.Left, Mining.Carry(weight, Carts.CartNear(c) != null && Mining.CartGoes(claim.Biome, claim.Crypt), claim.Crypt), pick);
             Took(claim.Id, got);
             if (got.Count == 0 && claim.Ore > 0) { c.Log("text", s.Name, "", $"{s.Name} came back from {where} {Where(claim, c.Position)} with nothing: their pickaxe couldn't break what's left there."); return; }
