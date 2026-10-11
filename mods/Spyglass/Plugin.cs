@@ -12,9 +12,10 @@ namespace Spyglass
     {
         public const string Guid="com.bobisme.spyglass";
         public const string Name="Spyglass";
-        public const string Version="0.1.2";
+        public const string Version="0.2.0";
         internal static Plugin Instance;
         internal ConfigEntry<KeyboardShortcut> Toggle;
+        internal ConfigEntry<KeyCode> MarkKey;
         internal ConfigEntry<float> StartMagnification,MaxMagnification,RevealRadius,RevealRange;
         internal ConfigEntry<bool> Vignette;
         private Harmony _harmony;
@@ -31,6 +32,7 @@ namespace Spyglass
             Instance=this;
             Toggle=Config.Bind("Controls","Toggle",new KeyboardShortcut(KeyCode.Z,KeyCode.LeftShift),
                 "Raise or lower the spyglass while it is in your inventory. Escape also lowers it. A plain Z bound by another mod (GearSlots' quick slot 1) does not fire while this is pressed.");
+            MarkKey=Config.Bind("Controls","Mark",KeyCode.Mouse2,"While looking: pin the spot you gaze at on your map. With Shift held, add it to your Wayfinder course instead (when Wayfinder is installed).");
             StartMagnification=Config.Bind("Zoom","Magnification",4f,new ConfigDescription("Magnification when you raise the spyglass. The mouse wheel changes it while looking.",new AcceptableValueRange<float>(2,12)));
             MaxMagnification=Config.Bind("Zoom","MaxMagnification",8f,new ConfigDescription("Strongest magnification the mouse wheel reaches (the weakest is 2×).",new AcceptableValueRange<float>(2,12)));
             Vignette=Config.Bind("Zoom","Vignette",true,"Darken the edges of the screen to a round eyepiece while looking.");
@@ -50,7 +52,8 @@ namespace Spyglass
                 if(Input.GetKeyDown(KeyCode.Escape)){_escapeFrame=Time.frameCount;Zoom.Lower();return;}
                 if(!CanLook(player)||!Has(player)||Toggle.Value.IsDown()){Zoom.Lower();return;}
                 Zoom.Tick(MaxMagnification.Value);
-                Zoom.Reveal(RevealRadius.Value,RevealRange.Value);
+                Zoom.Reveal(RevealRadius.Value,RevealRange.Value*Zoom.Aloft(player));
+                if(Input.GetKeyDown(MarkKey.Value))Zoom.Mark(Input.GetKey(KeyCode.LeftShift)||Input.GetKey(KeyCode.RightShift));
                 return;
             }
             if(!Toggle.Value.IsDown()||!CanLook(player))return;
@@ -74,7 +77,8 @@ namespace Spyglass
                 if(y>0){GUI.DrawTexture(new Rect(0,0,Screen.width,y+1),_black);GUI.DrawTexture(new Rect(0,y+size-1,Screen.width,y+1),_black);}
             }
             if(_label==null)_label=new GUIStyle(GUI.skin.label){fontSize=Mathf.Max(14,Screen.height/60),alignment=TextAnchor.MiddleCenter,normal={textColor=new Color(0.95f,0.9f,0.8f)}};
-            GUI.Label(new Rect(0,Screen.height-Screen.height/12f,Screen.width,30),$"{Zoom.Magnification:0.0}×   wheel: zoom · {Toggle.Value} / Esc: lower",_label);
+            string range=Zoom.Gazed.HasValue?$"{Zoom.Range:0} m   ":"";
+            GUI.Label(new Rect(0,Screen.height-Screen.height/12f,Screen.width,30),$"{range}{Zoom.Magnification:0.0}×   wheel: zoom · {MarkKey.Value.ToString().Replace("Mouse2","middle click")}: mark · {Toggle.Value} / Esc: lower",_label);
         }
         // Clear in the middle, softly darkening to the eyepiece rim.
         private static Texture2D Eyepiece()
@@ -108,7 +112,26 @@ namespace Spyglass
         private static readonly MethodInfo Explore=AccessTools.Method(typeof(Minimap),"Explore",new[]{typeof(Vector3),typeof(float)});
         private static int _mask=-1;
 
-        internal static void Raise(float magnification){Active=true;Magnification=magnification;_shown=1;_nextReveal=Time.time+0.4f;}
+        // Middle click: a pin where the gaze lands; with Shift, a waypoint on the Wayfinder course.
+        internal static void Mark(bool waypoint)
+        {
+            Player player=Player.m_localPlayer;
+            if(player==null||Minimap.instance==null)return;
+            if(!Gazed.HasValue){player.Message(MessageHud.MessageType.TopLeft,"Too far to mark.");return;}
+            if(waypoint)
+            {
+                System.Type api=null;
+                foreach(var a in System.AppDomain.CurrentDomain.GetAssemblies()){var t=a.GetType("Wayfinder.WayfinderApi",false);if(t!=null)api=t;} // (the last loaded copy)
+                var add=api?.GetMethod("AddWaypoint");
+                if(add==null){player.Message(MessageHud.MessageType.TopLeft,"Waypoints need the Wayfinder mod.");return;}
+                add.Invoke(null,new object[]{Gazed.Value,""});
+                player.Message(MessageHud.MessageType.TopLeft,$"Waypoint laid {Range:0} m off.");
+                return;
+            }
+            Minimap.instance.AddPin(Gazed.Value,Minimap.PinType.Icon3,"",true,false);
+            player.Message(MessageHud.MessageType.TopLeft,$"Marked on your map, {Range:0} m off.");
+        }
+        internal static void Raise(float magnification){Active=true;Gazed=null;Magnification=magnification;_shown=1;_nextReveal=Time.time+0.4f;}
         internal static void Lower(){Active=false;_shown=1;}
         internal static void Tick(float max)
         {
@@ -133,9 +156,17 @@ namespace Spyglass
             (float)Policy.LookScale(GameCamera.instance.m_fov,Policy.Fov(GameCamera.instance.m_fov,_shown)):1;
 
         // Where the gaze lands: loaded colliders first, then the generated terrain shape and sea level beyond them.
+        internal static Vector3? Gazed;          // the point the gaze last landed on, and how far it is
+        internal static float Range;
+        // From a masthead or anywhere high above the water (attached, as to a ship's mast), the eye reaches farther.
+        internal static float Aloft(Player player)
+        {
+            float water=ZoneSystem.instance!=null?ZoneSystem.instance.m_waterLevel:30;
+            return player!=null&&player.IsAttached()&&player.transform.position.y-water>7?1.6f:1f;
+        }
         internal static void Reveal(float radius,float range)
         {
-            if(radius<=0||Time.time<_nextReveal||GameCamera.instance==null||Minimap.instance==null||Explore==null)return;
+            if(Time.time<_nextReveal||GameCamera.instance==null||Minimap.instance==null||Explore==null)return;
             if(_shown<Magnification*0.8f)return; // still raising the glass
             _nextReveal=Time.time+0.25f;
             if(_mask<0)_mask=LayerMask.GetMask("Default","static_solid","Default_small","piece","terrain");
@@ -148,8 +179,9 @@ namespace Spyglass
                 distance=(float)Policy.Gaze(origin.x,origin.y,origin.z,direction.x,direction.y,direction.z,
                     (x,z)=>WorldGenerator.instance.GetHeight((float)x,(float)z),water,8,range);
             if(direction.y<-1e-4f&&origin.y>water)distance=Mathf.Min(float.IsNaN(distance)?float.MaxValue:distance,(water-origin.y)/direction.y);
-            if(float.IsNaN(distance)||distance>range)return;
-            Explore.Invoke(Minimap.instance,new object[]{origin+direction*distance,radius});
+            if(float.IsNaN(distance)||distance>range){Gazed=null;return;}
+            Gazed=origin+direction*distance;Range=distance;
+            if(radius>0)Explore.Invoke(Minimap.instance,new object[]{Gazed.Value,radius});
         }
     }
 }

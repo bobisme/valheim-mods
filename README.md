@@ -496,6 +496,10 @@ Where you gaze, the map fills in a little: every quarter second, a **30-metre** 
 beyond them; the sky uncovers nothing. Uncovered map is saved with your character like normal exploring. Magnification, radius, range
 and the eyepiece are in F7 → Mod settings.
 
+The distance to the gaze point shows under the eyepiece. **Middle click** (Controls/Mark) pins that point on your map, and
+**Shift+middle click** lays a waypoint on your [Wayfinder](#wayfinder) course instead (found by name while the game runs, no
+reference). From a ship's masthead, or anywhere you sit attached high above the water, the reveal range grows by 60%.
+
 GearSlots binds quick slot 1 to plain **Z**, and its key helper ignores extra held keys. While the whole Shift+Z is held, Spyglass makes
 any mod's `Pressed(KeyboardShortcut)` helper report a shorter shortcut on the same key as not pressed, including mods hot-reloaded later.
 Plain Z keeps working.
@@ -514,6 +518,73 @@ First playtest:
 4. Gaze at distant hills, the sea, a nearby wall and the sky. Open the map: only the hills, sea and wall areas are uncovered. Save, restart and recheck.
 5. Quit fully, restart, and check the log for `Missing prefab hash` and `Failed to find item prefab` with a spyglass in your inventory and one dropped.
 6. F6 with it raised, in your inventory, and dropped. The camera must return to normal, and the inventory icon must survive the reload.
+
+## Wayfinder
+
+A navigator's kit for the northern seas, built around **plotted courses**. Every piece has a Norse model: the Uunartoq
+bearing-dial, the sólarsteinn, the sounding lead with tallow in its cup, the primstav, Flóki's ravens, the gilded ship-vane
+(veðurviti), the headland beacon (viti), and birch-withy sea-marks.
+
+**Courses.** On the big map, hold **Ctrl**:
+- **Click** lays a waypoint. On a pin, it takes the pin's name; on a leg, it goes into that leg.
+- **Right-click** lifts a waypoint.
+- **Z** undoes, **R** reverses the course for the way home, **Backspace** clears it.
+
+The course is drawn on both maps as a dashed line. Legs already sailed fade, a fainter line runs to the next waypoint, and
+numbered rune-rings mark the waypoints. Lines are clipped to the visible map. Reaching a waypoint (40 m) advances the course,
+and reaching a later one first skips ahead. Each character keeps one course per world in `m_customData`. Writing your map at
+a cartography table also stores your course on the table, and reading the table takes it (respecting wards). While you steer,
+the ship carries your course, and everyone else aboard sees it in blue.
+
+**Navigator's notes**, centred under the compass band:
+- the next waypoint, its distance and point of the compass, the total distance left and the time left at your speed
+- the wind for this leg, as the game's own sail reckoning (`Ship.GetWindAngleFactor`) sees it
+- the lead's sounding
+- the primstav's forecast
+
+**Items** (workbench):
+
+| Item | Cost | What it does |
+|---|---|---|
+| Sun-Compass | 2 fine wood, 2 resin | Compass band across the top: heading, next waypoint, home, raven. Reads the sun by day and the lodestar by night; under cloud it drifts into dead reckoning. |
+| Sunstone | 1 crystal, 1 leather scraps | Keeps the compass true through cloud, rain and mist by day. |
+| Sounding Line | 2 stone, 4 leather scraps | Aboard, it casts ahead of the bow every few seconds. Gives the depth in fathoms, the bottom (sand, mud, rock), shoal warnings, and a note over the deep sea where serpents are. |
+| Primstav | 1 fine wood, 1 coal | Exact forecast: "Clear skies; rain in 3:20", plus the weather at the next waypoint when it lies in another land. |
+| Caged Raven | 2 wood, 3 feathers, 1 raw meat | Released, it climbs, circles and flies for the nearest land in sight (unexplored first, up to 2 km). The map keeps its line and draws in the land it saw. If it finds none, it returns. |
+
+The forecast is exact because `EnvMan` picks each weather period by seeding `Random` with the period number and calling
+`SelectWeightedEnvironment` over the land's weathers, and the wind comes from four octaves seeded by time. Wayfinder repeats
+both with the game's own methods and restores the random state. Raids, bosses, Moder's power and environment zones still
+override it.
+
+**Ships.**
+- Every ship has a name: a kenning, or a famous ship's name, until named at the helm with **Shift+E**. Names are kept on the
+  ship's ZDO.
+- Each ship you have sailed in gets a map pin, so you can find her again. Removing the pin forgets her.
+- Masts carry a lantern, lit from dusk till dawn, and a gilded vane at the masthead that swings to the wind. Boats from other
+  mods without a real mast are skipped.
+- **Shift+E** at the mast climbs to the masthead. Up there, the minimap's explore radius is tripled.
+
+**Pieces** (hammer, Misc):
+- **Weather Vane** (1 bronze, 2 fine wood): swings to the wind. Hover it for the wind and the forecast.
+- **Beacon Fire** (12 wood, 12 stone, 6 resin): the game's bonfire lifted onto a timber tower. It burns wood, glows from afar
+  (a distant ZDO with a distance-scaled glow and a long light), is named with Shift+E, and is pinned on the map for everyone
+  who has seen it.
+- **Sea-Mark** (4 wood, 2 resin): a water piece that bobs on the waves, with a lamp lit at night. Name it with E to pin it.
+
+Everything is in F7. The host and nearby players need the mod for the pieces, items on the ground and ship data. Checks cover
+bearings, sail power, map clipping, course insertion, advancing and saving, soundings, sky reading and names, plus the native
+hooks. Claude Tools gets a `wayfinder` command (`info`, `course`, `weather`, `give`/`take`, `place`/`remove`, `map`, `raven`,
+`climb`, `ship`).
+
+First playtest:
+
+1. Plot a course across water on the big map: insert into a leg, lift a waypoint, undo, reverse. Sail it and watch it advance.
+2. Write the map at a cartography table; have a friend read it. Steer with a friend aboard: they see your course in blue.
+3. Carry the sun-compass by a clear day, in rain (then with a sunstone), and at night.
+4. Sail into shallows and out over the deep with the sounding line. Watch a primstav forecast come true.
+5. Let a raven go at sea. Name your ship, walk inland, and find her on the map. Climb the masthead.
+6. Build a vane, a beacon (feed it, name it, sail away at night) and a sea-mark on the water.
 
 ## ChestSearch
 

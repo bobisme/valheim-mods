@@ -227,6 +227,36 @@ Method("Minimap","Explore","System.Void","UnityEngine.Vector3","System.Single");
 Method("WorldGenerator","GetHeight","System.Single","System.Single","System.Single");
 Field("Character","m_eye","UnityEngine.Transform");
 
+// Wayfinder: map clicks lay a course, the weather is foretold from the clock, ships carry names, fittings and the helm's course.
+Method("Minimap","OnMapLeftClick","System.Void");
+Method("Minimap","OnMapDblClick","System.Void");
+Method("Minimap","RemovePinUnderPointer","System.Void");
+Method("Minimap","ScreenToWorldPoint","UnityEngine.Vector3","UnityEngine.Vector3");
+Method("Minimap","GetClosestPin","Minimap/PinData","UnityEngine.Vector3","System.Single","System.Boolean");
+Method("Minimap","IsExplored","System.Boolean","UnityEngine.Vector3");
+Method("Minimap","UpdateExplore","System.Void","System.Single","Player");
+Field("Minimap","m_pins","System.Collections.Generic.List`1<Minimap/PinData>");
+Field("Minimap","m_exploreRadius","System.Single");
+Method("MapTable","Start","System.Void");
+Method("MapTable","OnWrite","System.Boolean","Switch","Humanoid","ItemDrop/ItemData");
+Method("MapTable","OnRead","System.Boolean","Switch","Humanoid","ItemDrop/ItemData","System.Boolean");
+Method("EnvMan","SelectWeightedEnvironment","EnvSetup","System.Collections.Generic.List`1<EnvEntry>");
+Method("EnvMan","GetAvailableEnvironments","System.Collections.Generic.List`1<EnvEntry>","BiomeSector");
+Field("EnvMan","m_environmentDuration","System.Int64");
+Field("EnvMan","m_windPeriodDuration","System.Int64");
+Method("Ship","Awake","System.Void");
+Method("Ship","GetWindAngleFactor","System.Single");
+Method("ShipControlls","GetHoverText","System.String");
+Method("ShipControlls","Interact","System.Boolean","Humanoid","System.Boolean","System.Boolean");
+Method("Chair","GetHoverText","System.String");
+Method("Chair","Interact","System.Boolean","Humanoid","System.Boolean","System.Boolean");
+Method("Fireplace","GetHoverText","System.String");
+Method("Fireplace","Interact","System.Boolean","Humanoid","System.Boolean","System.Boolean");
+Method("Humanoid","UseItem","System.Void","Inventory","ItemDrop/ItemData","System.Boolean");
+Method("Floating","GetLiquidLevel","System.Single","UnityEngine.Vector3","System.Single","LiquidType");
+Field("RandomFlyingBird","m_randomNoise","EffectList");
+Field("Player","m_customData","System.Collections.Generic.Dictionary`2<System.String,System.String>");
+
 // Omens: a networked sign the host creates as a raw ZDO, the game's own raid events, and night timing.
 Method("ZNet","Shutdown","System.Void","System.Boolean");
 Method("ZNet","GetWorldUID","System.Int64");
