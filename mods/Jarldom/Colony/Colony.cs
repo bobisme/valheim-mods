@@ -161,7 +161,7 @@ namespace Jarldom
             double now = Now; int day = Day; double hour = Hour;
             if (R.Founder == 0) Founder(); // the piece's creator is set just after it wakes
             Board.Expire(now); Board.Prune(now);
-            if (Time.time >= _nextRoster) { _nextRoster = Time.time + 5; Roster(); Plugin.Guard(() => Captives.Owner(this)); Plugin.Guard(() => Warband.Owner(this)); }
+            if (Time.time >= _nextRoster) { _nextRoster = Time.time + 5; Roster(); Plugin.Guard(() => Captives.Owner(this)); Plugin.Guard(() => Warband.Owner(this)); Plugin.Guard(() => Carts.Unload(this)); }
             Rise(now);
             // Back after time unloaded: the missing hours made up first (once its people have loaded, or after a while if none do).
             if (!_caughtUp)
@@ -247,7 +247,8 @@ namespace Jarldom
         {
             if (!IsOwner) { Net.SendFallen(this, s, bag, at, why, false); return; }
             R.Fallen.RemoveAll(f => f.Vid == s.Vid);
-            R.Fallen.Add(new Fallen { Vid = s.Vid, State = s.Save(), Gear = bag ?? new byte[0], At = Now + Clock.DayLength - Plugin.Instance.RespawnSeconds.Value, X = at.x, Y = at.y, Z = at.z, Killer = why });
+            double away = why.StartsWith(Carts.Prefix) && double.TryParse(why.Substring(Carts.Prefix.Length), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double trip) ? trip : Clock.DayLength; // (a carter's round trip; a trader's day)
+            R.Fallen.Add(new Fallen { Vid = s.Vid, State = s.Save(), Gear = bag ?? new byte[0], At = Now + away - Plugin.Instance.RespawnSeconds.Value, X = at.x, Y = at.y, Z = at.z, Killer = why });
             _dirty = true; Flush();
         }
         private static int Renown_Deed(string kind) => Jarldom.Renown.Deed(kind);
@@ -263,7 +264,8 @@ namespace Jarldom
                 try { s = VillagerState.Load(f.State); } catch { s = null; }
                 if (s == null) { R.Fallen.Remove(f); continue; }
                 if (Villagers.Body(s.Vid) != null) { R.Fallen.Remove(f); continue; } // already up somewhere
-                bool trader = f.Killer.StartsWith("trade:");
+                bool carter = f.Killer.StartsWith(Carts.Prefix);
+                bool trader = f.Killer.StartsWith("trade:") || carter;
                 Vector3? at = trader ? Spot(Position + Seat.transform.forward * 3, 2.5f) : Survey_BedSpot(s.Bed) ?? (Vector3?)Spot(Position, 3);
                 if (at == null) continue;
                 if (!ZNetScene.instance.IsAreaReady(at.Value)) continue;
@@ -273,10 +275,11 @@ namespace Jarldom
                 Assets.Effect("vfx_spawn", at.Value);
                 if (trader)
                 {
-                    int coins = int.TryParse(f.Killer.Substring(6), out int n) ? n : 0;
+                    int coins = !carter && int.TryParse(f.Killer.Substring(6), out int n) ? n : 0;
                     GameObject coin = ZNetScene.instance.GetPrefab("Coins");
                     for (int left = coins; left > 0 && coin != null;) { int stack = Math.Min(left, 999); if (!h.GetInventory().AddItem(coin, stack)) { ItemDrop.DropItem(coin.GetComponent<ItemDrop>().m_itemData.Clone(), stack, at.Value, Quaternion.identity); } left -= stack; }
-                    Log("text", s.Name, "", coins > 0 ? $"{s.Name} came back from the traders with {coins} coins." : $"{s.Name} came back from the trade run empty-handed: the goods were lost on the way.");
+                    if (carter) Log("text", s.Name, "", $"{s.Name} brought the cart back from the main colony.");
+                    else Log("text", s.Name, "", coins > 0 ? $"{s.Name} came back from the traders with {coins} coins." : $"{s.Name} came back from the trade run empty-handed: the goods were lost on the way.");
                 }
                 else Log("text", s.Name, "", $"{s.FullName} rose again{(string.IsNullOrEmpty(s.Bed) ? " by the pillars" : " at their bed")}.");
                 _dirty = true;

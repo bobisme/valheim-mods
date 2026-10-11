@@ -320,6 +320,7 @@ namespace Jarldom
             if (prof == Prof.Healer) { Task heal = HealTask.Next(b); if (heal != null) return heal; }
             if (prof == Prof.Scout && Time.time > b.NoScoutUntil) return new ScoutTask();
             if (prof == Prof.Gothi) { Task rite = GothiTask.Next(b); if (rite != null) return rite; }
+            if (prof == Prof.Carter) { Task cart = Carts.Next(b); if (cart != null) return cart; }
             if (prof == Prof.Builder && c.IsOwner && Compat.GhostCount(c.Position, c.Radius) > 0 && Gear.Tool(b, "hammer") != null && Time.time > b.NoBuildUntil) return new BuildTask();
             if (prof == Prof.Trader && c.R.Rank >= Rank.Village && Time.time > b.NoTradeUntil && b.Body.GetInventory().GetEmptySlots() > 1 && Stock.Chests(c, b.Pos).Any(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest) && x.chest.GetInventory().GetAllItems().Count(Trade.Sellable) >= 3)) return new TradeTask();
             Func<Prof, bool> canDo = p => p == prof || p == Prof.Hauler && (prof == Prof.Hauler || Gear.Lacks(b, prof) != null || NothingFor(c, prof));

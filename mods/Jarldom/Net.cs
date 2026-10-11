@@ -162,7 +162,7 @@ namespace Jarldom
             {
                 VillagerState s = VillagerState.Load(pkg.ReadByteArray());
                 byte[] gear = pkg.ReadByteArray(); Vector3 at = pkg.ReadVector3(); string killer = pkg.ReadString(); bool lost = pkg.ReadBool();
-                if (s != null && (killer.StartsWith("trade:") || killer.StartsWith(Captives.Prefix))) c.SoulAway(s, gear, at, killer); // (away, not dead)
+                if (s != null && (killer.StartsWith("trade:") || killer.StartsWith(Captives.Prefix) || killer.StartsWith(Carts.Prefix))) c.SoulAway(s, gear, at, killer); // (away, not dead)
                 else if (s != null) c.SoulFell(s, gear, at, killer, lost);
             });
         }

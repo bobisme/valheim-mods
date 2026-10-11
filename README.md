@@ -81,7 +81,8 @@ a lost soul's draugr, a dedicated server, and villagers run by a joining player'
 15. Mark a pasture round tame beasts and make someone a herder; a woodlot with seeds in the stores gets saplings; fields get sown.
 16. At hamlet rank: pay the Fuling herald, or don't. In their raid, a captive may be taken: go to the pinned camp, or pay.
 17. Leave the colony for a day or two (go far away) and come back: "While you were away" in the saga.
-18. Make a colony 300 m or more away and, from its Hall tab, an outpost of the first.
+18. Make a colony 300 m or more away and, from its Hall tab, an outpost of the first. Put a cart and ore there, make someone a
+    carter: the ore turns up in the first colony's stores (a long road risks an ambush).
 
 ## Looking-Glass Portals
 
