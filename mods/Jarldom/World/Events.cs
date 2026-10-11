@@ -191,13 +191,19 @@ namespace Jarldom
             bool band = !near && Warband.Raiding(c);
             if (band) { near = true; ev = null; stone = c.Position; }
             // The restless dead (one of the colony's own, lost to Hel) walking in: a raid too.
-            Character dead = near ? null : Character.GetAllCharacters().FirstOrDefault(ch => ch != null && !ch.IsDead() && Utils.DistanceXZ(ch.transform.position, c.Position) < c.Radius && (ch.GetComponent<ZNetView>()?.GetZDO()?.GetString(Draugr.NameKey, "") ?? "").StartsWith("Draugr "));
-            bool restless = dead != null;
+            // (it starts when one comes inside, and lasts while one is near the edge, ten minutes at most: not on and off as one wanders)
+            bool wasRestless = c.RaidOn && Running.TryGetValue(c.Id, out var run) && run.name == Restless;
+            float reach = wasRestless ? c.Radius + 25 : c.Radius;
+            Character dead = near ? null : Character.GetAllCharacters().FirstOrDefault(ch => ch != null && !ch.IsDead() && Utils.DistanceXZ(ch.transform.position, c.Position) < reach && (ch.GetComponent<ZNetView>()?.GetZDO()?.GetString(Draugr.NameKey, "") ?? "").StartsWith("Draugr "));
+            bool timedOut = wasRestless && RestlessSince.TryGetValue(c.Id, out float since) && Time.time - since > 600f;
+            if (timedOut) RestlessSince[c.Id] = Time.time + 600f; // (then quiet for ten minutes: one stuck where no one can reach isn't a raid for ever)
+            bool restless = dead != null && !timedOut && !(!wasRestless && RestlessSince.TryGetValue(c.Id, out float quiet) && quiet > Time.time);
             if (restless) { near = true; ev = null; stone = dead.transform.position; }
             if (near && !c.RaidOn)
             {
                 c.RaidOn = true; c.RaidAt = ev != null ? ev.m_pos : stone;
-                string name = restless ? "the restless dead" : band ? "the warband of " + Warband.JarlName(c) : ev == null ? "a siege at the Warstone" : Localization.instance.Localize(ev.GetHudText()) is string t && t.Length > 0 ? t : ev.m_name;
+                if (restless) RestlessSince[c.Id] = Time.time;
+                string name = restless ? Restless : band ? "the warband of " + Warband.JarlName(c) : ev == null ? "a siege at the Warstone" : Localization.instance.Localize(ev.GetHudText()) is string t && t.Length > 0 ? t : ev.m_name;
                 Running[c.Id] = (name, c.R.Log.Count(e => e.Kind == "death" || e.Kind == "lost"));
                 c.Log("raid", "", name);
                 c.HornUntil = Time.time + 600;
@@ -208,9 +214,10 @@ namespace Jarldom
                 c.RaidOn = false; c.HornUntil = 0;
                 int deaths = c.R.Log.Count(e => e.Kind == "death" || e.Kind == "lost");
                 bool bought = c.R.Flags.Remove("tribute:bought"); // (paid off: nothing held, no deed)
-                if (c.Population > 0 && !bought)
+                string ended = Running.TryGetValue(c.Id, out var r) ? r.name : "the raid"; // (a reload mid-raid forgets which)
+                if (c.Population > 0 && !bought && ended != Restless) // (our own dead walking aren't a raid held off)
                 {
-                    string name = Running.TryGetValue(c.Id, out var r) ? r.name : "the raid"; // (a reload mid-raid forgets which)
+                    string name = ended;
                     c.R.Deeds += Renown.Deed("raidheld");
                     c.Log("raidheld", "", name);
                     foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) { Mood.Add(b.S, "raidheld", b.Now); b.S.Bump("raids"); if (b.S.Prof == Prof.Guard && b.S.Count("raids") >= 3 && string.IsNullOrEmpty(b.S.Byname)) { b.S.Byname = Names.Byname("defender"); c.Log("byname", b.S.Name, b.S.Byname); } b.Dirty(); }
@@ -243,7 +250,9 @@ namespace Jarldom
                 __result = list;
             }
         }
-        public static void Forget() => Running.Clear();
+        public static void Forget() { Running.Clear(); RestlessSince.Clear(); }
+        private const string Restless = "the restless dead";
+        private static readonly Dictionary<string, float> RestlessSince = new Dictionary<string, float>();
     }
 
     // A soul lost to Hel rises as one of the dead: a draugr wearing their name, carrying their hoard.

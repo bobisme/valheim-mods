@@ -332,7 +332,7 @@ namespace Jarldom
             GameObject p = ObjectDB.instance?.GetItemPrefab(prefab);
             if (p == null) return true;
             ItemDrop.ItemData item = Stock.Of(p);
-            return Stock.Destination(c, item, c.Position) != null;
+            return Stock.Destination(c, item, c.Position) != null || Stock.Chests(c).Any(x => x.category != "treasury" && x.chest.GetInventory().CanAddItem(item, 1)); // (as a hauler would: any chest with room)
         }
         // A rock with metal in it (dug whatever the stone stores hold).
         private static readonly string[] Metals = { "copper", "tin", "silver", "iron", "blackmetal", "flametal", "obsidian", "mudpile", "scrap", "meteor" };

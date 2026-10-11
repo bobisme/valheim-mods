@@ -82,8 +82,9 @@ namespace Jarldom
         // One far from home walks back if it's near; from farther, they make their own way and are next seen at the pillars.
         public static void HomeFrom(Brain b)
         {
-            Vector3? home = b.Colony != null && b.Colony.Valid ? b.Colony.Position : Outposts.Where(b.S.Colony);
-            if (home == null || Utils.DistanceXZ(b.Pos, home.Value) < 250f) return; // (near enough to walk)
+            bool loaded = b.Colony != null && b.Colony.Valid;
+            Vector3? home = loaded ? b.Colony.Position : Outposts.Where(b.S.Colony);
+            if (home == null || loaded && Utils.DistanceXZ(b.Pos, home.Value) < 250f) return; // (near enough to walk; a hall not loaded here can't be walked to)
             Vector3 at = b.Colony != null && b.Colony.Valid ? Colony.Spot(b.Colony.Position + b.Colony.Seat.transform.forward * 3f, 2.5f) ?? b.Colony.Position + Vector3.up : new Vector3(home.Value.x + 3f, (WorldGenerator.instance?.GetHeight(home.Value.x + 3f, home.Value.z) ?? 40f) + 2f, home.Value.z); // (its ground isn't loaded: the world's own height, and a little drop)
             Assets.Effect("vfx_spawn", b.Pos);
             b.Place(at);
@@ -122,6 +123,8 @@ namespace Jarldom
             Vector3 to = l.transform.position;
             float d = Vector3.Distance(b.Pos, to);
             Doing = $"following {l.GetPlayerName()}";
+            // (the jarl at sea: wait on the shore, and catch up when they land, rather than swim after the ship)
+            if (l.IsAttachedToShip() || l.GetStandingOnShip() != null) { Doing = $"waiting for {l.GetPlayerName()}'s ship"; if (b.Move.Moving) b.Move.Stop(); return; }
             // Left far behind (a portal, a ship, a fall): they catch up out of sight, as companions do.
             if (d > 70f || d > 25f && Mathf.Abs(b.Pos.y - to.y) > 12f)
             {
@@ -131,7 +134,6 @@ namespace Jarldom
                 b.Place(spot + Vector3.up * 0.2f); b.Move.Stop();
                 return;
             }
-            if (l.IsAttachedToShip() || l.GetStandingOnShip() != null) { if (d > 6f) b.Move.To(to, 3f, true); return; }
             if (d > Follow.Keep + 2f) { if (!b.Move.Moving || Vector3.Distance(b.Move.Goal, to) > 3f) b.Move.To(to, Follow.Keep, d > 9f); }
             else if (d < Follow.Keep && b.Move.Moving) b.Move.Stop();
             if (b.S.Needs[(int)Need.Food] < 40 && Food.CanEat(b)) Food.EatFromBag(b);

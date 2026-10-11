@@ -268,7 +268,8 @@ namespace Jarldom
             if (Time.time >= _nextGear) { _nextGear = Time.time + 1f; Gear.Maintain(this); }
             if (Time.time >= _nextFoes) { _nextFoes = Time.time + 0.3f; Combat.Think(this); }
             if (Time.time >= _nextMoodSync) { _nextMoodSync = Time.time + 2f; SyncHover(); }
-            if (_dirty && Time.time >= _nextSave) { _nextSave = Time.time + 30f; Save(); }
+            // (a state is only written to the soul at home: on a game that doesn't have the soul it would go on the moving body)
+            if (_dirty && Time.time >= _nextSave) { _nextSave = Time.time + 60f; if (SoulStore.Of(View.GetZDO()) != null) Save(); }
             if (Combat.Busy(this)) return;
             if (!Follow.Check(this)) { Idle("far from home"); return; }
             if (!(Task is FollowTask) || Task.Done) { Task?.Stop(this); Activity = Activity.Follow; Task = new FollowTask(); Task.Start(this); }
@@ -371,7 +372,7 @@ namespace Jarldom
                     S.Bump("rings"); Say("I'll wear it with pride.", 5);
                     break;
                 case "follow": if (long.TryParse(arg.Split('|')[0], out long leader) && leader != 0) Follow.Start(this, leader, arg.Contains("|") ? arg.Substring(arg.IndexOf('|') + 1) : ""); else { Follow.End(this, "Home, then."); Follow.HomeFrom(this); } break;
-                case "summon": Follow.End(this, "Coming."); Task?.Stop(this); Task = new GoTask(Colony.Position + Colony.Seat.transform.forward * 2.5f, "coming to the pillars", 2f, true); Task.Start(this); break;
+                case "summon": Follow.End(this, "Coming."); if (Colony == null || !Colony.Valid) { Follow.HomeFrom(this); break; } Task?.Stop(this); Task = new GoTask(Colony.Position + Colony.Seat.transform.forward * 2.5f, "coming to the pillars", 2f, true); Task.Start(this); break;
                 case "dismiss": Dismiss(); return;
                 case "mood": Jarldom.Mood.Add(S, arg, Now); break;
                 case "train": { string key = arg; float now = S.Skill(key); S.Skills[key] = Mathf.Min(100, now + 10); Say($"I learned a great deal of {key.ToLower()} from the master.", 5); } break;

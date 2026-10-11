@@ -75,7 +75,7 @@ namespace Jarldom
             CraftingStation bench = c.PiecesIn(c.Radius).Select(p => p.GetComponent<CraftingStation>()).FirstOrDefault(s => s != null && Utils.GetPrefabName(s.gameObject) == "piece_workbench");
             if (bench == null) return;
             var spare = Crafts_Spare(c);
-            int thread = Crafts.InStock(c, Thread) + people.Where(b => b.S.Prof == Prof.Weaver).Sum(b => b.Body.GetInventory().GetAllItems().Where(i => i.m_dropPrefab?.name == Thread).Sum(i => i.m_stack)); // (and what the weaver has spun and kept by them)
+            int thread = Crafts.InStock(c, Thread) + people.Where(b => b.S.Prof == Prof.Weaver).Select(b => b.Body.GetInventory().GetAllItems().Where(i => i.m_dropPrefab?.name == Thread).Sum(i => i.m_stack)).DefaultIfEmpty(0).Max(); // (and what one weaver has spun and kept by them: a weaver can't use another's)
             bool Afford(Recipe r) => Crafts.Needs(r).All(n => (n.item == Thread ? thread : Crafts.InStock(c, n.item)) >= n.amount);
             int ragged = people.Count(InRags), hatless = people.Count(Hatless);
             string make = null;

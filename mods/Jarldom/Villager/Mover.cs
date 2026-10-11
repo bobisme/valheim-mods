@@ -199,10 +199,10 @@ namespace Jarldom
                 if (v == null || !v.IsValid() || v.GetZDO().GetInt(ZDOVars.s_state) == 0 || Time.time - at > 300) { Open.Remove(d); continue; } // (gone, shut by someone, or long given up)
                 if (Time.time - at < 1.5f) continue;
                 Vector3 p = d.transform.position;
-                if (by != null && by.Alive && by.Held == null && by.Move.Moving && Vector3.Distance(by.Pos, p) < 2.5f) continue; // (still going through)
+                if (by != null && by.Alive && by.Held == null && by.Move.Moving && Vector3.Distance(by.Pos, p) < 2.5f) continue; // (still going through; a brain whose body is gone is skipped)
                 if (Player.GetAllPlayers().Any(pl => Vector3.Distance(pl.transform.position, p) < 2.5f)) continue; // (someone in the doorway)
                 if (Villagers.All.Any(o => o.Held == null && Vector3.Distance(o.Body.transform.position, p) < 2.2f)) continue;
-                if (by != null && by.Held == null && Vector3.Distance(by.Pos, p) < 2.5f) continue;
+                if (by != null && by.Alive && by.Held == null && Vector3.Distance(by.Pos, p) < 2.5f) continue;
                 v.InvokeRPC("UseDoor", true);
                 Open.Remove(d);
             }

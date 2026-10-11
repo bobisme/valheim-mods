@@ -52,6 +52,8 @@ namespace Jarldom
         public static float OdinWorthBonus(Colony c) => c != null && Odin(c) >= 30 ? 0.25f : 0;
         public static int Odin(Colony c) => Compat.OmensFate(out int fate) ? Favour.Clamp(fate * 20 + c.R.Flag("omenspool")) : c.FavourOf("odin"); // (with Omens: its fate in steps of 20, and what's put by toward the next)
 
+        // A weapon for the war gods: not a bow, and not a tool that happens to be held two-handed (a pickaxe).
+        private static bool Blade(ItemDrop.ItemData i) => Classes.IsWeapon(i) && i.m_shared.m_itemType != ItemDrop.ItemData.ItemType.Bow && i.m_shared.m_skillType != Skills.SkillType.Pickaxes;
         public static bool Wants(string god, ItemDrop.ItemData item)
         {
             GodInfo g = Tables.God(god);
@@ -62,10 +64,10 @@ namespace Jarldom
             switch (god)
             {
                 case "odin": if (Classes.IsMead(item) || t == ItemDrop.ItemData.ItemType.Trophy || n == "Coins") return true; break;
-                case "thor": if (Classes.IsWeapon(item) && t != ItemDrop.ItemData.ItemType.Bow || t == ItemDrop.ItemData.ItemType.Trophy) return true; break;
-                case "tyr": if (Classes.IsWeapon(item) && t != ItemDrop.ItemData.ItemType.Bow || t == ItemDrop.ItemData.ItemType.Shield) return true; break;
+                case "thor": if (Blade(item) || t == ItemDrop.ItemData.ItemType.Trophy) return true; break;
+                case "tyr": if (Blade(item) || t == ItemDrop.ItemData.ItemType.Shield) return true; break;
                 case "ullr": if (t == ItemDrop.ItemData.ItemType.Bow || Stock.Category(item) == "hides") return true; break;
-                case "frigg": if (t == ItemDrop.ItemData.ItemType.Consumable && item.m_shared.m_food >= 25 && Stock.Category(item) == "food" && !Classes.IsMead(item) || n.StartsWith("Linen")) return true; break; // (cooked food, not raw)
+                case "frigg": if (t == ItemDrop.ItemData.ItemType.Consumable && item.m_shared.m_food >= 25 && Stock.Category(item) == "food" && !Classes.IsMead(item)) return true; break; // (cooked food, not raw; not the weaver's thread)
                 case "freyja": if (n == "Honey" || n == "Dandelion" || n == "Flax" || n == "Barley" || n == "Carrot" || n == "Turnip" || n == "Onion") return true; break;
                 case "njord": if (t == ItemDrop.ItemData.ItemType.Fish || n.StartsWith("Fish") && !Classes.IsEquipment(item) || n == "Amber" || n == "AmberPearl") return true; break;
             }
