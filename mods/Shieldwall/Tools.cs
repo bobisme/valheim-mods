@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using BepInEx;
+using HarmonyLib;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
@@ -29,7 +30,7 @@ namespace Shieldwall
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name,"siege",
                     "siege status | plan [stage] [marks] [players] [boasts] | route | start [stage 0-6] [boasts|-] [trick] | end | council [close] | horn [boasts] | offer | boon <id> | saga | boasts | marks <n> | place [metres | x z] | remove | horn | craftui [close] | raid [event] | plant <stave prefab|none> [metres] [angle] | tower <stave> [metres] [angle] [storeys] | line x1 z1 x2 z2 [piece] | unbuild | put <prefab> <metres> <angle> | goto x z | moat [radius] [passes] | focus [x z] | unplant | raiders | wall [radius] [gap degrees] | unwall | hover: Warstones near the player and their sieges; a preview of a siege's waves; "+
-                    "the road the horde would take; start a short-warning test siege at the nearest stone (no mark for holding it); end the siege now; set a stone's marks; place a Warstone ahead of the player (test); plant a staff from nothing beside the nearest stone (test); remove every planted staff (test); what each raider is doing; ring the stone with test stake walls (open toward the rift by gap degrees) and remove them; the hover text of the stone and staves",
+                    "the road the horde would take; start a short-warning test siege at the nearest stone (no mark for holding it); end the siege now; set a stone's marks; place a Warstone ahead of the player (test); plant a stave from nothing beside the nearest stone (test); remove every planted stave (test); what each raider is doing; ring the stone with test stake walls (open toward the rift by gap degrees) and remove them; the hover text of the stone and staves",
                     (Func<string[],Action<JObject>,Action<string>,IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: siege command added");
             }
@@ -317,6 +318,68 @@ namespace Shieldwall
                     if(ZoneSystem.instance.GetSolidHeight(post,out float gh))post.y=gh;
                     gv.GetZDO().Set("dhc_order",2);gv.GetZDO().Set("dhc_post",post);
                     output(new JObject{["guard"]=args[2],["post"]=new JArray(Math.Round(post.x,1),Math.Round(post.y,1),Math.Round(post.z,1))});
+                    break;
+                }
+                case "mend":
+                {
+                    // mend [radius=10] [height]: fill the pit round the stone back to the land around it (or a height) with the game's own
+                    // level-ground terrain op, and set the stone back on top. Only between sieges.
+                    if(stone==null||!stone.View.IsOwner()||stone.Phase!=Phase.Idle){error("siege mend: a stone this game owns, between sieges");break;}
+                    float radius=args.Length>2&&float.TryParse(args[2],out float mr)?Mathf.Clamp(mr,3,30):10;
+                    Vector3 c=stone.transform.position;
+                    float level;
+                    if(args.Length>3&&float.TryParse(args[3],out float my))level=my;
+                    else
+                    {
+                        var ring=new List<float>();
+                        for(int i=0;i<24;i++){Vector3 at=c+Quaternion.Euler(0,15*i,0)*Vector3.forward*(radius+3);if(ZoneSystem.instance.GetGroundHeight(at,out float h))ring.Add(h);}
+                        if(ring.Count==0){error("siege mend: no ground round the stone");break;}
+                        ring.Sort();level=ring[ring.Count/2]; // the land round about (its median, so a ditch or a hill doesn't skew it)
+                    }
+                    // The game's own levelling (what the hoe does), straight on the land's terrain records round the stone.
+                    var settings=new TerrainOp.Settings{m_level=true,m_levelRadius=radius,m_square=false,m_smooth=false,m_paintCleared=false};
+                    MethodInfo doOp=AccessTools.Method(typeof(TerrainComp),"DoOperation");
+                    var comps=new HashSet<TerrainComp>();
+                    foreach(Vector3 off in new[]{Vector3.zero,new Vector3(radius,0,0),new Vector3(-radius,0,0),new Vector3(0,0,radius),new Vector3(0,0,-radius)})
+                        foreach(TerrainComp tc in TerrainComp.FindAllTerrainCompilers(c+off))comps.Add(tc);
+                    int ops=0;
+                    foreach(TerrainComp tc in comps)
+                    {
+                        ZNetView tv=tc.GetComponent<ZNetView>();
+                        if(tv==null||!tv.IsValid())continue;
+                        if(!tv.IsOwner())tv.ClaimOwnership();
+                        doOp.Invoke(tc,new object[]{new Vector3(c.x,level,c.z),Vector3.zero,settings});ops++;
+                    }
+                    if(ops==0){error("siege mend: no terrain records round the stone (is the land there untouched?)");break;}
+                    stone.transform.position=new Vector3(c.x,level,c.z);stone.Z.SetPosition(stone.transform.position);
+                    stone.Z.Set(Stone.BaseKey,level);stone.Z.Set(Stone.BaseKey+"_set",true);
+                    output(new JObject{["mended"]=Math.Round(radius,1),["height"]=Math.Round(level,2),["was"]=Math.Round(c.y,2),["terrainRecords"]=ops});
+                    break;
+                }
+                case "sweep":
+                {
+                    // sweep [radius=30]: clear what lies on the ground round the stone (drops, bodies), but never a stave or staff (test clean-up).
+                    if(stone==null){error("siege sweep: no Warstone loaded");break;}
+                    float radius=args.Length>2&&float.TryParse(args[2],out float sr)?Mathf.Clamp(sr,3,60):30;
+                    Vector3 c=stone.transform.position;
+                    var kept=new List<string>();var gone=new Dictionary<string,int>();
+                    foreach(ItemDrop drop in UnityEngine.Object.FindObjectsByType<ItemDrop>(FindObjectsSortMode.None))
+                    {
+                        if(drop==null||Vector3.Distance(drop.transform.position,c)>radius)continue;
+                        ZNetView dv=drop.GetComponent<ZNetView>();
+                        if(dv==null||!dv.IsValid())continue;
+                        ItemDrop.ItemData item=drop.m_itemData;
+                        string name=Localization.instance.Localize(item.m_shared.m_name);
+                        if(item.m_shared.m_skillType==Skills.SkillType.ElementalMagic||item.m_shared.m_skillType==Skills.SkillType.BloodMagic||Policy.Staves.Any(st=>Utils.GetPrefabName(drop.gameObject)==st.Prefab)||item.m_customData.ContainsKey("bob_sw_kills"))
+                        {kept.Add(item.m_customData.TryGetValue("bob_sw_name",out string vn)?vn:name);continue;}
+                        if(!dv.IsOwner())dv.ClaimOwnership();
+                        gone[name]=(gone.TryGetValue(name,out int had)?had:0)+item.m_stack;
+                        ZNetScene.instance.Destroy(drop.gameObject);
+                    }
+                    int bodies=0;
+                    foreach(Ragdoll body in UnityEngine.Object.FindObjectsByType<Ragdoll>(FindObjectsSortMode.None))
+                        if(body!=null&&Vector3.Distance(body.transform.position,c)<=radius&&body.GetComponent<ZNetView>() is ZNetView rv&&rv.IsValid()){if(!rv.IsOwner())rv.ClaimOwnership();ZNetScene.instance.Destroy(body.gameObject);bodies++;}
+                    output(new JObject{["cleared"]=JObject.FromObject(gone),["bodies"]=bodies,["keptStaves"]=new JArray(kept.ToArray())});
                     break;
                 }
                 case "ignite":

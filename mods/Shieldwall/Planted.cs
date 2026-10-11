@@ -90,7 +90,7 @@ namespace Shieldwall
             if(!View.IsOwner())return;
             slot.RemoveItem(item);
             Player me=Player.m_localPlayer;
-            if(me!=null&&Box.IsInUse()&&me.GetInventory().AddItem(item))me.Message(MessageHud.MessageType.Center,"Only a staff can stand in a stave socket.");
+            if(me!=null&&Box.IsInUse()&&me.GetInventory().AddItem(item))me.Message(MessageHud.MessageType.Center,"Only a war stave or a staff can stand in a stave socket.");
             else ItemDrop.DropItem(item,item.m_stack,transform.position+Vector3.up*1.2f,Quaternion.identity);
         }
         internal static void DetachAll(){foreach(Planted p in Loaded.ToList())if(p!=null){if(p._shot!=null)Shots.Remove(p._shot);if(p._look!=null)Object.Destroy(p._look);if(p._light!=null)Object.Destroy(p._light.gameObject);Object.Destroy(p);}Loaded.Clear();Shots.Clear();}

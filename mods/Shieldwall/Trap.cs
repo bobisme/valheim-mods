@@ -7,7 +7,7 @@ using Object=UnityEngine.Object;
 namespace Shieldwall
 {
     // A pitch pit: a ring of stones round a pool of black pitch, built near a Warstone. Raiders who wade in are slowed (the game's own
-    // tar); set it alight with fire (an Ember or Blast stave's shot landing near it, a fire arrow, a torch's blow) and it burns everything
+    // tar); set it alight with fire (a fire shot from a stave or staff landing near it, a fire arrow) and it burns everything
     // of the horde standing in it, then must seep full again before it can burn once more.
     internal sealed class PitchPit:MonoBehaviour,Hoverable
     {
@@ -84,7 +84,7 @@ namespace Shieldwall
         public string GetHoverText()
         {
             if(_view==null||!_view.IsValid())return "";
-            string state=Burning?"<color=#FF7050>Burning</color>":Spent?"<color=#A0A0A0>Burnt out: the pitch seeps back</color>":"Full of pitch: slows raiders who wade in. Fire sets it alight (an Ember or Blast stave's shot near it, a fire arrow).";
+            string state=Burning?"<color=#FF7050>Burning</color>":Spent?"<color=#A0A0A0>Burnt out: the pitch seeps back</color>":"Full of pitch: slows raiders who wade in. Fire sets it alight (a fire shot from a stave or staff landing near it, a fire arrow).";
             return Localization.instance.Localize($"Pitch pit\n{state}");
         }
         public string GetHoverName()=>"Pitch pit";

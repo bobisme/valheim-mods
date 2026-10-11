@@ -83,7 +83,7 @@ namespace Shieldwall
             }
             Piece piece=pit.GetComponent<Piece>();
             piece.m_name="Pitch pit";
-            piece.m_description="A ring of stones round a pool of pitch. Raiders who wade in are slowed; set it alight with fire (an Ember or Blast stave's shot near it, a fire arrow) "+
+            piece.m_description="A ring of stones round a pool of pitch. Raiders who wade in are slowed; set it alight with fire (a fire shot from a stave or staff landing near it, a fire arrow) "+
                 "and it burns the horde standing in it, then must seep full again. Lay them where the horde will walk.";
             piece.m_resources=Needs(("Stone",8),("Resin",8));
             piece.m_groundOnly=true;
