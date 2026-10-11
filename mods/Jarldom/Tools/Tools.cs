@@ -46,7 +46,7 @@ namespace Jarldom
         private static Colony Here()
         {
             Player p = Player.m_localPlayer;
-            return p == null ? Colony.All.FirstOrDefault() : Colony.Nearest(p.transform.position, 400);
+            return p == null ? (ZNet.instance != null ? Colony.Nearest(ZNet.instance.GetReferencePosition(), 400) : null) ?? Colony.All.FirstOrDefault() : Colony.Nearest(p.transform.position, 400); // (a dedicated server: where it's looking)
         }
         private static JArray V(Vector3 v) => new JArray(Math.Round(v.x, 1), Math.Round(v.y, 1), Math.Round(v.z, 1));
         private static float F(string s) => float.Parse(s, CultureInfo.InvariantCulture);
@@ -55,6 +55,7 @@ namespace Jarldom
 
         private static string Box(IList<float> xz) { var xs = xz.Where((v, i) => i % 2 == 0).ToList(); var zs = xz.Where((v, i) => i % 2 == 1).ToList(); return $"{xs.Min():0.#},{zs.Min():0.#} to {xs.Max():0.#},{zs.Max():0.#}"; }
         private static Vector3? _pathMark;
+        public static void RunNow(string[] args, Action<JObject> output, Action<string> error) => Run(args, output, error); // (the server's own mailbox)
         private static IEnumerator Run(string[] args, Action<JObject> output, Action<string> error)
         {
             try { Do(args, output, error); }

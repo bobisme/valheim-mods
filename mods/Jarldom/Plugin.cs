@@ -70,6 +70,7 @@ namespace Jarldom
         {
             Synced?.Update();
             Tools.Tick();
+            ServerMailbox.Tick();
             Guard(Net.Tick);
             Guard(Net.KeepOwners);
             Guard(Colony.TickAll);
