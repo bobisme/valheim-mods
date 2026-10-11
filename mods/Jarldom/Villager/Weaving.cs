@@ -73,6 +73,8 @@ namespace Jarldom
             CraftingStation bench = c.PiecesIn(c.Radius).Select(p => p.GetComponent<CraftingStation>()).FirstOrDefault(s => s != null && Utils.GetPrefabName(s.gameObject) == "piece_workbench");
             if (bench == null) return;
             var spare = Crafts_Spare(c);
+            int thread = Crafts.InStock(c, Thread) + people.Where(b => b.S.Prof == Prof.Weaver).Sum(b => b.Body.GetInventory().GetAllItems().Where(i => i.m_dropPrefab?.name == Thread).Sum(i => i.m_stack)); // (and what the weaver has spun and kept by them)
+            bool Afford(Recipe r) => Crafts.Needs(r).All(n => (n.item == Thread ? thread : Crafts.InStock(c, n.item)) >= n.amount);
             int ragged = people.Count(InRags), hatless = people.Count(Hatless);
             string make = null;
             var rng = new System.Random((int)(now / 60) ^ c.Id.GetStableHashCode());
@@ -80,16 +82,15 @@ namespace Jarldom
             {
                 // Something to wear: colours when there's dye, plain undyed when not; a dress or a tunic as the ragged are women or men.
                 bool women = people.Where(InRags).Count(b => b.S.Female) * 2 >= ragged;
-                var fits = Table.Where(t => t.item.StartsWith("ArmorTunic") || t.item.StartsWith("ArmorDress")).Select(t => RecipeFor(t.item)).Where(r => r != null && Crafts.CanAfford(c, r)).ToList();
+                var fits = Table.Where(t => t.item.StartsWith("ArmorTunic") || t.item.StartsWith("ArmorDress")).Select(t => RecipeFor(t.item)).Where(r => r != null && Afford(r)).ToList();
                 if (fits.Count > 0) make = fits.OrderBy(r => r.m_item.name.StartsWith(women ? "ArmorDress" : "ArmorTunic") ? 0 : 1).ThenBy(r => r.m_item.name.EndsWith("10") ? 1 : 0).ThenBy(_ => rng.Next()).First().m_item.name;
             }
             else if (hatless > spare.hat + people.Count / 2 && c.R.Flag("weave:hatday") != c.Day) // (a cap now and then, not one each at once)
             {
-                var hats = Table.Where(t => t.item.StartsWith("HelmetHat")).Select(t => RecipeFor(t.item)).Where(r => r != null && Crafts.CanAfford(c, r)).ToList();
+                var hats = Table.Where(t => t.item.StartsWith("HelmetHat")).Select(t => RecipeFor(t.item)).Where(r => r != null && Afford(r)).ToList();
                 if (hats.Count > 0) { make = hats[rng.Next(hats.Count)].m_item.name; c.R.Flags["weave:hatday"] = c.Day; }
             }
             // No thread to weave with: spin some from the flax in the stores, by hand if there's no spinning wheel (one feeds itself).
-            int thread = Crafts.InStock(c, Thread) + people.Where(b => b.S.Prof == Prof.Weaver).Sum(b => b.Body.GetInventory().GetAllItems().Where(i => i.m_dropPrefab?.name == Thread).Sum(i => i.m_stack)); // (and what the weaver has spun and kept by them)
             if (make == null && (ragged > spare.chest || hatless > 0) && thread < 6 && Crafts.InStock(c, Flax) >= 2
                 && !c.PiecesIn(c.Radius).Any(p => p.GetComponent<Smelter>() is Smelter s && s.m_conversion.Any(cv => cv.m_from != null && cv.m_from.name == Flax)))
                 make = Thread;

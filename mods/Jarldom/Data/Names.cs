@@ -44,6 +44,13 @@ namespace Jarldom
             "spits for luck before a fight", "always wants the last word",
         };
 
+        // A father's name to tell two of one name apart, the Norse way: Ottar Ketilsson, Tofa Thorsdottir.
+        public static string Patronymic(Random rng, bool female)
+        {
+            string f = Male[rng.Next(Male.Length)];
+            string stem = f.EndsWith("r") && f.Length > 3 ? f.Substring(0, f.Length - 1) : f;
+            return stem + (female ? "sdottir" : "sson");
+        }
         public static string PickName(Random rng, bool female) => female ? Female[rng.Next(Female.Length)] : Male[rng.Next(Male.Length)];
 
         public static string Backstory(Random rng, bool female, string battle = null)

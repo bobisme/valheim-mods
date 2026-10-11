@@ -65,7 +65,7 @@ namespace Jarldom
         private static bool Raider(Character c, Colony col)
         {
             ZDO z = c.GetComponent<ZNetView>()?.GetZDO();
-            return z != null && (z.GetString(Warband.BandKey, "") == (col?.Id ?? "-") || z.GetBool(ZDOVars.s_eventCreature)) || Hunting(c);
+            return z != null && (z.GetString(Warband.BandKey, "") == (col?.Id ?? "-") || z.GetBool(ZDOVars.s_eventCreature) || z.GetString(Draugr.NameKey, "").StartsWith("Draugr ")) || Hunting(c);
         }
         // Is it after someone (a player or a villager)?
         private static bool Hunting(Character c) { Character t = (c.GetBaseAI() as MonsterAI)?.GetTargetCreature(); return t != null && (t.IsPlayer() || VillagerPrefab.Is(t)); }

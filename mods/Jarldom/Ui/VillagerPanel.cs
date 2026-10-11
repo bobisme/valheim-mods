@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 using Object = UnityEngine.Object;
 
 namespace Jarldom.Ui
@@ -94,8 +95,8 @@ namespace Jarldom.Ui
                 ry += 44; bx = 10;
                 bool following = Z.GetLong(Follow.Key, 0L) != 0;
                 long me = Player.m_localPlayer.GetPlayerID();
-                Small(right, following ? (Z.GetLong(Follow.Key, 0L) == me ? "Go home" : "Stop following") : "Follow me", ref bx, ry, () => Net.Act(c, "follow", vid + "|" + (following ? 0 : me)));
-                Small(right, "Come to the pillars", ref bx, ry, () => Net.Act(c, "summon", vid));
+                Small(right, following ? (Z.GetLong(Follow.Key, 0L) == me ? "Go home" : "Stop following") : "Follow me", ref bx, ry, () => Net.Act(c, "follow", vid + "|" + (following ? 0 : me)), "Out with the jarl: they keep up with you wherever you go (through portals too) and fight what comes at you. Give them food with a hotbar key. The saga tells of it when they come home.");
+                Small(right, "Come to the pillars", ref bx, ry, () => Net.Act(c, "summon", vid), "They stop what they're doing and come to the high-seat pillars.");
                 ry += 44; bx = 10;
                 Small(right, _confirm ? "Yes, send them away" : "Dismiss", ref bx, ry, () => { if (_confirm) { Net.Act(c, "dismiss", vid); Close(); } else { _confirm = true; Build(); } });
                 ItemDrop.ItemData ring = Player.m_localPlayer.GetInventory().GetAllItems().FirstOrDefault(Items.IsRing);
@@ -121,11 +122,13 @@ namespace Jarldom.Ui
             ((RectTransform)t.transform).sizeDelta = new Vector2(400, h);
             return y + h + 6;
         }
-        private static void Small(RectTransform box, string text, ref float x, float y, Action click)
+        private static Button Small(RectTransform box, string text, ref float x, float y, Action click, string tip = null)
         {
             float w = Mathf.Max(120, text.Length * 9f + 24);
-            GameUi.Button(box, text, new Vector2(x, -y), new Vector2(w, 38), click, true, 15);
+            Button b = GameUi.Button(box, text, new Vector2(x, -y), new Vector2(w, 38), click, true, 15);
+            if (tip != null) GameUi.Tip(b, text, tip);
             x += w + 6;
+            return b;
         }
     }
 

@@ -190,10 +190,14 @@ namespace Jarldom
             if (siege && !near) { near = true; ev = null; }
             bool band = !near && Warband.Raiding(c);
             if (band) { near = true; ev = null; stone = c.Position; }
+            // The restless dead (one of the colony's own, lost to Hel) walking in: a raid too.
+            Character dead = near ? null : Character.GetAllCharacters().FirstOrDefault(ch => ch != null && !ch.IsDead() && Utils.DistanceXZ(ch.transform.position, c.Position) < c.Radius && (ch.GetComponent<ZNetView>()?.GetZDO()?.GetString(Draugr.NameKey, "") ?? "").StartsWith("Draugr "));
+            bool restless = dead != null;
+            if (restless) { near = true; ev = null; stone = dead.transform.position; }
             if (near && !c.RaidOn)
             {
                 c.RaidOn = true; c.RaidAt = ev != null ? ev.m_pos : stone;
-                string name = band ? "the warband of " + Warband.JarlName(c) : ev == null ? "a siege at the Warstone" : Localization.instance.Localize(ev.GetHudText()) is string t && t.Length > 0 ? t : ev.m_name;
+                string name = restless ? "the restless dead" : band ? "the warband of " + Warband.JarlName(c) : ev == null ? "a siege at the Warstone" : Localization.instance.Localize(ev.GetHudText()) is string t && t.Length > 0 ? t : ev.m_name;
                 Running[c.Id] = (name, c.R.Log.Count(e => e.Kind == "death" || e.Kind == "lost"));
                 c.Log("raid", "", name);
                 c.HornUntil = Time.time + 600;
@@ -250,7 +254,10 @@ namespace Jarldom
         {
             GameObject prefab = ZNetScene.instance.GetPrefab(s.Worth > 50 ? "Draugr_Elite" : "Draugr");
             if (prefab == null) return;
-            Vector3 spot = Colony.Spot(at + UnityEngine.Random.insideUnitSphere * 6f, 4f) ?? at;
+            // (out at the colony's edge, the way they fell, and walks back in: not in the hall among the unarmed, where one loss became many)
+            Vector3 dir = at - c.Position; dir.y = 0; if (dir.sqrMagnitude < 1f) dir = UnityEngine.Random.insideUnitSphere; dir.y = 0;
+            Vector3 edge = c.Position + dir.normalized * (c.Radius + 5f);
+            Vector3 spot = Colony.Spot(edge, 6f) ?? Colony.Spot(at + UnityEngine.Random.insideUnitSphere * 6f, 4f) ?? at;
             GameObject d = Object.Instantiate(prefab, spot, Quaternion.identity);
             ZDO z = d.GetComponent<ZNetView>().GetZDO();
             z.Set(NameKey, "Draugr " + s.Name);

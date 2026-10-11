@@ -65,7 +65,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "away", "master", "envoy", "capture", "barrow" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "slay", "unlose", "forgetrow", "away", "master", "envoy", "capture", "barrow" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or with devcommands"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -701,6 +701,39 @@ namespace Jarldom
                         foreach (ItemDrop.ItemData item in bag.GetAllItems().Where(i => !i.m_equipped && names.Contains(Prefab(i))).ToList())
                         { ItemDrop.DropItem(item, item.m_stack, b.Pos + Vector3.up + UnityEngine.Random.insideUnitSphere * 0.4f, Quaternion.identity); bag.RemoveItem(item); n++; }
                         output(new JObject { ["dropped"] = n, ["at"] = V(b.Pos) });
+                    }
+                    break;
+                case "unlose":
+                    {
+                        // Test mishaps only: one lost to Hel brought back with their id, name, trade and place on the roster (their state
+                        // was lost with them, so traits and story are new). Their draugr goes; their tombstone is still theirs.
+                        RosterRow row = c.R.Roster.FirstOrDefault(r => r.Vid == a[2] || r.Name.Equals(a[2], StringComparison.OrdinalIgnoreCase));
+                        if (row == null || row.State != SoulState.Lost) { error("no one lost by that name or id"); return; }
+                        Newcomer n = Souls.Make(row.Vid.GetStableHashCode(), "restored", null); n.Name = row.Name; n.Female = row.Female; n.Prof = row.Prof;
+                        VillagerState st = Souls.Become(n, row.Vid, c.Id, c.Now); st.Prof = row.Prof; st.Worth = row.Worth;
+                        foreach (Character d in Character.GetAllCharacters().Where(x => x != null && !x.IsDead() && x.GetComponent<ZNetView>()?.GetZDO()?.GetString(Draugr.NameKey, "") == "Draugr " + row.Name.Split(' ')[0]).ToList()) d.GetComponent<ZNetView>().Destroy();
+                        Vector3 at = Colony.Spot(c.Position + c.Seat.transform.forward * 3f, 2.5f) ?? c.Position + Vector3.up;
+                        Humanoid h = Villagers.Spawn(c, st, at, null, dressNew: true);
+                        if (h == null) { error("couldn't make them"); return; }
+                        row.State = SoulState.Active; c.R.Arrivals = c.R.Arrivals; c.Log("text", row.Name, "", $"Hel let {row.Name} go."); c.MarkDirty();
+                        output(new JObject { ["back"] = row.Name, ["traits"] = string.Join(",", st.Traits), ["at"] = V(at) });
+                    }
+                    break;
+                case "forgetrow": { int n = c.R.Roster.RemoveAll(r => a.Skip(2).Contains(r.Vid)); c.MarkDirty(); output(new JObject { ["forgot"] = n }); } break; // (test souls off the roster)
+                case "raidwhy":
+                    {
+                        RandomEvent ev = RandEventSystem.instance?.GetCurrentRandomEvent();
+                        output(new JObject { ["raid"] = c.RaidOn, ["event"] = ev == null ? "" : ev.m_name + " at " + V(ev.m_pos), ["siege"] = Compat.Siege(c.Position, c.Radius, out Vector3 st), ["band"] = Warband.Raiding(c),
+                            ["restless"] = new JArray(Character.GetAllCharacters().Where(ch => ch != null && !ch.IsDead() && Utils.DistanceXZ(ch.transform.position, c.Position) < c.Radius + 10 && (ch.GetComponent<ZNetView>()?.GetZDO()?.GetString(Draugr.NameKey, "") ?? "").StartsWith("Draugr ")).Select(ch => ch.GetHoverName() + " at " + V(ch.transform.position) + " hp " + ch.GetHealth())) });
+                    }
+                    break;
+                case "slay":
+                    {
+                        // Test only: every creature of a prefab in the colony (and 30 m round) dies.
+                        int n = 0;
+                        foreach (Character ch in Character.GetAllCharacters().Where(x => x != null && !x.IsDead() && !x.IsPlayer() && Utils.GetPrefabName(x.gameObject) == a[2] && Utils.DistanceXZ(x.transform.position, c.Position) < c.Radius + 30).ToList())
+                        { ZNetView v = ch.GetComponent<ZNetView>(); v.ClaimOwnership(); var hit = new HitData(); hit.m_damage.m_damage = 99999; hit.m_point = ch.GetCenterPoint(); ch.Damage(hit); if (!ch.IsDead() && ch.GetHealth() > 0) v.Destroy(); n++; }
+                        output(new JObject { ["slain"] = n });
                     }
                     break;
                 case "creature":

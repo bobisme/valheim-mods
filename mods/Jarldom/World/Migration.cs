@@ -54,6 +54,9 @@ namespace Jarldom
             ColonyRecord r = c.R;
             if (!r.ComingLanded || index < 0 || index >= r.Coming.Count) return;
             Newcomer n = r.Coming[index];
+            // (one of the same name already here: a father's name sets them apart)
+            var rngName = new System.Random(n.Seed);
+            if (r.Roster.Any(x => x.State == SoulState.Active && (x.Name == n.Name || x.Name.StartsWith(n.Name + " ")))) n.Name = n.Name + " " + Names.Patronymic(rngName, n.Female);
             string vid = Colony.NewId();
             VillagerState s = Souls.Become(n, vid, c.Id, c.Now);
             // Souls who fell in one battle think well of each other.

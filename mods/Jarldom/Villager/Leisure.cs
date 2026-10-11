@@ -68,7 +68,7 @@ namespace Jarldom
     internal sealed class LeisureTask : Task
     {
         public readonly string Kind, Why; public Brain Owner, Partner; public bool Seeking, Host = true;
-        private float _until, _next, _seekUntil; private int _beat; private Vector3 _spot; private Chair _seat; private Piece _thing; private bool _there;
+        private float _until, _next, _seekUntil; private int _beat; private Vector3 _spot; private Chair _seat; private Piece _thing; private bool _there, _looked; private Fireplace _fire;
         public LeisureTask(string kind, string why) { Kind = kind; Why = why; }
         public string Tool => Kind == "dummy" && _there ? "weapon" : Kind == "archery" && _there ? "bow" : "";
         public LeisureTask Join(Brain b, string why)
@@ -98,7 +98,7 @@ namespace Jarldom
                 case "stroll": Doing = "taking a walk"; _spot = Colony.Spot(b.Colony.Position, b.Colony.Radius * 0.6f) ?? b.Pos; break;
                 default:
                     Room hall = b.Colony.Best(RoomType.GreatHall);
-                    if (hall != null) { _seat = Seats.Free(b, hall, b.Colony); _spot = _seat != null ? _seat.transform.position : b.Colony.Centre(hall); }
+                    if (hall != null) { _seat = Seats.Free(b, hall, b.Colony); _spot = _seat != null ? _seat.transform.position : Colony.Spot(b.Colony.Centre(hall), 3f) ?? b.Colony.Centre(hall); } // (a spot on the floor: the navmesh covers table tops too)
                     else _spot = b.Colony.Position + b.Colony.Seat.transform.forward * 4f;
                     Doing = hall != null ? "passing the time in the hall" : "passing the time by the pillars";
                     break;
@@ -224,8 +224,13 @@ namespace Jarldom
         private void Hall(Brain b)
         {
             if (b.Held != null) { if (Time.time > _next) { _next = Time.time + Random.Range(25f, 50f); Talk.Gossip(b); } Mood.Satisfy(b.S, Need.Social, (float)(b.GameDt / Clock.Hour) * 4f); return; }
-            if (!Arrive(b, _spot, _seat != null ? 1.2f : 2f)) return;
-            if (_seat != null && _seat.m_attachPoint != null) b.Sit(_seat.m_attachPoint, string.IsNullOrEmpty(_seat.m_attachAnimation) ? "attach_chair" : _seat.m_attachAnimation, Vector3.zero);
+            if (!Arrive(b, _spot, _seat != null ? 1.2f : 1f)) return;
+            if (_seat != null && _seat.m_attachPoint != null) { b.Sit(_seat.m_attachPoint, string.IsNullOrEmpty(_seat.m_attachAnimation) ? "attach_chair" : _seat.m_attachAnimation, Vector3.zero); return; }
+            // (no seat: standing about the hearth, talking)
+            if (!_looked) { _looked = true; _fire = Classes.NearestFire(b.Pos, 8f); } // (once: not four times a second)
+            if (_fire != null) Face(b, _fire.transform.position);
+            if (Time.time > _next) { _next = Time.time + Random.Range(25f, 50f); Talk.Gossip(b); }
+            Mood.Satisfy(b.S, Need.Social, (float)(b.GameDt / Clock.Hour) * 3f);
         }
         private void Finish(Brain b)
         {

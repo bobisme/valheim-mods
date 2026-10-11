@@ -27,11 +27,19 @@ namespace Jarldom
             return id;
         }
 
+        // (every piece in the loaded world is looked at to find these, and much asks: the answer is kept a second; don't change the list)
+        private float _piecesAt = -1, _piecesRadius; private List<Piece> _pieces;
         public List<Piece> PiecesIn(float radius)
         {
-            PieceBuffer.Clear();
-            Piece.GetAllPiecesInRadius(Position, radius, PieceBuffer);
-            return PieceBuffer.ToList();
+            if (_pieces == null || Time.time - _piecesAt >= 1f || radius > _piecesRadius)
+            {
+                PieceBuffer.Clear();
+                _piecesRadius = Mathf.Max(radius, Radius + 40f); // (one wide look serves every nearer ask)
+                Piece.GetAllPiecesInRadius(Position, _piecesRadius, PieceBuffer);
+                _pieces = PieceBuffer.ToList(); _piecesAt = Time.time;
+            }
+            Vector3 at = Position;
+            return _pieces.Where(p => p != null && Vector3.Distance(p.transform.position, at) < radius).ToList();
         }
 
         // ---- beds ----

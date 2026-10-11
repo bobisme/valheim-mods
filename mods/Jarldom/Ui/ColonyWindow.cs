@@ -335,7 +335,7 @@ namespace Jarldom.Ui
         private static float Rooms(RectTransform list)
         {
             float y = 4;
-            y = Text(list, "Mark rooms and work zones with the hammer: Misc → Mark rooms and zones, click the corners on the floor, click the first corner again, then choose what it is.", y, 15, GameUi.Dim);
+            y = Text(list, "Mark rooms and work zones with the hammer: Misc → Mark rooms and zones, click the corners on the floor, click the first corner again, then choose what it is. Click one spot twice for a round work zone. E on a marked room or zone (marker out) checks, changes, widens or removes it.", y, 15, GameUi.Dim);
             foreach (Room room in _c.R.Rooms)
             {
                 string name = Tables.Of(room.Type).Name + (room.Type == RoomType.Temple && room.God != "" ? " of " + Tables.God(room.God)?.Name : "");
