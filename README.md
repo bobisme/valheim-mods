@@ -67,9 +67,9 @@ at Odin's shrine; ascension on the pyre; 24 villagers at about 0.07 ms a frame. 
 gothi's offerings, a skald's drum, master training, Dvergr mercenaries, captives and ransom, a barrow's warband fought by guards, the
 Fuling tribute, catch-up after two days away, an outpost 515 m off with a carter whose ore reached the main colony, a two-storey house
 (a stockpile below, a longhouse above, villagers sleeping upstairs), fetching gear and going back to graves, every window and the
-jarl's seat view with a real colony, and villagers' state surviving a world reload. **Not yet tested by a player**: marking rooms with
-the hammer, the Valkyrie fly-in, trade runs, builders (BuildOrders), a lost soul's draugr, a dedicated server, and villagers run by a
-joining player's game.
+jarl's seat view with a real colony, villagers' state surviving a world reload, a trade run there and back (230 coins), a builder
+raising a BuildOrders blueprint from the stores, and a lost soul rising as a draugr. **Not yet tested by a player**: marking rooms with
+the hammer, the Valkyrie fly-in seen in person, a dedicated server, and villagers run by a joining player's game.
 
 **First playtest**:
 1. Build the pillars near a workbench; E on them: the window opens, the colony is a camp of 0.
