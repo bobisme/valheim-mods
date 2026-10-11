@@ -30,6 +30,7 @@ namespace LocalPortals
             Vector3 body=me.transform.position+Vector3.up*(float)Policy.BodyHeight;
             LocalPortal through=null;
             Wanted.Clear();
+            int may=-1; // (worked out only near a mirror: it looks through the bag)
             foreach(LocalPortal p in LocalPortal.Live)
             {
                 if(p==null)continue;
@@ -37,6 +38,15 @@ namespace LocalPortals
                 Vector3 now=p.transform.InverseTransformPoint(body);
                 // The board behind the glass gives way to a player in front, so they can step in; from behind it is solid.
                 bool open=p.Partner!=null&&now.z>0&&Mathf.Abs(now.x)<Policy.HalfWidth+0.4;
+                if(open)
+                {
+                    if(may<0)may=Policy.MayCarry(Plugin.BlockUnportable.Value,false,!Plugin.BlockUnportable.Value||me.IsTeleportable(false))?1:0;
+                    if(may==0) // the glass holds them back, as the game's portals do
+                    {
+                        open=false;
+                        if(now.z<0.9f&&Mathf.Abs(now.x)<Policy.HalfWidth&&Time.time>_blockedMessage){_blockedMessage=Time.time+3;me.Message(MessageHud.MessageType.Center,"$msg_noteleport");}
+                    }
+                }
                 Open(p,open);
                 if(open&&now.z<1.5f)BehindGlass(p,Mathf.Abs(now.x)<Policy.HalfWidth);
                 if(through==null&&p.Partner!=null&&Last.TryGetValue(p,out Vector3 before)&&Policy.Crossed((before.x,before.y,before.z),(now.x,now.y,now.z)))through=p;
@@ -280,6 +290,9 @@ namespace LocalPortals
             ZNet.instance?.SetReferencePosition(position); // (the game does this later in the frame; everything after the step goes by it)
             Far.Tick(now:true); // the side just left becomes the far side: kept loaded from this moment, not after it is unloaded
             Creatures.Gone(me,from);
+            Sound.Crossed(position,true);
+            LookingGlassApi.RaiseCrossed(me,from,to);
+            Far.Announce(); // (a client tells the host where it is now, not up to two seconds later)
         }
     }
 }

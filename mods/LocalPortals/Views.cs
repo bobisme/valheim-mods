@@ -28,7 +28,9 @@ namespace LocalPortals
             Camera.onPreCull-=BeforeCull;
             foreach(LocalPortal p in LocalPortal.Live)p.ShowPicture(false);
             if(_holder!=null)Object.Destroy(_holder);
-            _holder=null;_camera=_sky=null;
+            _holder=null;_camera=_sky=null;Cams.Clear();InnerWindows.Clear();
+            if(_mid!=null){_mid.Release();Object.Destroy(_mid);_mid=null;}
+            if(_small!=null){_small.Release();Object.Destroy(_small);_small=null;}
             if(_films!=null)foreach(Material m in _films)if(m!=null){Object.Destroy(m.mainTexture);Object.Destroy(m);}
             _films=null;
             if(_ghost!=null)Object.Destroy(_ghost);
@@ -65,24 +67,38 @@ namespace LocalPortals
                 else p.ShowPicture(false);
             }
             Seen.Sort((a,b)=>(a.transform.position-eye).sqrMagnitude.CompareTo((b.transform.position-eye).sqrMagnitude));
-            int drawn=0;
+            int max=Plugin.MaxViews.Value,drawn=0,direct=Mathf.Min(Seen.Count,max);
+            _budget=Policy.NestBudget(max,direct,Plugin.NestedViews.Value);
+            Nested=0;
+            // More mirrors in sight than views to draw: the nearest are drawn every frame and the rest take turns at the last
+            // view, each keeping its last picture between turns (so every one of them shows its view).
+            int turn=Seen.Count>max&&max>0?max-1+(_turn++%(Seen.Count-max+1)):-1;
             for(int i=0;i<Seen.Count;i++)
             {
                 LocalPortal p=Seen[i];
                 Vector4 window=new Vector4(0,0,1,1);
-                bool ok=i<Plugin.MaxViews.Value&&Draw(main,p,p.Partner,out window);
-                p.ShowPicture(ok,window);
-                if(ok)drawn++;
+                bool mine=turn<0?i<direct:i<max-1||i==turn;
+                bool ok=mine&&Draw(main,main,p,0,out window);
+                if(ok){p.ShowPicture(true,window);drawn++;Sample(p);}
+                else if(!mine&&p.Picture!=null&&p.PictureFrame>=0&&Time.frameCount-p.PictureFrame<=Policy.KeepPictureFrames(Seen.Count-max+1)){} // (its last picture, until its turn)
+                else p.ShowPicture(false);
             }
             Drawn=drawn;
         }
 
-        private static bool Draw(Camera main,LocalPortal p,LocalPortal q,out Vector4 window)
+        // A view through portal p as seen by `viewer` (the game camera, or the camera of a view that p shows in): drawn into
+        // p's picture, or (depth 1) into its picture inside another view. A mirror seen in the view is drawn too, while views
+        // are left in the frame's budget (Plugin.MaxViews: the ones the game camera sees come first).
+        private static int _budget,_turn;
+        internal static int Nested;         // views drawn inside views last frame
+        private static readonly List<Camera> Cams=new List<Camera>();
+        private static bool Draw(Camera main,Camera viewer,LocalPortal p,int depth,out Vector4 window)
         {
+            LocalPortal q=p.Partner;
             Transform a=p.transform,b=q.transform;
-            if(!Window(main,a,out window,out float px,out float py))return false;
-            // The game camera, taken through: in front of this portal becomes behind the linked one.
-            Vector3 local=a.InverseTransformPoint(main.transform.position);
+            if(!Window(viewer,a,out window,out float px,out float py))return false;
+            // The viewer, taken through: in front of this portal becomes behind the linked one.
+            Vector3 local=a.InverseTransformPoint(viewer.transform.position);
             Vector3 eye=b.TransformPoint(new Vector3(-local.x,local.y,-local.z));
             float hw=(float)Policy.HalfWidth,y0=(float)Policy.Bottom,y1=(float)Policy.Top;
             float X(float u)=>hw-2*hw*u;           // this glass's x at u (u runs to the viewer's right, the portal's -x)
@@ -95,41 +111,115 @@ namespace LocalPortals
             if(near<0.03f)return false;
             float left=Vector3.Dot(right,pa-eye),rightEdge=Vector3.Dot(right,pb-eye),bottom=Vector3.Dot(up,pa-eye),top=Vector3.Dot(up,pc-eye);
 
-            if(!Picture(main,p,px,py))return false;
+            RenderTexture target=depth==0?(Picture(viewer,ref p.Picture,px,py,main.allowHDR)?p.Picture:null):(Picture(viewer,ref p.Nested,px,py,main.allowHDR)?p.Nested:null);
+            if(target==null)return false;
             Ensure(main);
+            Camera cam=Cam(main,depth);
             float far=Mathf.Max(main.farClipPlane,near+10);
-            Matrix4x4 projection=Matrix4x4.Frustum(left,rightEdge,bottom,top,near,far);
             Quaternion turn=Quaternion.LookRotation(forward,up);
+            cam.CopyFrom(main);
+            cam.enabled=false;
+            cam.targetTexture=target;
+            cam.transform.SetPositionAndRotation(eye,turn);
+            cam.nearClipPlane=near;cam.farClipPlane=far;
+            cam.projectionMatrix=Matrix4x4.Frustum(left,rightEdge,bottom,top,near,far);
 
-            bool mine=p.Surface.enabled,theirs=q.Surface.enabled;
-            p.Surface.enabled=false;q.Surface.enabled=false; // never draw a picture into itself; the far surface is the near plane
+            // Mirrors in this view, nearest first, drawn as this camera sees them (only one level down).
+            List<LocalPortal> inner=null;
+            if(depth==0&&_budget>0)
+            {
+                GeometryUtility.CalculateFrustumPlanes(cam,InnerPlanes);
+                var seen=new List<LocalPortal>();
+                foreach(LocalPortal r in LocalPortal.Live)
+                {
+                    if(r==null||r==q||r.Partner==null||r.Surface==null||r.Partner.Surface==null)continue;
+                    if(r.transform.InverseTransformPoint(eye).z<=0.02f||b.InverseTransformPoint(r.transform.position).z<=0)continue; // (facing the camera, and out past the glass it looks through)
+                    if(Vector3.Distance(eye,r.transform.position)>Policy.ViewRange||!GeometryUtility.TestPlanesAABB(InnerPlanes,r.Surface.bounds))continue;
+                    seen.Add(r);
+                }
+                seen.Sort((x,y)=>(x.transform.position-eye).sqrMagnitude.CompareTo((y.transform.position-eye).sqrMagnitude));
+                foreach(LocalPortal r in seen)
+                {
+                    if(_budget<=0)break;
+                    _budget--;
+                    if(!Draw(main,cam,r,1,out Vector4 w))continue;
+                    (inner??=new List<LocalPortal>()).Add(r);InnerWindows[r]=w;Nested++;
+                }
+            }
+
+            // Every mirror's glass as this camera sees it: from behind, nothing; the glass it looks through is its near plane;
+            // and never a picture drawn into itself.
+            Kept.Clear();
+            foreach(LocalPortal s in LocalPortal.Live)if(s!=null&&s.Surface!=null)Kept.Add((s,s.Surface.enabled,s.Surface.sharedMaterial));
             try
             {
+                foreach(var (s,_,_) in Kept)
+                {
+                    bool show=s!=q&&s.transform.InverseTransformPoint(eye).z>0.02f;
+                    if(inner!=null&&inner.Contains(s))s.Surface.sharedMaterial=s.NestedMaterial(InnerWindows[s]);
+                    else if(s.Surface.sharedMaterial!=null&&s.Surface.sharedMaterial.mainTexture==target)show=false;
+                    s.Surface.enabled=show;
+                }
                 Camera sky=GameCamera.instance.m_skyCamera;
                 bool drawSky=sky!=null&&sky.isActiveAndEnabled&&(main.clearFlags==CameraClearFlags.Depth||main.clearFlags==CameraClearFlags.Nothing);
                 if(drawSky)
                 {
                     _sky.CopyFrom(sky);
                     _sky.enabled=false;
-                    _sky.targetTexture=p.Picture;
+                    _sky.targetTexture=target;
                     _sky.transform.SetPositionAndRotation(eye,turn);
-                    float n=Mathf.Max(sky.nearClipPlane,0.01f),s=n/near;
+                    float n=Mathf.Max(sky.nearClipPlane,0.01f),k=n/near;
                     _sky.nearClipPlane=n;
-                    _sky.projectionMatrix=Matrix4x4.Frustum(left*s,rightEdge*s,bottom*s,top*s,n,Mathf.Max(sky.farClipPlane,n+1));
+                    _sky.projectionMatrix=Matrix4x4.Frustum(left*k,rightEdge*k,bottom*k,top*k,n,Mathf.Max(sky.farClipPlane,n+1));
                     _sky.Render();
                 }
-                _camera.CopyFrom(main);
-                _camera.enabled=false;
-                _camera.targetTexture=p.Picture;
-                _camera.transform.SetPositionAndRotation(eye,turn);
-                if(!drawSky&&(_camera.clearFlags==CameraClearFlags.Depth||_camera.clearFlags==CameraClearFlags.Nothing))_camera.clearFlags=CameraClearFlags.Skybox;
-                _camera.nearClipPlane=near;_camera.farClipPlane=far;
-                _camera.projectionMatrix=projection;
-                _camera.Render();
+                if(!drawSky&&(cam.clearFlags==CameraClearFlags.Depth||cam.clearFlags==CameraClearFlags.Nothing))cam.clearFlags=CameraClearFlags.Skybox;
+                cam.Render();
             }
-            finally{p.Surface.enabled=mine;q.Surface.enabled=theirs;}
-            p.PictureFrame=Time.frameCount;
+            finally
+            {
+                foreach(var (s,enabled,material) in Kept)if(s!=null&&s.Surface!=null){s.Surface.enabled=enabled;s.Surface.sharedMaterial=material;}
+                Kept.Clear();
+            }
+            if(depth==0)p.PictureFrame=Time.frameCount;
             return true;
+        }
+        private static readonly Plane[] InnerPlanes=new Plane[6];
+        private static readonly Dictionary<LocalPortal,Vector4> InnerWindows=new Dictionary<LocalPortal,Vector4>();
+        private static readonly List<(LocalPortal,bool,Material)> Kept=new List<(LocalPortal,bool,Material)>();
+        private static Camera Cam(Camera main,int depth)
+        {
+            while(Cams.Count<=depth)
+            {
+                Camera c=Cams.Count==0?_camera:new GameObject("View"+Cams.Count).AddComponent<Camera>();
+                if(Cams.Count>0){c.transform.SetParent(_holder.transform,false);c.enabled=false;Fog(main,c);}
+                Cams.Add(c);
+            }
+            return Cams[depth];
+        }
+
+        // The far side's light (LocalPortal.SetSpill): the mean colour of a view just drawn, read back from the graphics card a
+        // few times a second without waiting for it.
+        private static RenderTexture _mid,_small;
+        private static void Sample(LocalPortal p)
+        {
+            if(!Plugin.FarLight.Value||p.Picture==null||Time.time<p.NextSample||!SystemInfo.supportsAsyncGPUReadback)return;
+            p.NextSample=Time.time+0.25f;
+            if(_mid==null){_mid=new RenderTexture(32,32,0,RenderTextureFormat.ARGBHalf){name="LocalPortalSpill"};_mid.Create();}
+            if(_small==null){_small=new RenderTexture(4,4,0,RenderTextureFormat.ARGBHalf){name="LocalPortalSpill"};_small.Create();}
+            RenderTexture was=RenderTexture.active;
+            Graphics.Blit(p.Picture,_mid);
+            Graphics.Blit(_mid,_small);
+            RenderTexture.active=was;
+            LocalPortal target=p;
+            UnityEngine.Rendering.AsyncGPUReadback.Request(_small,0,TextureFormat.RGBAFloat,r=>
+            {
+                if(r.hasError||target==null)return;
+                var data=r.GetData<Color>();
+                Color sum=Color.black;
+                for(int i=0;i<data.Length;i++)sum+=data[i];
+                if(data.Length>0)target.SetSpill(sum/data.Length);
+            });
         }
 
         // The part of a portal's glass box that is on screen, as (u0, v0, u1, v1) of the whole, and how many screen pixels it
@@ -174,19 +264,19 @@ namespace LocalPortals
             return window.z>window.x&&window.w>window.y;
         }
 
-        private static bool Picture(Camera main,LocalPortal p,float px,float py)
+        private static bool Picture(Camera main,ref RenderTexture picture,float px,float py,bool hdr)
         {
             int sw=main.pixelWidth,sh=main.pixelHeight;
             double scale=Plugin.Resolution.Value;
             int w=Policy.PictureSize(px,sw,scale),h=Policy.PictureSize(py,sh,scale);
-            RenderTexture rt=p.Picture;
+            RenderTexture rt=picture;
             if(rt!=null&&!Policy.Resize(rt.width,w)&&!Policy.Resize(rt.height,h))return true;
             if(rt!=null){rt.Release();Object.Destroy(rt);}
             // a little room to grow, so walking up to a portal does not remake its picture every few steps
             w=Mathf.Min(sw,Mathf.CeilToInt(w*1.25f/64)*64);h=Mathf.Min(sh,Mathf.CeilToInt(h*1.25f/64)*64);
-            var format=main.allowHDR?RenderTextureFormat.DefaultHDR:RenderTextureFormat.Default;
-            p.Picture=new RenderTexture(w,h,24,format){name="LocalPortalView",wrapMode=TextureWrapMode.Clamp,filterMode=FilterMode.Bilinear,antiAliasing=1};
-            return p.Picture.Create();
+            var format=hdr?RenderTextureFormat.DefaultHDR:RenderTextureFormat.Default;
+            picture=new RenderTexture(w,h,24,format){name="LocalPortalView",wrapMode=TextureWrapMode.Clamp,filterMode=FilterMode.Bilinear,antiAliasing=1};
+            return picture.Create();
         }
 
         private static void Ensure(Camera main)
@@ -197,7 +287,7 @@ namespace LocalPortals
             _camera=new GameObject("View").AddComponent<Camera>();
             _camera.transform.SetParent(_holder.transform,false);
             _camera.enabled=false;
-            Fog(main);
+            Fog(main,_camera);
             _sky=new GameObject("Sky").AddComponent<Camera>();
             _sky.transform.SetParent(_holder.transform,false);
             _sky.enabled=false;
@@ -206,7 +296,7 @@ namespace LocalPortals
         // An unlit material showing a portal's picture as it is (the game camera's own effects then apply to it once).
         // The game draws its fog as a post effect on its camera. The view camera gets the same post-processing with only
         // the fog left on: colour grading, bloom and the rest are applied once, by the game camera, to the glass.
-        private static void Fog(Camera main)
+        private static void Fog(Camera main,Camera into)
         {
             var theirs=main.GetComponent<UnityEngine.PostProcessing.PostProcessingBehaviour>();
             if(theirs==null||theirs.profile==null)return;
@@ -216,7 +306,7 @@ namespace LocalPortals
             profile.screenSpaceReflection.enabled=false;profile.depthOfField.enabled=false;profile.motionBlur.enabled=false;
             profile.eyeAdaptation.enabled=false;profile.bloom.enabled=false;profile.colorGrading.enabled=false;profile.userLut.enabled=false;
             profile.chromaticAberration.enabled=false;profile.grain.enabled=false;profile.vignette.enabled=false;profile.dithering.enabled=false;
-            var ours=_camera.gameObject.AddComponent<UnityEngine.PostProcessing.PostProcessingBehaviour>();
+            var ours=into.gameObject.AddComponent<UnityEngine.PostProcessing.PostProcessingBehaviour>();
             ours.profile=profile;
             Plugin.Log("Portal views draw the game's fog: "+profile.fog.enabled);
         }

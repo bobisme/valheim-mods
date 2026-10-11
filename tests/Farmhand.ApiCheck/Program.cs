@@ -439,6 +439,16 @@ Field("WearNTear","m_fragmentRoots","UnityEngine.GameObject[]");
 Method("TextInput","RequestText","System.Void","TextReceiver","System.String","System.Int32");
 Method("PrivateArea","CheckAccess","System.Boolean","UnityEngine.Vector3","System.Single","System.Boolean","System.Boolean");
 Method("ZNetView","Unregister","System.Void","System.String");
+// ...sends a joined player their far side, and hears the far side through the glass.
+Method("ZDOMan","CreateSyncList","System.Void","ZDOMan/ZDOPeer","System.Collections.Generic.List`1<ZDO>");
+Method("ZDOMan","ServerSortSendZDOS","System.Void","System.Collections.Generic.List`1<ZDO>","UnityEngine.Vector3","ZDOMan/ZDOPeer");
+Method("ZDOMan","ServerSendCompare","System.Int32","ZDO","ZDO");
+Method("ZDOMan","FindSectorObjects","System.Void","Vector2s","SimulationDistance","System.Collections.Generic.List`1<ZDO>","System.Collections.Generic.List`1<ZDO>");
+Method("ZoneSystem","CreateGhostZones","System.Boolean","UnityEngine.Vector3");
+Method("ZNet","SendServerSyncPlayerData","System.Void","ZNetPeer");
+Method("Minimap","IsExplored","System.Boolean","UnityEngine.Vector3");
+Method("ZSFX","Start","System.Void");
+Field("ZSFX","m_audioSource","UnityEngine.AudioSource");
 
 // Bob's Pipes: hotbar dispatch, saved item bowls, mutual smoking and native item registrations.
 Method("Player","UseHotbarItem","System.Void","System.Int32");

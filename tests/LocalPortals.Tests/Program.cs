@@ -64,4 +64,20 @@ Check(Policy.PictureSize(1000,1920,0.5)==512,"Lower resolution halves the pictur
 Check(!Policy.Resize(512,500)&&Policy.Resize(512,600)&&Policy.Resize(1280,600)&&!Policy.Resize(1024,600),"Pictures are only remade when much too small or too big");
 Check(Policy.LinkRange>=Policy.MinLinkRange&&Policy.LinkRange<=Policy.MaxLinkRange,"The link distance starts inside its setting's range");
 
+// Views inside views use only what the frame has left.
+Check(Policy.NestBudget(2,1,true)==1&&Policy.NestBudget(2,2,true)==0&&Policy.NestBudget(2,1,false)==0,"A mirror in a mirror is drawn only with a view to spare");
+Check(Policy.KeepPictureFrames(2)>=2&&Policy.KeepPictureFrames(5)>5,"A mirror waiting its turn keeps its picture a little longer than a round of turns");
+
+// The far side's light.
+var night=Policy.SpillLight(0,0,0);
+Check(night.intensity==0,"A dark night out there sheds no light");
+var day=Policy.SpillLight(0.6,0.7,0.9);
+Check(day.intensity>0.5&&day.b>=day.r&&day.r>=0.3,"A bright blue sky sheds a pale blue light");
+Check(Policy.SpillLight(50,50,50).intensity<=1.3,"Even the sun out there is not blinding");
+
+// Carrying through.
+Check(Policy.MayCarry(false,false,false),"By default anything goes through, ore too");
+Check(!Policy.MayCarry(true,false,false)&&Policy.MayCarry(true,false,true),"Keeping the portal rule, ore stays behind and the rest goes");
+Check(Policy.MayCarry(true,true,false),"A world that lets everything through portals lets it through mirrors");
+
 Console.WriteLine($"LocalPortals: {checks} checks passed");

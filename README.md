@@ -59,19 +59,30 @@ step out of the other mirror moving and looking the same way. The camera follows
 behind fades to a glow; and while you are partway through, the part of you that has gone in is seen coming out of the other mirror.
 Arrows, spears, bombs and dropped items fly through too, and creatures that fit the opening walk through: your followers come after
 you, and whatever hunts you follows you in. While you are near a mirror, the area round its partner is kept loaded and alive, however
-far off (host or single player only).
+far off; the host does the same for each player who joined, sending them the far side and keeping it moving for them.
+A linked mirror hums; stepping through is a rush of air, and its crystals chime now and then. Sounds made near the other mirror are
+heard from behind this one, and a far land of another kind (birds, wind, surf) murmurs at the glass. Light from the far side falls out
+of the glass in the colour and brightness of the view. A mirror seen in another mirror's view shows its own view too.
 
 Each live view draws the world a second time, but only as much of it as the glass covers on screen: two views cost about 1.4 ms a
-frame at 4K in testing. Settings: `MaxDistance` (200), `PreloadOnApproach`, `MaxViews` (2), `Resolution` and `BodyDoubles`.
+frame at 4K in testing. Settings: `MaxDistance` (200), `PreloadOnApproach`, `BlockUnportableItems` (off: ore goes through; the host's),
+`MaxViews` (2: more mirrors in sight take turns, and a mirror in a mirror uses what is left), `NestedViews`, `Resolution`,
+`BodyDoubles`, `FarSideLight`, `Sounds` and `Map/ShowMirrors` (off: a pin on each explored mirror and a line between each pair).
+
 **For other mods: the wild looking-glass.** `BobWildLookingGlass` is a second prefab registered with the game but not in
 the hammer: a looking-glass grown out of rough rock, hung with roots and crystals, meant to be found (in a location or a dungeon),
 not built. It cannot be damaged or taken down. Place it like any prefab (`ZNetScene.instance.GetPrefab("BobWildLookingGlass")`, or
 put it in a location or room) and give it a name in its data: `zdo.Set("bob_lportal_name", "some-name")`. It links only by name
 (to one other mirror of that name, wild or built, within the link distance), never to whatever happens to be nearest.
+`LocalPortals.LookingGlassApi` does it for you: `Place(position, rotation, wild, name)` (a named one is locked against renaming),
+`SetName`, `SetLocked`, `SetDormant`, `WakeWithItem(mirror, "Crystal", 2)` (asleep, dark and unlinked, until a player offers two
+crystals from the hotbar), `WakeOnGlobalKey(mirror, "defeated_gdking")`, `WakeUp`, `PartnerOf`, and the events `Crossed`
+(who, into, out of) and `Woken`. Without a reference, set the same keys on the ZDO: `bob_lportal_name`, `bob_lportal_locked`,
+`bob_lportal_dormant`, `bob_lportal_wake_item`, `bob_lportal_wake_count`, `bob_lportal_wake_key`.
 
 **Install on the host and every player.** With Quad's Claude Tools, `lportal` places mirrors (`place ... wild` for the wild one), names them, walks the player, creatures,
-arrows and thrown items through, measures the views' cost and removes the test mirrors. Remote players walking through in
-multiplayer still need a playtest.
+arrows and thrown items through, puts mirrors to sleep and wakes them (`sleep`, `wake`, `lock`), measures the views' cost and removes
+the test mirrors. Far mirrors for joined players still need a playtest.
 
 ## Passenger Cart
 

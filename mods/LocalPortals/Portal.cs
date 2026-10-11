@@ -14,14 +14,19 @@ namespace LocalPortals
         internal static readonly List<LocalPortal> Live=new List<LocalPortal>();
         internal static readonly Color[] Colours={new Color(0.36f,0.66f,1f),new Color(1f,0.6f,0.24f)};
         private static readonly Color Unlinked=new Color(0.55f,0.57f,0.62f);
-        private const string PartnerKey="bob_lportal_partner",ColourKey="bob_lportal_colour",LinkedKey="bob_lportal_linked",NameKey="bob_lportal_name";
-        private const string NameRpc="bob_lportal_setname";
+        private const string PartnerKey="bob_lportal_partner",ColourKey="bob_lportal_colour";
+        internal const string LinkedKey="bob_lportal_linked",NameKey="bob_lportal_name",LockedKey="bob_lportal_locked";
+        internal const string DormantKey="bob_lportal_dormant",WakeItemKey="bob_lportal_wake_item",WakeCountKey="bob_lportal_wake_count",WakeKeyKey="bob_lportal_wake_key";
+        private const string NameRpc="bob_lportal_setname",WakeRpc="bob_lportal_wake";
+        internal static bool Placing;       // a mod placing one (LookingGlassApi): it links by name only
         internal const int NameLength=16;
 
         internal ZNetView View;
         internal MeshRenderer Surface;
         internal LocalPortal Partner;       // the linked portal, while it is loaded
         internal RenderTexture Picture;     // the view through this portal, drawn by Views
+        internal RenderTexture Nested;      // ...and as it shows inside another mirror's view
+        private Material _nestedView;
         internal int PictureFrame=-1;       // the frame it was last drawn in
         internal Collider[] Solid;          // the frame's colliders
         internal Collider Back;             // the solid board behind the glass, opened by Crossing for its own player
@@ -40,6 +45,12 @@ namespace LocalPortals
         private float _nextCheck,_phase;
         private int _shownColour=-2;
         private string _problem;            // why a named portal is not linked
+        private Sound.Voice _voice;
+        internal Sound.Voice Voice=>_voice;
+        private Light _spill;               // the far side's light, falling out of the glass (its colour from the view: Views.Sample)
+        private Color _spillColour=Color.black,_spillTarget=Color.black;
+        internal Color Spill=>_spillTarget;
+        internal float NextSample;
 
         private void Awake()
         {
@@ -63,14 +74,26 @@ namespace LocalPortals
             Live.Add(this);
             View.Unregister(NameRpc); // (an earlier copy of this mod may have registered it on this object)
             View.Register<string>(NameRpc,RPC_SetName);
-            if(View.IsOwner()&&!View.GetZDO().GetBool(LinkedKey)&&!PortalPrefab.IsWild(View.GetZDO()))Link(); // (a wild one links only by name)
+            View.Unregister(WakeRpc);
+            View.Register<long>(WakeRpc,RPC_Wake);
+            if(!Placing&&View.IsOwner()&&!View.GetZDO().GetBool(LinkedKey)&&!PortalPrefab.IsWild(View.GetZDO()))Link(); // (a wild one links only by name)
+            _voice=new Sound.Voice(this);
+            var spill=new GameObject("Spill");
+            spill.transform.SetParent(transform,false);
+            spill.transform.localPosition=new Vector3(0,1.25f,0.45f);
+            _spill=spill.AddComponent<Light>();
+            _spill.type=LightType.Point;_spill.range=5f;_spill.intensity=0;_spill.shadows=LightShadows.None;_spill.enabled=false;
         }
         private void OnDestroy()
         {
             Unfade();
             Live.Remove(this);
+            _voice?.Destroy();
+            if(_spill!=null)Destroy(_spill.gameObject);
             if(Picture!=null){Picture.Release();Destroy(Picture);Picture=null;}
             if(_view!=null)Destroy(_view);
+            if(Nested!=null){Nested.Release();Destroy(Nested);Nested=null;}
+            if(_nestedView!=null)Destroy(_nestedView);
         }
 
         private string Title=>View!=null&&View.IsValid()&&PortalPrefab.IsWild(View.GetZDO())?PortalPrefab.WildDisplayName:PortalPrefab.DisplayName;
@@ -78,6 +101,9 @@ namespace LocalPortals
         internal string Name=>View!=null&&View.IsValid()?View.GetZDO().GetString(NameKey):"";
         private ZDOID Stored=>View!=null&&View.IsValid()?View.GetZDO().GetZDOID(PartnerKey):ZDOID.None;
         private static bool Named(ZDO zdo)=>zdo!=null&&zdo.GetString(NameKey).Length>0;
+        // Asleep (LookingGlassApi): dark, linked to nothing, until woken.
+        internal bool Asleep=>View!=null&&View.IsValid()&&View.GetZDO().GetBool(DormantKey);
+        internal static bool Dormant(ZDO zdo)=>zdo!=null&&zdo.GetBool(DormantKey);
 
         // Blue or orange. A named pair: the older portal is blue. A pair built together: the one built second took the other colour.
         internal int Colour
@@ -98,7 +124,16 @@ namespace LocalPortals
             ZDOID id=PartnerOf(View.GetZDO(),out _problem);
             return id;
         }
-        private static ZDOID PartnerOf(ZDO me,out string problem)
+        internal static ZDOID PartnerOf(ZDO me,out string problem)
+        {
+            problem=null;
+            if(Dormant(me))return ZDOID.None;
+            ZDOID id=LinkOf(me,out problem);
+            ZDO other=id.IsNone()?null:ZDOMan.instance.GetZDO(id);
+            if(other!=null&&Dormant(other)){problem="The other mirror sleeps";return ZDOID.None;}
+            return id;
+        }
+        private static ZDOID LinkOf(ZDO me,out string problem)
         {
             problem=null;
             string name=me.GetString(NameKey);
@@ -183,7 +218,10 @@ namespace LocalPortals
                     foreach(LocalPortal other in Live)
                         if(other!=this&&other.Id==id){Partner=other;break;}
                 ShowColour(id.IsNone()?-1:Colour);
+                WakeByKey();
             }
+            _voice?.Tick(Partner!=null||!PartnerId().IsNone());
+            Shine();
             Breathe();
         }
 
@@ -206,7 +244,7 @@ namespace LocalPortals
             if(_glow.Length==0||!_glow[0].isVisible)return;
             Color c=_shownColour>=0&&_shownColour<Colours.Length?Colours[_shownColour]:Unlinked;
             float pulse=0.78f+0.22f*Mathf.Sin(Time.time*1.15f+_phase)+0.06f*Mathf.Sin(Time.time*3.1f+_phase*2);
-            float strength=_shownColour>=0?1.1f:0.25f;
+            float strength=_shownColour>=0?1.1f:Asleep?0.05f:0.25f;
             _block??=new MaterialPropertyBlock();
             foreach(Renderer glow in _glow)
             {
@@ -215,7 +253,7 @@ namespace LocalPortals
                 _block.SetColor("_EmissionColor",c*(strength*pulse));
                 glow.SetPropertyBlock(_block);
             }
-            if(_light!=null)_light.intensity=(_shownColour>=0?0.45f:0.15f)*pulse;
+            if(_light!=null)_light.intensity=(_shownColour>=0?0.45f:Asleep?0:0.15f)*pulse;
         }
 
         // The glowing parts' own colour, dimmed (their glow is the emission); kept opaque, or the piece shader cuts them away.
@@ -229,14 +267,14 @@ namespace LocalPortals
             if(_motes!=null)
             {
                 var main=_motes.main;main.startColor=new Color(c.r,c.g,c.b,1);
-                var emission=_motes.emission;emission.rateOverTime=colour>=0?5:1.5f;
+                var emission=_motes.emission;emission.rateOverTime=colour>=0?5:Asleep?0:1.5f;
             }
             _block??=new MaterialPropertyBlock();
             foreach(Renderer glow in _glow)
             {
                 glow.GetPropertyBlock(_block);
                 _block.SetColor("_Color",Dim(c));
-                _block.SetColor("_EmissionColor",c*(colour>=0?1.1f:0.25f));
+                _block.SetColor("_EmissionColor",c*(colour>=0?1.1f:Asleep?0.05f:0.25f));
                 glow.SetPropertyBlock(_block);
             }
             if(Surface!=null&&PictureFrame<0&&Views.Film(colour) is Material film)Surface.sharedMaterial=film;
@@ -263,6 +301,18 @@ namespace LocalPortals
                 Material film=Views.Film(Partner!=null||_shownColour>=0?_shownColour:-1);
                 if(film!=null&&Surface.sharedMaterial!=film)Surface.sharedMaterial=film;
             }
+        }
+
+        // The material showing this portal's view as another mirror's view sees it (only while that view is drawn).
+        internal Material NestedMaterial(Vector4 window)
+        {
+            if(_nestedView==null)_nestedView=Views.ViewMaterial();
+            if(_nestedView==null)return Surface.sharedMaterial;
+            _nestedView.mainTexture=Nested;
+            Vector2 scale=new Vector2(1/Mathf.Max(0.001f,window.z-window.x),1/Mathf.Max(0.001f,window.w-window.y));
+            _nestedView.mainTextureScale=scale;
+            _nestedView.mainTextureOffset=new Vector2(-window.x*scale.x,-window.y*scale.y);
+            return _nestedView;
         }
 
         // Cut away for the camera: the wood fades to a faint glow in the mirror's colour (its inlay, gem and motes stay as
@@ -346,8 +396,23 @@ namespace LocalPortals
             string name=Name.RemoveRichTextTags();
             ZDOID id=PartnerId();
             string title=Title+(name.Length>0?" \""+name+"\"":"");
-            string use="\n[<color=yellow><b>$KEY_Use</b></color>] Name it (mirrors with the same name are linked)";
+            ZDO zdo=View.GetZDO();
+            string use=zdo.GetBool(LockedKey)?"":"\n[<color=yellow><b>$KEY_Use</b></color>] Name it (mirrors with the same name are linked)";
             string text;
+            if(Asleep)
+            {
+                text=title+"\n<color=#aaaaaa>Its glass is dark: it sleeps</color>";
+                string item=zdo.GetString(WakeItemKey),key=zdo.GetString(WakeKeyKey);
+                if(item.Length>0)
+                {
+                    GameObject prefab=ObjectDB.instance!=null?ObjectDB.instance.GetItemPrefab(item):null;
+                    string named=prefab!=null?prefab.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name??item:item;
+                    int count=Mathf.Max(1,zdo.GetInt(WakeCountKey,1));
+                    text+="\n<color=#aaaaaa>It wants "+named+(count>1?" x"+count:"")+": offer it from your hotbar</color>";
+                }
+                if(key.Length>0)text+="\n<color=#aaaaaa>It stirs when some great foe is slain</color>";
+                return Localization.instance.Localize(text);
+            }
             if(id.IsNone())
                 text=title+"\n<color=#aaaaaa>"+(_problem??"Not linked: build another within "+Policy.LinkRange+" m, or give two the same name")+"</color>";
             else
@@ -367,11 +432,65 @@ namespace LocalPortals
         public bool Interact(Humanoid user,bool hold,bool alt)
         {
             if(hold||View==null||!View.IsValid())return false;
+            if(View.GetZDO().GetBool(LockedKey)){user.Message(MessageHud.MessageType.Center,"Its name is set in the glass: it cannot be changed");return true;}
             if(!PrivateArea.CheckAccess(transform.position)){user.Message(MessageHud.MessageType.Center,"$piece_noaccess");return true;}
             TextInput.instance.RequestText(this,"$piece_portal_tag",NameLength);
             return true;
         }
-        public bool UseItem(Humanoid user,ItemDrop.ItemData item)=>false;
+        // Offering a sleeping mirror what wakes it.
+        public bool UseItem(Humanoid user,ItemDrop.ItemData item)
+        {
+            if(View==null||!View.IsValid()||!Asleep||item==null||!(user is Player player))return false;
+            ZDO zdo=View.GetZDO();
+            string want=zdo.GetString(WakeItemKey);
+            if(want.Length==0)return false;
+            if(item.m_dropPrefab==null||item.m_dropPrefab.name!=want){user.Message(MessageHud.MessageType.Center,"The glass does not stir");return true;}
+            int count=Mathf.Max(1,zdo.GetInt(WakeCountKey,1));
+            if(user.GetInventory().CountItems(item.m_shared.m_name)<count){user.Message(MessageHud.MessageType.Center,"$msg_incompleteoffering");return true;}
+            user.GetInventory().RemoveItem(item.m_shared.m_name,count);
+            View.InvokeRPC(ZNetView.Everybody,WakeRpc,player.GetPlayerID());
+            return true;
+        }
+        // Waking: the owner clears the sleep (everyone sees the glass light up).
+        internal void Wake(Player by)
+        {
+            if(View==null||!View.IsValid())return;
+            View.InvokeRPC(ZNetView.Everybody,WakeRpc,by!=null?by.GetPlayerID():0L);
+        }
+        private void RPC_Wake(long sender,long playerId)
+        {
+            if(!View.IsValid())return;
+            if(View.IsOwner()&&Asleep)
+            {
+                View.GetZDO().Set(DormantKey,false);
+                Player by=null;
+                foreach(Player p in Player.GetAllPlayers())if(p.GetPlayerID()==playerId)by=p;
+                LookingGlassApi.RaiseWoken(this,by);
+            }
+            Sound.Woke(transform.position);
+            _nextCheck=0;
+        }
+        private void WakeByKey()
+        {
+            if(!View.IsOwner()||!Asleep||ZoneSystem.instance==null)return;
+            string key=View.GetZDO().GetString(WakeKeyKey);
+            if(key.Length>0&&ZoneSystem.instance.GetGlobalKey(key))View.InvokeRPC(ZNetView.Everybody,WakeRpc,0L);
+        }
+
+        // The far side's light falling out of the glass: brighter, warmer or colder as it is out there.
+        internal void SetSpill(Color mean)=>_spillTarget=mean;
+        private void Shine()
+        {
+            if(_spill==null)return;
+            bool on=Plugin.FarLight.Value&&Partner!=null;
+            Color target=on?_spillTarget:Color.black;
+            _spillColour=Color.Lerp(_spillColour,target,Mathf.Clamp01(Time.deltaTime*2.5f));
+            var (r,g,b,i)=Policy.SpillLight(_spillColour.r,_spillColour.g,_spillColour.b);
+            _spill.enabled=i>0.02f;
+            if(!_spill.enabled)return;
+            _spill.color=new Color((float)r,(float)g,(float)b);
+            _spill.intensity=(float)i;
+        }
         public string GetText()=>Name;
         public void SetText(string text)
         {

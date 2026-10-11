@@ -70,7 +70,44 @@ namespace LocalPortals
                     output(new JObject{["placed"]=V(at),["facing"]=Math.Round(go.transform.eulerAngles.y,1),["water"]=at.y<ZoneSystem.instance.m_waterLevel,["biome"]=WorldGenerator.instance.GetBiome(at).ToString()});
                     break;
                 }
-                case "info":output(new JObject{["portals"]=new JArray(Nearby(300).Select(Describe)),["drawnLastFrame"]=Views.Drawn,["trips"]=Crossing.Count,["cutting"]=Doubles.PartCount,["cutMs"]=Math.Round(Doubles.Ms,2),["wallsIgnored"]=Crossing.WallsIgnored,["thrown"]=Missiles.Count,["farZones"]=Far.Zones.Count,["farScanned"]=Far.Portals.Count,["farSpawned"]=Far.Spawned,["creaturesThrough"]=new JArray(Creatures.Recent),["farReclaims"]=Far.Reclaims,["farReclaimed"]=Far.Reclaimed,["lastThrown"]=Missiles.LastThrough});break;
+                case "info":output(new JObject{["portals"]=new JArray(Nearby(300).Select(Describe)),["drawnLastFrame"]=Views.Drawn,["trips"]=Crossing.Count,["cutting"]=Doubles.PartCount,["cutMs"]=Math.Round(Doubles.Ms,2),["wallsIgnored"]=Crossing.WallsIgnored,["thrown"]=Missiles.Count,["farZones"]=Far.Zones.Count,["farScanned"]=Far.Portals.Count,["farSpawned"]=Far.Spawned,["creaturesThrough"]=new JArray(Creatures.Recent),["farReclaims"]=Far.Reclaims,["farReclaimed"]=Far.Reclaimed,["lastThrown"]=Missiles.LastThrough,
+                    ["nestedLastFrame"]=Views.Nested,["soundsRelayed"]=Sound.Relayed,["sounds"]=Sound.Found,["mapPins"]=MapPins.Count,["peerZdosSent"]=Far.SentExtra,["peerZonesGenerated"]=Far.PeerGenerated,
+                    ["peers"]=new JArray(Far.Peers.Select(x=>new JObject{["uid"]=x.Key,["at"]=V(x.Value.At),["farZones"]=x.Value.Zones.Count,["portals"]=x.Value.Portals.Count}))});break;
+                case "sleep":
+                {
+                    // lportal sleep <n> [item <prefab> [count]] [key <global key>]: put a nearby mirror to sleep (LookingGlassApi)
+                    var list=Nearby(100).ToList();
+                    int n=(int)Arg(args,2,0);
+                    if(n<0||n>=list.Count){error("lportal sleep: no portal "+n);break;}
+                    GameObject go=list[n].gameObject;
+                    int item=Array.IndexOf(args,"item"),key=Array.IndexOf(args,"key");
+                    if(item>0&&item+1<args.Length)LookingGlassApi.WakeWithItem(go,args[item+1],item+2<args.Length&&int.TryParse(args[item+2],out int c)?c:1);
+                    if(key>0&&key+1<args.Length)LookingGlassApi.WakeOnGlobalKey(go,args[key+1]);
+                    LookingGlassApi.SetDormant(go,true);
+                    output(new JObject{["asleep"]=n,["hover"]=list[n].GetHoverText()});
+                    break;
+                }
+                case "wake":
+                {
+                    var list=Nearby(100).ToList();
+                    int n=(int)Arg(args,2,0);
+                    if(n<0||n>=list.Count){error("lportal wake: no portal "+n);break;}
+                    LookingGlassApi.WakeUp(list[n].gameObject);
+                    output(new JObject{["woken"]=n});
+                    break;
+                }
+                case "lock":
+                {
+                    var list=Nearby(100).ToList();
+                    int n=(int)Arg(args,2,0);
+                    if(n<0||n>=list.Count){error("lportal lock: no portal "+n);break;}
+                    LookingGlassApi.SetLocked(list[n].gameObject,args.Length<=3||args[3]!="off");
+                    output(new JObject{["locked"]=LookingGlassApi.IsLocked(list[n].gameObject)});
+                    break;
+                }
+                case "carry":
+                    output(new JObject{["block"]=Plugin.BlockUnportable.Value,["teleportable"]=me.IsTeleportable(false),["may"]=Policy.MayCarry(Plugin.BlockUnportable.Value,false,!Plugin.BlockUnportable.Value||me.IsTeleportable(false))});
+                    break;
                 case "probe":output(Probe());break;
                 case "camtest":
                 {
@@ -506,7 +543,9 @@ namespace LocalPortals
                 ["linked"]=!p.PartnerId().IsNone(),["partnerLoaded"]=p.Partner!=null,
                 ["partnerAt"]=p.Partner!=null?V(p.Partner.transform.position):null,
                 ["picture"]=p.Picture!=null?p.Picture.width+"x"+p.Picture.height:null,["drawnFramesAgo"]=p.PictureFrame<0?-1:Time.frameCount-p.PictureFrame,
-                ["surface"]=p.Surface!=null?p.Surface.sharedMaterial?.name:null,["name"]=p.Name,["hover"]=p.GetHoverText(),["test"]=p.View.GetZDO().GetBool(TestKey),["hidden"]=p.Hidden,["faded"]=Math.Round(p.Faded,2)};
+                ["surface"]=p.Surface!=null?p.Surface.sharedMaterial?.name:null,["name"]=p.Name,["hover"]=p.GetHoverText(),["test"]=p.View.GetZDO().GetBool(TestKey),["hidden"]=p.Hidden,["faded"]=Math.Round(p.Faded,2),
+                ["asleep"]=p.Asleep,["locked"]=p.View.GetZDO().GetBool(LocalPortal.LockedKey),["spill"]=$"{p.Spill.r:F2} {p.Spill.g:F2} {p.Spill.b:F2}",["farLand"]=p.Voice?.FarLand,
+                ["nested"]=p.Nested!=null?p.Nested.width+"x"+p.Nested.height:null};
         }
 
         private static JObject Probe()

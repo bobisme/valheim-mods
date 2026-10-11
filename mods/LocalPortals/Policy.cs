@@ -94,6 +94,29 @@ namespace LocalPortals
         // does not dither between two ways of about the same length.
         internal static bool TakeMirror(double direct,double byMirror,bool alreadyChosen)=>alreadyChosen?byMirror<direct-1:byMirror<direct*0.7-2;
 
+        // Views drawn inside views (a mirror seen in a mirror's view) use what is left of the frame's budget of views after the
+        // mirrors the game camera sees: never more views in all than the player allows.
+        internal static int NestBudget(int maxViews,int direct,bool nested)=>nested?Math.Max(0,maxViews-direct):0;
+
+        // How long a mirror waiting for its turn at a view keeps its last picture: a little longer than a round of turns.
+        internal static int KeepPictureFrames(int sharing)=>Math.Max(2,sharing)+2;
+
+        // The light falling out of a mirror from the far side, from the mean colour of its view (linear): its hue, paled a
+        // little toward white, and a strength from its brightness (none from a dark night out there).
+        internal static (double r,double g,double b,double intensity) SpillLight(double r,double g,double b)
+        {
+            r=Math.Max(0,r);g=Math.Max(0,g);b=Math.Max(0,b);
+            double max=Math.Max(r,Math.Max(g,b));
+            if(max<1e-4)return (0,0,0,0);
+            const double pale=0.3;
+            double lum=0.2126*r+0.7152*g+0.0722*b;
+            return (r/max*(1-pale)+pale,g/max*(1-pale)+pale,b/max*(1-pale)+pale,Math.Min(1.3,lum*1.4));
+        }
+
+        // Whether someone may step through carrying what they carry: unless the host keeps to the game's portal rule (no ore,
+        // metal or eggs) and the world does not allow everything through portals anyway.
+        internal static bool MayCarry(bool blockUnportable,bool worldAllowsAll,bool carriesOnlyPortable)=>!blockUnportable||worldAllowsAll||carriesOnlyPortable;
+
         // The colour a new portal takes, opposite to the one it links to (0 blue, 1 orange).
         internal static int ColourFor(int partnerColour)=>partnerColour==0?1:0;
 

@@ -116,7 +116,7 @@ namespace LocalPortals
                     Rigidbody body=Near[i].attachedRigidbody;
                     if(body==null||body.isKinematic||Moved.Contains(body))continue;
                     ItemDrop item=body.GetComponent<ItemDrop>();
-                    if(item==null)continue;
+                    if(item==null||!Policy.MayCarry(Plugin.BlockUnportable.Value,false,!Plugin.BlockUnportable.Value||item.m_itemData.m_shared.m_teleportable||ZoneSystem.instance.GetGlobalKey(GlobalKeys.TeleportAll)))continue;
                     ZNetView view=ItemView(item);
                     if(view==null||!view.IsValid()||!view.IsOwner())continue;
                     Vector3 from=body.position,vel=body.linearVelocity,to=from+vel*dt;
