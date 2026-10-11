@@ -581,6 +581,20 @@ namespace Omens
             foreach(Entry e in _ledger.Omens.OrderByDescending(x=>x.PlacedAt))
                 yield return $"{e.Id} {e.Omen.Name}: {(State)e.State}, {Vector3.Distance(me,e.Pos):0} m away at {e.Pos:F0}"+(e.SeenBy!=""?$", seen by {e.SeenBy}":"");
         }
+        internal static int ApiFate()
+        {
+            if(!Hosting)return int.MinValue;
+            Load();
+            return _ledger.Fate;
+        }
+        internal static bool ApiAddFate(int delta,string why)
+        {
+            if(!Hosting)return false;
+            Load();
+            Favour(delta,Vector3.zero,string.IsNullOrEmpty(why)?"another mod":why);
+            Save();
+            return true;
+        }
         internal static string TestFate(string value)
         {
             if(!Hosting)return "not the host";

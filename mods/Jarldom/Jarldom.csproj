@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>Jarldom</AssemblyName><RootNamespace>Jarldom</RootNamespace></PropertyGroup>
+  <ItemGroup>
+    <Reference Include="UnityEngine.AIModule"><HintPath>$(ManagedDir)/UnityEngine.AIModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AnimationModule"><HintPath>$(ManagedDir)/UnityEngine.AnimationModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.ParticleSystemModule"><HintPath>$(ManagedDir)/UnityEngine.ParticleSystemModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="assembly_googleanalytics" Condition="Exists('$(ManagedDir)/assembly_googleanalytics.dll')"><HintPath>$(ManagedDir)/assembly_googleanalytics.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>

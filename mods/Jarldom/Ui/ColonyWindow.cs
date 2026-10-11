@@ -1,0 +1,310 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+using Object = UnityEngine.Object;
+
+namespace Jarldom.Ui
+{
+    // Every window of the mod, ticked and closed together.
+    internal static class Windows
+    {
+        public static bool AnyOpen => ColonyWindow.IsOpen || VillagerPanel.IsOpen || RoomPicker.IsOpen;
+        public static void Tick()
+        {
+            GameUi.IsOpen = () => AnyOpen;
+            GameUi_EscapeCloses.Close = CloseAll;
+            ColonyWindow.Tick(); VillagerPanel.Tick(); RoomPicker.Tick();
+        }
+        public static void CloseAll() { ColonyWindow.Close(); VillagerPanel.Close(); RoomPicker.Close(); }
+        public static string Pct(float f) => Mathf.RoundToInt(f * 100) + "%";
+        public static string Signed(int v) => v > 0 ? "+" + v : v.ToString();
+    }
+
+    // The colony window (E on the High-Seat Pillars): the hall, its people, rooms, work, the Thing, the gods and the saga.
+    internal static class ColonyWindow
+    {
+        private static RectTransform _window, _list; private static Colony _c; private static string _tab = "hall", _shown = "";
+        private static float _openedAt, _closedAt = -1, _nextCheck;
+        public static bool IsOpen => _window != null;
+        public static Colony Colony => _c;
+        private static readonly Vector2 Size = new Vector2(980f, 660f);
+
+        public static void Open(Colony c, string tab = null)
+        {
+            if (!GameUi.Ready() || Time.unscaledTime < _closedAt + 0.25f) return;
+            VillagerPanel.Close();
+            _c = c; if (tab != null) _tab = tab;
+            if (c.R.ComingLanded && c.R.Coming.Count > 0 && tab == null) _tab = "newcomers";
+            if (InventoryGui.IsVisible()) InventoryGui.instance.Hide();
+            _openedAt = Time.unscaledTime;
+            Build();
+        }
+        public static void Close()
+        {
+            if (_window != null) Object.Destroy(_window.gameObject);
+            _window = null; _list = null; _closedAt = Time.unscaledTime; UITooltip.HideTooltip();
+        }
+        public static void Tick()
+        {
+            if (_window == null) return;
+            Player p = Player.m_localPlayer;
+            bool useAgain = Time.unscaledTime > _openedAt + 0.2f && ZInput.GetButtonDown("Use") && !GameUi.Typing;
+            if (p == null || p.IsDead() || global::Menu.IsVisible() || useAgain || _c == null || !_c.Valid || Vector3.Distance(p.transform.position, _c.Position) > 12f) { Close(); return; }
+            if (Time.unscaledTime < _nextCheck || Input.GetMouseButton(0)) return;
+            _nextCheck = Time.unscaledTime + 0.5f;
+            if (Signature() != _shown) Build();
+        }
+        private static string Signature() => _tab + "|" + (_c.Z.GetByteArray(Colony.RecordKey)?.Length ?? 0) + "|" + _c.R.Log.Count + "|" + _c.Renown + "|" + Villagers.All.Count() + "|" + _c.Board.Count(OrderState.Open) + "|" + _confirm + "|" + Mathf.FloorToInt(Time.unscaledTime / 5);
+
+        private static void Build()
+        {
+            float scrolled = _list != null ? _list.anchoredPosition.y : 0f;
+            if (_window != null) Object.Destroy(_window.gameObject);
+            _shown = Signature();
+            _window = GameUi.Window("JarldomColony", Size);
+            ColonyRecord r = _c.R;
+            GameUi.Label(_window, r.Name, new Vector2(30, -18), new Vector2(620, 44), 32, GameUi.Warm, GameUi.Norse);
+            GameUi.Line(_window, $"{Tables.Of(r.Rank).Name} · {_c.Population} {(_c.Population == 1 ? "soul" : "souls")} · renown {_c.Renown}", new Vector2(560, -26), 390, 18, GameUi.Dim, null, TextAlignmentOptions.TopRight);
+            GameUi.Braid(_window, new Vector2(0, -72), 920);
+            var tabs = new List<(string id, string name)> { ("hall", "The hall"), ("people", "People"), ("rooms", "Rooms"), ("work", "Work"), ("thing", "The Thing"), ("gods", "Gods"), ("saga", "Saga") };
+            if (r.ComingLanded && r.Coming.Count > 0) tabs.Insert(1, ("newcomers", $"New ({r.Coming.Count})"));
+            float x = 24, w = (Size.x - 48) / tabs.Count;
+            foreach (var t in tabs) { string id = t.id; GameUi.Tab(_window, t.name, new Vector2(x, -90), new Vector2(w - 6, 40), _tab == id, () => { _tab = id; Build(); }, 16); x += w; }
+            RectTransform box = GameUi.Box(_window, new Vector2(24, -140), new Vector2(Size.x - 48, Size.y - 164));
+            _list = GameUi.Scroll(box, 8f);
+            float y = 0;
+            switch (_tab)
+            {
+                case "hall": y = Hall(_list); break;
+                case "newcomers": y = Newcomers(_list); break;
+                case "people": y = People(_list); break;
+                case "rooms": y = Rooms(_list); break;
+                case "work": y = WorkTab(_list); break;
+                case "thing": y = ThingTab(_list); break;
+                case "gods": y = Gods(_list); break;
+                case "saga": y = Saga(_list); break;
+            }
+            _list.sizeDelta = new Vector2(_list.sizeDelta.x, y);
+            _list.anchoredPosition = new Vector2(0, scrolled);
+        }
+        private static float W => Size.x - 90;
+        private static float Text(RectTransform list, string text, float y, float size = 17, Color? color = null, float indent = 8)
+        {
+            TMP_Text t = GameUi.Label(list, text, new Vector2(indent, -y), new Vector2(W - indent, 20), size, color ?? GameUi.Text);
+            float h = t.GetPreferredValues(text, W - indent, 0).y;
+            ((RectTransform)t.transform).sizeDelta = new Vector2(W - indent, h);
+            return y + h + 6;
+        }
+        private static float Heading(RectTransform list, string text, float y) => Text(list, text, y + 6, 22, GameUi.Warm);
+
+        private static float Hall(RectTransform list)
+        {
+            ColonyRecord r = _c.R; float y = 4;
+            y = Heading(list, "Odin's attention", y);
+            y = Text(list, $"Renown <color=#ffd27a>{_c.Renown}</color> = wealth {_c.WealthPart} + comfort {_c.ComfortPart} + deeds {r.Deeds}", y);
+            string why = Migration.Why(_c);
+            y = Text(list, why == "" ? $"Odin may send someone at dawn (renown {Renown.Threshold(r.Arrivals)} reached)." : "No one will come yet: " + why + ".", y, 16, GameUi.Dim);
+            if (r.Coming.Count > 0 && !r.ComingLanded) y = Text(list, $"{r.Coming.Count} on their way: they arrive at dusk.", y, 16, GameUi.Good);
+            y = Heading(list, "Rank", y);
+            y = Text(list, $"A {Tables.Of(r.Rank).Name.ToLower()} of {_c.Population} (room for {_c.Cap}: {Tables.Of(r.Rank).Cap} for the rank, {_c.Beds} beds). Unlocked: {Tables.Of(r.Rank).Unlocks}.", y);
+            if (r.Rank < Rank.Hold) { Rank next = r.Rank + 1; string miss = Ranks.Missing(next, _c.Population, _c.WorkingRooms()); y = Text(list, $"To become a {Tables.Of(next).Name.ToLower()}: {(miss == "" ? "ready at the next check" : miss)}.", y, 16, GameUi.Dim); }
+            y = Heading(list, "The colony", y);
+            Container treasury = Stock.Treasury(_c);
+            y = Text(list, $"Treasury: {(treasury == null ? "<color=#ff8c59>none chosen</color> (mark a chest from the hammer's room tool, or below)" : Stock.Coins(treasury) + " coins")}. Wages due every {Payroll.EveryDays} days: {Payroll.Due(Villagers.All.Where(b => b.S.Colony == _c.Id).Select(b => b.S)) * Plugin.Instance.WageScale.Value / 100} coins.{(r.MissedPaydays > 0 ? $" <color=#ff8c59>{r.MissedPaydays} missed paydays.</color>" : "")}", y);
+            string feast = Feast.Ready(_c, out _, out _);
+            y = Text(list, feast == "" ? "A feast can be held tonight." : "Feast: " + feast + ".", y, 16, GameUi.Dim);
+            y += 6;
+            float bx = 8;
+            Btn(list, "Hold a feast", ref bx, y, () => Net.Act(_c, "feast", ""), feast == "");
+            Btn(list, "Beds for all", ref bx, y, () => Net.Act(_c, "autobeds", ""));
+            Btn(list, "Nearest chest: treasury", ref bx, y, () => { Container ch = NearestChest(); if (ch != null) Net.Act(_c, "treasury", Colony.IdOf(ch.GetComponent<ZNetView>())); });
+            Btn(list, _c.HornUntil > Time.time ? "Sound the all-clear" : "Blow the war horn", ref bx, y, () => Net.Act(_c, "horn", _c.HornUntil > Time.time ? "off" : "on"));
+            y += 52;
+            y = Heading(list, "Mods it works with", y);
+            y = Text(list, string.Join("   ", Compat.Report().Where(m => m.present && m.name != "ClaudeTools").Select(m => m.name)) is string s && s.Length > 0 ? s : "none of them (Jarldom needs none)", y, 15, GameUi.Dim);
+            y += 4;
+            y = Text(list, $"Founded by {r.FounderName}. {(r.Allowed.Count > 0 ? "Also run by " + string.Join(", ", r.Allowed) + "." : "")}  Disband (Jarldom's way out: everyone's things in chests by the pillars):", y, 15, GameUi.Dim);
+            bx = 8; Btn(list, "Disband the colony", ref bx, y, () => Confirm("disband"), true);
+            if (_confirm == "disband") { Btn(list, "Yes: disband", ref bx, y, () => { _confirm = ""; Net.Act(_c, "disband", ""); }, true); }
+            return y + 52;
+        }
+        private static string _confirm = "";
+        private static void Confirm(string what) { _confirm = _confirm == what ? "" : what; Build(); }
+        private static Container NearestChest()
+        {
+            Player p = Player.m_localPlayer;
+            return Stock.Chests(_c, p.transform.position).Select(x => x.chest).FirstOrDefault(ch => Vector3.Distance(ch.transform.position, p.transform.position) < 15);
+        }
+        private static void Btn(RectTransform list, string text, ref float x, float y, Action click, bool enabled = true)
+        {
+            float w = Mathf.Max(150, text.Length * 9.5f + 30);
+            GameUi.Button(list, text, new Vector2(x, -y), new Vector2(w, 42), click, enabled, 16);
+            x += w + 8;
+        }
+
+        private static float Newcomers(RectTransform list)
+        {
+            ColonyRecord r = _c.R; float y = 4;
+            y = Text(list, "The Valkyrie set them down at the pillars. They fell in battle and Odin sent them here: will you take them in?", y, 16, GameUi.Dim);
+            for (int i = 0; i < r.Coming.Count; i++)
+            {
+                Newcomer n = r.Coming[i]; int idx = i;
+                y = Heading(list, $"{n.Name}", y);
+                y = Text(list, string.Join(", ", n.Traits.Split(',').Select(t => $"<color=#ffd27a>{Tables.Trait(t)?.Name}</color> ({Tables.Trait(t)?.Text})")) + $". Would be a {Tables.Of(n.Prof).Name.ToLower()}.", y);
+                y = Text(list, n.Story, y, 16, GameUi.Dim);
+                float bx = 8;
+                Btn(list, "Take them in", ref bx, y, () => Net.Act(_c, "accept", idx.ToString()));
+                Btn(list, "Turn them away", ref bx, y, () => Net.Act(_c, "refuse", idx.ToString()));
+                y += 52;
+            }
+            return y;
+        }
+
+        private static float People(RectTransform list)
+        {
+            float y = 4;
+            var living = _c.R.Roster.Where(r => r.State == SoulState.Active).OrderBy(r => r.Name).ToList();
+            if (living.Count == 0) return Text(list, "No one lives here yet. Raise renown (build, beds with comfort, deeds) and Odin will send the fallen.", y, 16, GameUi.Dim);
+            foreach (RosterRow row in living)
+            {
+                Humanoid h = Villagers.Body(row.Vid);
+                ZDO z = h?.GetComponent<ZNetView>()?.GetZDO();
+                string doing = z?.GetString(Villagers.DoingKey, "") ?? "far away";
+                int mood = z?.GetInt(Villagers.MoodKey, 0) ?? 0;
+                GameUi.Line(list, row.Name, new Vector2(8, -y), 250, 18, GameUi.Warm);
+                GameUi.Line(list, Tables.Of(row.Prof).Name, new Vector2(262, -y), 130, 16, GameUi.Text);
+                GameUi.Line(list, doing, new Vector2(396, -y), 300, 15, GameUi.Dim);
+                GameUi.Line(list, $"mood {Windows.Signed(mood)}  worth {Mathf.RoundToInt(row.Worth)}{(string.IsNullOrEmpty(row.Bed) ? "  <color=#ff8c59>no bed</color>" : "")}", new Vector2(700, -y), 190, 15, mood < -30 ? GameUi.Warn : GameUi.Text);
+                string vid = row.Vid;
+                if (h != null) GameUi.Button(list, "...", new Vector2(W - 44, -y + 2), new Vector2(44, 30), () => VillagerPanel.Open(h), true, 15);
+                y += 36;
+            }
+            var lost = _c.R.Roster.Where(r => r.State != SoulState.Active).ToList();
+            if (lost.Count > 0) { y = Heading(list, "Gone", y); y = Text(list, string.Join(", ", lost.Select(r => $"{r.Name} ({r.State.ToString().ToLower()})")), y, 15, GameUi.Dim); }
+            if (_c.R.Fallen.Count > 0) y = Text(list, $"Rising soon: {string.Join(", ", _c.R.Fallen.Select(f => VillagerState.Load(f.State)?.Name ?? "?"))}.", y, 15, GameUi.Dim);
+            return y;
+        }
+
+        private static float Rooms(RectTransform list)
+        {
+            float y = 4;
+            y = Text(list, "Mark rooms and work zones with the hammer: Misc → Mark rooms and zones, click the corners on the floor, click the first corner again, then choose what it is.", y, 15, GameUi.Dim);
+            foreach (Room room in _c.R.Rooms)
+            {
+                string name = Tables.Of(room.Type).Name + (room.Type == RoomType.Temple && room.God != "" ? " of " + Tables.God(room.God)?.Name : "");
+                GameUi.Line(list, name, new Vector2(8, -y), 260, 18, GameUi.Warm);
+                GameUi.Line(list, room.Ok ? $"grade {room.Grade} ({room.Points} points)" : "<color=#ff8c59>not working</color>", new Vector2(272, -y), 220, 16, GameUi.Text);
+                GameUi.Line(list, $"{Math.Round(Geometry.Area(room.Xz))} m²", new Vector2(496, -y), 90, 15, GameUi.Dim);
+                string id = room.Id;
+                GameUi.Button(list, "Check", new Vector2(W - 190, -y + 2), new Vector2(90, 30), () => Net.Act(_c, "check", id), true, 15);
+                GameUi.Button(list, "Remove", new Vector2(W - 96, -y + 2), new Vector2(96, 30), () => Net.Act(_c, "unroom", id), true, 15);
+                y += 34;
+                if (!room.Ok && room.Failures != "") y = Text(list, room.Failures, y, 15, GameUi.Warn, 24);
+            }
+            if (_c.R.Zones.Count > 0) y = Heading(list, "Work zones", y);
+            foreach (Zone z in _c.R.Zones)
+            {
+                GameUi.Line(list, Tables.Of(z.Type).Name, new Vector2(8, -y), 260, 18, GameUi.Warm);
+                GameUi.Line(list, $"{Math.Round(Geometry.Area(z.Xz))} m², {Tables.Of(z.Type).Text}", new Vector2(272, -y), 420, 15, GameUi.Dim);
+                string id = z.Id;
+                GameUi.Button(list, "Remove", new Vector2(W - 96, -y + 2), new Vector2(96, 30), () => Net.Act(_c, "unroom", id), true, 15);
+                y += 34;
+            }
+            y = Heading(list, "Stockpiles", y);
+            var chests = Stock.Chests(_c);
+            y = Text(list, chests.Count == 0 ? "No chests in the colony." : $"{chests.Count} chests: " + string.Join(", ", chests.GroupBy(c => c.category == "" ? "unsorted" : c.category).Select(g => $"{g.Count()} {g.Key}")), y, 15, GameUi.Dim);
+            y = Text(list, "Stand by a chest and choose what it holds:", y, 15, GameUi.Dim);
+            float bx = 8;
+            foreach (string cat in Stock.Categories)
+            {
+                string k = cat;
+                if (bx > W - 120) { bx = 8; y += 40; }
+                GameUi.Button(list, cat, new Vector2(bx, -y), new Vector2(104, 34), () => { Container ch = NearestChest(); if (ch != null) Net.Act(_c, "stockpile", Colony.IdOf(ch.GetComponent<ZNetView>()) + "|" + k); }, true, 15);
+                bx += 110;
+            }
+            return y + 46;
+        }
+
+        private static float WorkTab(RectTransform list)
+        {
+            float y = 4;
+            var orders = _c.IsOwner ? _c.Board.All.ToList() : JobBoard.FromSnapshot(_c.Z.GetByteArray(Colony.BoardKey));
+            int open = orders.Count(o => o.State == OrderState.Open), claimed = orders.Count(o => o.State == OrderState.Claimed), blocked = orders.Count(o => o.State == OrderState.Blocked);
+            y = Text(list, $"{open} open, {claimed} being done, {blocked} blocked. Done so far: {_c.Board.CompletedCount}.", y);
+            foreach (var g in orders.Where(o => o.State != OrderState.Done && o.State != OrderState.Cancelled).GroupBy(o => o.Kind).OrderByDescending(g => g.Count()))
+            {
+                y = Heading(list, $"{g.Key} ({g.Count()})", y);
+                foreach (Order o in g.OrderByDescending(o => o.Priority).Take(8))
+                {
+                    string who = o.State == OrderState.Claimed ? Villagers.ByVid(o.Vid)?.S.Name ?? _c.R.Row(o.Vid)?.Name ?? "someone" : "";
+                    string state = o.State == OrderState.Claimed ? "<color=#99e08c>" + who + "</color>" : o.State == OrderState.Blocked ? "<color=#ff8c59>blocked: " + o.Blocked + "</color>" : !string.IsNullOrEmpty(o.Blocked) ? "<color=#ffd27a>waiting: " + o.Blocked + "</color>" : "open";
+                    GameUi.Line(list, $"{Tables.Of(o.Prof).Name} · {o.By} · priority {o.Priority}", new Vector2(24, -y), 360, 15, GameUi.Text);
+                    GameUi.Line(list, state, new Vector2(390, -y), 480, 15, GameUi.Text);
+                    y += 24;
+                }
+            }
+            return y + 10;
+        }
+
+        private static float ThingTab(RectTransform list)
+        {
+            float y = 4;
+            var petitions = Thing.Shown(_c);
+            int next = 5 - (_c.Day - _c.R.LastThing);
+            y = Text(list, petitions.Count == 0 ? $"No petitions. The Thing meets every five days at dawn (next in {Math.Max(0, next)} day{(next == 1 ? "" : "s")}, once three souls live here)." : "The Thing has met. Rule on what was asked:", y, 16, GameUi.Dim);
+            for (int i = 0; i < petitions.Count; i++)
+            {
+                Petition p = petitions[i]; int idx = i;
+                y = Text(list, "“" + p.Text + "”", y + 4, 18, GameUi.Text);
+                float bx = 8;
+                Btn(list, p.Yes, ref bx, y, () => Net.Act(_c, "rule", idx + "|yes"));
+                Btn(list, p.No, ref bx, y, () => Net.Act(_c, "rule", idx + "|no"));
+                y += 50;
+            }
+            return y;
+        }
+
+        private static float Gods(RectTransform list)
+        {
+            float y = 4;
+            y = Text(list, Compat.Has("Omens") ? "Odin's favour is the gods' favour of Omens." : "Build an altar (hammer → Misc) and make offerings with Use, or use an item on it. Coins thrown into a sacred bog zone buy favour without end.", y, 15, GameUi.Dim);
+            foreach (GodInfo g in Tables.Gods)
+            {
+                int f = g.Id == "odin" ? Faith.Odin(_c) : _c.FavourOf(g.Id);
+                bool temple = _c.R.Rooms.Any(r => r.Ok && (g.Id == "odin" ? r.Type == RoomType.OdinShrine : r.Type == RoomType.Temple && r.God == g.Id));
+                GameUi.Line(list, g.Name, new Vector2(8, -y), 120, 20, GameUi.Warm);
+                GameUi.Bar(list, new Vector2(132, -y - 2), new Vector2(220, 22), (f + 100) / 200f, f >= 0 ? GameUi.Gold : GameUi.Warn, $"{Faith.FavourWord(f)} ({f})");
+                GameUi.Line(list, $"{(temple ? "<color=#99e08c>has a temple</color>. " : "")}wants {g.Offerings}; {g.Blessing}", new Vector2(364, -y), W - 370, 15, GameUi.Dim);
+                y += 34;
+            }
+            y += 6;
+            y = Text(list, $"The bog has taken {_c.R.BogPaid} offerings; the next favour costs {Favour.BogPrice(_c.R.BogPaid)} coins.", y, 15, GameUi.Dim);
+            var worthy = Villagers.All.Where(b => b.S.Colony == _c.Id && b.S.Worthy).ToList();
+            if (worthy.Count > 0)
+            {
+                y = Heading(list, "Worthy of Valhalla", y);
+                foreach (Brain b in worthy)
+                {
+                    string why = Ascension.Why(_c, b.S), vid = b.S.Vid;
+                    GameUi.Line(list, b.S.FullName, new Vector2(8, -y), 300, 18, GameUi.Warm);
+                    GameUi.Button(list, "Send to Valhalla", new Vector2(320, -y + 2), new Vector2(200, 32), () => Net.Act(_c, "ascend", vid), why == "", 15);
+                    if (why != "") GameUi.Line(list, why, new Vector2(530, -y), W - 530, 14, GameUi.Dim);
+                    y += 38;
+                }
+            }
+            return y;
+        }
+
+        private static float Saga(RectTransform list)
+        {
+            float y = 4;
+            var lines = Stories.Chronicle(_c.R.Log, 40);
+            if (lines.Count == 0) return Text(list, "Nothing has happened yet that a skald would sing of.", y, 16, GameUi.Dim);
+            for (int i = lines.Count - 1; i >= 0; i--) y = Text(list, lines[i], y, 16, i == lines.Count - 1 ? GameUi.Text : GameUi.Dim);
+            return y;
+        }
+    }
+}

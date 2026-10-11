@@ -1,0 +1,257 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+
+namespace Jarldom
+{
+    // What the colony owner measures in the world: beds and their comfort, what the colony has built, and each room's walls, roof and contents.
+    internal sealed partial class Colony
+    {
+        private static readonly List<Piece> PieceBuffer = new List<Piece>();
+        private static readonly Collider[] Hits = new Collider[256];
+        private static int _pieceMask = -1;
+        public static int PieceMask => _pieceMask != -1 ? _pieceMask : _pieceMask = LayerMask.GetMask("piece", "piece_nonsolid", "Default", "static_solid");
+
+        public static string Prefab(GameObject go) => Utils.GetPrefabName(go).ToLowerInvariant();
+
+        // Our own random id on a piece (never a ZDOID: those change every load).
+        public static string IdOf(ZNetView v, bool create = true)
+        {
+            if (v == null || !v.IsValid()) return "";
+            string id = v.GetZDO().GetString(IdKey, "");
+            if (id.Length > 0 || !create) return id;
+            if (!v.IsOwner()) v.ClaimOwnership();
+            id = NewId();
+            v.GetZDO().Set(IdKey, id);
+            return id;
+        }
+
+        public List<Piece> PiecesIn(float radius)
+        {
+            PieceBuffer.Clear();
+            Piece.GetAllPiecesInRadius(Position, radius, PieceBuffer);
+            return PieceBuffer.ToList();
+        }
+
+        // ---- beds ----
+        public List<Bed> AllBeds() => PiecesIn(Radius).Select(p => p.GetComponent<Bed>()).Where(b => b != null).ToList();
+        public static long Hash(string vid) => (long)(uint)vid.GetStableHashCode() + 1_000_000_000L * 7;
+        public static string BedOwner(Bed bed, out string kind)
+        {
+            ZDO z = bed.GetComponent<ZNetView>()?.GetZDO();
+            kind = "";
+            if (z == null) return "";
+            string ours = z.GetString(Villagers.ClaimKey, "");
+            if (ours.Length > 0) { kind = "villager"; return ours; }
+            if (z.GetLong(ZDOVars.s_owner, 0L) != 0) { kind = "player"; return z.GetString(ZDOVars.s_ownerName, "a player"); }
+            if (z.GetLong("dhc_home", 0L) != 0) { kind = "companion"; return z.GetString("dhc_homename", "a companion"); }
+            return "";
+        }
+        public List<Bed> FreeBeds() => AllBeds().Where(b => BedOwner(b, out _) == "").ToList();
+        public Bed BedById(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+            return AllBeds().FirstOrDefault(b => IdOf(b.GetComponent<ZNetView>(), false) == id);
+        }
+        private Vector3? Survey_BedSpot(string bedId)
+        {
+            Bed b = BedById(bedId);
+            if (b == null) return null;
+            return Spot(b.transform.position + b.transform.forward * 1.2f, 1.5f) ?? b.transform.position + Vector3.up * 0.5f;
+        }
+        public static int ComfortAt(Vector3 at)
+        {
+            Cover.GetCoverForPoint(at + Vector3.up, out float cover, out bool roof);
+            return SE_Rested.CalculateComfortLevel(cover >= 0.8f && roof, at);
+        }
+
+        // ---- renown ----
+        private void Survey()
+        {
+            var pieces = PiecesIn(Radius);
+            double value = 0;
+            foreach (Piece p in pieces)
+            {
+                if (p.m_resources == null) continue;
+                foreach (Piece.Requirement req in p.m_resources)
+                    if (req != null && req.m_resItem != null && !req.m_upgraderResource) value += req.m_amount * MaterialValue(req.m_resItem);
+            }
+            PieceValue = (int)value;
+            int coins = 0; double valuables = 0, treasure = 0;
+            foreach (Piece p in pieces)
+            {
+                Container c = p.GetComponent<Container>();
+                if (c == null || !ContainerAccess.IsStorage(c)) continue;
+                bool inTreasure = R.Rooms.Any(r => r.Ok && r.Type == RoomType.TreasureRoom && Geometry.Inside(r.Xz, p.transform.position.x, p.transform.position.z));
+                foreach (ItemDrop.ItemData item in c.GetInventory().GetAllItems())
+                {
+                    if (item.m_dropPrefab != null && item.m_dropPrefab.name == "Coins") { coins += item.m_stack; if (inTreasure) treasure += item.m_stack * 10; }
+                    else if (item.m_shared.m_value > 0) { valuables += item.m_shared.m_value * item.m_stack; if (inTreasure) treasure += item.m_shared.m_value * item.m_stack; }
+                }
+            }
+            WealthPart = Jarldom.Renown.Wealth(value, coins, valuables, treasure > 0, treasure);
+            var beds = pieces.Select(p => p.GetComponent<Bed>()).Where(b => b != null).ToList();
+            Beds = beds.Count(b => { BedOwner(b, out string kind); return kind == "" || kind == "villager"; });
+            var comforts = beds.Select(b => ComfortAt(b.transform.position)).ToList();
+            ComfortPart = Jarldom.Renown.Comfort(comforts);
+            int frigg = R.Rooms.Any(r => r.Ok && r.Type == RoomType.Temple && r.God == "frigg") && FavourOf("frigg") > 0 ? 1 : 0;
+            if (frigg > 0) ComfortPart += 3 * frigg;
+            R.Flags["renown"] = Renown;
+        }
+        // What a material is worth to Odin's eye: its trader value, or a rough measure of how hard it is to come by.
+        private static readonly Dictionary<string, double> Materials = new Dictionary<string, double>
+        {
+            ["Wood"] = 1, ["Stone"] = 1, ["Resin"] = 1, ["Flint"] = 1, ["LeatherScraps"] = 1, ["DeerHide"] = 2, ["FineWood"] = 2, ["RoundLog"] = 2, ["GreydwarfEye"] = 1,
+            ["Copper"] = 4, ["Tin"] = 4, ["Bronze"] = 6, ["BronzeNails"] = 1, ["Iron"] = 10, ["IronNails"] = 2, ["Silver"] = 12, ["Obsidian"] = 4, ["Crystal"] = 6,
+            ["BlackMetal"] = 15, ["BlackMarble"] = 4, ["YggdrasilWood"] = 4, ["Grausten"] = 3, ["Blackwood"] = 4, ["Flametal"] = 20, ["ElderBark"] = 3, ["Tar"] = 3,
+            ["LinenCloth"] = 5, ["TrollHide"] = 4, ["WolfPelt"] = 4, ["LoxPelt"] = 6, ["Chain"] = 6, ["SurtlingCore"] = 5, ["Coins"] = 10,
+        };
+        public static double MaterialValue(ItemDrop item)
+        {
+            if (item == null) return 0;
+            if (Materials.TryGetValue(item.name, out double v)) return v;
+            return item.m_itemData.m_shared.m_value > 0 ? item.m_itemData.m_shared.m_value : 2;
+        }
+
+        // ---- rooms ----
+        private readonly Queue<string> _roomQueue = new Queue<string>();
+        public void CheckRoomSoon(string id) { if (!_roomQueue.Contains(id)) _roomQueue.Enqueue(id); RoomsSoon(); }
+        private void RoomsDue()
+        {
+            // One room every check (so a big colony never stalls a frame); every room at least every five minutes.
+            if (_roomQueue.Count == 0) foreach (Room r in R.Rooms.Where(r => Now - r.Checked > 300)) _roomQueue.Enqueue(r.Id);
+            if (_roomQueue.Count == 0) return;
+            string id = _roomQueue.Dequeue();
+            Room room = R.Rooms.FirstOrDefault(r => r.Id == id);
+            if (room == null) return;
+            bool was = room.Ok; char grade = room.Grade;
+            Check(room);
+            if (room.Ok && !was) Log("room", "", Tables.Of(room.Type).Name.ToLower());
+            if (room.Ok != was || room.Grade != grade) Rerank();
+            _dirty = true;
+            if (_roomQueue.Count > 0) _nextRooms = Time.time + 1;
+        }
+
+        public RoomVerdict Check(Room room)
+        {
+            RoomFacts f = Measure(room);
+            RoomVerdict v = RoomRules.Judge(room.Type, f, room.God);
+            room.Ok = v.Ok; room.Grade = v.Grade; room.Points = v.Points; room.Failures = string.Join("; ", v.Failures);
+            room.OpenEdges = string.Join(",", v.OpenEdges); room.Checked = Now;
+            return v;
+        }
+
+        public static RoomFacts Measure(Room room)
+        {
+            var f = new RoomFacts();
+            IList<float> xz = room.Xz;
+            int n = room.Corners;
+            f.Area = Geometry.Area(xz);
+            float floor = room.Floor;
+            RoomInfo info = Tables.Of(room.Type);
+            // Walls: along each edge, something built at knee and head height.
+            var covered = new int[n]; var total = new int[n];
+            foreach (var s in Geometry.EdgeSamples(xz, 0.5f))
+            {
+                total[s.edge]++;
+                bool low = Solid(new Vector3(s.x, floor + 1f, s.z)), high = Solid(new Vector3(s.x, floor + 1.8f, s.z));
+                if (low && high) covered[s.edge]++;
+            }
+            f.Walls = Enumerable.Range(0, n).Select(i => total[i] == 0 ? 0f : covered[i] / (float)total[i]).ToArray();
+            if (info.Open) f.Walls = Enumerable.Repeat(1f, n).ToArray();
+            // Roof: a 1 m grid inside, under cover.
+            int under = 0, cells = 0;
+            foreach (var (x, z) in Geometry.Grid(xz, 1f)) { cells++; if (Cover.IsUnderRoof(new Vector3(x, floor + 1.2f, z))) under++; }
+            f.Roof = cells == 0 ? 0 : under / (float)cells;
+            // What's inside.
+            var (cx, cz) = Geometry.Centre(xz);
+            float reach = 0; for (int i = 0; i < n; i++) reach = Mathf.Max(reach, Vector2.Distance(new Vector2(cx, cz), new Vector2(xz[i * 2], xz[i * 2 + 1])));
+            var list = new List<Piece>();
+            Piece.GetAllPiecesInRadius(new Vector3(cx, floor, cz), reach + 2f, list);
+            var beds = new List<Vector3>(); var chests = new List<Vector3>();
+            foreach (Piece p in list)
+            {
+                Vector3 at = p.transform.position;
+                if (at.y < floor - 1f || at.y > floor + room.Height + 2f) continue;
+                Door door = p.GetComponent<Door>();
+                if (door != null)
+                {
+                    if (Geometry.Distance(xz, at.x, at.z) <= 1.5f && EdgeDistance(xz, at.x, at.z) <= 1.5f) { f.Doors++; if (door.m_keyItem != null) f.LockableDoors++; }
+                    continue;
+                }
+                if (!Geometry.Inside(xz, at.x, at.z)) continue;
+                foreach (string kind in Kinds(p)) f.Count[kind] = f.C(kind) + 1;
+                if (p.GetComponent<Bed>() != null) beds.Add(at);
+                Container c = p.GetComponent<Container>();
+                if (c != null && ContainerAccess.IsStorage(c))
+                {
+                    chests.Add(at);
+                    foreach (ItemDrop.ItemData item in c.GetInventory().GetAllItems())
+                        f.Value += item.m_dropPrefab != null && item.m_dropPrefab.name == "Coins" ? item.m_stack : item.m_shared.m_value * item.m_stack;
+                }
+            }
+            f.Count["bedchest"] = beds.Count(b => chests.Any(c => Vector3.Distance(b, c) < 2.5f));
+            f.Comfort = SE_Rested.CalculateComfortLevel(true, new Vector3(cx, floor + 0.5f, cz));
+            f.FloorHeight = ZoneSystem.instance.GetGroundHeight(new Vector3(cx, floor, cz), out float ground) ? floor - ground : 0;
+            return f;
+        }
+        private static float EdgeDistance(IList<float> xz, float x, float z)
+        {
+            int n = xz.Count / 2; float best = float.MaxValue;
+            for (int i = 0; i < n; i++) { int j = (i + 1) % n; best = Mathf.Min(best, Geometry.Segment(x, z, xz[i * 2], xz[i * 2 + 1], xz[j * 2], xz[j * 2 + 1])); }
+            return best;
+        }
+        private static bool Solid(Vector3 at)
+        {
+            int count = Physics.OverlapSphereNonAlloc(at, 0.6f, Hits, PieceMask, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < count; i++)
+            {
+                Piece p = Hits[i].GetComponentInParent<Piece>();
+                if (p == null) { if (Hits[i].gameObject.layer == LayerMask.NameToLayer("static_solid")) return true; continue; }
+                if (p.GetComponent<Door>() != null || p.GetComponent<WearNTear>() != null && p.m_category != Piece.PieceCategory.Furniture && p.m_category != Piece.PieceCategory.Misc) return true;
+            }
+            return false;
+        }
+
+        // What a piece counts as, for a room's requirements and grade.
+        public static IEnumerable<string> Kinds(Piece p)
+        {
+            string n = Prefab(p.gameObject);
+            if (p.GetComponent<Bed>() != null) yield return "bed";
+            Container c = p.GetComponent<Container>();
+            if (c != null && ContainerAccess.IsStorage(c)) yield return "chest";
+            if (p.GetComponent<Chair>() != null || n.Contains("bench") || n.Contains("stool") || n.Contains("throne") || n.Contains("chair")) yield return "seat";
+            if (n.Contains("throne") || n == Pieces.GildedSeatName.ToLowerInvariant()) yield return "highseat";
+            if (n.Contains("table")) yield return "table";
+            Fireplace fire = p.GetComponent<Fireplace>();
+            if (fire != null) { yield return "fire"; if (n.Contains("hearth")) yield return "hearth"; if (n.Contains("brazier")) yield return "brazier"; if (n.Contains("candle") || n.Contains("sconce")) yield return "candle"; }
+            if (n.Contains("banner")) yield return "banner";
+            if (n.StartsWith("jarldomgilded")) yield return "gilded";
+            if (n.Contains("raven")) { yield return "raven"; yield return "carving"; }
+            else if (n.Contains("carving") || n.Contains("darkwood_wolf") || n.Contains("dragon") || n.Contains("statue")) yield return "carving";
+            if (n.Contains("rug")) yield return "rug";
+            if (n.Contains("candle")) yield return "candle";
+            if (n.Contains("rune")) { yield return "runestone"; yield return "grave"; }
+            if (n.Contains("grave") || n.Contains("tomb")) yield return "grave";
+            if (n.StartsWith(Pieces.AltarPrefix.ToLowerInvariant())) yield return "altar_" + n.Substring(Pieces.AltarPrefix.Length);
+            if (n.Contains("forge") && p.GetComponent<CraftingStation>() != null) yield return "forge";
+            if (n.Contains("workbench") && p.GetComponent<CraftingStation>() != null) yield return "workbench";
+            if (p.GetComponent<StationExtension>() != null) yield return "extension";
+            ItemStand stand = p.GetComponent<ItemStand>();
+            if (stand != null)
+            {
+                yield return "itemstand";
+                string held = p.GetComponent<ZNetView>()?.GetZDO()?.GetString(ZDOVars.s_item, "") ?? "";
+                if (held.StartsWith("Trophy")) yield return "trophy";
+            }
+            if (n.StartsWith("trophy")) yield return "trophy";
+        }
+
+        // The room the point is in, of a kind (the great hall, a longhouse...).
+        public Room RoomAt(Vector3 p, RoomType? type = null) =>
+            R.Rooms.FirstOrDefault(r => (type == null || r.Type == type) && Geometry.Inside(r.Xz, p.x, p.z) && p.y > r.Floor - 1.5f && p.y < r.Floor + r.Height + 1.5f);
+        public Room Best(RoomType type) => R.Rooms.Where(r => r.Type == type && r.Ok).OrderByDescending(r => r.Points).FirstOrDefault() ?? R.Rooms.FirstOrDefault(r => r.Type == type);
+        public Vector3 Centre(Room r) { var (x, z) = Geometry.Centre(r.Xz); return new Vector3(x, r.Floor, z); }
+    }
+}

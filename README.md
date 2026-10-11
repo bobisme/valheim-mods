@@ -2,6 +2,50 @@
 
 Bob's Valheim mods, built for native Linux and Windows and packaged for the in-game mod manager.
 
+## Jarldom
+
+A **colony of the reborn**, built on Valheim's own systems. Raise the **High-seat pillars** (hammer → Misc; 2 fine wood, 4 wood,
+1 resin, near a workbench), and Odin sends the fallen to a hall worth noticing: give them beds, work and gear, feed them, keep them
+happy, defend them, and send the worthy to Valhalla on a funeral pyre. **E** on the pillars holds council: the colony window has the
+hall, newcomers, people, rooms, work, the Thing, the gods and the saga. **E** on a villager opens their panel (mood and why, needs,
+worth, skills, bed, profession); **Shift+E** opens their bag.
+
+- **Renown** = wealth (what's built, coins, valuables) + comfort (the beds' own comfort) + deeds. At renown 20 (then a quarter more
+  each time) with a free bed, Odin may send one to three souls at dawn; a Valkyrie sets them down at dusk; take them in or turn them
+  away. Ranks (camp, homestead, hamlet, village, jarldom, hold) need people and rooms, and raise the cap and radius.
+- **Rooms and zones**: hammer → Misc → *Mark rooms and zones*, click the corners, click the first again, choose what it is. Walls
+  (80% of each edge), roof (90%), a door and what's inside are checked and graded D to S; with the hammer out the overlay shows rooms,
+  zones and wall gaps. Zones: woodlot, quarry, fields, foraging and hunting grounds, fishing dock, guard post, sacred bog.
+- **Work** comes from a job board of leases (no job taken twice): felling, mining, harvesting and replanting, foraging, hauling to
+  stockpiles (choose each chest's category in the Rooms tab), guarding, hunting, fishing, feeding fires, smelters and cooking stations.
+  Without the gear their profession needs, villagers haul and say why.
+- **Daily life**: work by day, the great hall at dusk (a seat, food, gossip about things that really happened), their own bed at night
+  (or the hall fire, unhappily). Seven needs and many moodlets make a mood (-100 to +100) that sets how fast they work (60% to 130%).
+- **Death**: a tombstone with their bag, rising at their bed after 30 s with worn gear kept. With no bed (or disgraced) they're lost
+  and rise as a named draugr carrying their hoard.
+- **Gold**: wages every five days from the treasury chest (all or nothing), feasts, offerings at the eight gods' altars, coins thrown
+  into a sacred bog (favour without end), gilded high seat and banners. **The Thing** meets every five days with petitions.
+  **Ascension**: a worthy villager (100 worth) goes up on the funeral pyre at dusk with grave goods.
+- **Raids** near the colony sound the war horn and grow with renown; fighters take guard posts, the rest run for the great hall.
+
+Works with Omens (Odin's favour is the gods' Fate), AICompanion (bed and chest claims respected both ways), Gary, SkalTavern; needs
+none. **Install on the host and every player** (the hammer refuses Jarldom pieces where the host lacks the mod). **Disband** the colony
+from its window before uninstalling: everyone's gear goes into chests by the pillars. Claude Tools: `jarldom status`, `roster`,
+`villager <name>`, `rooms`, `room check <n>`, `board`, `log`, `saga`, and (single player or host) `place pillars`, `spawn`, `migrate`,
+`room`/`zone <type> x1 z1 x2 z2`, `prof`, `mood`, `worth`, `give`, `time <hours>`, `pay`, `feast`, `thing now`, `ascend`, `raid`.
+
+**First playtest** (none of this has been played yet):
+1. Build the pillars near a workbench; E on them: the window opens, the colony is a camp of 0.
+2. `jarldom spawn woodcutter`, or wait for renown: build beds, check `jarldom renown`; at dawn Hugin speaks, at dusk the Valkyrie comes.
+3. Take a newcomer in: they appear at the pillars in rags with a bed of their own.
+4. Give them an axe (Shift+E on them), mark a woodlot round some trees, a stockpile room round four chests: they fell, gather, store.
+5. Mark fields round a planted crop and give seeds to a chest: harvested and replanted.
+6. Mark a great hall (4 seats, 2 tables, a fire, 40 m²): at dusk they sit in it; at night they go to their beds.
+7. Hold a feast (3 kinds of food × people and a mead each in the hall's chests): moods rise.
+8. Let one die with a bed (tombstone, rises at the bed) and one without (a named draugr).
+9. A raid near the colony: the horn, fighters out, the rest in the hall.
+10. `jarldom worth <name> 100`, build a pyre, send them at dusk.
+
 ## Looking-Glass Portals
 
 Tall, root-bound **looking-glasses you can see through and walk through**, with no loading screen. Hammer → next to the game's

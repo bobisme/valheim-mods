@@ -1,0 +1,206 @@
+using System;
+using System.Collections.Generic;
+using HarmonyLib;
+using UnityEngine;
+
+namespace Jarldom
+{
+    // The game's hooks that make a Player-shaped Humanoid live like a player: one bag shared with its Container, a brain in place of the
+    // monster AI, skills without a Skills component, armour, no friendly fire, and its own hover text and E.
+    internal static class Body
+    {
+        internal static readonly AccessTools.FieldRef<Humanoid, Inventory> InventoryOf = AccessTools.FieldRefAccess<Humanoid, Inventory>("m_inventory");
+        internal static readonly AccessTools.FieldRef<Container, uint> LastRevision = AccessTools.FieldRefAccess<Container, uint>("m_lastRevision");
+        internal static readonly AccessTools.FieldRef<Character, ZSyncAnimation> Anim = AccessTools.FieldRefAccess<Character, ZSyncAnimation>("m_zanim");
+        internal static readonly AccessTools.FieldRef<Character, bool> Blocking = AccessTools.FieldRefAccess<Character, bool>("m_blocking");
+        internal static readonly AccessTools.FieldRef<Humanoid, float> DrawTime = AccessTools.FieldRefAccess<Humanoid, float>("m_attackDrawTime");
+        private static readonly HashSet<int> Loaded = new HashSet<int>();
+        internal static bool OpeningBag;
+
+        internal static bool IsBag(Container c) => c != null && c.m_name == VillagerPrefab.BagName && c.GetComponent<Humanoid>() != null;
+        internal static void Forget() => Loaded.Clear();
+
+        [HarmonyPatch(typeof(Container), "Awake")]
+        private static class ShareBag
+        {
+            private static void Postfix(Container __instance)
+            {
+                if (!IsBag(__instance) || __instance.GetInventory() == null) return;
+                InventoryOf(__instance.GetComponent<Humanoid>()) = __instance.GetInventory();
+            }
+        }
+
+        // A container reloads from its save whenever anything in its ZDO changes, and a villager writes its ZDO often: the owner loads once
+        // when it takes over and is the truth after that (or worn gear and wear would be replaced by old copies over and over).
+        [HarmonyPatch(typeof(Container), "Load")]
+        private static class LoadOnce
+        {
+            private static bool Prefix(Container __instance, ref bool __result)
+            {
+                if (!IsBag(__instance)) return true;
+                ZNetView v = __instance.GetComponent<ZNetView>();
+                if (v == null || !v.IsValid()) return true;
+                int id = __instance.GetInstanceID();
+                if (!v.IsOwner()) { Loaded.Remove(id); return true; }
+                if (Loaded.Add(id)) return true;
+                LastRevision(__instance) = v.GetZDO().DataRevision;
+                __result = false;
+                return false;
+            }
+        }
+
+        // The brain instead of the monster's: no wandering, no aggro of its own, no free regeneration.
+        [HarmonyPatch(typeof(MonsterAI), nameof(MonsterAI.UpdateAI))]
+        private static class Think
+        {
+            private static bool Prefix(MonsterAI __instance, float dt, ref bool __result)
+            {
+                if (!VillagerPrefab.Is(__instance)) return true;
+                __result = Villagers.Think(__instance, dt);
+                return false;
+            }
+        }
+
+        // Players can't hurt villagers (or each other's colony), and worn armour counts as it does for a player.
+        [HarmonyPatch(typeof(Character), "RPC_Damage")]
+        private static class Damage
+        {
+            private static bool Prefix(Character __instance, HitData hit)
+            {
+                if (!VillagerPrefab.Is(__instance)) return true;
+                Character attacker = hit.GetAttacker();
+                if (attacker != null && (attacker.IsPlayer() || VillagerPrefab.Is(attacker))) return false;
+                if (__instance is Humanoid h)
+                {
+                    float armor = 0;
+                    foreach (ItemDrop.ItemData item in h.GetInventory()?.GetEquippedItems() ?? new List<ItemDrop.ItemData>()) armor += item.GetArmor();
+                    if (armor > 0) hit.ApplyArmor(armor);
+                }
+                Villagers.Hurt(__instance, hit);
+                return true;
+            }
+        }
+
+        // Skills, kept in the villager's state with the player's formulas.
+        [HarmonyPatch(typeof(Character), nameof(Character.RaiseSkill))]
+        private static class Raise
+        {
+            private static bool Prefix(Character __instance, Skills.SkillType skill, float value)
+            {
+                if (!VillagerPrefab.Is(__instance)) return true;
+                Villagers.Brain(__instance)?.RaiseSkill(skill, value);
+                return false;
+            }
+        }
+        [HarmonyPatch(typeof(Character), nameof(Character.GetSkillFactor))]
+        private static class Factor
+        {
+            private static void Postfix(Character __instance, Skills.SkillType skill, ref float __result)
+            {
+                Brain b = Villagers.Brain(__instance);
+                if (b != null) __result = b.SkillLevel(skill) / 100f;
+            }
+        }
+        [HarmonyPatch(typeof(Character), nameof(Character.GetSkillLevel))]
+        private static class Level
+        {
+            private static void Postfix(Character __instance, Skills.SkillType skillType, ref float __result)
+            {
+                Brain b = Villagers.Brain(__instance);
+                if (b != null) __result = b.SkillLevel(skillType);
+            }
+        }
+        [HarmonyPatch(typeof(Character), nameof(Character.GetRandomSkillFactor))]
+        private static class RandomFactor
+        {
+            private static void Postfix(Character __instance, Skills.SkillType skill, ref float __result)
+            {
+                Brain b = Villagers.Brain(__instance);
+                if (b == null) return;
+                float mid = Mathf.Lerp(0.4f, 1f, b.SkillLevel(skill) / 100f);
+                __result = Mathf.Clamp01(UnityEngine.Random.Range(mid - 0.15f, mid + 0.15f));
+            }
+        }
+
+        // A missed pickaxe swing must not dig holes in the colony.
+        [HarmonyPatch(typeof(Attack), nameof(Attack.SpawnOnHitTerrain))]
+        private static class NoDigging
+        {
+            private static bool Prefix(Character character, ref GameObject __result)
+            {
+                if (character == null || !VillagerPrefab.Is(character)) return true;
+                __result = null;
+                return false;
+            }
+        }
+
+        // Death: the colony keeps them (and their worn gear) to rise again; the bag goes to a tombstone.
+        [HarmonyPatch(typeof(Character), nameof(Character.OnDeath))]
+        private static class Death
+        {
+            private static void Prefix(Character __instance)
+            {
+                if (!VillagerPrefab.Is(__instance)) return;
+                ZNetView v = __instance.GetComponent<ZNetView>();
+                if (v == null || !v.IsOwner()) return;
+                Plugin.Guard(() => Villagers.Died(__instance as Humanoid));
+            }
+        }
+
+        // Hover and E: the villager's name and what they're doing; E opens their panel, Shift+E their bag.
+        [HarmonyPatch(typeof(Character), nameof(Character.GetHoverText))]
+        private static class HoverChar { private static void Postfix(Character __instance, ref string __result) { if (VillagerPrefab.Is(__instance)) __result = Villagers.Hover(__instance); } }
+        [HarmonyPatch(typeof(Character), nameof(Character.GetHoverName))]
+        private static class HoverName { private static void Postfix(Character __instance, ref string __result) { if (VillagerPrefab.Is(__instance)) __result = Villagers.DisplayName(__instance); } }
+        [HarmonyPatch(typeof(Container), nameof(Container.GetHoverText))]
+        private static class HoverBag { private static void Postfix(Container __instance, ref string __result) { if (IsBag(__instance)) __result = Villagers.Hover(__instance.GetComponent<Character>()); } }
+        [HarmonyPatch(typeof(Container), nameof(Container.GetHoverName))]
+        private static class HoverBagName { private static void Postfix(Container __instance, ref string __result) { if (IsBag(__instance)) __result = Villagers.DisplayName(__instance.GetComponent<Character>()); } }
+
+        [HarmonyPatch(typeof(Container), nameof(Container.Interact))]
+        private static class Use
+        {
+            private static bool Prefix(Container __instance, Humanoid character, bool hold, bool alt, ref bool __result)
+            {
+                if (!IsBag(__instance) || OpeningBag) return true;
+                if (hold) { __result = false; return false; }
+                __result = true;
+                if (character != Player.m_localPlayer) return false;
+                if (ZInput.GetButton("AltPlace") || ZInput.GetButton("JoyAltPlace") || alt) return true; // Shift+E: the bag itself
+                Ui.VillagerPanel.Open(__instance.GetComponent<Humanoid>());
+                return false;
+            }
+        }
+        // A hotbar key on a villager hands over one meal or potion, never gear.
+        [HarmonyPatch(typeof(Container), nameof(Container.UseItem))]
+        private static class Give
+        {
+            private static bool Prefix(Container __instance, Humanoid user, ItemDrop.ItemData item, ref bool __result)
+            {
+                if (!IsBag(__instance)) return true;
+                __result = Villagers.Feed(__instance.GetComponent<Humanoid>(), user, item);
+                return false;
+            }
+        }
+        internal static void OpenBag(Humanoid h)
+        {
+            Container bag = h != null ? h.GetComponent<Container>() : null;
+            if (bag == null || Player.m_localPlayer == null) return;
+            OpeningBag = true;
+            try { bag.Interact(Player.m_localPlayer, false, false); }
+            finally { OpeningBag = false; }
+        }
+
+        // Held poses (sleeping, sitting) make the body kinematic: skip the game's motion then, or Unity complains every frame.
+        [HarmonyPatch(typeof(Character), "UpdateMotion")]
+        private static class Held
+        {
+            private static bool Prefix(Character __instance)
+            {
+                if (!VillagerPrefab.Is(__instance)) return true;
+                Rigidbody body = __instance.GetComponent<Rigidbody>();
+                return body == null || !body.isKinematic;
+            }
+        }
+    }
+}
