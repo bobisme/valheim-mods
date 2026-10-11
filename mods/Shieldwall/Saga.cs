@@ -19,7 +19,7 @@ namespace Shieldwall
             if(stave!=null)return StaveMark+Clean(stave.Title);
             Character attacker=LastHit(dead)?.GetAttacker();
             if(attacker is Player player)return Clean(player.GetPlayerName());
-            if(attacker!=null&&(attacker.IsTamed()||attacker.GetFaction()==Character.Faction.Players))return Clean(Localization.instance.Localize(attacker.m_name));
+            if(attacker!=null&&(attacker.IsTamed()||attacker.GetFaction()==Character.Faction.Players))return Clean(attacker.GetHoverName()); // its own name ("Lydia", "Gary the Greydwarf"), not its kind
             if(PitchPit.Burned.TryGetValue(dead,out float burned)&&Time.time-burned<4)return "the pitch fire";
             return Wilds;
         }

@@ -37,7 +37,7 @@ namespace Shieldwall
             int seed=Random.Range(1,int.MaxValue);
             // Boasts: only those the stone offered (a test may swear any).
             boasts=cause==Cause.Test?TestBoasts:cause==Cause.Horn?Policy.Allowed(boasts,stone.BoastOffer):0;
-            var plan=Policy.Plan(stage,marks,Math.Max(1,players),seed,boasts);
+            var plan=Policy.Plan(stage,marks,Math.Max(1,players),seed,boasts,Plugin.Instance.ExtraWaves.Value);
             double gather=cause==Cause.Test?10:cause==Cause.Raid?Plugin.Instance.RaidWarning.Value:Plugin.Instance.HornWarning.Value;
             float health=Policy.StoneHealth(stage,marks)*Policy.BoonHealth(stone.Boons)*(Policy.Has(boasts,Boast.BareStone)?0.6f:1);
             z.Set(Stone.SiegeKey,((long)Random.Range(1,int.MaxValue)<<16)^Now);

@@ -114,12 +114,12 @@ power.
 
 **A siege.** The horn opens a **rift** (a red beacon and a map pin) as far out as the game keeps creatures alive around you, up to
 **150 m** (room for a fortress; how far depends on the Simulation distance in the game's graphics settings: beyond it creatures stand
-frozen), and at least **35 m** from anything anyone has built. After **90 s** the horde marches in **4–8 waves** (more with
-marks), sized for the players nearby, the last led by a **warchief**. When a wave breaks, a **25 s breather** (counted down on the siege
+frozen), and at least **35 m** from anything anyone has built. After **90 s** the horde marches in **6–10 waves** (more with
+marks; **ExtraWaves** in F7 sets how many are added to every siege, default 2, each with its own raiders), sized for the players nearby, the last led by a **warchief**. When a wave breaks, a **25 s breather** (counted down on the siege
 bar) comes before the next marches. Who comes depends on the bosses beaten: greydwarfs; the Black Forest's
 host (trolls lead); the drowned dead; a mountain pack (golems); Fulings (brutes); the swarm of the mist (gjall overhead); the Charred legion
 (morgen). A stone's first siege is a **proving**: a horde two lands below the world's own (one below at the first mark, the full horde from
-the second), in 3 smaller waves (20 raiders, 10 more for each friend), so a new stone can be held with bows and walls and its warshards
+the second), in 3 smaller waves plus the extra ones (20 raiders, 10 more for each friend, and more with the extra waves), so a new stone can be held with bows and walls and its warshards
 buy the first staves. With **ShowRoad** on in F7 (off by default), a glowing line shows the road the horde will take, recomputed as you build: walls
 turn it aside, and where the road is shut a red line marks the **breach**. Raiders fight only what stands within about 10 m, smash the piece in their way when stuck, and strike the stone
 when they reach it. **Sappers** go for stave sockets, tearing down the tower under one that stands high; a raider a stave keeps hitting may
@@ -162,7 +162,7 @@ farther), **Chieftain's bane** (staves strike warchiefs and guards half again as
 often), **Old blood** (the ward two marks stronger) and **Many hands** (borrowed staffs at 70%). The stone's hover lists its boons.
 
 **The saga.** When a siege ends, everyone near the stone reads its saga in the game's own rune-stone window: the horde and the boasts, who
-slew how many (each player, companion and stave), the mightiest stave, the stone's closest call, and what each warshard was for. It goes
+slew how many (each player, companion and stave, by name), the mightiest stave, the stone's closest call, and what each warshard was for. It goes
 by itself after half a minute or when you walk off (Use or Escape closes it at once), and the war council can show the last one again.
 
 **Veteran staves.** A stave remembers its kills, wherever it stands (they are kept on the stave, not the socket). At **25** slain it becomes
@@ -182,6 +182,10 @@ won while he stands.
 | War-caller | a war cry heals the horde near him |
 | Iron-hide | staves bite half as deep |
 
+**Companions on the wall.** Quad's AICompanion companions told to **Guard this spot** fight the horde from their post: with a bow
+they shoot raiders within their FightRange (12 m by default; raise it in F7 for archers on a wall) and switch to a blade up close. They
+may chase a warchief well off their post before coming back.
+
 **The pitch pit** (hammer; 8 stone, 8 resin, on the ground): a ring of stones round a pool of black pitch. Raiders
 who wade in are slowed. Fire sets it alight (a fire stave's shot landing near it, a fire arrow) and it burns the horde standing in it
 for **12 s**, then seeps full again in **30 s**; the saga counts what it took.
@@ -198,7 +202,7 @@ it carries on if that player leaves and works on a dedicated server without the 
 server keeps loaded and clears of objects it doesn't know). A game hosted by a player needs Shieldwall on the host too, or the host's game
 deletes the stone; the stone, sockets and upgrades refuse to be built there, so nothing is lost. Everyone who joins in needs Shieldwall. Warnings,
 wave pacing, the most raiders at once (40), the time limit and the horn's cooldown are in F7. With Claude Tools, `siege status | plan | route |
-start [stage] [boasts] [trick] | end | marks | raiders | hover | sight | recipes | council | horn [boasts] | boasts | offer | boon | saga | ignite | raid` and test builders (`place`, `put`, `plant`, `tower`, `line`, `wall`,
+start [stage] [boasts] [trick] | end | marks | raiders | hover | sight | recipes | council | horn [boasts] | boasts | offer | boon | saga | ignite | guard | raid` and test builders (`place`, `put`, `plant`, `tower`, `line`, `wall`,
 `unbuild`, `remove`, `goto`) check stones, watch what each raider is doing and run short test sieges.
 
 Checks cover the ward table, levels, power, rosters, siege plans (sizes, growth, warchiefs, saved plans), pacing, rewards, staves and the

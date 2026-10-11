@@ -9,11 +9,11 @@ namespace Shieldwall
     {
         public const string Guid="com.bobisme.shieldwall";
         public const string Name="Shieldwall";
-        public const string Version = "0.4.2";
+        public const string Version = "0.4.3";
         internal static Plugin Instance;
         internal ConfigEntry<bool> DrawRaids,DebugHits,ShowRoad;
         internal ConfigEntry<float> HornWarning,RaidWarning,WaveSeconds,BreatherSeconds,MaxMinutes,CooldownMinutes;
-        internal ConfigEntry<int> MaxAlive;
+        internal ConfigEntry<int> ExtraWaves,MaxAlive;
         private Harmony _harmony;
 
         private void Awake()
@@ -27,6 +27,7 @@ namespace Shieldwall
             RaidWarning=Config.Bind("Sieges","RaidWarningSeconds",180f,new ConfigDescription("Seconds of warning when the stone draws a raid to itself.",new AcceptableValueRange<float>(30,900)));
             WaveSeconds=Config.Bind("Sieges","WaveSeconds",40f,new ConfigDescription("Most seconds between waves (the next comes sooner when the last is mostly down).",new AcceptableValueRange<float>(20,300)));
             BreatherSeconds=Config.Bind("Sieges","BreatherSeconds",25f,new ConfigDescription("Seconds of breather between one wave breaking and the next marching (half under No respite), counted down on the siege bar.",new AcceptableValueRange<float>(0,120)));
+            ExtraWaves=Config.Bind("Sieges","ExtraWaves",2,new ConfigDescription("Waves added to every siege, each with its own raiders (a new stone's proving has 3 waves, then 4 to 8 as it gains marks, before these).",new AcceptableValueRange<int>(0,8)));
             MaxAlive=Config.Bind("Sieges","MaxAlive",40,new ConfigDescription("Most raiders on the field at once; the rest wait in the rift. Lower it if sieges stutter.",new AcceptableValueRange<int>(8,120)));
             MaxMinutes=Config.Bind("Sieges","MaxMinutes",25f,new ConfigDescription("A siege still standing after this many minutes is won: the horde gives up.",new AcceptableValueRange<float>(5,90)));
             CooldownMinutes=Config.Bind("Sieges","CooldownMinutes",20f,new ConfigDescription("Real minutes after a siege before the horn can be sounded again.",new AcceptableValueRange<float>(0,240)));

@@ -128,14 +128,16 @@ namespace Shieldwall
         internal const int MinAlive=4;
 
         // A deterministic plan: the same seed always makes the same siege, so a new owner of the stone carries on the same one.
-        internal static List<List<Unit>> Plan(int stage,int marks,int players,int seed,int boasts=0)
+        internal static List<List<Unit>> Plan(int stage,int marks,int players,int seed,int boasts=0,int extra=0)
         {
             double digChance=Has(boasts,Boast.Burrowers)?0.22:0.06,flyChance=Has(boasts,Boast.Wings)?0.24:0.08;
             int digFrom=Has(boasts,Boast.Burrowers)?0:1,flyFrom=Has(boasts,Boast.Wings)?1:2;
             var rng=new Rng(seed);
             stage=Math.Max(0,Math.Min(Rosters.Length-1,stage));
             Roster roster=Rosters[stage],earlier=Rosters[Math.Max(0,stage-1)];
-            int waves=Waves(marks),total=Total(marks,players),m=Marks(marks);
+            // Extra waves (a setting) each bring their own share of raiders, so the waves don't just thin out.
+            int baseWaves=Waves(marks);extra=Math.Max(0,Math.Min(8,extra));
+            int waves=baseWaves+extra,total=Total(marks,players)*waves/baseWaves,m=Marks(marks);
             var plan=new List<List<Unit>>();
             // Waves grow: the last is about twice the first.
             double sum=0;for(int w=0;w<waves;w++)sum+=1+w/(double)(waves-1);

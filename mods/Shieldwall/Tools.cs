@@ -99,7 +99,7 @@ namespace Shieldwall
                         players=args.Length>4&&int.TryParse(args[4],out int p)?p:1;
                     if(stage<0)stage=Policy.SiegeStage(Director.StageNow(),marks);
                     int planBoasts=args.Length>5?Boasts(args[5]):0;
-                    var plan=Policy.Plan(stage,marks,players,12345,planBoasts);
+                    var plan=Policy.Plan(stage,marks,players,12345,planBoasts,Plugin.Instance.ExtraWaves.Value);
                     output(new JObject{["stage"]=stage,["marks"]=marks,["players"]=players,["health"]=Policy.StoneHealth(stage,marks),
                         ["waves"]=new JArray(plan.Select(w=>new JObject{["count"]=w.Count,["units"]=new JObject(w.GroupBy(u=>$"{u.Prefab}{(u.Level>1?"*"+u.Level:"")}{(u.Role!=Role.Grunt?" "+u.Role:"")}")
                             .Select(g=>new JProperty(g.Key,g.Count())))}).ToArray())});
@@ -304,6 +304,19 @@ namespace Shieldwall
                     to.y=ZoneSystem.instance.GetGroundHeight(to,out float gh)?gh+0.5f:me.transform.position.y;
                     me.TeleportTo(to,me.transform.rotation,false);
                     output(new JObject{["goto"]=new JArray(Math.Round(to.x,1),Math.Round(to.y,1),Math.Round(to.z,1))});
+                    break;
+                }
+                case "guard":
+                {
+                    // guard <companion name> <metres> <angle>: post a Quad companion (AICompanion) to guard a spot by the stone (test).
+                    if(stone==null||args.Length<5||!float.TryParse(args[3],out float gm)||!float.TryParse(args[4],out float ga)){error("siege guard <name> <metres> <angle>");break;}
+                    Character who=Character.GetAllCharacters().FirstOrDefault(c=>c!=null&&!c.IsPlayer()&&c.GetHoverName()==args[2]);
+                    ZNetView gv=who!=null?who.GetComponent<ZNetView>():null;
+                    if(gv==null||!gv.IsValid()||!gv.IsOwner()){error("siege guard: no companion called "+args[2]+" run by this game");break;}
+                    Vector3 post=stone.transform.position+Quaternion.Euler(0,ga,0)*Vector3.forward*gm;
+                    if(ZoneSystem.instance.GetSolidHeight(post,out float gh))post.y=gh;
+                    gv.GetZDO().Set("dhc_order",2);gv.GetZDO().Set("dhc_post",post);
+                    output(new JObject{["guard"]=args[2],["post"]=new JArray(Math.Round(post.x,1),Math.Round(post.y,1),Math.Round(post.z,1))});
                     break;
                 }
                 case "ignite":
