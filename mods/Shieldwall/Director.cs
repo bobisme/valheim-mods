@@ -256,9 +256,12 @@ namespace Shieldwall
                     Assets.Effect("sfx_gdking_scream",stone.transform.position);
                     int left=Policy.Consolation(kills);
                     if(left>0)DropShards(stone,left);
-                    Net.Say("The Warstone cracks! The horde howls and melts away. Its ward is weaker until it holds a siege again."+
+                    bool shatter=Plugin.Instance.ShatteredStone.Value||_testShatter;
+                    Net.Say((shatter?"The Warstone shatters! The horde howls and melts away. The stone is gone, and all it had won with it.":
+                        "The Warstone cracks! The horde howls and melts away. Its ward is weaker until it holds a siege again.")+
                         (left>0?$" {left} warshards lie at its foot, won from the {kills} slain.":""),stone.transform.position,250);
-                    Saga.Tell(stone,outcome,roster,kills,0,new[]{($"{kills} slain before it cracked",left)},left);
+                    Saga.Tell(stone,outcome,roster,kills,0,new[]{($"{kills} slain before it {(shatter?"shattered":"cracked")}",left)},left,shatter);
+                    if(shatter)Shatter(stone);
                     break;
                 default:
                     Net.Say("With no one to face them, the horde melts back into the wilds.",stone.transform.position,250);
@@ -266,6 +269,20 @@ namespace Shieldwall
             }
             Plugin.Log($"Siege at {stone.transform.position:F0} ended: {outcome}, {kills} slain, stone {Mathf.RoundToInt(100*health/max)}%");
         }
+        // ShatteredStone: a stone broken in a siege is gone, with its marks, level and boons. What was built round it stands.
+        private static void Shatter(Warstone stone)
+        {
+            Vector3 at=stone.transform.position;
+            WearNTear wear=stone.GetComponent<WearNTear>();
+            if(wear!=null)wear.m_destroyedEffect.Create(at,stone.transform.rotation,stone.transform);
+            Assets.Effect("sfx_rock_destroyed",at);Assets.Effect("vfx_RockDestroyed_large",at+Vector3.up);
+            Plugin.Log($"The Warstone at {at:F0} shattered");
+            ZNetScene.instance.Destroy(stone.gameObject);
+        }
+        // Test hooks (Claude Tools): end the siege under way as if lost, or leave a spoils chest without a siege.
+        private static bool _testShatter;
+        internal static void TestLose(Warstone stone,bool shatter){if(stone.Phase!=Phase.Battle)return;_testShatter=shatter;try{End(stone,Outcome.Fallen);}finally{_testShatter=false;}}
+        internal static int TestSpoils(Warstone stone){int stage=stone.Z.GetInt(Stone.StageKey,0);return Reward(stone,Policy.Rosters[Mathf.Clamp(stage,0,Policy.Rosters.Length-1)],stage,stone.Marks,1,30,out _);}
         private static void DropShards(Warstone stone,int amount)
         {
             GameObject item=Items.Get(Policy.ShardPrefab);
@@ -305,6 +322,7 @@ namespace Shieldwall
                 GameObject chest=Object.Instantiate(prefab,front,Quaternion.LookRotation(stone.transform.position-front));
                 inventory=chest.GetComponent<Container>()?.GetInventory();
                 inventory?.RemoveAll(); // not the game's own treasure (a pile of coins and gems): the horde's land's building stuff instead
+                Spoils.Mark(chest); // gone once emptied
             }
             parts=Policy.ShardParts(stage,marks,health,kills);
             int boasts=stone.Z.GetInt(Stone.BoastsKey,0),plain=parts.Sum(p=>p.amount),shards=Policy.Boasted(plain,boasts);

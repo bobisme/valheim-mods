@@ -1,3 +1,5 @@
+0.4.9: The spoils chest is gone, in a puff, once it has been emptied and closed (named "Spoils of the siege"). ShatteredStone in F7 (off by default): a Warstone broken in a siege shatters and is gone, with its marks, level and boons, and the saga says so; its upgrades, sockets and staves still stand. Claude Tools: siege lose [shatter] ends a siege as lost; siege spoils leaves a spoils chest, siege spoils clear removes old spoils chests piled by the stone.
+
 0.4.8: The siege bar no longer says a wave is broken while some of it still fights: the next wave is called when most of one is down, and the call now says how many still stand ("Wave 4 is breaking, 2 still fight."). Claude Tools: siege rampart <metres> <angle> [length] builds a stone rampart with a walk on top and stairs up its inner side (a wall top for companions to guard).
 
 0.4.7: Fixed the siege's saga staying on screen for good after the mod was reloaded or updated mid-game: the half-minute clock that closes it was lost with the old copy. Unloading now closes a saga it opened, and a saga left open with no clock is taken over and closes as usual.

@@ -531,6 +531,25 @@ namespace Shieldwall
                     output(new JObject{["walls"]=count,["piece"]=wall.name});
                     break;
                 }
+                case "lose":
+                    if(stone==null||!stone.View.IsOwner()||stone.Phase!=Phase.Battle){error("siege lose [shatter]: a stone this game owns, in battle");break;}
+                    bool shatter=args.Length>2&&args[2]=="shatter";
+                    Director.TestLose(stone,shatter);
+                    output(new JObject{["lost"]=true,["shattered"]=shatter||Plugin.Instance.ShatteredStone.Value});
+                    break;
+                case "spoils":
+                    if(stone==null||!stone.View.IsOwner()){error("siege spoils [clear [radius=8]]: a stone this game owns");break;}
+                    if(args.Length>2&&args[2]=="clear")
+                    {
+                        // Old spoils chests (from before they vanished when emptied) piled by the stone; not the world's own treasure farther out.
+                        float sr=args.Length>3&&float.TryParse(args[3],out float sv)?sv:8;int gone=0;
+                        foreach(ZNetView v in Assets.AllInstances().Where(v=>v.name.StartsWith("TreasureChest_")&&!v.GetZDO().GetBool(Spoils.Key,false)&&Vector3.Distance(v.transform.position,stone.transform.position)<=sr).ToList())
+                        {v.ClaimOwnership();ZNetScene.instance.Destroy(v.gameObject);gone++;}
+                        output(new JObject{["cleared"]=gone});
+                        break;
+                    }
+                    output(new JObject{["spoils"]=Director.TestSpoils(stone)});
+                    break;
                 case "rampart":
                 {
                     // rampart <metres> <angle> [length=8]: a stone rampart facing out from the stone, 2 m high with a 2 m walk on top,

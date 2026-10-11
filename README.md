@@ -196,10 +196,11 @@ wave holds, and once a wave is all out of the rift, **Shift+E** on the stone cal
 - **Held** (the last raider falls, or the stone outlasts 25 minutes; one or two stuck out of sight for 75 s count as fallen, but never the warchief): spoils appear
   beside the stone on the side away from the rift (a treasure chest of that land with **warshards** and the hard-won building stuff of the horde's land, more for an
   unscathed stone and a long fight, and only a handful of coins: flint and resin; bronze, fine wood and surtling cores; iron and ancient
-  bark; silver, iron and obsidian; black metal, iron and tar; black marble, yggdrasil wood and iron; flametal, grausten and blackwood), and the stone gains a mark (ten at most).
+  bark; silver, iron and obsidian; black metal, iron and tar; black marble, yggdrasil wood and iron; flametal, grausten and blackwood), and the stone gains a mark (ten at most). The spoils chest is gone once it has been emptied and closed.
 - **Fallen** (the horde wears the stone to nothing; it feels only 40% of each blow): the stone **cracks** and works two marks lower until it
-  holds a siege again. A warshard for every six raiders slain lies at its foot. The stone itself is never destroyed and nothing is lost: a
-  fallen tower's stave lies where it stood.
+  holds a siege again. A warshard for every six raiders slain lies at its foot. Nothing is lost: a fallen tower's stave lies where it stood.
+  With **ShatteredStone** on (F7, off by default) the stone instead shatters and is gone, with its marks, level and boons; its
+  upgrades, sockets and staves still stand, ready for a new stone.
 - **Abandoned** (no player within 150 m for a minute): the horde melts away; nothing changes.
 - **Undermined**: if the land under the stone sinks a metre below where it was set (diggers at its foot), the stone **sinks** into the
   pit and loses a quarter of its strength. Between sieges (a moat dug too close) it **topples**: it cracks and loses a mark.
@@ -266,7 +267,7 @@ it carries on if that player leaves and works on a dedicated server without the 
 server keeps loaded and clears of objects it doesn't know). A game hosted by a player needs Shieldwall on the host too, or the host's game
 deletes the stone; the stone, sockets and upgrades refuse to be built there, so nothing is lost. Everyone who joins in needs Shieldwall. Warnings,
 wave pacing, the most raiders at once (40), the time limit and the horn's cooldown are in F7. With Claude Tools, `siege status | plan | route |
-start [stage] [boasts] [trick] | end | marks | raiders | hover | sight | recipes | council | horn [boasts] | boasts | offer | boon | saga | ignite | guard | mend | sweep | layers | why | raid` and test builders (`rampart`, `place`, `put`, `plant`, `tower`, `line`, `wall`,
+start [stage] [boasts] [trick] | end | marks | raiders | hover | sight | recipes | council | horn [boasts] | boasts | offer | boon | saga | ignite | guard | mend | sweep | layers | why | lose [shatter] | spoils [clear] | raid` and test builders (`rampart`, `place`, `put`, `plant`, `tower`, `line`, `wall`,
 `unbuild`, `remove`, `goto`) check stones, watch what each raider is doing and run short test sieges.
 
 Checks cover the ward table, levels, power, rosters, siege plans (sizes, growth, warchiefs, saved plans), pacing, rewards, staves and the

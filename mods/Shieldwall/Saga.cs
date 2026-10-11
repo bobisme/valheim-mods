@@ -51,18 +51,18 @@ namespace Shieldwall
         }
 
         // ---- telling it ----
-        internal static void Tell(Warstone stone,Director.Outcome outcome,Roster roster,int kills,float health,(string why,int amount)[] parts,int shards)
+        internal static void Tell(Warstone stone,Director.Outcome outcome,Roster roster,int kills,float health,(string why,int amount)[] parts,int shards,bool shattered=false)
         {
             ZDO z=stone.Z;
             var plan=Policy.Load(z.GetString(Stone.PlanKey,""));
             int boasts=z.GetInt(Stone.BoastsKey,0),siege=z.GetInt(Stone.HeldKey,0)+z.GetInt(Stone.FallenKey,0);
             var tally=Read(z.GetString(Stone.TallyKey,"")).OrderByDescending(e=>e.Value).ToList();
             kills=Math.Max(kills,tally.Sum(e=>e.Value)); // the dead a Grave-caller raised count too
-            string topic=outcome==Director.Outcome.Held?$"The {Ordinal(siege)} siege: the stone held":$"The {Ordinal(siege)} siege: the stone cracked";
+            string topic=outcome==Director.Outcome.Held?$"The {Ordinal(siege)} siege: the stone held":$"The {Ordinal(siege)} siege: the stone {(shattered?"shattered":"cracked")}";
             var lines=new List<string>();
             string sworn=boasts!=0?", under boasts of "+And(Policy.Sworn(boasts).Select(b=>b.Name)):"";
             lines.Add($"The {roster.Name} came in {plan.Count} waves, {plan.Sum(w=>w.Count)} strong{sworn}.");
-            lines.Add(outcome==Director.Outcome.Held?"It broke against the stone.":"It broke the stone, and melted away.");
+            lines.Add(outcome==Director.Outcome.Held?"It broke against the stone.":shattered?"It shattered the stone, and melted away. The stone is no more.":"It broke the stone, and melted away.");
             lines.Add("");
             if(tally.Count>0)
                 lines.Add($"{kills} slain: "+string.Join(", ",tally.Select(e=>$"{Name(e.Key)} {e.Value}"))+".");

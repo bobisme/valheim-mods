@@ -9,9 +9,9 @@ namespace Shieldwall
     {
         public const string Guid="com.bobisme.shieldwall";
         public const string Name="Shieldwall";
-        public const string Version = "0.4.8";
+        public const string Version = "0.4.9";
         internal static Plugin Instance;
-        internal ConfigEntry<bool> DrawRaids,DebugHits,ShowRoad;
+        internal ConfigEntry<bool> DrawRaids,DebugHits,ShowRoad,ShatteredStone;
         internal ConfigEntry<float> HornWarning,RaidWarning,WaveSeconds,BreatherSeconds,MaxMinutes,CooldownMinutes;
         internal ConfigEntry<int> ExtraWaves,MaxAlive;
         private Harmony _harmony;
@@ -21,6 +21,7 @@ namespace Shieldwall
             Instance=this;
             DrawRaids=Config.Bind("Sieges","DrawRaids",true,"A base raid near a Warstone becomes a siege at the stone instead. Only the host's setting matters (a vanilla dedicated server raids as usual).");
             ShowRoad=Config.Bind("Sieges","ShowRoad",false,"Draw a glowing line along the road the horde will take to the stone, and a red one where it will break through a wall. Off: only the rift's beacon and map pin show the way.");
+            ShatteredStone=Config.Bind("Sieges","ShatteredStone",false,"A Warstone broken in a siege shatters and is gone, with its marks, level and boons (its upgrades, sockets and staves stand). Off: it only cracks, and its ward is weaker until it holds a siege again. The setting of the game running the siege (the player nearest the stone) decides.");
             ShowRoad.SettingChanged+=(_,__)=>Route.Clear();
             DebugHits=Config.Bind("Debug","LogTowerHits",false,"Log every blow the horde lands on stave sockets and Warstone upgrades (for balancing).");
             HornWarning=Config.Bind("Sieges","HornWarningSeconds",90f,new ConfigDescription("Seconds between sounding the horn and the horde marching: time to get ready.",new AcceptableValueRange<float>(15,600)));
@@ -33,7 +34,7 @@ namespace Shieldwall
             CooldownMinutes=Config.Bind("Sieges","CooldownMinutes",20f,new ConfigDescription("Real minutes after a siege before the horn can be sounded again.",new AcceptableValueRange<float>(0,240)));
             _harmony=new Harmony(Guid);_harmony.PatchAll(typeof(Plugin).Assembly);
             Items.RegisterLoaded(); // hot reload while in a world
-            Warstone.AttachAll();Planted.AttachAll();Raider.AttachAll();PitchPit.AttachAll();
+            Warstone.AttachAll();Planted.AttachAll();Raider.AttachAll();PitchPit.AttachAll();Spoils.AttachAll();
             Logger.LogInfo($"{Name} {Version} loaded.");
         }
         internal static void Log(string text)=>Instance?.Logger.LogInfo(text);
@@ -50,7 +51,7 @@ namespace Shieldwall
             Net.Unregister();
             _harmony?.UnpatchSelf();
             Route.Clear();Ward.Clear();Director.Reset();SiegeBar.Clear();
-            Warstone.DetachAll();Planted.DetachAll();Raider.DetachAll();PitchPit.DetachAll();
+            Warstone.DetachAll();Planted.DetachAll();Raider.DetachAll();PitchPit.DetachAll();Spoils.DetachAll();
             Items.Unregister();
             Assets.UnregisterAll();
             Stone.Forget();Pieces.Forget();LegacyPlanted.Forget();
