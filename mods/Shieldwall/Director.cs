@@ -224,7 +224,7 @@ namespace Shieldwall
         }
 
         // ---- the end ----
-        internal enum Outcome{Held,Fallen,Abandoned}
+        internal enum Outcome{Held,Fallen,Abandoned,Bought}
         private static void End(Warstone stone,Outcome outcome)
         {
             ZDO z=stone.Z;
@@ -263,6 +263,9 @@ namespace Shieldwall
                     Saga.Tell(stone,outcome,roster,kills,0,new[]{($"{kills} slain before it {(shatter?"shattered":"cracked")}",left)},left,shatter);
                     if(shatter)Shatter(stone);
                     break;
+                case Outcome.Bought:
+                    Net.Say("The horde has been paid off: it turns back into the wilds.",stone.transform.position,250);
+                    break;
                 default:
                     Net.Say("With no one to face them, the horde melts back into the wilds.",stone.transform.position,250);
                     break;
@@ -281,6 +284,8 @@ namespace Shieldwall
         }
         // Test hooks (Claude Tools): end the siege under way as if lost, or leave a spoils chest without a siege.
         private static bool _testShatter;
+        // Another mod paid the horde to go (Jarldom's Fuling tribute): the siege ends with nothing won or lost.
+        internal static void CallOff(Warstone stone){if(stone.Phase!=Phase.Idle)End(stone,Outcome.Bought);}
         internal static void TestLose(Warstone stone,bool shatter){if(stone.Phase!=Phase.Battle)return;_testShatter=shatter;try{End(stone,Outcome.Fallen);}finally{_testShatter=false;}}
         internal static int TestSpoils(Warstone stone){int stage=stone.Z.GetInt(Stone.StageKey,0);return Reward(stone,Policy.Rosters[Mathf.Clamp(stage,0,Policy.Rosters.Length-1)],stage,stone.Marks,1,30,out _);}
         private static void DropShards(Warstone stone,int amount)

@@ -1,3 +1,5 @@
+0.4.12: For other mods: Api.CallOff ends a siege as if the horde had been paid to go, with nothing won or lost (Jarldom's Fuling tribute uses it).
+
 0.4.11: The ward reaches farther as the stone grows: 40 m, and 4 m more for each mark (80 m at ten); its tooltip says how far. Claude Tools: siege day (host) moves on to the next morning.
 
 0.4.10: Fixed spoils chests vanishing, unlooted, as soon as they loaded in (after leaving and coming back, or a restart): a chest fills from its saved contents a moment after it loads, and 0.4.9 took it for empty. A spoils chest now goes only once it has been seen full and then emptied. Claude Tools: siege spoils works on a stone another game runs.
