@@ -114,6 +114,15 @@ namespace Jarldom.Ui
             y = Heading(list, "The colony", y);
             Container treasury = Stock.Treasury(_c);
             y = Text(list, $"Treasury: {(treasury == null ? "<color=#ff8c59>none chosen</color> (mark a chest from the hammer's room tool, or below)" : Stock.Coins(treasury) + " coins")}. Wages due every {Payroll.EveryDays} days: {Payroll.Due(Villagers.All.Where(b => b.S.Colony == _c.Id).Select(b => b.S)) * Plugin.Instance.WageScale.Value / 100} coins.{(r.MissedPaydays > 0 ? $" <color=#ff8c59>{r.MissedPaydays} missed paydays.</color>" : "")}", y);
+            int tribute = Tribute.Due(_c);
+            if (tribute > 0 || Tribute.Raiding(_c))
+            {
+                int ask = Tribute.Raiding(_c) ? Mathf.CeilToInt(_c.R.Flag("tribute:ask") * 1.5f / 5f) * 5 : tribute;
+                y = Heading(list, "The Fulings", y);
+                y = Text(list, Tribute.Raiding(_c) ? $"The Fulings are raiding. {ask} coins from the treasury would turn them back." : $"A Fuling herald waits at the colony's edge: {ask} coins by dusk, or they raid. (Paid {_c.R.Flag("tribute:level")} times before: each time they want more.)", y, 16, GameUi.Warn);
+                float tx = 8; Btn(list, $"Pay the Fulings {ask} coins", ref tx, y, () => Net.Act(_c, "tribute", ""));
+                y += 52;
+            }
             string feast = Feast.Ready(_c, out _, out _);
             y = Text(list, feast == "" ? "A feast can be held tonight." : "Feast: " + feast + ".", y, 16, GameUi.Dim);
             y += 6;
@@ -234,6 +243,7 @@ namespace Jarldom.Ui
             var orders = _c.IsOwner ? _c.Board.All.ToList() : JobBoard.FromSnapshot(_c.Z.GetByteArray(Colony.BoardKey));
             int open = orders.Count(o => o.State == OrderState.Open), claimed = orders.Count(o => o.State == OrderState.Claimed), blocked = orders.Count(o => o.State == OrderState.Blocked);
             y = Text(list, $"{open} open, {claimed} being done, {blocked} blocked. Done so far: {_c.Board.CompletedCount}.", y);
+            y = Commissions(list, y);
             foreach (var g in orders.Where(o => o.State != OrderState.Done && o.State != OrderState.Cancelled).GroupBy(o => o.Kind).OrderByDescending(g => g.Count()))
             {
                 y = Heading(list, $"{g.Key} ({g.Count()})", y);
@@ -247,6 +257,41 @@ namespace Jarldom.Ui
                 }
             }
             return y + 10;
+        }
+
+        // Things to be made for the stores: smiths at the forge and workbench, cooks at the cauldron.
+        private static bool _offerAll;
+        private static float Commissions(RectTransform list, float y)
+        {
+            y = Heading(list, "Commissions", y);
+            var wanted = Crafts.Commissions(_c);
+            if (wanted.Count == 0) y = Text(list, "Nothing commissioned. Smiths make what's asked for at the forge and workbench, cooks at the cauldron, from the stockpiles.", y, 15, GameUi.Dim);
+            foreach (var kv in wanted.OrderBy(k => k.Key))
+            {
+                string prefab = kv.Key; Recipe r = Crafts.RecipeFor(prefab);
+                string note = r == null ? "no recipe" : Crafts.StationFor(_c, r, _c.Position) == null ? "<color=#ff8c59>no " + Localization.instance.Localize(r.m_craftingStation?.m_name ?? "station").ToLower() + " here</color>"
+                    : !Crafts.CanAfford(_c, r) ? "<color=#ffd27a>the stores lack " + string.Join(", ", Crafts.Needs(r).Where(n => Crafts.InStock(_c, n.item) < n.amount).Select(n => Crafts.Name(n.item).ToLower())) + "</color>"
+                    : "by a " + (Crafts.Maker(r) == Prof.Cook ? "cook" : "smith");
+                GameUi.Line(list, $"{kv.Value} × {Crafts.Name(prefab)}", new Vector2(24, -y), 300, 16, GameUi.Text);
+                GameUi.Line(list, note, new Vector2(330, -y), 420, 15, GameUi.Text);
+                GameUi.Button(list, "+1", new Vector2(W - 120, -y + 2), new Vector2(54, 28), () => Net.Act(_c, "craft", prefab + "|1"), true, 14);
+                GameUi.Button(list, "−1", new Vector2(W - 60, -y + 2), new Vector2(54, 28), () => Net.Act(_c, "craft", prefab + "|-1"), true, 14);
+                y += 30;
+            }
+            var offered = Crafts.Offered(_c, Player.m_localPlayer);
+            y = Text(list, offered.Count == 0 ? "Build a workbench, forge or cauldron in the colony to commission things." : "Commission one (what you know how to make, at the stations here):", y + 4, 15, GameUi.Dim);
+            float bx = 8; int shown = 0;
+            foreach (Recipe r in offered)
+            {
+                if (!_offerAll && shown >= 36) break;
+                string prefab = r.m_item.name, label = Localization.instance.Localize(r.m_item.m_itemData.m_shared.m_name);
+                if (label.Length > 18) label = label.Substring(0, 17) + "…";
+                if (bx > W - 170) { bx = 8; y += 36; }
+                GameUi.Button(list, label, new Vector2(bx, -y), new Vector2(166, 32), () => Net.Act(_c, "craft", prefab + "|1"), true, 13);
+                bx += 172; shown++;
+            }
+            if (offered.Count > 36) { if (bx > W - 170) { bx = 8; y += 36; } GameUi.Button(list, _offerAll ? "fewer" : $"all {offered.Count}…", new Vector2(bx, -y), new Vector2(166, 32), () => { _offerAll = !_offerAll; Build(); }, true, 13); }
+            return y + 46;
         }
 
         private static float ThingTab(RectTransform list)

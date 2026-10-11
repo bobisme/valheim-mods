@@ -19,7 +19,8 @@ namespace Jarldom
         internal ServerSettings Synced;
         internal ConfigEntry<float> LeaseSeconds, RespawnSeconds, WorkRate, ArrivalChance, RadiusBonus;
         internal ConfigEntry<int> MaxVillagers, WageScale, MaxBrainsPerFrame;
-        internal ConfigEntry<bool> Migration, Payroll, Raids, Debug, Overlay;
+        internal ConfigEntry<bool> Migration, Payroll, Raids, Tribute, Debug, Overlay;
+        internal ConfigEntry<string> TributeEvent;
         private Harmony _harmony;
 
         private void Awake()
@@ -37,6 +38,8 @@ namespace Jarldom
             LeaseSeconds = Synced.Add(Config.Bind("3 - Work", "LeaseSeconds", 60f, new ConfigDescription("How long a claimed job stays a villager's without news. [Synced with Server]", new AcceptableValueRange<float>(15f, 600f))));
             RespawnSeconds = Synced.Add(Config.Bind("3 - Work", "RespawnSeconds", 30f, new ConfigDescription("Seconds before a fallen villager rises at their bed. [Synced with Server]", new AcceptableValueRange<float>(5f, 600f))));
             Raids = Synced.Add(Config.Bind("4 - Defense", "ColonyRaids", true, "The game's raids find colonies, more often as renown grows. [Synced with Server]"));
+            Tribute = Synced.Add(Config.Bind("4 - Defense", "FulingTribute", true, "Now and then a Fuling herald demands coins at a colony of hamlet rank or more: pay, or they raid. [Synced with Server]"));
+            TributeEvent = Synced.Add(Config.Bind("4 - Defense", "TributeRaid", "army_goblin", "The game's event the Fulings raid with when unpaid. [Synced with Server]"));
             MaxBrainsPerFrame = Config.Bind("5 - Performance", "BrainsPerFrame", 6, new ConfigDescription("How many villagers think each frame (the rest wait their turn).", new AcceptableValueRange<int>(1, 40)));
             Overlay = Config.Bind("6 - Display", "RoomOverlay", true, "With the hammer out, show the colony's rooms and zones.");
             Debug = Config.Bind("9 - Debug", "Debug", false, "Log what villagers decide.");

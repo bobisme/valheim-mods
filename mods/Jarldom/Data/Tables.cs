@@ -11,7 +11,7 @@ namespace Jarldom
 
     public enum Need { Food, Rest, Shelter, Social, Safety, Faith, Beauty }
 
-    public enum RoomType { Longhouse, GreatHall, Stockpile, Smithy, OdinShrine, Temple, HealersHouse, TreasureRoom, BurialGround, Watchtower }
+    public enum RoomType { Longhouse, GreatHall, Stockpile, Smithy, OdinShrine, Temple, HealersHouse, TreasureRoom, BurialGround, Watchtower, Brewhouse }
 
     public enum ZoneType { Woodlot, Mine, Fields, Foraging, Hunting, FishingDock, GuardPost, SacredBog }
 
@@ -43,7 +43,7 @@ namespace Jarldom
     public sealed class RoomInfo
     {
         public RoomType Id; public string Name; public bool Enclosed, Roofed, Door, Fire, Lockable, Open;
-        public int Beds, Seats, Tables, Chests, Graves; public float MinArea, MinFloor; public bool Hearth, Forge, Altar;
+        public int Beds, Seats, Tables, Chests, Graves; public float MinArea, MinFloor; public bool Hearth, Forge, Altar, Brew;
         public string PointsFrom;
     }
 
@@ -64,14 +64,14 @@ namespace Jarldom
             P(Prof.Hunter, "Hunter", 5, "hunts in the hunting grounds", "a bow and arrows", 4, tool: "bow", combat: true),
             P(Prof.Fisherman, "Fisherman", 5, "fishes from the dock", "a rod and bait", 3, tool: "rod"),
             P(Prof.Smelter, "Smelter", 5, "keeps kilns and smelters fed", "", 4, tool: ""),
-            P(Prof.Cook, "Cook", 5, "cooks for the hall", "", 4, tool: ""),
+            P(Prof.Cook, "Cook", 5, "cooks for the hall, brews at the cauldron and keeps the fermenters going", "", 4, tool: ""),
             P(Prof.Builder, "Builder", 5, "builds planned ghosts from the stockpiles", "a hammer", 5, tool: "hammer"),
-            P(Prof.Smith, "Smith", 5, "repairs gear at the stations", "", 8, tool: ""),
-            P(Prof.Scout, "Scout", 5, "explores and warns of raids", "", 6, tool: ""),
+            P(Prof.Smith, "Smith", 5, "makes what's commissioned at the forge and workbench", "the stations", 8, tool: ""),
+            P(Prof.Scout, "Scout", 5, "goes out past the colony's edge, fills in the map and warns of what's out there", "", 6, tool: ""),
             P(Prof.Trader, "Trader", 7, "goes on trade runs", "", 5, tool: ""),
             P(Prof.Gothi, "Gothi", 8, "keeps a temple", "a temple", 6, tool: ""),
             P(Prof.Skald, "Skald", 4, "plays in the hall at dusk", "a great hall", 4, tool: ""),
-            P(Prof.Healer, "Healer", 6, "tends the injured", "a healer's house", 6, tool: ""),
+            P(Prof.Healer, "Healer", 6, "tends the injured (twice as well in a healer's house)", "", 6, tool: ""),
         };
 
         private static ProfessionInfo P(Prof id, string name, int milestone, string does, string needs, int wage, string tool, bool combat = false) =>
@@ -164,6 +164,7 @@ namespace Jarldom
             new RoomInfo { Id = RoomType.TreasureRoom, Name = "Treasure room", Enclosed = true, Roofed = true, Lockable = true, Door = true, PointsFrom = "coins and valuables" },
             new RoomInfo { Id = RoomType.BurialGround, Name = "Burial ground", Open = true, Graves = 3, PointsFrom = "runestones, candles" },
             new RoomInfo { Id = RoomType.Watchtower, Name = "Watchtower", Roofed = true, MinFloor = 4, PointsFrom = "height, braziers" },
+            new RoomInfo { Id = RoomType.Brewhouse, Name = "Brewhouse", Roofed = true, Brew = true, PointsFrom = "fermenters, the cauldron" },
         };
         public static RoomInfo Of(RoomType r) => Rooms[(int)r];
 

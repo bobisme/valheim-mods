@@ -75,12 +75,12 @@ namespace Jarldom
         }
 
         // ---- Shieldwall: a siege at the colony's Warstone is a raid ----
-        private static MethodInfo _siegeAt, _stoneAt; private static BaseUnityPlugin _shieldwall;
+        private static MethodInfo _siegeAt, _stoneAt, _callOff; private static BaseUnityPlugin _shieldwall;
         public static bool Siege(Vector3 at, float radius, out Vector3 stone)
         {
             stone = Vector3.zero;
             BaseUnityPlugin sw = Find("com.bobisme.shieldwall");
-            if (sw != _shieldwall) { _shieldwall = sw; Type api = sw?.GetType().Assembly.GetType("Shieldwall.Api"); _siegeAt = api?.GetMethod("IsSiegeAt"); _stoneAt = api?.GetMethod("StoneAt"); }
+            if (sw != _shieldwall) { _shieldwall = sw; Type api = sw?.GetType().Assembly.GetType("Shieldwall.Api"); _siegeAt = api?.GetMethod("IsSiegeAt"); _stoneAt = api?.GetMethod("StoneAt"); _callOff = api?.GetMethod("CallOff"); }
             if (_siegeAt == null) return false;
             try
             {
@@ -89,6 +89,13 @@ namespace Jarldom
                 return true;
             }
             catch { return false; }
+        }
+
+        // Paid off: the siege ends (on the stone's owner's game; Shieldwall 0.4.12 and later). How many ended.
+        public static int CallOffSiege(Vector3 at, float radius)
+        {
+            Siege(at, radius, out _); // (finds the methods)
+            try { return _callOff != null ? (int)_callOff.Invoke(null, new object[] { at, radius }) : 0; } catch { return 0; }
         }
 
         // ---- BuildOrders: the helper hooks it publishes (AppDomain data, no types shared) ----

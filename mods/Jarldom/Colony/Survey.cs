@@ -247,6 +247,8 @@ namespace Jarldom
             if (n.Contains("forge") && p.GetComponent<CraftingStation>() != null) yield return "forge";
             if (n.Contains("workbench") && p.GetComponent<CraftingStation>() != null) yield return "workbench";
             if (p.GetComponent<StationExtension>() != null) yield return "extension";
+            if (n.Contains("cauldron") && p.GetComponent<CraftingStation>() != null) yield return "cauldron";
+            if (p.GetComponent<Fermenter>() != null) yield return "fermenter";
             ItemStand stand = p.GetComponent<ItemStand>();
             if (stand != null)
             {

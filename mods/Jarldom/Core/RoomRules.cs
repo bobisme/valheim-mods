@@ -48,6 +48,7 @@ namespace Jarldom
             if (info.Graves > 0 && f.C("grave") < info.Graves) v.Failures.Add($"{f.C("grave")} of {info.Graves} grave markers");
             if (info.MinArea > 0 && f.Area < info.MinArea) v.Failures.Add($"{Math.Round(f.Area)} of {info.MinArea} m²");
             if (info.MinFloor > 0 && f.FloorHeight < info.MinFloor) v.Failures.Add($"its floor is {Math.Round(f.FloorHeight, 1)} m up (needs {info.MinFloor})");
+            if (info.Brew && f.C("cauldron") == 0 && f.C("fermenter") == 0) v.Failures.Add("no cauldron or fermenter");
             if (info.Forge && f.C("forge") == 0 && f.C("workbench") == 0) v.Failures.Add("no forge or workbench");
             if (info.Altar)
             {
@@ -93,6 +94,9 @@ namespace Jarldom
                     break;
                 case RoomType.BurialGround:
                     p = Math.Min(f.C("grave"), 12) * 3 + Math.Min(f.C("runestone"), 6) * 4 + Math.Min(f.C("candle"), 8) * 2;
+                    break;
+                case RoomType.Brewhouse:
+                    p = Math.Min(f.C("fermenter"), 6) * 4 + f.C("cauldron") * 6 + f.C("extension") * 2 + Math.Min(f.C("chest"), 4);
                     break;
                 case RoomType.Watchtower:
                     p = (int)Math.Min(40, f.FloorHeight * 4) + Math.Min(f.C("brazier"), 4) * 4;

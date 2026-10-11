@@ -10,9 +10,9 @@ namespace Jarldom
     // reports, deaths) go to the game that owns the High-Seat Pillars; it alone changes the colony. The sender is who the RPC came from.
     internal static class Net
     {
-        private const string ActRpc = "Jarldom_Act", FallenRpc = "Jarldom_Fallen", ClaimRpc = "Jarldom_Claim", ReportRpc = "Jarldom_Report", RefusedRpc = "Jarldom_Refused", ValkyrieRpc = "Jarldom_Valkyrie", VillagerRpc = "Jarldom_Villager", HelloRpc = "Jarldom_Hello";
+        private const string ActRpc = "Jarldom_Act", FallenRpc = "Jarldom_Fallen", ClaimRpc = "Jarldom_Claim", ReportRpc = "Jarldom_Report", RefusedRpc = "Jarldom_Refused", ValkyrieRpc = "Jarldom_Valkyrie", VillagerRpc = "Jarldom_Villager", HelloRpc = "Jarldom_Hello", ExploreRpc = "Jarldom_Explore", EventRpc = "Jarldom_Event";
         private static ZRoutedRpc _on; private static int _delay;
-        private static readonly string[] Names = { ActRpc, FallenRpc, ClaimRpc, ReportRpc, RefusedRpc, ValkyrieRpc, VillagerRpc, HelloRpc, HelloRpc + "?" };
+        private static readonly string[] Names = { ActRpc, FallenRpc, ClaimRpc, ReportRpc, RefusedRpc, ValkyrieRpc, VillagerRpc, HelloRpc, HelloRpc + "?", ExploreRpc, EventRpc };
 
         // Whether the host has Jarldom too (a host without it deletes our pieces and villagers as soon as it loads them).
         public static bool HostHasJarldom => ZNet.instance == null || ZNet.instance.IsServer() || _hostAnswered;
@@ -51,6 +51,12 @@ namespace Jarldom
             {
                 if (ZNet.instance != null && !ZNet.instance.IsServer()) _nextHello = 0;
             });
+            rpc.Register<Vector3, float>(ExploreRpc, (sender, at, radius) => Plugin.Guard(() => { if (Minimap.instance != null) ExploreMethod.Invoke(Minimap.instance, new object[] { at, radius }); }));
+            rpc.Register<string, Vector3>(EventRpc, (sender, name, at) => Plugin.Guard(() =>
+            {
+                if (ZNet.instance == null || !ZNet.instance.IsServer() || RandEventSystem.instance == null) return;
+                if (name == "") RandEventSystem.instance.ResetRandomEvent(); else RandEventSystem.instance.SetRandomEventByName(name, at);
+            }));
             rpc.Register<Vector3>(ValkyrieRpc, (sender, at) => Plugin.Guard(() => Valkyrie.Fly(at)));
         }
         // The game gives an object to whichever nearby player it likes; one without Jarldom would leave the colony or a villager frozen.
@@ -70,6 +76,11 @@ namespace Jarldom
                 if (Lacks(v.GetZDO().GetOwner()) && !(bag != null && ContainerAccess.InUse(bag))) v.ClaimOwnership(); // (not while someone has the bag open)
             }
         }
+        // The map filled in round a scout, for everyone (each game explores its own map).
+        private static readonly System.Reflection.MethodInfo ExploreMethod = AccessTools.Method(typeof(Minimap), "Explore", new[] { typeof(Vector3), typeof(float) });
+        public static void Explore(Vector3 at, float radius) => ZRoutedRpc.instance?.InvokeRoutedRPC(ZRoutedRpc.Everybody, ExploreRpc, at, radius);
+        // A game event started (or, with no name, stopped) by the host, who runs them.
+        public static void Event(string name, Vector3 at) => ZRoutedRpc.instance?.InvokeRoutedRPC(ZRoutedRpc.Everybody, EventRpc, name, at);
         public static void Unregister() { if (ZRoutedRpc.instance != null) Remove(ZRoutedRpc.instance); _on = null; }
         private static void Remove(ZRoutedRpc rpc)
         {
@@ -133,7 +144,7 @@ namespace Jarldom
         {
             uint rev = c.Z.DataRevision;
             if (!Shared.TryGetValue(c.Id, out var s) || s.rev != rev) { s = (JobBoard.FromSnapshot(c.Z.GetByteArray(Colony.BoardKey)), rev); Shared[c.Id] = s; }
-            return s.orders.Where(o => o.State == OrderState.Open && canDo(o.Prof) && !Refused.Contains((b.S.Vid, o.Id)) && Work.GearFor(b, o) == null)
+            return s.orders.Where(o => o.State == OrderState.Open && canDo(o.Prof) && !Refused.Contains((b.S.Vid, o.Id)) && Work.GearFor(b, o) == null && o.Kind != "craft")
                 .OrderByDescending(o => o.Priority).ThenBy(o => (o.X - b.Pos.x) * (o.X - b.Pos.x) + (o.Z - b.Pos.z) * (o.Z - b.Pos.z)).FirstOrDefault();
         }
         public static void Claim(Colony c, Brain b, Order o) => ZRoutedRpc.instance?.InvokeRoutedRPC(Owner(c), ClaimRpc, c.Id, b.S.Vid, o.Id);

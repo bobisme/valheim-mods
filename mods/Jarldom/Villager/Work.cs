@@ -108,6 +108,7 @@ namespace Jarldom
                 if (FirstSeen.Count > 4000) FirstSeen.Clear();
             }
             Faith.Bog(c);
+            Crafts.Scan(c, now);
             // BuildOrders' planned ghosts in the colony: one standing order for the builders (they take the pieces one by one).
             if (Compat.GhostCount(c.Position, c.Radius) > 0) c.Board.Post("build", "ghosts", Prof.Builder, 3, c.Position.x, c.Position.y, c.Position.z, now, "", "plans");
             // Fires that burn low, and the stations: fuel and feeding.
@@ -125,11 +126,22 @@ namespace Jarldom
                     bool needOre = QueueSize(smelter) < smelter.m_maxOre / 2 && smelter.m_conversion.Any(cv => cv.m_from != null && HaveInStock(c, cv.m_from.name));
                     if (needFuel || needOre) c.Board.Post("smelt", Key(v), Prof.Smelter, 3, p.transform.position.x, p.transform.position.y, p.transform.position.z, now, "", "station");
                 }
+                Fermenter ferm = p.GetComponent<Fermenter>();
+                if (ferm != null && Roofed(p.transform.position)) // (a fermenter works only under a roof)
+                {
+                    string st = FermentStatus(ferm);
+                    if (st == "Ready") c.Board.Post("tap", Key(v), Prof.Cook, 5, p.transform.position.x, p.transform.position.y, p.transform.position.z, now, "", "fermenter");
+                    else if (st == "Empty" && ferm.m_conversion.Any(cv => cv.m_from != null && HaveInStock(c, cv.m_from.name)))
+                        c.Board.Post("ferment", Key(v), Prof.Cook, 3, p.transform.position.x, p.transform.position.y, p.transform.position.z, now, "", "fermenter");
+                }
                 CookingStation cook = p.GetComponent<CookingStation>();
                 if (cook != null && (Cook(cook, "HaveDoneItem") || Cook(cook, "IsFireLit") && CookFree(cook) && cook.m_conversion.Any(cv => cv.m_from != null && HaveInStock(c, cv.m_from.name))))
                     c.Board.Post("cook", Key(v), Prof.Cook, Cook(cook, "HaveDoneItem") ? 5 : 3, p.transform.position.x, p.transform.position.y, p.transform.position.z, now, "", "station");
             }
         }
+        private static readonly System.Reflection.MethodInfo FermentStatusMethod = AccessTools.Method(typeof(Fermenter), "GetStatus");
+        public static bool Roofed(Vector3 at) { Cover.GetCoverForPoint(at + Vector3.up * 0.8f, out float _, out bool roof); return roof; }
+        public static string FermentStatus(Fermenter f) { try { return FermentStatusMethod.Invoke(f, null).ToString(); } catch { return ""; } }
         public static bool Cook(CookingStation s, string method) { try { return (bool)AccessTools.Method(typeof(CookingStation), method).Invoke(s, null); } catch { return false; } }
         public static bool CookFree(CookingStation s) { try { return (int)AccessTools.Method(typeof(CookingStation), "GetFreeSlot").Invoke(s, null) >= 0; } catch { return false; } }
         private static readonly System.Reflection.MethodInfo QueueMethod = AccessTools.Method(typeof(Smelter), "GetQueueSize");
@@ -204,6 +216,8 @@ namespace Jarldom
             if (Time.time > b.NoRepairUntil && RepairTask.Worn(b).Count > 0) return new RepairTask();
             Prof prof = b.S.Prof;
             if (prof == Prof.Skald) return null; // skalds rest by day and play at dusk
+            if (prof == Prof.Healer) { Task heal = HealTask.Next(b); if (heal != null) return heal; }
+            if (prof == Prof.Scout && Time.time > b.NoScoutUntil) return new ScoutTask();
             if (prof == Prof.Builder && c.IsOwner && Compat.GhostCount(c.Position, c.Radius) > 0 && Gear.Tool(b, "hammer") != null && Time.time > b.NoBuildUntil) return new BuildTask();
             if (prof == Prof.Trader && c.R.Rank >= Rank.Village && Time.time > b.NoTradeUntil && b.Body.GetInventory().GetEmptySlots() > 1 && Stock.Chests(c, b.Pos).Any(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest) && x.chest.GetInventory().GetAllItems().Count(Trade.Sellable) >= 3)) return new TradeTask();
             Func<Prof, bool> canDo = p => p == prof || p == Prof.Hauler && (prof == Prof.Hauler || Gear.Lacks(b, prof) != null || NothingFor(c, prof));
@@ -211,9 +225,10 @@ namespace Jarldom
             Order o = c.IsOwner ? c.Board.Best(b.S.Vid, canDo, b.Pos.x, b.Pos.z, order => { string p = GearFor(b, order); if (p != null) problem = p; return p; }, c.Now) : Net.BestShared(c, b, canDo);
             if (problem != null) { Gear.Problem = "needs gear: " + problem; Alerts.NeedsGear(c, b, problem); }
             if (o == null) return null;
+            if (o.Kind == "craft" && (!c.IsOwner || Time.time < b.NoCraftUntil)) return null;
             if (c.IsOwner) { if (!c.Board.Claim(o.Id, b.S.Vid, c.Now, out _)) return null; }
             else Net.Claim(c, b, o);
-            return new WorkTask(o);
+            return o.Kind == "craft" ? new CraftTask(o) : (Task)new WorkTask(o);
         }
         private static bool NothingFor(Colony c, Prof p) => !c.Board.All.Any(o => o.State == OrderState.Open && o.Prof == p);
         internal static string GearFor(Brain b, Order o)
@@ -225,7 +240,7 @@ namespace Jarldom
                 GameObject t = Resolve(o.Target);
                 tier = t == null ? 0 : t.GetComponent<TreeBase>()?.m_minToolTier ?? t.GetComponent<TreeLog>()?.m_minToolTier ?? t.GetComponent<MineRock5>()?.m_minToolTier ?? t.GetComponent<MineRock>()?.m_minToolTier ?? t.GetComponent<Destructible>()?.m_minToolTier ?? 0;
             }
-            if (o.Kind == "harvest" || o.Kind == "pick" || o.Kind == "fuel" || o.Kind == "smelt" || o.Kind == "cook" || o.Kind == "guard") return o.Kind == "guard" ? Gear.Lacks(b, Prof.Guard) : null;
+            if (o.Kind == "harvest" || o.Kind == "pick" || o.Kind == "fuel" || o.Kind == "smelt" || o.Kind == "cook" || o.Kind == "ferment" || o.Kind == "tap" || o.Kind == "craft" || o.Kind == "guard") return o.Kind == "guard" ? Gear.Lacks(b, Prof.Guard) : null;
             return Gear.Lacks(b, o.Prof, tier);
         }
         public static int Carrying(Brain b) => b.Body.GetInventory().GetAllItems().Count(i => Loot(i));
@@ -313,6 +328,8 @@ namespace Jarldom
                 case "fuel": return "tending the fire";
                 case "smelt": return "feeding the smelter";
                 case "cook": return "cooking";
+                case "ferment": return "filling the fermenter";
+                case "tap": return "tapping the mead";
                 default: return Kind;
             }
         }
@@ -370,7 +387,7 @@ namespace Jarldom
                 case "hunt": Hunt(b); break;
                 case "guard": Guard(b); break;
                 case "fish": Fish(b); break;
-                case "fuel": case "smelt": case "cook": Station(b); break;
+                case "fuel": case "smelt": case "cook": case "ferment": case "tap": Station(b); break;
                 default: Finish(b, false); break;
             }
         }
@@ -607,6 +624,14 @@ namespace Jarldom
                 if (!Work.Cook(done, "HaveDoneItem")) { _phase = 1; Kind_Collect = true; }
                 return;
             }
+            if (_phase == 0 && Kind == "tap" && _target.GetComponent<Fermenter>() is Fermenter barrel)
+            {
+                // Ready: tap it (the barrel gives out the mead beside it a moment later), then gather it.
+                if (Walking(b, 2.6f)) return;
+                if (Work.FermentStatus(barrel) == "Ready") { Body_.Anim(b.Body)?.SetTrigger("interact"); _target.GetComponent<ZNetView>().InvokeRPC("RPC_Tap"); }
+                _waitUntil = Time.time + barrel.m_tapDelay + 0.3f; _phase = 1; Kind_Collect = true;
+                return;
+            }
             if (Kind_Collect) { if (Collect(b)) return; Finish(b, true); return; }
             if (_phase == 0)
             {
@@ -621,6 +646,8 @@ namespace Jarldom
                     if (Work.QueueSize(smelter) < smelter.m_maxOre / 2) wants.AddRange(smelter.m_conversion.Where(cv => cv.m_from != null).Select(cv => cv.m_from.name));
                 }
                 if (cook != null) wants.AddRange(cook.m_conversion.Where(cv => cv.m_from != null).Select(cv => cv.m_from.name));
+                Fermenter cask = _target.GetComponent<Fermenter>();
+                if (cask != null) wants.AddRange(cask.m_conversion.Where(cv => cv.m_from != null).Select(cv => cv.m_from.name));
                 // In the order wanted: fuel before ore (ore in a cold smelter does nothing).
                 var chests = Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).ToList();
                 foreach (string want in wants)
@@ -641,7 +668,7 @@ namespace Jarldom
                 if (fp != null) room = Mathf.Clamp(Mathf.FloorToInt(fp.m_maxFuel - tv.GetZDO().GetFloat(ZDOVars.s_fuel)), 0, 5);
                 else if (sm != null && sm.m_fuelItem != null && sm.m_fuelItem.name == _carry) room = Mathf.Clamp(Mathf.FloorToInt(sm.m_maxFuel - tv.GetZDO().GetFloat(ZDOVars.s_fuel)), 0, 5);
                 else if (sm != null) room = Mathf.Clamp(sm.m_maxOre - Work.QueueSize(sm), 0, 5);
-                else if (_target.GetComponent<CookingStation>() != null) room = 1;
+                else if (_target.GetComponent<CookingStation>() != null || _target.GetComponent<Fermenter>() != null) room = 1;
                 _fetched = have != null && room > 0 ? Stock.Take(_source, bag, have, room) : 0;
                 if (_fetched == 0) { Finish(b, false); return; }
                 _phase = 2; b.Move.To(Approach(b), 1.4f);
@@ -660,9 +687,11 @@ namespace Jarldom
                 float max = fire != null ? fire.m_maxFuel : smelter != null ? smelter.m_maxFuel : 0;
                 bool full = fuel && max > 0 && Mathf.CeilToInt(v.GetZDO().GetFloat(ZDOVars.s_fuel)) >= max
                     || smelter != null && !fuel && Work.QueueSize(smelter) >= smelter.m_maxOre
-                    || cook != null && !fuel && (!Work.CookFree(cook) || !Work.Cook(cook, "IsFireLit"));
+                    || cook != null && !fuel && (!Work.CookFree(cook) || !Work.Cook(cook, "IsFireLit"))
+                    || _target.GetComponent<Fermenter>() is Fermenter f && Work.FermentStatus(f) != "Empty";
                 if (full) { Finish(b, true); return; } // leftovers go back to the stores with the next deposit
-                if (cook != null && !fuel) v.InvokeRPC("RPC_AddItem", _carry, false);
+                if (_target.GetComponent<Fermenter>() != null) v.InvokeRPC("RPC_AddItem", _carry.GetStableHashCode(), false);
+                else if (cook != null && !fuel) v.InvokeRPC("RPC_AddItem", _carry, false);
                 else if (smelter != null && !fuel) v.InvokeRPC("RPC_AddOre", _carry, false);
                 else v.InvokeRPC("RPC_AddFuel");
                 bag.RemoveItem(item, 1);

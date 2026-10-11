@@ -281,7 +281,7 @@ namespace Jarldom
                 BoxCollider collider = holder.AddComponent<BoxCollider>(); collider.center = b.center + Vector3.down * 0.025f; collider.size = b.size + Vector3.up * 0.05f;
             }
             WearNTear wear = go.GetComponent<WearNTear>();
-            if (wear != null) { wear.m_new = look; wear.m_worn = look; wear.m_broken = look; wear.m_health = Math.Max(wear.m_health, 600); }
+            if (wear != null) { wear.m_new = look; wear.m_worn = look; wear.m_broken = look; wear.m_health = Math.Max(wear.m_health, 600); wear.m_fragmentRoots = null; } // (the source's fragment parts are gone: it breaks into our look's own pieces)
             Piece piece = go.GetComponent<Piece>();
             piece.m_name = title; piece.m_description = text; piece.m_category = category;
             piece.m_resources = Assets.Needs(cost.Where(c => c.Item2 > 0).ToArray());

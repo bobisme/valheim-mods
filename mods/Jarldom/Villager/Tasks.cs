@@ -52,6 +52,12 @@ namespace Jarldom
         {
             Doing = JustRest ? "resting" : "going to bed";
             _bed = b.Colony.BedById(b.S.Bed);
+            // The injured rest in the healer's house, if it has a bed nobody holds.
+            if (JustRest && b.Colony.Best(RoomType.HealersHouse) != null)
+            {
+                Bed sick = b.Colony.AllBeds().FirstOrDefault(x => b.Colony.RoomAt(x.transform.position, RoomType.HealersHouse) != null && (Colony.BedOwner(x, out _) == "" || x == _bed));
+                if (sick != null) { _spot = sick.m_spawnPoint != null ? sick.m_spawnPoint : sick.transform; Doing = "resting at the healer's"; b.Move.To(_spot.position, 1.2f); _own = true; return; }
+            }
             if (_bed != null) { _own = true; _spot = _bed.m_spawnPoint != null ? _bed.m_spawnPoint : _bed.transform; b.Move.To(_spot.position, 1.2f); return; }
             Room hall = b.Colony.Best(RoomType.GreatHall);
             Vector3 at = hall != null ? b.Colony.Centre(hall) : b.Colony.Position + b.Colony.Seat.transform.forward * 3;

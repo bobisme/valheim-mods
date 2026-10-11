@@ -33,6 +33,8 @@ namespace Jarldom
     // Odin's attention: what a colony has built, how well it sleeps, and what it has done.
     public static class Renown
     {
+        // The Fulings' price: more for a colony worth more, and half again each time it's been paid (rounded to fives).
+        public static int TributeAsk(int renown, int paid) => (int)Math.Round((40 + Math.Max(0, renown) * 0.5) * Math.Pow(1.5, Math.Max(0, Math.Min(paid, 12))) / 5.0) * 5;
         public const double WealthScale = 0.5;
         public static int Wealth(double pieceValue, int coins, double valuables, bool treasureRoomDoubles = false, double treasureValue = 0)
         {

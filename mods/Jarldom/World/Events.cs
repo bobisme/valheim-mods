@@ -186,7 +186,8 @@ namespace Jarldom
             {
                 c.RaidOn = false; c.HornUntil = 0;
                 int deaths = c.R.Log.Count(e => e.Kind == "death" || e.Kind == "lost");
-                if (c.Population > 0)
+                bool bought = c.R.Flags.Remove("tribute:bought"); // (paid off: nothing held, no deed)
+                if (c.Population > 0 && !bought)
                 {
                     string name = Running.TryGetValue(c.Id, out var r) ? r.name : "the raid"; // (a reload mid-raid forgets which)
                     c.R.Deeds += Renown.Deed("raidheld");
@@ -194,6 +195,7 @@ namespace Jarldom
                     foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) { Mood.Add(b.S, "raidheld", b.Now); b.S.Bump("raids"); if (b.S.Prof == Prof.Guard && b.S.Count("raids") >= 3 && string.IsNullOrEmpty(b.S.Byname)) { b.S.Byname = Names.Byname("defender"); c.Log("byname", b.S.Name, b.S.Byname); } b.Dirty(); }
                 }
                 Running.Remove(c.Id);
+                Tribute.RaidOver(c);
             }
         }
 

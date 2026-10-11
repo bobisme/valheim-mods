@@ -26,7 +26,7 @@ namespace Jarldom
             if (foe == null)
             {
                 float reach = fighter ? 25f : 8f;
-                foe = Character.GetAllCharacters().Where(c => c != null && !c.IsDead() && c != b.Body && !c.IsPlayer() && !VillagerPrefab.Is(c) && BaseAI.IsEnemy(b.Body, c)
+                foe = Character.GetAllCharacters().Where(c => c != null && !c.IsDead() && c != b.Body && !c.IsPlayer() && !VillagerPrefab.Is(c) && !Tribute.IsHerald(c) && BaseAI.IsEnemy(b.Body, c)
                         && (fighter || Hunting(c) || Vector3.Distance(c.transform.position, me) < 4f)
                         && (c.GetFaction() != Character.Faction.AnimalsVeg || b.Task is WorkTask w && w.Kind == "hunt" && w.Target == c)
                         && Vector3.Distance(c.transform.position, me) < reach && Utils.DistanceXZ(c.transform.position, b.Colony.Position) < b.Colony.Radius + 25)

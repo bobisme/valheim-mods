@@ -63,7 +63,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "site", "hurt" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or with devcommands"); return; }
             if (c == null && cmd != "place" && cmd != "compat" && cmd != "status") { error("no colony near (jarldom place pillars makes one)"); return; }
             Player me = Player.m_localPlayer;
@@ -209,8 +209,23 @@ namespace Jarldom
                 case "feast": Feast.Call(c, me?.GetPlayerName() ?? "test"); output(new JObject { ["ready"] = Feast.Ready(c, out _, out _), ["lastFeast"] = c.R.LastFeast }); break;
                 case "thing": Thing.Call(c, c.Day); output(new JObject { ["petitions"] = new JArray(Thing.Shown(c).Select(p => p.Text)) }); break;
                 case "ascend": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } Ascension.Begin(c, b.S.Vid, me?.GetPlayerName() ?? ""); output(new JObject { ["why"] = Ascension.Why(c, b.S) }); } break;
+                case "hurt": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } float pct = a.Length > 3 ? F(a[3]) : 80; b.Body.SetHealth(b.Body.GetMaxHealth() * Mathf.Clamp01(1 - pct / 100f)); if (a.Contains("injure")) { b.S.InjuredUntil = b.Now + Clock.DayLength; Mood.Add(b.S, "injured", b.Now); b.Dirty(); } output(new JObject { ["health"] = b.Body.GetHealth(), ["injured"] = b.S.InjuredUntil > b.Now }); } break;
                 case "kill": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } var hit = new HitData(); hit.m_damage.m_damage = 99999; hit.m_point = b.Body.GetCenterPoint(); b.Body.Damage(hit); output(new JObject { ["killed"] = b.S.Name }); } break;
                 case "raid": RandEventSystem.instance.SetRandomEventByName(a.Length > 2 ? a[2] : "army_eikthyr", c.Position); output(new JObject { ["raid"] = a.Length > 2 ? a[2] : "army_eikthyr" }); break;
+                case "tribute":
+                    if (a.Length > 2 && a[2] == "pay") Tribute.Pay(c, me?.GetPlayerName() ?? "test");
+                    else if (a.Length > 2 && a[2] == "dusk") Tribute.Dusk(c, c.Day);
+                    else if (a.Length > 2 && a[2] == "clear") { foreach (string k in c.R.Flags.Keys.Where(k => k.StartsWith("tribute:")).ToList()) c.R.Flags.Remove(k); c.MarkDirty(); }
+                    else if (a.Length > 2 && a[2] == "demand") Tribute.Demand(c, c.Day);
+                    output(new JObject { ["due"] = Tribute.Due(c), ["raiding"] = Tribute.Raiding(c), ["level"] = c.R.Flag("tribute:level"), ["next"] = c.R.Flag("tribute:next"), ["day"] = c.Day,
+                        ["heralds"] = new JArray(Character.GetAllCharacters().Where(Tribute.IsHerald).Select(h => $"{h.transform.position.x:0},{h.transform.position.y:0},{h.transform.position.z:0}")),
+                        ["event"] = RandEventSystem.instance?.GetCurrentRandomEvent()?.m_name ?? "" });
+                    break;
+                case "craft":
+                    if (a.Length > 2) Net.Act(c, "craft", a[2] + "|" + (a.Length > 3 ? a[3] : "1"));
+                    output(new JObject { ["commissions"] = new JArray(Crafts.Commissions(c).Select(k => $"{k.Key} x{k.Value}")),
+                        ["offered"] = new JArray(Crafts.Offered(c, Player.m_localPlayer).Select(r => r.m_item.name)) });
+                    break;
                 case "horn": Net.Act(c, "horn", c.HornUntil > Time.time ? "off" : "on"); output(new JObject { ["horn"] = c.HornUntil > Time.time }); break;
                 case "treasury": case "stockpile":
                     {
@@ -327,6 +342,19 @@ namespace Jarldom
                     {
                         PieceTable t = ObjectDB.instance.GetItemPrefab(a[2])?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces;
                         output(new JObject { ["pieces"] = new JArray((t?.m_pieces ?? new List<GameObject>()).Where(p => p != null).Select(p => p.name + " [" + string.Join(",", p.GetComponents<Component>().Select(x => x.GetType().Name)) + "]")) });
+                    }
+                    break;
+                case "site":
+                    {
+                        // Somewhere to build: the ground's lowest and highest over a rectangle, and what stands on it.
+                        float x1 = Math.Min(F(a[2]), F(a[4])), x2 = Math.Max(F(a[2]), F(a[4])), z1 = Math.Min(F(a[3]), F(a[5])), z2 = Math.Max(F(a[3]), F(a[5]));
+                        float lo = float.MaxValue, hi = float.MinValue;
+                        for (float x = x1; x <= x2; x += 1f) for (float z = z1; z <= z2; z += 1f) { float y = ZoneSystem.instance.GetGroundHeight(new Vector3(x, 0, z)); lo = Math.Min(lo, y); hi = Math.Max(hi, y); }
+                        Vector3 mid = new Vector3((x1 + x2) / 2, (lo + hi) / 2, (z1 + z2) / 2); Vector3 half = new Vector3((x2 - x1) / 2, 6, (z2 - z1) / 2);
+                        var things = Physics.OverlapBox(mid, half, Quaternion.identity, ~0, QueryTriggerInteraction.Ignore).Select(col => col.GetComponentInParent<ZNetView>()).Where(v => v != null && v.GetComponent<Character>() == null).Distinct()
+                            .Where(v => { Vector3 q = v.transform.position; return q.x >= x1 && q.x <= x2 && q.z >= z1 && q.z <= z2; })
+                            .GroupBy(v => Utils.GetPrefabName(v.gameObject)).ToDictionary(g => g.Key, g => g.Count());
+                        output(new JObject { ["low"] = Math.Round(lo, 2), ["high"] = Math.Round(hi, 2), ["things"] = new JObject(things.Select(kv => new JProperty(kv.Key, kv.Value))), ["fromPillars"] = Math.Round(Utils.DistanceXZ(mid, c.Position), 1) });
                     }
                     break;
                 case "soil":
