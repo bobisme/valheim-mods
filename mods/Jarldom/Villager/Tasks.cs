@@ -350,7 +350,7 @@ namespace Jarldom
             if (!bag.GetAllItems().Any(Trade.Sellable)) { Done = true; b.NoTradeUntil = Time.time + 60; return; }
             // (by cart or ship: to it, and the rest is loaded there; on foot a little way down the road and gone: the world past a
             // player's own ground stands still, so a walk to the far edge could stall)
-            Component by = _way == TradeWay.Cart ? cart : _way == TradeWay.Karve ? karve : _way == TradeWay.Longship ? longship : null;
+            Component by = _way == TradeWay.Cart ? cart : _way == TradeWay.Karve ? karve ?? longship : _way == TradeWay.Longship ? longship : null;
             Vector3 dir = (b.Pos - c.Position); dir.y = 0; if (dir.sqrMagnitude < 1) dir = Vector3.forward;
             _edge = by != null ? Colony.Spot(by.transform.position, Trading.AtSea(_way) ? 8f : 3f) ?? b.Pos : c.Position + dir.normalized * Mathf.Min(c.Radius + 10, 35f);
             if (by == null) _edge = Colony.Spot(_edge, 4f) ?? _edge;
@@ -449,7 +449,7 @@ namespace Jarldom
     // back to their place once the jarl has ruled.
     internal sealed class ThingTask : Task
     {
-        public bool Arrived; private Chair _chair; private Vector3 _stand; private bool _speaking, _spoke; private float _faceAt;
+        public bool Arrived; private Chair _chair; private Vector3 _stand; private bool _speaking, _spoke; private float _faceAt; private string _matter;
         public override void Start(Brain b) => Place(b);
         private void Place(Brain b)
         {
@@ -464,9 +464,10 @@ namespace Jarldom
         {
             Colony c = b.Colony;
             Petition cur = Thing.Current(c);
+            if (_speaking && cur != null && cur.Key != _matter && cur.By == b.S.Vid && c.R.Flag(Thing.Spoken) == 0) { _spoke = false; _matter = cur.Key; } // (their next matter, straight after)
             if (!_speaking && cur != null && cur.By == b.S.Vid && c.R.Flag(Thing.Spoken) == 0)
             {
-                _speaking = true; _spoke = false; Seats.Free(b); b.Stand(); _chair = null;
+                _speaking = true; _spoke = false; _matter = cur.Key; Seats.Free(b); b.Stand(); _chair = null;
                 _stand = Thing.Floor(c); b.Move.To(_stand, 1.2f); Doing = "coming forward at the Thing";
                 return;
             }
@@ -479,7 +480,7 @@ namespace Jarldom
                     Face(b, c);
                     b.Say(cur.Text, 12);
                     _spoke = true; Doing = "speaking at the Thing";
-                    if (c.IsOwner) Thing.Speak(c); else Net.Act(c, "thingspoke", "");
+                    if (c.IsOwner) Thing.Speak(c, cur.Key); else Net.Act(c, "thingspoke", cur.Key);
                 }
                 if (Time.time > _faceAt) { _faceAt = Time.time + 2f; Face(b, c); }
                 return;

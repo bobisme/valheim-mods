@@ -151,7 +151,7 @@ namespace Jarldom
             if (Time.time > _nextWork && b.Colony.IsOwner)
             {
                 _nextWork = Time.time + 8f;
-                int open = b.Colony.Board.All.Count(o => o.State == OrderState.Open && (o.Prof == b.S.Prof || o.Kind == "fuel")); // (more than when they sat down: something new)
+                int open = b.Colony.Board.All.Count(o => o.State == OrderState.Open && (o.Prof == b.S.Prof && b.S.Prof != Prof.Hauler || o.Kind == "fuel")); // (a hauler's carrying comes and goes all day: only a fire calls them) // (more than when they sat down: something new)
                 if (_openAtStart < 0) _openAtStart = open; else if (open > _openAtStart) { Done = true; return; }
             }
             if (Seeking)

@@ -169,7 +169,7 @@ namespace Jarldom
                 if (character != Player.m_localPlayer) return false;
                 if (ZInput.GetButton("AltPlace") || ZInput.GetButton("JoyAltPlace") || alt) return true; // Shift+E: the bag itself
                 string vid = __instance.GetComponent<ZNetView>()?.GetZDO()?.GetString(Villagers.VidKey, "") ?? "";
-                if (Colony.All.Any(c => c.Valid && Thing.Ready(c) && Thing.Current(c).By == vid)) { Ui.ThingPanel.Recall(); return false; } // (the one speaking at the Thing: the jarl's answer)
+                if (Player.m_localPlayer is Player me && Colony.All.Any(c => c.Valid && Thing.Ready(c) && Thing.Current(c).By == vid && c.Allows(me) && Thing.There(c, me.transform.position))) { Ui.ThingPanel.Recall(); return false; } // (the one speaking at the Thing: the jarl's answer)
                 Ui.VillagerPanel.Open(__instance.GetComponent<Humanoid>());
                 return false;
             }

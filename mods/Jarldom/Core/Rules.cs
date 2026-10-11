@@ -68,7 +68,7 @@ namespace Jarldom
         {
             var ways = new List<TradeWay> { TradeWay.Foot };
             if (cart && rank >= MinRank(TradeWay.Cart)) ways.Add(TradeWay.Cart);
-            if (karve && rank >= MinRank(TradeWay.Karve)) ways.Add(TradeWay.Karve);
+            if ((karve || longship) && rank >= MinRank(TradeWay.Karve)) ways.Add(TradeWay.Karve); // (a longship sails as far as a karve before the hold can send it further)
             if (longship && rank >= MinRank(TradeWay.Longship)) ways.Add(TradeWay.Longship);
             foreach (TradeWay w in ways) if (Lots(w) >= lots) return w;
             return ways[ways.Count - 1];

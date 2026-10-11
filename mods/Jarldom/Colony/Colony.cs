@@ -124,6 +124,7 @@ namespace Jarldom
 
         // ---- saving ----
         public void MarkDirty() => _dirty = true;
+        public bool SagaRead => _sagaRead;
         public void Flush()
         {
             if (!_dirty || !IsOwner || R == null) return;

@@ -47,10 +47,10 @@ namespace Jarldom.Ui
             GameUi.Line(_window, $"{(p.ByName != "" ? p.ByName : "A voice")} speaks before the Thing:", new Vector2(30, -90), Size.x - 60, 17, GameUi.Dim);
             TMP_Text said = GameUi.Line(_window, "“" + p.Text + "”", new Vector2(30, -118), Size.x - 60, 22, GameUi.Text);
             float y = 118 + said.GetPreferredValues(said.text, Size.x - 60, 0).y + 20;
-            GameUi.Button(_window, p.Yes, new Vector2(30, -y), new Vector2(300, 44), () => { Net.Act(c, "rule", idx + "|yes"); Close(); });
-            GameUi.Button(_window, p.No, new Vector2(Size.x - 330, -y), new Vector2(300, 44), () => { Net.Act(c, "rule", idx + "|no"); Close(); });
+            GameUi.Button(_window, p.Yes, new Vector2(30, -y), new Vector2(300, 44), () => { Net.Act(c, "rule", idx + "|yes|" + p.Key); Dismiss(); });
+            GameUi.Button(_window, p.No, new Vector2(Size.x - 330, -y), new Vector2(300, 44), () => { Net.Act(c, "rule", idx + "|no|" + p.Key); Dismiss(); });
             y += 56;
-            GameUi.Button(_window, "Adjourn the Thing", new Vector2(30, -y), new Vector2(220, 34), () => { Net.Act(c, "thingend", ""); Close(); }, true, 15);
+            GameUi.Button(_window, "Adjourn the Thing", new Vector2(30, -y), new Vector2(220, 34), () => { Net.Act(c, "thingend", ""); Dismiss(); }, true, 15);
             GameUi.Line(_window, $"Esc: decide later (E on {(p.ByName != "" ? p.ByName : "the petitioner")} brings this back)", new Vector2(270, -y - 8), Size.x - 300, 14, GameUi.Dim);
         }
     }

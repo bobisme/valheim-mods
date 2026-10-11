@@ -116,7 +116,7 @@ namespace Jarldom
         // (petitions once kept in the saga: moved into the record)
         private static void Migrate(Colony c)
         {
-            if (c.R.Flag("petitions:moved") == 1) return;
+            if (c.R.Flag("petitions:moved") == 1 || !c.IsOwner || !c.SagaRead) return; // (the saga read in first: that's where they were)
             c.R.Flags["petitions:moved"] = 1;
             foreach (LogEntry e in c.R.Log.Where(e => e.Kind == "petition"))
             {
@@ -125,7 +125,7 @@ namespace Jarldom
                 if (c.R.Petitions.Any(p => p.Id == e.A && p.About == e.B)) continue;
                 c.R.Petitions.Add(new Petition { Id = e.A, About = e.B, Text = f.Length > 0 ? f[0] : "", Yes = f.Length > 1 ? f[1] : "Yes", No = f.Length > 2 ? f[2] : "No", YesMood = Num(3), NoMood = Num(4), YesFavour = Num(5), YesDeed = f.Length > 6 ? f[6] : "", Day = e.Day });
             }
-            c.R.Log.RemoveAll(e => e.Kind == "petition");
+            if (c.R.Log.RemoveAll(e => e.Kind == "petition") > 0) c.R.LogChanges++; // (the saga written again without them)
             c.MarkDirty();
         }
 
@@ -155,13 +155,25 @@ namespace Jarldom
             if (c.Population < 3 && !force) return;
             if (Held(c)) return; // (not while it sits)
             var rng = new System.Random(c.Id.GetStableHashCode() ^ day * 31);
-            var (raised, withdrawn) = Petitions.Update(pending, Standing(c, day), day, rng);
-            foreach (Petition p in withdrawn) pending.Remove(p);
-            var people = Villagers.All.Where(b => b.S.Colony == c.Id && b.Alive).Select(b => (b.S.Vid, b.S.Name, b.S.Prof.ToString(), string.IsNullOrEmpty(b.S.Bed))).ToList();
+            foreach (string k in c.R.Flags.Keys.Where(k => k.StartsWith("ruled:") && day - c.R.Flags[k] >= RuledRest).ToList()) c.R.Flags.Remove(k);
+            // (not again so soon after a ruling, nor while a promise on it is running)
+            var standing = Standing(c, day).Where(p => !c.R.Flags.ContainsKey("ruled:" + p.Key) && !c.R.Flags.ContainsKey("promise:" + p.Id)).ToList();
+            var (raised, withdrawn) = Petitions.Update(pending, standing, day, rng);
+            // (only what this game can see is judged: with too few of the folk loaded here, nothing is withdrawn; a matter about
+            // someone stands until they're gone from the roster)
+            var living = c.R.Living.ToList();
+            bool seeAll = Villagers.All.Count(b => b.S.Colony == c.Id) >= living.Count * 3 / 4;
+            foreach (Petition p in withdrawn)
+            {
+                bool personal = p.Id == "exile" || p.Id == "accuse" || p.Id == "feud";
+                bool gone = personal ? p.About.Split('|').Any(n => !living.Any(r => r.Name == n)) : seeAll;
+                if (gone && (seeAll || personal)) pending.Remove(p);
+            }
+            var people = living.Select(r => (r.Vid, r.Name, r.Prof.ToString(), string.IsNullOrEmpty(r.Bed))).ToList();
             foreach (Petition p in raised)
             {
                 p.By = Petitions.Speaker(p, people, rng);
-                p.ByName = Villagers.ByVid(p.By)?.S.Name ?? "";
+                p.ByName = c.R.Row(p.By)?.Name ?? "";
                 pending.Add(p);
                 c.Log("text", p.ByName, "", $"{(p.ByName != "" ? p.ByName : "Someone")} has a matter for the Thing: “{p.Text}”");
             }
@@ -226,9 +238,9 @@ namespace Jarldom
             c.MarkDirty(); c.Flush();
         }
         // The teller has said it (or it was read out): the jarl may rule.
-        public static void Speak(Colony c)
+        public static void Speak(Colony c, string key = null)
         {
-            Petition p = Current(c); if (p == null || c.R.Flag(Spoken) == 1) return;
+            Petition p = Current(c); if (p == null || c.R.Flag(Spoken) == 1 || key != null && key != p.Key) return; // (a late word about a matter already heard)
             c.R.Flags[Spoken] = 1; c.R.Flags[Since] = (int)c.Now;
             c.Tell($"{(p.ByName != "" ? p.ByName : "A voice")} speaks before the Thing: “{p.Text}”", true);
             c.MarkDirty(); c.Flush();
@@ -247,11 +259,14 @@ namespace Jarldom
             c.MarkDirty(); c.Flush();
         }
 
-        public static void Rule(Colony c, int index, bool yes, string who)
+        public const int RuledRest = 3; // days before a matter ruled on may be raised again
+        public static void Rule(Colony c, int index, bool yes, string who, string key = null)
         {
             var list = Pending(c);
             if (!Held(c) || index != c.R.Flag(Cur) - 1 || index < 0 || index >= list.Count || c.R.Flag(Spoken) != 1) return; // (only at the Thing, on the matter being heard)
             Petition p = list[index];
+            if (key != null && key != p.Key) return; // (a ruling sent on a matter already decided)
+            c.R.Flags["ruled:" + p.Key] = c.Day;
             list.RemoveAt(index);
             int mood = yes ? p.YesMood : p.NoMood;
             foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id))

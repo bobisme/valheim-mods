@@ -15,10 +15,11 @@ namespace Jarldom.Ui
         public static void Tick()
         {
             GameUi.IsOpen = () => AnyOpen;
-            GameUi_EscapeCloses.Close = CloseAll;
+            GameUi_EscapeCloses.Close = Escape;
             ColonyWindow.Tick(); VillagerPanel.Tick(); RoomPicker.Tick(); RoomEditor.Tick(); JarlView.Tick(); ThingPanel.Tick();
         }
-        public static void CloseAll() { if (ThingPanel.IsOpen) { ThingPanel.Dismiss(); return; } if (ColonyWindow.IsOpen || VillagerPanel.IsOpen || RoomPicker.IsOpen || RoomEditor.IsOpen) { ColonyWindow.Close(); VillagerPanel.Close(); RoomPicker.Close(); RoomEditor.Close(); } else JarlView.End(); } // (Esc closes a window first, then the seat's view)
+        private static void Escape() { if (ThingPanel.IsOpen) ThingPanel.Dismiss(); else CloseAll(); } // (Esc puts off the ruling first)
+        public static void CloseAll() { ThingPanel.Close(); if (ColonyWindow.IsOpen || VillagerPanel.IsOpen || RoomPicker.IsOpen || RoomEditor.IsOpen) { ColonyWindow.Close(); VillagerPanel.Close(); RoomPicker.Close(); RoomEditor.Close(); } else JarlView.End(); } // (Esc closes a window first, then the seat's view)
         public static string Pct(float f) => Mathf.RoundToInt(f * 100) + "%";
         public static string Signed(int v) => v > 0 ? "+" + v : v.ToString();
     }
@@ -529,8 +530,8 @@ namespace Jarldom.Ui
                 if (Thing.Ready(_c) && Thing.Current(_c) == p)
                 {
                     float rx = 8;
-                    Btn(list, p.Yes, ref rx, y, () => Net.Act(_c, "rule", idx + "|yes"));
-                    Btn(list, p.No, ref rx, y, () => Net.Act(_c, "rule", idx + "|no"));
+                    Btn(list, p.Yes, ref rx, y, () => Net.Act(_c, "rule", idx + "|yes|" + p.Key));
+                    Btn(list, p.No, ref rx, y, () => Net.Act(_c, "rule", idx + "|no|" + p.Key));
                     y += 50;
                 }
             }

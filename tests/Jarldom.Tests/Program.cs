@@ -73,6 +73,7 @@ Check(Trading.Choose(Rank.Village, true, false, false, 4) == TradeWay.Foot && Tr
 Check(Trading.Choose(Rank.Village, true, true, true, 50) == TradeWay.Cart, "Ships wait for their rank");
 Check(Trading.Choose(Rank.Jarldom, true, true, false, 25) == TradeWay.Karve && Trading.Choose(Rank.Jarldom, true, true, true, 100) == TradeWay.Karve, "A karve at jarldom rank, not yet the longship");
 Check(Trading.Choose(Rank.Hold, false, false, true, 100) == TradeWay.Longship && Trading.Choose(Rank.Hold, true, true, true, 15) == TradeWay.Cart, "A longship for a big load; a small load stays small");
+Check(Trading.Choose(Rank.Jarldom, false, false, true, 25) == TradeWay.Karve, "A longship sails as a karve before hold rank");
 Check(Trading.Lots(TradeWay.Foot) < Trading.Lots(TradeWay.Cart) && Trading.Lots(TradeWay.Cart) < Trading.Lots(TradeWay.Karve) && Trading.Lots(TradeWay.Karve) < Trading.Lots(TradeWay.Longship), "Each way carries more");
 Check(Trading.PricePercent(TradeWay.Longship) > Trading.PricePercent(TradeWay.Karve) && Trading.PricePercent(TradeWay.Karve) > Trading.PricePercent(TradeWay.Cart), "Further markets pay better");
 Check(Trading.LossChance(TradeWay.Karve, 5, true) < Trading.LossChance(TradeWay.Karve, 0, false) && Trading.LossChance(TradeWay.Karve, -20, true) > Trading.LossChance(TradeWay.Foot, 0, false), "Njord rules the sea");
