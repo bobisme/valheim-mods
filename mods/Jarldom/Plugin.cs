@@ -71,6 +71,7 @@ namespace Jarldom
             Synced?.Update();
             Tools.Tick();
             ServerMailbox.Tick();
+            Guard(Claims.Sweep);
             Guard(Net.Tick);
             Guard(Net.KeepOwners);
             Guard(Colony.TickAll);

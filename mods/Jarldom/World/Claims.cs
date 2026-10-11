@@ -70,6 +70,21 @@ namespace Jarldom
         // The claim as the stake last wrote it, without loads not yet taken in: for the stake's own survey.
         internal static Claim Stored(string id) => Keys(KeyHead).TryGetValue(KeyHead + id, out string v) ? Claim.Decode(id, v) : null;
         public static Vector3 At(Claim c) => new Vector3(c.X, 0, c.Z);
+        // A claim whose ground is loaded with no stake of its on it any more (taken away some other way than the hammer: an admin's
+        // tool, another mod): gone too.
+        private static float _nextSweep;
+        public static void Sweep()
+        {
+            if (Time.time < _nextSweep || ZNetScene.instance == null || Z == null) return;
+            _nextSweep = Time.time + 10f;
+            foreach (Claim c in All().ToList())
+            {
+                Vector3 at = new Vector3(c.X, ZoneSystem.instance.GetGroundHeight(At(c)), c.Z);
+                if (!ZNetScene.instance.IsAreaReady(at)) continue;
+                var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at, 3f, near);
+                if (!near.Any(p => p.GetComponent<ZNetView>() is ZNetView v && v.IsValid() && v.GetZDO().GetString(IdKey, "") == c.Id)) Remove(c.Id); // (by the id on the stake itself)
+            }
+        }
         public static string Ores(Claim c) => c.Left.Where(kv => kv.Value.n > 0).Any() ? string.Join(", ", c.Left.Where(kv => kv.Value.n > 0).OrderByDescending(kv => kv.Value.n).Select(kv => $"~{kv.Value.n} {Name(kv.Key)}")) : "worked out";
         public static string Name(string prefab) { GameObject p = ObjectDB.instance?.GetItemPrefab(prefab) ?? Carts_Item(prefab); return p != null ? Localization.instance.Localize(p.GetComponent<ItemDrop>().m_itemData.m_shared.m_name).ToLower() : prefab; }
         private static GameObject Carts_Item(string lower) => ObjectDB.instance?.m_items.FirstOrDefault(i => i != null && i.name.ToLowerInvariant() == lower);
@@ -303,7 +318,8 @@ namespace Jarldom
             int beds = CampBeds();
             float reach = beds > 0 ? Mining.CampReach : Mining.CryptReach;
             // (not until the ground all round has loaded: half a survey would lose what was dug, and under-count what's left)
-            if (ZNetScene.instance == null || !new[] { Vector3.zero, Vector3.forward, Vector3.back, Vector3.left, Vector3.right }.All(d => ZNetScene.instance.IsAreaReady(at + d * reach))) return Claims.Get(Id);
+            float need = beds > 0 ? Mining.CampReach : Mining.BareReach + 2f; // (a crypt's inside lies over its door: found in what's loaded)
+            if (ZNetScene.instance == null || !new[] { Vector3.zero, Vector3.forward, Vector3.back, Vector3.left, Vector3.right }.All(d => ZNetScene.instance.IsAreaReady(at + d * need))) return Claims.Get(Id);
             var inside = Claims.Near(at, reach, true);
             bool crypt = inside.Count > 0;
             var deposits = crypt ? inside : Claims.Near(at, beds > 0 ? Mining.CampReach : Mining.BareReach, false);

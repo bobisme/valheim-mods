@@ -161,6 +161,7 @@ namespace Jarldom
             foreach (Piece p in c.PiecesIn(c.Radius))
             {
                 Fireplace fire = p.GetComponent<Fireplace>();
+                if (fire != null) FireAvoid.Ensure(fire); // (one lit before Jarldom loaded)
                 ZNetView v = p.GetComponent<ZNetView>();
                 if (v == null || !v.IsValid()) continue;
                 // (every fire the colony tends, in a room or out: a campfire under the cooking station, the torches along the road, a brazier,
