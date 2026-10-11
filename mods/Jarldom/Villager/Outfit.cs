@@ -82,10 +82,17 @@ namespace Jarldom
             b.NoGraveUntil = Time.time + 30;
             // Their own; for a hauler, also those of villagers who won't come back for theirs (ascended, lost, gone).
             bool Mine(string vid) => vid == b.S.Vid || b.S.Prof == Prof.Hauler && vid != "" && !c.R.Roster.Any(r => r.Vid == vid && r.State == SoulState.Active);
-            TombStone grave = Object.FindObjectsByType<TombStone>(FindObjectsSortMode.None)
+            TombStone grave = Graves()
                 .Where(t => Mine(t.GetComponent<ZNetView>()?.GetZDO()?.GetString(Villagers.TombKey, "") ?? "") && Utils.DistanceXZ(t.transform.position, c.Position) < c.Radius + 60)
                 .OrderBy(t => Vector3.Distance(t.transform.position, b.Pos)).FirstOrDefault();
             return grave != null && grave.GetComponent<Container>()?.GetInventory().NrOfItems() > 0 ? new GraveTask(grave) : null;
+        }
+        // The tombstones in the world, looked for once every 15 s for everyone (a search of the whole scene isn't for every villager).
+        private static TombStone[] _graves = new TombStone[0]; private static float _gravesAt = -100f;
+        private static TombStone[] Graves()
+        {
+            if (Time.time - _gravesAt > 15f) { _gravesAt = Time.time; _graves = Object.FindObjectsByType<TombStone>(FindObjectsSortMode.None); }
+            return _graves.Where(t => t != null).ToArray();
         }
         public override void Start(Brain b)
         {
