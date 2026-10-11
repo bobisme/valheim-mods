@@ -629,7 +629,7 @@ native methods and loader-readable symbols. These do not exercise the running UI
 
 ## Gary the Greydwarf
 
-A purple greydwarf friend with native creature AI. No API key is needed. Gary jogs at 4 m/s, runs at 7.5 m/s, and starts
+A small, lilac-tinged greydwarf friend with native creature AI. No API key is needed. Gary jogs at 4 m/s, runs at 7.5 m/s, and starts
 running when more than 5 metres behind you. Players and Quad’s AICompanion characters can walk through Gary; terrain and enemy collisions remain active.
 
 - **F3:** summon your Gary, or recall the same Gary beside you.
@@ -656,7 +656,7 @@ Gary also has these playful activities, each adjustable in F7:
 | **Home nest** | **Left Shift+E** on a **wood pile you built**. He makes a leaf/branch nest beside it and curls up when you pause nearby for eight seconds. Repeat on the same pile to forget it. |
 | **Rain antics** | Settle down near shelter in rain. He seeks a nearby reachable roof and shakes dry afterward. |
 | **Sailing personality** | He prefers a clear forward deck spot, watches ahead, chirps at visible seabirds and crouches during rough waves. |
-| **Forest accessories** | A small matte twig-and-feather crown, pouch and ear feather; toggle each under **Appearance**. |
+| **Forest accessories** | A small matte twig-and-feather crown resting on his head, a pouch at his hip and an ear feather; toggle each under **Appearance**. |
 | **Quad friendship** | He greets your nearby AICompanion characters and watches or imitates their building/gathering work. |
 | **Show-and-tell** | Before a gift, he holds up a visual preview for two seconds, then tosses the real stash item. |
 | **Reforestation** | Spend time within **60 metres** of your bed. Every **8 minutes** or so he finds open wild ground nearby, preferring a spot beside a stump you left, works the soil a moment and plants a real sapling of a tree that grows there (the stump's own kind when it can). Seeds and cones he has picked up let him plant **three times as often** and keep **twice as many** growing. |

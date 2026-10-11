@@ -46,6 +46,7 @@ namespace Gary
             internal string EntranceId;
             internal Vector3 LastPosition,GuideInterior;
             internal readonly Dictionary<Renderer,MaterialPropertyBlock> Original=new Dictionary<Renderer,MaterialPropertyBlock>();
+            internal Vector3 OriginalScale;
         }
         internal static readonly Dictionary<Character,State> States=new Dictionary<Character,State>();
         internal static ZDO Data(Component c)
@@ -53,6 +54,9 @@ namespace Gary
         internal static bool Is(Component c)
         {ZDO z=Data(c);return z!=null && z.GetLong(Master,0)!=0 && z.GetPrefab()=="Greydwarf".GetStableHashCode() && c.GetComponent<MonsterAI>()!=null;}
         internal static long Now => ZNet.instance!=null?ZNet.instance.GetTime().Ticks:0;
+        // His colouring: a greydwarf's own bark, with a lilac hint and a faint glow, so he is told from wild ones without being bright purple.
+        private static readonly Color Tint=new Color(0.92f,0.80f,1f),Glow=new Color(0.05f,0.015f,0.085f);
+        private const float Size=0.85f;
         internal static State Get(Character c)
         {
             if(!States.TryGetValue(c,out State st))
@@ -69,11 +73,13 @@ namespace Gary
                 ai.m_fleeIfNotAlerted=false;ai.m_fleeIfLowHealth=0;ai.m_fleeIfHurtWhenTargetCantBeReached=false;
                 ai.m_alertRange=35;ai.m_maxChaseDistance=0;ai.m_sleeping=false;ai.m_fleeRange=20;ai.m_fleeInterval=1;
                 ai.m_avoidWater=true;
+                // A little smaller than a wild greydwarf (every game does this, as it is not sent).
+                st.OriginalScale=c.transform.localScale;c.transform.localScale=st.OriginalScale*Size;
                 foreach(Renderer renderer in c.GetVisual().GetComponentsInChildren<Renderer>(true))
                 {
                     var old=new MaterialPropertyBlock();renderer.GetPropertyBlock(old);st.Original[renderer]=old;
                     var tint=new MaterialPropertyBlock();renderer.GetPropertyBlock(tint);
-                    tint.SetColor("_Color",new Color(0.75f,0.35f,1f));tint.SetColor("_EmissionColor",new Color(0.12f,0.025f,0.22f));
+                    tint.SetColor("_Color",Tint);tint.SetColor("_EmissionColor",Glow);
                     renderer.SetPropertyBlock(tint);
                 }
             }
@@ -182,6 +188,7 @@ namespace Gary
             {
                 if(st.Body!=null&&Data(st.Body)!=null&&st.Body.GetComponent<ZNetView>().IsOwner())Activities.Cancel(st);
                 foreach(var pair in st.Original)if(pair.Key!=null)pair.Key.SetPropertyBlock(pair.Value);
+                if(st.Body!=null&&st.OriginalScale!=Vector3.zero)st.Body.transform.localScale=st.OriginalScale;
             }
             States.Clear();
         }

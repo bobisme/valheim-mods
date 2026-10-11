@@ -14,7 +14,7 @@ namespace Gary
     {
         public const string Guid="com.bobisme.gary";
         public const string Name="Gary";
-        public const string Version="0.5.3";
+        public const string Version="0.5.4";
         internal static Plugin Instance;
         internal ConfigEntry<float> Health,GiftSeconds,GuideRange,ReforestRadius,ReforestMinutes;
         internal ConfigEntry<int> ReforestMax;
@@ -96,7 +96,7 @@ namespace Gary
             }
             if(_pendingUntil>0 && Time.unscaledTime>_pendingUntil)
             {_pendingUntil=0;Tell("No reply yet. Gary must be installed on the host and participating players.");}
-            DungeonLoot.Tick();MapMarker.Tick();
+            DungeonLoot.Tick();MapMarker.Tick();Tools.Tick();
             Player p=Player.m_localPlayer;
             if(p==null||p.IsDead()||p.IsTeleporting()||Busy()||_rpc==null)return;
             if(_fetch.Value.IsDown()){Fetch.Throw(p);return;}
@@ -156,6 +156,6 @@ namespace Gary
         internal static void Tell(string message) => Player.m_localPlayer?.Message(MessageHud.MessageType.TopLeft,"Gary: "+message);
         internal void Error(Exception error) => Logger.LogError(error);
         private void OnDestroy()
-        {Fetch.Clear();GaryVisuals.Clear();Unregister();_harmony?.UnpatchSelf();MapMarker.Clear();BoatRide.Clear();PlayerCollision.Clear();DungeonLoot.Clear();Companion.Clear();if(Instance==this)Instance=null;}
+        {Tools.Stop();Fetch.Clear();GaryVisuals.Clear();Unregister();_harmony?.UnpatchSelf();MapMarker.Clear();BoatRide.Clear();PlayerCollision.Clear();DungeonLoot.Clear();Companion.Clear();if(Instance==this)Instance=null;}
     }
 }

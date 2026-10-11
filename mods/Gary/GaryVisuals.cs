@@ -67,12 +67,20 @@ namespace Gary
             Renderer renderer=go.GetComponent<Renderer>();Material material=Paint(color);if(material!=null)renderer.sharedMaterial=material;else renderer.enabled=false;
             renderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;go.layer=LayerMask.NameToLayer("Default");return go;
         }
-        private static GameObject Anchor(Transform bone,Character c,string name,Vector3 offset)
+        // A prop on a bone: offset in metres in Gary's frame with the bone at rest, so it sits the same whatever frame of an animation it was
+        // made in (it was placed from the pose of the moment, and hovered off his head when that was a nod or a hunch), and grows with him.
+        private static GameObject Anchor(Transform bone,Character c,string name,Vector3 offset,Vector3 tilt=default,float size=1)
         {
-            var go=new GameObject(name);go.transform.SetPositionAndRotation(bone.position+c.transform.rotation*offset,c.transform.rotation);go.transform.SetParent(bone,true);
-            Vector3 scale=bone.lossyScale;
-            go.transform.localScale=new Vector3(1/Mathf.Max(0.001f,Mathf.Abs(scale.x)),1/Mathf.Max(0.001f,Mathf.Abs(scale.y)),1/Mathf.Max(0.001f,Mathf.Abs(scale.z)));
-            return go;
+            var go=new GameObject(name);go.transform.SetParent(bone,false);Place(go.transform,c,Rest(c,bone),offset,tilt,size);return go;
+        }
+        private static void Place(Transform prop,Character c,Quaternion rest,Vector3 offset,Vector3 tilt,float size)
+        {
+            Vector3 lossy=prop.parent.lossyScale;float scale=c.transform.localScale.x;
+            Quaternion back=Quaternion.Inverse(rest);
+            prop.localRotation=back*Quaternion.Euler(tilt);
+            Vector3 at=back*(offset*scale);
+            prop.localPosition=new Vector3(at.x/lossy.x,at.y/lossy.y,at.z/lossy.z);
+            prop.localScale=new Vector3(scale*size/Mathf.Max(0.001f,Mathf.Abs(lossy.x)),scale*size/Mathf.Max(0.001f,Mathf.Abs(lossy.y)),scale*size/Mathf.Max(0.001f,Mathf.Abs(lossy.z)));
         }
         private static View Get(Character c)
         {
@@ -83,7 +91,7 @@ namespace Gary
                 foreach(Transform bone in armature.GetComponentsInChildren<Transform>(true))
                     if(!view.Bones.ContainsKey(bone.name))view.Bones[bone.name]=new Bone{Transform=bone};
             Transform head=BoneOf(view,"head")??c.transform;
-            view.Crown=Anchor(head,c,"Gary's flower crown",new Vector3(0,0.25f,0));
+            view.Crown=Anchor(head,c,"Gary's flower crown",CrownAt,CrownTilt,CrownSize);
             Color leaf=new Color(0.20f,0.29f,0.13f),stem=new Color(0.24f,0.17f,0.10f);
             for(int i=0;i<20;i++)
             {
@@ -145,6 +153,23 @@ namespace Gary
             renderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
             Shape(parent,PrimitiveType.Cylinder,new Vector3(0,length*0.45f,0),new Vector3(0.006f,length*0.48f,0.006f),new Color(0.35f,0.29f,0.20f));
         }
+        // The crown sits on the crown of his head, between the branch horns, and turns with it.
+        internal static Vector3 CrownAt=new Vector3(0,0.1f,0),CrownTilt=Vector3.zero;internal static float CrownSize=1;
+        // A bone's rest pose (from the skin's bind pose), in Gary's frame.
+        private static Quaternion Rest(Character c,Transform bone)
+        {
+            foreach(SkinnedMeshRenderer skin in c.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+            {
+                int i=Array.IndexOf(skin.bones,bone);
+                if(i<0||skin.sharedMesh==null||i>=skin.sharedMesh.bindposes.Length)continue;
+                Quaternion inMesh=skin.sharedMesh.bindposes[i].inverse.rotation;
+                return Quaternion.Inverse(c.transform.rotation)*skin.transform.rotation*inMesh;
+            }
+            return Quaternion.Inverse(c.transform.rotation)*bone.rotation;
+        }
+        internal static void PlaceCrowns(){foreach(View v in Views.Values)if(v.Crown!=null&&v.Gary!=null&&v.Crown.transform.parent!=null)Place(v.Crown.transform,v.Gary,Rest(v.Gary,v.Crown.transform.parent),CrownAt,CrownTilt,CrownSize);}
+        internal static Transform HeadBone(Character c)=>c!=null&&Views.TryGetValue(c,out View v)?BoneOf(v,"head"):null;
+        internal static GameObject CrownOf(Character c)=>c!=null&&Views.TryGetValue(c,out View v)?v.Crown:null;
         private static Transform BoneOf(View v,string name)=>v.Bones.TryGetValue(name,out Bone bone)?bone.Transform:null;
         private static Vector3 RootShift(View v,float metres)
         {return v.Bones.TryGetValue("root",out Bone root)&&root.Transform!=null&&root.Transform.parent!=null?

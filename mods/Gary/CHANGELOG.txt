@@ -1,3 +1,5 @@
+0.5.4: Gary is a little smaller (85% of a wild greydwarf) and only lightly lilac instead of bright purple. His crown now rests on his head between the branch horns, and his ear feather and pouch sit on him, instead of floating where his pose put them the moment they were made (all three are now placed from his body's rest pose and turn with it). A `gary` command for Claude Tools: where he is, and pictures of him alone.
+
 0.5.3: Less network traffic in multiplayer. Your whole list of cleared dungeons rode along on your player (sent to everyone with each step, up to several KB); now only the ones within Gary's noticing range do. Gary's status line no longer flips (and resends him) every frame while he waits to show you an entrance or rides rough seas, and his retreat spot only moves when you've gone a few metres.
 
 0.5.2: Fixed an error when Gary tidied up deadfall that never regrows (a branch or stone the game removes once picked): he no longer touches it after picking it up.
