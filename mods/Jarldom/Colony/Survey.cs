@@ -181,13 +181,13 @@ namespace Jarldom
             f.Area = Geometry.Area(xz);
             float floor = room.Floor;
             RoomInfo info = Tables.Of(room.Type);
-            // Walls: along each edge, something built at knee and head height.
+            // Walls: along each edge, something built low down and something higher up (at head height, or over a window), so a wall
+            // with windows counts and a waist-high fence with nothing over it doesn't.
             var covered = new int[n]; var total = new int[n];
             foreach (var s in Geometry.EdgeSamples(xz, 0.5f))
             {
                 total[s.edge]++;
-                bool low = Solid(new Vector3(s.x, floor + 1f, s.z)), high = Solid(new Vector3(s.x, floor + 1.8f, s.z));
-                if (low && high) covered[s.edge]++;
+                if (WallAt(xz, s.edge, s.x, s.z, floor)) covered[s.edge]++;
             }
             f.Walls = Enumerable.Range(0, n).Select(i => total[i] == 0 ? 0f : covered[i] / (float)total[i]).ToArray();
             if (info.Open) f.Walls = Enumerable.Repeat(1f, n).ToArray();
@@ -208,7 +208,10 @@ namespace Jarldom
                 Door door = p.GetComponent<Door>();
                 if (door != null)
                 {
-                    if (Geometry.Distance(xz, at.x, at.z) <= 1.5f && EdgeDistance(xz, at.x, at.z) <= 1.5f) { f.Doors++; if (door.m_keyItem != null) f.LockableDoors++; }
+                    // A door in this room's own walls: near its outline, and in sight from its middle (not a neighbour's, beyond a wall).
+                    // Window shutters are doors to the game; not here.
+                    if (!Prefab(p.gameObject).Contains("window") && Geometry.Distance(xz, at.x, at.z) <= 1.5f && EdgeDistance(xz, at.x, at.z) <= 1.5f && InSight(new Vector3(cx, floor + 1f, cz), p))
+                    { f.Doors++; if (door.m_keyItem != null) f.LockableDoors++; }
                     continue;
                 }
                 if (!Geometry.Inside(xz, at.x, at.z)) continue;
@@ -226,6 +229,39 @@ namespace Jarldom
             f.Comfort = SE_Rested.CalculateComfortLevel(true, new Vector3(cx, floor + 0.5f, cz));
             f.FloorHeight = ZoneSystem.instance.GetGroundHeight(new Vector3(cx, floor, cz), out float ground) ? floor - ground : 0;
             return f;
+        }
+        // For tests: where along each edge the wall check finds no wall (what's hit low and high there).
+        public static List<string> Gaps(Room room)
+        {
+            var list = new List<string>();
+            foreach (var s in Geometry.EdgeSamples(room.Xz, 0.5f))
+            {
+                if (!WallAt(room.Xz, s.edge, s.x, s.z, room.Floor)) list.Add($"edge {s.edge} at {s.x:0.0},{s.z:0.0}");
+            }
+            return list;
+        }
+        // A wall at this point of an edge: something low and something higher, here or up to a metre outward (corners are marked a
+        // little inside the walls).
+        private static bool WallAt(IList<float> xz, int edge, float x, float z, float floor)
+        {
+            int n = xz.Count / 2, j = (edge + 1) % n;
+            Vector2 a = new Vector2(xz[edge * 2], xz[edge * 2 + 1]), b = new Vector2(xz[j * 2], xz[j * 2 + 1]);
+            Vector2 normal = new Vector2(b.y - a.y, a.x - b.x).normalized;
+            var (cx, cz) = Geometry.Centre(xz);
+            if (Vector2.Dot(normal, new Vector2(x - cx, z - cz)) < 0) normal = -normal; // (outward)
+            foreach (float k in new[] { 0f, 0.5f, 1f })
+            {
+                float px = x + normal.x * k, pz = z + normal.y * k;
+                if (Solid(new Vector3(px, floor + 0.7f, pz)) && (Solid(new Vector3(px, floor + 1.8f, pz)) || Solid(new Vector3(px, floor + 2.4f, pz)))) return true;
+            }
+            return false;
+        }
+        private static bool InSight(Vector3 from, Piece door)
+        {
+            Vector3 to = door.transform.position + Vector3.up * 1f;
+            if (!Physics.Linecast(from, to, out RaycastHit hit, PieceMask, QueryTriggerInteraction.Ignore)) return true;
+            Piece first = hit.collider.GetComponentInParent<Piece>();
+            return first == door || Vector3.Distance(hit.point, to) < 0.6f; // (the door itself, or right at it)
         }
         private static float EdgeDistance(IList<float> xz, float x, float z)
         {

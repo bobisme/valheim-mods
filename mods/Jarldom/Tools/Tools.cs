@@ -65,6 +65,29 @@ namespace Jarldom
             Colony c = Here();
             string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "away", "master", "envoy", "capture", "barrow" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or with devcommands"); return; }
+            if (cmd == "probe")
+            {
+                // From the player (read-only): the floor under them, the ceiling over them, and the walls each way at chest height.
+                Vector3 here = Player.m_localPlayer.transform.position;
+                int mask = LayerMask.GetMask("piece", "Default", "static_solid", "terrain");
+                float Hit(Vector3 from, Vector3 dir, float max) => Physics.Raycast(from, dir, out RaycastHit h, max, mask, QueryTriggerInteraction.Ignore) ? h.distance : -1;
+                float down = Hit(here + Vector3.up * 0.5f, Vector3.down, 4f), up = Hit(here + Vector3.up * 1.2f, Vector3.up, 12f);
+                Vector3 chest = here + Vector3.up * 1.2f;
+                output(new JObject { ["at"] = V(here), ["floor"] = down < 0 ? (JToken)null : Math.Round(here.y + 0.5f - down, 2), ["ceiling"] = up < 0 ? (JToken)null : Math.Round(here.y + 1.2f + up, 2),
+                    ["east"] = Hit(chest, Vector3.right, 30), ["west"] = Hit(chest, Vector3.left, 30), ["north"] = Hit(chest, Vector3.forward, 30), ["south"] = Hit(chest, Vector3.back, 30) });
+                return;
+            }
+            if (cmd == "storeys")
+            {
+                // Floors near the player by height (read-only): each level's extent, for finding rooms in a house of storeys.
+                Vector3 here = Player.m_localPlayer.transform.position; float r = a.Length > 2 ? F(a[2]) : 15f;
+                var list = new List<Piece>(); Piece.GetAllPiecesInRadius(here, r, list);
+                var floors = list.Where(p => { string n = Utils.GetPrefabName(p.gameObject); return n.Contains("floor") || n.StartsWith("stone_floor"); })
+                    .GroupBy(p => Mathf.Round(p.transform.position.y * 2) / 2).OrderBy(g => g.Key)
+                    .Select(g => new JObject { ["y"] = g.Key, ["pieces"] = g.Count(), ["x"] = $"{g.Min(p => p.transform.position.x):0.0}..{g.Max(p => p.transform.position.x):0.0}", ["z"] = $"{g.Min(p => p.transform.position.z):0.0}..{g.Max(p => p.transform.position.z):0.0}" });
+                output(new JObject { ["at"] = V(here), ["levels"] = new JArray(floors) });
+                return;
+            }
             if (cmd == "roomtest")
             {
                 // Measure a room without marking it (read-only, anywhere): roomtest <type> <x1> <z1> <x2> <z2> [floor y]
@@ -75,7 +98,9 @@ namespace Jarldom
                 room.Height = Colony.Ceiling(room);
                 RoomFacts f = Colony.Measure(room);
                 RoomVerdict v = RoomRules.Judge(type, f, "");
-                output(new JObject { ["floor"] = Math.Round(floor, 2), ["ceiling"] = Math.Round(room.Height, 2), ["ok"] = v.Ok, ["grade"] = v.Grade.ToString(), ["failures"] = new JArray(v.Failures),
+                var near = new List<Piece>(); Piece.GetAllPiecesInRadius(new Vector3((x1 + x2) / 2, floor, (z1 + z2) / 2), Mathf.Max(x2 - x1, z2 - z1), near);
+                var doors = near.Where(p => p.GetComponent<Door>() != null && Math.Abs(p.transform.position.y - floor) < 3).Select(p => $"{Utils.GetPrefabName(p.gameObject)} at {p.transform.position.x:0.0},{p.transform.position.y:0.0},{p.transform.position.z:0.0} edge {Geometry.Distance(room.Xz, p.transform.position.x, p.transform.position.z):0.00}").ToList();
+                output(new JObject { ["gaps"] = new JArray(Colony.Gaps(room)), ["doorsNear"] = new JArray(doors), ["floor"] = Math.Round(floor, 2), ["ceiling"] = Math.Round(room.Height, 2), ["ok"] = v.Ok, ["grade"] = v.Grade.ToString(), ["failures"] = new JArray(v.Failures),
                     ["walls"] = new JArray(f.Walls.Select(w => Math.Round(w, 2))), ["roof"] = Math.Round(f.Roof, 2), ["doors"] = f.Doors, ["contents"] = new JObject(f.Count.Select(kv => new JProperty(kv.Key, kv.Value))) });
                 return;
             }
