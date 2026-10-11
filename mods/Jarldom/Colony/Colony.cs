@@ -129,6 +129,7 @@ namespace Jarldom
         public void Flush()
         {
             if (!_dirty || !IsOwner || R == null) return;
+            if (Versions.Mismatch) return; // (another game on another shape of Jarldom's data: nothing written until they match)
             _dirty = false;
             bool apart = SaveSaga();
             Z.Set(RecordKey, R.Save(withLog: !apart));

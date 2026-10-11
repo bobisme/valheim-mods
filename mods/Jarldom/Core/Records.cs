@@ -54,7 +54,7 @@ namespace Jarldom
 
     public sealed class ColonyRecord
     {
-        public const byte Version = 1;
+        public const byte Version = 1; // (any change to what's saved here: raise Plugin.DataVersion too, so mixed games don't write over each other)
         public const int LogSize = 240;
         public string Id = ""; public string Name = ""; public double Founded; public long Founder; public string FounderName = "";
         public Rank Rank; public int Deeds; public int Arrivals; public int Refused;

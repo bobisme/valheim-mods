@@ -15,6 +15,7 @@ namespace Jarldom
         public const string Guid = "com.bobisme.jarldom";
         public const string Name = "Jarldom";
         public const string Version = "0.1.0";
+        public const int DataVersion = 1; // raised whenever what's saved changes shape: games of different data versions mustn't write each other's colonies
         internal static Plugin Instance;
         internal ServerSettings Synced;
         internal ConfigEntry<float> LeaseSeconds, RespawnSeconds, WorkRate, ArrivalChance, RadiusBonus;
@@ -116,7 +117,7 @@ namespace Jarldom
             Guard(Villagers.DetachAll);
             Guard(PieceScripts.DetachAll);
             Guard(Colony.DetachAll);
-            Guard(Passing.Clear); Guard(Seats.Clear); Guard(Stock.Forget); Guard(Thing.Forget); Guard(Claims.Forget); Guard(Defense.Forget); Guard(Work.Forget); Guard(Valkyrie.Clear);
+            Guard(Passing.Clear); Guard(Seats.Clear); Guard(Stock.Forget); Guard(Thing.Forget); Guard(Versions.Forget); Guard(Claims.Forget); Guard(Defense.Forget); Guard(Work.Forget); Guard(Valkyrie.Clear);
             Guard(Assets.UnregisterAll);
             Guard(GameUi.Destroy);
             Synced?.Dispose();

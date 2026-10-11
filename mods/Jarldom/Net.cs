@@ -10,9 +10,11 @@ namespace Jarldom
     // reports, deaths) go to the game that owns the High-Seat Pillars; it alone changes the colony. The sender is who the RPC came from.
     internal static class Net
     {
+        private const string VersionRpc = "Jarldom_Version";
+        private static float _nextShout;
         private const string ActRpc = "Jarldom_Act", FallenRpc = "Jarldom_Fallen", ClaimRpc = "Jarldom_Claim", ReportRpc = "Jarldom_Report", RefusedRpc = "Jarldom_Refused", ValkyrieRpc = "Jarldom_Valkyrie", VillagerRpc = "Jarldom_Villager", HelloRpc = "Jarldom_Hello", ExploreRpc = "Jarldom_Explore", EventRpc = "Jarldom_Event", PinRpc = "Jarldom_Pin", CampRpc = "Jarldom_Camp", CampAtRpc = "Jarldom_CampAt";
         private static ZRoutedRpc _on; private static int _delay;
-        private static readonly string[] Names = { ActRpc, FallenRpc, ClaimRpc, ReportRpc, RefusedRpc, ValkyrieRpc, VillagerRpc, HelloRpc, HelloRpc + "?", ExploreRpc, EventRpc, PinRpc, CampRpc, CampAtRpc };
+        private static readonly string[] Names = { VersionRpc, ActRpc, FallenRpc, ClaimRpc, ReportRpc, RefusedRpc, ValkyrieRpc, VillagerRpc, HelloRpc, HelloRpc + "?", ExploreRpc, EventRpc, PinRpc, CampRpc, CampAtRpc };
 
         // Whether the host has Jarldom too (a host without it deletes our pieces and villagers as soon as it loads them).
         public static bool HostHasJarldom => ZNet.instance == null || ZNet.instance.IsServer() || _hostAnswered;
@@ -28,6 +30,13 @@ namespace Jarldom
                 _nextHello = Time.time + (_hostAnswered ? 60 : 5);
                 rpc.InvokeRoutedRPC(HelloRpc, Plugin.Version);
             }
+            // (and to every game, now and then: each game knows the others' versions, whatever the host runs)
+            if (rpc != null && rpc == _on && ZNet.instance != null && Time.time >= _nextShout)
+            {
+                _nextShout = Time.time + 45;
+                rpc.InvokeRoutedRPC(ZRoutedRpc.Everybody, VersionRpc, $"{Plugin.Version}|{Plugin.DataVersion}|{Player.m_localPlayer?.GetPlayerName() ?? (ZNet.instance.IsDedicated() ? "the server" : "someone")}");
+            }
+            Versions.Warn();
             if (rpc == null || rpc == _on) return;
             _hostAnswered = false; _nextHello = 0;
             if (_delay++ < 2) return; // after a reload, the old copy unregisters at the end of its last frame
@@ -40,6 +49,7 @@ namespace Jarldom
             rpc.Register<string, string, int, string>(ReportRpc, OnReport);
             rpc.Register<string, int>(RefusedRpc, OnRefused);
             rpc.Register<string, string, string>(VillagerRpc, (sender, vid, action, arg) => { Brain b = Villagers.ByVid(vid); if (b != null) Plugin.Guard(() => b.Command(action, arg)); });
+            rpc.Register<string>(VersionRpc, (sender, said) => Versions.Heard(sender, said));
             rpc.Register<string>(HelloRpc, (sender, version) =>
             {
                 if (ZNet.instance != null && ZNet.instance.IsServer()) { WithJarldom.Add(sender); if (sender != ZDOMan.GetSessionID()) ZRoutedRpc.instance.InvokeRoutedRPC(sender, HelloRpc, Plugin.Version); }
