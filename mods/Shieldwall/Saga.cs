@@ -102,6 +102,14 @@ namespace Shieldwall
         }
         // In the game's own rune-stone window. Use or Escape closes it, and it goes by itself after half a minute or when you walk off.
         private static float _shownAt=-1;private static Vector3 _shownWhere;
+        private static bool IsSaga(TextViewer viewer)=>viewer.m_topic!=null&&viewer.m_topic.text!=null&&viewer.m_topic.text.Contains(" siege: the stone ");
+        // The mod is unloading (a reload or an update): close a saga it opened, as nothing will be left to close it.
+        internal static void Forget()
+        {
+            TextViewer viewer=TextViewer.instance;
+            if(viewer!=null&&viewer.IsVisible()&&(_shownAt>=0||IsSaga(viewer)))viewer.Hide();
+            _shownAt=-1;
+        }
         internal static void Show(string topic,string text)
         {
             if(TextViewer.instance==null||Player.m_localPlayer==null||string.IsNullOrEmpty(text))return;
@@ -110,8 +118,10 @@ namespace Shieldwall
         }
         internal static void Tick()
         {
-            if(_shownAt<0)return;
             TextViewer viewer=TextViewer.instance;Player me=Player.m_localPlayer;
+            // A saga left open with no clock on it (shown before a reload of the mod): take it over, so it still goes by itself.
+            if(_shownAt<0&&viewer!=null&&me!=null&&viewer.IsVisible()&&IsSaga(viewer)){_shownAt=Time.time;_shownWhere=me.transform.position;}
+            if(_shownAt<0)return;
             if(viewer==null||me==null||!viewer.IsVisible()){_shownAt=-1;return;}
             if(Time.time-_shownAt>30||Vector3.Distance(me.transform.position,_shownWhere)>12){viewer.Hide();_shownAt=-1;}
         }
