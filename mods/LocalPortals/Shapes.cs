@@ -104,13 +104,19 @@ namespace LocalPortals
             var edge=Policy.Edge(grow,28,bottom);
             var vertices=new List<Vector3>();var uv=new List<Vector2>();var triangles=new List<int>();
             float cy=(float)((bottom+Policy.Spring)/2);
+            // each face in strips across, between the matching points of its left and right sides (the edge is the same both
+            // sides): a fan from one middle point made long slivers that the lighting smeared into streaks
             foreach(float z in new[]{z1,z0})
             {
-                int c=vertices.Count;
-                vertices.Add(new Vector3(0,cy,z));uv.Add(new Vector2(0.5f,cy/1.2f));
+                int c=vertices.Count,m=edge.Count;
+                Vector3 facing=z==z1?Vector3.forward:Vector3.back;
                 foreach(var (x,y) in edge){vertices.Add(new Vector3((float)x,(float)y,z));uv.Add(new Vector2((float)x/1.2f,(float)y/1.2f));}
-                int m=edge.Count;
-                for(int i=0;i<m;i++)Triangle(triangles,vertices,c,c+1+i,c+1+(i+1)%m,z==z1?Vector3.forward:Vector3.back);
+                for(int i=0;i<(m-1)/2;i++)
+                {
+                    int l0=c+i,l1=c+i+1,r0=c+m-1-i,r1=c+m-2-i;
+                    if(l1==r1)Triangle(triangles,vertices,l0,l1,r0,facing); // (the top of the arch)
+                    else{Triangle(triangles,vertices,l0,l1,r1,facing);Triangle(triangles,vertices,l0,r1,r0,facing);}
+                }
             }
             int ring=edge.Count;
             for(int i=0;i<ring;i++)

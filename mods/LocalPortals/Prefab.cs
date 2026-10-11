@@ -11,7 +11,7 @@ namespace LocalPortals
     internal static class PortalPrefab
     {
         internal const string Name="BobLocalPortal",DisplayName="Looking-Glass Portal"; // (the name it is saved under stays: built ones keep loading)
-        private const string ModelVersion="Model7";
+        private const string ModelVersion="Model8";
         // The wild looking-glass: not built but found (a location or dungeon puts it there), rough stone and roots and crystal.
         // It cannot be damaged or taken down, and links only by name (its placer names it: the "bob_lportal_name" string).
         internal const string WildName="BobWildLookingGlass",WildDisplayName="Wild Looking-Glass";
