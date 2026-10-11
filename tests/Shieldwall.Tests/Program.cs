@@ -113,6 +113,7 @@ Check(Policy.EarlyBonus(3)==1&&Policy.EarlyBonus(25)==2&&Policy.EarlyBonus(300)=
 Check(!Policy.Toppled(30,new double[]{30,30.2,29.8,30,30})&&!Policy.Toppled(30,new double[]{29.5,29.4,29.2,29.6,29.3}),"A little digging round it is fine");
 Check(Policy.Toppled(30,new double[]{28.5,28.9,28.7,29.1,28.8}),"Dug out from under it, it topples");
 Check(!Policy.Toppled(30,new double[0])&&!Policy.Toppled(30,null),"No ground read, no topple");
+Check(Policy.SinkBlow>0.1f&&Policy.SinkBlow<0.5f,"Undermined in a siege, the stone sinks with a heavy blow, not a siege lost at a stroke");
 Check(Policy.Plan(2,4,2,77).SelectMany(w=>w).Any(u=>u.Role==Role.Digger)&&Policy.Plan(2,4,2,77).First().All(u=>u.Role!=Role.Digger),"Diggers come from the second wave");
 
 // Boasts: sworn at the horn, each makes the siege harder and pays more.

@@ -17,6 +17,7 @@ namespace Shieldwall
         private static readonly AccessTools.FieldRef<MonsterAI,float> UpdateTargetTimer=AccessTools.FieldRefAccess<MonsterAI,float>("m_updateTargetTimer");
         private static readonly AccessTools.FieldRef<MonsterAI,float> SinceAttacking=AccessTools.FieldRefAccess<MonsterAI,float>("m_timeSinceAttacking");
         private static readonly AccessTools.FieldRef<MonsterAI,float> SinceSensed=AccessTools.FieldRefAccess<MonsterAI,float>("m_timeSinceSensedTargetCreature");
+        private static readonly System.Reflection.MethodInfo WakeUp=AccessTools.Method(typeof(MonsterAI),"Wakeup");
         private static readonly AccessTools.FieldRef<MonsterAI,bool> DespawnInDay=AccessTools.FieldRefAccess<MonsterAI,bool>("m_despawnInDay");
         private static readonly System.Reflection.MethodInfo SetAlerted=AccessTools.Method(typeof(BaseAI),"SetAlerted");
         private static readonly System.Reflection.MethodInfo SeesStatic=AccessTools.Method(typeof(BaseAI),"CanSeeTarget",new[]{typeof(StaticTarget)});
@@ -115,6 +116,22 @@ namespace Shieldwall
         }
 
         // Runs on the game that owns this raider, before the game's own AI: it picks the targets, the game does the walking and fighting.
+        // What its wits are doing, for finding out why a raider stands still (Claude Tools: siege why).
+        internal Newtonsoft.Json.Linq.JObject Why(Warstone stone)
+        {
+            var o=new Newtonsoft.Json.Linq.JObject();
+            o["name"]=Body.GetHoverName();o["role"]=Role.ToString();o["owned"]=Owned;
+            o["sleeping"]=_ai.IsSleeping();o["alerted"]=_ai.IsAlerted();o["agent"]=_ai.m_pathAgentType.ToString();
+            o["targetStatic"]=TargetStatic(_ai)!=null?TargetStatic(_ai).name:"";o["targetCreature"]=TargetCreature(_ai)!=null?TargetCreature(_ai).GetHoverName():"";
+            o["speed"]=System.Math.Round(Body.GetVelocity().magnitude,2);o["onGround"]=Body.IsOnGround();o["swimming"]=Body.IsSwimming();
+            o["inAttack"]=Body.InAttack();o["staggering"]=Body.IsStaggering();o["afraidOfFire"]=_ai.m_afraidOfFire;o["avoidFire"]=_ai.m_avoidFire;
+            o["fireNear"]=EffectArea.IsPointInsideArea(transform.position,EffectArea.Type.Fire,3f)!=null;
+            o["despawnInDay"]=DespawnInDay(_ai);o["eventCreature"]=_ai.IsEventCreature();o["huntPlayer"]=_ai.HuntPlayer();
+            if(stone!=null&&Pathfinding.instance!=null)
+            {Vector3 door=stone.Target.FindClosestPoint(transform.position);o["pathToStone"]=Pathfinding.instance.HavePath(transform.position,door,_ai.m_pathAgentType);}
+            o["sinceThought"]=System.Math.Round(SinceThought,2);o["stuckFor"]=System.Math.Round(Time.time-_stuckSince,1);
+            return o;
+        }
         internal bool Owned=>_view!=null&&_view.IsValid()&&_view.IsOwner();
         internal bool AiOn=>_ai!=null&&_ai.isActiveAndEnabled;
         internal float SinceThought=>Time.time-_thought;private float _thought;
@@ -130,6 +147,7 @@ namespace Shieldwall
             if(Time.time<_think)return;
             _think=Time.time+0.5f;
             if(!_ai.IsAlerted())SetAlerted.Invoke(_ai,new object[]{true});
+            if(_ai.IsSleeping())WakeUp.Invoke(_ai,null); // some kinds (ulvs, crypt dead) come out of the rift asleep, as they lie in the wild
             if(Role==Role.Champion)Tricks(stone);
 
             // A foe close by: fight it (the game chases and strikes), but never far from the road.

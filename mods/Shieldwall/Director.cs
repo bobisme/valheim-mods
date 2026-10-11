@@ -343,7 +343,7 @@ namespace Shieldwall
         {
             foreach(var (least,most,clear) in new[]{(70f,150f,Policy.RiftClear),(45f,150f,Policy.RiftClear/2),(35f,95f,0f)})
             {
-                Vector3 best=Vector3.zero,roadless=Vector3.zero;float far=-1,farRoadless=-1;
+                Vector3 best=Vector3.zero,roadless=Vector3.zero;float far=-1,farRoadless=-1;int tried=0,roads=0;
                 for(int attempt=0;attempt<80;attempt++)
                 {
                     Vector2 dir=Random.insideUnitCircle.normalized*Random.Range(least,most);
@@ -353,15 +353,24 @@ namespace Shieldwall
                     if(!ZoneSystem.instance.GetSolidHeight(at,out float height)||height<ZoneSystem.instance.m_waterLevel+0.5f)continue;
                     at.y=height;
                     if(EffectArea.IsPointInsideArea(at,EffectArea.Type.PlayerBase,5)!=null||clear>0&&Built(at,clear))continue; // not in anyone's yard
+                    tried++;
                     // A road to the stone if it can (the game's pathfinding may not reach that far yet; the horde breaks or ramps its way).
-                    if(Pathfinding.instance!=null&&!Pathfinding.instance.HavePath(at,stone,Pathfinding.AgentType.Humanoid))
+                    if(Pathfinding.instance!=null&&!Pathfinding.instance.HavePath(at,Doorstep(stone,at),Pathfinding.AgentType.Humanoid))
                     {if(dir.magnitude>farRoadless){roadless=at;farRoadless=dir.magnitude;}continue;}
-                    best=at;far=dir.magnitude;
+                    best=at;far=dir.magnitude;roads++;
                 }
-                if(far>0)return best;
-                if(farRoadless>0)return roadless;
+                if(far>0){Plugin.Log($"Rift {far:0} m out, with a road ({roads} of {tried} good spots had one; {least:0}-{most:0} m, {clear:0} m clear)");return best;}
+                if(farRoadless>0){Plugin.Log($"Rift {farRoadless:0} m out, no road found ({tried} good spots; {least:0}-{most:0} m)");return roadless;}
             }
             return stone+Vector3.forward*40;
+        }
+        // The ground just in front of the stone on the rift's side: a road can reach that, not the stone's own middle.
+        private static Vector3 Doorstep(Vector3 stone,Vector3 from)
+        {
+            Vector3 dir=from-stone;dir.y=0;
+            Vector3 at=stone+(dir.sqrMagnitude>0.01f?dir.normalized:Vector3.forward)*3f;
+            if(ZoneSystem.instance.GetSolidHeight(at,out float h))at.y=h;
+            return at;
         }
         private static readonly Collider[] Pieces=new Collider[1];private static int _pieceMask;
         private static bool Built(Vector3 at,float radius)
@@ -399,14 +408,22 @@ namespace Shieldwall
             // The land under it when it was set (a stone on a floor indoors stands above it, and that is fine): it topples if that land is dug away.
             if(!z.GetBool(Stone.BaseKey+"_set",false)){z.Set(Stone.BaseKey,(float)ground.Average());z.Set(Stone.BaseKey+"_set",true);return;}
             if(!Policy.Toppled(z.GetFloat(Stone.BaseKey,0),ground.ToArray()))return;
-            // It topples into the pit: cracked, a mark lost, and if a siege is on, the siege lost.
             float settle=Mathf.Min(at.y,(float)ground.Average());
             stone.transform.position=new Vector3(at.x,settle,at.z);
             z.SetPosition(stone.transform.position);z.Set(Stone.BaseKey,settle);
-            z.Set(Stone.MarksKey,Policy.Marks(stone.Marks-1));
             Assets.Effect("sfx_gdking_scream",at);Assets.Effect("vfx_spawn_large",at);
-            if(stone.Phase==Phase.Battle){z.Set(Stone.HealthKey,0f);End(stone,Outcome.Fallen);}
-            else z.Set(Stone.CrackedKey,true);
+            if(stone.Phase==Phase.Battle)
+            {
+                // Undermined in a siege, it sinks into the pit with a heavy blow (a quarter of its strength): diggers are a real threat,
+                // but not a siege lost at a stroke. It cracks only if that empties it.
+                float max=z.GetFloat(Stone.MaxHealthKey,1);
+                OnDamage(stone,max*Policy.SinkBlow/Policy.Toughness,at); // OnDamage takes the stone's share of a blow
+                Net.Say($"The ground gives way and the Warstone sinks into the pit! It loses a quarter of its strength.",at,250);
+                return;
+            }
+            // Between sieges (its own folk's moat dug too close): it topples, cracks and loses a mark.
+            z.Set(Stone.MarksKey,Policy.Marks(stone.Marks-1));
+            z.Set(Stone.CrackedKey,true);
             Net.Say("The ground gives way beneath the Warstone and it topples into the pit! It cracks and loses a mark.",at,250);
         }
         internal static void Forget(Warstone stone){NextFooting.Remove(stone);NextTick.Remove(stone);NextRelease.Remove(stone);NextGlow.Remove(stone);Lonely.Remove(stone);}

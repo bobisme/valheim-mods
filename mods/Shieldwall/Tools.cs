@@ -382,6 +382,13 @@ namespace Shieldwall
                     output(new JObject{["cleared"]=JObject.FromObject(gone),["bodies"]=bodies,["keptStaves"]=new JArray(kept.ToArray())});
                     break;
                 }
+                case "why":
+                {
+                    // why [n=6]: the wits of the raiders standing still (or the first n), to find out what holds them.
+                    int count=args.Length>2&&int.TryParse(args[2],out int wn)?wn:6;
+                    output(new JObject{["raiders"]=new JArray(Raider.Loaded.Where(r=>r!=null&&r.Body!=null&&!r.Body.IsDead()).OrderBy(r=>r.Body.GetVelocity().magnitude).Take(count).Select(r=>r.Why(stone)))});
+                    break;
+                }
                 case "layers":
                 {
                     // layers: which layers the game's pathfinding builds its road map from, and which a character bumps into (test).

@@ -146,8 +146,8 @@ wave holds, and once a wave is all out of the rift, **Shift+E** on the stone cal
   holds a siege again. A warshard for every six raiders slain lies at its foot. The stone itself is never destroyed and nothing is lost: a
   fallen tower's stave lies where it stood.
 - **Abandoned** (no player within 150 m for a minute): the horde melts away; nothing changes.
-- **Undermined**: if the land under the stone sinks a metre below where it was set (diggers at its foot, or a moat dug too close), the
-  stone **topples** into the pit: it cracks, loses a mark, and a siege on is lost.
+- **Undermined**: if the land under the stone sinks a metre below where it was set (diggers at its foot), the stone **sinks** into the
+  pit and loses a quarter of its strength. Between sieges (a moat dug too close) it **topples**: it cracks and loses a mark.
 
 **The war council** (Shift+E on a stone at rest) is a window made of the game's own crafting panel: its wood, fonts and Craft buttons. It names the horde that will come and offers
 two **boasts** to swear before you sound the horn: each makes the siege harder and adds its share of warshards if the stone holds. The
@@ -211,7 +211,7 @@ it carries on if that player leaves and works on a dedicated server without the 
 server keeps loaded and clears of objects it doesn't know). A game hosted by a player needs Shieldwall on the host too, or the host's game
 deletes the stone; the stone, sockets and upgrades refuse to be built there, so nothing is lost. Everyone who joins in needs Shieldwall. Warnings,
 wave pacing, the most raiders at once (40), the time limit and the horn's cooldown are in F7. With Claude Tools, `siege status | plan | route |
-start [stage] [boasts] [trick] | end | marks | raiders | hover | sight | recipes | council | horn [boasts] | boasts | offer | boon | saga | ignite | guard | mend | sweep | layers | raid` and test builders (`place`, `put`, `plant`, `tower`, `line`, `wall`,
+start [stage] [boasts] [trick] | end | marks | raiders | hover | sight | recipes | council | horn [boasts] | boasts | offer | boon | saga | ignite | guard | mend | sweep | layers | why | raid` and test builders (`place`, `put`, `plant`, `tower`, `line`, `wall`,
 `unbuild`, `remove`, `goto`) check stones, watch what each raider is doing and run short test sieges.
 
 Checks cover the ward table, levels, power, rosters, siege plans (sizes, growth, warchiefs, saved plans), pacing, rewards, staves and the

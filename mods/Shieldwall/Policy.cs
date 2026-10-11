@@ -124,6 +124,7 @@ namespace Shieldwall
         internal const float Toughness=0.4f;                  // the stone feels this share of each blow
         // Earthworks: a stone whose ground sinks this far below where it was set topples (dug out by diggers, or by its owner's moat).
         internal const float Undermined=1.0f;
+        internal const float SinkBlow=0.25f;                  // undermined in a siege, the stone sinks and loses this share of its strength
         internal static bool Toppled(double baseHeight,double[] ground)=>ground!=null&&ground.Length>0&&baseHeight-ground.Average()>Undermined;                      // a raider this close to the stone strikes it
         internal const int MinAlive=4;
 
