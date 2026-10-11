@@ -30,7 +30,7 @@ namespace Jarldom
                 Saved saved = null;
                 Plugin.Guard(() =>
                 {
-                    c.MarkDirty(); c.Flush();
+                    c.GatherSaga(); c.MarkDirty(); c.Flush();
                     byte[] record = c.R.Save(withLog: true); // (the whole of it, saga and all: the saga's own object goes with the pillars)
                     if (record != null && record.Length > 0) saved = new Saved { Colony = c, Id = c.R.Id, Name = c.R.Name, Record = record, Board = c.BoardBytes(), At = seat.transform.position };
                 });

@@ -266,6 +266,18 @@ namespace Jarldom
                         output(new JObject { ["opened"] = what });
                         break;
                     }
+                case "sagatest":
+                    {
+                        // The saga's safety (owner, cheats): the log in memory cut to its last two entries and the saga unread, then a save.
+                        if (!Cheats()) { error("cheats only"); return; }
+                        int before = ColonyRecord.LoadLog(c.SagaZ?.GetByteArray(Colony.SagaLogKey)).Count;
+                        c.ForgetSagaForTest(); int cut = c.R.Log.Count;
+                        c.Log("text", "", "", "A test of the saga's keeping.");
+                        c.MarkDirty(); c.Flush();
+                        int after = ColonyRecord.LoadLog(c.SagaZ?.GetByteArray(Colony.SagaLogKey)).Count;
+                        output(new JObject { ["sagaBefore"] = before, ["memoryCut"] = cut, ["sagaAfter"] = after, ["memoryAfter"] = c.R.Log.Count });
+                        break;
+                    }
                 case "flags":
                     {
                         // The colony's flags (read-only), those starting with the prefix if one is given.

@@ -125,7 +125,7 @@ namespace Jarldom.Ui
             }
             foreach (var kv in stuck.Take(4)) list.Add($"{string.Join(", ", kv.Value)}: {kv.Key}.");
             Container treasury = Stock.Treasury(c);
-            int due = Payroll.Due(Villagers.All.Where(b => b.S.Colony == c.Id).Select(b => b.S)) * Plugin.Instance.WageScale.Value / 100;
+            int due = (c.IsOwner ? Payroll.Due(Villagers.All.Where(b => b.S.Colony == c.Id).Select(b => b.S)) : people.Sum(p => Tables.Wage(p.Prof, false) * Payroll.EveryDays)) * Plugin.Instance.WageScale.Value / 100; // (another game runs the people: from the roster)
             if (Plugin.Instance.Payroll.Value && due > 0 && (treasury == null || Stock.Coins(treasury) < due))
             {
                 int payday = (c.Day / Payroll.EveryDays + 1) * Payroll.EveryDays;

@@ -43,6 +43,18 @@ Check(sagaApart.Count == ColonyRecord.LogSize && sagaApart[0].Time == colony.Log
 bare.Log = sagaApart;
 Check(Convert.ToBase64String(bare.Save()) == Convert.ToBase64String(colony.Save()), "Record and saga together are the record as it was");
 Check(ColonyRecord.LoadLog(null).Count == 0 && ColonyRecord.LoadLog(new byte[0]).Count == 0, "No saga, an empty one");
+// Copies of a saga merged, never replaced: a short copy (an owner who hadn't read it yet, a record's latest entries) adds, never shrinks.
+var full = colony.Log.ToList();
+var shortCopy = new List<LogEntry> { new LogEntry(1000, 100, "text", "", "", "a new day") };
+var merged = ColonyRecord.MergeLog(full, shortCopy);
+Check(merged.Count == ColonyRecord.LogSize && merged.Last().Text == "a new day" && merged[0].Time == full[1].Time, "A short copy adds its entry to the long saga (the oldest drops off the ring)");
+Check(ColonyRecord.MergeLog(full, full).SequenceEqual(full), "A saga merged with itself is itself");
+Check(ColonyRecord.MergeLog(new List<LogEntry>(), full).Count == full.Count && ColonyRecord.MergeLog(full, null).Count == full.Count, "An empty copy loses nothing");
+var early = new List<LogEntry> { new LogEntry(5, 0, "a", "", "", "x"), new LogEntry(7, 0, "c", "", "", "z") };
+var late = new List<LogEntry> { new LogEntry(6, 0, "b", "", "", "y"), new LogEntry(7, 0, "c", "", "", "z") };
+Check(string.Join(",", ColonyRecord.MergeLog(early, late).Select(e => e.Kind)) == "a,b,c", "Entries from both copies, once each, in time order");
+bool newerSaga = false; var sagaBytes = colony.SaveLog(); sagaBytes[0] = 99; try { ColonyRecord.LoadLog(sagaBytes); } catch (InvalidDataException) { newerSaga = true; }
+Check(newerSaga, "A newer saga is refused, not read as empty");
 
 var soul = new VillagerState { Vid = "v1", Name = "Ulf", Traits = { "brave", "glutton" }, Prof = Prof.Guard, Worth = 12, Hoard = 30, Bed = "b1" };
 soul.Skills["Axes"] = 21.5f; soul.Bonds["v2"] = 60; soul.Opinions["Bob"] = 40; soul.Bump("kills", 3); soul.Foods.Add("CookedMeat");

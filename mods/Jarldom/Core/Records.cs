@@ -71,10 +71,21 @@ namespace Jarldom
         public List<string> Allowed = new List<string>();        // players (by name) the founder lets run the colony
         public Dictionary<string, int> Flags = new Dictionary<string, int>(); // small counters and switches
 
+        public int LogChanges; // (not saved: counts this session's additions, so a change is never missed)
         public void Add(LogEntry e)
         {
-            Log.Add(e);
+            Log.Add(e); LogChanges++;
             if (Log.Count > LogSize) Log.RemoveRange(0, Log.Count - LogSize);
+        }
+        // Two copies of a saga made one: every entry of either, once, in time order, the newest LogSize. Never loses an entry to a
+        // shorter copy (an owner who hadn't read the saga yet, a record carrying only the latest entries).
+        public static List<LogEntry> MergeLog(IEnumerable<LogEntry> a, IEnumerable<LogEntry> b)
+        {
+            var seen = new HashSet<string>(); var all = new List<LogEntry>();
+            foreach (LogEntry e in (a ?? Enumerable.Empty<LogEntry>()).Concat(b ?? Enumerable.Empty<LogEntry>()))
+                if (seen.Add(e.Time.ToString("R") + "\u001f" + e.Kind + "\u001f" + e.A + "\u001f" + e.B + "\u001f" + e.Text)) all.Add(e);
+            var sorted = all.Select((e, i) => (e, i)).OrderBy(x => x.e.Time).ThenBy(x => x.i).Select(x => x.e).ToList();
+            return sorted.Count > LogSize ? sorted.GetRange(sorted.Count - LogSize, LogSize) : sorted;
         }
         public RosterRow Row(string vid) => Roster.FirstOrDefault(r => r.Vid == vid);
         public IEnumerable<RosterRow> Living => Roster.Where(r => r.State == SoulState.Active);
@@ -128,7 +139,8 @@ namespace Jarldom
             var list = new List<LogEntry>();
             if (data == null || data.Length == 0) return list;
             var r = new Reader(data);
-            if (r.Byte() != Version) return list;
+            byte version = r.Byte();
+            if (version < 1 || version > Version) throw new InvalidDataException($"colony saga version {version} is newer than this mod ({Version})");
             for (int i = r.Int(); i > 0; i--) list.Add(new LogEntry(r.Dbl(), r.Int(), r.Str(), r.Str(), r.Str(), r.Str()));
             return list;
         }

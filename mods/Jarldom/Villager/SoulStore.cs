@@ -62,7 +62,7 @@ namespace Jarldom
                 if (o.GetPrefab() != hash) continue;
                 string vid = o.GetString(Villagers.VidKey, ""), saga = o.GetString(Colony.SagaKey, ""), id = o.GetString(Colony.IdKey, "");
                 if (vid != "") Index[Villagers.VidKey + "=" + vid] = o;
-                else if (saga != "") Index[Colony.SagaKey + "=" + saga] = o;
+                else if (saga != "") { string k2 = Colony.SagaKey + "=" + saga; if (!Index.TryGetValue(k2, out ZDO had) || (o.GetByteArray(Colony.SagaLogKey)?.Length ?? 0) > (had.GetByteArray(Colony.SagaLogKey)?.Length ?? 0)) Index[k2] = o; } // (two sagas of one colony: the fuller)
                 else if (id != "") Index[Colony.IdKey + "=" + id] = o;
             }
             if (Index.TryGetValue(k, out z)) return z;

@@ -134,9 +134,11 @@ namespace Jarldom
         }
 
         // The saga on a still object of its own beside the pillars (found by the colony's id, as the board is): it changes with every
-        // event, and in the record it would send the whole record with it each time.
+        // event, and in the record it would send the whole record with it each time. Every copy is merged, never replaced: the saga's
+        // own, the one in memory, and any entries a record carried while the saga couldn't be found; so a game that becomes the owner
+        // before the saga has reached it can't write a short saga over the long one.
         public const string SagaKey = "jarldom_saga", SagaLogKey = "jarldom_log", SagaZdoKey = "jarldom_sagazdo";
-        private int _sagaSaved = -1; private uint _sagaRevision;
+        private int _sagaSaved = -1; private uint _sagaRevision; private bool _sagaRead; private float _sagaSafeAt, _sagaMissSince;
         public ZDO SagaZ
         {
             get
@@ -151,8 +153,8 @@ namespace Jarldom
                 return sz;
             }
         }
-        private int SagaStamp => R.Log.Count == 0 ? 0 : R.Log.Count * 7919 ^ R.Log[R.Log.Count - 1].Time.GetHashCode();
-        // On the owner: the saga written apart (made the first time); false while it can't be (then it rides in the record as before).
+        // On the owner: the saga written apart (made the first time). False while it can't be: then the record carries the log as well
+        // (and for a while after the saga is made, until it has surely reached the server).
         private bool SaveSaga()
         {
             ZDO sz = SagaZ;
@@ -163,37 +165,59 @@ namespace Jarldom
                 sz.Persistent = true; sz.Type = ZDO.ObjectType.Default; sz.Distant = false; sz.SetPrefab(hash);
                 sz.Set(SagaKey, Id);
                 Z.Set(SagaZdoKey, sz.m_uid);
-                _sagaSaved = -1;
+                _sagaSaved = -1; _sagaRead = true; _sagaSafeAt = Time.time + 60f;
             }
-            if (sz == null) return false;
-            int stamp = SagaStamp;
-            if (stamp != _sagaSaved || sz.GetByteArray(SagaLogKey) == null)
+            if (sz == null)
+            {
+                // (its saga gone for good: two minutes missing while the pillars stand loaded, a new one, from the log in memory, which
+                // the record has carried meanwhile)
+                if (_sagaMissSince == 0) _sagaMissSince = Time.time;
+                else if (Time.time - _sagaMissSince > 120f) { Z.Set(SagaZdoKey, ZDOID.None); _sagaMissSince = 0; _dirty = true; }
+                return false;
+            }
+            _sagaMissSince = 0;
+            if (!_sagaRead && !LoadSaga()) return false; // (not written before what's there has been read in)
+            if (R.LogChanges != _sagaSaved || sz.GetByteArray(SagaLogKey) == null)
             {
                 if (!sz.IsOwner()) sz.SetOwner(ZDOMan.GetSessionID());
                 sz.Set(SagaLogKey, R.SaveLog());
-                _sagaSaved = stamp; _sagaRevision = sz.DataRevision;
+                _sagaSaved = R.LogChanges; _sagaRevision = sz.DataRevision;
             }
-            return true;
+            return Time.time >= _sagaSafeAt;
         }
-        // The saga read back (when the record came without it, or the saga changed on the owner's game).
-        private void LoadSaga()
+        // The saga read and merged into the log in memory: when it changes on the owner's game (others), or before an owner first writes.
+        // False while it can't be found or read.
+        private bool LoadSaga()
         {
-            if (R == null) return;
+            if (R == null) return false;
             ZDO sz = SagaZ;
-            if (sz == null) return;
-            if (R.Log.Count > 0 && sz.DataRevision == _sagaRevision) return;
+            if (sz == null) return false;
+            if (_sagaRead && sz.DataRevision == _sagaRevision) return true;
             byte[] bytes = sz.GetByteArray(SagaLogKey);
-            if (bytes == null || bytes.Length == 0) return;
-            if (R.Log.Count > 0 && IsOwner) return; // (the owner's own copy is the newer one)
-            try { R.Log = ColonyRecord.LoadLog(bytes); _sagaRevision = sz.DataRevision; _sagaSaved = SagaStamp; }
-            catch (Exception e) { Plugin.Warn("Jarldom: a colony's saga could not be read: " + e.Message); }
+            if (bytes == null || bytes.Length == 0) { _sagaRead = true; _sagaRevision = sz.DataRevision; return true; } // (made, not yet written)
+            try
+            {
+                var merged = ColonyRecord.MergeLog(ColonyRecord.LoadLog(bytes), R.Log);
+                if (!merged.SequenceEqual(R.Log)) { R.Log = merged; R.LogChanges++; }
+                _sagaRead = true; _sagaRevision = sz.DataRevision;
+                return true;
+            }
+            catch (Exception e) { Plugin.Warn("Jarldom: a colony's saga could not be read (kept as it is): " + e.Message); return false; }
         }
-        // Other games pick up the owner's changes; a new owner starts from the record as saved.
+        // Before the pillars come down: the whole saga in memory, for the heart to carry.
+        // For tests: as if this game had become the owner before the saga reached it (only the last entries known, the saga unread).
+        public void ForgetSagaForTest() { R.Log = R.Log.Skip(Math.Max(0, R.Log.Count - 2)).ToList(); R.LogChanges++; _sagaRead = false; _sagaRevision = 0; }
+        public void GatherSaga() { _sagaRevision = 0; _sagaRead = false; LoadSaga(); }
+        // Other games pick up the owner's changes; a new owner starts from the record as saved (and the saga, merged).
         private void Reload()
         {
             if (Z.DataRevision == _revision) return;
             _revision = Z.DataRevision;
-            try { var fresh = ColonyRecord.Load(Z.GetByteArray(RecordKey)); if (fresh != null) { if (fresh.Log.Count == 0 && R != null) fresh.Log = R.Log; R = fresh; } }
+            try
+            {
+                var fresh = ColonyRecord.Load(Z.GetByteArray(RecordKey));
+                if (fresh != null) { fresh.Log = ColonyRecord.MergeLog(R?.Log, fresh.Log); fresh.LogChanges = (R?.LogChanges ?? 0) + 1; R = fresh; }
+            }
             catch (Exception e) { Plugin.Warn("Jarldom: colony record unreadable: " + e.Message); }
             LoadBoard();
         }
@@ -226,6 +250,7 @@ namespace Jarldom
         private void Tick()
         {
             if (!IsOwner) { Reload(); LoadSaga(); return; }
+            if (!_sagaRead) LoadSaga(); // (an owner reads the saga in as soon as it can)
             if (Time.time >= _nextSave) { _nextSave = Time.time + 15; Flush(); } // (the record goes to every game when written: a few times a minute at most; players' actions write at once)
             if (Time.time >= _nextBoardShare) { _nextBoardShare = Time.time + 5; ShareBoard(); }
             if (Time.time < _nextTick) return;
