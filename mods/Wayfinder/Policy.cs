@@ -36,6 +36,9 @@ namespace Wayfinder
         internal static string WindFrom(double blowsToward)=>Winds[(int)Math.Round(Norm(blowsToward+180)/45)%8];
         internal static double Norm(double bearing){double b=bearing%360;return b<0?b+360:b;}
 
+        // How much farther a lookout sees: as the horizon does, with the square root of the height of the eye over the sea. The
+        // tallest seat gets the whole bonus, lower ones less, none at sea level.
+        internal static double MastheadSight(double max,double height,double tallest)=>1+(max-1)*Math.Sqrt(Math.Max(0,Math.Min(1,height/tallest)));
         // How much of the sail's pull a heading gets from the wind, the game's own reckoning (Ship.GetWindAngleFactor and
         // GetSailForce): full with the wind behind or on the beam, 70% close to the beam's edge, nothing into it.
         internal static double SailPower(double windX,double windZ,double intensity,double headingX,double headingZ)

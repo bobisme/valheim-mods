@@ -252,23 +252,30 @@ namespace Wayfinder
             Fits.Add(fit);
         }
         // The mast's own line in the ship's space: its top and foot, on the pivot it turns on with the yard (the middle of its
-        // bounds moves sideways as the sail swings round, which took the fittings off the mast).
+        // bounds moves sideways as the sail swings round, which took the fittings off the mast). Measured in the ship's own
+        // frame: a ship rolling at sea tips the long yard, and a world box round it reaches higher than the mast.
         internal static void MastLine(Ship ship,out Vector3 top,out Vector3 foot)
         {
             Transform mast=ship.m_mastObject.transform;
-            Bounds b=MastBounds(mast);
             Vector3 axis=ship.transform.InverseTransformPoint(mast.position);
-            top=new Vector3(axis.x,ship.transform.InverseTransformPoint(new Vector3(0,b.max.y,0)+Vector3.ProjectOnPlane(mast.position,Vector3.up)).y,axis.z);
-            foot=new Vector3(axis.x,ship.transform.InverseTransformPoint(new Vector3(0,b.min.y,0)+Vector3.ProjectOnPlane(mast.position,Vector3.up)).y,axis.z);
-        }
-        // The mast's solid parts only: shown, plain meshes (the longship and the drakkar also carry hidden sails and cloth
-        // colliders under the mast, one of them reaching far below the keel).
-        private static Bounds MastBounds(Transform mast)
-        {
-            Bounds? b=null;
+            float low=float.MaxValue,high=float.MinValue;
+            // only the mast's solid parts, shown, plain meshes (the longship and the drakkar also carry hidden sails and cloth
+            // colliders under the mast, one of them reaching far below the keel)
             foreach(MeshRenderer r in mast.GetComponentsInChildren<MeshRenderer>())
-                if(r.enabled){if(b.HasValue){Bounds c=b.Value;c.Encapsulate(r.bounds);b=c;}else b=r.bounds;}
-            return b??new Bounds(mast.position,Vector3.zero);
+            {
+                MeshFilter f=r.GetComponent<MeshFilter>();
+                if(!r.enabled||f==null||f.sharedMesh==null)continue;
+                Bounds m=f.sharedMesh.bounds;
+                for(int i=0;i<8;i++)
+                {
+                    Vector3 c=m.center+Vector3.Scale(m.extents,new Vector3((i&1)==0?-1:1,(i&2)==0?-1:1,(i&4)==0?-1:1));
+                    float y=ship.transform.InverseTransformPoint(r.transform.TransformPoint(c)).y;
+                    low=Mathf.Min(low,y);high=Mathf.Max(high,y);
+                }
+            }
+            if(low>high)low=high=axis.y;
+            top=new Vector3(axis.x,high,axis.z);
+            foot=new Vector3(axis.x,low,axis.z);
         }
         // Where the lookout sits, from the masthead (the top of the mast's bounds), in the ship's space.
         internal static Vector3 SeatAt(Vector3 top)=>top+new Vector3(0,-1.35f,0.32f);
@@ -384,6 +391,10 @@ namespace Wayfinder
     internal static class Masthead
     {
         internal static bool Aloft;
+        // How high the lookout's seat is above the sea; the tallest (a drakkar's) gets the whole of MastheadSight.
+        internal static float Height;
+        internal const float TallestSeat=16.4f; // (a drakkar's seat, measured: 16.37 m)
+        internal static float Sight=>Aloft?(float)Policy.MastheadSight(Plugin.MastheadSight.Value,Height,TallestSeat):1f;
         private static Transform _perch;
         // Where your hips settle in the sitting pose, from the seat's point: measured the first time you sit up there, so the
         // seat point can be moved to put you on the board (the pose is the same each time).
@@ -427,7 +438,7 @@ namespace Wayfinder
         {
             Aloft=_perch!=null&&me.IsAttached()&&me.GetAttachPoint()==_perch;
             if(_perch!=null&&!me.IsAttached()){Object.Destroy(_perch.gameObject);_perch=null;}
-            if(Aloft)SafeUntil=Mathf.Max(SafeUntil,Time.time+0.5f);
+            if(Aloft){SafeUntil=Mathf.Max(SafeUntil,Time.time+0.5f);Height=_perch.position.y-(ZoneSystem.instance!=null?ZoneSystem.instance.m_waterLevel:30);}
             if(Aloft&&!_fitted&&Time.time-_climbedAt>1.2f)Fit(me);
         }
         // Once the sitting pose has settled: where are the hips from the seat's point? Move the point so they sit on the board.
@@ -505,7 +516,7 @@ namespace Wayfinder
     [HarmonyPatch(typeof(Minimap),"UpdateExplore")]
     internal static class LookoutsEye
     {
-        private static void Prefix(Minimap __instance,out float __state){__state=__instance.m_exploreRadius;if(Masthead.Aloft)__instance.m_exploreRadius*=Plugin.MastheadSight.Value;}
+        private static void Prefix(Minimap __instance,out float __state){__state=__instance.m_exploreRadius;if(Masthead.Aloft)__instance.m_exploreRadius*=Masthead.Sight;}
         private static void Finalizer(Minimap __instance,float __state){__instance.m_exploreRadius=__state;}
     }
 }

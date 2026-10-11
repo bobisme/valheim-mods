@@ -1,3 +1,5 @@
+0.1.6: Sight from the masthead scales with the ship: MastheadSight is now the bonus from the tallest seat, a drakkar's (16 m over the sea), and lower seats get less as the horizon draws in (a karve's about 2.3x, a longship's about 2.5x, of the default 3x). On a ship rolling at sea you sit on the lookout's seat, not a foot above it: the mast is measured in the ship's own frame. Tried on the longship and the drakkar.
+
 0.1.5: The longship's and drakkar's pegs no longer run down through the hull and under the sea: the mast is measured from its own shown parts only (they carry a hidden sail under the mast reaching far below the keel). Checked on the karve, longship and drakkar.
 
 0.1.4: Up at the masthead you sit on the lookout's seat, not above it: your sitting height is measured the first time you sit there and the seat point follows. No fall damage going up or coming down. The pegs, lantern, vane and seat stay on the mast when the yard swings round (they were placed from the middle of the turning mast and sail).

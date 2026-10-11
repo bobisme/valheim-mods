@@ -63,7 +63,7 @@ namespace Wayfinder
                         ["ship"]=ship!=null?Ships.NameOf(ship):null,
                         ["helmCourse"]=Ships.HelmCourse?.Count??0,
                         ["fleet"]=Ships.FleetCount,["landmarks"]=Landmarks.Count,
-                        ["sounding"]=Sounding.Line,["aloft"]=Masthead.Aloft,["raven"]=Raven.Last,
+                        ["sounding"]=Sounding.Line,["aloft"]=Masthead.Aloft,["seatHeight"]=Math.Round(Masthead.Height,2),["sight"]=Math.Round(Masthead.Sight,2),["raven"]=Raven.Last,
                         ["at"]=V(me.transform.position)});
                     break;
                 }

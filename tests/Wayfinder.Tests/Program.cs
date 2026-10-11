@@ -86,4 +86,8 @@ var names=new HashSet<string>();
 for(long seed=-50;seed<50;seed++){string n=Policy.ShipName(seed);Check(!string.IsNullOrEmpty(n),"Every ship gets a name");names.Add(n);}
 Check(names.Count>=20&&Policy.ShipName(7)==Policy.ShipName(7),"Names vary, and a ship keeps hers");
 
+Check(Near(Policy.MastheadSight(3,16,16),3)&&Near(Policy.MastheadSight(3,40,16),3),"The tallest seat gets the whole bonus, no more");
+Check(Near(Policy.MastheadSight(3,4,16),2)&&Near(Policy.MastheadSight(3,-1,16),1),"A quarter the height sees half as far beyond; none at the waterline");
+Check(Policy.MastheadSight(3,7,16)<Policy.MastheadSight(3,10,16),"A taller mast sees farther");
+
 Console.WriteLine($"Wayfinder: {checks} checks passed");

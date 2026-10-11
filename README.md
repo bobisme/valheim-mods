@@ -573,7 +573,7 @@ override it.
 - Each ship you have sailed in gets a map pin, so you can find her again. Removing the pin forgets her.
 - Masts carry a lantern, lit from dusk till dawn, and a gilded vane at the masthead that swings to the wind. Boats from other
   mods without a real mast are skipped.
-- **Shift+E** at the mast climbs to the lookout's seat, a board lashed under the masthead. Up there, the minimap's explore radius is tripled.
+- **Shift+E** at the mast climbs to the lookout's seat, a board lashed under the masthead. Up there, the minimap's explore radius grows with the seat's height: tripled from a drakkar's, about 2.5× from a longship's and 2.3× from a karve's (Ships/MastheadSight sets the top).
 
 **Pieces** (hammer, Misc):
 - **Weather Vane** (1 bronze, 2 fine wood): swings to the wind. Hover it for the wind and the forecast.

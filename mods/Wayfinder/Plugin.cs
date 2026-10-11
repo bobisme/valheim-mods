@@ -13,7 +13,7 @@ namespace Wayfinder
     {
         public const string Guid="com.bobisme.wayfinder";
         public const string Name="Wayfinder";
-        public const string Version="0.1.5";
+        public const string Version="0.1.6";
         internal static Plugin Instance;
         internal static ConfigEntry<float> ArriveRadius,MastheadSight,RavenRange;
         internal static ConfigEntry<bool> ShowOnMap,ShowHud,ShipNames,ShipPins,ShipLanterns,ShipVanes,MastheadClimb,ShowLandmarks;
@@ -35,7 +35,7 @@ namespace Wayfinder
             ShipLanterns=Config.Bind("Ships","Lanterns",true,"A lantern hangs on every mast, lit from dusk till dawn.");
             ShipVanes=Config.Bind("Ships","Vanes",true,"A gilded vane at every masthead, swinging to the wind.");
             MastheadClimb=Config.Bind("Ships","Masthead",true,"Shift+E at the mast climbs to the masthead.");
-            MastheadSight=Config.Bind("Ships","MastheadSight",3f,new ConfigDescription("How much wider the map fills in round you at the masthead.",new AcceptableValueRange<float>(1,5)));
+            MastheadSight=Config.Bind("Ships","MastheadSight",3f,new ConfigDescription("How much wider the map fills in round you from the tallest lookout's seat (a drakkar's). Lower masts give less, as the horizon draws in.",new AcceptableValueRange<float>(1,5)));
             RavenRange=Config.Bind("Raven","Range",2000f,new ConfigDescription("How far a raven looks for land, in metres.",new AcceptableValueRange<float>(500,4000)));
             ShowLandmarks=Config.Bind("Map","Landmarks",true,"Beacons and named sea-marks you have seen stay on your map.");
             _harmony=new Harmony(Guid);_harmony.PatchAll(typeof(Plugin).Assembly);
