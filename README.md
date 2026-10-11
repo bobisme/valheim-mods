@@ -19,7 +19,13 @@ far off (host or single player only).
 
 Each live view draws the world a second time, but only as much of it as the glass covers on screen: two views cost about 1.4 ms a
 frame at 4K in testing. Settings: `MaxDistance` (200), `PreloadOnApproach`, `MaxViews` (2), `Resolution` and `BodyDoubles`.
-**Install on the host and every player.** With Quad's Claude Tools, `lportal` places mirrors, names them, walks the player, creatures,
+**For other mods: the wild looking-glass.** `BobWildLookingGlass` is a second prefab registered with the game but not in
+the hammer: a looking-glass grown out of rough rock, hung with roots and crystals, meant to be found (in a location or a dungeon),
+not built. It cannot be damaged or taken down. Place it like any prefab (`ZNetScene.instance.GetPrefab("BobWildLookingGlass")`, or
+put it in a location or room) and give it a name in its data: `zdo.Set("bob_lportal_name", "some-name")`. It links only by name
+(to one other mirror of that name, wild or built, within the link distance), never to whatever happens to be nearest.
+
+**Install on the host and every player.** With Quad's Claude Tools, `lportal` places mirrors (`place ... wild` for the wild one), names them, walks the player, creatures,
 arrows and thrown items through, measures the views' cost and removes the test mirrors. Remote players walking through in
 multiplayer still need a playtest.
 

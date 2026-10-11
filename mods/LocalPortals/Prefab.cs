@@ -12,9 +12,16 @@ namespace LocalPortals
     {
         internal const string Name="BobLocalPortal",DisplayName="Looking-Glass Portal"; // (the name it is saved under stays: built ones keep loading)
         private const string ModelVersion="Model7";
+        // The wild looking-glass: not built but found (a location or dungeon puts it there), rough stone and roots and crystal.
+        // It cannot be damaged or taken down, and links only by name (its placer names it: the "bob_lportal_name" string).
+        internal const string WildName="BobWildLookingGlass",WildDisplayName="Wild Looking-Glass";
+        private const string WildModelVersion="Wild3";
+        internal static int WildHash=>WildName.GetStableHashCode();
+        internal static GameObject Wild=>_wild;
+        internal static bool IsWild(ZDO zdo)=>zdo!=null&&zdo.GetPrefab()==WildHash;
         internal static int Hash=>Name.GetStableHashCode();
         internal static GameObject Prefab=>_prefab;
-        private static GameObject _holder,_prefab;
+        private static GameObject _holder,_prefab,_wild;
         private static Mesh _surface;
         private static readonly Dictionary<Vector3,Mesh> Boxes=new Dictionary<Vector3,Mesh>();
         private static Material _glowMaterial;
@@ -27,17 +34,7 @@ namespace LocalPortals
             _holder=new GameObject(Name+"Prefabs");
             _holder.SetActive(false); // keeps the template from waking up as a real object
             Object.DontDestroyOnLoad(_holder);
-            GameObject go=Object.Instantiate(vanilla,_holder.transform,false);
-            go.name=Name;
-            go.transform.localPosition=Vector3.zero;
-
-            Object.DestroyImmediate(go.GetComponent<TeleportWorld>());
-            foreach(string child in new[]{"TELEPORT","_target_found_red","New","Mesh collider","Proximity","GuidePoint","portal_destruction"})
-            {
-                Transform t=go.transform.Find(child);
-                if(t!=null)Object.DestroyImmediate(t.gameObject);
-            }
-            foreach(Collider c in go.GetComponents<Collider>())Object.DestroyImmediate(c);
+            GameObject go=Bare(vanilla,Name);
 
             var piece=go.GetComponent<Piece>();
             piece.m_name=DisplayName;
@@ -51,7 +48,37 @@ namespace LocalPortals
             if(wear!=null)wear.m_materialType=WearNTear.MaterialType.Wood;
             go.AddComponent<LocalPortal>();
             _prefab=go;
+            try{BuildWild(scene,vanilla);}
+            catch(System.Exception e){Debug.LogError("[LocalPortals] Could not make the wild looking-glass; it is left out: "+e);_wild=null;}
             return go;
+        }
+        // The game's wood portal with its teleporting, effects and colliders taken off: the rest (saving, placing) is kept.
+        private static GameObject Bare(GameObject vanilla,string name)
+        {
+            GameObject go=Object.Instantiate(vanilla,_holder.transform,false);
+            go.name=name;
+            go.transform.localPosition=Vector3.zero;
+            Object.DestroyImmediate(go.GetComponent<TeleportWorld>());
+            foreach(string child in new[]{"TELEPORT","_target_found_red","New","Mesh collider","Proximity","GuidePoint","portal_destruction"})
+            {
+                Transform t=go.transform.Find(child);
+                if(t!=null)Object.DestroyImmediate(t.gameObject);
+            }
+            foreach(Collider c in go.GetComponents<Collider>())Object.DestroyImmediate(c);
+            return go;
+        }
+        private static void BuildWild(ZNetScene scene,GameObject vanilla)
+        {
+            GameObject go=Bare(vanilla,WildName);
+            var piece=go.GetComponent<Piece>();
+            piece.m_name=WildDisplayName;
+            piece.m_description="An ancient looking-glass grown out of the rock, found, not made.";
+            piece.m_resources=new Piece.Requirement[0];
+            piece.m_canBeRemoved=false;
+            Object.DestroyImmediate(go.GetComponent<WearNTear>()); // (nothing to strike: it cannot be broken)
+            WildModel(go.transform,scene,vanilla);
+            go.AddComponent<LocalPortal>();
+            _wild=go;
         }
 
         // The looking-glass: an arched frame of dark wood in three mouldings (a wide band, a pale bead round the glass and a
@@ -104,19 +131,7 @@ namespace LocalPortals
             Root(visual,Bark(MaterialOf(scene,vanilla,"Oak_log","beech_log","Beech_log","Pinetree_log","FirTree_log","darkwood_pole")));
             Crystals(visual,glow,hw,top);
 
-            var glass=new GameObject("Surface");
-            glass.transform.SetParent(visual,false);
-            glass.AddComponent<MeshFilter>().sharedMesh=_surface??=Shapes.Surface();
-            var r=glass.AddComponent<MeshRenderer>();
-            r.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;r.receiveShadows=false;
-
-            var light=new GameObject("Light");
-            light.transform.SetParent(visual,false);
-            light.transform.localPosition=new Vector3(0,1.5f,0.5f);
-            var l=light.AddComponent<Light>();
-            l.type=LightType.Point;l.range=3.5f;l.intensity=0.45f;l.shadows=LightShadows.None;
-
-            Motes(visual,vanilla);
+            Glass(visual,vanilla);
 
             var wear=root.GetComponent<WearNTear>();
             if(wear!=null){wear.m_new=wear.m_worn=wear.m_broken=visual.gameObject;wear.m_fragmentRoots=null;}
@@ -254,6 +269,118 @@ namespace LocalPortals
             foreach(var (at,tilt,mesh) in cluster)Part(visual,"TrimCluster"+i++,mesh,glow,false).transform.SetPositionAndRotation(visual.TransformPoint(at),visual.rotation*Quaternion.Euler(tilt));
         }
 
+        // The wild looking-glass: the same glass in a ring of broken, lumpy rock that runs into the ground, a slab of rock behind,
+        // boulders round its feet and one lodged on top, a split shard leaning on the right, roots hanging over the stone and
+        // creeping off over the ground, and crystals glowing in the portal's colour grown out of the rock here and there.
+        private static void WildModel(Transform root,ZNetScene scene,GameObject vanilla)
+        {
+            Material rock=Stone(MaterialOf(scene,vanilla,"Rock_3","rock1","rock4_forest","rock3_silver","stone_wall_1x1"));
+            Material bark=Bark(MaterialOf(scene,vanilla,"Oak_log","beech_log","Beech_log","Pinetree_log","FirTree_log","darkwood_pole"));
+            Material glow=GlowMaterial(MaterialOf(scene,vanilla,"darkwood_beam","darkwood_pole","wood_beam"));
+            var visual=new GameObject("Visual").transform;
+            visual.SetParent(root,false);
+            new GameObject(WildModelVersion).transform.SetParent(visual,false);
+            var solid=new GameObject("Frame").transform;
+            solid.SetParent(root,false);
+            solid.gameObject.layer=root.gameObject.layer;
+            float top=(float)Policy.Top,y0=(float)Policy.Bottom;
+
+            Mesh ring=Shapes.RockRing(7);
+            Part(visual,"Rock",ring,rock);
+            Collide(solid,"Rock",ring,false);
+            float b0=(float)(Policy.BackZ-Policy.BackThickness/2),b1=(float)(Policy.BackZ+Policy.BackThickness/2);
+            Part(visual,"RockBack",Shapes.RockBack(3,b0,b1,y0),rock);
+            Collide(solid,"Back",Shapes.Board(0.04f,b0,b1,y0),true);
+
+            var stones=new (Vector3 at,float r,float squash,Vector3 turn,bool solid)[]
+            {
+                (new Vector3(-0.98f,0.06f,0.12f),0.28f,0.75f,new Vector3(0,20,8),true),
+                (new Vector3(-1.08f,0.0f,-0.28f),0.21f,0.7f,new Vector3(0,70,-6),true),
+                (new Vector3(-0.8f,0.0f,0.42f),0.13f,0.8f,new Vector3(0,10,0),false),
+                (new Vector3(0.95f,0.08f,-0.06f),0.33f,0.7f,new Vector3(0,-35,5),true),
+                (new Vector3(1.12f,0.0f,0.32f),0.16f,0.75f,new Vector3(0,50,0),false),
+                (new Vector3(0.2f,top+0.16f,-0.06f),0.32f,0.58f,new Vector3(4,30,12),false),   // lodged on top, off centre
+                (new Vector3(0.9f,1.95f,-0.06f),0.19f,1.7f,new Vector3(0,15,-18),false),       // a split shard leaning on the right
+            };
+            int i=0;
+            foreach(var (at,r,squash,turn,isSolid) in stones)
+            {
+                Mesh boulder=Shapes.Boulder(r,11+i,squash);
+                GameObject go=Part(visual,"Stone"+i,boulder,rock);
+                go.transform.localPosition=at;go.transform.localRotation=Quaternion.Euler(turn);
+                if(isSolid){var c=Collide(solid,"Stone"+i,boulder,true);c.transform.localPosition=at;c.transform.localRotation=Quaternion.Euler(turn);}
+                i++;
+            }
+
+            Vine(visual,"Root0",bark,0.075f,0.014f,new Vector3(0.32f,top+0.36f,0.12f),new Vector3(0.66f,top+0.02f,0.24f),new Vector3(0.95f,2.05f,0.26f),
+                new Vector3(1.0f,1.5f,0.2f),new Vector3(0.95f,1.05f,0.28f),new Vector3(0.86f,0.78f,0.33f));
+            Vine(visual,"Root1",bark,0.09f,0.018f,new Vector3(-0.05f,top+0.42f,-0.02f),new Vector3(-0.5f,top+0.2f,-0.2f),new Vector3(-0.92f,2.0f,-0.26f),
+                new Vector3(-1.0f,1.2f,-0.16f),new Vector3(-1.0f,0.45f,0.05f),new Vector3(-1.15f,0.12f,0.32f),new Vector3(-1.5f,-0.02f,0.52f));
+            Vine(visual,"Root2",bark,0.045f,0.008f,new Vector3(-0.62f,top+0.02f,0.27f),new Vector3(-0.74f,top-0.3f,0.3f),new Vector3(-0.8f,top-0.62f,0.28f));
+
+            Cluster(visual,glow,"TrimLeft",new Vector3(-1.0f,0.3f,0.3f),new Vector3(-0.7f,1,0.6f),6,0.32f,21);
+            Cluster(visual,glow,"TrimRight",new Vector3(1.0f,1.35f,0.18f),new Vector3(1,0.5f,0.35f),5,0.26f,22);
+            Cluster(visual,glow,"TrimTop",new Vector3(-0.15f,top+0.34f,0.1f),new Vector3(-0.35f,1,0.25f),4,0.36f,23);
+            Cluster(visual,glow,"TrimFoot",new Vector3(0.78f,0.04f,0.42f),new Vector3(0.3f,1,0.7f),4,0.17f,24);
+            Cluster(visual,glow,"TrimInner",new Vector3(-0.72f,1.75f,0.2f),new Vector3(0.3f,0.6f,1),2,0.12f,25);
+
+            Glass(visual,vanilla);
+        }
+        // The glass, a soft light and motes of light drifting up in front of it: the same in every model.
+        private static void Glass(Transform visual,GameObject vanilla)
+        {
+            var glass=new GameObject("Surface");
+            glass.transform.SetParent(visual,false);
+            glass.AddComponent<MeshFilter>().sharedMesh=_surface??=Shapes.Surface();
+            var r=glass.AddComponent<MeshRenderer>();
+            r.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;r.receiveShadows=false;
+            var light=new GameObject("Light");
+            light.transform.SetParent(visual,false);
+            light.transform.localPosition=new Vector3(0,1.5f,0.5f);
+            var l=light.AddComponent<Light>();
+            l.type=LightType.Point;l.range=3.5f;l.intensity=0.45f;l.shadows=LightShadows.None;
+            Motes(visual,vanilla);
+        }
+        private static Collider Collide(Transform solid,string name,Mesh mesh,bool convex)
+        {
+            var go=new GameObject(name){layer=solid.gameObject.layer};
+            go.transform.SetParent(solid,false);
+            var mc=go.AddComponent<MeshCollider>();mc.sharedMesh=mesh;mc.convex=convex;
+            return mc;
+        }
+        // A root through these points (a smooth curve), tapering from r0 to r1, a little knotted.
+        private static void Vine(Transform visual,string name,Material bark,float r0,float r1,params Vector3[] points)
+        {
+            var path=new List<Vector3>();var radius=new List<float>();
+            for(int i=0;i<points.Length-1;i++)
+                for(int k=0;k<6;k++)
+                {
+                    float t=k/6f;
+                    Vector3 p0=points[Mathf.Max(i-1,0)],p1=points[i],p2=points[i+1],p3=points[Mathf.Min(i+2,points.Length-1)];
+                    path.Add(0.5f*(2*p1+(-p0+p2)*t+(2*p0-5*p1+4*p2-p3)*t*t+(-p0+3*p1-3*p2+p3)*t*t*t));
+                }
+            path.Add(points[points.Length-1]);
+            for(int i=0;i<path.Count;i++)
+            {
+                float t=i/(float)(path.Count-1);
+                radius.Add(Mathf.Lerp(r0,r1,t)*(1+0.18f*Mathf.Sin(i*1.9f)));
+            }
+            Part(visual,name,Shapes.Tube(path,radius,6),bark);
+        }
+        // Crystals grown out of the rock in a clump, leaning every way round `toward`.
+        private static void Cluster(Transform visual,Material glow,string name,Vector3 at,Vector3 toward,int count,float size,int seed)
+        {
+            for(int i=0;i<count;i++)
+            {
+                float k=i==0?1:0.45f+0.4f*(Shapes.Scatter(i,1,seed)*0.5f+0.5f);
+                Mesh mesh=Shapes.Crystal(size*0.16f*k,size*k);
+                Vector3 lean=(toward.normalized+new Vector3(Shapes.Scatter(i,2,seed),Shapes.Scatter(i,3,seed)*0.4f,Shapes.Scatter(i,4,seed))*0.55f).normalized;
+                GameObject go=Part(visual,name+i,mesh,glow,false);
+                go.transform.localPosition=at+new Vector3(Shapes.Scatter(i,5,seed),0,Shapes.Scatter(i,6,seed))*size*0.25f+lean*size*k*0.35f;
+                go.transform.localRotation=Quaternion.FromToRotation(Vector3.up,lean);
+            }
+        }
+
         private static GameObject Part(Transform parent,string name,Mesh mesh,Material material,bool shadows=true)
         {
             var go=new GameObject(name);
@@ -341,6 +468,17 @@ namespace LocalPortals
                 .Where(m=>m!=null&&m.shader!=null&&!m.name.ToLower().Contains("snow")&&!m.shader.name.ToLower().Contains("snow")).ToList();
             return all.FirstOrDefault(m=>m.shader.name.Contains("Piece"))??all.FirstOrDefault();
         }
+        // The wild one's rock: the game's boulder stone, greyer and darker (its moss less yellow).
+        private static Material _stone;
+        private static Material Stone(Material rock)
+        {
+            if(_stone!=null||rock==null)return _stone??rock;
+            _stone=new Material(rock){name="LocalPortalStone"};
+            if(_stone.HasProperty("_Color"))_stone.color=new Color(0.86f,0.86f,0.83f,1);
+            if(_stone.HasProperty("_MossColor"))_stone.SetColor("_MossColor",_stone.GetColor("_MossColor")*0.6f);
+            return _stone;
+        }
+
         // The root's bark: an oak log's, darker and older.
         private static Material _bark;
         private static Material Bark(Material log)
@@ -372,14 +510,17 @@ namespace LocalPortals
             if(ZNetScene.instance==null||_prefab==null)return;
             foreach(ZNetView view in Object.FindObjectsByType<ZNetView>(FindObjectsSortMode.None))
             {
-                if(view==null||!view.IsValid()||view.GetZDO().GetPrefab()!=Hash||view.GetComponent<LocalPortal>()!=null)continue;
+                if(view==null||!view.IsValid()||view.GetComponent<LocalPortal>()!=null)continue;
+                int hash=view.GetZDO().GetPrefab();
+                GameObject template=hash==Hash?_prefab:hash==WildHash?_wild:null;
+                if(template==null)continue;
                 foreach(MonoBehaviour stale in view.GetComponents<MonoBehaviour>())
                     if(stale!=null&&stale.GetType().FullName==typeof(LocalPortal).FullName)Object.DestroyImmediate(stale);
-                if(view.transform.Find("Visual/"+ModelVersion)==null)Remodel(view.transform);
+                if(view.transform.Find("Visual/"+(template==_wild?WildModelVersion:ModelVersion))==null)Remodel(view.transform,template);
                 view.gameObject.AddComponent<LocalPortal>();
             }
         }
-        private static void Remodel(Transform portal)
+        private static void Remodel(Transform portal,GameObject template)
         {
             foreach(string child in new[]{"Visual","Frame","RingColliders"})
             {
@@ -389,7 +530,7 @@ namespace LocalPortals
             foreach(Collider c in portal.GetComponents<Collider>())Object.DestroyImmediate(c);
             foreach(string child in new[]{"Visual","Frame"})
             {
-                GameObject copy=Object.Instantiate(_prefab.transform.Find(child).gameObject,portal,false);
+                GameObject copy=Object.Instantiate(template.transform.Find(child).gameObject,portal,false);
                 copy.name=child;
             }
             var wear=portal.GetComponent<WearNTear>();
@@ -412,14 +553,18 @@ namespace LocalPortals
             {
                 Debug.LogError("[LocalPortals] Could not make the local portal; it is left out: "+e);
                 if(_holder!=null)Object.Destroy(_holder);
-                _holder=null;_prefab=null;
+                _holder=null;_prefab=null;_wild=null;
                 return;
             }
             if(prefab==null)return;
             var named=(Dictionary<int,GameObject>)AccessTools.Field(typeof(ZNetScene),"m_namedPrefabs").GetValue(scene);
-            scene.m_prefabs.RemoveAll(p=>p!=prefab&&p!=null&&p.name==prefab.name); // an earlier copy's, left registered by its unload
-            if(!scene.m_prefabs.Contains(prefab))scene.m_prefabs.Add(prefab);
-            named[Hash]=prefab; // a host without it deletes saved portals as invalid
+            foreach(GameObject p in new[]{prefab,_wild})
+            {
+                if(p==null)continue;
+                scene.m_prefabs.RemoveAll(x=>x!=p&&x!=null&&x.name==p.name); // an earlier copy's, left registered by its unload
+                if(!scene.m_prefabs.Contains(p))scene.m_prefabs.Add(p);
+                named[p.name.GetStableHashCode()]=p; // a host without it deletes saved portals as invalid
+            }
             AddToHammer();
         }
         internal static void AddToHammer()
@@ -440,7 +585,7 @@ namespace LocalPortals
             PieceTable table=ObjectDB.instance?.GetItemPrefab("Hammer")?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces;
             table?.m_pieces.Remove(_prefab);
             if(ZNetScene.instance==null)Object.Destroy(_holder);
-            _holder=null;_prefab=null;
+            _holder=null;_prefab=null;_wild=null;
         }
     }
 }

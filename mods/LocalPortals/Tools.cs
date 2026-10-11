@@ -29,7 +29,7 @@ namespace LocalPortals
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name,"lportal",
-                    "lportal place [ahead=6] [right=0] [turn=180] [name] | info | probe | through <n> [steps=40] [film] | straddle <n> [depth=0.1] [turn=0] | shoot <n> [item=ArrowWood] [speed=40] [x] [y=1.2] [from=4] | toss <n> [item=Wood] [speed=5] [x] [y=1.2] [from=4] | range [metres] | walkin <n> [creature=Boar] [goal=4] [side=1.5] [seconds=20] [ahead=3.5] [keep] | name <n> [text] | perf [seconds=3] | camtest <n> [back=4] [rise=0.6] | shaders [filter] | back | remove: test local portals. place puts one ahead of the player (turn 180 faces the player); info lists nearby portals and their links; probe reports the cameras and shaders the views use; through walks the player into portal n (from info) and reports where they came out; back returns them to where through found them; remove takes away the portals this command placed",
+                    "lportal place [ahead=6] [right=0] [turn=180] [name] [wild] | info | probe | through <n> [steps=40] [film] | straddle <n> [depth=0.1] [turn=0] | shoot <n> [item=ArrowWood] [speed=40] [x] [y=1.2] [from=4] | toss <n> [item=Wood] [speed=5] [x] [y=1.2] [from=4] | range [metres] | walkin <n> [creature=Boar] [goal=4] [side=1.5] [seconds=20] [ahead=3.5] [keep] | name <n> [text] | perf [seconds=3] | camtest <n> [back=4] [rise=0.6] | shaders [filter] | back | remove: test local portals. place puts one ahead of the player (turn 180 faces the player); info lists nearby portals and their links; probe reports the cameras and shaders the views use; through walks the player into portal n (from info) and reports where they came out; back returns them to where through found them; remove takes away the portals this command placed",
                     (Func<string[],Action<JObject>,Action<string>,IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: lportal command added");
             }
@@ -62,9 +62,11 @@ namespace LocalPortals
                     Vector3 at=me.transform.position+forward*ahead+Vector3.Cross(Vector3.up,forward)*right;
                     if(ZoneSystem.instance.IsZoneLoaded(at)&&ZoneSystem.instance.GetSolidHeight(at,out float height))at.y=height;
                     else at.y=WorldGenerator.instance.GetHeight(at.x,at.z); // (far off, not loaded: the generated ground)
-                    GameObject go=Object.Instantiate(PortalPrefab.Prefab,at,Quaternion.LookRotation(forward)*Quaternion.Euler(0,turn,0));
+                    GameObject template=args.Contains("wild")?PortalPrefab.Wild:PortalPrefab.Prefab;
+                    if(template==null){error("lportal place: no wild prefab");break;}
+                    GameObject go=Object.Instantiate(template,at,Quaternion.LookRotation(forward)*Quaternion.Euler(0,turn,0));
                     go.GetComponent<ZNetView>()?.GetZDO()?.Set(TestKey,true);
-                    if(args.Length>5)go.GetComponent<ZNetView>()?.GetZDO()?.Set("bob_lportal_name",args[5]);
+                    if(args.Length>5&&args[5]!="wild")go.GetComponent<ZNetView>()?.GetZDO()?.Set("bob_lportal_name",args[5]);
                     output(new JObject{["placed"]=V(at),["facing"]=Math.Round(go.transform.eulerAngles.y,1),["water"]=at.y<ZoneSystem.instance.m_waterLevel,["biome"]=WorldGenerator.instance.GetBiome(at).ToString()});
                     break;
                 }

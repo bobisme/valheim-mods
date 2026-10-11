@@ -63,7 +63,7 @@ namespace LocalPortals
             Live.Add(this);
             View.Unregister(NameRpc); // (an earlier copy of this mod may have registered it on this object)
             View.Register<string>(NameRpc,RPC_SetName);
-            if(View.IsOwner()&&!View.GetZDO().GetBool(LinkedKey))Link();
+            if(View.IsOwner()&&!View.GetZDO().GetBool(LinkedKey)&&!PortalPrefab.IsWild(View.GetZDO()))Link(); // (a wild one links only by name)
         }
         private void OnDestroy()
         {
@@ -73,6 +73,7 @@ namespace LocalPortals
             if(_view!=null)Destroy(_view);
         }
 
+        private string Title=>View!=null&&View.IsValid()&&PortalPrefab.IsWild(View.GetZDO())?PortalPrefab.WildDisplayName:PortalPrefab.DisplayName;
         internal ZDOID Id=>View!=null&&View.IsValid()?View.GetZDO().m_uid:ZDOID.None;
         internal string Name=>View!=null&&View.IsValid()?View.GetZDO().GetString(NameKey):"";
         private ZDOID Stored=>View!=null&&View.IsValid()?View.GetZDO().GetZDOID(PartnerKey):ZDOID.None;
@@ -158,7 +159,7 @@ namespace LocalPortals
             float bestDistance=(float)Policy.LinkRange;
             foreach(ZDO other in Far.Portals)
             {
-                if(other==zdo||!other.IsValid()||Named(other))continue;
+                if(other==zdo||!other.IsValid()||Named(other)||PortalPrefab.IsWild(other))continue;
                 float d=Vector3.Distance(other.GetPosition(),transform.position);
                 if(d<=bestDistance&&PartnerOf(other,out _).IsNone()){best=other;bestDistance=d;}
             }
@@ -337,14 +338,14 @@ namespace LocalPortals
             }
         }
 
-        public string GetHoverName()=>PortalPrefab.DisplayName;
+        public string GetHoverName()=>Title;
         public float GetHoverOffset()=>0;
         public string GetHoverText()
         {
-            if(View==null||!View.IsValid())return PortalPrefab.DisplayName;
+            if(View==null||!View.IsValid())return Title;
             string name=Name.RemoveRichTextTags();
             ZDOID id=PartnerId();
-            string title=PortalPrefab.DisplayName+(name.Length>0?" \""+name+"\"":"");
+            string title=Title+(name.Length>0?" \""+name+"\"":"");
             string use="\n[<color=yellow><b>$KEY_Use</b></color>] Name it (mirrors with the same name are linked)";
             string text;
             if(id.IsNone())

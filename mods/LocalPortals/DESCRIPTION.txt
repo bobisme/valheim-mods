@@ -10,4 +10,6 @@ Each live view draws the world again: about 0.7 ms a view at 4K in testing. Sett
 
 While you are near a mirror, the area round its partner is kept loaded and alive (pieces out there cannot fall), so the far side is a living world and you step out into ground that is ready. That works for the host or a single player; a player who joined someone else's game sees far mirrors only when both ends are near them.
 
+For other mods: a wild looking-glass (prefab BobWildLookingGlass), grown out of rough rock with roots and crystals, to be found in the world rather than built. It cannot be damaged or taken down, and links only by name (set "bob_lportal_name" in its data).
+
 Everyone in a multiplayer game needs the mod: a host without it deletes the mirrors when their area loads. Removing the mod removes built mirrors.

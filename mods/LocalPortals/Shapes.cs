@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Object=UnityEngine.Object;
 
 namespace LocalPortals
 {
@@ -257,6 +258,130 @@ namespace LocalPortals
                 Face(vertices,uv,triangles,new[]{P(a2-n,z),P(a2+n,z),P(a2+n,z+depth),P(a2-n,z+depth)},new Vector3(-d.x,-d.y,0));
             }
             return Build("LocalPortalStrokes",vertices,uv,triangles);
+        }
+
+        // ---- rough stone, for the wild looking-glass ----
+
+        // Smooth noise along a line, about -1..1 (sines of unrelated rates), and a fixed scatter for one corner, -1..1.
+        internal static float Wobble(float s,int seed)=>0.5f*Mathf.Sin(s*1.7f+seed*1.3f)+0.3f*Mathf.Sin(s*3.9f+seed*2.3f)+0.2f*Mathf.Sin(s*7.1f+seed*4.1f);
+        internal static float Scatter(int i,int k,int seed)
+        {
+            float v=Mathf.Sin(i*12.9898f+k*78.233f+seed*37.719f)*43758.5453f;
+            return (v-Mathf.Floor(v))*2-1;
+        }
+
+        // Broken rock round the edge of the glass: a lumpy, chunky ring swept up from below the ground on the left, over the arch
+        // and down on the right, never reaching into the opening, thick and thin by turns, its faces flat like split stone.
+        internal static Mesh RockRing(int seed,float bottom=-0.3f)
+        {
+            var edge=Policy.Edge(0,40,bottom);
+            int m=edge.Count;
+            var at=new Vector2[m];var along=new float[m];
+            for(int i=0;i<m;i++){at[i]=new Vector2((float)edge[i].x,(float)edge[i].y);along[i]=i==0?0:along[i-1]+Vector2.Distance(at[i-1],at[i]);}
+            float total=along[m-1];
+            const int sides=7;const float step=0.15f;
+            var rings=new List<Vector3[]>();
+            int count=Mathf.CeilToInt(total/step);
+            for(int i=0;i<=count;i++)
+            {
+                float d=Mathf.Min(total,i*step);
+                int j=1;while(j<m-1&&along[j]<d)j++;
+                float t=(d-along[j-1])/Mathf.Max(1e-5f,along[j]-along[j-1]);
+                Vector2 p=Vector2.Lerp(at[j-1],at[j],t);
+                Vector2 dir=(at[j]-at[j-1]).normalized,normal=new Vector2(-dir.y,dir.x); // outward (the path runs clockwise)
+                float a=0.11f+0.17f*(Wobble(d*0.9f,seed)*0.5f+0.5f),b=0.12f+0.11f*(Wobble(d*1.3f,seed+5)*0.5f+0.5f);
+                if(Scatter(i,99,seed)>0.55f){a*=1.7f;b*=1.25f;} // here and there a rock juts out
+                float zc=-0.05f+0.05f*Wobble(d*0.7f,seed+9);
+                var ring=new Vector3[sides];
+                for(int k=0;k<sides;k++)
+                {
+                    float th=k*Mathf.PI*2/sides+0.25f*Scatter(i,k+50,seed);
+                    float c=Mathf.Cos(th),sn=Mathf.Sin(th),bump=1+0.36f*Scatter(i,k,seed);
+                    float o=a+a*c*bump;
+                    if(c<0)o=Mathf.Max(o,0.01f+0.03f*(1+c)); // the inner side keeps clear of the glass
+                    ring[k]=new Vector3(p.x+normal.x*o,p.y+normal.y*o,zc+b*sn*bump);
+                }
+                rings.Add(ring);
+            }
+            var vertices=new List<Vector3>();var triangles=new List<int>();
+            for(int i=0;i<rings.Count-1;i++)
+                for(int k=0;k<sides;k++)
+                {
+                    int k2=(k+1)%sides;
+                    Vector3 mid=(rings[i][0]+rings[i][3])/2;
+                    Quad(vertices,triangles,rings[i][k],rings[i+1][k],rings[i+1][k2],rings[i][k2],rings[i][k]-mid);
+                }
+            foreach(int e in new[]{0,rings.Count-1})
+            {
+                Vector3 centre=Vector3.zero;foreach(Vector3 v in rings[e])centre+=v/sides;
+                for(int k=0;k<sides;k++)Tri(vertices,triangles,centre,rings[e][k],rings[e][(k+1)%sides],Vector3.down);
+            }
+            return Stone("LocalPortalRockRing",vertices,triangles);
+        }
+
+        // A boulder: a squashed ball of rough faces, `radius` round, every corner pushed in or out a little.
+        internal static Mesh Boulder(float radius,int seed,float squash=0.72f)
+        {
+            const int rows=5,cols=8;
+            var grid=new Vector3[rows+1,cols];
+            for(int r=0;r<=rows;r++)
+                for(int c=0;c<cols;c++)
+                {
+                    float lat=Mathf.PI*(r/(float)rows-0.5f),lon=Mathf.PI*2*(c+0.5f*(r%2))/cols;
+                    float k=radius*(1+0.3f*Scatter(r,c,seed));
+                    grid[r,c]=new Vector3(Mathf.Cos(lat)*Mathf.Cos(lon)*k,Mathf.Sin(lat)*k*squash,Mathf.Cos(lat)*Mathf.Sin(lon)*k);
+                }
+            var vertices=new List<Vector3>();var triangles=new List<int>();
+            for(int r=0;r<rows;r++)
+                for(int c=0;c<cols;c++)
+                {
+                    int c2=(c+1)%cols;
+                    Vector3 a=grid[r,c],b=grid[r,c2],d=grid[r+1,c],e=grid[r+1,c2];
+                    Tri(vertices,triangles,a,b,e,(a+b+e)/3);Tri(vertices,triangles,a,e,d,(a+e+d)/3);
+                }
+            return Stone("LocalPortalBoulder",vertices,triangles);
+        }
+
+        // A slab of rock behind the glass: the board's outline grown a little, flat in front, lumpy behind.
+        internal static Mesh RockBack(int seed,float z0,float z1,float bottom)
+        {
+            Mesh board=Board(0.12f,z0,z1,bottom);
+            var points=board.vertices;
+            for(int i=0;i<points.Length;i++)
+                if(points[i].z<(z0+z1)/2)points[i].z-=0.05f+0.06f*(Wobble(points[i].x*4+points[i].y*2.5f,seed)*0.5f+0.5f);
+            var vertices=new List<Vector3>();var triangles=new List<int>();
+            int[] t=board.triangles;
+            for(int i=0;i<t.Length;i+=3){int s=vertices.Count;vertices.Add(points[t[i]]);vertices.Add(points[t[i+1]]);vertices.Add(points[t[i+2]]);triangles.Add(s);triangles.Add(s+1);triangles.Add(s+2);}
+            Object.Destroy(board);
+            return Stone("LocalPortalRockBack",vertices,triangles);
+        }
+
+        private static void Tri(List<Vector3> vertices,List<int> triangles,Vector3 a,Vector3 b,Vector3 c,Vector3 facing)
+        {
+            int s=vertices.Count;
+            vertices.Add(a);vertices.Add(b);vertices.Add(c);
+            Triangle(triangles,vertices,s,s+1,s+2,facing);
+        }
+        private static void Quad(List<Vector3> vertices,List<int> triangles,Vector3 a,Vector3 b,Vector3 c,Vector3 d,Vector3 facing)
+        {
+            Tri(vertices,triangles,a,b,c,facing);Tri(vertices,triangles,a,c,d,facing);
+        }
+        // Every face its own corners (flat, like split stone), its texture laid on from the side it faces most.
+        private static Mesh Stone(string name,List<Vector3> vertices,List<int> triangles)
+        {
+            var uv=new List<Vector2>();
+            for(int i=0;i<vertices.Count;i+=3)
+            {
+                Vector3 n=Vector3.Cross(vertices[i+1]-vertices[i],vertices[i+2]-vertices[i]);
+                n=new Vector3(Mathf.Abs(n.x),Mathf.Abs(n.y),Mathf.Abs(n.z));
+                for(int k=0;k<3;k++)
+                {
+                    Vector3 v=vertices[i+k];
+                    uv.Add(n.x>=n.y&&n.x>=n.z?new Vector2(v.z,v.y):n.y>=n.z?new Vector2(v.x,v.z):new Vector2(v.x,v.y));
+                }
+            }
+            for(int i=0;i<uv.Count;i++)uv[i]/=1.6f;
+            return Build(name,vertices,uv,triangles);
         }
 
         // A soft glowing film for a portal with nothing to show: brighter towards the rim.

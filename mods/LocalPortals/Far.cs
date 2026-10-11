@@ -25,13 +25,15 @@ namespace LocalPortals
         // the cost does not grow with the link distance; the loaded ones are always in it at once.
         private static readonly List<ZDO> Sweep=new List<ZDO>(),Swept=new List<ZDO>();
         private static int _sweepAt;
+        private static bool _sweepWild;
         internal static void Scan(bool now=false)
         {
             if(ZDOMan.instance==null)return;
-            if(ZDOMan.instance.GetAllZDOsWithPrefabIterative(PortalPrefab.Name,Sweep,ref _sweepAt))
+            if(ZDOMan.instance.GetAllZDOsWithPrefabIterative(_sweepWild?PortalPrefab.WildName:PortalPrefab.Name,Sweep,ref _sweepAt))
             {
-                Swept.Clear();Swept.AddRange(Sweep);Sweep.Clear();_sweepAt=0;
-                now=true;
+                _sweepAt=0;
+                if(!_sweepWild)_sweepWild=true; // the built ones done: now the wild ones, into the same list
+                else{_sweepWild=false;Swept.Clear();Swept.AddRange(Sweep);Sweep.Clear();now=true;}
             }
             if(!now&&Time.time<_nextScan)return;
             _nextScan=Time.time+0.5f;
@@ -137,7 +139,7 @@ namespace LocalPortals
             Mine.Clear();
         }
 
-        internal static void Stop(){Zones.Clear();Portals.Clear();Sweep.Clear();Swept.Clear();_sweepAt=0;}
+        internal static void Stop(){Zones.Clear();Portals.Clear();Sweep.Clear();Swept.Clear();_sweepAt=0;_sweepWild=false;}
     }
 
     [HarmonyPatch(typeof(ZDOMan),"ReleaseZDOS")]
