@@ -290,7 +290,6 @@ namespace LocalPortals
             ZNet.instance?.SetReferencePosition(position); // (the game does this later in the frame; everything after the step goes by it)
             Far.Tick(now:true); // the side just left becomes the far side: kept loaded from this moment, not after it is unloaded
             Creatures.Gone(me,from);
-            Sound.Crossed(position,true);
             LookingGlassApi.RaiseCrossed(me,from,to);
             Far.Announce(); // (a client tells the host where it is now, not up to two seconds later)
         }

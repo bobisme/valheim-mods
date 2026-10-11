@@ -126,7 +126,6 @@ namespace LocalPortals
             if(Recent.Count>=20)Recent.RemoveAt(0);
             Recent.Add($"{Time.time:0.0} {c.GetHoverName()} ({c.name.Replace("(Clone)","")}) through {from.Name}/{from.Colour}");
             Gone(c,from);
-            Sound.Crossed(position,false);
             LookingGlassApi.RaiseCrossed(c,from,to);
         }
 

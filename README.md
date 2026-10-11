@@ -60,7 +60,7 @@ behind fades to a glow; and while you are partway through, the part of you that 
 Arrows, spears, bombs and dropped items fly through too, and creatures that fit the opening walk through: your followers come after
 you, and whatever hunts you follows you in. While you are near a mirror, the area round its partner is kept loaded and alive, however
 far off; the host does the same for each player who joined, sending them the far side and keeping it moving for them.
-A linked mirror hums; stepping through is a rush of air, and its crystals chime now and then. Sounds made near the other mirror are
+A linked mirror hums softly, and its crystals chime now and then. Sounds made near the other mirror are
 heard from behind this one, and a far land of another kind (birds, wind, surf) murmurs at the glass. Light from the far side falls out
 of the glass in the colour and brightness of the view. A mirror seen in another mirror's view shows its own view too.
 

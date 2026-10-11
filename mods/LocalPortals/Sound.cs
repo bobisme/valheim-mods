@@ -5,19 +5,19 @@ using UnityEngine.Audio;
 
 namespace LocalPortals
 {
-    // What the mirrors sound like. A linked mirror's glass hums low (the game's own portal hum, slowed); stepping through is
-    // a rush of air; now and then its crystals chime. And the far side is heard through the glass: a sound made near the
+    // What the mirrors sound like. A linked mirror's glass hums low (the game's own portal hum, slowed); now and then its
+    // crystals chime. And the far side is heard through the glass: a sound made near the
     // other mirror comes out behind this one, as far behind it as it was in front of the other; and when the other side is
     // another kind of land, its air (birds, wind, surf) murmurs at the glass.
     internal static class Sound
     {
-        private const string WhooshName="sfx_OpenPortal",ChimeName="sfx_build_hammer_crystal";
+        private const string ChimeName="sfx_build_hammer_crystal";
         private static bool _looked;
         private static AudioClip _hum;
         private static AudioMixerGroup _sfx;
-        private static GameObject _whoosh,_chime;
+        private static GameObject _chime;
         internal static int Relayed;            // far sounds heard through a mirror, this session
-        internal static string Found=>$"hum {(_hum!=null?_hum.name+" "+_hum.length.ToString("0.0")+" s":"none")}, whoosh {(_whoosh!=null?"yes":"none")}, chime {(_chime!=null?"yes":"none")}";
+        internal static string Found=>$"hum {(_hum!=null?_hum.name+" "+_hum.length.ToString("0.0")+" s":"none")}, chime {(_chime!=null?"yes":"none")}";
 
         private static void Look()
         {
@@ -25,7 +25,6 @@ namespace LocalPortals
             _looked=true;
             AudioSource hum=ZNetScene.instance.GetPrefab("portal_wood")?.transform.Find("_target_found_red/SFX")?.GetComponent<AudioSource>();
             if(hum!=null){_hum=hum.clip;_sfx=hum.outputAudioMixerGroup;}
-            _whoosh=ZNetScene.instance.GetPrefab(WhooshName);
             _chime=ZNetScene.instance.GetPrefab(ChimeName);
         }
         private static Vector3 Listener()
@@ -43,20 +42,13 @@ namespace LocalPortals
             ZSFX sfx=go.GetComponent<ZSFX>();
             if(sfx!=null){sfx.SetVolumeModifier(volume);sfx.SetPitchModifier(pitch);}
         }
-        // Someone stepped out of a mirror here.
-        internal static void Crossed(Vector3 at,bool player)
-        {
-            if(!Plugin.Sounds.Value)return;
-            Look();
-            Play(_whoosh,at+Vector3.up,player?0.55f:0.35f,Random.Range(1.05f,1.2f));
-        }
         // A sleeping mirror waking.
         internal static void Woke(Vector3 at)
         {
             if(!Plugin.Sounds.Value)return;
             Look();
-            Play(_whoosh,at+Vector3.up*1.2f,0.8f,0.7f);
             Play(_chime,at+Vector3.up*2.2f,0.6f,1.5f);
+            Play(_chime,at+Vector3.up*2.0f,0.4f,1.125f);
         }
 
         // A sound starting near the far mirror of a mirror the listener stands at is moved through the glass to them.
@@ -125,7 +117,7 @@ namespace LocalPortals
                 float d=Vector3.Distance(ear,_p.transform.position);
                 if(!on||d>14){Quiet(_hum);Quiet(_air);return;}
                 // the hum: only a linked, waking mirror
-                float hum=linked?0.32f:0;
+                float hum=linked?0.16f:0;
                 _hum.pitch=_p.Colour==1?0.83f:0.76f;
                 Fade(_hum,hum,1.2f);
                 // the far side's land, when it is not this land
@@ -219,7 +211,7 @@ namespace LocalPortals
             internal static void Forget()=>Known.Clear();
         }
 
-        internal static void Stop(){_looked=false;_hum=null;_whoosh=_chime=null;BiomeAmbient.Forget();}
+        internal static void Stop(){_looked=false;_hum=null;_chime=null;BiomeAmbient.Forget();}
     }
 
     [HarmonyPatch(typeof(ZSFX),"Start")]
