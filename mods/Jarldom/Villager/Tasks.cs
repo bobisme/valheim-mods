@@ -449,7 +449,7 @@ namespace Jarldom
     // back to their place once the jarl has ruled.
     internal sealed class ThingTask : Task
     {
-        public bool Arrived; private Chair _chair; private Vector3 _stand; private bool _speaking, _spoke; private float _faceAt; private string _matter;
+        public bool Arrived; private Chair _chair; private Vector3 _stand; private bool _speaking, _spoke; private float _faceAt, _since; private string _matter;
         public override void Start(Brain b) => Place(b);
         private void Place(Brain b)
         {
@@ -457,7 +457,7 @@ namespace Jarldom
             _chair = hall != null ? Seats.Free(b, hall, c) : null;
             Vector3 at = Thing.Place(c);
             _stand = _chair != null ? _chair.transform.position : Colony.Spot(at, 4f) ?? at;
-            Arrived = false; Doing = "off to the Thing";
+            Arrived = false; Doing = "off to the Thing"; _since = Time.time;
             b.Move.To(_stand, _chair != null ? 1.2f : 2f);
         }
         public override void Tick(Brain b)
@@ -487,6 +487,8 @@ namespace Jarldom
             }
             if (!Arrived)
             {
+                // (a seat they can't get to: a place on the floor instead)
+                if (_chair != null && (b.Move.Failed || Time.time - _since > 20f)) { Seats.Free(b); _chair = null; Vector3 at = Thing.Place(c); _stand = Colony.Spot(at, 4f) ?? at; _since = Time.time; b.Move.To(_stand, 2f); return; }
                 if (b.Move.Moving && !b.Move.Failed) return;
                 if (!b.Move.Failed && !b.Move.Arrived && Utils.DistanceXZ(b.Pos, _stand) > 2.5f) { b.Move.To(_stand, _chair != null ? 1.2f : 2f); return; }
                 Arrived = true; Doing = "at the Thing";

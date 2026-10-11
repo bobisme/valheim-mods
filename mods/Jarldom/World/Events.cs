@@ -224,7 +224,7 @@ namespace Jarldom
             if (c.R.Flag(Cur) == 0)
             {
                 int here = Gathered(c, out int expected);
-                if (here >= Math.Ceiling(expected * 0.75) || real > 60) Next(c);
+                if (here >= Math.Ceiling(expected * 0.9) || real > 120) Next(c);
                 return;
             }
             if (Current(c) == null) { Next(c); return; }

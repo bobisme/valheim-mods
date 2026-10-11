@@ -157,6 +157,8 @@ namespace Jarldom
         }
 
         // ---- dying and rising ----
+        private static readonly HarmonyLib.AccessTools.FieldRef<Character, HitData> LastHitRef = HarmonyLib.AccessTools.FieldRefAccess<Character, HitData>("m_lastHit");
+        private static HitData LastHit(Character c) { try { return LastHitRef(c); } catch { return null; } }
         public static void Died(Humanoid h)
         {
             Brain b = Brain(h);
@@ -165,6 +167,14 @@ namespace Jarldom
             if (s == null) return;
             Colony colony = Colony.Of(s.Colony);
             string killer = b?.LastAttacker ?? "";
+            // (no one struck them: what did, from the game's own last hit, so the saga can say it and a cause can be found)
+            HitData last = string.IsNullOrEmpty(killer) ? LastHit(h) : null;
+            if (last != null)
+            {
+                Character by = last.GetAttacker();
+                killer = by != null ? by.GetHoverName() : last.m_hitType switch { HitData.HitType.Fall => "a fall", HitData.HitType.Drowning => "drowning", HitData.HitType.Burning => "fire", HitData.HitType.Freezing => "cold", HitData.HitType.Poisoned => "poison", HitData.HitType.Smoke => "smoke", HitData.HitType.Structural => "a falling building", HitData.HitType.Tree => "a falling tree", HitData.HitType.Turret => "a turret", HitData.HitType.Impact => "a blow", _ => "" };
+                Plugin.Log($"Jarldom: {s.Name} died at {h.transform.position:F1}: hit type {last.m_hitType}, attacker {(by != null ? Utils.GetPrefabName(by.gameObject) : "none")}, damage {last.GetTotalDamage():0.0}");
+            }
             s.Deaths++;
             foreach (string k in s.Skills.Keys.ToList()) s.Skills[k] *= 0.95f;
             bool lost = string.IsNullOrEmpty(s.Bed) || s.Disgraced;

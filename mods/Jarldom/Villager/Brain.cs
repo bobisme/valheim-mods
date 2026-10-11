@@ -133,7 +133,9 @@ namespace Jarldom
             if (Combat.Busy(this)) return;
             Activity want = Want();
             // Sleep, a trade run, the road to Valhalla: carried on to the end unless a raid comes.
-            if (Task != null && !Task.Done && !Task.Interruptible && want != Activity.Defend) { Task.Tick(this); if (Task != null && Alive) SetDoing(Task.Doing); return; }
+            // (the Thing called: the day's chores are put down at once; a trip, a cart, a boar on a rope are seen through)
+            bool chore = Task is WorkTask || Task is UpkeepTask || Task is CraftTask || Task is DepositTask || Task is OutfitTask || Task is RepairTask || Task is BuildTask || Task is GothiTask || Task is HealTask || Task is EatTask;
+            if (Task != null && !Task.Done && !Task.Interruptible && want != Activity.Defend && !(want == Activity.Thing && chore)) { Task.Tick(this); if (Task != null && Alive) SetDoing(Task.Doing); return; }
             if (want != Activity || Task == null || Task.Done)
             {
                 if (Task != null && (Task.Done || want != Activity)) { Task.Stop(this); Task = null; }
