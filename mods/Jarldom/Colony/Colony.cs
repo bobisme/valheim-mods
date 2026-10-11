@@ -42,7 +42,8 @@ namespace Jarldom
         public double Hour => Clock.HourOfDay(Now);
         public int Renown => WealthPart + ComfortPart + (R?.Deeds ?? 0);
 
-        private Colony(HighSeat seat) { Seat = seat; View = seat.GetComponent<ZNetView>(); }
+        private Colony(HighSeat seat) { Seat = seat; View = seat.GetComponent<ZNetView>(); _attachedAt = Time.time; }
+        private readonly float _attachedAt; private bool _caughtUp; private float _nextLive;
 
         // From HighSeat.Awake (and a reload): the record, or a new colony when the pillars were just raised.
         public static Colony Attach(HighSeat seat)
@@ -161,6 +162,14 @@ namespace Jarldom
             Board.Expire(now); Board.Prune(now);
             if (Time.time >= _nextRoster) { _nextRoster = Time.time + 5; Roster(); }
             Rise(now);
+            // Back after time unloaded: the missing hours made up first (once its people have loaded, or after a while if none do).
+            if (!_caughtUp)
+            {
+                if (!CatchUp.Due(this, out double away)) _caughtUp = true;
+                else if (Villagers.All.Any(b => b.S.Colony == R.Id) && Time.time - _attachedAt > 5 || Time.time - _attachedAt > 20) { _caughtUp = true; Plugin.Guard(() => CatchUp.Run(this, away)); }
+                else return;
+            }
+            if (Time.time >= _nextLive) { _nextLive = Time.time + 30; CatchUp.Live(this); }
             if (hour >= Schedule.WakeAt && hour < 12 && R.LastDawn != day) { R.LastDawn = day; _dirty = true; Plugin.Guard(() => Dawn(day)); }
             if (hour >= Schedule.HallAt && R.LastDusk != day) { R.LastDusk = day; _dirty = true; Plugin.Guard(() => Dusk(day)); }
             if (Time.time >= _nextSurvey) { _nextSurvey = Time.time + 300; Plugin.Guard(Survey); Plugin.Guard(Rerank); }

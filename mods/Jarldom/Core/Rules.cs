@@ -31,6 +31,20 @@ namespace Jarldom
     }
 
     // Odin's attention: what a colony has built, how well it sleeps, and what it has done.
+    // A colony's time away, made up at the rates counted while it was live (a little under: nobody's watching).
+    public static class Away
+    {
+        public const double Efficiency = 0.9;
+        public static double WorkShare => (Schedule.HallAt - Schedule.WorkAt) / 24.0; // the working part of a day
+        // How many of an item: made while live in worked hours (tenths of an hour of work, one villager), for workers over hours away.
+        public static int Produce(int madeLive, int workedTenths, int workers, double hoursAway)
+        {
+            if (workedTenths < 10 || madeLive <= 0 || workers <= 0 || hoursAway <= 0) return 0;
+            double perHour = madeLive / (workedTenths / 10.0);
+            return (int)Math.Floor(perHour * hoursAway * WorkShare * workers * Efficiency);
+        }
+    }
+
     public static class Renown
     {
         // The Fulings' price: more for a colony worth more, and half again each time it's been paid (rounded to fives).

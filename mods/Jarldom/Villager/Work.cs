@@ -383,7 +383,8 @@ namespace Jarldom
             {
                 Container dest = Stock.Destination(b.Colony, item, b.Pos);
                 if (dest != _to) continue;
-                if (Stock.Put(bag, _to, item) > 0) { b.S.Bump("loads"); moved++; }
+                int put = Stock.Put(bag, _to, item);
+                if (put > 0) { b.S.Bump("loads"); moved++; CatchUp.Made(b, item, put); }
             }
             if (moved == 0) b.NoStoreUntil = Time.time + 30;
             if (b.S.Count("loads") >= 1000 && string.IsNullOrEmpty(b.S.Byname)) { b.S.Byname = Names.Byname("hauler"); b.Colony.Log("byname", b.S.Name, b.S.Byname); }

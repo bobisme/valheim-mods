@@ -210,6 +210,12 @@ var accused = Petitions.Raise(new Random(1), suspicious, 10).Where(p => p.Id == 
 Check(accused.Count == 1 && accused[0].About == "Hrafn", "The Thing names one seen twice near the mischief, not one seen once");
 Check(Renown.TributeAsk(0, 0) == 40 && Renown.TributeAsk(80, 0) == 80 && Renown.TributeAsk(80, 1) == 120 && Renown.TributeAsk(80, 2) == 180, "The Fulings want more each time");
 Check(Renown.TributeAsk(1000, 99) > 0, "The Fulings' price never overflows");
+// Away: 40 wood in 2 worked hours is 20 an hour; two woodcutters, 48 hours away (11 of every 24 working) → 2 × 20 × 22 × 0.9.
+int awayWood = Away.Produce(40, 20, 2, 48);
+Check(awayWood == (int)Math.Floor(20.0 * 48 * 11 / 24 * 2 * 0.9), "Time away is made up at the live rate");
+Check(awayWood >= 0.8 * (20.0 * 48 * 11 / 24 * 2) && awayWood <= 1.2 * (20.0 * 48 * 11 / 24 * 2), "Within a fifth of the live rate (the spec's test)");
+Check(Away.Produce(40, 5, 2, 48) == 0, "Too little seen live to say: nothing made up");
+Check(Away.Produce(40, 20, 0, 48) == 0 && Away.Produce(0, 20, 2, 48) == 0, "No workers or no output: nothing");
 Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky") == "the Unlucky" && Names.Creature("Greydwarf_Elite") == "Greydwarf", "Bynames");
 
 Console.WriteLine($"Jarldom: {checks} checks passed");

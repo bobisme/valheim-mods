@@ -136,6 +136,7 @@ namespace Jarldom
             }
             Task?.Tick(this);
             if (Task != null) SetDoing(Task.Doing);
+            if (Activity == Activity.Work && Task != null && !(Task is WanderTask)) CatchUp.Work(this, DecideDt); // (working hours, for the rates kept while away)
         }
 
         private Activity Want()
