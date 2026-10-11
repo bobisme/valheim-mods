@@ -141,7 +141,7 @@ namespace Jarldom
     internal sealed class HallTask : Task
     {
         public bool Shelter;
-        private Chair _chair; private Vector3 _stand; private bool _there, _counted; private float _nextTalk;
+        private Chair _chair; private Vector3 _stand; private bool _there, _counted, _drank; private float _nextTalk;
         public override void Start(Brain b)
         {
             Room hall = b.Colony.Best(RoomType.GreatHall);
@@ -169,10 +169,31 @@ namespace Jarldom
             if (b.S.Prof == Prof.Skald && b.Held == null && Time.time > _nextSong) Sing(b);
             Mood.Satisfy(b.S, Need.Social, b.DecideDt / (float)Clock.Hour * 12f);
             if (!_counted && b.Colony.RoomAt(b.Pos, RoomType.GreatHall) != null) { _counted = true; Mood.Add(b.S, "hall", b.Now); b.S.Bump("halls"); }
+            if (_counted && !_drank) { _drank = true; Drink(b); }
             if (b.S.Needs[(int)Need.Food] < 70 && Food.CanEat(b)) Food.EatFromBag(b);
             if (Time.time > _nextTalk) { _nextTalk = Time.time + UnityEngine.Random.Range(25f, 60f); Talk.Gossip(b); }
         }
         public override void Stop(Brain b) { Seats.Free(b); base.Stop(b); }
+        // A drink of the evening (SkalTavern's ale, mead and wine) from a chest in the hall, and a toast.
+        private static void Drink(Brain b)
+        {
+            Room hall = b.Colony.RoomAt(b.Pos, RoomType.GreatHall);
+            if (hall == null) return;
+            foreach (var x in Stock.Chests(b.Colony, b.Pos))
+            {
+                if (x.category == "treasury" || ContainerAccess.InUse(x.chest) || b.Colony.RoomAt(x.chest.transform.position + Vector3.up * 0.3f) != hall) continue;
+                ItemDrop.ItemData drink = x.chest.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name.StartsWith("dh_drink_"));
+                if (drink == null) continue;
+                string name = Localization.instance.Localize(drink.m_shared.m_name).ToLower();
+                ContainerAccess.TakeOver(x.chest);
+                x.chest.GetInventory().RemoveItem(drink, 1);
+                Body_.Anim(b.Body)?.SetTrigger("emote_toast");
+                b.Say(UnityEngine.Random.value < 0.5f ? "Skål!" : $"Good {name}!", 4);
+                Mood.Add(b.S, "tavern", b.Now); Mood.Satisfy(b.S, Need.Social, 6);
+                b.S.Bump("drinks"); b.Dirty();
+                return;
+            }
+        }
         // The skald plays: a verse, a cheer, and everyone in the hall feels it.
         private float _nextSong;
         private static readonly string[] Verses = { "Cattle die, kinsmen die, the self must also die; but glory never dies for the one who earns it.", "Hear, all you hearers, of the hall of the slain!",

@@ -63,7 +63,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "away" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "away", "master", "envoy" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or with devcommands"); return; }
             if (cmd == "pickrelic")
             {
@@ -456,6 +456,8 @@ namespace Jarldom
                 case "rates":
                     output(new JObject(Enum.GetValues(typeof(Prof)).Cast<Prof>().Select(p => new JProperty(p.ToString(), new JObject(new JProperty("hours", c.R.Flag("worked:" + p) / 10f), new JProperty("perHour", new JObject(CatchUp.Rates(c, p).Select(kv => new JProperty(kv.Key, Math.Round(kv.Value, 2))))))))));
                     break;
+                case "master": { Skills.SkillType sk = a.Length > 2 && Enum.TryParse(a[2], true, out Skills.SkillType s2) ? s2 : Skills.SkillType.Swords; c.R.Flags["master:skill"] = (int)sk; c.R.Flags["master:until"] = c.Day; c.MarkDirty(); output(new JObject { ["master"] = sk.ToString() }); } break;
+                case "envoy": c.R.Flags["merc:offer"] = c.Day; c.MarkDirty(); output(new JObject { ["envoy"] = c.Day }); break;
                 case "backup":
                     {
                         // The colony's record and board to a file (BepInEx/claude/jarldom-<id>-<time>.txt), for jarldom relic to bring back.

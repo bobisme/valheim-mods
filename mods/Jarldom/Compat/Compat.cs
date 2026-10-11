@@ -24,7 +24,7 @@ namespace Jarldom
             ("Omens", new[] { "com.bobisme.omens" }, "Odin's favour is the gods' Fate"),
             ("Shieldwall", new[] { "com.bobisme.shieldwall" }, "a siege at the colony's Warstone is a raid: villagers defend it"),
             ("TrophyHall", new[] { "com.bobisme.trophyhall" }, "trophies grade the great hall"),
-            ("SkalTavern", new[] { "com.quad.skaltavern", "com.dhack.skaltavern" }, "a Skål! at feasts"),
+            ("SkalTavern", new[] { "com.quad.skaltavern", "com.dhack.skaltavern" }, "a Skål! at feasts; its ale, mead and wine drunk in the hall from its chests"),
             ("PartyHud", new[] { "com.quad.partyhud", "com.dhack.partyhud" }, "(not yet)"),
             ("LedgerChest", new[] { "com.quad.ledgerchest", "com.dhack.ledgerchest" }, "(not yet)"),
             ("ClaudeTools", new[] { "com.quad.claudetools", "com.dhack.claudetools" }, "the jarldom command"),

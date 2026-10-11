@@ -123,6 +123,13 @@ namespace Jarldom.Ui
                 float tx = 8; Btn(list, $"Pay the Fulings {ask} coins", ref tx, y, () => Net.Act(_c, "tribute", ""));
                 y += 52;
             }
+            if (Visitors.MercOffered(_c) || Visitors.MercDaysLeft(_c) > 0)
+            {
+                y = Heading(list, "The Dvergr", y);
+                y = Text(list, Visitors.MercDaysLeft(_c) > 0 ? $"Three Dvergr guard the colony for {Visitors.MercDaysLeft(_c)} more day(s)." : $"A Dvergr envoy offers three fighters for {Visitors.MercDays} days.", y, 16, GameUi.Text);
+                float mx = 8; Btn(list, Visitors.MercDaysLeft(_c) > 0 ? $"Keep them on ({Visitors.MercCost} coins)" : $"Hire them ({Visitors.MercCost} coins)", ref mx, y, () => Net.Act(_c, "hire", ""));
+                y += 52;
+            }
             var follow = Spirit.Followers(_c).Where(f => f.fans > 0).Take(4).ToList();
             if (follow.Count > 0) y = Text(list, "Followed: " + string.Join(", ", follow.Select(f => $"{f.jarl} ({f.fans} of {f.of}{(f.fans * 10 > f.of * 6 ? ", loved" : "")})")) + ".", y, 15, GameUi.Dim);
             string feast = Feast.Ready(_c, out _, out _);
@@ -179,8 +186,11 @@ namespace Jarldom.Ui
             float y = 4;
             var living = _c.R.Roster.Where(r => r.State == SoulState.Active).OrderBy(r => r.Name).ToList();
             if (living.Count == 0) return Text(list, "No one lives here yet. Raise renown (build, beds with comfort, deeds) and Odin will send the fallen.", y, 16, GameUi.Dim);
+            Skills.SkillType? master = Visitors.Master(_c);
+            if (master != null) y = Text(list, $"A master of {Visitors.Skill(master.Value)} is in the hall today: {Visitors.TrainCost} coins teaches one of them +10 (Teach).", y, 16, GameUi.Good);
             foreach (RosterRow row in living)
             {
+                if (master != null) { string pupil = row.Vid; GameUi.Button(list, "Teach", new Vector2(W - 120, -y + 2), new Vector2(70, 30), () => Net.Act(_c, "train", pupil), true, 14); }
                 Humanoid h = Villagers.Body(row.Vid);
                 ZDO z = h?.GetComponent<ZNetView>()?.GetZDO();
                 string doing = z?.GetString(Villagers.DoingKey, "") ?? "far away";

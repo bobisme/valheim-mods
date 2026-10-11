@@ -317,6 +317,7 @@ namespace Jarldom
                 case "summon": Task?.Stop(this); Task = new GoTask(Colony.Position + Colony.Seat.transform.forward * 2.5f, "coming to the pillars", 2f, true); Task.Start(this); break;
                 case "dismiss": Dismiss(); return;
                 case "mood": Jarldom.Mood.Add(S, arg, Now); break;
+                case "train": { string key = arg; float now = S.Skill(key); S.Skills[key] = Mathf.Min(100, now + 10); Say($"I learned a great deal of {key.ToLower()} from the master.", 5); } break;
                 case "worth": if (float.TryParse(arg, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float w)) { S.Worth = Mathf.Clamp(w, 0, 100); S.Worthy = S.Worth >= 100; } break;
                 case "need": { string[] f = arg.Split('='); if (f.Length == 2 && Enum.TryParse(f[0], out Need n) && float.TryParse(f[1], out float v)) S.Needs[(int)n] = Mathf.Clamp(v, 0, 100); } break;
                 case "ascend": Task?.Stop(this); Task = new AscendTask(arg); Task.Start(this); break;

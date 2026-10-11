@@ -47,6 +47,8 @@ namespace Jarldom
                 case "log": { string[] f = arg.Split('\u001e'); if (f.Length == 4) Log(f[0], f[1], f[2], f[3]); } break;
                 case "craft": { int n = Int(a, 1); string key = Crafts.Prefix + a[0]; int now = R.Flag(key) + n; if (now > 0) R.Flags[key] = Math.Min(now, 99); else R.Flags.Remove(key); } break;
                 case "tribute": Tribute.Pay(this, who); break;
+                case "train": Visitors.Train(this, a[0], who); break;
+                case "hire": Visitors.Hire(this, who); break;
                 case "heraldslain": Tribute.HeraldSlain(this); break;
                 case "away": break; // (logged by the trader; the record follows from SoulAway)
                 case "bogpaid": R.BogPaid += Int(a, 0); break;
