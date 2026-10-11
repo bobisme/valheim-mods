@@ -87,7 +87,10 @@ namespace Jarldom
                 Hungry = Villagers.All.Count(b => b.S.Colony == c.Id && b.S.Needs[(int)Need.Food] < 30) > c.Population / 2,
             };
             foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id))
+            {
                 if (b.S.Count("thefts") > 0 || b.S.Count("brawls") > 0) view.Troublemakers.Add((b.S.Name, b.S.Count("thefts"), b.S.Count("brawls")));
+                if (b.S.Count("seen") > 0) view.Suspects.Add((b.S.Name, b.S.Count("seen")));
+            }
             foreach (var feud in Villagers.All.Where(b => b.S.Colony == c.Id).SelectMany(b => b.S.Bonds.Where(kv => kv.Value < -50).Select(kv => (b.S.Name, Villagers.ByVid(kv.Key)?.S.Name))).Where(f => f.Item2 != null && string.CompareOrdinal(f.Item1, f.Item2) < 0).Distinct())
                 view.Feuds.Add((feud.Item1, feud.Item2));
             var list = Petitions.Raise(new System.Random(c.Id.GetStableHashCode() ^ day), view);
@@ -137,6 +140,7 @@ namespace Jarldom
             if (yes && p.YesDeed != "") c.R.Deeds += Renown.Deed(p.YesDeed);
             if (yes && p.Id == "exile") { Brain b = Villagers.All.FirstOrDefault(x => x.S.Colony == c.Id && x.S.Name == p.About); if (b != null) { c.Log("exile", b.S.FullName, who); Villagers.Command(b.S.Vid, "dismiss", ""); } }
             if (yes && p.Id == "guardpay") c.R.Flags["guardraise"] = 1;
+            if (yes && p.Id == "accuse") Saboteur.CastOut(c, p.About, who);
             if (yes && Promises.Contains(p.Id)) c.R.Flags["promise:" + p.Id] = c.Day + 5; // to be kept within five days
             c.Log("text", who, "", $"At the Thing, {who} said {(yes ? p.Yes.ToLower() : p.No.ToLower())}: \"{p.Text}\"");
             Save(c);
@@ -169,6 +173,7 @@ namespace Jarldom
         private static readonly Dictionary<string, (string name, int deathsBefore)> Running = new Dictionary<string, (string, int)>();
         public static void Tick(Colony c)
         {
+            Plugin.Guard(() => Faith.Thunder(c));
             RandomEvent ev = RandEventSystem.instance != null ? RandEventSystem.instance.GetCurrentRandomEvent() : null;
             bool near = ev != null && Utils.DistanceXZ(ev.m_pos, c.Position) < c.Radius + 80;
             bool siege = Compat.Siege(c.Position, c.Radius, out Vector3 stone);

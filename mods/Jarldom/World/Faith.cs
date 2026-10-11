@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using HarmonyLib;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -9,6 +10,44 @@ namespace Jarldom
     // The gods: favour from offerings at their altars and in the sacred bog; with Omens installed Odin's favour is Omens' Fate.
     internal static class Faith
     {
+        // A god's blessing: a temple to them that passes, and their favour above nothing.
+        public static bool Blessed(Colony c, string god) => c != null && c.R != null && c.R.Rooms.Any(r => r.Ok && r.Type == RoomType.Temple && r.God == god) && c.FavourOf(god) > 0;
+
+        // Thor: the colony's villagers strike a tenth harder.
+        [HarmonyPatch(typeof(Character), "RPC_Damage")]
+        private static class ThorsArm
+        {
+            private static void Prefix(Character __instance, HitData hit)
+            {
+                Character attacker = hit?.GetAttacker();
+                if (attacker == null || !VillagerPrefab.Is(attacker) || VillagerPrefab.Is(__instance) || __instance.IsPlayer()) return;
+                if (Blessed(Colony.At(attacker.transform.position), "thor")) hit.m_damage.Modify(1.1f);
+            }
+        }
+        // Freyja: crops and saplings in the colony grow a fifth faster.
+        [HarmonyPatch(typeof(Plant), "GetGrowTime")]
+        private static class FreyjasHand
+        {
+            private static void Postfix(Plant __instance, ref float __result)
+            {
+                if (Blessed(Colony.At(__instance.transform.position), "freyja")) __result *= 0.8f;
+            }
+        }
+        // Thor's lightning on raiders inside the radius, now and then while a raid lasts (stronger as he is better pleased).
+        private static float _nextBolt;
+        public static void Thunder(Colony c)
+        {
+            if (!c.RaidOn || Time.time < _nextBolt || !Blessed(c, "thor") || c.FavourOf("thor") < 30) return;
+            _nextBolt = Time.time + UnityEngine.Random.Range(15f, 30f);
+            Character foe = Character.GetAllCharacters().Where(ch => ch != null && !ch.IsDead() && !ch.IsPlayer() && !VillagerPrefab.Is(ch) && !ch.IsTamed() && !Tribute.IsHerald(ch)
+                    && ch.GetFaction() != Character.Faction.Players && ch.GetFaction() != Character.Faction.AnimalsVeg && Utils.DistanceXZ(ch.transform.position, c.Position) < c.Radius)
+                .OrderBy(_ => UnityEngine.Random.value).FirstOrDefault();
+            if (foe == null) return;
+            Assets.Effect("fx_Lightning", foe.transform.position);
+            var hit = new HitData { m_point = foe.GetCenterPoint(), m_dir = Vector3.down };
+            hit.m_damage.m_lightning = 40 + c.FavourOf("thor") / 2;
+            foe.Damage(hit);
+        }
         public static string FavourWord(int f) => f <= -60 ? "wrathful" : f < -10 ? "displeased" : f <= 10 ? "watching" : f < 60 ? "pleased" : "delighted";
         public static float OdinWorthBonus(Colony c) => c != null && Odin(c) >= 30 ? 0.25f : 0;
         public static int Odin(Colony c) => Compat.OmensFate(out int fate) ? fate * 20 : c.FavourOf("odin");
@@ -173,6 +212,76 @@ namespace Jarldom
             if (!_there) { if (b.Move.Moving && !b.Move.Failed) return; _there = true; b.Say("Remember me in the hall.", 5); return; }
             if (b.Colony.IsOwner) Ascension.Burn(b.Colony, _pyre, b);
             else { b.Say("(the colony's owner must be near to light the pyre)", 5); Done = true; }
+        }
+    }
+}
+
+namespace Jarldom
+{
+    // The gothi keeps the colony's temples: once a day at each, an offering from the stores of what its god wants (the cheapest such
+    // thing, one of it), laid on the altar as a player would; otherwise they mind a temple.
+    internal sealed class GothiTask : Task
+    {
+        private readonly Room _temple; private Altar _altar; private Container _from; private string _gift; private int _phase;
+        public GothiTask(Room temple) { _temple = temple; }
+        public override bool Interruptible => _phase == 0;
+        public static Task Next(Brain b)
+        {
+            Colony c = b.Colony;
+            if (c == null || !c.IsOwner) return null;
+            var temples = c.R.Rooms.Where(r => r.Ok && (r.Type == RoomType.Temple || r.Type == RoomType.OdinShrine)).ToList();
+            if (temples.Count == 0) return null;
+            Room due = Time.time > b.NoOfferUntil ? temples.FirstOrDefault(r => c.R.Flag("offered:" + r.Id) != c.Day) : null;
+            if (due != null) return new GothiTask(due);
+            Room home = temples[(b.S.Vid.GetStableHashCode() & 0x7fffffff) % temples.Count];
+            return new WanderTask(c.Centre(home), 2.5f, "keeping the temple");
+        }
+        public override void Start(Brain b)
+        {
+            Colony c = b.Colony;
+            _altar = c.PiecesIn(c.Radius).Select(p => p.GetComponent<Altar>()).FirstOrDefault(a => a != null && c.RoomAt(a.transform.position + Vector3.up * 0.3f) == _temple);
+            if (_altar == null) { Skip(b, "the temple has no altar"); return; }
+            string god = _altar.God;
+            var gifts = Stock.Chests(c, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest))
+                .SelectMany(x => x.chest.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && !Items.IsRing(i) && Faith.Wants(god, i) && Faith.Value(i) > 0).Select(i => (x.chest, i)))
+                .OrderBy(g => Faith.Value(g.i)).ToList();
+            if (gifts.Count == 0) { Skip(b, $"the stores hold nothing {Tables.God(god)?.Name} wants ({Tables.God(god)?.Offerings})"); return; }
+            _from = gifts[0].chest; _gift = gifts[0].i.m_dropPrefab.name;
+            Doing = "fetching an offering for " + Tables.God(god)?.Name;
+            b.Move.To(_from.transform.position, 1.8f);
+        }
+        private void Skip(Brain b, string why) { Done = true; b.NoOfferUntil = Time.time + 300; b.Colony.R.Flags["offered:" + _temple.Id] = b.Colony.Day; b.Colony.MarkDirty(); b.Idle(why); }
+        public override void Tick(Brain b)
+        {
+            if (Done) return;
+            if (_altar == null || _from == null) { Done = true; return; }
+            Inventory bag = b.Body.GetInventory();
+            if (_phase == 0)
+            {
+                if (Vector3.Distance(b.Pos, _from.transform.position) > 2.4f) { if (!b.Move.Moving) b.Move.To(_from.transform.position, 1.8f); if (b.Move.Failed) { Done = true; b.NoOfferUntil = Time.time + 120; } return; }
+                ItemDrop.ItemData stack = _from.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == _gift);
+                if (stack == null || Stock.Take(_from, bag, stack, 1) == 0) { Done = true; b.NoOfferUntil = Time.time + 60; return; }
+                _phase = 1; Doing = "going to the altar of " + Tables.God(_altar.God)?.Name;
+                b.Move.To(_altar.transform.position, 1.8f);
+                return;
+            }
+            if (Vector3.Distance(b.Pos, _altar.transform.position) > 2.4f) { if (!b.Move.Moving) b.Move.To(_altar.transform.position, 1.8f); if (b.Move.Failed) { Done = true; b.NoOfferUntil = Time.time + 120; } return; }
+            b.Move.Stop();
+            Vector3 d = _altar.transform.position - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized);
+            ItemDrop.ItemData gift = bag.GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == _gift);
+            if (gift == null) { Done = true; return; }
+            Body_.Anim(b.Body)?.SetTrigger("interact");
+            int points = Favour.Offering(Faith.Value(gift), true);
+            string name = Localization.instance.Localize(gift.m_shared.m_name);
+            bag.RemoveItem(gift, 1);
+            Assets.Effect("vfx_offering", _altar.transform.position + Vector3.up);
+            Assets.Effect("sfx_offering", _altar.transform.position);
+            Faith.Received(b.Colony, _altar.God, points, name.ToLower(), b.S.Name);
+            b.Colony.R.Flags["offered:" + _temple.Id] = b.Colony.Day;
+            b.S.Bump("offerings");
+            Mood.Satisfy(b.S, Need.Faith, 20);
+            b.Dirty(); b.Colony.MarkDirty();
+            Done = true;
         }
     }
 }

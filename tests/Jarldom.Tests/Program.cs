@@ -205,6 +205,11 @@ var view = new ColonyView { Population = 5, Troublemakers = { ("Ulf", 2, 0) }, M
 var pets = Petitions.Raise(new Random(1), view);
 Check(pets.Count == 3 && pets.All(p => !string.IsNullOrEmpty(p.Text)), "The Thing raises three petitions");
 Check(Petitions.Raise(new Random(1), view, 10).Any(p => p.Id == "exile" && p.About == "Ulf"), "A thief is named");
+var suspicious = new ColonyView { Population = 5, Beds = 5, HasBeautyRoom = true, HasShrine = true, GuardWage = 9, Suspects = { ("Hrafn", 2), ("Oddny", 1) } };
+var accused = Petitions.Raise(new Random(1), suspicious, 10).Where(p => p.Id == "accuse").ToList();
+Check(accused.Count == 1 && accused[0].About == "Hrafn", "The Thing names one seen twice near the mischief, not one seen once");
+Check(Renown.TributeAsk(0, 0) == 40 && Renown.TributeAsk(80, 0) == 80 && Renown.TributeAsk(80, 1) == 120 && Renown.TributeAsk(80, 2) == 180, "The Fulings want more each time");
+Check(Renown.TributeAsk(1000, 99) > 0, "The Fulings' price never overflows");
 Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky") == "the Unlucky" && Names.Creature("Greydwarf_Elite") == "Greydwarf", "Bynames");
 
 Console.WriteLine($"Jarldom: {checks} checks passed");

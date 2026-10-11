@@ -319,6 +319,7 @@ namespace Jarldom
             if (prof == Prof.Skald) return null; // skalds rest by day and play at dusk
             if (prof == Prof.Healer) { Task heal = HealTask.Next(b); if (heal != null) return heal; }
             if (prof == Prof.Scout && Time.time > b.NoScoutUntil) return new ScoutTask();
+            if (prof == Prof.Gothi) { Task rite = GothiTask.Next(b); if (rite != null) return rite; }
             if (prof == Prof.Builder && c.IsOwner && Compat.GhostCount(c.Position, c.Radius) > 0 && Gear.Tool(b, "hammer") != null && Time.time > b.NoBuildUntil) return new BuildTask();
             if (prof == Prof.Trader && c.R.Rank >= Rank.Village && Time.time > b.NoTradeUntil && b.Body.GetInventory().GetEmptySlots() > 1 && Stock.Chests(c, b.Pos).Any(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest) && x.chest.GetInventory().GetAllItems().Count(Trade.Sellable) >= 3)) return new TradeTask();
             Func<Prof, bool> canDo = p => p == prof || p == Prof.Hauler && (prof == Prof.Hauler || Gear.Lacks(b, prof) != null || NothingFor(c, prof));
@@ -354,6 +355,7 @@ namespace Jarldom
             if (t == ItemDrop.ItemData.ItemType.Helmet || t == ItemDrop.ItemData.ItemType.Chest || t == ItemDrop.ItemData.ItemType.Legs || t == ItemDrop.ItemData.ItemType.Shoulder || t == ItemDrop.ItemData.ItemType.Utility) return false;
             if (t == ItemDrop.ItemData.ItemType.OneHandedWeapon || t == ItemDrop.ItemData.ItemType.TwoHandedWeapon || t == ItemDrop.ItemData.ItemType.Bow || t == ItemDrop.ItemData.ItemType.Shield || t == ItemDrop.ItemData.ItemType.Tool || t == ItemDrop.ItemData.ItemType.Ammo || t == ItemDrop.ItemData.ItemType.TwoHandedWeaponLeft || t == ItemDrop.ItemData.ItemType.Torch) return false;
             if (Stock.Edible(i)) return false;
+            if (Items.IsDrum(i) || Items.IsRelic(i)) return false; // a skald's drum is theirs; a colony's heart isn't for the stores
             if (i.m_dropPrefab != null && (i.m_dropPrefab.name == "FishingBait" || Replant.Values.Any(r => r.seed == i.m_dropPrefab.name) && i.m_stack <= 10)) return false;
             return true;
         }

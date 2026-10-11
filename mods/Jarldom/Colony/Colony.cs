@@ -195,6 +195,8 @@ namespace Jarldom
             Migration.Dawn(this, day);
             Thing.CheckPromises(this, day);
             Tribute.Dawn(this, day);
+            Saboteur.Dawn(this);
+            Spirit.Dawn(this);
             if (day - R.LastThing >= 5 && Population >= 3) Thing.Call(this, day);
         }
         private void Dusk(int day)

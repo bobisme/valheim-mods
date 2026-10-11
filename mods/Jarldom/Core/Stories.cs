@@ -133,6 +133,7 @@ namespace Jarldom
     {
         public int Population; public bool HasBeautyRoom, HasShrine; public int Treasury, Due; public List<(string name, int thefts, int brawls)> Troublemakers = new List<(string, int, int)>();
         public List<(string a, string b)> Feuds = new List<(string, string)>(); public int GuardWage; public int MissedPaydays; public bool Hungry; public int Beds;
+        public List<(string name, int seen)> Suspects = new List<(string, int)>();
     }
 
     public static class Petitions
@@ -149,6 +150,8 @@ namespace Jarldom
             if (c.Population >= 4 && c.GuardWage <= 5) all.Add(new Petition { Id = "guardpay", Text = "Raise the guards' wages: they stand in the cold while others sleep.", Yes = "Raise them", No = "No", YesMood = 3, NoMood = -2 });
             if (!c.HasShrine && c.Population >= 3) all.Add(new Petition { Id = "shrine", Text = "Raise a shrine to Odin, that he keeps watching over us.", Yes = "We will", No = "Not yet", YesMood = 3, NoMood = -3, YesFavour = 3 });
             if (c.Hungry) all.Add(new Petition { Id = "food", Text = "Fill the larder: bellies are empty.", Yes = "Promise food", No = "Tighten your belts", YesMood = 4, NoMood = -5 });
+            foreach (var s in c.Suspects.Where(s => s.seen >= 2).OrderByDescending(s => s.seen).Take(1))
+                all.Add(new Petition { Id = "accuse", About = s.name, Text = $"{s.name} has been seen near the mischief {s.seen} times. Cast them out?", Yes = "Cast them out", No = "Let it be", YesMood = 2, NoMood = -2 });
             if (c.Beds < c.Population) all.Add(new Petition { Id = "beds", Text = "Build beds: some of us sleep on the hall floor.", Yes = "Promise beds", No = "Sleep by the fire", YesMood = 4, NoMood = -4 });
             return all.OrderBy(_ => rng.Next()).Take(max).ToList();
         }

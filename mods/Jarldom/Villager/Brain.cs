@@ -31,7 +31,7 @@ namespace Jarldom
             if (_body != null && _body.isKinematic) _body.isKinematic = false; // (a body left seated when ownership went elsewhere)
             Poses.Clear(h);
         }
-        public float NoStoreUntil, NoFoodUntil, NoRepairUntil, NoBuildUntil, NoTradeUntil, NoCraftUntil, NoHealUntil, NoScoutUntil; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f;
+        public float NoStoreUntil, NoFoodUntil, NoRepairUntil, NoBuildUntil, NoTradeUntil, NoCraftUntil, NoHealUntil, NoScoutUntil, NoOfferUntil, NextMischief; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f;
         public bool Alive => Body != null && !Body.IsDead() && View != null && View.IsValid() && View.IsOwner() && S != null;
         public Vector3 Pos => Body.transform.position;
         public double Now => ZNet.instance.GetTimeSeconds();
@@ -180,6 +180,7 @@ namespace Jarldom
             double hours = Math.Max(0, (now - _lastNeeds) / Clock.Hour);
             _lastNeeds = now;
             if (hours > 0) Mood.Tick(S, hours);
+            Saboteur.Tick(this);
             Mood.Expire(S, now);
             // Shelter: dry and warm (under a roof, or by a fire).
             Cover.GetCoverForPoint(Body.GetCenterPoint(), out float cover, out bool roof);
@@ -264,6 +265,7 @@ namespace Jarldom
         public float Productivity()
         {
             float mood = Jarldom.Mood.Multiplier(Jarldom.Mood.Of(S, Now));
+            if (Jarldom.Mood.Has(S, "inspired", Now)) mood *= 1.25f; // a day of their best work
             return mood * Plugin.Instance.WorkRate.Value;
         }
 

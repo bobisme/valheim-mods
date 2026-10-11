@@ -60,6 +60,8 @@ namespace Jarldom
             foreach (Brain other in Villagers.All.Where(b => b.S.Colony == c.Id && b.S.Group == n.Group)) { other.S.Bonds[vid] = 50; s.Bonds[other.S.Vid] = 50; other.Dirty(); }
             foreach (Newcomer mate in r.Coming.Where(x => x != n && x.Group == n.Group)) s.Flags_Mate(mate.Name);
             if (c.Rooms_Freyja()) Mood.Add(s, "blessed", c.Now);
+            // Once the first of the Forsaken has fallen, the rest send their own among the reborn: one in twelve, and no one knows.
+            if (ZoneSystem.instance != null && ZoneSystem.instance.GetGlobalKey("defeated_eikthyr") && new System.Random(vid.GetStableHashCode()).Next(12) == 0) s.Bump(Saboteur.Mark);
             Vector3 at = Colony.Spot(c.Position + c.Seat.transform.forward * 3f, 2.5f) ?? c.Position + Vector3.up;
             Humanoid h = Villagers.Spawn(c, s, at, null, dressNew: true);
             if (h == null) return;

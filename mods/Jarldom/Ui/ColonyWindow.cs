@@ -123,6 +123,8 @@ namespace Jarldom.Ui
                 float tx = 8; Btn(list, $"Pay the Fulings {ask} coins", ref tx, y, () => Net.Act(_c, "tribute", ""));
                 y += 52;
             }
+            var follow = Spirit.Followers(_c).Where(f => f.fans > 0).Take(4).ToList();
+            if (follow.Count > 0) y = Text(list, "Followed: " + string.Join(", ", follow.Select(f => $"{f.jarl} ({f.fans} of {f.of}{(f.fans * 10 > f.of * 6 ? ", loved" : "")})")) + ".", y, 15, GameUi.Dim);
             string feast = Feast.Ready(_c, out _, out _);
             y = Text(list, feast == "" ? "A feast can be held tonight." : "Feast: " + feast + ".", y, 16, GameUi.Dim);
             y += 6;

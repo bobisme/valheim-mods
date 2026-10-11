@@ -137,6 +137,10 @@ namespace Jarldom
             M("thingignored", "Ignored at the Thing", -8, 48),
             M("promisekept", "The jarl kept their word", 8, 48),
             M("promisebroken", "The jarl broke their word", -10, 72),
+            M("ashdreams", "Dreams of ash", -2, 24),
+            M("inspired", "Inspired", 10, 24),
+            M("belovedjarl", "Follows a jarl they love", 4, 24),
+            M("unjust", "An innocent was cast out", -6, 72),
         };
         private static MoodletInfo M(string id, string text, int value, double hours, Stack stack = Stack.Refresh, int max = 1) =>
             new MoodletInfo { Id = id, Text = text, Value = value, Hours = hours, Stack = stack, MaxStacks = max };

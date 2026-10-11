@@ -63,7 +63,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "site", "hurt", "takedown", "relic", "pickrelic" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or with devcommands"); return; }
             if (cmd == "pickrelic")
             {
@@ -450,6 +450,8 @@ namespace Jarldom
                     }
                     break;
                 case "ground": { Vector3 at = new Vector3(F(a[2]), 0, F(a[3])); output(new JObject { ["ground"] = Ground(at) }); } break;
+                case "touch": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } b.S.Bump(Saboteur.Mark); b.Dirty(); output(new JObject { ["touched"] = b.S.Name }); } break;
+                case "mischief": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } b.NextMischief = 1; Saboteur.Tick(b); output(new JObject { ["mischief"] = b.S.Count("mischief"), ["seen"] = new JObject(Villagers.All.Where(x => x.S.Count("seen") > 0).Select(x => new JProperty(x.S.Name, x.S.Count("seen")))) }); } break;
                 case "backup":
                     {
                         // The colony's record and board to a file (BepInEx/claude/jarldom-<id>-<time>.txt), for jarldom relic to bring back.

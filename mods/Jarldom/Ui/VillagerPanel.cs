@@ -98,7 +98,7 @@ namespace Jarldom.Ui
                 ry += 48;
                 ry = Text(right, "Work", ry, 18, GameUi.Warm);
                 float px = 10;
-                foreach (ProfessionInfo p in Tables.Professions.Where(p => p.Id != Prof.Gothi || p.Id == s.Prof))
+                foreach (ProfessionInfo p in Tables.Professions.Where(p => true))
                 {
                     Prof id = p.Id;
                     if (px + 128 > 410) { px = 10; ry += 36; }
