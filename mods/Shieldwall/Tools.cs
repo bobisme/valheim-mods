@@ -531,6 +531,38 @@ namespace Shieldwall
                     output(new JObject{["walls"]=count,["piece"]=wall.name});
                     break;
                 }
+                case "rampart":
+                {
+                    // rampart <metres> <angle> [length=8]: a stone rampart facing out from the stone, 2 m high with a 2 m walk on top,
+                    // and stairs up its inner side (test: a wall top for companions to guard). The heights it reports show which way the stairs climb.
+                    if(stone==null||args.Length<4||!float.TryParse(args[2],out float rm)||!float.TryParse(args[3],out float ra)){error("siege rampart <metres> <angle> [length]");break;}
+                    float span=args.Length>4&&float.TryParse(args[4],out float rl)?rl:8;
+                    GameObject wall=ZNetScene.instance.GetPrefab("stone_wall_4x2"),block=ZNetScene.instance.GetPrefab("stone_floor_2x2"),stair=ZNetScene.instance.GetPrefab("stone_stair");
+                    if(wall==null||block==null||stair==null){error("siege rampart: missing stone pieces");break;}
+                    Vector3 c=stone.transform.position,dir=Quaternion.Euler(0,ra,0)*Vector3.forward,along=Vector3.Cross(Vector3.up,dir);
+                    Vector3 Ground(Vector3 q){if(ZoneSystem.instance.GetGroundHeight(q,out float gh))q.y=gh;return q;}
+                    Quaternion facing=Quaternion.LookRotation(dir);
+                    int segments=Mathf.Max(1,Mathf.CeilToInt(span/4));
+                    for(int i=0;i<segments;i++)
+                        foreach(float row in new[]{0.5f,-0.5f})
+                            Built(UnityEngine.Object.Instantiate(wall,Ground(c+dir*(rm+row)+along*((i+0.5f)*4-segments*2))+Vector3.up,facing));
+                    // The stairs: a landing block against the inner face with the upper flight on it, the lower flight in front.
+                    Vector3 upper=Ground(c+dir*(rm-2)),lower=Ground(c+dir*(rm-4));
+                    Quaternion climb=Quaternion.LookRotation(args.Length>5&&args[5]=="flip"?-dir:dir);
+                    Built(UnityEngine.Object.Instantiate(block,upper+Vector3.up*0.5f,facing));
+                    Built(UnityEngine.Object.Instantiate(stair,upper+Vector3.up,climb));
+                    Built(UnityEngine.Object.Instantiate(stair,lower,climb));
+                    Physics.SyncTransforms();
+                    var heights=new JArray();
+                    foreach(float d in new[]{rm-4.8f,rm-3.2f,rm-2.8f,rm-1.2f,rm})
+                    {
+                        Vector3 probe=c+dir*d;
+                        heights.Add(Physics.Raycast(probe+Vector3.up*10,Vector3.down,out RaycastHit hit,20,LayerMask.GetMask("piece","terrain"))?Math.Round(hit.point.y-c.y,2):double.NaN);
+                    }
+                    Vector3 top=c+dir*rm;top.y=Ground(top).y+2;
+                    output(new JObject{["rampart"]=segments*4,["top"]=new JArray(Math.Round(top.x,1),Math.Round(top.y,1),Math.Round(top.z,1)),["heightsOutward"]=heights});
+                    break;
+                }
                 case "unbuild":
                 {
                     // Remove every test piece (walls, pillars, sockets) placed by these commands.

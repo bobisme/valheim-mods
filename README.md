@@ -211,7 +211,7 @@ it carries on if that player leaves and works on a dedicated server without the 
 server keeps loaded and clears of objects it doesn't know). A game hosted by a player needs Shieldwall on the host too, or the host's game
 deletes the stone; the stone, sockets and upgrades refuse to be built there, so nothing is lost. Everyone who joins in needs Shieldwall. Warnings,
 wave pacing, the most raiders at once (40), the time limit and the horn's cooldown are in F7. With Claude Tools, `siege status | plan | route |
-start [stage] [boasts] [trick] | end | marks | raiders | hover | sight | recipes | council | horn [boasts] | boasts | offer | boon | saga | ignite | guard | mend | sweep | layers | why | raid` and test builders (`place`, `put`, `plant`, `tower`, `line`, `wall`,
+start [stage] [boasts] [trick] | end | marks | raiders | hover | sight | recipes | council | horn [boasts] | boasts | offer | boon | saga | ignite | guard | mend | sweep | layers | why | raid` and test builders (`rampart`, `place`, `put`, `plant`, `tower`, `line`, `wall`,
 `unbuild`, `remove`, `goto`) check stones, watch what each raider is doing and run short test sieges.
 
 Checks cover the ward table, levels, power, rosters, siege plans (sizes, growth, warchiefs, saved plans), pacing, rewards, staves and the

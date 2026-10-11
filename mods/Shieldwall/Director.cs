@@ -117,7 +117,9 @@ namespace Shieldwall
                     {
                         z.Set(Stone.BreatherKey,After(rest));
                         string coming=wave+1==plan.Count-1?"The warchief comes":$"Wave {wave+2} of {plan.Count} comes";
-                        Net.Say($"Wave {wave+1} is broken! {coming} in {Mathf.RoundToInt((float)rest)} s.",stone.transform.position,250);
+                        // Mostly down is enough to call the next wave: say so plainly when some still fight.
+                        string state=alive==0?$"Wave {wave+1} is broken!":$"Wave {wave+1} is breaking, {alive} still {(alive==1?"fights":"fight")}.";
+                        Net.Say($"{state} {coming} in {Mathf.RoundToInt((float)rest)} s.",stone.transform.position,250);
                         return;
                     }
                 }
