@@ -61,7 +61,7 @@ namespace Jarldom
             foreach (Piece t in c.PiecesIn(c.Radius).Where(p => Classes.IsTable(p) && c.RoomAt(p.transform.position + Vector3.up * 0.3f) != null))
             {
                 var list = new List<Piece>(); Piece.GetAllPiecesInRadius(t.transform.position, 2.6f, list);
-                var chairs = list.Select(p => p.GetComponent<Chair>()).Where(ch => ch != null && ch.m_attachPoint != null && !Classes.IsHighSeat(ch.gameObject) && Seats.IsFree(ch)).ToList();
+                var chairs = list.SelectMany(Classes.SeatsOf).Where(ch => !Classes.IsHighSeat(ch) && Seats.IsFree(ch)).ToList();
                 if (chairs.Count < 2) continue;
                 // (two facing each other across it, as near opposite as the seats allow)
                 var pair = chairs.SelectMany(x => chairs.Where(y => y != x).Select(y => (x, y))).OrderByDescending(p => Vector3.Distance(p.x.transform.position, p.y.transform.position)).First();
@@ -297,8 +297,10 @@ namespace Jarldom
             next = Time.time + UnityEngine.Random.Range(14f, 35f);
             ItemDrop.ItemData mug = b.Body.RightItem;
             if (mug == null || !Gear.IsTankard(mug) || b.Body.InAttack()) return;
+            Skal.DrinkFromHall(b); // (with SkalTavern: its ale or mead from the hall's chests, now and then)
             Body_.Anim(b.Body)?.SetTrigger("emote_drink"); // (the tankard's own drink)
-            if (UnityEngine.Random.value < 0.15f) b.Say(new[] { "Skål!", "To the jarl!", "Another!", "To Odin, who sent us here." }[UnityEngine.Random.Range(0, 4)], 3);
+            if (UnityEngine.Random.value < 0.15f) { b.Say(new[] { "Skål!", "To the jarl!", "Another!", "To Odin, who sent us here." }[UnityEngine.Random.Range(0, 4)], 3); Skal.ToastTogether(b); }
+            else if (b.Held == null) Skal.Merry(b);
             Mood.Satisfy(b.S, Need.Social, 1);
         }
     }

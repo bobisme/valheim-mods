@@ -291,7 +291,7 @@ namespace Jarldom
             if (p.GetComponent<Bed>() != null) yield return "bed";
             Container c = p.GetComponent<Container>();
             if (c != null && ContainerAccess.IsStorage(c) && c.m_privacy != Container.PrivacySetting.Private) yield return "chest"; // (one the villagers can open)
-            if (Classes.IsSeat(p)) yield return "seat";
+            foreach (Chair seat in Classes.SeatsOf(p)) yield return "seat"; // (a bench is three seats)
             if (Classes.IsHighSeat(p.gameObject)) yield return "highseat";
             if (Classes.IsTable(p)) yield return "table";
             // Fires that warm (any of them: campfire, hearth, bonfire, fire pit, brazier) are fires; torches, sconces and candles are lights.

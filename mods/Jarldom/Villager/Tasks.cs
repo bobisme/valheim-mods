@@ -410,7 +410,7 @@ namespace Jarldom
         {
             Free(b);
             var list = new List<Piece>(); Piece.GetAllPiecesInRadius(c.Centre(hall), 30, list);
-            Chair best = list.Select(p => p.GetComponent<Chair>()).Where(ch => ch != null && !Classes.IsHighSeat(ch.gameObject) && Geometry.Inside(hall.Xz, ch.transform.position.x, ch.transform.position.z) // (the high seat is the jarl's)
+            Chair best = list.SelectMany(Classes.SeatsOf).Where(ch => ch != null && !Classes.IsHighSeat(ch) && Geometry.Inside(hall.Xz, ch.m_attachPoint.position.x, ch.m_attachPoint.position.z) // (every seat of a bench; the high seat is the jarl's)
                 && !(Taken.TryGetValue(ch, out Brain o) && o.Alive && o != b) && Player.GetClosestPlayer(ch.m_attachPoint != null ? ch.m_attachPoint.position : ch.transform.position, 0.3f) == null)
                 .OrderBy(_ => UnityEngine.Random.value).FirstOrDefault();
             if (best != null) Taken[best] = b;

@@ -755,6 +755,23 @@ namespace Jarldom
                         output(new JObject { ["piece"] = what, ["at"] = V(w.transform.position), ["health"] = pct });
                     }
                     break;
+                case "seats":
+                    {
+                        Room hall = c.Best(RoomType.GreatHall);
+                        var list = new List<Piece>(); Piece.GetAllPiecesInRadius(c.Centre(hall), 14, list);
+                        output(new JObject { ["hall"] = Box(hall.Xz), ["pieces"] = new JArray(list.Where(pc => Utils.GetPrefabName(pc.gameObject).Contains("bench") || Utils.GetPrefabName(pc.gameObject).Contains("chair") || Utils.GetPrefabName(pc.gameObject).Contains("throne") || Utils.GetPrefabName(pc.gameObject).Contains("stool") || pc.GetComponent<Chair>() != null)
+                            .Select(pc => $"{Utils.GetPrefabName(pc.gameObject)} at {pc.transform.position.x:0.0},{pc.transform.position.y:0.0},{pc.transform.position.z:0.0}: chairs {pc.GetComponentsInChildren<Chair>(true).Length}, in hall {Geometry.Inside(hall.Xz, pc.transform.position.x, pc.transform.position.z)}, free {pc.GetComponentsInChildren<Chair>(true).Count(Seats.IsFree)}")) });
+                    }
+                    break;
+                case "skaltest":
+                    {
+                        BaseUnityPlugin skal = Compat.Find(Compat.Known.First(k => k.name == "SkalTavern").guids);
+                        MethodInfo raise = skal == null ? null : HarmonyLib.AccessTools.Method(skal.GetType().Assembly.GetType("SkalTavern.Toast"), "Raise");
+                        if (raise == null) { error("no SkalTavern toast"); return; }
+                        raise.Invoke(null, new object[] { me });
+                        output(new JObject { ["toasted"] = true, ["near"] = Villagers.All.Count(v => Vector3.Distance(v.Pos, me.transform.position) < 12f) });
+                    }
+                    break;
                 case "slay":
                     {
                         // Test only: every creature of a prefab in the colony (and 30 m round) dies.

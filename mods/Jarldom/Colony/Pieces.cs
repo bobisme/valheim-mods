@@ -324,6 +324,7 @@ namespace Jarldom
             var ours = All.ToList(); var names = new HashSet<string>(ours.Select(o => o.name));
             table.m_pieces.RemoveAll(p => p == null || names.Contains(p.name) && !ours.Contains(p)); // an old copy's
             foreach (GameObject piece in ours) if (!table.m_pieces.Contains(piece)) table.m_pieces.Add(piece);
+            if (Player.m_localPlayer != null) HarmonyLib.AccessTools.Method(typeof(Player), "UpdateAvailablePiecesList")?.Invoke(Player.m_localPlayer, null); // (the build menu's own lists, or it offers an old copy's piece that's gone)
         }
         public static void RemoveFromHammer(ObjectDB db)
         {

@@ -82,6 +82,7 @@ namespace Jarldom
             Guard(Captives.Tick);
             Guard(StairLinks.Tick);
             Guard(Doors.Tick);
+            Guard(Skal.Tick);
         }
         private static float _lastError;
         internal static void Guard(Action a)
@@ -104,6 +105,7 @@ namespace Jarldom
             Guard(Doors.Clear);
             Guard(Leisure.Clear);
             Guard(Upkeep.Forget);
+            Guard(Skal.Unhook);
             Guard(Weaving.Forget);
             Guard(SoulStore.Forget);
             Tools.Stop();

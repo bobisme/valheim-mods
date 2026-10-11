@@ -23,7 +23,10 @@ namespace Jarldom
         }
         public static bool IsLight(Component c) => c != null && c.GetComponent<Fireplace>() != null && !Warms(c);
         public static bool Lit(Fireplace f) => f != null && (f.m_infiniteFuel || f.GetComponent<ZNetView>()?.GetZDO()?.GetFloat(ZDOVars.s_fuel) > 0f);
-        public static bool IsSeat(Piece p) => p != null && p.GetComponent<Chair>() != null;
+        // Seats on a piece: a chair has one, a bench three (on its parts, not the bench itself).
+        public static Chair[] SeatsOf(Piece p) => p == null ? new Chair[0] : p.GetComponentsInChildren<Chair>().Where(ch => ch.m_attachPoint != null).ToArray();
+        public static bool IsSeat(Piece p) => SeatsOf(p).Length > 0;
+        public static bool IsHighSeat(Chair ch) { Piece p = ch != null ? ch.GetComponentInParent<Piece>() : null; return p != null && IsHighSeat(p.gameObject); }
         public static bool IsHighSeat(GameObject go) { string n = Utils.GetPrefabName(go).ToLowerInvariant(); return n.Contains("throne") || n == Pieces.GildedSeatName.ToLowerInvariant(); }
         // A table to eat at: not a crafting table, a map table or the food preparation table.
         public static bool IsTable(Piece p) { string n = Utils.GetPrefabName(p.gameObject).ToLowerInvariant(); return n.Contains("table") && p.GetComponent<CraftingStation>() == null && p.GetComponent<MapTable>() == null && !n.Contains("prep"); }

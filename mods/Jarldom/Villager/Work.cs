@@ -310,7 +310,8 @@ namespace Jarldom
         // more than it holds (one to every 12 m²). Named beasts and young ones are never culled; two of each kind are always kept.
         private static void Pasture(Colony c, Zone z, Vector3 centre, float reach, double now)
         {
-            var beasts = Character.GetAllCharacters().Where(ch => ch != null && !ch.IsDead() && !ch.IsPlayer() && !VillagerPrefab.Is(ch) && ch.IsTamed() && ch.GetComponent<Tameable>() != null && ch.GetComponent<Procreation>() != null
+            // (tame ones, and wild ones brought in to be tamed: both fed)
+            var beasts = Character.GetAllCharacters().Where(ch => ch != null && !ch.IsDead() && !ch.IsPlayer() && !VillagerPrefab.Is(ch) && ch.GetComponent<Tameable>() != null && (ch.IsTamed() ? ch.GetComponent<Procreation>() != null : Utils.GetPrefabName(ch.gameObject) == Catching.Wild)
                 && ch.m_group != "bob_gary" && Vector3.Distance(ch.transform.position, centre) < reach + 4 && Zones.Inside(z, ch.transform.position)).ToList();
             int fed = 0;
             foreach (Character beast in beasts)
@@ -326,7 +327,7 @@ namespace Jarldom
             }
             int holds = Mathf.Max(2, (int)(Geometry.Area(z.Xz) / 12f));
             if (beasts.Count <= holds || c.Board.All.Any(o => o.Kind == "cull" && o.Zone == z.Id && (o.State == OrderState.Open || o.State == OrderState.Claimed))) return;
-            var spare = beasts.Where(ch => ch.GetComponent<Growup>() == null && string.IsNullOrEmpty(ch.GetComponent<Tameable>().GetText()) && ch.GetComponentInChildren<Sadle>() == null) // (never a mount)
+            var spare = beasts.Where(ch => ch.IsTamed() && ch.GetComponent<Growup>() == null && string.IsNullOrEmpty(ch.GetComponent<Tameable>().GetText()) && ch.GetComponentInChildren<Sadle>() == null) // (never a mount)
                 .GroupBy(ch => Utils.GetPrefabName(ch.gameObject)).Where(g => g.Count() > 2).OrderByDescending(g => g.Count()).FirstOrDefault();
             Character cull = spare?.OrderBy(ch => ch.GetLevel()).ThenBy(ch => ch.GetHealth()).FirstOrDefault();
             if (cull == null) return;
@@ -427,6 +428,7 @@ namespace Jarldom
             if (prof == Prof.Carter) { Task cart = Carts.Next(b); if (cart != null) return cart; }
             if (prof == Prof.Builder && c.IsOwner && Compat.GhostCount(c.Position, c.Radius) > 0 && Gear.Tool(b, "hammer") != null && Time.time > b.NoBuildUntil) return new BuildTask();
             if (prof == Prof.Builder) { Task up = Upkeep.Next(b); if (up != null) return up; } // (nothing planned: mend, rebuild, pave)
+            if (prof == Prof.Herder || prof == Prof.Hunter) { Task catching = Catching.Next(b); if (catching != null) return catching; } // (an empty pasture: a wild boar for it)
             if (prof == Prof.Trader && c.R.Rank >= Rank.Village && Time.time > b.NoTradeUntil && b.Body.GetInventory().GetEmptySlots() > 1 && Stock.Chests(c, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).Sum(x => x.chest.GetInventory().GetAllItems().Count(Trade.Sellable)) >= 3) return new TradeTask(); // (three lots to sell, in whatever chests)
             Func<Prof, bool> canDo = p => p == prof || p == Prof.Hauler && (prof == Prof.Hauler || Gear.Lacks(b, prof) != null || NothingFor(c, prof));
             string problem = null;

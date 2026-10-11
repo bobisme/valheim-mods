@@ -423,8 +423,9 @@ namespace Jarldom
                 Vector3 p = near + new Vector3(r.x, 0, r.y);
                 // On the ground or a floor, never on top of a piece (the navmesh covers the tops of pillars and walls too).
                 float ground = ZoneSystem.instance.GetGroundHeight(p);
-                if (Nav.Valid(out Vector3 v, p, 2f) && v.y - ZoneSystem.instance.GetGroundHeight(v) < 1.2f && Mathf.Abs(v.y - near.y) < 4f) return v;
-                if (ZoneSystem.instance.GetSolidHeight(p, out float h) && h - ground < 1.2f) return new Vector3(p.x, h + 0.2f, p.z);
+                // (and never in a fire: a hearth's spot was found to be in it)
+                if (Nav.Valid(out Vector3 v, p, 2f) && v.y - ZoneSystem.instance.GetGroundHeight(v) < 1.2f && Mathf.Abs(v.y - near.y) < 4f && Steer.SafeSpot(v)) return v;
+                if (ZoneSystem.instance.GetSolidHeight(p, out float h) && h - ground < 1.2f && Steer.SafeSpot(new Vector3(p.x, h, p.z))) return new Vector3(p.x, h + 0.2f, p.z);
             }
             return null;
         }

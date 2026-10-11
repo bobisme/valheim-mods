@@ -147,6 +147,7 @@ namespace Jarldom
             M("expedition", "Went out with the jarl", 8, 48),
             M("dressed", "Dressed well", 4, 0),
             M("sport", "Had some sport", 4, 24),
+            M("skal", "Toasted with the jarl", 6, 12),
         };
         private static MoodletInfo M(string id, string text, int value, double hours, Stack stack = Stack.Refresh, int max = 1) =>
             new MoodletInfo { Id = id, Text = text, Value = value, Hours = hours, Stack = stack, MaxStacks = max };
