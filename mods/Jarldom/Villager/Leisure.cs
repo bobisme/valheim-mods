@@ -269,7 +269,7 @@ namespace Jarldom
         {
             if (_seat != null) Seats.Free(b);
             if (Seeking) Leisure_Unseek(b);
-            Body_.Anim(b.Body)?.SetTrigger("emote_stop");
+            if (b.View != null && b.View.IsValid()) Body_.Anim(b.Body)?.SetTrigger("emote_stop"); // (not at shutdown: the body is going)
             base.Stop(b);
         }
         private void Leisure_Unseek(Brain b) => Leisure.Unseek(this);

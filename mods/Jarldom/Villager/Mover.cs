@@ -185,18 +185,39 @@ namespace Jarldom
     {
         private static readonly Dictionary<Door, (float at, Brain by)> Open = new Dictionary<Door, (float, Brain)>();
         private static float _next;
-        public static void Opened(Door d, Brain by) => Open[d] = (Time.time, by);
+        // (marked on the door itself too, so one left open when the game closed is shut after the next load)
+        public const string MarkKey = "jarldom_shutme";
+        public static void Opened(Door d, Brain by)
+        {
+            Open[d] = (Time.time, by);
+            ZNetView v = d.GetComponent<ZNetView>();
+            if (v != null && v.IsValid()) { if (!v.IsOwner()) v.ClaimOwnership(); v.GetZDO().Set(MarkKey, true); }
+        }
+        private static float _nextLook;
+        private static void Unmark(ZNetView v) { if (v != null && v.IsValid() && v.GetZDO().GetBool(MarkKey)) { if (!v.IsOwner()) v.ClaimOwnership(); v.GetZDO().Set(MarkKey, false); } }
         public static void Clear() => Open.Clear();
         public static int Waiting => Open.Count;
         public static void Tick()
         {
+            if (Time.time >= _nextLook)
+            {
+                // Doors a villager opened before the last load, still open: back on the list (a little while ago, so they shut soon).
+                _nextLook = Time.time + 10f;
+                foreach (Colony c in Colony.All.Where(c => c.Valid && c.IsOwner))
+                    foreach (Door d in c.PiecesIn(c.Radius).Select(p => p.GetComponent<Door>()).Where(d => d != null && !Open.ContainsKey(d)))
+                    {
+                        ZNetView dv = d.GetComponent<ZNetView>();
+                        if (dv == null || !dv.IsValid() || !dv.GetZDO().GetBool(MarkKey)) continue;
+                        if (dv.GetZDO().GetInt(ZDOVars.s_state) == 0) Unmark(dv); else Open[d] = (Time.time - 2f, null);
+                    }
+            }
             if (Time.time < _next || Open.Count == 0) return;
             _next = Time.time + 0.5f;
             foreach (var kv in Open.ToList())
             {
                 Door d = kv.Key; var (at, by) = kv.Value;
                 ZNetView v = d != null ? d.GetComponent<ZNetView>() : null;
-                if (v == null || !v.IsValid() || v.GetZDO().GetInt(ZDOVars.s_state) == 0 || Time.time - at > 300) { Open.Remove(d); continue; } // (gone, shut by someone, or long given up)
+                if (v == null || !v.IsValid() || v.GetZDO().GetInt(ZDOVars.s_state) == 0 || Time.time - at > 300) { Unmark(v); Open.Remove(d); continue; } // (gone, shut by someone, or long given up)
                 if (Time.time - at < 1.5f) continue;
                 Vector3 p = d.transform.position;
                 if (by != null && by.Alive && by.Held == null && by.Move.Moving && Vector3.Distance(by.Pos, p) < 2.5f) continue; // (still going through; a brain whose body is gone is skipped)
@@ -204,6 +225,7 @@ namespace Jarldom
                 if (Villagers.All.Any(o => o.Held == null && Vector3.Distance(o.Body.transform.position, p) < 2.2f)) continue;
                 if (by != null && by.Alive && by.Held == null && Vector3.Distance(by.Pos, p) < 2.5f) continue;
                 v.InvokeRPC("UseDoor", true);
+                Unmark(v);
                 Open.Remove(d);
             }
         }

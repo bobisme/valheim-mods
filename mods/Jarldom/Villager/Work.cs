@@ -446,7 +446,7 @@ namespace Jarldom
         public static int Carrying(Brain b) => b.Body.GetInventory().GetAllItems().Count(i => Stores(b, i));
         // What goes to the stores from this villager's bag: loot, and gear they picked up off the ground for the colony (not theirs).
         // (a weaver keeps their spun thread by them)
-        public static bool Stores(Brain b, ItemDrop.ItemData i) => !(b.S.Prof == Prof.Weaver && i.m_dropPrefab?.name == Weaving.Thread && i.m_stack <= 20) && Loot(i) || !i.m_equipped && i.m_dropPrefab != null && (b.Hauled.Contains(i.m_dropPrefab.name) || Surplus(b, i));
+        public static bool Stores(Brain b, ItemDrop.ItemData i) => !(b.S.Prof == Prof.Weaver && Classes.Prefab(i) == Weaving.Thread && i.m_stack <= 20) && Loot(i) || !i.m_equipped && i.m_dropPrefab != null && (b.Hauled.Contains(i.m_dropPrefab.name) || Surplus(b, i));
         // Food beyond what a villager keeps for themselves (a small stack of their best, five or fewer; a bigger one goes in whole and they
         // fetch a meal back when hungry): the colony's.
         private const int KeepFood = 5;
@@ -502,9 +502,9 @@ namespace Jarldom
             {
                 Container dest = Stock.Destination(b.Colony, item, b.Pos);
                 if (dest != _to) continue;
-                string name = item.m_dropPrefab?.name;
+                string name = Classes.Prefab(item);
                 int put = Stock.Put(bag, _to, item);
-                if (put > 0 && name != null && !bag.GetAllItems().Any(i => i.m_dropPrefab?.name == name)) b.Hauled.Remove(name);
+                if (put > 0 && name != null && !bag.GetAllItems().Any(i => Classes.Prefab(i) == name)) b.Hauled.Remove(name);
                 if (put > 0) { b.S.Bump("loads"); moved++; CatchUp.Made(b, item, put); }
             }
             if (moved == 0) b.NoStoreUntil = Time.time + 30;

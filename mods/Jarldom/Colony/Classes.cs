@@ -46,6 +46,8 @@ namespace Jarldom
                     .SelectMany(p => p.GetComponent<Fermenter>().m_conversion).Where(cv => cv.m_to != null).Select(cv => cv.m_to.name));
             return _meads != null && _meads.Contains(i.m_dropPrefab.name) || i.m_dropPrefab.name.StartsWith("dh_drink_");
         }
+        // An item's prefab name, "" when it has none or it's gone (a destroyed prefab isn't null to C#'s ?.).
+        public static string Prefab(ItemDrop.ItemData i) => i != null && i.m_dropPrefab != null ? i.m_dropPrefab.name : "";
         public static void Forget() { WarmByPrefab.Clear(); _meads = null; }
         // Equipment by what the game says it is.
         public static bool IsWeapon(ItemDrop.ItemData i) { var t = i.m_shared.m_itemType; return t == ItemDrop.ItemData.ItemType.OneHandedWeapon || t == ItemDrop.ItemData.ItemType.TwoHandedWeapon || t == ItemDrop.ItemData.ItemType.TwoHandedWeaponLeft || t == ItemDrop.ItemData.ItemType.Bow; }

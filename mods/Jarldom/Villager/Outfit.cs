@@ -117,7 +117,7 @@ namespace Jarldom
             bool own = _grave.GetComponent<ZNetView>()?.GetZDO()?.GetString(Villagers.TombKey, "") == b.S.Vid;
             foreach (ItemDrop.ItemData item in box.GetInventory().GetAllItems().ToList())
             {
-                string name = item.m_dropPrefab?.name;
+                string name = Classes.Prefab(item);
                 int took = Stock.Take(box, bag, item, item.m_stack);
                 if (took > 0 && !own && name != null) b.Hauled.Add(name); // (someone else's: for the stores)
                 got += took;

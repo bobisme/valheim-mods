@@ -79,7 +79,7 @@ namespace Jarldom
             if (item == null) { p.Message(MessageHud.MessageType.Center, $"{Tables.God(altar.God)?.Name} wants {Tables.God(altar.God)?.Offerings}: you carry none."); return; }
             Offer(altar, p, item, 1);
         }
-        public static double Value(ItemDrop.ItemData item) => item.m_shared.m_value > 0 ? item.m_shared.m_value : Colony.MaterialValue(item.m_dropPrefab?.GetComponent<ItemDrop>()) * 3 + item.m_shared.m_food / 4 + (item.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Trophy ? 10 : 0);
+        public static double Value(ItemDrop.ItemData item) => item.m_shared.m_value > 0 ? item.m_shared.m_value : Colony.MaterialValue(item.m_dropPrefab != null ? item.m_dropPrefab.GetComponent<ItemDrop>() : null) * 3 + item.m_shared.m_food / 4 + (item.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Trophy ? 10 : 0);
         public static void Offer(Altar altar, Player p, ItemDrop.ItemData item, int amount)
         {
             Colony c = Colony.At(altar.transform.position);
