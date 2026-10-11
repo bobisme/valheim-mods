@@ -57,6 +57,16 @@ namespace Jarldom
                 b.Dirty();
             }
             c.Log("feast", glutton ?? "", "");
+            // With a temple (or Odin's shrine), the feast is a festival to its god: faith twice over, the god's favour, worth.
+            Room temple = c.R.Rooms.Where(r => r.Ok && (r.Type == RoomType.Temple || r.Type == RoomType.OdinShrine)).OrderByDescending(r => r.Points).FirstOrDefault();
+            if (temple != null)
+            {
+                string god = temple.Type == RoomType.OdinShrine || string.IsNullOrEmpty(temple.God) ? "odin" : temple.God;
+                Faith.Add(c, god, 5, "a festival");
+                c.R.Deeds += Renown.Deed("festival");
+                foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) { Mood.Add(b.S, "festival", b.Now); Mood.Satisfy(b.S, Need.Faith, 40); Worth.Gain(b.S, "festival"); b.Dirty(); }
+                c.Log("text", "", "", $"The feast was a festival to {Tables.God(god)?.Name}, and {Tables.God(god)?.Name} was glad of it.");
+            }
             Compat.SkalToast(c);
         }
         private static void Take(List<(Container chest, ItemDrop.ItemData item)> from, int amount)

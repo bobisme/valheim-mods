@@ -37,6 +37,14 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
 - **Raids** near the colony sound the war horn and grow with renown; fighters take guard posts, the rest run for the great hall.
   **The Fulings** (hamlet and up) send a herald now and then: pay from the hall tab by dusk (more each time), or they raid; paying
   mid-raid turns them back (a Shieldwall siege too, from 0.4.12).
+- **More of the world**: a master visits at village rank (150 coins: +10 in a skill); Dvergr mercenaries at jarldom rank after the
+  Queen (300 coins, three days); captives taken in a Fuling raid, held at a Fuling camp for three days (go there, or pay a ransom);
+  after Bonemass a draugr jarl's barrow rises in a swamp and sends warbands until he's cut down. A gothi makes a daily offering at each
+  temple; Thor's villagers strike harder (and his lightning finds raiders), Freyja's crops grow faster; a feast with a temple is a
+  festival. A skald needs a **drum** (workbench: 2 deer hide, 4 wood). SkalTavern's drinks are drunk in the hall from its chests.
+  Inspired villagers work faster for a day; a jarl most of the colony loves lifts their followers. After the first boss, one newcomer
+  in twelve may be **Forsaken-touched**: watch the mischief, and name them at the Thing. Roads (paved ground, stone floors): a sixth
+  faster. **While you were away**: a colony that was unloaded makes up the time at the rates it showed live (goods, meals, wages, raids).
 - **Moving the pillars**: taken down (or broken) they leave the *heart of the high seat*; raise new pillars carrying it and the colony
   is back, people, rooms and saga and all.
 

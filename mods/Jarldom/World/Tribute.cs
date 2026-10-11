@@ -45,6 +45,7 @@ namespace Jarldom
             if (t == null || have < ask || !Stock.TakeCoins(t, ask)) { c.Tell($"The treasury holds {have} coins: the Fulings want {ask}."); return; }
             c.R.Flags.Remove("tribute:due");
             c.R.Flags["tribute:level"] = c.R.Flag("tribute:level") + 1;
+            c.R.Deeds += Renown.Deed("tribute"); // (no glory in paying)
             c.R.Flags["tribute:next"] = c.Day + Random.Range(6, 11);
             if (raid) { c.R.Flags.Remove("tribute:raid"); c.R.Flags["tribute:bought"] = 1; Net.Event("", c.Position); Compat.CallOffSiege(c.Position, c.Radius + 80); }
             Leave(c);

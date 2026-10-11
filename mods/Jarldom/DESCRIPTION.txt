@@ -18,6 +18,8 @@ The gold goes somewhere: wages every five days from the treasury chest (all or n
 
 Raids at a colony sound the war horn: fighters take their posts, the rest run for the great hall. Raids grow with renown. The Fulings send a herald to a hamlet or more: pay by dusk (more each time), or they raid; paying mid-raid turns them back.
 
+Visitors and threats: a master teaches at village rank, Dvergr mercenaries can be hired at jarldom rank after the Queen, captives taken by the Fulings wait three days at a Fuling camp for rescue or ransom, and after Bonemass a draugr jarl's barrow sends warbands until he falls. The gothi keeps the temples; Thor, Freyja and the other gods bless those who keep them; a feast with a temple is a festival. Skalds play a drum (workbench). One newcomer in twelve, after the first boss, may be Forsaken-touched: find them by their mischief and cast them out at the Thing. While you were away: an unloaded colony makes up the time when you return.
+
 Moving the pillars: taken down or broken, they leave the heart of the high seat; raise new pillars while carrying it and the colony stands there again. E on a marked room or zone (marker out) to check, change or remove it. Works with Omens (Odin's favour is the gods' Fate), AICompanion (claims respected both ways), Gary (villagers pet him), SkalTavern; needs none of them.
 
 Install on the host and every player: a host without Jarldom deletes the pillars and villagers when their area loads (the hammer refuses Jarldom pieces where the host lacks it). Before uninstalling, disband the colony from its window: everyone's gear goes into chests by the pillars. Claude Tools adds the jarldom command (status, roster, villager, rooms, board, log, and test commands for single player and hosts).

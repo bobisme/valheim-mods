@@ -39,9 +39,33 @@ namespace Jarldom
         public float Distance => Utils.DistanceXZ(_b.Body.transform.position, _goal);
 
         // From the fixed update: one step.
+        // Roads: on paved ground or a stone floor, a sixth faster (checked twice a second; the body's own speeds, kept from the first look).
+        private float _nextRoad, _baseWalk, _baseRun, _baseSpeed; private bool _onRoad;
+        private static readonly RaycastHit[] Downs = new RaycastHit[4];
+        private void Road(Vector3 me)
+        {
+            if (Time.time < _nextRoad) return;
+            _nextRoad = Time.time + 0.5f;
+            Character body = _b.Body;
+            if (_baseSpeed == 0) { _baseSpeed = body.m_speed; _baseRun = body.m_runSpeed; _baseWalk = body.m_walkSpeed; }
+            bool road = false;
+            Heightmap hm = Heightmap.FindHeightmap(me);
+            if (hm != null && hm.GetPaintMask(me).b > 0.5f && Mathf.Abs(me.y - ZoneSystem.instance.GetGroundHeight(me)) < 0.4f) road = true;
+            else if (Physics.RaycastNonAlloc(me + Vector3.up * 0.3f, Vector3.down, Downs, 0.8f, LayerMask.GetMask("piece"), QueryTriggerInteraction.Ignore) > 0)
+            {
+                string n = Downs[0].collider.GetComponentInParent<Piece>() is Piece p ? Utils.GetPrefabName(p.gameObject) : "";
+                road = n.StartsWith("stone_floor") || n.Contains("road") || n.Contains("path");
+            }
+            if (road == _onRoad) return;
+            _onRoad = road;
+            float k = road ? 1.15f : 1f;
+            body.m_speed = _baseSpeed * k; body.m_runSpeed = _baseRun * k; body.m_walkSpeed = _baseWalk * k;
+        }
+        public bool OnRoad => _onRoad;
         public void Step(float dt)
         {
             CloseBehind();
+            if (_active) Road(_b.Body.transform.position);
             if (!_active) return;
             Vector3 me = _b.Body.transform.position;
             if (Utils.DistanceXZ(me, _goal) <= _arrive && Mathf.Abs(me.y - _goal.y) < 2.5f) { Arrived = true; _active = false; _b.Ai.StopMoving(); return; }
