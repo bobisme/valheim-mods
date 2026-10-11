@@ -300,7 +300,8 @@ The horn rests **20 minutes** after a siege. A stone can't be taken down while a
 **three minutes'** warning. Raids from Omens' bad omens are drawn the same way. This part needs Shieldwall on the host; a vanilla dedicated
 server raids as usual.
 
-A siege runs on the game of the player nearest the stone (its owner, in Valheim's terms) and everything about it is saved on the stone, so
+A siege runs on the game of the player nearest the stone (its owner, in Valheim's terms) and everything about it is saved on the stone (kept small, as
+the stone's record is sent to every player nearby whenever it changes: a few dozen bytes for the plan, blows taken at most twice a second), so
 it carries on if that player leaves and works on a dedicated server without the mod (away from the middle of the world, which such a
 server keeps loaded and clears of objects it doesn't know). A game hosted by a player needs Shieldwall on the host too, or the host's game
 deletes the stone; the stone, sockets and upgrades refuse to be built there, so nothing is lost. Everyone who joins in needs Shieldwall. Warnings,

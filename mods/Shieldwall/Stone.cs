@@ -89,6 +89,7 @@ namespace Shieldwall
         internal static readonly List<Warstone> Loaded=new List<Warstone>();
         internal ZNetView View;
         internal StaticTarget Target;
+        internal float PendingHealth=-1,HealthFlushAt,NextRockHit; // blows not yet written to the record (the owner's, see Director.FlushHealth)
         private GameObject _glow;
         private float _nextMarker;private CircleProjector _marker;
         internal ZDO Z=>View!=null&&View.IsValid()?View.GetZDO():null;

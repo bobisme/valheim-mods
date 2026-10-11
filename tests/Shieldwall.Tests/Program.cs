@@ -56,6 +56,9 @@ Check(Policy.Save(Policy.Plan(3,4,2,99))!=Policy.Save(Policy.Plan(3,4,2,100)),"A
 Check(Policy.Plan(0,0,1,5).SelectMany(w=>w).All(u=>u.Role!=Role.Flyer),"Greydwarfs have no flyers");
 Check(Policy.Plan(4,9,4,5).SelectMany(w=>w).Count(u=>u.Role==Role.Champion)==1+9/4+1,"Seasoned stones draw more warchiefs");
 Check(Policy.Load("Greydwarf/1/1,bad,Troll/x/4;;Neck/2/9").Sum(w=>w.Count)==1,"Damaged saves keep what they can");
+Check(Policy.Save(Policy.Load(Policy.Recipe(3,4,2,99,5,2)))==Policy.Save(Policy.Plan(3,4,2,99,5,2)),"A stone's recipe rebuilds its siege");
+Check(Policy.Recipe(5,10,6,int.MaxValue,255,8).Length<48,"The recipe is a few dozen bytes on the stone's record");
+Check(Policy.Load("@1,2,x,4,5,6").Count==0&&Policy.Load("@1,2").Count==0,"A damaged recipe loads no siege");
 Check(Policy.Level(0,0,0.99)==1&&Policy.Level(10,7,0.0)==3&&Policy.Level(0,0,0.05)==2,"Stars by roll");
 
 // Pacing.

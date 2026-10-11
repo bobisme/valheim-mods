@@ -189,8 +189,20 @@ namespace Shieldwall
             return roll<three?3:roll<three+two?2:1;
         }
         internal static string Save(List<List<Unit>> plan)=>string.Join(";",plan.Select(w=>string.Join(",",w)));
+        // What the stone keeps: the plan's recipe ("@stage,marks,players,seed,boasts,extra"), not the plan (a few dozen bytes, not
+        // kilobytes, on a record that is resent whole with every blow). Plan is deterministic, so every game rebuilds the same siege.
+        internal static string Recipe(int stage,int marks,int players,int seed,int boasts,int extra)=>$"@{stage},{marks},{players},{seed},{boasts},{extra}";
+        private static string _cachedKey;private static List<List<Unit>> _cached;
         internal static List<List<Unit>> Load(string saved)
         {
+            if(saved!=null&&saved.StartsWith("@"))
+            {
+                if(saved==_cachedKey)return _cached;
+                string[] f=saved.Substring(1).Split(',');var n=new int[6];
+                if(f.Length!=6)return new List<List<Unit>>();
+                for(int i=0;i<6;i++)if(!int.TryParse(f[i],out n[i]))return new List<List<Unit>>();
+                _cached=Plan(n[0],n[1],n[2],n[3],n[4],n[5]);_cachedKey=saved;return _cached;
+            }
             var plan=new List<List<Unit>>();
             foreach(string wave in (saved??"").Split(';'))
             {

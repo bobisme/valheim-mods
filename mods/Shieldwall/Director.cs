@@ -41,9 +41,10 @@ namespace Shieldwall
             double gather=cause==Cause.Test?10:cause==Cause.Raid?Plugin.Instance.RaidWarning.Value:Plugin.Instance.HornWarning.Value;
             float health=Policy.StoneHealth(stage,marks)*Policy.BoonHealth(stone.Boons)*(Policy.Has(boasts,Boast.BareStone)?0.6f:1);
             z.Set(Stone.SiegeKey,((long)Random.Range(1,int.MaxValue)<<16)^Now);
-            z.Set(Stone.RiftKey,rift);z.Set(Stone.StartKey,After(gather));z.Set(Stone.CalledKey,Now);z.Set(Stone.PlanKey,Policy.Save(plan));
+            z.Set(Stone.RiftKey,rift);z.Set(Stone.StartKey,After(gather));z.Set(Stone.CalledKey,Now);z.Set(Stone.PlanKey,Policy.Recipe(stage,marks,Math.Max(1,players),seed,boasts,Plugin.Instance.ExtraWaves.Value));
             z.Set(Stone.WaveKey,0);z.Set(Stone.QueueKey,0);z.Set(Stone.SpawnedKey,0);z.Set(Stone.BreatherKey,0L);z.Set(Stone.KillsKey,0);z.Set(Stone.StageKey,stage);z.Set(Stone.CauseKey,(int)cause);
-            z.Set(Stone.HealthKey,health);z.Set(Stone.MaxHealthKey,health);
+            z.Set(Stone.HealthKey,health);z.Set(Stone.MaxHealthKey,health);stone.PendingHealth=-1;
+            z.Set(Stone.SagaKey,"");z.Set(Stone.SagaTopicKey,""); // the last saga leaves the record (resent with every blow) once a new siege is called
             z.Set(Stone.BoastsKey,boasts);z.Set(Stone.TallyKey,"");z.Set(Stone.ChiefsKey,"");z.Set(Stone.ChiefFellKey,"");z.Set(Stone.LowKey,1f);z.Set(Stone.LowWaveKey,0);
             z.Set(Stone.PhaseKey,(int)Phase.Gathering);
             foreach(Raider r in Raider.Loaded.ToList())if(r!=null&&r.Siege!=0&&r.Siege!=stone.Siege&&r.Stone()==stone)r.Melt(); // an old horde's stragglers
@@ -77,6 +78,7 @@ namespace Shieldwall
                 return;
             }
             // Battle.
+            if(stone.PendingHealth>=0&&Time.time>=stone.HealthFlushAt)FlushHealth(stone);
             var plan=Policy.Load(z.GetString(Stone.PlanKey,""));
             if(plan.Count==0){End(stone,Outcome.Abandoned);return;}
             int wave=Mathf.Clamp(z.GetInt(Stone.WaveKey,0),0,plan.Count-1),queue=z.GetInt(Stone.QueueKey,0),spawned=z.GetInt(Stone.SpawnedKey,0);
@@ -227,7 +229,7 @@ namespace Shieldwall
         internal enum Outcome{Held,Fallen,Abandoned,Bought}
         private static void End(Warstone stone,Outcome outcome)
         {
-            ZDO z=stone.Z;
+            FlushHealth(stone);ZDO z=stone.Z;
             int stage=z.GetInt(Stone.StageKey,0),marks=stone.Marks,kills=z.GetInt(Stone.KillsKey,0);
             float health=z.GetFloat(Stone.HealthKey,0),max=Mathf.Max(1,z.GetFloat(Stone.MaxHealthKey,1));
             Roster roster=Policy.Rosters[Mathf.Clamp(stage,0,Policy.Rosters.Length-1)];
@@ -349,16 +351,27 @@ namespace Shieldwall
         {
             ZDO z=stone.Z;
             if(z==null||stone.Phase!=Phase.Battle)return;
-            float max=Mathf.Max(1,z.GetFloat(Stone.MaxHealthKey,1)),before=z.GetFloat(Stone.HealthKey,max);
+            float max=Mathf.Max(1,z.GetFloat(Stone.MaxHealthKey,1)),before=stone.PendingHealth>=0?stone.PendingHealth:z.GetFloat(Stone.HealthKey,max);
             float after=Mathf.Clamp(before-(amount>0?amount*Policy.Toughness:amount),0,max);
-            z.Set(Stone.HealthKey,after);
-            if(after/max<z.GetFloat(Stone.LowKey,1)){z.Set(Stone.LowKey,after/max);z.Set(Stone.LowWaveKey,z.GetInt(Stone.WaveKey,0)+1);} // its closest call, for the saga
+            stone.PendingHealth=after;bool crossed=false;
             if(amount>0)
             {
                 foreach(float mark in new[]{0.5f,0.25f,0.1f})
-                    if(before/max>mark&&after/max<=mark)Net.Say($"The Warstone is cracking! {Mathf.RoundToInt(mark*100)}% left!",stone.transform.position,250);
-                Assets.Effect("vfx_RockHit",at);
+                    if(before/max>mark&&after/max<=mark){Net.Say($"The Warstone is cracking! {Mathf.RoundToInt(mark*100)}% left!",stone.transform.position,250);crossed=true;}
+                if(Time.time>=stone.NextRockHit){stone.NextRockHit=Time.time+0.3f;Assets.Effect("vfx_RockHit",at);}
             }
+            if(crossed||after<=0||Time.time>=stone.HealthFlushAt)FlushHealth(stone);
+        }
+        // Blows land many times a second, and the stone's record is resent whole with each change: it takes them at most twice a second
+        // (and at once when the stone cracks further or falls).
+        internal static void FlushHealth(Warstone stone)
+        {
+            ZDO z=stone.Z;float health=stone.PendingHealth;
+            stone.PendingHealth=-1;stone.HealthFlushAt=Time.time+0.5f;
+            if(z==null||health<0)return;
+            float max=Mathf.Max(1,z.GetFloat(Stone.MaxHealthKey,1));
+            z.Set(Stone.HealthKey,health);
+            if(health/max<z.GetFloat(Stone.LowKey,1)){z.Set(Stone.LowKey,health/max);z.Set(Stone.LowWaveKey,z.GetInt(Stone.WaveKey,0)+1);} // its closest call, for the saga
         }
 
         // ---- where the rift opens: dry ground in reach of the stone by foot, not too near, inside the loaded world ----

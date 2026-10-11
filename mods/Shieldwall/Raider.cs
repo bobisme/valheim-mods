@@ -203,7 +203,7 @@ namespace Shieldwall
             if(Role==Role.Champion&&Plugin.Instance.DebugHits.Value&&Time.time>=_nextLog)
             {_nextLog=Time.time+5;Plugin.Log($"[chief] {ChiefName} {Doing()} at {transform.position:F0}, {toStone:0} m from the stone, still for {Time.time-_stuckSince:0} s");}
             // Diggers that reach the stone dig at its foot: let them, and it topples.
-            if(Role==Role.Digger&&_seesStone&&Time.time>=_nextDig){_nextDig=Time.time+4;Undermine(stone);}
+            if(Role==Role.Digger&&_seesStone&&Time.time>=_nextDig&&TerrainTurn()){_nextDig=Time.time+4;Undermine(stone);}
         }
         private bool _seesStone;private float _nextDig,_nextRamp;
 
@@ -310,9 +310,12 @@ namespace Shieldwall
             Assets.Effect("sfx_trollfire_attack_throw",from);
         }
         // A ramp of earth: the ground just ahead (toward the stone) raised to where the raider stands, a little at a time.
+        // Every change to the ground resends its whole zone's terrain record (kilobytes): the horde shares one earthwork a second.
+        private static float _nextTerrain;
+        private static bool TerrainTurn(){if(Time.time<_nextTerrain)return false;_nextTerrain=Time.time+1;return true;}
         private void Earthwork(Vector3 stone)
         {
-            if(Time.time<_nextRamp)return;
+            if(Time.time<_nextRamp||!TerrainTurn())return;
             _nextRamp=Time.time+(Role==Role.Digger?1.5f:3f);
             Vector3 toward=stone-transform.position;toward.y=0;toward.Normalize();
             // A step a metre above where it stands, up to the land around the stone (or level with it, to fill a ditch): a ramp, one step at a time.
