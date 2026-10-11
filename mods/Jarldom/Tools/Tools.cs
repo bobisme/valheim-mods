@@ -218,6 +218,13 @@ namespace Jarldom
                         ["compat"] = new JObject(Compat.Report().Select(r => new JProperty(r.name, r.present ? r.version : "absent"))),
                     });
                     break;
+                case "flags":
+                    {
+                        // The colony's flags (read-only), those starting with the prefix if one is given.
+                        string pre = a.Length > 2 ? a[2] : "";
+                        output(new JObject { ["flags"] = new JObject(c.R.Flags.Where(kv => kv.Key.StartsWith(pre)).OrderBy(kv => kv.Key).Select(kv => new JProperty(kv.Key, kv.Value))) });
+                        break;
+                    }
                 case "compat": output(new JObject { ["compat"] = new JArray(Compat.Report().Select(r => new JObject { ["mod"] = r.name, ["present"] = r.present, ["version"] = r.version, ["use"] = r.use })) }); break;
                 case "roster":
                     output(new JObject { ["roster"] = new JArray(c.R.Roster.Select(r => new JObject { ["vid"] = r.Vid, ["name"] = r.Name, ["prof"] = r.Prof.ToString(), ["state"] = r.State.ToString(), ["bed"] = r.Bed, ["worth"] = r.Worth, ["at"] = new JArray(r.X, r.Y, r.Z), ["loaded"] = Villagers.Body(r.Vid) != null })), ["fallen"] = c.R.Fallen.Count, ["coming"] = new JArray(c.R.Coming.Select(n => n.Name + " (" + n.Traits + ")")) });

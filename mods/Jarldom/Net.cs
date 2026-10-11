@@ -218,7 +218,12 @@ namespace Jarldom
             get
             {
                 ZDOID id = Z.GetZDOID(BoardZdoKey);
-                return id.IsNone() || ZDOMan.instance == null ? null : ZDOMan.instance.GetZDO(id);
+                if (id.IsNone() || ZDOMan.instance == null) return null;
+                ZDO bz = ZDOMan.instance.GetZDO(id);
+                if (bz != null && bz.GetPrefab() == SoulStore.PrefabName.GetStableHashCode() && bz.GetString(IdKey, "") == Id) return bz;
+                bz = SoulStore.Find(IdKey, Id); // (ids are new each time the world loads: found by the colony's id)
+                if (bz != null && IsOwner) Z.Set(BoardZdoKey, bz.m_uid);
+                return bz;
             }
         }
         public byte[] BoardBytes() { byte[] b = BoardZ?.GetByteArray(BoardKey); return b != null && b.Length > 0 ? b : Z.GetByteArray(BoardKey); }

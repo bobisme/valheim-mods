@@ -181,7 +181,18 @@ namespace Jarldom
         {
             double hours = Math.Max(0, (now - _lastNeeds) / Clock.Hour);
             _lastNeeds = now;
-            if (hours > 0) Mood.Tick(S, hours);
+            if (hours > 0)
+            {
+                // A jump of hours (players sleeping through the night, or the time set) that lands in the morning: the night passed and
+                // they slept it, in a bed if they have one (rest isn't drained by the hours they spent asleep).
+                float rest = S.Needs[(int)Need.Rest];
+                Mood.Tick(S, hours);
+                if (hours >= 3 && Colony != null && Colony.Hour >= Schedule.WakeAt - 1 && Colony.Hour < Schedule.WorkAt + 3)
+                {
+                    S.Needs[(int)Need.Rest] = Math.Max(rest, 100);
+                    Mood.Add(S, Colony.BedById(S.Bed) != null ? "ownbed" : "hallfire", now);
+                }
+            }
             Saboteur.Tick(this);
             Mood.Expire(S, now);
             // Shelter: dry and warm (under a roof, or by a fire).
