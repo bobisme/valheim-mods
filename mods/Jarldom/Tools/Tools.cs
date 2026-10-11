@@ -63,7 +63,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove" };
+            string[] cheats = { "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or with devcommands"); return; }
             if (c == null && cmd != "place" && cmd != "compat" && cmd != "status") { error("no colony near (jarldom place pillars makes one)"); return; }
             Player me = Player.m_localPlayer;
@@ -268,18 +268,32 @@ namespace Jarldom
                 case "act": Net.Act(c, a[2], a.Length > 3 ? string.Join(" ", a.Skip(3)) : ""); output(new JObject { ["act"] = a[2] }); break;
                 case "level":
                     {
-                        // The hoe's own levelling, on a grid over the rectangle, to height y.
-                        GameObject op = Assets.Find("mud_road");
-                        if (op == null) { error("no mud_road"); return; }
+                        // The game's own levelling, straight on the land's terrain records: a flat square to exactly y (the hoe's piece adds its
+                        // own offset and smoothing, and stacks).
                         float x1 = Math.Min(F(a[2]), F(a[4])), x2 = Math.Max(F(a[2]), F(a[4])), z1 = Math.Min(F(a[3]), F(a[5])), z2 = Math.Max(F(a[3]), F(a[5])), y = F(a[6]);
+                        Vector3 centre = new Vector3((x1 + x2) / 2, y, (z1 + z2) / 2);
+                        float radius = Math.Max(x2 - x1, z2 - z1) / 2;
+                        var settings = new TerrainOp.Settings { m_level = true, m_levelRadius = radius, m_square = true, m_smooth = false, m_paintCleared = false, m_raise = false };
+                        var doOp = HarmonyLib.AccessTools.Method(typeof(TerrainComp), "DoOperation");
+                        var comps = new HashSet<TerrainComp>();
+                        foreach (Vector3 off in new[] { Vector3.zero, new Vector3(radius, 0, radius), new Vector3(-radius, 0, radius), new Vector3(radius, 0, -radius), new Vector3(-radius, 0, -radius) })
+                            foreach (TerrainComp tc in TerrainComp.FindAllTerrainCompilers(centre + off)) comps.Add(tc);
+                        if (comps.Count == 0) { Heightmap hm = Heightmap.FindHeightmap(centre); TerrainComp made = hm?.GetAndCreateTerrainCompiler(); if (made != null) comps.Add(made); }
                         int n = 0;
-                        for (float x = x1; x <= x2 + 0.01f; x += 1.5f) for (float z = z1; z <= z2 + 0.01f; z += 1.5f) { Object.Instantiate(op, new Vector3(x, y, z), Quaternion.identity); n++; }
-                        output(new JObject { ["ops"] = n });
+                        foreach (TerrainComp tc in comps)
+                        {
+                            ZNetView tv = tc.GetComponent<ZNetView>();
+                            if (tv == null || !tv.IsValid()) continue;
+                            if (!tv.IsOwner()) tv.ClaimOwnership();
+                            doOp.Invoke(tc, new object[] { centre, Vector3.zero, settings }); n++;
+                        }
+                        output(new JObject { ["terrainRecords"] = n, ["radius"] = radius });
                     }
                     break;
                 case "cultivate":
                     {
-                        GameObject op = Assets.Find("cultivate");
+                        GameObject op = ToolPiece("Cultivator", "cultivate_v2");
+                        if (op == null) { error("no cultivate_v2"); return; }
                         float x1 = Math.Min(F(a[2]), F(a[4])), x2 = Math.Max(F(a[2]), F(a[4])), z1 = Math.Min(F(a[3]), F(a[5])), z2 = Math.Max(F(a[3]), F(a[5]));
                         int n = 0;
                         for (float x = x1; x <= x2 + 0.01f; x += 1.5f) for (float z = z1; z <= z2 + 0.01f; z += 1.5f) { Object.Instantiate(op, new Vector3(x, ZoneSystem.instance.GetGroundHeight(new Vector3(x, 0, z)), z), Quaternion.identity); n++; }
@@ -307,6 +321,19 @@ namespace Jarldom
                         output(new JObject { ["valid"] = ok, ["point"] = ok ? V(v) : null, ["path"] = p2, ["corners"] = new JArray(path.Select(V)) });
                     }
                     break;
+                case "table":
+                    {
+                        PieceTable t = ObjectDB.instance.GetItemPrefab(a[2])?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces;
+                        output(new JObject { ["pieces"] = new JArray((t?.m_pieces ?? new List<GameObject>()).Where(p => p != null).Select(p => p.name + " [" + string.Join(",", p.GetComponents<Component>().Select(x => x.GetType().Name)) + "]")) });
+                    }
+                    break;
+                case "soil":
+                    {
+                        Vector3 at = new Vector3(F(a[2]), 0, F(a[3])); at.y = ZoneSystem.instance.GetGroundHeight(at);
+                        Heightmap hm = Heightmap.FindHeightmap(at);
+                        output(new JObject { ["cultivated"] = hm != null && hm.IsCultivated(at), ["heightmap"] = hm != null ? hm.name : "none", ["y"] = at.y });
+                    }
+                    break;
                 case "roof":
                     {
                         Vector3 at = new Vector3(F(a[2]), F(a[3]), F(a[4]));
@@ -314,6 +341,16 @@ namespace Jarldom
                         bool hit = Physics.Raycast(at, Vector3.up, out RaycastHit rh, 30f, LayerMask.GetMask("Default", "static_solid", "Default_small", "piece", "terrain", "vehicle"));
                         Room r = c.RoomAt(at);
                         output(new JObject { ["underRoof"] = roof, ["cover"] = cover, ["ray"] = hit ? rh.collider.name + " @" + rh.point.y.ToString("F1") + " tag " + rh.collider.tag : "nothing", ["room"] = r?.Type.ToString(), ["roomFloor"] = r?.Floor });
+                    }
+                    break;
+                case "creature":
+                    {
+                        GameObject prefab = ZNetScene.instance.GetPrefab(a[2]);
+                        if (prefab == null || prefab.GetComponent<Character>() == null) { error("no creature " + a[2]); return; }
+                        Vector3 at = new Vector3(F(a[3]), 0, F(a[4])); at.y = Ground(at) + 0.5f;
+                        GameObject go = Object.Instantiate(prefab, at, Quaternion.identity);
+                        if (a.Length > 5) go.GetComponent<Character>().SetLevel(int.Parse(a[5]));
+                        output(new JObject { ["spawned"] = a[2], ["at"] = V(at) });
                     }
                     break;
                 case "ground": { Vector3 at = new Vector3(F(a[2]), 0, F(a[3])); output(new JObject { ["ground"] = Ground(at) }); } break;
@@ -329,6 +366,15 @@ namespace Jarldom
             }
         }
         private static string Prefab(ItemDrop.ItemData i) => i.m_dropPrefab != null ? i.m_dropPrefab.name : i.m_shared.m_name; // (Unity's null: a prefab from an unloaded copy)
+        // A tool's own terrain piece (the v2 ones live only in the tools' tables, not in the scene's prefabs).
+        private static GameObject ToolPiece(string tool, string name) => ObjectDB.instance.GetItemPrefab(tool)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces?.m_pieces.FirstOrDefault(p => p != null && p.name == name);
+        private static string AnimInfo(Humanoid h)
+        {
+            Animator an = h.GetComponentInChildren<Animator>();
+            if (an == null) return "";
+            var bools = an.parameters.Where(p => p.type == AnimatorControllerParameterType.Bool && an.GetBool(p.nameHash)).Select(p => p.name);
+            return "on: " + string.Join(",", bools) + " state " + an.GetCurrentAnimatorStateInfo(0).shortNameHash;
+        }
         private const string TestKey = "jarldom_test";
         // The floor a room stands on: the first surface down from just above the ground (not the roof over it).
         public static float Floor(Vector3 at)
@@ -367,7 +413,7 @@ namespace Jarldom
             ["needs"] = new JObject(Enum.GetValues(typeof(Need)).Cast<Need>().Select(n => new JProperty(n.ToString(), Math.Round(b.S.Needs[(int)n])))),
             ["reasons"] = new JArray(Mood.Reasons(b.S, b.Now).Select(r => $"{r.value:+0;-0} {r.text}")), ["meals"] = new JArray(b.Meals.Select(m => $"{m.Prefab} {m.Left:0}s")),
             ["bed"] = b.S.Bed, ["worth"] = b.S.Worth, ["skills"] = new JObject(b.S.Skills.Where(kv => !kv.Key.EndsWith("#")).Select(kv => new JProperty(kv.Key, Math.Round(kv.Value, 1)))),
-            ["bag"] = new JArray(b.Body.GetInventory().GetAllItems().Select(i => $"{Prefab(i)} x{i.m_stack}{(i.m_equipped ? " (worn)" : "")}")), ["held"] = b.Held != null, ["fighting"] = b.Fighting,
+            ["bag"] = new JArray(b.Body.GetInventory().GetAllItems().Select(i => $"{Prefab(i)} x{i.m_stack}{(i.m_equipped ? " (worn)" : "")}")), ["held"] = b.Held != null, ["fighting"] = b.Fighting, ["anim"] = AnimInfo(b.Body), ["combat"] = $"{b.CombatNote} swings {b.SwingsStarted}/{b.Swings} weapon {b.Body.GetCurrentWeapon()?.m_shared.m_name}",
             ["counts"] = new JObject(b.S.Counts.Select(kv => new JProperty(kv.Key, kv.Value))), ["moving"] = b.Move.Moving, ["goal"] = V(b.Move.Goal), ["taskDebug"] = b.Task?.Debug(b) ?? "", ["move"] = b.Move.Debug, ["velocity"] = Math.Round(b.Body.GetVelocity().magnitude, 2), ["moveDir"] = V(b.Body.GetMoveDir()),
         };
     }

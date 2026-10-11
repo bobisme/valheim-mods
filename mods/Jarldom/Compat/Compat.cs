@@ -17,7 +17,7 @@ namespace Jarldom
             ("AICompanion", new[] { "com.quad.aicompanion", "com.dhack.aicompanion" }, "beds and chests a companion claimed are left alone (and ours are marked for it)"),
             ("Gary", new[] { "com.bobisme.gary" }, "villagers pet Gary the Greydwarf"),
             ("QualityOfLife", new[] { "com.quad.qualityoflife", "com.dhack.qualityoflife" }, "chest rules as stockpile categories"),
-            ("BuildOrders", new[] { "com.quad.buildorders", "com.dhack.buildorders" }, "builders (not yet)"),
+            ("BuildOrders", new[] { "com.quad.buildorders", "com.dhack.buildorders" }, "builders build its planned ghosts from the stores"),
             ("BuildShapes", new[] { "com.bobisme.buildshapes" }, "Hallwright outlines as rooms (not yet)"),
             ("FeedFromChests", new[] { "com.quad.feedfromchests", "com.dhack.feedfromchests" }, "smelters fed from chests"),
             ("Farmhand", new[] { "com.bobisme.farmhand" }, "rows and batches (not yet)"),
@@ -90,6 +90,13 @@ namespace Jarldom
             }
             catch { return false; }
         }
+
+        // ---- BuildOrders: the helper hooks it publishes (AppDomain data, no types shared) ----
+        public static int GhostCount(Vector3 at, float radius) => AppDomain.CurrentDomain.GetData("DHack.BuildOrders.Count") is Func<Vector3, float, int> f ? Safe(() => f(at, radius)) : 0;
+        public static string[] NextGhosts(Vector3 at, float radius, int max) => AppDomain.CurrentDomain.GetData("DHack.BuildOrders.Next") is Func<Vector3, float, int, string[]> f ? Safe(() => f(at, radius, max)) ?? new string[0] : new string[0];
+        public static bool PlaceGhost(string id) => AppDomain.CurrentDomain.GetData("DHack.BuildOrders.Place") is Func<string, bool> f && Safe(() => f(id));
+        public static string[] GhostBlockers(Vector3 at, float radius) => AppDomain.CurrentDomain.GetData("DHack.BuildOrders.Blockers") is Func<Vector3, float, string[]> f ? Safe(() => f(at, radius)) ?? new string[0] : new string[0];
+        private static T Safe<T>(Func<T> f) { try { return f(); } catch { return default; } }
 
         // ---- Gary: a greydwarf to pet ----
         public static Character Gary(Vector3 near, float radius) =>

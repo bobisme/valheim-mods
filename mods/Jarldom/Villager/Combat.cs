@@ -78,12 +78,18 @@ namespace Jarldom
             b.Ai.LookTowards((aim - b.Pos).normalized);
             // Block when it swings and we hold a shield.
             bool shield = h.LeftItem != null && h.LeftItem.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Shield;
-            Body_.Blocking(h) = shield && !ranged && t.InAttack() && dist < 3.5f && !h.InAttack();
-            if (Body_.Blocking(h)) return;
-            if (h.InAttack() || !b.Ai.IsLookingAt(aim, 25f) || h.GetTimeSinceLastAttack() < 0.4f) return;
+            // The shield goes up for the blow, then down to strike back (blocking holds you still: you can't turn or swing).
+            if (shield && !ranged && t.InAttack() && dist < 3.5f && !h.InAttack() && Time.time > b.NoBlockUntil && b.BlockUntil < Time.time) { b.BlockUntil = Time.time + 0.6f; b.NoBlockUntil = Time.time + 1.6f; }
+            Body_.Blocking(h) = Time.time < b.BlockUntil;
+            if (Body_.Blocking(h)) { b.CombatNote = "blocking"; return; }
+            if (h.InAttack()) { b.CombatNote = "swinging"; return; }
+            if (!b.Ai.IsLookingAt(aim, 25f)) { b.CombatNote = "turning"; return; }
+            if (h.GetTimeSinceLastAttack() < 0.4f) return;
             if (ranged) Body_.DrawTime(h) = 10f; // the AI can't hold a draw: a bow shot undrawn does nothing
-            h.StartAttack(t, false);
+            bool started = h.StartAttack(t, false);
             if (ranged) Body_.DrawTime(h) = 0f;
+            b.Swings++; if (started) b.SwingsStarted++;
+            b.CombatNote = started ? "struck" : "couldn't swing:" + (h.InDodge() ? " dodge" : "") + (!h.CanMove() ? " cantmove" + (h.IsSitting() ? "(sitting)" : "") + (h.IsStaggering() ? "(stagger)" : "") : "") + (h.IsKnockedBack() ? " knocked" : "") + (h.IsStaggering() ? " stagger" : "") + (h.InMinorAction() ? " minor" : "") + (weapon == null || !weapon.HavePrimaryAttack() ? " noattack" : "") + (h.InAttack() ? " inattack" : "");
         }
 
         // Credit for kills: worth, the saga and bynames.

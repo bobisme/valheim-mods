@@ -100,6 +100,8 @@ namespace Jarldom
                 if (FirstSeen.Count > 4000) FirstSeen.Clear();
             }
             Faith.Bog(c);
+            // BuildOrders' planned ghosts in the colony: one standing order for the builders (they take the pieces one by one).
+            if (Compat.GhostCount(c.Position, c.Radius) > 0) c.Board.Post("build", "ghosts", Prof.Builder, 3, c.Position.x, c.Position.y, c.Position.z, now, "", "plans");
             // Fires that burn low, and the stations: fuel and feeding.
             foreach (Piece p in c.PiecesIn(c.Radius))
             {
@@ -117,7 +119,7 @@ namespace Jarldom
                 }
                 CookingStation cook = p.GetComponent<CookingStation>();
                 if (cook != null && (Cook(cook, "HaveDoneItem") || Cook(cook, "IsFireLit") && CookFree(cook) && cook.m_conversion.Any(cv => cv.m_from != null && HaveInStock(c, cv.m_from.name))))
-                    c.Board.Post("cook", Key(v), Prof.Cook, 3, p.transform.position.x, p.transform.position.y, p.transform.position.z, now, "", "station");
+                    c.Board.Post("cook", Key(v), Prof.Cook, Cook(cook, "HaveDoneItem") ? 5 : 3, p.transform.position.x, p.transform.position.y, p.transform.position.z, now, "", "station");
             }
         }
         public static bool Cook(CookingStation s, string method) { try { return (bool)AccessTools.Method(typeof(CookingStation), method).Invoke(s, null); } catch { return false; } }
@@ -191,8 +193,10 @@ namespace Jarldom
                 if (b.Body.GetInventory().GetAllItems().Where(Loot).Any(i => Stock.Destination(c, i, b.Pos) != null)) return new DepositTask();
                 b.NoStoreUntil = Time.time + 30; b.Say("Where do I put all this? (no stockpile for it)", 5);
             }
+            if (Time.time > b.NoRepairUntil && RepairTask.Worn(b).Count > 0) return new RepairTask();
             Prof prof = b.S.Prof;
             if (prof == Prof.Skald) return null; // skalds rest by day and play at dusk
+            if (prof == Prof.Builder && c.IsOwner && Compat.GhostCount(c.Position, c.Radius) > 0 && Gear.Tool(b, "hammer") != null && Time.time > b.NoBuildUntil) return new BuildTask();
             if (prof == Prof.Trader && c.R.Rank >= Rank.Village && Stock.Chests(c, b.Pos).Any(x => x.category != "treasury" && x.chest.GetInventory().GetAllItems().Count(Trade.Sellable) >= 3)) return new TradeTask();
             Func<Prof, bool> canDo = p => p == prof || p == Prof.Hauler && (prof == Prof.Hauler || Gear.Lacks(b, prof) != null || NothingFor(c, prof));
             string problem = null;
@@ -269,7 +273,7 @@ namespace Jarldom
         private GameObject _target; private Vector3 _at; private int _phase; private float _next, _waitUntil, _renew; private string _crop; private Vector3 _cropAt;
         private readonly List<ItemDrop> _collect = new List<ItemDrop>();
         public override bool Interruptible => _phase == 0;
-        public override string Debug(Brain b) => $"{Kind} #{O.Id} phase {_phase} target {(_target != null ? Utils.GetPrefabName(_target) + " " + _target.transform.position.ToString("F1") : "none")} near {(_target != null ? Near(b, 1.6f) : false)} approach {Approach(b):F1} solid {(_target != null ? Solid(_target, b.Pos)?.name + "@" + Solid(_target, b.Pos)?.bounds.center.ToString("F1") : "")} wait {Mathf.Max(0, _waitUntil - Time.time):0.0}";
+        public override string Debug(Brain b) => $"{Kind} #{O.Id} phase {_phase} target {(_target != null ? Utils.GetPrefabName(_target) + " " + _target.transform.position.ToString("F1") : "none")} near {(_target != null ? Near(b, 1.6f) : false)} approach {Approach(b):F1} solid {(_target != null ? Solid(_target, b.Pos)?.name + "@" + Solid(_target, b.Pos)?.bounds.center.ToString("F1") : "")}{(_source != null ? $" source {_source.transform.position:F1} carry {_carry} fetched {_fetched}" : "")} wait {Mathf.Max(0, _waitUntil - Time.time):0.0}";
         public WorkTask(Order o) { O = o; }
 
         public override void Start(Brain b)
@@ -479,7 +483,12 @@ namespace Jarldom
                 return;
             }
             if (_phase <= 3) { if (Collect(b)) return; _phase = 4; }
-            if (_phase == 4 && Kind == "harvest" && Work.Replant.TryGetValue(_crop ?? "", out var plant)) { if (!Replanting(b, plant)) Finish(b, true); return; }
+            if (_phase == 4 && Kind == "harvest")
+            {
+                if (!Work.Replant.TryGetValue(_crop ?? "", out var plant)) { b.S.Bump("replant:unknown " + _crop); Finish(b, true); return; }
+                if (!Replanting(b, plant)) Finish(b, true);
+                return;
+            }
             Finish(b, true);
         }
         private bool _seedsFetched; private Container _seedChest;
@@ -489,7 +498,7 @@ namespace Jarldom
             int have = bag.GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == plant.seed).Sum(i => i.m_stack);
             if (have < plant.amount)
             {
-                if (_seedsFetched) { b.Say("No seeds to replant with.", 4); return false; }
+                if (_seedsFetched) { b.Say("No seeds to replant with.", 4); b.S.Bump("replant:noseeds"); return false; }
                 if (_seedChest == null) _seedChest = Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury").Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == plant.seed));
                 if (_seedChest == null) { _seedsFetched = true; return true; }
                 if (Vector3.Distance(b.Pos, _seedChest.transform.position) > 2.4f) { if (!b.Move.Moving) b.Move.To(_seedChest.transform.position, 1.8f); if (b.Move.Failed) _seedsFetched = true; return true; }
@@ -499,17 +508,19 @@ namespace Jarldom
             }
             if (Vector3.Distance(b.Pos, _cropAt) > 1.6f) { if (!b.Move.Moving) b.Move.To(_cropAt, 1.0f); if (b.Move.Failed) return false; return true; }
             Heightmap hm = Heightmap.FindHeightmap(_cropAt);
-            if (hm == null || !hm.IsCultivated(_cropAt)) { b.Say("The ground here wants hoeing again.", 4); return false; }
+            if (hm == null || !hm.IsCultivated(_cropAt)) { b.Say("The ground here wants hoeing again.", 4); b.S.Bump("replant:notcultivated"); return false; }
             for (int left = plant.amount; left > 0;)
             {
                 ItemDrop.ItemData stack = bag.GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == plant.seed);
                 if (stack == null) break;
                 int n = Math.Min(left, stack.m_stack); bag.RemoveItem(stack, n); left -= n;
             }
-            GameObject planted = Object.Instantiate(plant.sapling, _cropAt, Quaternion.Euler(0, UnityEngine.Random.Range(0, 360f), 0));
+            Vector3 spot = new Vector3(_cropAt.x, ZoneSystem.instance.GetGroundHeight(_cropAt), _cropAt.z); // on the soil (a crop's own position can sit off it)
+            GameObject planted = Object.Instantiate(plant.sapling, spot, Quaternion.Euler(0, UnityEngine.Random.Range(0, 360f), 0));
             foreach (IPlaced placed in planted.GetComponentsInChildren<IPlaced>()) placed.OnPlaced();
             planted.GetComponent<Piece>()?.m_placeEffect.Create(_cropAt, Quaternion.identity);
             Body_.Anim(b.Body)?.SetTrigger("interact");
+            b.S.Bump("replanted");
             if (b.S.Count("harvests") >= 100 && string.IsNullOrEmpty(b.S.Byname)) { b.S.Byname = Names.Byname("farmer"); b.Colony.Log("byname", b.S.Name, b.S.Byname); }
             return false;
         }
@@ -581,7 +592,7 @@ namespace Jarldom
             if (_phase == 0 && _target.GetComponent<CookingStation>() is CookingStation done && Work.Cook(done, "HaveDoneItem"))
             {
                 // Cooked: take it off the fire (the station gives it out, beside us), then gather it.
-                if (Walking(b, 1.8f)) return;
+                if (Walking(b, 3.0f)) return; // (a station is used from a pace or two away: a fire keeps everyone back)
                 _target.GetComponent<ZNetView>().InvokeRPC("RPC_RemoveDoneItem", b.Pos, 1);
                 _waitUntil = Time.time + 0.5f;
                 if (!Work.Cook(done, "HaveDoneItem")) { _phase = 1; Kind_Collect = true; }
@@ -628,7 +639,7 @@ namespace Jarldom
             }
             if (_phase == 2)
             {
-                if (Walking(b, 1.8f)) return;
+                if (Walking(b, 3.0f)) return; // (a station is used from a pace or two away: a fire keeps everyone back)
                 ZNetView v = _target.GetComponent<ZNetView>();
                 ItemDrop.ItemData item = bag.GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == _carry);
                 if (item == null || v == null || !v.IsValid()) { Finish(b, true); return; }

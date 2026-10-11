@@ -20,7 +20,7 @@ namespace Jarldom
         // Each god's altar: a stone plinth with the god's sign on it.
         public static readonly (string god, string emblem, float scale, Vector3 offset, Vector3 turn)[] Altars =
         {
-            ("odin", "darkwood_raven", 0.45f, new Vector3(0, 1.0f, -0.65f), new Vector3(0, 0, 0)),
+            ("odin", "darkwood_raven", 0.4f, new Vector3(0, 1.0f, 99f), new Vector3(0, 0, 0)), // (z 99: the carving's far end, where the raven sits, over the plinth)
             ("thor", "StatueThor", 0.32f, new Vector3(0, 1.0f, 0), Vector3.zero),
             ("freyja", "StatueFreya", 0.32f, new Vector3(0, 1.0f, 0), Vector3.zero),
             ("njord", "Fish1", 1.6f, new Vector3(0, 1.15f, 0), new Vector3(0, 0, 90)),
@@ -78,7 +78,8 @@ namespace Jarldom
             {
                 GameObject e = Assets.Model(emblem, look.transform, Vector3.zero, turn, scale, r => !(r.name.ToLower().Contains("broken")));
                 Bounds eb = Assets.MeshBounds(look.transform, e);
-                e.transform.localPosition += new Vector3(offset.x - eb.center.x, sb.size.y - eb.min.y + 0.02f, offset.z - eb.center.z);
+                float dz = offset.z > 50 ? -(eb.max.z - 0.35f) : offset.z - eb.center.z;
+                e.transform.localPosition += new Vector3(offset.x - eb.center.x, sb.size.y - eb.min.y + 0.02f, dz);
             }
             GodInfo info = Tables.God(god);
             Finish(go, look, $"Altar of {info.Name}",
@@ -89,18 +90,32 @@ namespace Jarldom
 
         private static void Horn()
         {
-            GameObject pole = Assets.Find("wood_pole_log"), horn = Assets.Find("Morkhalla_StatuePieceHorn");
+            GameObject pole = Assets.Find("wood_pole_log"), horn = Assets.Find("TrophyDeer");
             GameObject go = Base("wood_pole_log", HornName);
             if (go == null || pole == null) return;
             var look = new GameObject("new"); look.transform.SetParent(go.transform, false);
             GameObject p = Assets.Model(pole, look.transform, Vector3.zero, Quaternion.identity, 1f);
             p.transform.localScale = new Vector3(1, 0.85f, 1);
             Bounds pb = Assets.MeshBounds(look.transform, p); p.transform.localPosition += Vector3.up * -pb.min.y;
-            if (horn != null)
+            // A great curved horn of bone, banded in iron, hung across the post: tapering segments along an arc, in the antler's own material.
+            Material wood = pole.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null && m.HasProperty("_Color"));
+            Material bone = Plain(wood, new Color(0.62f, 0.55f, 0.42f)), iron = Plain(wood, new Color(0.22f, 0.21f, 0.2f));
+            var hornRoot = new GameObject("horn"); hornRoot.transform.SetParent(look.transform, false);
+            hornRoot.transform.localPosition = new Vector3(-0.55f, pb.size.y * 0.78f, -0.32f);
+            const int segments = 16;
+            Vector3 Point(float t) { float ang = Mathf.Lerp(-15f, 80f, t) * Mathf.Deg2Rad; return new Vector3(Mathf.Sin(ang) * 0.7f + t * 0.5f, (1 - Mathf.Cos(ang)) * 0.55f, 0); }
+            for (int i = 0; i < segments; i++)
             {
-                GameObject h = Assets.Model(horn, look.transform, Vector3.zero, Quaternion.Euler(0, 90, 0), 0.25f);
-                Bounds hb = Assets.MeshBounds(look.transform, h);
-                h.transform.localPosition += new Vector3(-hb.center.x, pb.size.y * 0.85f - hb.center.y, -hb.center.z + 0.15f);
+                float t0 = i / (float)segments, t1 = (i + 1) / (float)segments;
+                Vector3 p0 = Point(t0), p1 = Point(t1), dir = p1 - p0;
+                float width = Mathf.Lerp(0.045f, 0.2f, t1 * t1);                  // narrow mouthpiece, wide bell
+                var seg = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                Object.DestroyImmediate(seg.GetComponent<Collider>());
+                seg.transform.SetParent(hornRoot.transform, false);
+                seg.transform.localPosition = (p0 + p1) / 2;
+                seg.transform.localRotation = Quaternion.FromToRotation(Vector3.up, dir.normalized);
+                seg.transform.localScale = new Vector3(width, dir.magnitude * 0.55f, width);   // (a cylinder is 2 long: a little overlap)
+                seg.GetComponent<MeshRenderer>().sharedMaterial = i == 3 || i == 11 || i == segments - 1 ? iron : bone;
             }
             Finish(go, look, "War horn", "Sounds by itself when raiders come near the colony, or blow it yourself: those who can't fight run to the great hall and shut the door, guards go to their posts, the rest fall back to the pillars. Blow it again to sound the all-clear.",
                 Piece.PieceCategory.Misc, ("Wood", 4), ("TrophyDeer", 1), ("LeatherScraps", 2));
@@ -172,6 +187,17 @@ namespace Jarldom
         }
 
         // ---- plumbing ----
+        // A game material in a plain colour (its texture taken away): for small made-up parts.
+        private static Material Plain(Material from, Color color)
+        {
+            if (from == null) return null;
+            var m = new Material(from) { name = "JarldomPlain", hideFlags = HideFlags.HideAndDontSave };
+            if (m.HasProperty("_MainTex")) m.SetTexture("_MainTex", null);
+            if (m.HasProperty("_BumpMap")) m.SetTexture("_BumpMap", null);
+            m.color = color;
+            Assets.Owned.Add(m);
+            return m;
+        }
         private static GameObject Base(string baseName, string name)
         {
             GameObject basePrefab = Assets.Find(baseName);

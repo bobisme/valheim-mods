@@ -15,7 +15,7 @@ namespace Jarldom
         public Task Task; public Activity Activity = Activity.Idle; public string Doing = "";
         public string LastAttacker = ""; public Character Foe; private float _foeUntil;
         public bool KeepDoorsOpen; public float Stamina = 1f;
-        public bool Fighting, Combat_Bow, Fled; public Character FightTarget; public float FleeUntil;
+        public bool Fighting, Combat_Bow, Fled; public int Swings, SwingsStarted; public string CombatNote = ""; public float BlockUntil, NoBlockUntil; public Character FightTarget; public float FleeUntil;
         private bool _dirty; private float _nextSave, _nextNeeds, _nextGear, _nextFoes, _nextMoodSync, _nextWork, _born;
         private double _lastNeeds;
         private readonly List<Meal> _meals = new List<Meal>();
@@ -29,8 +29,9 @@ namespace Jarldom
         {
             Body = h; Ai = ai; View = h.GetComponent<ZNetView>(); Move = new Mover(this); _body = h.GetComponent<Rigidbody>(); _born = Time.time;
             if (_body != null && _body.isKinematic) _body.isKinematic = false; // (a body left seated when ownership went elsewhere)
+            Poses.Clear(h);
         }
-        public float NoStoreUntil, NoFoodUntil; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f;
+        public float NoStoreUntil, NoFoodUntil, NoRepairUntil, NoBuildUntil; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f;
         public bool Alive => Body != null && !Body.IsDead() && View != null && View.IsValid() && View.IsOwner() && S != null;
         public Vector3 Pos => Body.transform.position;
         public double Now => ZNet.instance.GetTimeSeconds();
@@ -94,6 +95,7 @@ namespace Jarldom
             if (Held == null) return;
             ZSyncAnimation anim = Body_.Anim(Body);
             anim?.SetBool(Held.Anim, false);
+            Poses.Clear(Body);
             Vector3 off = Held.Point != null ? Held.Point.position + Held.Point.forward * 0.9f + Vector3.up * 0.3f : Pos;
             Held = null;
             if (_body != null) { _body.isKinematic = false; _body.linearVelocity = Vector3.zero; }

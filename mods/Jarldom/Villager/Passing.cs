@@ -4,6 +4,42 @@ using UnityEngine;
 
 namespace Jarldom
 {
+    // The Player rig's held poses. "wakeup" is the reborn-on-the-ground pose a player's own code switches off after a second (ours never
+    // would); a bed or chair flag can outlive a reload. Either leaves the body frozen (it can't move or swing). Cleared when a brain starts,
+    // when a villager stands up, and on every game for bodies nobody holds seated.
+    internal static class Poses
+    {
+        private static readonly string[] Sticky = { "wakeup", "attach_bed", "attach_chair", "attach_throne", "attach_dragon" };
+        public static void Clear(Humanoid h)
+        {
+            if (h == null) return;
+            ZSyncAnimation z = Body_.Anim(h);
+            Animator an = h.GetComponentInChildren<Animator>();
+            foreach (string b in Sticky)
+            {
+                z?.SetBool(b, false);
+                if (an != null && an.parameters.Any(p => p.name == b)) an.SetBool(b, false);
+            }
+            ZNetView v = h.GetComponent<ZNetView>();
+            if (v != null && v.IsValid() && v.IsOwner() && v.GetZDO().GetBool(ZDOVars.s_wakeup, true)) v.GetZDO().Set(ZDOVars.s_wakeup, false);
+        }
+        private static float _next;
+        public static void Tick()
+        {
+            if (Time.time < _next) return;
+            _next = Time.time + 1f;
+            foreach (Humanoid h in Villagers.Bodies())
+            {
+                Brain b = Villagers.Brain(h);
+                if (b != null && b.Held != null) continue;      // really sitting or asleep
+                Rigidbody body = h.GetComponent<Rigidbody>();
+                if (b == null && body != null && body.isKinematic) continue; // another game holds it seated (its kinematic body says so)
+                Animator an = h.GetComponentInChildren<Animator>();
+                if (an != null && (an.GetBool("wakeup") || b != null && (an.GetBool("attach_bed") || an.GetBool("attach_chair")))) Clear(h);
+            }
+        }
+    }
+
     // Villagers walk through players, each other, Gary and Quad's companions (as Gary and the companions do): bodies that shove each other
     // clog doorways and push players about. Each game sets it for the bodies it has, twice a second; fighting and arrows don't use these contacts.
     internal static class Passing

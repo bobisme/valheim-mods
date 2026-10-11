@@ -159,9 +159,19 @@ namespace Jarldom
             go.transform.position = at;
             var t = go.AddComponent<TMPro.TextMeshPro>();
             t.text = text; t.fontSize = 4; t.color = color; t.alignment = TMPro.TextAlignmentOptions.Center;
-            if (GameUi.Norse != null) t.font = GameUi.Norse;
+            TMPro.TMP_FontAsset font = GameUi.Norse ?? WorldFont();
+            if (font != null) t.font = font;
             go.AddComponent<Billboard>();
             return go;
+        }
+        private static TMPro.TMP_FontAsset _font;
+        // The game's Norse font for words in the world (once: not on a timer), whether or not a window has been opened yet.
+        private static TMPro.TMP_FontAsset WorldFont()
+        {
+            if (_font != null) return _font;
+            var all = Resources.FindObjectsOfTypeAll<TMPro.TMP_FontAsset>();
+            _font = all.FirstOrDefault(f => f.name.StartsWith("Norse")) ?? all.FirstOrDefault(f => f.name.Contains("Averia")) ?? all.FirstOrDefault();
+            return _font;
         }
         private sealed class Billboard : MonoBehaviour
         {

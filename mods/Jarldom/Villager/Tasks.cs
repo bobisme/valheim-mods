@@ -179,6 +179,111 @@ namespace Jarldom
         }
     }
 
+    // Worn gear to a station that can mend it, the game's way: the recipe's own station (or its repair station), at the recipe's level.
+    internal sealed class RepairTask : Task
+    {
+        private CraftingStation _at;
+        public static List<ItemDrop.ItemData> Worn(Brain b) => b.Body.GetInventory().GetAllItems()
+            .Where(i => i.m_shared.m_useDurability && i.m_shared.m_canBeReparied && i.m_durability < i.GetMaxDurability() * 0.35f).ToList();
+        public static bool Can(CraftingStation st, ItemDrop.ItemData item)
+        {
+            Recipe recipe = ObjectDB.instance?.GetRecipe(item);
+            if (st == null || recipe == null || recipe.m_craftingStation == null && recipe.m_repairStation == null) return false;
+            bool right = recipe.m_repairStation != null && recipe.m_repairStation.m_name == st.m_name || recipe.m_craftingStation != null && recipe.m_craftingStation.m_name == st.m_name;
+            return right && Mathf.Min(st.GetLevel(), 4) >= recipe.m_minStationLevel;
+        }
+        public static CraftingStation Station(Brain b, List<ItemDrop.ItemData> worn) =>
+            b.Colony.PiecesIn(b.Colony.Radius).Select(p => p.GetComponent<CraftingStation>()).Where(st => st != null && worn.Any(i => Can(st, i)))
+                .OrderBy(st => Vector3.Distance(st.transform.position, b.Pos)).FirstOrDefault();
+        public override void Start(Brain b)
+        {
+            Doing = "taking worn gear to be mended";
+            _at = Station(b, Worn(b));
+            if (_at == null) { Done = true; b.NoRepairUntil = Time.time + 120; return; }
+            b.Move.To(_at.transform.position, 2f);
+        }
+        public override void Tick(Brain b)
+        {
+            if (_at == null || b.Move.Failed) { Done = true; b.NoRepairUntil = Time.time + 120; return; }
+            if (Vector3.Distance(b.Pos, _at.transform.position) > 3f) { if (!b.Move.Moving) b.Move.To(_at.transform.position, 2f); return; }
+            int n = 0;
+            foreach (ItemDrop.ItemData item in Worn(b).Where(i => Can(_at, i)))
+            {
+                b.Body.RaiseSkill(Skills.SkillType.Crafting, 1f - item.m_durability / item.GetMaxDurability());
+                item.m_durability = item.GetMaxDurability();
+                n++;
+            }
+            if (n > 0) { _at.m_repairItemDoneEffects.Create(_at.transform.position, Quaternion.identity); b.Body.GetInventory().m_onChanged?.Invoke(); b.Say(n == 1 ? "Good as new." : $"All {n} mended.", 3); }
+            Done = true;
+        }
+    }
+
+    // Building a planned ghost (BuildOrders): the piece's exact materials from the stores, then the hammer at the spot. Paid in full or not
+    // at all: nothing is taken from the bag until the piece stands.
+    internal sealed class BuildTask : Task
+    {
+        private string _id, _prefab; private Vector3 _at; private Piece _piece; private int _phase; private float _next;
+        private List<(string item, int amount)> _needs;
+        public override bool Interruptible => _phase == 0;
+        public override void Start(Brain b)
+        {
+            string[] next = Compat.NextGhosts(b.Colony.Position, b.Colony.Radius, 1);
+            if (next.Length == 0) { Done = true; b.NoBuildUntil = Time.time + 30; string[] why = Compat.GhostBlockers(b.Colony.Position, b.Colony.Radius); if (why.Length > 0) b.Say("I can't build the plans: " + why[0].Replace("|", " ").Trim(), 6); return; }
+            string[] f = next[0].Split('|');
+            _id = f[0]; _prefab = f[1];
+            _at = new Vector3(float.Parse(f[2], System.Globalization.CultureInfo.InvariantCulture), float.Parse(f[3], System.Globalization.CultureInfo.InvariantCulture), float.Parse(f[4], System.Globalization.CultureInfo.InvariantCulture));
+            _piece = Assets.Find(_prefab)?.GetComponent<Piece>();
+            if (_piece == null) { Done = true; return; }
+            _needs = _piece.m_resources.Where(r => r.m_resItem != null && !r.m_upgraderResource && r.m_amount > 0).Select(r => (r.m_resItem.name, r.m_amount)).ToList();
+            Doing = "building " + Localization.instance.Localize(_piece.m_name).ToLower();
+        }
+        private int Have(Brain b, string item) => b.Body.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == item).Sum(i => i.m_stack);
+        public override void Tick(Brain b)
+        {
+            if (Done) return;
+            if (_phase == 0)
+            {
+                // Fetch what's missing from the stores; refuse the piece if the stores don't hold it all.
+                var missing = _needs.Where(n => Have(b, n.item) < n.amount).ToList();
+                if (missing.Count == 0) { _phase = 1; b.Move.To(_at, 2.5f); return; }
+                var chests = Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).ToList();
+                foreach (var (item, amount) in missing)
+                    if (chests.Sum(x => x.chest.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == item).Sum(i => i.m_stack)) + Have(b, item) < amount)
+                    { Done = true; b.NoBuildUntil = Time.time + 60; b.Say($"The stores have too little {Localization.instance.Localize(Assets.Find(item)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name ?? item).ToLower()} to build the plans.", 6); return; }
+                var (want, count) = missing[0];
+                Container from = chests.Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want));
+                if (from == null) { Done = true; return; }
+                if (Vector3.Distance(b.Pos, from.transform.position) > 2.4f) { if (!b.Move.Moving) b.Move.To(from.transform.position, 1.8f); if (b.Move.Failed) Done = true; return; }
+                ItemDrop.ItemData stack = from.GetInventory().GetAllItems().First(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want);
+                if (Stock.Take(from, b.Body.GetInventory(), stack, count - Have(b, want)) == 0) { Done = true; return; }
+                return;
+            }
+            if (Vector3.Distance(b.Pos, _at) > 3.5f) { if (!b.Move.Moving) b.Move.To(_at, 2.5f); if (b.Move.Failed) { Done = true; b.NoBuildUntil = Time.time + 20; } return; }
+            b.Move.Stop();
+            Vector3 d = _at - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized);
+            if (Time.time < _next) return;
+            _next = Time.time + 1.2f / Mathf.Max(0.4f, b.Productivity());
+            ItemDrop.ItemData hammer = Gear.Tool(b, "hammer");
+            if (hammer == null) { Done = true; return; }
+            if (!b.Body.IsItemEquiped(hammer)) b.Body.EquipItem(hammer, false);
+            Body_.Anim(b.Body)?.SetTrigger("swing_hammer");
+            if (++_phase < 3) return; // a couple of blows, then it stands
+            if (_needs.Any(n => Have(b, n.item) < n.amount)) { Done = true; return; }
+            if (!Compat.PlaceGhost(_id)) { Done = true; b.NoBuildUntil = Time.time + 10; return; }
+            Inventory bag = b.Body.GetInventory();
+            foreach (var (item, amount) in _needs)
+                for (int left = amount; left > 0;)
+                {
+                    ItemDrop.ItemData st = bag.GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == item);
+                    if (st == null) break;
+                    int n = Math.Min(left, st.m_stack); bag.RemoveItem(st, n); left -= n;
+                }
+            b.Body.RaiseSkill(Skills.SkillType.Crafting, 0.5f);
+            b.S.Bump("built");
+            Done = true;
+        }
+    }
+
     // A trade run: the colony's surplus valuables to the traders, coins back at the traders' own prices (never better), a day later.
     internal sealed class TradeTask : Task
     {

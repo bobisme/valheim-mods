@@ -50,7 +50,7 @@ namespace Jarldom
         }
 
         // Once a second: armour on, the right thing in hand.
-        public static string Want(Brain b) => b.Task is WorkTask w ? w.Tool : Combat.Busy(b) || b.HasFoe ? (b.Combat_Bow ? "bow" : "weapon") : "";
+        public static string Want(Brain b) => b.Task is BuildTask ? "hammer" : b.Task is WorkTask w ? w.Tool : Combat.Busy(b) || b.HasFoe ? (b.Combat_Bow ? "bow" : "weapon") : "";
         public static void Maintain(Brain b)
         {
             Humanoid h = b.Body;

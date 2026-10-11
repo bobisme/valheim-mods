@@ -79,6 +79,9 @@ namespace Jarldom
         private bool PlanDoor(Vector3 me)
         {
             Vector3 goal = Nav.Valid(out Vector3 g, _goal, 2.5f) ? g : _goal; // a bed or a seat stands off the navmesh
+            // Doors only matter going into or out of a room (outdoors, a missing path is something else: a crop off the navmesh, a cliff).
+            Room from = _b.Colony?.RoomAt(me), to = _b.Colony?.RoomAt(goal);
+            if (_b.Colony != null && from == to) { LastDoorPlan = from == null ? "outdoors" : "same room"; return false; }
             int mask = DoorMask;
             int n = Physics.OverlapSphereNonAlloc(me, 16f, Hits, mask);
             var doors = new HashSet<Door>();
@@ -92,7 +95,8 @@ namespace Jarldom
                 if (!Nav.Valid(out a, a, 1.5f) || !Nav.Valid(out b, b, 1.5f)) { LastDoorPlan += "; no ground by a door"; continue; }
                 foreach (var (near, far) in new[] { (a, b), (b, a) })
                 {
-                    if (!Pathfinding.instance.HavePath(me, near, _b.Ai.m_pathAgentType)) { LastDoorPlan += $"; no way to {near:F1}"; continue; }
+                    bool sameSide = _b.Colony != null && _b.Colony.RoomAt(me) is Room inside && Geometry.Inside(inside.Xz, near.x, near.z) && Utils.DistanceXZ(me, near) < 15f;
+                    if (!Pathfinding.instance.HavePath(me, near, _b.Ai.m_pathAgentType) && !sameSide) { LastDoorPlan += $"; no way to {near:F1}"; continue; }
                     // The far side must lead to the goal, or at least be close to it in the same room (the navmesh behind a shut door can be cut off).
                     bool sameRoom = _b.Colony != null && _b.Colony.RoomAt(far) is Room r && Geometry.Inside(r.Xz, goal.x, goal.z);
                     if (!Pathfinding.instance.HavePath(far, goal, _b.Ai.m_pathAgentType) && Utils.DistanceXZ(far, goal) > 3f && !(sameRoom && Utils.DistanceXZ(far, goal) < 15f)) { LastDoorPlan += $"; no way from {far:F1}"; continue; }
@@ -154,7 +158,7 @@ namespace Jarldom
 
         private void Unstick(Vector3 me, Vector3 dir)
         {
-            if (Vector3.Distance(me, _lastProgressPos) > 0.75f) { _lastProgressPos = me; _lastProgressAt = Time.time; _stuckStage = 0; return; }
+            if (Utils.DistanceXZ(me, _lastProgressPos) > 0.75f) { _lastProgressPos = me; _lastProgressAt = Time.time; _stuckStage = 0; return; }
             float stuck = Time.time - _lastProgressAt;
             if (stuck > 2.5f && _stuckStage == 0) { _stuckStage = 1; _b.Body.Jump(); }
             else if (stuck > 5f && _stuckStage == 1) { _stuckStage = 2; _nextPath = 0; _b.Ai.MoveTowards(Quaternion.Euler(0, Random.value < 0.5f ? 90 : -90, 0) * dir.normalized, false); }

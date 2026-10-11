@@ -58,9 +58,11 @@ namespace Jarldom
             Synced?.Update();
             Tools.Tick();
             Guard(Net.Tick);
+            Guard(Net.KeepOwners);
             Guard(Colony.TickAll);
             Guard(Villagers.Tick);
             Guard(Passing.Tick);
+            Guard(Poses.Tick);
             Guard(Ui.Windows.Tick);
             Guard(Designate.Tick);
             Guard(Overlay_.Tick);

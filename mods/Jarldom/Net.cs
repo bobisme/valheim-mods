@@ -16,6 +16,8 @@ namespace Jarldom
 
         // Whether the host has Jarldom too (a host without it deletes our pieces and villagers as soon as it loads them).
         public static bool HostHasJarldom => ZNet.instance == null || ZNet.instance.IsServer() || _hostAnswered;
+        // On the host: the players whose games said hello (have Jarldom). The others can't run a colony or a villager.
+        public static readonly HashSet<long> WithJarldom = new HashSet<long>();
         private static bool _hostAnswered; private static float _nextHello;
         public static void Tick()
         {
@@ -38,10 +40,23 @@ namespace Jarldom
             rpc.Register<string, string, string>(VillagerRpc, (sender, vid, action, arg) => { Brain b = Villagers.ByVid(vid); if (b != null) Plugin.Guard(() => b.Command(action, arg)); });
             rpc.Register<string>(HelloRpc, (sender, version) =>
             {
-                if (ZNet.instance != null && ZNet.instance.IsServer()) { if (sender != ZDOMan.GetSessionID()) ZRoutedRpc.instance.InvokeRoutedRPC(sender, HelloRpc, Plugin.Version); }
+                if (ZNet.instance != null && ZNet.instance.IsServer()) { WithJarldom.Add(sender); if (sender != ZDOMan.GetSessionID()) ZRoutedRpc.instance.InvokeRoutedRPC(sender, HelloRpc, Plugin.Version); }
                 else { if (!_hostAnswered) Plugin.Log($"Jarldom: the host has Jarldom {version}"); _hostAnswered = true; }
             });
             rpc.Register<Vector3>(ValkyrieRpc, (sender, at) => Plugin.Guard(() => Valkyrie.Fly(at)));
+        }
+        // The game gives an object to whichever nearby player it likes; one without Jarldom would leave the colony or a villager frozen.
+        // The host takes such objects back for itself (when it has them loaded), every few seconds.
+        private static float _nextOwners;
+        public static void KeepOwners()
+        {
+            if (ZNet.instance == null || !ZNet.instance.IsServer() || ZNet.instance.IsDedicated() || Time.time < _nextOwners) return;
+            _nextOwners = Time.time + 3;
+            long me = ZDOMan.GetSessionID();
+            WithJarldom.Add(me);
+            bool Lacks(long owner) => owner != 0 && owner != me && !WithJarldom.Contains(owner) && ZNet.instance.GetPeer(owner) != null;
+            foreach (Colony c in Colony.All.ToList()) if (Lacks(c.Z.GetOwner())) { c.View.ClaimOwnership(); Plugin.Log($"Jarldom: took {c.R.Name} back from a game without Jarldom"); }
+            foreach (Humanoid h in Villagers.Bodies().ToList()) { ZNetView v = h.GetComponent<ZNetView>(); if (Lacks(v.GetZDO().GetOwner())) v.ClaimOwnership(); }
         }
         public static void Unregister() { if (ZRoutedRpc.instance != null) Remove(ZRoutedRpc.instance); _on = null; }
         private static void Remove(ZRoutedRpc rpc)
