@@ -207,6 +207,7 @@ namespace Jarldom
                 Ai.LookTowards((gary.transform.position - Pos).normalized);
                 Say(new[] { "Who's a good greydwarf?", "Hello, Gary.", "Gary! Have you been eating the resin again?" }[UnityEngine.Random.Range(0, 3)], 4);
             }
+            if (Body.GetHealthPercentage() < 0.1f && S.InjuredUntil < now && Captives.Take(this)) return; // (dragged off by the Fulings)
             if (Body.GetHealthPercentage() < 0.1f && S.InjuredUntil < now && !Combat.Busy(this)) { S.InjuredUntil = now + Clock.DayLength / (Colony.Best(RoomType.HealersHouse)?.Ok == true ? 2 : 1); Colony.Log("injured", S.Name, ""); Jarldom.Mood.Add(S, "injured", now); }
             if (S.InjuredUntil > 0 && S.InjuredUntil < now) { S.InjuredUntil = 0; Jarldom.Mood.Remove(S, "injured"); }
             // A bed that is gone (broken, taken down) is no longer theirs, once its area is loaded and it still can't be found.

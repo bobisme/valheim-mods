@@ -186,6 +186,13 @@ namespace Jarldom.Ui
             float y = 4;
             var living = _c.R.Roster.Where(r => r.State == SoulState.Active).OrderBy(r => r.Name).ToList();
             if (living.Count == 0) return Text(list, "No one lives here yet. Raise renown (build, beds with comfort, deeds) and Odin will send the fallen.", y, 16, GameUi.Dim);
+            foreach (var held in Captives.Held(_c).ToList())
+            {
+                string vid = held.vid;
+                y = Text(list, $"<color=#ff8c59>{held.name} is held at a Fuling camp</color>, {Mathf.RoundToInt(Utils.DistanceXZ(held.at, _c.Position))} m to the {ScoutTask.Compass(held.at - _c.Position)} (pinned on the map), {held.daysLeft} day(s) left. Go there to free them, or:", y, 16, GameUi.Text);
+                float rx = 8; Btn(list, $"Pay their ransom ({Captives.Ransom(_c)} coins)", ref rx, y, () => Net.Act(_c, "ransom", vid));
+                y += 52;
+            }
             Skills.SkillType? master = Visitors.Master(_c);
             if (master != null) y = Text(list, $"A master of {Visitors.Skill(master.Value)} is in the hall today: {Visitors.TrainCost} coins teaches one of them +10 (Teach).", y, 16, GameUi.Good);
             foreach (RosterRow row in living)

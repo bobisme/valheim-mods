@@ -79,6 +79,7 @@ namespace Jarldom
             Guard(Ui.Windows.Tick);
             Guard(Designate.Tick);
             Guard(Overlay_.Tick);
+            Guard(Captives.Tick);
         }
         private static float _lastError;
         internal static void Guard(Action a)

@@ -207,6 +207,7 @@ namespace Jarldom
             Saboteur.Dawn(this);
             Spirit.Dawn(this);
             Visitors.Dawn(this, day);
+            Captives.Dawn(this);
             if (day - R.LastThing >= 5 && Population >= 3) Thing.Call(this, day);
         }
         private void Dusk(int day)
@@ -254,7 +255,7 @@ namespace Jarldom
             float wait = Plugin.Instance.RespawnSeconds.Value;
             foreach (Fallen f in R.Fallen.ToList())
             {
-                if (now - f.At < wait) continue;
+                if (now - f.At < wait || Captives.Is(f)) continue; // (a captive comes home only when freed)
                 VillagerState s;
                 try { s = VillagerState.Load(f.State); } catch { s = null; }
                 if (s == null) { R.Fallen.Remove(f); continue; }

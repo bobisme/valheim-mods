@@ -9,7 +9,7 @@ namespace Jarldom
     // What players ask of the colony (through the window, the hammer, the altars), carried out by the colony owner.
     internal sealed partial class Colony
     {
-        private static readonly HashSet<string> Open = new HashSet<string> { "offer", "horn", "bogpaid", "gone", "away", "log", "heraldslain" }; // anyone may pray or blow the horn
+        private static readonly HashSet<string> Open = new HashSet<string> { "offer", "horn", "bogpaid", "gone", "away", "log", "heraldslain", "rescue" }; // anyone may pray or blow the horn
         public bool AllowedName(string who) => string.IsNullOrEmpty(who) || R.Founder == 0 || who == R.FounderName || R.Allowed.Contains(who) || R.Allowed.Contains("*");
 
         public void Handle(string action, string arg, string who)
@@ -48,6 +48,8 @@ namespace Jarldom
                 case "craft": { int n = Int(a, 1); string key = Crafts.Prefix + a[0]; int now = R.Flag(key) + n; if (now > 0) R.Flags[key] = Math.Min(now, 99); else R.Flags.Remove(key); } break;
                 case "tribute": Tribute.Pay(this, who); break;
                 case "train": Visitors.Train(this, a[0], who); break;
+                case "rescue": Captives.Free(this, a[0], Get(a, 1) == "" ? who : Get(a, 1)); break;
+                case "ransom": Captives.Free(this, a[0], "ransom"); break;
                 case "hire": Visitors.Hire(this, who); break;
                 case "heraldslain": Tribute.HeraldSlain(this); break;
                 case "away": break; // (logged by the trader; the record follows from SoulAway)
