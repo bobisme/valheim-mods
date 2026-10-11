@@ -7,7 +7,8 @@ using Object = UnityEngine.Object;
 namespace Jarldom
 {
     // Marking rooms and zones: with the hammer's "Mark rooms and zones" chosen, a click marks a corner where the building ghost stands;
-    // clicking the first corner again closes the outline and asks what it is. Backspace takes back the last corner.
+    // clicking the first corner again closes the outline and asks what it is. Backspace takes back the last corner. Ctrl+Shift+click on
+    // a room's floor finds the room from its walls at once.
     internal static class Designate
     {
         private static readonly AccessTools.FieldRef<Player, GameObject> Ghost = AccessTools.FieldRefAccess<Player, GameObject>("m_placementGhost");
@@ -24,8 +25,10 @@ namespace Jarldom
                 return sel != null && sel.gameObject.name == Pieces.DesignateName;
             }
         }
+        private static float _leakUntil;
         public static void Tick()
         {
+            if (_leakUntil > 0 && Time.time > _leakUntil && Corners.Count == 0) { _leakUntil = 0; Draw(); } // (the red post where a found room leaked, gone after a while)
             if (!Active) { if (Corners.Count > 0 && !Ui.RoomPicker.IsOpen) Clear(); return; }
             if (Input.GetKeyDown(KeyCode.Backspace) && Corners.Count > 0 && !GameUi.Typing) { Corners.RemoveAt(Corners.Count - 1); Draw(); }
             // E on a marked room or zone (no outline being drawn): what it is, and change or remove it.
@@ -57,6 +60,20 @@ namespace Jarldom
             Vector3 at = ghost.transform.position;
             Colony c = Colony.Nearest(at, Renown.ZoneReach + 20);
             if (c == null) { p.Message(MessageHud.MessageType.Center, "Rooms and zones belong to a colony: raise High-seat pillars first."); return; }
+            // Ctrl+Shift+click on a room's floor: the room found from its walls in one go.
+            if (Corners.Count == 0 && (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
+            {
+                RoomFind.Result found = RoomFind.Find(at);
+                if (found.Xz == null)
+                {
+                    p.Message(MessageHud.MessageType.Center, $"No room found here: {found.Why}." + (found.Leak != null ? " The red post is where it got out." : ""));
+                    if (found.Leak is Vector3 leak) { foreach (GameObject g in _posts) if (g != null) Object.Destroy(g); _posts.Clear(); _posts.Add(Overlay_.Post(leak, new Color(1f, 0.25f, 0.2f, 0.95f), 4f)); _leakUntil = Time.time + 20f; }
+                    return;
+                }
+                p.Message(MessageHud.MessageType.TopLeft, $"Found a room of {Geometry.Area(found.Xz):0} m², {found.Doors} door{(found.Doors == 1 ? "" : "s")}: what is it?");
+                Ui.RoomPicker.Open(c, found.Xz, found.Floor);
+                return;
+            }
             // The same spot twice: a round work zone about it (a woodlot, hunting grounds: work that has a middle more than edges).
             if (Corners.Count == 1 && Utils.DistanceXZ(at, Corners[0]) < 1.2f)
             {

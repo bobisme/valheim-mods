@@ -897,6 +897,14 @@ namespace Jarldom
                         output(new JObject { ["mine"] = $"{Plugin.Version} data {Plugin.DataVersion}", ["mismatch"] = Versions.Mismatch, ["who"] = Versions.Who, ["recordRevision"] = c?.Z?.DataRevision ?? 0 });
                         break;
                     }
+                case "roomfind":
+                    {
+                        // Test: the room found from a spot on its floor (as Ctrl+Shift+click with the marker), without marking it.
+                        var f = RoomFind.Find(new Vector3(F(a[2]), F(a[3]), F(a[4])));
+                        output(new JObject { ["found"] = f.Xz != null, ["why"] = f.Why, ["doors"] = f.Doors, ["area"] = f.Xz != null ? Math.Round(Geometry.Area(f.Xz), 1) : 0, ["corners"] = f.Xz != null ? f.Xz.Count / 2 : 0,
+                            ["outline"] = f.Xz != null ? string.Join(" ", Enumerable.Range(0, f.Xz.Count / 2).Select(k => $"{f.Xz[2 * k]:0.#},{f.Xz[2 * k + 1]:0.#}")) : "", ["leak"] = f.Leak != null ? V(f.Leak.Value) : null });
+                        break;
+                    }
                 case "fallen": output(new JObject { ["now"] = c.Now, ["respawn"] = Plugin.Instance.RespawnSeconds.Value, ["fallen"] = new JArray(c.R.Fallen.Select(f => $"{c.R.Row(f.Vid)?.Name ?? f.Vid}: {f.Killer}, back in {f.At + Plugin.Instance.RespawnSeconds.Value - c.Now:0} s")) }); break;
                 case "rates":
                     output(new JObject(Enum.GetValues(typeof(Prof)).Cast<Prof>().Select(p => new JProperty(p.ToString(), new JObject(new JProperty("hours", c.R.Flag("worked:" + p) / 10f), new JProperty("perHour", new JObject(CatchUp.Rates(c, p).Select(kv => new JProperty(kv.Key, Math.Round(kv.Value, 2))))))))));
