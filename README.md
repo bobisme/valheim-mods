@@ -15,10 +15,16 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
   away. Ranks (camp, homestead, hamlet, village, jarldom, hold) need people and rooms, and raise the cap and radius.
 - **Rooms and zones**: hammer → Misc → *Mark rooms and zones*, click the corners, click the first again, choose what it is. Walls
   (80% of each edge), roof (90%), a door and what's inside are checked and graded D to S; with the hammer out the overlay shows rooms,
-  zones and wall gaps. Zones: woodlot, quarry, fields, foraging and hunting grounds, fishing dock, guard post, sacred bog.
-- **Work** comes from a job board of leases (no job taken twice): felling, mining, harvesting and replanting, foraging, hauling to
-  stockpiles (choose each chest's category in the Rooms tab), guarding, hunting, fishing, feeding fires, smelters and cooking stations.
-  Without the gear their profession needs, villagers haul and say why.
+  zones and wall gaps; **E** on a marked room or zone (marker out) to check it, change what it is or remove it. Rooms in houses of
+  storeys measure their own ceiling. Zones: woodlot, quarry, fields, foraging and hunting grounds, fishing dock, guard post, sacred
+  bog, pasture.
+- **Work** comes from a job board of leases (no job taken twice): felling, clearing stumps and planting saplings (a tree to every
+  30 m² of woodlot), mining, harvesting, hoeing, sowing and replanting, foraging, hauling to stockpiles (choose each chest's category in
+  the Rooms tab), guarding, hunting, fishing, feeding fires, smelters (fuel first) and cooking stations, brewing mead bases at the mead
+  ketill and keeping fermenters filled and tapped, **commissions** (Work tab: smiths at the forge and workbench, cooks at the cauldron,
+  from the stores), healers tending the injured (twice as well in a healer's house), scouts ranging past the edge and filling in the
+  map, herders feeding a pasture's tame beasts and culling the surplus (never named or young ones). Without the gear their profession
+  needs, villagers haul and say why.
 - **The colony's own ground**: villagers take beds only inside the colony's rooms or within 15 m of the pillars, and pick up what lies
   about only in its rooms, zones and by the pillars, so a neighbour's base inside the radius is left alone.
 - **Daily life**: work by day, the great hall at dusk (a seat, food, gossip about things that really happened), their own bed at night
@@ -29,6 +35,10 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
   into a sacred bog (favour without end), gilded high seat and banners. **The Thing** meets every five days with petitions.
   **Ascension**: a worthy villager (100 worth) goes up on the funeral pyre at dusk with grave goods.
 - **Raids** near the colony sound the war horn and grow with renown; fighters take guard posts, the rest run for the great hall.
+  **The Fulings** (hamlet and up) send a herald now and then: pay from the hall tab by dusk (more each time), or they raid; paying
+  mid-raid turns them back (a Shieldwall siege too, from 0.4.12).
+- **Moving the pillars**: taken down (or broken) they leave the *heart of the high seat*; raise new pillars carrying it and the colony
+  is back, people, rooms and saga and all.
 
 Works with Omens (Odin's favour is the gods' Fate), AICompanion (bed and chest claims respected both ways), Gary, SkalTavern; needs
 none. **Install on the host and every player** (the hammer refuses Jarldom pieces where the host lacks the mod). **Disband** the colony

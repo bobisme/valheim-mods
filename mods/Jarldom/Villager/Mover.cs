@@ -12,7 +12,7 @@ namespace Jarldom
         private readonly List<Vector3> _path = new List<Vector3>();
         private Vector3 _goal, _pathGoal; private float _arrive; private bool _run, _active;
         private float _nextPath, _nextDoor, _stuckSince, _lastProgressAt; private Vector3 _lastProgressPos;
-        private int _stuckStage, _unsticks; private bool _failed; private float _failedAt, _sidestepUntil; private Vector3 _sidestepDir;
+        private int _stuckStage, _unsticks; private bool _failed; private float _failedAt, _sidestepUntil, _giveUpAt; private Vector3 _sidestepDir;
         private readonly List<(Door door, float at)> _opened = new List<(Door, float)>();
         private Vector3? _viaDoor; private Door _planDoor; private Vector3 _doorFar;
         private static readonly Collider[] Hits = new Collider[1024];
@@ -30,6 +30,7 @@ namespace Jarldom
             // The same goal again soon after failing stays failed, so a task that re-paths and then checks Failed sees it.
             if (_failed && Vector3.Distance(goal, _goal) < 0.3f && Time.time - _failedAt < 20f) return;
             _goal = goal; _arrive = Mathf.Max(0.4f, arrive); _run = run; _active = true; Arrived = false; _failed = false;
+            _giveUpAt = Time.time + 30f + Vector3.Distance(_b.Body.transform.position, goal) * 1.5f; // however it goes, a walk that long has failed
             _nextPath = 0; _stuckStage = 0; _lastProgressAt = Time.time; _failAt = 0; _unsticks = 0; _lastProgressPos = _b.Body.transform.position; _viaDoor = null; _planDoor = null; _doorNear = null;
         }
         public void Stop() { _active = false; _path.Clear(); _b.Ai.StopMoving(); _viaDoor = null; _doorNear = null; }
@@ -44,6 +45,7 @@ namespace Jarldom
             if (!_active) return;
             Vector3 me = _b.Body.transform.position;
             if (Utils.DistanceXZ(me, _goal) <= _arrive && Mathf.Abs(me.y - _goal.y) < 2.5f) { Arrived = true; _active = false; _b.Ai.StopMoving(); return; }
+            if (Time.time > _giveUpAt) { _failed = true; _failedAt = Time.time; _active = false; _b.Ai.StopMoving(); return; }
             if (Time.time >= _nextPath && !_doorNear.HasValue || _path.Count == 0 && Time.time >= _nextPath) Repath(me);
             if (Time.time >= _nextDoor) { _nextDoor = Time.time + 0.4f; OpenAhead(me); }
             if (_doorNear.HasValue && Utils.DistanceXZ(me, _doorNear.Value) < 1.0f)

@@ -444,8 +444,9 @@ namespace Jarldom
                         if (prefab == null || prefab.GetComponent<Character>() == null) { error("no creature " + a[2]); return; }
                         Vector3 at = new Vector3(F(a[3]), 0, F(a[4])); at.y = Ground(at) + 0.5f;
                         GameObject go = Object.Instantiate(prefab, at, Quaternion.identity);
-                        if (a.Length > 5) go.GetComponent<Character>().SetLevel(int.Parse(a[5]));
-                        output(new JObject { ["spawned"] = a[2], ["at"] = V(at) });
+                        if (a.Length > 5 && int.TryParse(a[5], out int lvl)) go.GetComponent<Character>().SetLevel(lvl);
+                        if (a.Contains("tamed")) go.GetComponent<Character>().SetTamed(true);
+                        output(new JObject { ["spawned"] = a[2], ["at"] = V(at), ["tamed"] = go.GetComponent<Character>().IsTamed() });
                     }
                     break;
                 case "ground": { Vector3 at = new Vector3(F(a[2]), 0, F(a[3])); output(new JObject { ["ground"] = Ground(at) }); } break;

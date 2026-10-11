@@ -7,13 +7,13 @@ namespace Jarldom
     // Everything the colony's rules are made of, as plain tables: professions, rooms, traits, moodlets, ranks, wages, gods.
     // No Unity here (tests/Jarldom.Tests compiles it); the numbers are starting values to tune, not contracts.
 
-    public enum Prof { Hauler, Woodcutter, Forager, Farmer, Guard, Miner, Hunter, Fisherman, Smelter, Cook, Builder, Smith, Scout, Trader, Gothi, Skald, Healer }
+    public enum Prof { Hauler, Woodcutter, Forager, Farmer, Guard, Miner, Hunter, Fisherman, Smelter, Cook, Builder, Smith, Scout, Trader, Gothi, Skald, Healer, Herder }
 
     public enum Need { Food, Rest, Shelter, Social, Safety, Faith, Beauty }
 
     public enum RoomType { Longhouse, GreatHall, Stockpile, Smithy, OdinShrine, Temple, HealersHouse, TreasureRoom, BurialGround, Watchtower, Brewhouse }
 
-    public enum ZoneType { Woodlot, Mine, Fields, Foraging, Hunting, FishingDock, GuardPost, SacredBog }
+    public enum ZoneType { Woodlot, Mine, Fields, Foraging, Hunting, FishingDock, GuardPost, SacredBog, Pasture }
 
     public enum Rank { Camp, Homestead, Hamlet, Village, Jarldom, Hold }
 
@@ -72,6 +72,7 @@ namespace Jarldom
             P(Prof.Gothi, "Gothi", 8, "keeps a temple", "a temple", 6, tool: ""),
             P(Prof.Skald, "Skald", 4, "plays in the hall at dusk", "a great hall", 4, tool: ""),
             P(Prof.Healer, "Healer", 6, "tends the injured (twice as well in a healer's house)", "", 6, tool: ""),
+            P(Prof.Herder, "Herder", 5, "feeds the tame beasts in the pasture and culls the surplus", "a weapon to cull with", 3, tool: ""),
         };
 
         private static ProfessionInfo P(Prof id, string name, int milestone, string does, string needs, int wage, string tool, bool combat = false) =>
@@ -178,6 +179,7 @@ namespace Jarldom
             new ZoneInfo { Id = ZoneType.FishingDock, Name = "Fishing dock", Worker = Prof.Fisherman, Text = "water to fish" },
             new ZoneInfo { Id = ZoneType.GuardPost, Name = "Guard post", Worker = Prof.Guard, Text = "a post to hold" },
             new ZoneInfo { Id = ZoneType.SacredBog, Name = "Sacred bog", Worker = null, Text = "where coins go to the gods" },
+            new ZoneInfo { Id = ZoneType.Pasture, Name = "Pasture", Worker = Prof.Herder, Text = "tame beasts to keep" },
         };
         public static ZoneInfo Of(ZoneType z) => Zones[(int)z];
 
