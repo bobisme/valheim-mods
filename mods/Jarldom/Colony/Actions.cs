@@ -89,7 +89,7 @@ namespace Jarldom
         // A bed claimed by someone who has left is free again.
         public void ReleaseBed(string vid)
         {
-            foreach (Bed bed in AllBeds())
+            foreach (Bed bed in PiecesIn(Radius + 20).Select(p => p.GetComponent<Bed>()).Where(b => b != null)) // (any bed: a claim may sit on one that is no longer the colony's)
             {
                 ZNetView v = bed.GetComponent<ZNetView>();
                 if (v.GetZDO().GetString(Villagers.ClaimKey, "") != vid) continue;

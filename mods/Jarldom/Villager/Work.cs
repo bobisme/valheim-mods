@@ -93,6 +93,7 @@ namespace Jarldom
                     if (!FirstSeen.TryGetValue(id, out float seen)) { FirstSeen[id] = Time.time; continue; }
                     if (Time.time - seen < 15f) continue; // something just dropped may be on its way somewhere
                     if (Player.GetAllPlayers().Any(pl => Vector3.Distance(pl.transform.position, drop.transform.position) < 4f)) continue;
+                    if (!c.Tends(drop.transform.position)) continue; // someone else's things lying in their own base
                     if (drop.m_itemData.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Trophy && Stock.Destination(c, drop.m_itemData, drop.transform.position) == null) continue;
                     c.Board.Post("haul", Key(v), Prof.Hauler, 2, drop.transform.position.x, drop.transform.position.y, drop.transform.position.z, now, "", "ground");
                     hauls++;
@@ -283,7 +284,7 @@ namespace Jarldom
             Tool = Kind == "chop" ? "axe" : Kind == "mine" ? "pickaxe" : Kind == "hunt" ? "bow" : Kind == "guard" ? "weapon" : Kind == "harvest" ? "" : "";
             if (Kind == "hunt" && Gear.Tool(b, "bow") == null) Tool = "weapon";
             Doing = Describe();
-            if (Kind != "guard" && Kind != "fish" && _target == null) { Finish(b, false); return; }
+            if (Kind != "guard" && Kind != "fish" && _target == null) { Gone(b); return; } // its target is gone (picked up, felled, destroyed): the job with it
             if (Kind == "hunt") { Target = _target.GetComponent<Character>(); b.Foe = Target; }
             _renew = Time.time + 20f;
             b.Move.To(Approach(b), Kind == "haul" ? 1.0f : 1.6f);
@@ -470,10 +471,10 @@ namespace Jarldom
         {
             if (_phase == 0)
             {
-                if (_target == null) { Finish(b, false); return; }
+                if (_target == null) { Gone(b); return; }
                 if (Walking(b, 1.4f)) return;
                 Pickable p = _target.GetComponent<Pickable>();
-                if (p == null || !p.CanBePicked()) { Finish(b, false); return; }
+                if (p == null || !p.CanBePicked()) { Gone(b); return; }
                 _crop = Utils.GetPrefabName(_target); _cropAt = _target.transform.position;
                 Body_.Anim(b.Body)?.SetTrigger("interact");
                 p.Interact(b.Body, false, false);
@@ -531,7 +532,7 @@ namespace Jarldom
             if (_phase == 0)
             {
                 ItemDrop drop = _target != null ? _target.GetComponent<ItemDrop>() : null;
-                if (drop == null) { Finish(b, false); return; }
+                if (drop == null) { Gone(b); return; }
                 if (Vector3.Distance(b.Pos, drop.transform.position) > 1.4f) { if (!b.Move.Moving) b.Move.To(drop.transform.position, 0.8f); if (b.Move.Failed) Block(b, "can't reach it"); return; }
                 Got got = PickUpNow(b, drop);
                 if (got == Got.Failed) { Finish(b, false); return; }
@@ -587,7 +588,7 @@ namespace Jarldom
         private Container _source; private string _carry; private int _fetched; private bool Kind_Collect;
         private void Station(Brain b)
         {
-            if (_target == null) { Finish(b, false); return; }
+            if (_target == null) { Gone(b); return; }
             Inventory bag = b.Body.GetInventory();
             if (_phase == 0 && _target.GetComponent<CookingStation>() is CookingStation done && Work.Cook(done, "HaveDoneItem"))
             {
@@ -667,6 +668,12 @@ namespace Jarldom
             if (b.Colony.IsOwner) b.Colony.Board.Block(O.Id, why); else Net.Report(b.Colony, b, O, "block:" + why);
             Done = true;
             b.Idle(why);
+        }
+        private void Gone(Brain b)
+        {
+            Done = true;
+            if (b.Colony == null) return;
+            if (b.Colony.IsOwner) b.Colony.Board.Cancel(O.Id); else Net.Report(b.Colony, b, O, "cancel");
         }
         private void Finish(Brain b, bool ok)
         {

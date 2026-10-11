@@ -35,7 +35,12 @@ namespace Jarldom
         }
 
         // ---- beds ----
-        public List<Bed> AllBeds() => PiecesIn(Radius).Select(p => p.GetComponent<Bed>()).Where(b => b != null).ToList();
+        // The colony's beds: in one of its rooms, or by the pillars. (A bed elsewhere in the radius is someone's own base: never taken.)
+        public List<Bed> AllBeds() => PiecesIn(Radius).Select(p => p.GetComponent<Bed>()).Where(b => b != null && Ours(b.transform.position)).ToList();
+        public const float NearPillars = 15f;
+        public bool Ours(Vector3 p) => Utils.DistanceXZ(p, Position) <= NearPillars || RoomAt(p) != null;
+        // Where the colony's people pick up what lies about: its rooms and zones, and by the pillars.
+        public bool Tends(Vector3 p) => Utils.DistanceXZ(p, Position) <= NearPillars || RoomAt(p) != null || R.Zones.Any(z => Geometry.Distance(z.Xz, p.x, p.z) <= 2f);
         public static long Hash(string vid) => (long)(uint)vid.GetStableHashCode() + 1_000_000_000L * 7;
         public static string BedOwner(Bed bed, out string kind)
         {
@@ -91,7 +96,7 @@ namespace Jarldom
                 }
             }
             WealthPart = Jarldom.Renown.Wealth(value, coins, valuables, treasure > 0, treasure);
-            var beds = pieces.Select(p => p.GetComponent<Bed>()).Where(b => b != null).ToList();
+            var beds = pieces.Select(p => p.GetComponent<Bed>()).Where(b => b != null && Ours(b.transform.position)).ToList();
             Beds = beds.Count(b => { BedOwner(b, out string kind); return kind == "" || kind == "villager"; });
             var comforts = beds.Select(b => ComfortAt(b.transform.position)).ToList();
             ComfortPart = Jarldom.Renown.Comfort(comforts);

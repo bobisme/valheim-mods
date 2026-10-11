@@ -63,7 +63,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or with devcommands"); return; }
             if (c == null && cmd != "place" && cmd != "compat" && cmd != "status") { error("no colony near (jarldom place pillars makes one)"); return; }
             Player me = Player.m_localPlayer;
@@ -153,6 +153,8 @@ namespace Jarldom
                         Brain b = null;
                         string vid = c.R.Roster.Last().Vid;
                         if (a.Length > 2 && Enum.TryParse(a[2], true, out Prof p)) Villagers.Command(vid, "prof", p.ToString());
+                        if (a.Contains("test")) Villagers.Command(vid, "mood", "arrived"); // (marks below)
+                        if (a.Contains("test")) { Humanoid hb = Villagers.Body(vid); Brain tb = hb != null ? Villagers.BrainFor(hb) : null; if (tb != null) { tb.S.Bump("testspawn"); tb.Dirty(); } }
                         output(new JObject { ["spawned"] = n.Name, ["vid"] = vid, ["traits"] = n.Traits, ["story"] = n.Story });
                     }
                     break;
@@ -341,6 +343,49 @@ namespace Jarldom
                         bool hit = Physics.Raycast(at, Vector3.up, out RaycastHit rh, 30f, LayerMask.GetMask("Default", "static_solid", "Default_small", "piece", "terrain", "vehicle"));
                         Room r = c.RoomAt(at);
                         output(new JObject { ["underRoof"] = roof, ["cover"] = cover, ["ray"] = hit ? rh.collider.name + " @" + rh.point.y.ToString("F1") + " tag " + rh.collider.tag : "nothing", ["room"] = r?.Type.ToString(), ["roomFloor"] = r?.Floor });
+                    }
+                    break;
+                case "despawn":
+                    {
+                        // Test villagers gone without a trace (their rags with them): by name, or "tagged" for every one spawned with tag.
+                        int n = 0;
+                        foreach (Brain b in Villagers.All.Where(b => a.Length > 2 && (b.S.Name == a[2] || a[2] == "tagged" && b.S.Count("testspawn") > 0)).ToList())
+                        {
+                            b.Release(); c.ReleaseBed(b.S.Vid);
+                            c.R.Roster.RemoveAll(r => r.Vid == b.S.Vid);
+                            b.View.Destroy(); n++;
+                        }
+                        c.R.Arrivals = Math.Max(0, c.R.Arrivals - n); // (test souls don't count toward Odin's next threshold)
+                        c.MarkDirty();
+                        output(new JObject { ["despawned"] = n });
+                    }
+                    break;
+                case "arrivals": c.R.Arrivals = int.Parse(a[2]); c.MarkDirty(); output(new JObject { ["arrivals"] = c.R.Arrivals, ["threshold"] = Renown.Threshold(c.R.Arrivals) }); break;
+                case "stations":
+                    output(new JObject { ["stations"] = new JArray(c.PiecesIn(c.Radius).Where(p => p.GetComponent<Smelter>() != null || p.GetComponent<CookingStation>() != null || p.GetComponent<Fireplace>() != null).Select(p =>
+                    {
+                        ZDO z = p.GetComponent<ZNetView>().GetZDO(); Smelter sm = p.GetComponent<Smelter>();
+                        return $"{Utils.GetPrefabName(p.gameObject)} at {p.transform.position:F0}: fuel {z.GetFloat(ZDOVars.s_fuel):0.#}" + (sm != null ? $", ore queued {Work.QueueSize(sm)}, processed {z.GetInt(ZDOVars.s_spawnAmount)}" : "");
+                    })) });
+                    break;
+                case "perf":
+                    {
+                        Plugin.CostMs = 0; Plugin.ThinkMs = 0; Plugin.CostFrames = 0;
+                        output(new JObject { ["note"] = "counters reset: run jarldom perf2 after a few seconds" });
+                    }
+                    break;
+                case "perf2":
+                    output(new JObject { ["frames"] = Plugin.CostFrames, ["updateMsPerFrame"] = Math.Round(Plugin.CostMs / Math.Max(1, Plugin.CostFrames), 3), ["thinkMsPerFrame"] = Math.Round(Plugin.ThinkMs / Math.Max(1, Plugin.CostFrames), 3), ["villagers"] = Villagers.All.Count(), ["fps"] = Math.Round(1f / Time.smoothDeltaTime) });
+                    break;
+                case "drop":
+                    {
+                        // Put things from a villager's bag back on the ground where they stand (prefab names, or "all-but-own").
+                        Brain b = Who(a[2]); if (b == null) { error("who?"); return; }
+                        var names = new HashSet<string>(a.Skip(3));
+                        Inventory bag = b.Body.GetInventory(); int n = 0;
+                        foreach (ItemDrop.ItemData item in bag.GetAllItems().Where(i => !i.m_equipped && names.Contains(Prefab(i))).ToList())
+                        { ItemDrop.DropItem(item, item.m_stack, b.Pos + Vector3.up + UnityEngine.Random.insideUnitSphere * 0.4f, Quaternion.identity); bag.RemoveItem(item); n++; }
+                        output(new JObject { ["dropped"] = n, ["at"] = V(b.Pos) });
                     }
                     break;
                 case "creature":

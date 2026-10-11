@@ -147,6 +147,7 @@ namespace Jarldom
             if (c == null || !c.IsOwner) return;
             if (what == "done") c.Board.Complete(order, vid);
             else if (what == "release") c.Board.Release(order, vid);
+            else if (what == "cancel") c.Board.Cancel(order);
             else if (what.StartsWith("block:")) c.Board.Block(order, what.Substring(6));
         }
 

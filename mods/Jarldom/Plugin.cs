@@ -53,7 +53,16 @@ namespace Jarldom
         internal static void Warn(string text) => Instance?.Logger.LogWarning(text);
         internal static void Trace(string text) { if (Instance != null && Instance.Debug.Value) Instance.Logger.LogInfo(text); }
 
+        // What Jarldom costs a frame (its Update and the villagers' fixed-update thinking), for jarldom perf.
+        internal static readonly System.Diagnostics.Stopwatch Clock = new System.Diagnostics.Stopwatch();
+        internal static double CostMs, CostFrames, ThinkMs;
+        private void LateUpdate() { CostFrames++; }
         private void Update()
+        {
+            Clock.Restart();
+            try { Tick(); } finally { CostMs += Clock.Elapsed.TotalMilliseconds; }
+        }
+        private void Tick()
         {
             Synced?.Update();
             Tools.Tick();

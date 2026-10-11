@@ -55,9 +55,11 @@ namespace Jarldom
                 if (Brains.TryGetValue(h, out Brain gone)) { Plugin.Guard(gone.Stand); Brains.Remove(h); Order.Remove(gone); }
                 return false;
             }
+            var watch = System.Diagnostics.Stopwatch.StartNew();
             Brain b = BrainFor(h, ai);
             if (b == null) return false;
             b.Fixed(dt);
+            Plugin.ThinkMs += watch.Elapsed.TotalMilliseconds;
             return true;
         }
         // The brain of a body this game owns, made (and its state read) the first time it's needed.

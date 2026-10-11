@@ -208,7 +208,7 @@ namespace Jarldom
             if (Body.GetHealthPercentage() < 0.1f && S.InjuredUntil < now && !Combat.Busy(this)) { S.InjuredUntil = now + Clock.DayLength / (Colony.Best(RoomType.HealersHouse)?.Ok == true ? 2 : 1); Colony.Log("injured", S.Name, ""); Jarldom.Mood.Add(S, "injured", now); }
             if (S.InjuredUntil > 0 && S.InjuredUntil < now) { S.InjuredUntil = 0; Jarldom.Mood.Remove(S, "injured"); }
             // A bed that is gone (broken, taken down) is no longer theirs, once its area is loaded and it still can't be found.
-            if (!string.IsNullOrEmpty(S.Bed) && Vector3.Distance(Pos, Colony.Position) < Colony.Radius && Colony.BedById(S.Bed) == null) { if (++_bedMissing >= 3) { S.Bed = ""; _bedMissing = 0; Say("My bed is gone!", 4); } }
+            if (!string.IsNullOrEmpty(S.Bed) && Vector3.Distance(Pos, Colony.Position) < Colony.Radius && Colony.BedById(S.Bed) == null) { if (++_bedMissing >= 3) { S.Bed = ""; _bedMissing = 0; Colony.ReleaseBed(S.Vid); Say("I need a bed of my own.", 4); } }
             else _bedMissing = 0;
             // Food burns as a player's does; health follows the meals.
             Food.Burn(this, 5f);
