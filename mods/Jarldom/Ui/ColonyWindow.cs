@@ -100,9 +100,50 @@ namespace Jarldom.Ui
         }
         private static float Heading(RectTransform list, string text, float y) => Text(list, text, y + 6, 22, GameUi.Warm);
 
+        // What's holding the colony back, plainly: the first thing a jarl looks at.
+        private static List<string> NeedsYou(Colony c)
+        {
+            var list = new List<string>();
+            var people = c.R.Living.ToList();
+            int homeless = people.Count(p => string.IsNullOrEmpty(p.Bed));
+            if (homeless > 0) list.Add($"{homeless} {(homeless == 1 ? "has" : "have")} no bed and sleep by the hall fire: build beds in a marked longhouse (or by the pillars).");
+            int meals = Stock.Food(c, c.Position).Sum(f => f.item.m_stack);
+            if (people.Count > 0 && meals < people.Count * 3)
+                list.Add(meals == 0 ? "The stores hold no food: mark fields, foraging or hunting grounds, or a fishing dock, or fill a chest." : $"Food for less than a day: {meals} meals for {people.Count} people.");
+            var full = Stock.Chests(c).Where(x => x.category != "" && x.category != "treasury" && x.chest.GetInventory().GetEmptySlots() == 0).Select(x => x.category).Distinct().ToList();
+            if (full.Count > 0) list.Add($"Full stockpiles ({string.Join(", ", full)}): add chests, or what's gathered lies about.");
+            var stuck = new Dictionary<string, List<string>>();
+            foreach (Humanoid h in Villagers.Bodies())
+            {
+                ZDO z = h.GetComponent<ZNetView>().GetZDO();
+                if (z.GetString(Villagers.ColonyKey, "") != c.Id) continue;
+                string doing = z.GetString(Villagers.DoingKey, "");
+                if (!(doing.StartsWith("needs gear") || doing.StartsWith("no ") || doing.StartsWith("nothing ") || doing.StartsWith("Where do I put"))) continue;
+                if (!stuck.TryGetValue(doing, out var who)) stuck[doing] = who = new List<string>();
+                who.Add(Villagers.DisplayName(h).Split(' ')[0]);
+            }
+            foreach (var kv in stuck.Take(4)) list.Add($"{string.Join(", ", kv.Value)}: {kv.Key}.");
+            Container treasury = Stock.Treasury(c);
+            int due = Payroll.Due(Villagers.All.Where(b => b.S.Colony == c.Id).Select(b => b.S)) * Plugin.Instance.WageScale.Value / 100;
+            if (Plugin.Instance.Payroll.Value && due > 0 && (treasury == null || Stock.Coins(treasury) < due))
+            {
+                int payday = (c.Day / Payroll.EveryDays + 1) * Payroll.EveryDays;
+                list.Add(treasury == null ? "No treasury chest: wages can't be paid." : $"The treasury holds {Stock.Coins(treasury)} coins and {due} are due on day {payday}.");
+            }
+            var failing = c.R.Rooms.Where(x => !x.Ok).Select(x => Tables.Of(x.Type).Name.ToLower()).ToList();
+            if (failing.Count > 0) list.Add($"Rooms that don't pass ({string.Join(", ", failing)}): the Rooms tab says why.");
+            return list;
+        }
+
         private static float Hall(RectTransform list)
         {
             ColonyRecord r = _c.R; float y = 4;
+            var needs = NeedsYou(_c);
+            if (needs.Count > 0)
+            {
+                y = Heading(list, "Needs you", y);
+                foreach (string n in needs) y = Text(list, "• " + n, y, 16, GameUi.Warn);
+            }
             y = Heading(list, "Odin's attention", y);
             y = Text(list, $"Renown <color=#ffd27a>{_c.Renown}</color> = wealth {_c.WealthPart} + comfort {_c.ComfortPart} + deeds {r.Deeds}", y);
             string why = Migration.Why(_c);
