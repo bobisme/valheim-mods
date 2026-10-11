@@ -447,8 +447,11 @@ namespace Jarldom
         {
             Colony c = b.Colony;
             if (!c.IsOwner || b.S.Prof != Prof.Hauler && !(b.S.Prof == Prof.Woodcutter && !Villagers.All.Any(v => v.S.Colony == c.Id && v.S.Prof == Prof.Hauler && v.Alive))) return null;
-            Order o = c.Board.All.Where(x => x.State == OrderState.Open && x.Kind == "fuel" && x.Prof == Prof.Hauler).OrderBy(x => (x.X - b.Pos.x) * (x.X - b.Pos.x) + (x.Z - b.Pos.z) * (x.Z - b.Pos.z)).FirstOrDefault();
-            if (o == null || !c.Board.Claim(o.Id, b.S.Vid, c.Now, out _)) return null;
+            // (each once an evening: one that can't be reached isn't tried all night)
+            Order o = c.Board.All.Where(x => x.State == OrderState.Open && x.Kind == "fuel" && x.Prof == Prof.Hauler && !b.LampsTried.Contains(x.Id)).OrderBy(x => (x.X - b.Pos.x) * (x.X - b.Pos.x) + (x.Z - b.Pos.z) * (x.Z - b.Pos.z)).FirstOrDefault();
+            if (o == null) { b.LampsTried.Clear(); return null; }
+            b.LampsTried.Add(o.Id);
+            if (!c.Board.Claim(o.Id, b.S.Vid, c.Now, out _)) return null;
             return new WorkTask(o);
         }
         private static bool NothingFor(Colony c, Prof p) => !c.Board.All.Any(o => o.State == OrderState.Open && o.Prof == p);
