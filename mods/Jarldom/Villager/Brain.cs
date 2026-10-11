@@ -108,7 +108,7 @@ namespace Jarldom
         {
             Body.transform.position = at;
             if (_body != null) { _body.position = at; _body.linearVelocity = Vector3.zero; }
-            View.GetZDO().SetPosition(at);
+            View.GetZDO()?.SetPosition(at); // (none while the world shuts down)
         }
 
         // ---- decisions ----
