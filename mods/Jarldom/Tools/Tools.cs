@@ -235,7 +235,7 @@ namespace Jarldom
                 output(new JObject { ["relic"] = lines[1] });
                 return;
             }
-            if (c == null && cmd != "place" && cmd != "compat" && cmd != "status") { error("no colony near (jarldom place pillars makes one)"); return; }
+            if (c == null && cmd != "place" && cmd != "put" && cmd != "claims" && cmd != "find" && cmd != "compat" && cmd != "status") { error("no colony near (jarldom place pillars makes one)"); return; }
             Player me = Player.m_localPlayer;
             switch (cmd)
             {
@@ -759,10 +759,11 @@ namespace Jarldom
                     {
                         // Test: claims (this colony's) | claims survey (the nearest stake, now) | claims send <name> (that miner sets out).
                         string sub = a.Length > 2 ? a[2] : "";
+                        if (sub == "elder") { Claims.TestElder = !Claims.TestElder; output(new JObject { ["testElder"] = Claims.TestElder }); }
                         if (sub == "survey") { OreClaim st = UnityEngine.Object.FindObjectsByType<OreClaim>(FindObjectsSortMode.None).OrderBy(x => Vector3.Distance(x.transform.position, Player.m_localPlayer.transform.position)).FirstOrDefault(); if (st == null) { error("no stake loaded"); return; } st.GetComponent<ZNetView>().ClaimOwnership(); Claim got = st.Survey(); Vector3 sp = st.transform.position;
                             output(new JObject { ["stake"] = $"{sp.x:0.0},{sp.z:0.0}", ["id"] = st.Id, ["survey"] = got == null ? "nothing" : Claims.Ores(got), ["ready"] = new JArray(new[] { Vector3.zero, Vector3.forward, Vector3.back, Vector3.left, Vector3.right }.Select(d => ZNetScene.instance.IsAreaReady(sp + d * Mining.CryptReach))),
                                 ["near"] = new JArray(Claims.Near(sp, Mining.BareReach, false).Select(d => $"{Utils.GetPrefabName(d.go)} {d.ore} {d.n} t{d.tier}")), ["home"] = OreClaim.HomeOf(sp) }); }
-                        if (sub == "send") { Brain b = Who(a[3]); if (b == null) { error("who?"); return; } b.NoClaimUntil = 0; Task t = Claims.Next(b); if (t == null) { var pk = Gear.Tool(b, "pickaxe"); error($"no claim for them: {Gear.Problem} (owner {c?.IsOwner}, colony {b.Colony?.Id}, claims {Claims.Of(b.Colony).Count()}, with ore {Claims.Of(b.Colony).Count(x => x.Ore > 0)}, pickaxe {pk?.m_shared.m_name} tier {pk?.m_shared.m_toolTier}, tiers {string.Join(",", Claims.Of(b.Colony).Select(x => x.Tier))}, out {string.Join(",", Claims.Of(b.Colony).Select(x => Claims.Out(b.Colony, x.Id)))})"); return; } b.Task?.Stop(b); b.Task = t; t.Start(b); }
+                        if (sub == "send") { Brain b = Who(a[3]); if (b == null) { error("who?"); return; } b.NoClaimUntil = 0; Task t = a.Length > 4 && Claims.Get(a[4]) is Claim pick ? new ClaimTrip(pick) : Claims.Next(b); if (t == null) { var pk = Gear.Tool(b, "pickaxe"); error($"no claim for them: {Gear.Problem} (owner {c?.IsOwner}, colony {b.Colony?.Id}, claims {Claims.Of(b.Colony).Count()}, with ore {Claims.Of(b.Colony).Count(x => x.Ore > 0)}, pickaxe {pk?.m_shared.m_name} tier {pk?.m_shared.m_toolTier}, tiers {string.Join(",", Claims.Of(b.Colony).Select(x => x.Tier))}, out {string.Join(",", Claims.Of(b.Colony).Select(x => Claims.Out(b.Colony, x.Id)))})"); return; } b.Task?.Stop(b); b.Task = t; t.Start(b); }
                         output(new JObject { ["claims"] = new JArray(Claims.All().Select(x => $"{x.Id} for {x.Colony}: {Claims.Title(x)} at {x.X:0},{x.Z:0} {x.Biome} beds {x.Beds} crypt {x.Crypt} left [{Claims.Ores(x)}] taken [{string.Join(";", x.Taken.Select(kv => kv.Key + ":" + kv.Value))}] out {(c != null ? Claims.Out(c, x.Id) : 0)}")) });
                         break;
                     }
@@ -825,6 +826,27 @@ namespace Jarldom
                 case "touch": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } b.S.Bump(Saboteur.Mark); b.Dirty(); output(new JObject { ["touched"] = b.S.Name }); } break;
                 case "mischief": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } b.NextMischief = 1; Saboteur.Tick(b); output(new JObject { ["mischief"] = b.S.Count("mischief"), ["seen"] = new JObject(Villagers.All.Where(x => x.S.Count("seen") > 0).Select(x => new JProperty(x.S.Name, x.S.Count("seen")))) }); } break;
                 case "away": { double h = a.Length > 2 ? F(a[2]) : 24; CatchUp.Run(c, h * Clock.Hour); output(new JObject { ["log"] = c.R.Log.Last().Text }); } break;
+                case "find":
+                    {
+                        // Test: find location <name part> | find biome <Biome>: the nearest few to the player (or the colony).
+                        Vector3 from = Player.m_localPlayer?.transform.position ?? c?.Position ?? Vector3.zero;
+                        if (a.Length > 3 && a[2] == "location")
+                            output(new JObject { ["found"] = new JArray(ZoneSystem.instance.m_locationInstances.Values.Where(l => l.m_location?.m_prefabName != null && l.m_location.m_prefabName.IndexOf(a[3], StringComparison.OrdinalIgnoreCase) >= 0)
+                                .OrderBy(l => Utils.DistanceXZ(l.m_position, from)).Take(5).Select(l => $"{l.m_location.m_prefabName} at {l.m_position.x:0},{l.m_position.y:0},{l.m_position.z:0} ({Utils.DistanceXZ(l.m_position, from):0} m, {(l.m_placed ? "generated" : "not yet generated")})")) });
+                        else if (a.Length > 3 && a[2] == "biome" && Enum.TryParse(a[3], true, out Heightmap.Biome want))
+                        {
+                            var hits = new JArray();
+                            for (float r = 64; r < 4000 && hits.Count < 3; r += 64)
+                                for (int k = 0; k < 24 && hits.Count < 3; k++)
+                                {
+                                    float ang = k * Mathf.PI * 2 / 24; Vector3 p = from + new Vector3(Mathf.Cos(ang) * r, 0, Mathf.Sin(ang) * r);
+                                    if (WorldGenerator.instance.GetBiome(p) == want) hits.Add($"{p.x:0},{p.z:0} ({r:0} m, height {WorldGenerator.instance.GetHeight(p.x, p.z):0})");
+                                }
+                            output(new JObject { ["found"] = hits });
+                        }
+                        else error("find location <name> | find biome <Biome>");
+                        break;
+                    }
                 case "fallen": output(new JObject { ["now"] = c.Now, ["respawn"] = Plugin.Instance.RespawnSeconds.Value, ["fallen"] = new JArray(c.R.Fallen.Select(f => $"{c.R.Row(f.Vid)?.Name ?? f.Vid}: {f.Killer}, back in {f.At + Plugin.Instance.RespawnSeconds.Value - c.Now:0} s")) }); break;
                 case "rates":
                     output(new JObject(Enum.GetValues(typeof(Prof)).Cast<Prof>().Select(p => new JProperty(p.ToString(), new JObject(new JProperty("hours", c.R.Flag("worked:" + p) / 10f), new JProperty("perHour", new JObject(CatchUp.Rates(c, p).Select(kv => new JProperty(kv.Key, Math.Round(kv.Value, 2))))))))));

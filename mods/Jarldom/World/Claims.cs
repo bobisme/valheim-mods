@@ -10,6 +10,8 @@ namespace Jarldom
     // the miner's trip out (away, as a trader is) and the load they bring home. The rules are in Core/Claims.cs.
     internal static class Claims
     {
+        public static bool TestElder; // (test: crypts open before the Elder is beaten)
+        public static bool ElderBeaten => TestElder || ZoneSystem.instance != null && ZoneSystem.instance.GetGlobalKey("defeated_gdking");
         public const string KeyHead = "jarldom_claim_", ColonyKey = "jarldom_claimcolony", IdKey = "jarldom_claimid";
         private static ZoneSystem Z => ZoneSystem.instance;
 
@@ -172,7 +174,7 @@ namespace Jarldom
             int pick = Gear.Tool(b, "pickaxe")?.m_shared.m_toolTier ?? -1;
             var mine = Of(c).Where(x => x.Ore > 0).ToList();
             if (mine.Count == 0) return null;
-            Claim best = mine.Where(x => x.Left.Any(kv => kv.Value.n > 0 && kv.Value.tier <= pick) && Out(c, x.Id) < Mining.Room(x) && (!x.Crypt || Z.GetGlobalKey("defeated_gdking")))
+            Claim best = mine.Where(x => x.Left.Any(kv => kv.Value.n > 0 && kv.Value.tier <= pick) && Out(c, x.Id) < Mining.Room(x) && (!x.Crypt || ElderBeaten))
                 .OrderBy(x => Utils.DistanceXZ(At(x), c.Position)).FirstOrDefault();
             if (best == null)
             {
@@ -249,7 +251,7 @@ namespace Jarldom
             double secs = Mining.TripSeconds(far, _claim.Camp, Clock.DayLength);
             var (wound, death) = Mining.Risk(_claim.Biome, _claim.Crypt, _claim.Camp, false);
             // (a guard with nothing to do goes along where it's dangerous)
-            Brain guard = wound + death > 0.045f ? Villagers.All.FirstOrDefault(x => x.S.Colony == c.Id && x.S.Prof == Prof.Guard && x.Alive && (x.Task == null || x.Task is LeisureTask) && x.Activity == Activity.Work && Gear.CanFight(x)) : null;
+            Brain guard = wound + death > 0.045f ? Villagers.All.FirstOrDefault(x => x.S.Colony == c.Id && x.S.Prof == Prof.Guard && x.Alive && (x.Task == null || x.Task is LeisureTask || x.Task is WorkTask wt && wt.Kind == "guard") && x.Activity == Activity.Work && Gear.CanFight(x)) : null; // (idle, or on their rounds: called off them to go along)
             c.Log("text", b.S.Name, "", $"{b.S.Name} set out for the {Claims.Title(_claim).ToLower()} {Claims.Where(_claim, c.Position)}{(guard != null ? $", {guard.S.Name} guarding them" : "")}.");
             b.S.Bump("claimtrips"); b.Dirty();
             if (guard != null) guard.Away(Mining.Escort + Mathf.RoundToInt((float)secs));
@@ -365,7 +367,7 @@ namespace Jarldom
                 else
                 {
                     t.Append($"\n<size=80%>{(c.Ore > 0 ? Claims.Ores(c) + $" (a pickaxe of tier {c.Tier})" : c.Crypt ? "no iron left in the crypt" : "<color=#ff8c59>no ore within reach: drive it in right beside a deposit</color>")}</size>");
-                    if (c.Crypt && !ZoneSystem.instance.GetGlobalKey("defeated_gdking")) t.Append("\n<size=80%><color=#ff8c59>No one goes into a crypt before the Elder is beaten.</color></size>");
+                    if (c.Crypt && !Claims.ElderBeaten) t.Append("\n<size=80%><color=#ff8c59>No one goes into a crypt before the Elder is beaten.</color></size>");
                     t.Append(c.Camp ? $"\n<size=80%>A camp: {c.Beds} bed{(c.Beds == 1 ? "" : "s")}, so {c.Beds} miner{(c.Beds == 1 ? "" : "s")} at once, everything within {Mathf.RoundToInt(Mining.CampReach)} m, a day's digging a trip.</size>"
                         : $"\n<size=80%>A bare claim: one miner, the deposit beside it. A camp (a bed, a chest and a fire within {Mathf.RoundToInt(Mining.CampNear)} m) works everything within {Mathf.RoundToInt(Mining.CampReach)} m.</size>");
                     var (wound, death) = Mining.Risk(c.Biome, c.Crypt, c.Camp, false);

@@ -71,6 +71,22 @@ namespace Jarldom
                 if (!VillagerPrefab.Is(__instance)) return true;
                 Character attacker = hit.GetAttacker();
                 if (attacker != null && (attacker.IsPlayer() || VillagerPrefab.Is(attacker))) return false;
+                // (singed by a hearth they came too near, not a foe's fire: the flames beaten out and a step back; five burned to death
+                // at the colony's fire pits feeding them, by them on the benches, the skald at the hearth)
+                if (attacker == null && (hit.m_hitType == HitData.HitType.Burning || hit.m_damage.m_fire > 0) && Classes.NearestFire(__instance.transform.position, 5f) is Fireplace hearth)
+                {
+                    __instance.GetSEMan()?.RemoveStatusEffect(SEMan.s_statusEffectBurning, true);
+                    Brain b = Villagers.Brain(__instance);
+                    if (b != null && b.Held == null)
+                    {
+                        Vector3 away = __instance.transform.position - hearth.transform.position; away.y = 0;
+                        if (away.sqrMagnitude < 0.01f) away = Vector3.forward;
+                        Vector3 to = hearth.transform.position + away.normalized * 3f;
+                        b.Move.To(Colony.Spot(to, 1f) ?? to, 0.6f);
+                        if (UnityEngine.Random.value < 0.3f) b.Say("Hot! Too close to the fire.", 3);
+                    }
+                    return false;
+                }
                 if (__instance is Humanoid h)
                 {
                     float armor = 0;
