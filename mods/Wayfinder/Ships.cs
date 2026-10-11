@@ -226,9 +226,7 @@ namespace Wayfinder
             if(mast==null||ObjectDB.instance==null)return;
             if(_looks==null)_looks=new Looks(ObjectDB.instance,Owned);
             if(!_looks.Ready)return;
-            Bounds b=Items.Bounds(mast);
-            Vector3 top=ship.transform.InverseTransformPoint(new Vector3(b.center.x,b.max.y,b.center.z));
-            Vector3 foot=ship.transform.InverseTransformPoint(new Vector3(b.center.x,b.min.y,b.center.z));
+            MastLine(ship,out Vector3 top,out Vector3 foot);
             if(top.y-foot.y<2.5f||mast.GetComponentInChildren<Renderer>()==null)return; // (other mods' boats with no real mast)
             var root=new GameObject(RootName).transform;
             root.SetParent(ship.transform,false);
@@ -252,6 +250,16 @@ namespace Wayfinder
             fit.Vane=vane.Find("Turn");
             Seat(root,_looks,top,foot);
             Fits.Add(fit);
+        }
+        // The mast's own line in the ship's space: its top and foot, on the pivot it turns on with the yard (the middle of its
+        // bounds moves sideways as the sail swings round, which took the fittings off the mast).
+        internal static void MastLine(Ship ship,out Vector3 top,out Vector3 foot)
+        {
+            Transform mast=ship.m_mastObject.transform;
+            Bounds b=Items.Bounds(mast);
+            Vector3 axis=ship.transform.InverseTransformPoint(mast.position);
+            top=new Vector3(axis.x,ship.transform.InverseTransformPoint(new Vector3(0,b.max.y,0)+Vector3.ProjectOnPlane(mast.position,Vector3.up)).y,axis.z);
+            foot=new Vector3(axis.x,ship.transform.InverseTransformPoint(new Vector3(0,b.min.y,0)+Vector3.ProjectOnPlane(mast.position,Vector3.up)).y,axis.z);
         }
         // Where the lookout sits, from the masthead (the top of the mast's bounds), in the ship's space.
         internal static Vector3 SeatAt(Vector3 top)=>top+new Vector3(0,-1.35f,0.32f);
@@ -368,19 +376,29 @@ namespace Wayfinder
     {
         internal static bool Aloft;
         private static Transform _perch;
+        // Where your hips settle in the sitting pose, from the seat's point: measured the first time you sit up there, so the
+        // seat point can be moved to put you on the board (the pose is the same each time).
+        private static Vector3? _hipFit;
+        private static Vector3 _seatHips,_deck;
+        private static float _climbedAt;
+        private static bool _fitted;
+        // No fall is counted until a moment after you go up or come down (going up or down is a jump of several metres).
+        internal static float SafeUntil;
+        private static readonly AccessTools.FieldRef<Player,Vector3> DetachOffset=AccessTools.FieldRefAccess<Player,Vector3>("m_detachOffset");
         internal static Ship Ship=>Aloft&&_perch!=null?_perch.GetComponentInParent<Ship>():null;
         internal static bool IsPerch(Transform t)=>t!=null&&t.name=="WayfinderMasthead";
         internal static void Climb(Player me,Ship ship,Chair mastChair)
         {
             if(ship==null||ship.m_mastObject==null)return;
             if(Items.Bounds(ship.m_mastObject.transform).size.y<2.5f){me.Message(MessageHud.MessageType.Center,"There is no masthead to climb.");return;}
-            Bounds b=Items.Bounds(ship.m_mastObject.transform);
-            Vector3 top=ship.transform.InverseTransformPoint(new Vector3(b.center.x,b.max.y,b.center.z));
-            Vector3 foot=ship.transform.InverseTransformPoint(new Vector3(b.center.x,b.min.y,b.center.z));
+            Fittings.MastLine(ship,out Vector3 top,out Vector3 foot);
             if(_perch!=null)Object.Destroy(_perch.gameObject);
             _perch=new GameObject("WayfinderMasthead").transform;
             _perch.SetParent(ship.transform,false);
-            _perch.localPosition=Fittings.SeatAt(top); // (on the lookout's seat)
+            Vector3 seat=Fittings.SeatAt(top);
+            _seatHips=new Vector3(seat.x,seat.y+0.1f,top.z+0.2f); // (hips just above the board, back to the mast)
+            _perch.localPosition=_hipFit.HasValue?_seatHips-_hipFit.Value:seat;
+            _fitted=_hipFit.HasValue;
             // back down onto the deck beside the mast: found by looking straight down there for the ship's own floor
             Vector3 deck=mastChair.m_attachPoint.position;
             int mask=LayerMask.GetMask("vehicle","piece","Default","static_solid");
@@ -391,13 +409,39 @@ namespace Wayfinder
                     if(hit.collider.GetComponentInParent<Ship>()==ship){deck=hit.point;goto found;}
             }
             found:
+            _deck=ship.transform.InverseTransformPoint(deck+Vector3.up*0.3f);
+            SafeUntil=Time.time+2;_climbedAt=Time.time;
             me.AttachStart(_perch,null,false,false,true,"attach_chair",_perch.InverseTransformPoint(deck+Vector3.up*0.3f));
-            me.Message(MessageHud.MessageType.Center,"You climb to the masthead.");
+            me.Message(MessageHud.MessageType.Center,"You climb to the lookout's seat.");
         }
         internal static void Tick(Player me)
         {
             Aloft=_perch!=null&&me.IsAttached()&&me.GetAttachPoint()==_perch;
             if(_perch!=null&&!me.IsAttached()){Object.Destroy(_perch.gameObject);_perch=null;}
+            if(Aloft)SafeUntil=Mathf.Max(SafeUntil,Time.time+0.5f);
+            if(Aloft&&!_fitted&&Time.time-_climbedAt>1.2f)Fit(me);
+        }
+        // Once the sitting pose has settled: where are the hips from the seat's point? Move the point so they sit on the board.
+        private static void Fit(Player me)
+        {
+            _fitted=true;
+            Transform hips=Hips(me);
+            if(hips==null||_perch.parent==null)return;
+            Vector3 off=_perch.parent.InverseTransformVector(hips.position-_perch.position);
+            if(off.magnitude>2)return; // (not the pose we expected)
+            _hipFit=off;
+            _perch.localPosition=_seatHips-off;
+            DetachOffset(me)=_perch.InverseTransformPoint(_perch.parent.TransformPoint(_deck));
+            Plugin.Log($"Lookout's seat: hips sit {off.x:0.00},{off.y:0.00},{off.z:0.00} from the seat point.");
+        }
+        private static Transform Hips(Player me)
+        {
+            foreach(Animator a in me.GetComponentsInChildren<Animator>())
+            {
+                if(a.isHuman){Transform h=a.GetBoneTransform(HumanBodyBones.Hips);if(h!=null)return h;}
+            }
+            foreach(Transform t in me.GetComponentsInChildren<Transform>())if(t.name=="Hips")return t;
+            return null;
         }
         internal static void Stop(){if(_perch!=null){Player.m_localPlayer?.AttachStop();Object.Destroy(_perch.gameObject);}_perch=null;Aloft=false;}
     }
@@ -407,13 +451,24 @@ namespace Wayfinder
     internal static class SafeDescent
     {
         private static readonly AccessTools.FieldRef<Character,float> MaxAir=AccessTools.FieldRefAccess<Character,float>("m_maxAirAltitude");
+        internal static void Reset(Character c)=>MaxAir(c)=c.transform.position.y;
         private static void Prefix(Player __instance,out bool __state)=>__state=__instance.IsAttached()&&Masthead.IsPerch(__instance.GetAttachPoint());
         private static void Postfix(Player __instance,bool __state)
         {
             if(!__state)return;
-            MaxAir(__instance)=__instance.transform.position.y;
+            Reset(__instance);
+            Masthead.SafeUntil=Time.time+2;
             Rigidbody body=__instance.GetComponent<Rigidbody>();
             if(body!=null)body.linearVelocity=Vector3.zero;
+        }
+    }
+    // Going up and coming down: no fall counted for a moment either side (the jump up was being taken for a fall).
+    [HarmonyPatch(typeof(Character),"UpdateGroundContact")]
+    internal static class NoFallAloft
+    {
+        private static void Prefix(Character __instance)
+        {
+            if(__instance==Player.m_localPlayer&&Time.time<Masthead.SafeUntil)SafeDescent.Reset(__instance);
         }
     }
     [HarmonyPatch(typeof(Chair),nameof(Chair.GetHoverText))]

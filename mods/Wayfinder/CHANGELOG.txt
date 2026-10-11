@@ -1,3 +1,5 @@
+0.1.4: Up at the masthead you sit on the lookout's seat, not above it: your sitting height is measured the first time you sit there and the seat point follows. No fall damage going up or coming down. The pegs, lantern, vane and seat stay on the mast when the yard swings round (they were placed from the middle of the turning mast and sail).
+
 0.1.3: A lookout's seat on every mast: a board lashed to the fore side under the masthead, slung by two ropes, with pegs up the mast. Climbing to the masthead now sits you on it, not in the air beside the mast; everyone aboard sees the seat.
 
 0.1.2: Fixed a deadly fall from the masthead: climbing down (a key, or a reload) set you on the deck, but the game counted the drop from the masthead as a fall. It now lands you safely, on the deck found under the mast (not the mast seat's height, which on the karve was above the yard). Up at the masthead you count as aboard, so the wind and lead notes stay. No more error from looking up the world while none is loaded.
