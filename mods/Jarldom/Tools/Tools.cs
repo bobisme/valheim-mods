@@ -65,6 +65,29 @@ namespace Jarldom
             Colony c = Here();
             string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "away", "master", "envoy", "capture", "barrow" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or with devcommands"); return; }
+            if (cmd == "selftest")
+            {
+                // Read-only checks of what the mod reads from live game objects near the player (anywhere, no colony needed).
+                Vector3 here = Player.m_localPlayer.transform.position; float r = a.Length > 2 ? F(a[2]) : 30f;
+                var near = new List<Piece>(); Piece.GetAllPiecesInRadius(here, r, near);
+                var stations = near.Select(p => p.GetComponent<CraftingStation>()).Where(st => st != null)
+                    .Select(st => $"{Utils.GetPrefabName(st.gameObject)} lvl {st.GetLevel()}: {Crafts.Unusable(st) ?? "usable"}");
+                var ferms = near.Select(p => p.GetComponent<Fermenter>()).Where(f => f != null)
+                    .Select(f => $"fermenter at {f.transform.position.x:0},{f.transform.position.z:0}: {Work.FermentStatus(f)}, roofed {Work.Roofed(f.transform.position)}");
+                var cooks = near.Select(p => p.GetComponent<CookingStation>()).Where(cs => cs != null)
+                    .Select(cs => $"{Utils.GetPrefabName(cs.gameObject)}: fire {Work.Cook(cs, "IsFireLit")}, free slot {Work.CookFree(cs)}, done {Work.Cook(cs, "HaveDoneItem")}");
+                var smelters = near.Select(p => p.GetComponent<Smelter>()).Where(sm => sm != null)
+                    .Select(sm => $"{Utils.GetPrefabName(sm.gameObject)}: queue {Work.QueueSize(sm)} of {sm.m_maxOre}, fuel {sm.GetComponent<ZNetView>()?.GetZDO()?.GetFloat(ZDOVars.s_fuel):0.0}");
+                Work.LearnCrops();
+                var beasts = Character.GetAllCharacters().Where(ch => ch != null && ch.IsTamed() && Vector3.Distance(ch.transform.position, here) < r)
+                    .Select(ch => $"{Utils.GetPrefabName(ch.gameObject)} '{ch.GetComponent<Tameable>()?.GetText()}': livestock {ch.GetComponent<Procreation>() != null}, young {ch.GetComponent<Growup>() != null}, saddled {ch.GetComponentInChildren<Sadle>() != null}, hungry {ch.GetComponent<Tameable>()?.IsHungry()}, eats {string.Join("/", ch.GetComponent<MonsterAI>()?.m_consumeItems?.Where(i => i != null).Select(i => i.name).Take(4) ?? new string[0])}");
+                var known = ObjectDB.instance.m_recipes.Count(rc => rc != null && rc.m_enabled && rc.m_item != null && rc.m_craftingStation != null && Player.m_localPlayer.IsRecipeKnown(rc.m_item.m_itemData.m_shared.m_name)
+                    && near.Any(p => p.GetComponent<CraftingStation>() is CraftingStation st && st.m_name == rc.m_craftingStation.m_name && st.GetLevel() >= rc.m_minStationLevel));
+                output(new JObject { ["stations"] = new JArray(stations), ["fermenters"] = new JArray(ferms), ["cooking"] = new JArray(cooks), ["smelters"] = new JArray(smelters),
+                    ["saplings"] = new JArray(Work.Saplings.Select(x => $"{x.sapling.name} from {x.amount} {x.seed}, biomes {x.plant.m_biome}")), ["crops"] = Work.Crops.Count,
+                    ["tamed"] = new JArray(beasts), ["commissionable"] = known, ["costMsPerFrame"] = Plugin.CostFrames > 0 ? Math.Round(Plugin.CostMs / Plugin.CostFrames, 4) : -1 });
+                return;
+            }
             if (cmd == "probe")
             {
                 // From the player (read-only): the floor under them, the ceiling over them, and the walls each way at chest height.

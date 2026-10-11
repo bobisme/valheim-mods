@@ -280,7 +280,7 @@ namespace Jarldom
             c.Board.Post("cull", Key(cv), Prof.Herder, 2, cull.transform.position.x, cull.transform.position.y, cull.transform.position.z, now, z.Id, "Pasture");
         }
 
-        private static void LearnCrops()
+        internal static void LearnCrops()
         {
             if (_learned || ObjectDB.instance == null) return;
             PieceTable table = ObjectDB.instance.GetItemPrefab("Cultivator")?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces;
