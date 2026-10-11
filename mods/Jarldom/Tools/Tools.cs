@@ -53,6 +53,7 @@ namespace Jarldom
         private static Brain Who(string name) => Villagers.All.FirstOrDefault(b => b.S.Vid == name || b.S.Name.Equals(name, StringComparison.OrdinalIgnoreCase) || b.S.FullName.Equals(name.Replace('_', ' '), StringComparison.OrdinalIgnoreCase))
             ?? Villagers.All.FirstOrDefault(b => b.S.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase));
 
+        private static Vector3? _pathMark;
         private static IEnumerator Run(string[] args, Action<JObject> output, Action<string> error)
         {
             try { Do(args, output, error); }
@@ -65,6 +66,30 @@ namespace Jarldom
             Colony c = Here();
             string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "away", "master", "envoy", "capture", "barrow" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or with devcommands"); return; }
+            if (cmd == "pathtest")
+            {
+                // A villager's road (read-only): "pathtest mark" remembers where the player stands; "pathtest" asks the navmesh for the way
+                // from the mark to where they stand now, as a villager asks (full path first; else the partial one, and the door it ends at).
+                Vector3 here = Player.m_localPlayer.transform.position;
+                if (a.Length > 2 && a[2] == "mark") { _pathMark = here; output(new JObject { ["marked"] = V(here) }); return; }
+                if (_pathMark == null) { error("pathtest mark first"); return; }
+                Vector3 from = _pathMark.Value; var path = new List<Vector3>();
+                bool fromOk = Nav.Valid(out Vector3 f2, from, 2f), toOk = Nav.Valid(out Vector3 t2, here, 2f);
+                bool full = Pathfinding.instance.GetPath(fromOk ? f2 : from, toOk ? t2 : here, path, Pathfinding.AgentType.Humanoid, requireFullPath: true);
+                var o = new JObject { ["from"] = V(from), ["to"] = V(here), ["startOnNavmesh"] = fromOk, ["endOnNavmesh"] = toOk, ["full"] = full };
+                if (full) { o["waypoints"] = path.Count; o["length"] = Math.Round(path.Zip(path.Skip(1), Vector3.Distance).Sum(), 1); o["climb"] = Math.Round(path.Max(p => p.y) - path.Min(p => p.y), 1); }
+                else
+                {
+                    bool partial = Pathfinding.instance.GetPath(fromOk ? f2 : from, toOk ? t2 : here, path, Pathfinding.AgentType.Humanoid);
+                    Vector3 end = path.Count > 0 ? path[path.Count - 1] : from;
+                    var near = new List<Piece>(); Piece.GetAllPiecesInRadius(end, 4f, near);
+                    Door door = near.Select(p => p.GetComponent<Door>()).Where(d => d != null && !Utils.GetPrefabName(d.gameObject).Contains("window")).OrderBy(d => Vector3.Distance(d.transform.position, end)).FirstOrDefault();
+                    o["partial"] = partial; o["partialEnd"] = V(end); o["endShort"] = Math.Round(Vector3.Distance(end, here), 1);
+                    o["doorAtEnd"] = door == null ? "none" : $"{Utils.GetPrefabName(door.gameObject)} {Vector3.Distance(door.transform.position, end):0.0} m from the end, {(door.GetComponent<ZNetView>()?.GetZDO()?.GetInt(ZDOVars.s_state) == 0 ? "shut" : "open")}";
+                }
+                output(o);
+                return;
+            }
             if (cmd == "selftest")
             {
                 // Read-only checks of what the mod reads from live game objects near the player (anywhere, no colony needed).
