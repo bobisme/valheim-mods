@@ -270,6 +270,7 @@ namespace Jarldom
                     {
                         // The colony's flags (read-only), those starting with the prefix if one is given.
                         string pre = a.Length > 2 ? a[2] : "";
+                        if (a.Length > 3 && !Cheats()) { error("jarldom flags <key> <value> changes the colony: only in single player, for the host, or with devcommands"); return; }
                         if (a.Length > 3) { if (a[3] == "-") c.R.Flags.Remove(pre); else c.R.Flags[pre] = (int)F(a[3]); c.MarkDirty(); } // ("flags key value" sets one, "flags key -" clears it)
                         output(new JObject { ["flags"] = new JObject(c.R.Flags.Where(kv => kv.Key.StartsWith(pre)).OrderBy(kv => kv.Key).Select(kv => new JProperty(kv.Key, kv.Value))) });
                         break;

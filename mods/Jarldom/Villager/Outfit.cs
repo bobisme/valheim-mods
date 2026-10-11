@@ -81,7 +81,7 @@ namespace Jarldom
             if (c == null || Time.time < b.NoGraveUntil) return null;
             b.NoGraveUntil = Time.time + 30;
             // Their own; for a hauler, also those of villagers who won't come back for theirs (ascended, lost, gone).
-            bool Mine(string vid) => vid == b.S.Vid || b.S.Prof == Prof.Hauler && vid != "" && !c.R.Roster.Any(r => r.Vid == vid && r.State == SoulState.Active);
+            bool Mine(string vid) => vid == b.S.Vid || b.S.Prof == Prof.Hauler && vid != "" && c.R.Roster.Any(r => r.Vid == vid && r.State != SoulState.Active); // (one of ours gone for good: not another colony's)
             TombStone grave = Graves()
                 .Where(t => Mine(t.GetComponent<ZNetView>()?.GetZDO()?.GetString(Villagers.TombKey, "") ?? "") && Utils.DistanceXZ(t.transform.position, c.Position) < c.Radius + 60)
                 .OrderBy(t => Vector3.Distance(t.transform.position, b.Pos)).FirstOrDefault();
@@ -109,8 +109,10 @@ namespace Jarldom
             bool own = _grave.GetComponent<ZNetView>()?.GetZDO()?.GetString(Villagers.TombKey, "") == b.S.Vid;
             foreach (ItemDrop.ItemData item in box.GetInventory().GetAllItems().ToList())
             {
-                if (!own && item.m_dropPrefab != null) b.Hauled.Add(item.m_dropPrefab.name); // (someone else's: for the stores)
-                got += Stock.Take(box, bag, item, item.m_stack);
+                string name = item.m_dropPrefab?.name;
+                int took = Stock.Take(box, bag, item, item.m_stack);
+                if (took > 0 && !own && name != null) b.Hauled.Add(name); // (someone else's: for the stores)
+                got += took;
             }
             if (got > 0) { b.Say("There it all is.", 3); b.Dirty(); }
             if (box.GetInventory().NrOfItems() > 0) b.NoGraveUntil = Time.time + 120; // (their bag is full: the rest waits)

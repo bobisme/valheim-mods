@@ -22,7 +22,14 @@ namespace Jarldom
             // A guard without a ring may lose heart early in a raid (one roll a raid).
             if (b.S.Prof == Prof.Guard && b.S.Count("rings") == 0 && b.Colony.RaidOn && new System.Random(b.S.Vid.GetStableHashCode() ^ b.Colony.R.Log.Count(e => e.Kind == "raid")).NextDouble() < 0.2) fleeAt = 0.7f;
             if (tyr && b.S.Prof == Prof.Guard) fleeAt = 0;
-            Character foe = b.HasFoe && Utils.DistanceXZ(b.Foe.transform.position, b.Colony.Position) < b.Colony.Radius + 25 ? b.Foe : null;
+            // (one that hit them from outside the colony isn't chased out there, but it's still run from)
+            if (b.HasFoe && Utils.DistanceXZ(b.Foe.transform.position, b.Colony.Position) >= b.Colony.Radius + 25)
+            {
+                b.Fighting = false;
+                if (Vector3.Distance(b.Foe.transform.position, me) < 12f) Flee(b, b.Foe);
+                return;
+            }
+            Character foe = b.HasFoe ? b.Foe : null;
             if (foe == null)
             {
                 // Fighters meet what comes within 25 m; in a raid they go out to the raiders anywhere in the colony (raiders first).

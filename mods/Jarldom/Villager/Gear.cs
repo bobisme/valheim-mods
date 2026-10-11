@@ -41,6 +41,7 @@ namespace Jarldom
                 case "pickaxe": return all.Where(i => i.GetDamage().m_pickaxe > 0 && i.m_shared.m_toolTier >= tier).OrderByDescending(i => i.m_shared.m_toolTier).ThenByDescending(i => i.GetDamage().m_pickaxe).FirstOrDefault();
                 case "cultivator": return all.FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == "Cultivator");
                 case "hammer": return all.FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == "Hammer");
+                case "hoe": return all.FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == "Hoe");
                 case "rod": return all.FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == "FishingRod");
                 case "bow": return all.Where(i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Bow && Ammo(b, i) != null).OrderByDescending(i => i.GetDamage().GetTotalDamage()).FirstOrDefault();
                 case "weapon": return Weapon(b);

@@ -346,7 +346,7 @@ namespace Jarldom
             if (prof == Prof.Gothi) { Task rite = GothiTask.Next(b); if (rite != null) return rite; }
             if (prof == Prof.Carter) { Task cart = Carts.Next(b); if (cart != null) return cart; }
             if (prof == Prof.Builder && c.IsOwner && Compat.GhostCount(c.Position, c.Radius) > 0 && Gear.Tool(b, "hammer") != null && Time.time > b.NoBuildUntil) return new BuildTask();
-            if (prof == Prof.Trader && c.R.Rank >= Rank.Village && Time.time > b.NoTradeUntil && b.Body.GetInventory().GetEmptySlots() > 1 && Stock.Chests(c, b.Pos).Any(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest) && x.chest.GetInventory().GetAllItems().Count(Trade.Sellable) >= 3)) return new TradeTask();
+            if (prof == Prof.Trader && c.R.Rank >= Rank.Village && Time.time > b.NoTradeUntil && b.Body.GetInventory().GetEmptySlots() > 1 && Stock.Chests(c, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).Sum(x => x.chest.GetInventory().GetAllItems().Count(Trade.Sellable)) >= 3) return new TradeTask(); // (three lots to sell, in whatever chests)
             Func<Prof, bool> canDo = p => p == prof || p == Prof.Hauler && (prof == Prof.Hauler || Gear.Lacks(b, prof) != null || NothingFor(c, prof));
             string problem = null;
             Order o = c.IsOwner ? c.Board.Best(b.S.Vid, canDo, b.Pos.x, b.Pos.z, order => { string p = GearFor(b, order); if (p != null) problem = p; return p; }, c.Now) : Net.BestShared(c, b, canDo);
@@ -375,7 +375,8 @@ namespace Jarldom
         public static int Carrying(Brain b) => b.Body.GetInventory().GetAllItems().Count(i => Stores(b, i));
         // What goes to the stores from this villager's bag: loot, and gear they picked up off the ground for the colony (not theirs).
         public static bool Stores(Brain b, ItemDrop.ItemData i) => Loot(i) || !i.m_equipped && i.m_dropPrefab != null && (b.Hauled.Contains(i.m_dropPrefab.name) || Surplus(b, i));
-        // Food beyond what a villager keeps for themselves (a small stack of their best, up to a day's few meals): the colony's.
+        // Food beyond what a villager keeps for themselves (a small stack of their best, five or fewer; a bigger one goes in whole and they
+        // fetch a meal back when hungry): the colony's.
         private const int KeepFood = 5;
         public static bool Surplus(Brain b, ItemDrop.ItemData i)
         {
@@ -816,10 +817,11 @@ namespace Jarldom
                 ItemDrop drop = _target != null ? _target.GetComponent<ItemDrop>() : null;
                 if (drop == null) { Gone(b); return; }
                 if (Vector3.Distance(b.Pos, drop.transform.position) > 1.4f) { if (!b.Move.Moving) b.Move.To(drop.transform.position, 0.8f); if (b.Move.Failed) Block(b, "can't reach it"); return; }
-                if (!Work.Loot(drop.m_itemData) && drop.m_itemData.m_dropPrefab != null && !Stock.Edible(drop.m_itemData)) b.Hauled.Add(drop.m_itemData.m_dropPrefab.name); // (a weapon or tool off the ground: the colony's, for the stores)
+                string gear = !Work.Loot(drop.m_itemData) && drop.m_itemData.m_dropPrefab != null && !Stock.Edible(drop.m_itemData) ? drop.m_itemData.m_dropPrefab.name : null;
                 Got got = PickUpNow(b, drop);
                 if (got == Got.Failed) { Finish(b, false); return; }
                 if (got == Got.Waiting) { _waitUntil = Time.time + 0.3f; return; }
+                if (gear != null) b.Hauled.Add(gear); // (a weapon or tool off the ground: the colony's, for the stores)
                 _phase = 1;
             }
             Finish(b, true);

@@ -173,6 +173,7 @@ namespace Jarldom
                         int n = Math.Min(left, st.m_stack); bag.RemoveItem(st, n); left -= n;
                     }
                 _made = bag.AddItem(_r.m_item.name, _r.m_amount, 1, 0, Colony.Hash(b.S.Vid), b.S.Name, new Vector2i(-1, -1), false, false, false) ?? bag.GetAllItems().LastOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == _r.m_item.name);
+                if (_made != null) b.Hauled.Add(_r.m_item.name); // (the colony's, not the smith's: to the stores even if this delivery fails)
                 _st.m_craftItemDoneEffects.Create(_st.transform.position, Quaternion.identity);
                 b.Body.RaiseSkill(Skills.SkillType.Crafting, 1f);
                 b.S.Bump("made");

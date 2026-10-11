@@ -54,7 +54,7 @@ namespace Jarldom
             if (string.IsNullOrEmpty(value) || ZDOMan.instance == null) return null;
             string k = key + "=" + value;
             if (Index.TryGetValue(k, out ZDO z) && z.IsValid() && z.GetPrefab() == Hash && z.GetString(key, "") == value) return z;
-            if (Time.time - _indexedAt < 5f) return null;
+            if (Time.time - _indexedAt < 5f || Missed.TryGetValue(k, out float until) && Time.time < until) return null; // (one that really is gone isn't looked for in every object again and again)
             _indexedAt = Time.time; Index.Clear();
             int hash = Hash;
             foreach (ZDO o in ById(ZDOMan.instance).Values)
@@ -64,9 +64,12 @@ namespace Jarldom
                 if (vid != "") Index[Villagers.VidKey + "=" + vid] = o;
                 else if (id != "") Index[Colony.IdKey + "=" + id] = o;
             }
-            return Index.TryGetValue(k, out z) ? z : null;
+            if (Index.TryGetValue(k, out z)) return z;
+            Missed[k] = Time.time + 20f;
+            return null;
         }
-        public static void Forget() { Index.Clear(); _indexedAt = -100f; }
+        private static readonly Dictionary<string, float> Missed = new Dictionary<string, float>();
+        public static void Forget() { Index.Clear(); Missed.Clear(); _indexedAt = -100f; }
         // What a villager is: from the body when it has a copy (from before souls, or kept there while its soul couldn't be found:
         // either way the newer), else from its soul.
         public static byte[] StateOf(ZDO body)

@@ -55,6 +55,7 @@ namespace Jarldom
             foreach (int gone in Links.Where(kv => kv.Value.stair == null).Select(kv => kv.Key).ToList()) { NavMesh.RemoveLink(Links[gone].link); Links.Remove(gone); }
             int agent = Agent();
             if (agent < 0) return;
+            foreach (string gone in FloorLinks.Keys.Where(k => !Colony.All.Any(c => k.StartsWith(c.Id + "/"))).ToList()) { foreach (var l in FloorLinks[gone]) NavMesh.RemoveLink(l); FloorLinks.Remove(gone); } // (a colony unloaded)
             foreach (Colony c in Colony.All)
             {
                 Floors(c, agent);
