@@ -36,7 +36,8 @@ namespace Jarldom
 
         // ---- deposits ----
         private static readonly Dictionary<string, (string ore, float each)> PerArea = new Dictionary<string, (string, float)>();
-        private static readonly AccessTools.FieldRef<MineRock5, System.Collections.IList> Areas5 = AccessTools.FieldRefAccess<MineRock5, System.Collections.IList>("m_hitAreas");
+        private static readonly System.Reflection.FieldInfo Areas5Field = AccessTools.Field(typeof(MineRock5), "m_hitAreas");
+        private static System.Collections.IList Areas5(MineRock5 m) => Areas5Field?.GetValue(m) as System.Collections.IList;
         private static readonly AccessTools.FieldRef<MineRock, Collider[]> Areas = AccessTools.FieldRefAccess<MineRock, Collider[]>("m_hitAreas");
         // A deposit's ore: which, about how much is still in it (by its drop table and the parts still standing), and the pickaxe tier.
         public static (string ore, int n, int tier)? Deposit(GameObject go)
