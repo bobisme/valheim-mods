@@ -174,6 +174,10 @@ namespace Jarldom
             int pick = Gear.Tool(b, "pickaxe")?.m_shared.m_toolTier ?? -1;
             var mine = Of(c).Where(x => x.Ore > 0).ToList();
             if (mine.Count == 0) return null;
+            // (not off again with last trip's load still on their back, nor for ore the stores have no room for)
+            if (b.Body.GetInventory().GetAllItems().Any(Carts.IsCargo)) return null;
+            mine = mine.Where(x => x.Left.Keys.Any(ore => Carts_Item(ore) is GameObject p && Stock.Destination(c, Stock.Of(p), c.Position) != null)).ToList();
+            if (mine.Count == 0) { Gear.Problem = "no room in the stores for more ore: add a chest for ore"; return null; }
             Claim best = mine.Where(x => x.Left.Any(kv => kv.Value.n > 0 && kv.Value.tier <= pick) && Out(c, x.Id) < Mining.Room(x) && (!x.Crypt || ElderBeaten))
                 .OrderBy(x => Utils.DistanceXZ(At(x), c.Position)).FirstOrDefault();
             if (best == null)
