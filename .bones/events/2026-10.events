@@ -54,3 +54,11 @@
 1791747767796360	claude-jarldom	itc:AQ		item.move	bn-hfh	{"state":"done"}	blake3:xpImn7cTDTqLzeTv4v4A0iLyzKWHSR1itph9TaYaCYo
 1791747767808203	claude-jarldom	itc:AQ		item.comment	bn-acg	{"body":"Path wear counted live (4 squares past 30 passes after 3 min, busiest 333,1121); paving itself not yet seen. In-memory counts reset on every reload."}	blake3:SYtDkA2WYZMheAO2KS7K2Q3OepNGewMKKRwTxzXea6I
 1791747767821863	claude-jarldom	itc:AQ		item.comment	bn-3q8	{"body":"Ruins recorded live (a broken test pole); the rebuild not yet seen: weather wear kept the builder mending (priorities reordered: badly damaged, then ruins, then wear/roads)."}	blake3:RdBobyojMOA4lhpKpCtQOrv7iVWsHtRjl7SCERco_Ug
+1791748013576754	claude-jarldom	itc:AQ		item.comment	bn-3q8	{"body":"Live: Alfhild's counts show rebuilt=1; the ruins list is now empty (the wood_pole2 at 302,1142 rebuilt from the stores)."}	blake3:QWGHAzmeLC2BeR7YGs_dD0L2nYCrVL4g9LOoiAtpg1U
+1791748013597828	claude-jarldom	itc:AQ		item.move	bn-3q8	{"state":"done"}	blake3:fpArcMtp-EDs2-3592FCpsemtps6S73U4h9Q5AT4NlI
+1791748013610588	claude-jarldom	itc:AQ		item.comment	bn-acg	{"body":"Live: Alfhild's counts show paved=2 once the colony ran undisturbed (paths reached the threshold)."}	blake3:WDPHRmGkG86XonR5Xy2DLYwvS97mJwzM6P6dCL8PgoI
+1791748013622123	claude-jarldom	itc:AQ		item.move	bn-acg	{"state":"done"}	blake3:MS1Ukzls3rhxZOVCnMrzT1z9HXBlJFJmgMobocVkjWo
+1791748017702269	claude-jarldom	itc:AQ		item.comment	bn-30b	{"body":"Live: Solveig made 20 wood arrows via MakeOwn when the stores had none; hunters fight with the bow."}	blake3:3OGWZPiGOOQXmGfW3Zy6pXXJiPIE8IW7HzF7YVby9Ps
+1791748017724374	claude-jarldom	itc:AQ		item.move	bn-30b	{"state":"done"}	blake3:9I1Q-K4S42UcSHHd1pA_QZDJhc3BUGgD66ymrGtBePs
+1791748017736297	claude-jarldom	itc:AQ		item.comment	bn-ify	{"body":"Live: flax sown and healthy, weaver spun thread and wove a yellow tunic worn by Alfhild; trader bought flax seed + Hildir clothes (TestHildir)."}	blake3:Ab3IzSH08MGWOBqEHHeeJinv-814-J9cHtzxwz9WkXA
+1791748017748590	claude-jarldom	itc:AQ		item.move	bn-ify	{"state":"done"}	blake3:de3qcd7LqgtLic3DIsnmzWWoBLBpg-52OaVi39FVE7Y
