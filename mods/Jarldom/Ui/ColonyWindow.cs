@@ -11,14 +11,14 @@ namespace Jarldom.Ui
     // Every window of the mod, ticked and closed together.
     internal static class Windows
     {
-        public static bool AnyOpen => ColonyWindow.IsOpen || VillagerPanel.IsOpen || RoomPicker.IsOpen;
+        public static bool AnyOpen => ColonyWindow.IsOpen || VillagerPanel.IsOpen || RoomPicker.IsOpen || RoomEditor.IsOpen;
         public static void Tick()
         {
             GameUi.IsOpen = () => AnyOpen;
             GameUi_EscapeCloses.Close = CloseAll;
-            ColonyWindow.Tick(); VillagerPanel.Tick(); RoomPicker.Tick();
+            ColonyWindow.Tick(); VillagerPanel.Tick(); RoomPicker.Tick(); RoomEditor.Tick();
         }
-        public static void CloseAll() { ColonyWindow.Close(); VillagerPanel.Close(); RoomPicker.Close(); }
+        public static void CloseAll() { ColonyWindow.Close(); VillagerPanel.Close(); RoomPicker.Close(); RoomEditor.Close(); }
         public static string Pct(float f) => Mathf.RoundToInt(f * 100) + "%";
         public static string Signed(int v) => v > 0 ? "+" + v : v.ToString();
     }

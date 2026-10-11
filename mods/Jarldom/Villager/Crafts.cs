@@ -21,7 +21,7 @@ namespace Jarldom
             if (r == null || r.m_craftingStation == null) return null;
             return c.PiecesIn(c.Radius).Select(p => p.GetComponent<CraftingStation>())
                 .Where(st => st != null && st.m_name == r.m_craftingStation.m_name && st.GetLevel() >= r.m_minStationLevel)
-                .OrderBy(st => Vector3.Distance(st.transform.position, near)).FirstOrDefault();
+                .OrderBy(st => Unusable(st) == null ? 0 : 1).ThenBy(st => Vector3.Distance(st.transform.position, near)).FirstOrDefault(); // (one that works first)
         }
         // What keeps a station from working, the game's way (a roof over it, a lit fire under a cauldron); null if it works.
         private static readonly HarmonyLib.AccessTools.FieldRef<CraftingStation, bool> HaveFire = HarmonyLib.AccessTools.FieldRefAccess<CraftingStation, bool>("m_haveFire");
@@ -44,6 +44,16 @@ namespace Jarldom
         public static bool CanAfford(Colony c, Recipe r) => Needs(r).All(n => InStock(c, n.item) >= n.amount);
         public static string Name(string prefab) { GameObject p = Assets.Find(prefab); string n = p?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name; return n == null ? prefab : Localization.instance.Localize(n); }
 
+        // Why each fermenter isn't being kept going (for the jarldom craft command).
+        public static List<string> BrewWhy(Colony c) => c.PiecesIn(c.Radius).Select(x => x.GetComponent<Fermenter>()).Where(f => f != null).Select(f =>
+        {
+            string head = $"fermenter at {f.transform.position.x:0},{f.transform.position.z:0}: {Work.FermentStatus(f)}, roofed {Work.Roofed(f.transform.position)}";
+            var bases = f.m_conversion.Where(cv => cv.m_from != null).Select(cv => cv.m_from.name).ToList();
+            string stock = string.Join(", ", bases.Where(n => InStock(c, n) > 0).Select(n => n + " x" + InStock(c, n)));
+            string recipes = string.Join("; ", bases.Select(n => { Recipe r = RecipeFor(n); if (r == null) return n + ": no recipe"; CraftingStation st = StationFor(c, r, f.transform.position);
+                return $"{n}: {(st == null ? "no " + r.m_craftingStation?.name : Unusable(st) ?? "station ok")}, {(CanAfford(c, r) ? "affordable" : "lacks " + string.Join("/", Needs(r).Where(q => InStock(c, q.item) < q.amount).Select(q => q.item)))}"; }));
+            return head + " | in stock: " + (stock == "" ? "none" : stock) + " | " + recipes;
+        }).ToList();
         public static Dictionary<string, int> Commissions(Colony c) =>
             c.R.Flags.Where(f => f.Key.StartsWith(Prefix) && f.Value > 0).ToDictionary(f => f.Key.Substring(Prefix.Length), f => f.Value);
         // What the local player could commission here: recipes they know, for stations the colony has.
@@ -273,14 +283,16 @@ namespace Jarldom
             if (foes.Count == 0) return;
             var groups = foes.GroupBy(f => Localization.instance.Localize(f.m_name)).OrderByDescending(g => g.Count()).ToList();
             string what = string.Join(", ", groups.Take(3).Select(g => g.Count() == 1 ? "a " + g.Key.ToLower() : g.Count() + " " + Plural(g.Key.ToLower())));
-            string key = what;
-            if (!_seen.Add(key)) return;
+            string key = b.Colony.Id + what;
+            if (!_seen.Add(key) || Reported.TryGetValue(key, out float last) && Time.time - last < 300f) return; // (each sighting once in five minutes)
+            Reported[key] = Time.time;
             Vector3 dir = foes[0].transform.position - b.Colony.Position;
             string text = $"{b.S.Name} the scout saw {what} to the {Compass(dir)}, {Mathf.RoundToInt(Utils.DistanceXZ(foes[0].transform.position, b.Colony.Position))} m out.";
             b.Say("I see " + what + "!", 5);
             if (Time.time >= _nextWarn) { _nextWarn = Time.time + 60; b.Colony.Log("text", b.S.Name, "", text); }
         }
         private static float _nextWarn;
+        private static readonly Dictionary<string, float> Reported = new Dictionary<string, float>();
         private static string Plural(string n) => n.EndsWith("s") ? n : n.EndsWith("f") ? n.Substring(0, n.Length - 1) + "ves" : n + "s";
         public static string Compass(Vector3 d)
         {

@@ -63,8 +63,29 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "site", "hurt" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "site", "hurt", "takedown", "relic", "pickrelic" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or with devcommands"); return; }
+            if (cmd == "pickrelic")
+            {
+                // The nearest dropped heart of the high seat into the local player's bag, wherever it lies (for tests).
+                ItemDrop drop = Object.FindObjectsOfType<ItemDrop>().Where(d => Utils.GetPrefabName(d.gameObject) == Items.RelicName).OrderBy(d => Vector3.Distance(d.transform.position, Player.m_localPlayer.transform.position)).FirstOrDefault();
+                if (drop == null) { error("no heart lying about"); return; }
+                bool got = Player.m_localPlayer.Pickup(drop.gameObject, false, false);
+                output(new JObject { ["picked"] = got, ["colony"] = Relic.ColonyName(drop.m_itemData) });
+                return;
+            }
+            if (cmd == "relic")
+            {
+                // A heart of the high seat from a jarldom backup file, into the local player's bag.
+                if (a.Length < 3 || !System.IO.File.Exists(a[2])) { error("relic <backup file>"); return; }
+                string[] lines = System.IO.File.ReadAllLines(a[2]);
+                ItemDrop.ItemData item = Player.m_localPlayer?.GetInventory().AddItem(Items.Relic, 1) == true ? Player.m_localPlayer.GetInventory().GetAllItems().Last(Items.IsRelic) : null;
+                if (item == null) { error("no room in the bag"); return; }
+                item.m_customData[Relic.IdKey] = lines[0]; item.m_customData[Relic.NameKey] = lines[1]; item.m_customData[Relic.RecordKey] = lines[2];
+                if (lines.Length > 3 && lines[3].Length > 0) item.m_customData[Relic.BoardKey] = lines[3];
+                output(new JObject { ["relic"] = lines[1] });
+                return;
+            }
             if (c == null && cmd != "place" && cmd != "compat" && cmd != "status") { error("no colony near (jarldom place pillars makes one)"); return; }
             Player me = Player.m_localPlayer;
             switch (cmd)
@@ -133,10 +154,11 @@ namespace Jarldom
                     {
                         if (me == null) { error("no player"); return; }
                         float d = a.Length > 3 ? F(a[3]) : 6;
-                        Vector3 at = me.transform.position + me.transform.forward * d;
+                        Vector3 at = a.Length > 4 ? new Vector3(F(a[3]), 0, F(a[4])) : me.transform.position + me.transform.forward * d; // (place pillars <x> <z>, or <metres ahead>)
                         if (ZoneSystem.instance.GetSolidHeight(at, out float h)) at.y = h;
                         Colony near = Colony.Nearest(at, Renown.MinApart);
                         if (near != null) { error($"colony {near.Id} is {Utils.DistanceXZ(near.Position, at):0} m away (colonies stand {Renown.MinApart} m apart)"); return; }
+                        Relic.Placing(me, at); // (carrying a heart: these pillars take its colony)
                         GameObject go = Object.Instantiate(Pieces.Get(Pieces.PillarsName), at, Quaternion.LookRotation(-me.transform.forward));
                         go.GetComponent<Piece>().SetCreator(me.GetPlayerID(), Splatform.PlatformManager.DistributionPlatform.LocalUser.PlatformUserID);
                         go.GetComponent<WearNTear>()?.OnPlaced();
@@ -224,7 +246,7 @@ namespace Jarldom
                 case "craft":
                     if (a.Length > 2) Net.Act(c, "craft", a[2] + "|" + (a.Length > 3 ? a[3] : "1"));
                     output(new JObject { ["commissions"] = new JArray(Crafts.Commissions(c).Select(k => $"{k.Key} x{k.Value}")),
-                        ["offered"] = new JArray(Crafts.Offered(c, Player.m_localPlayer).Select(r => r.m_item.name)) });
+                        ["offered"] = new JArray(Crafts.Offered(c, Player.m_localPlayer).Select(r => r.m_item.name)), ["brewing"] = new JArray(Crafts.BrewWhy(c)) });
                     break;
                 case "horn": Net.Act(c, "horn", c.HornUntil > Time.time ? "off" : "on"); output(new JObject { ["horn"] = c.HornUntil > Time.time }); break;
                 case "treasury": case "stockpile":
@@ -427,6 +449,23 @@ namespace Jarldom
                     }
                     break;
                 case "ground": { Vector3 at = new Vector3(F(a[2]), 0, F(a[3])); output(new JObject { ["ground"] = Ground(at) }); } break;
+                case "backup":
+                    {
+                        // The colony's record and board to a file (BepInEx/claude/jarldom-<id>-<time>.txt), for jarldom relic to bring back.
+                        c.MarkDirty(); c.Flush();
+                        string file = System.IO.Path.Combine(BepInEx.Paths.BepInExRootPath, "claude", $"jarldom-{c.Id}-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
+                        System.IO.File.WriteAllLines(file, new[] { c.Id, c.R.Name, Convert.ToBase64String(c.Z.GetByteArray(Colony.RecordKey)), Convert.ToBase64String(c.Z.GetByteArray(Colony.BoardKey) ?? new byte[0]) });
+                        output(new JObject { ["file"] = file, ["bytes"] = c.Z.GetByteArray(Colony.RecordKey).Length });
+                    }
+                    break;
+                case "takedown":
+                    {
+                        // As if taken down with the hammer: the heart drops where they stood.
+                        WearNTear w = c.Seat.GetComponent<WearNTear>();
+                        w.Remove();
+                        output(new JObject { ["takendown"] = c.R.Name });
+                    }
+                    break;
                 case "remove":
                     {
                         int n = 0;

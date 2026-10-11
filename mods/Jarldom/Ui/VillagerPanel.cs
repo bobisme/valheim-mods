@@ -127,12 +127,13 @@ namespace Jarldom.Ui
     // After a room or zone outline is closed: what is it?
     internal static class RoomPicker
     {
-        private static RectTransform _window; private static Colony _c; private static List<float> _xz; private static float _floor; private static bool _temple;
+        private static RectTransform _window; private static Colony _c; private static List<float> _xz; private static float _floor; private static bool _temple; private static string _replace;
         public static bool IsOpen => _window != null;
-        public static void Open(Colony c, List<float> xz, float floor)
+        // replace: the room or zone this one takes the place of (changing what a marked outline is).
+        public static void Open(Colony c, List<float> xz, float floor, string replace = null)
         {
             if (!GameUi.Ready()) return;
-            _c = c; _xz = xz; _floor = floor; _temple = false;
+            _c = c; _xz = xz; _floor = floor; _temple = false; _replace = replace;
             Build();
         }
         public static void Close() { if (_window != null) Object.Destroy(_window.gameObject); _window = null; }
@@ -178,6 +179,7 @@ namespace Jarldom.Ui
         }
         private static void Place(string text, ref float x, ref float y, Action click)
         {
+            Action then = click; click = () => { string old = _replace; Colony c = _c; bool wasTemple = _temple; then(); if (!string.IsNullOrEmpty(old) && (wasTemple || !_temple)) Net.Act(c, "unroom", old); }; // (not when it only opened the list of gods)
             if (x + 170 > 740) { x = 30; y += 48; }
             GameUi.Button(_window, text, new Vector2(x, -y), new Vector2(164, 42), click, true, 15);
             x += 172;

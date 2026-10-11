@@ -28,6 +28,17 @@ namespace Jarldom
         {
             if (!Active) { if (Corners.Count > 0 && !Ui.RoomPicker.IsOpen) Clear(); return; }
             if (Input.GetKeyDown(KeyCode.Backspace) && Corners.Count > 0 && !GameUi.Typing) { Corners.RemoveAt(Corners.Count - 1); Draw(); }
+            // E on a marked room or zone (no outline being drawn): what it is, and change or remove it.
+            if (Corners.Count == 0 && !GameUi.Typing && !Ui.Windows.AnyOpen && ZInput.GetButtonDown("Use") && Player.m_localPlayer is Player p && Ghost(p) is GameObject g)
+            {
+                Vector3 at = g.transform.position;
+                Colony c = Colony.Nearest(at, Renown.ZoneReach + 20);
+                if (c == null) return;
+                Room room = c.RoomAt(at + Vector3.up * 0.5f);
+                Zone zone = room == null ? c.R.Zones.Where(z => Zones.Inside(z, at)).OrderBy(z => Geometry.Area(z.Xz)).FirstOrDefault() : null;
+                if (room != null || zone != null) Ui.RoomEditor.Open(c, room, zone);
+                else p.Message(MessageHud.MessageType.Center, "No room or zone marked here.");
+            }
         }
         public static void Clear() { Corners.Clear(); Draw(); }
         public static void Stop() { Clear(); if (_line != null) Object.Destroy(_line.gameObject); _line = null; }
@@ -49,7 +60,7 @@ namespace Jarldom
             }
             if (Corners.Count >= 24) { p.Message(MessageHud.MessageType.Center, "That's enough corners: click the first one to close it."); return; }
             Corners.Add(at);
-            p.Message(MessageHud.MessageType.TopLeft, Corners.Count < 3 ? $"Corner {Corners.Count}" : $"Corner {Corners.Count}: click the first corner to close it");
+            p.Message(MessageHud.MessageType.TopLeft, Corners.Count < 3 ? $"Corner {Corners.Count}" + (Corners.Count == 1 ? " (E on a marked room or zone to change it)" : "") : $"Corner {Corners.Count}: click the first corner to close it");
             Draw();
         }
 
@@ -81,6 +92,7 @@ namespace Jarldom
                     Vector3 at = ghost != null ? ghost.transform.position : __instance.transform.position;
                     Colony near = Colony.Nearest(at, Renown.MinApart);
                     if (near != null) { __instance.Message(MessageHud.MessageType.Center, $"{near.R.Name} is {Mathf.RoundToInt(Utils.DistanceXZ(near.Position, at))} m away: colonies stand {Renown.MinApart} m apart."); __result = false; return false; }
+                    if (__instance == Player.m_localPlayer) Relic.Placing(__instance, at); // (carrying a colony's heart: these pillars take it)
                 }
                 return true;
             }
@@ -142,10 +154,23 @@ namespace Jarldom
             }
         }
         public static void Clear() { foreach (GameObject g in Drawn) if (g != null) Object.Destroy(g); Drawn.Clear(); _shown = ""; }
+        public static void Stop() { Clear(); if (_root != null) Object.Destroy(_root); _root = null; }
 
+        // Everything drawn hangs under one object, so a reloaded copy of the mod can sweep away what the old copy left on screen.
+        private const string RootName = "JarldomOverlay";
+        private static GameObject _root;
+        public static Transform Root { get { if (_root == null) _root = new GameObject(RootName); return _root.transform; } }
+        public static void SweepOld()
+        {
+            GameObject old = GameObject.Find(RootName); if (old != null && old != _root) Object.Destroy(old);
+            // (once, at load: copies before 0.1.0's overlay root drew loose lines and labels)
+            foreach (LineRenderer l in Object.FindObjectsOfType<LineRenderer>()) if (l != null && l.name.StartsWith("Jarldom") && l.transform.parent == null) Object.Destroy(l.gameObject);
+            foreach (TMPro.TextMeshPro t in Object.FindObjectsOfType<TMPro.TextMeshPro>()) if (t != null && t.name == "JarldomRoomLabel" && t.transform.parent == null) Object.Destroy(t.gameObject);
+        }
         public static LineRenderer NewLine(string name, Color color, float width)
         {
             var go = new GameObject(name);
+            go.transform.SetParent(Root, false);
             LineRenderer l = go.AddComponent<LineRenderer>();
             l.material = Mat(); l.startColor = l.endColor = color; l.startWidth = l.endWidth = width;
             l.useWorldSpace = true; l.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; l.receiveShadows = false;
@@ -168,6 +193,7 @@ namespace Jarldom
         private static GameObject Label(Vector3 at, string text, Color color)
         {
             var go = new GameObject("JarldomRoomLabel");
+            go.transform.SetParent(Root, false);
             go.transform.position = at;
             var t = go.AddComponent<TMPro.TextMeshPro>();
             t.text = text; t.fontSize = 4; t.color = color; t.alignment = TMPro.TextAlignmentOptions.Center;

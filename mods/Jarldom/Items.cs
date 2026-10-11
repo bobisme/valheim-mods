@@ -11,13 +11,38 @@ namespace Jarldom
     // into more coins.
     internal static class Items
     {
-        public const string RingName = "JarldomArmRing";
+        public const string RingName = "JarldomArmRing", RelicName = "JarldomRelic";
         private static readonly Dictionary<string, GameObject> Prefabs = new Dictionary<string, GameObject>();
         private static Recipe _ringRecipe;
         private static readonly MethodInfo UpdateRegisters = AccessTools.Method(typeof(ObjectDB), "UpdateRegisters");
         private static readonly MethodInfo CloneShared = typeof(object).GetMethod("MemberwiseClone", BindingFlags.Instance | BindingFlags.NonPublic);
         public static IEnumerable<GameObject> All => Prefabs.Values.Where(p => p != null);
         public static GameObject Ring => Ensure();
+        public static GameObject Relic => EnsureRelic();
+
+        // The heart of the high seat: what's left when the pillars come down, holding the whole colony (its record in the item's own data).
+        private static GameObject EnsureRelic()
+        {
+            if (Prefabs.TryGetValue(RelicName, out GameObject made) && made != null) return made;
+            GameObject source = Assets.Find("Thunderstone") ?? Assets.Find("Ruby");
+            ItemDrop sourceDrop = source != null ? source.GetComponent<ItemDrop>() : null;
+            if (sourceDrop == null) return null;
+            GameObject go = Object.Instantiate(source, Assets.Holder);
+            go.name = RelicName;
+            var shared = (ItemDrop.ItemData.SharedData)CloneShared.Invoke(sourceDrop.m_itemData.m_shared, null);
+            Assets.Tint(go, new Color(1.2f, 0.9f, 0.5f), new Color(0.25f, 0.12f, 0.02f));
+            shared.m_name = "Heart of the high seat";
+            shared.m_description = "All that's left of fallen high-seat pillars, and all a colony was: its people, rooms, saga and the gods' favour. " +
+                "Carry it and raise new High-seat pillars (anywhere colonies may stand) to bring the colony back there.";
+            shared.m_itemType = ItemDrop.ItemData.ItemType.Misc; shared.m_maxStackSize = 1; shared.m_weight = 2f; shared.m_value = 0; shared.m_teleportable = true;
+            Sprite icon = Assets.Icon(go, RelicName, Quaternion.Euler(20, 30, 0));
+            if (icon != null) shared.m_icons = new[] { icon };
+            ItemDrop drop = go.GetComponent<ItemDrop>();
+            drop.m_itemData.m_shared = shared; drop.m_itemData.m_stack = 1; drop.m_itemData.m_quality = 1; drop.m_itemData.m_dropPrefab = go;
+            Prefabs[RelicName] = go;
+            return go;
+        }
+        public static bool IsRelic(ItemDrop.ItemData item) => item != null && (item.m_dropPrefab != null ? item.m_dropPrefab.name == RelicName : item.m_customData.ContainsKey(global::Jarldom.Relic.RecordKey));
 
         private static GameObject Ensure()
         {
@@ -41,15 +66,17 @@ namespace Jarldom
             return go;
         }
 
-        public static void RegisterScene(ZNetScene scene) { GameObject ring = Ensure(); if (ring != null) Assets.Register(scene, ring); }
+        public static void RegisterScene(ZNetScene scene) { GameObject ring = Ensure(); if (ring != null) Assets.Register(scene, ring); GameObject relic = EnsureRelic(); if (relic != null) Assets.Register(scene, relic); }
         public static void BeforeRegisters(ObjectDB db)
         {
-            db.m_items.RemoveAll(i => i == null || i.name == RingName && i != Ensure());
+            db.m_items.RemoveAll(i => i == null || i.name == RingName && i != Ensure() || i.name == RelicName && i != EnsureRelic());
             db.m_recipes.RemoveAll(r => r == null || r.name == "Recipe_" + RingName && r != _ringRecipe);
             if (db.GetItemPrefab("Coins") == null && db.m_items.All(i => i == null || i.name != "Coins")) return; // the main menu's empty database
             GameObject ring = Ensure();
             if (ring == null) return;
             if (!db.m_items.Contains(ring)) db.m_items.Add(ring);
+            GameObject relic = EnsureRelic();
+            if (relic != null && !db.m_items.Contains(relic)) db.m_items.Add(relic);
             CraftingStation forge = Assets.Find("forge")?.GetComponent<CraftingStation>();
             ItemDrop coins = db.m_items.FirstOrDefault(i => i != null && i.name == "Coins")?.GetComponent<ItemDrop>(), silver = db.m_items.FirstOrDefault(i => i != null && i.name == "Silver")?.GetComponent<ItemDrop>();
             if (forge == null || coins == null || silver == null) return;

@@ -56,7 +56,17 @@ namespace Jarldom
             if (c.R == null)
             {
                 if (!c.IsOwner) return null; // the owner founds it; others see it once the record arrives (HighSeat retries)
-                c.Found();
+                if (Relic.Take(c.Position, out byte[] record, out byte[] board))
+                {
+                    // Raised again with the heart of the high seat: the same colony, here.
+                    c.R = ColonyRecord.Load(record);
+                    if (board != null) c.Z.Set(BoardKey, board);
+                    c.Z.Set(RecordKey, record);
+                    c._revision = c.Z.DataRevision;
+                    c.Log("text", "", "", $"The high-seat pillars of {c.R.Name} stand again.");
+                    c._dirty = true;
+                }
+                else c.Found();
             }
             if (ById.TryGetValue(c.R.Id, out Colony old) && old != null && old.Valid && old.View != c.View)
             {

@@ -48,6 +48,7 @@ namespace Jarldom
             _harmony = new Harmony(Guid);
             _harmony.PatchAll(typeof(Plugin).Assembly);
             Assets.RegisterLoaded();
+            Guard(Overlay_.SweepOld); // (lines an older copy of the mod left drawn)
             Colony.AttachAll();
             Villagers.AttachAll();
             Logger.LogInfo($"{Name} {Version} loaded.");
@@ -92,7 +93,7 @@ namespace Jarldom
         {
             Guard(Ui.Windows.CloseAll);
             Guard(Designate.Stop);
-            Guard(Overlay_.Clear);
+            Guard(Overlay_.Stop);
             Tools.Stop();
             Net.Unregister();
             _harmony?.UnpatchSelf();

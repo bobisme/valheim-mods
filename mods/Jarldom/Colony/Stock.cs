@@ -111,6 +111,7 @@ namespace Jarldom
             foreach (var x in Chests(c, near))
             {
                 if (x.category == "treasury" || ContainerAccess.InUse(x.chest)) continue;
+                if (c.RoomAt(x.chest.transform.position, RoomType.Brewhouse) != null) continue; // the brewer's honey and berries aren't for eating
                 foreach (ItemDrop.ItemData item in x.chest.GetInventory().GetAllItems())
                     if (Edible(item)) yield return (x.chest, item);
             }

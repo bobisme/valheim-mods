@@ -144,6 +144,7 @@ namespace Jarldom
 
         public RoomVerdict Check(Room room)
         {
+            room.Height = Ceiling(room);
             RoomFacts f = Measure(room);
             RoomVerdict v = RoomRules.Judge(room.Type, f, room.God);
             room.Ok = v.Ok; room.Grade = v.Grade; room.Points = v.Points; room.Failures = string.Join("; ", v.Failures);
@@ -151,6 +152,27 @@ namespace Jarldom
             return v;
         }
 
+        // How high the room goes: the lowest thing built over the floor (a roof, or the floor of the storey above), at the middle and
+        // halfway to each corner. An open burial ground goes up 6 m.
+        private static readonly RaycastHit[] Ups = new RaycastHit[16];
+        public static float Ceiling(Room room)
+        {
+            if (Tables.Of(room.Type).Open) return 6f;
+            var (cx, cz) = Geometry.Centre(room.Xz);
+            var probes = new List<Vector2> { new Vector2(cx, cz) };
+            for (int i = 0; i < room.Corners; i++) { var (x, z) = room.Corner(i); probes.Add(new Vector2((cx + x) / 2, (cz + z) / 2)); }
+            var heights = new List<float>();
+            foreach (Vector2 q in probes)
+            {
+                int n = Physics.RaycastNonAlloc(new Vector3(q.x, room.Floor + 1.2f, q.y), Vector3.up, Ups, 12f, PieceMask, QueryTriggerInteraction.Ignore);
+                float best = float.MaxValue;
+                for (int i = 0; i < n; i++) { Piece p = Ups[i].collider.GetComponentInParent<Piece>(); if (p != null && p.m_category != Piece.PieceCategory.Furniture && p.m_category != Piece.PieceCategory.Misc && Ups[i].distance < best) best = Ups[i].distance; }
+                if (best < float.MaxValue) heights.Add(best + 1.2f);
+            }
+            if (heights.Count == 0) return 5f;
+            heights.Sort();
+            return Mathf.Clamp(heights[heights.Count / 2], 2.2f, 10f); // (the median: a beam or a hole doesn't decide it)
+        }
         public static RoomFacts Measure(Room room)
         {
             var f = new RoomFacts();
@@ -182,7 +204,7 @@ namespace Jarldom
             foreach (Piece p in list)
             {
                 Vector3 at = p.transform.position;
-                if (at.y < floor - 1f || at.y > floor + room.Height + 2f) continue;
+                if (at.y < floor - 1f || at.y > floor + room.Height - 0.15f) continue; // (not the storey above)
                 Door door = p.GetComponent<Door>();
                 if (door != null)
                 {
@@ -260,8 +282,10 @@ namespace Jarldom
         }
 
         // The room the point is in, of a kind (the great hall, a longhouse...).
+        // In a house of storeys, the room whose floor is nearest below the point.
         public Room RoomAt(Vector3 p, RoomType? type = null) =>
-            R.Rooms.FirstOrDefault(r => (type == null || r.Type == type) && Geometry.Inside(r.Xz, p.x, p.z) && p.y > r.Floor - 1.5f && p.y < r.Floor + r.Height + 1.5f);
+            R.Rooms.Where(r => (type == null || r.Type == type) && Geometry.Inside(r.Xz, p.x, p.z) && p.y > r.Floor - 1.5f && p.y < r.Floor + r.Height + 0.5f)
+                .OrderBy(r => p.y >= r.Floor - 0.6f ? p.y - r.Floor : 100 + r.Floor - p.y).FirstOrDefault();
         public Room Best(RoomType type) => R.Rooms.Where(r => r.Type == type && r.Ok).OrderByDescending(r => r.Points).FirstOrDefault() ?? R.Rooms.FirstOrDefault(r => r.Type == type);
         public Vector3 Centre(Room r) { var (x, z) = Geometry.Centre(r.Xz); return new Vector3(x, r.Floor, z); }
     }
