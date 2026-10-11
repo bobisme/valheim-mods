@@ -42,7 +42,16 @@ namespace Jarldom
                 case "disband": Disband(who); break;
                 case "allow": if (a[0].Length > 0 && !R.Allowed.Contains(a[0])) R.Allowed.Add(a[0]); break;
                 case "disallow": R.Allowed.Remove(a[0]); break;
-                case "rename": if (a[0].Trim().Length > 0) R.Name = a[0].Trim().Substring(0, Math.Min(40, a[0].Trim().Length)); break;
+                case "rename":
+                    {
+                        // (a name the jarl chose: plain letters, no markup; kept from then on, whoever founded it)
+                        string name = new string(string.Join("|", a).Where(ch => ch != '<' && ch != '>' && ch != '|' && !char.IsControl(ch)).ToArray()).Trim();
+                        if (name.Length == 0) break;
+                        if (name.Length > 40) name = name.Substring(0, 40);
+                        string old = R.Name; R.Name = name; R.Flags["named"] = 1;
+                        if (old != name) Log("text", who, "", $"{who} named the hall {name}.");
+                    }
+                    break;
                 case "swear": Society.Swear(this, Get(a, 0), Get(a, 1)); break;
                 case "ring": Villagers.Command(a[0], "ring", who); Log("ring", Villagers.ByVid(a[0])?.S.Name ?? a[0], who); break;
                 case "summon": Villagers.Command(a[0], "summon", ""); break;

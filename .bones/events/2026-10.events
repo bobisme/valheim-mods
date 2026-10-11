@@ -33,3 +33,5 @@
 1791744399970374	claude-jarldom	itc:AQ		item.move	bn-2ea	{"state":"done"}	blake3:kJCtXU_oxHCYLhvcumHL53nTTdnuIN-Y-gQ5Odlvl4Q
 1791744399983809	claude-jarldom	itc:AQ		item.comment	bn-ify	{"body":"Live: flax hand-spun, yellow tunic woven and worn (Alfhild); flax sown and healthy in a Meadows field. Untested: the trader's Hildir purchase and flax-seed purchase (need a trade run return), hats."}	blake3:AW2jj9Nh1FWXa7f_t-ylwnhiDjDObUwoK-y7TlFVk4o
 1791744399996017	claude-jarldom	itc:AQ		item.comment	bn-2tu	{"body":"Review fixes: home when hall unloaded, summon from afar, wait ashore while the jarl sails. Untested: ships, a follower dying far away, multiplayer."}	blake3:c_iFY392ZBoBVgT0m_enGpDDikp0vzj4W6qcoh1qBVA
+1791744665808695	claude-jarldom	itc:AQ		item.create	bn-33c	{"kind":"task","labels":["jarldom"],"parent":"bn-2zi","title":"Rename the hall (default '<player>'s hall' sticks; Bob plays on others' servers)"}	blake3:iS8FyW4UtNDVT_PYp7UEauFJiZoXRRFQgBMOzUhU94k
+1791744665831788	claude-jarldom	itc:AQ		item.move	bn-33c	{"state":"done"}	blake3:zEDlvcKXtIPtH1Rv9RkzgyitTWcgtrP8bL8ezI3c8qY

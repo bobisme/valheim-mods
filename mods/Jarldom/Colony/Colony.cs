@@ -109,7 +109,7 @@ namespace Jarldom
             if (creator == 0) return;
             R.Founder = creator;
             string name = Player.GetAllPlayers().FirstOrDefault(p => p.GetPlayerID() == creator)?.GetPlayerName();
-            if (!string.IsNullOrEmpty(name) && name != R.FounderName) { R.FounderName = name; R.Name = DefaultName(name, R.Id); }
+            if (!string.IsNullOrEmpty(name) && name != R.FounderName) { R.FounderName = name; if (R.Flag("named") == 0) R.Name = DefaultName(name, R.Id); } // (a name the jarl gave it stays)
             _dirty = true;
         }
         // A founder's first colony is their hall; the others (outposts) take the name of a place, so the two aren't confused.

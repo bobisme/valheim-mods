@@ -55,7 +55,7 @@ namespace Jarldom.Ui
             if (p == null || p.IsDead() || global::Menu.IsVisible() || useAgain || _c == null || !_c.Valid || Vector3.Distance(p.transform.position, _c.Position) > 12f) { Close(); return; }
             if (Time.unscaledTime < _nextCheck || Input.GetMouseButton(0)) return;
             _nextCheck = Time.unscaledTime + 0.5f;
-            if (Signature() != _shown) Build();
+            if (Signature() != _shown && !GameUi.Typing) Build(); // (not while a name is being typed: the box would go)
         }
         private static string Signature() => _tab + "|" + (_c.Z.GetByteArray(Colony.RecordKey)?.Length ?? 0) + "|" + _c.R.Log.Count + "|" + _c.Renown + "|" + Villagers.All.Count() + "|" + _c.Board.Count(OrderState.Open) + "|" + _confirm + "|" + Mathf.FloorToInt(Time.unscaledTime / 5);
 
@@ -66,7 +66,9 @@ namespace Jarldom.Ui
             _shown = Signature();
             _window = GameUi.Window("JarldomColony", Size);
             ColonyRecord r = _c.R;
-            GameUi.Label(_window, r.Name, new Vector2(30, -18), new Vector2(620, 44), 32, GameUi.Warm, GameUi.Norse);
+            TMP_Text title = GameUi.Label(_window, GameUi.NoParse(r.Name), new Vector2(30, -18), new Vector2(620, 44), 32, GameUi.Warm, GameUi.Norse);
+            float tw = Mathf.Min(460f, title.GetPreferredValues(r.Name, 620f, 0f).x);
+            Tip(GameUi.Button(_window, "Rename", new Vector2(30 + tw + 14, -24), new Vector2(96, 32), () => { _tab = "hall"; _renaming = true; _rename = _c.R.Name; _renameFor = _c; Build(); }, true, 14), "Rename the hall", "Its name in this window, on the pillars and in the saga.");
             GameUi.Line(_window, $"{Tables.Of(r.Rank).Name} · {_c.Population} {(_c.Population == 1 ? "soul" : "souls")} · renown {_c.Renown}", new Vector2(560, -26), 390, 18, GameUi.Dim, null, TextAlignmentOptions.TopRight);
             GameUi.Braid(_window, new Vector2(0, -72), 920);
             var tabs = new List<(string id, string name)> { ("hall", "The hall"), ("people", "People"), ("rooms", "Rooms"), ("work", "Work"), ("thing", "The Thing"), ("gods", "Gods"), ("saga", "Saga") };
@@ -144,6 +146,7 @@ namespace Jarldom.Ui
             bool Room(RoomType t) => r.Rooms.Any(x => x.Ok && x.Type == t);
             return new List<(bool, string)>
             {
+                (r.Flag("named") == 1, $"Name your hall: it's \"{r.Name}\" until you do (the box at the bottom of this tab)."),
                 (c.Beds > 0, "Build a bed for a newcomer: by the pillars, or better in a house you mark as a longhouse (hammer → Misc → Mark rooms and zones)."),
                 (r.Arrivals > 0, $"Draw Odin's eye: renown {Renown.Threshold(0)} brings the first of the fallen. Build, make beds comfortable, keep coins and valuables in chests."),
                 (r.Arrivals > 0 && c.Population > 0, "Take in who the Valkyrie sets down at the pillars at dusk (the New tab)."),
@@ -165,7 +168,7 @@ namespace Jarldom.Ui
             return _next;
         }
         private static Colony _nextFor; private static float _nextAt; private static string _next = "";
-        private static readonly string[] Short = { "build a bed", "raise renown to draw Odin's eye", "take in the newcomers", "mark work zones", "give them trades", "choose a treasury", "sort the stores", "raise a great hall" };
+        private static readonly string[] Short = { "name your hall", "build a bed", "raise renown to draw Odin's eye", "take in the newcomers", "mark work zones", "give them trades", "choose a treasury", "sort the stores", "raise a great hall" };
         private static float FirstSteps(RectTransform list, float y)
         {
             var steps = Steps(_c);
@@ -181,9 +184,21 @@ namespace Jarldom.Ui
             return y;
         }
 
+        private static bool _renaming;
+        private static float NameBox(RectTransform list, float y)
+        {
+            ColonyRecord r = _c.R;
+            y = Heading(list, "The hall's name", y);
+            if (_rename == null || _renameFor != _c) { _rename = r.Name; _renameFor = _c; }
+            var box = GameUi.InputField(list, new Vector2(8, -y), new Vector2(420, 38), _rename, "a name for the hall", 40, t => _rename = t, t => { _rename = t; Net.Act(_c, "rename", t); _renaming = false; UnityEngine.EventSystems.EventSystem.current?.SetSelectedGameObject(null); _shown = ""; }); // (Enter: done typing, and the window shows the new name)
+            if (_renaming) box.ActivateInputField();
+            float nx = 440; Tip(Btn(list, "Rename", ref nx, y - 2, () => { Net.Act(_c, "rename", _rename ?? ""); _renaming = false; }), "Rename the hall", "Its name in the colony window, on the pillars and in the saga. Enter in the box does it too.");
+            return y + 52;
+        }
         private static float Hall(RectTransform list)
         {
             ColonyRecord r = _c.R; float y = 4;
+            if (_renaming) y = NameBox(list, y);
             var needs = NeedsYou(_c);
             if (needs.Count > 0)
             {
@@ -255,12 +270,14 @@ namespace Jarldom.Ui
                 }
             }
             y += 4;
+            // The hall's name: the founder's by default; any name the jarl likes.
+            if (!_renaming) y = NameBox(list, y);
             y = Text(list, $"Founded by {r.FounderName}. {(r.Allowed.Count > 0 ? "Also run by " + string.Join(", ", r.Allowed) + "." : "")}  Disband (Jarldom's way out: everyone's things in chests by the pillars):", y, 15, GameUi.Dim);
             bx = 8; Btn(list, "Disband the colony", ref bx, y, () => Confirm("disband"), true);
             if (_confirm == "disband") { Btn(list, "Yes: disband", ref bx, y, () => { _confirm = ""; Net.Act(_c, "disband", ""); }, true); }
             return y + 52;
         }
-        private static string _confirm = "";
+        private static string _confirm = "", _rename; private static Colony _renameFor;
         private static void Confirm(string what) { _confirm = _confirm == what ? "" : what; Build(); }
         private static Container NearestChest()
         {

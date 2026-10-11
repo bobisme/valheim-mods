@@ -65,7 +65,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "slay", "unlose", "forgetrow", "away", "master", "envoy", "capture", "barrow" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "deeds", "slay", "unlose", "forgetrow", "away", "master", "envoy", "capture", "barrow" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or with devcommands"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -716,7 +716,7 @@ namespace Jarldom
                         Vector3 at = Colony.Spot(c.Position + c.Seat.transform.forward * 3f, 2.5f) ?? c.Position + Vector3.up;
                         Humanoid h = Villagers.Spawn(c, st, at, null, dressNew: true);
                         if (h == null) { error("couldn't make them"); return; }
-                        row.State = SoulState.Active; c.R.Arrivals = c.R.Arrivals; c.Log("text", row.Name, "", $"Hel let {row.Name} go."); c.MarkDirty();
+                        row.State = SoulState.Active; c.R.Deeds -= Renown.Deed("lost"); c.Log("text", row.Name, "", $"Hel let {row.Name} go."); c.MarkDirty(); // (the loss's deed undone too)
                         output(new JObject { ["back"] = row.Name, ["traits"] = string.Join(",", st.Traits), ["at"] = V(at) });
                     }
                     break;
@@ -737,6 +737,7 @@ namespace Jarldom
                     }
                     break;
                 case "leisure": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } b.Task?.Stop(b); b.Task = new LeisureTask(a[3], "test"); b.Task.Start(b); output(new JObject { ["doing"] = b.Task.Doing }); } break;
+                case "deeds": c.R.Deeds += int.Parse(a[2]); c.MarkDirty(); output(new JObject { ["deeds"] = c.R.Deeds }); break; // (test mishaps undone)
                 case "slay":
                     {
                         // Test only: every creature of a prefab in the colony (and 30 m round) dies.
