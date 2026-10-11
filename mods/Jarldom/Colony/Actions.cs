@@ -32,7 +32,7 @@ namespace Jarldom
                 case "unroom": R.Rooms.RemoveAll(r => r.Id == a[0]); R.Zones.RemoveAll(z => z.Id == a[0]); R.Flags.Remove("offered:" + a[0]); Rerank(); break;
                 case "check": CheckRoomSoon(a[0]); break;
                 case "feast": Feast.Call(this, who); break;
-                case "horn": HornUntil = a[0] == "on" ? Time.time + 300 : 0; if (a[0] == "on") { Assets.Effect("sfx_horn", Position); Tell("The war horn sounds!", true); } else Tell("The all-clear."); break;
+                case "horn": HornUntil = a[0] == "on" ? Time.time + 300 : 0; if (a[0] == "on") { Assets.Effect("sfx_fader_bell", Position); Tell("The war horn sounds!", true); } else Tell("The all-clear."); break;
                 case "offer": Faith.Received(this, Get(a, 0), Int(a, 1), Get(a, 2), who); break;
                 case "ascend": Ascension.Begin(this, a[0], who); break;
                 case "rule": Thing.Rule(this, Int(a, 0), Get(a, 1) == "yes", who); break;

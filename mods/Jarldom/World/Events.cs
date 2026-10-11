@@ -197,7 +197,7 @@ namespace Jarldom
                 Running[c.Id] = (name, c.R.Log.Count(e => e.Kind == "death" || e.Kind == "lost"));
                 c.Log("raid", "", name);
                 c.HornUntil = Time.time + 600;
-                Assets.Effect("sfx_horn", c.Position);
+                Assets.Effect("sfx_fader_bell", c.Position);
             }
             else if (!near && c.RaidOn)
             {
