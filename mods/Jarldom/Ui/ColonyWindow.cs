@@ -441,6 +441,15 @@ namespace Jarldom.Ui
                 GameUi.Button(list, "no limit", new Vector2(W - 80, -y + 2), new Vector2(80, 28), () => Net.Act(_c, "keep", $"{k}|0"), keep != 0, 13);
                 y += 32;
             }
+            y = Heading(list, "Ore claims", y);
+            var claims = Claims.Of(_c).ToList();
+            if (claims.Count == 0) y = Text(list, "None yet. Find a deposit in the wilds (copper, tin, silver; the iron in a sunken crypt) and drive an ore claim in beside it (hammer → Misc): the miners go out to it and bring the ore home. A camp round the stake (a bed, a chest and a fire) lets them work everything near it, as many as it has beds, staying longer.", y, 15, GameUi.Dim);
+            foreach (Claim cl in claims.OrderBy(x => Utils.DistanceXZ(Claims.At(x), _c.Position)))
+            {
+                var (wound, death) = Mining.Risk(cl.Biome, cl.Crypt, cl.Camp, false);
+                int out_ = Claims.Out(_c, cl.Id);
+                y = Text(list, $"<color=#ffd27a>{Claims.Title(cl)}</color>, {Claims.Where(cl, _c.Position)}: {Claims.Ores(cl)}{(cl.Ore > 0 ? $" (pickaxe tier {cl.Tier})" : "")}. {(cl.Camp ? $"Camp with {cl.Beds} bed{(cl.Beds == 1 ? "" : "s")}." : "Bare claim.")}{(out_ > 0 ? $" {out_} out there now." : "")}{(wound + death > 0 ? $" Danger {Mathf.RoundToInt((wound + death) * 100)}%." : "")}", y, 15);
+            }
             if (_c.R.Rank >= Rank.Village || _c.R.Roster.Any(x => x.State == SoulState.Active && x.Prof == Prof.Trader))
             {
                 y = Heading(list, "Trade runs", y);

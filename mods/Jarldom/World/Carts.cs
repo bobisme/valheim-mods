@@ -62,7 +62,7 @@ namespace Jarldom
                 if (got.Count > 0) c.Log("text", "", "", "A cart came in from the outpost with " + string.Join(", ", got) + ".");
             }
         }
-        private static int Put(Colony c, GameObject prefab, int n)
+        internal static int Put(Colony c, GameObject prefab, int n)
         {
             ItemDrop drop = prefab.GetComponent<ItemDrop>();
             int stack = Math.Max(1, drop.m_itemData.m_shared.m_maxStackSize), put = 0;

@@ -396,6 +396,7 @@ namespace Jarldom
             switch (p)
             {
                 case Prof.Smelter: return "no ore or fuel for the smelters";
+                case Prof.Miner: return Claims.Of(c).Any(x => x.Ore > 0) ? "waiting to go out to a claim" : "nothing to dig: mark a quarry, or stake an ore claim beside a deposit (hammer → Misc)";
                 case Prof.Cook: return "nothing to cook or brew";
                 case Prof.Smith: return "no commissions (mark some in the colony window)";
                 case Prof.Builder: return Gear.Tool(b, "hammer") == null ? "needs a hammer to build, mend and pave" : "nothing to build, mend, rebuild or pave";
@@ -429,6 +430,7 @@ namespace Jarldom
             if (prof == Prof.Carter) { Task cart = Carts.Next(b); if (cart != null) return cart; }
             if (prof == Prof.Builder && c.IsOwner && Compat.GhostCount(c.Position, c.Radius) > 0 && Gear.Tool(b, "hammer") != null && Time.time > b.NoBuildUntil) return new BuildTask();
             if (prof == Prof.Builder) { Task up = Upkeep.Next(b); if (up != null) return up; } // (nothing planned: mend, rebuild, pave)
+            if (prof == Prof.Miner) { Task trip = Claims.Next(b); if (trip != null) return trip; } // (ore claims out in the wilds first)
             if (prof == Prof.Herder || prof == Prof.Hunter) { Task catching = Catching.Next(b); if (catching != null) return catching; } // (an empty pasture: a wild boar for it)
             if (prof == Prof.Trader && c.R.Rank >= Rank.Village && Time.time > b.NoTradeUntil && b.Body.GetInventory().GetEmptySlots() > 1 && Stock.Chests(c, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).Sum(x => x.chest.GetInventory().GetAllItems().Count(Trade.Sellable)) >= 3) return new TradeTask(); // (three lots to sell, in whatever chests)
             Func<Prof, bool> canDo = p => p == prof || p == Prof.Hauler && (prof == Prof.Hauler || Gear.Lacks(b, prof) != null || NothingFor(c, prof));

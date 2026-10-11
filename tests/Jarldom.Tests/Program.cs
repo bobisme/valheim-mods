@@ -296,6 +296,25 @@ var pBack = ColonyRecord.Load(withPets.Save());
 Check(pBack.Petitions.Count == 1 && pBack.Petitions[0].ByName == "Astrid" && pBack.Petitions[0].Day == 7 && pBack.Petitions[0].NoMood == -4, "Petitions round-trip in the record");
 var oldBytes = new ColonyRecord { Id = "o1", Name = "x", FounderName = "Bob" }.Save();
 Check(ColonyRecord.Load(oldBytes.Take(oldBytes.Length - 4).ToArray()).Petitions.Count == 0, "A record from before petitions were kept loads");
+// Ore claims: kept in a global key, worked by trips; a camp takes more, safer.
+var cl = new Claim { Id = "k1", Colony = "c1", X = 412.6f, Z = -88.2f, Biome = "BlackForest", Beds = 2 };
+cl.Left["copperore"] = (240, 2); cl.Left["tinore"] = (40, 1); cl.Taken["copperore"] = 30;
+var clBack = Claim.Decode("k1", cl.Encode());
+Check(clBack != null && clBack.Colony == "c1" && clBack.X == 413 && clBack.Z == -88 && clBack.Beds == 2 && clBack.Camp && clBack.Left["copperore"] == (240, 2) && clBack.Taken["copperore"] == 30 && clBack.Ore == 280 && clBack.Tier == 1, "A claim round-trips its key");
+Check(Claim.Decode("k2", new Claim { Colony = "c1", Biome = "Swamp", Crypt = true }.Encode()) is Claim empty && empty.Crypt && !empty.Camp && empty.Ore == 0 && empty.Taken.Count == 0, "An empty crypt claim round-trips");
+Check(Claim.Decode("k3", "nonsense") == null && Claim.Decode("k3", "") == null, "A bad claim key is ignored");
+var load = Mining.Take(cl.Left, 60, 2);
+Check(load.Count == 1 && load["copperore"] == 60, "The most plentiful ore first, a load's worth");
+Check(Mining.Take(cl.Left, 60, 1).Keys.Single() == "tinore" && Mining.Take(cl.Left, 60, 1)["tinore"] == 40 && Mining.Take(cl.Left, 60, 0).Count == 0, "A weak pickaxe takes only the ore it can");
+Check(Mining.Take(cl.Left, 300, 2).Values.Sum() == 280, "Never more than is left");
+Mining.Apply(cl, load);
+Check(cl.Left["copperore"].n == 180 && cl.Taken["copperore"] == 90, "A load comes off what's left and onto what's to be taken out of the world");
+Check(Mining.Carry(false, false) < Mining.Carry(true, false) && Mining.Carry(false, true) == 2 * Mining.Carry(false, false), "A cart and a camp bring more");
+Check(Mining.TripSeconds(500, true, 1800) > Mining.TripSeconds(500, false, 1800) && Mining.TripSeconds(1000, false, 1800) > Mining.TripSeconds(500, false, 1800), "Further and longer at a camp take more time");
+var meadow = Mining.Risk("meadows", false, false, false); var crypt = Mining.Risk("swamp", true, false, false); var guarded = Mining.Risk("swamp", true, true, true);
+Check(meadow.wound == 0 && crypt.wound > Mining.Risk("Swamp", false, false, false).wound && crypt.death > 0 && guarded.death < crypt.death && guarded.wound < crypt.wound, "Crypts are dangerous; a camp and a guard make them less so; biome names in any case");
+Check(Mining.Room(new Claim()) == 1 && Mining.Room(cl) == 2, "One miner at a bare claim, one a bed at a camp");
+Check(Mining.Decode(Mining.Encode("k1", 1234.4, true), out string mc, out double ms, out bool mg) && mc == "k1" && ms == 1234 && mg && !Mining.Decode("trade:40", out _, out _, out _), "A miner's away record round-trips");
 Check(Renown.TributeAsk(0, 0) == 40 && Renown.TributeAsk(80, 0) == 80 && Renown.TributeAsk(80, 1) == 120 && Renown.TributeAsk(80, 2) == 180, "The Fulings want more each time");
 Check(Renown.TributeAsk(1000, 99) > 0, "The Fulings' price never overflows");
 // Away: 40 wood in 2 worked hours is 20 an hour; two woodcutters, 48 hours away (11 of every 24 working) → 2 × 20 × 22 × 0.9.

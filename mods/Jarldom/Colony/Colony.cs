@@ -375,7 +375,7 @@ namespace Jarldom
         {
             if (!IsOwner) { Net.SendFallen(this, s, bag, at, why, false); return; }
             R.Fallen.RemoveAll(f => f.Vid == s.Vid);
-            double away = why.StartsWith(Carts.Prefix) && double.TryParse(why.Substring(Carts.Prefix.Length), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double trip) ? trip : Trading.Decode(why, out _, out TradeWay way) ? Clock.DayLength * Trading.AwayDays(way) : Clock.DayLength; // (a carter's round trip; a trader's day, longer by sea)
+            double away = Mining.Decode(why, out _, out double dig, out _) ? dig : why.StartsWith(Mining.Escort) && double.TryParse(why.Substring(Mining.Escort.Length), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double guarding) ? guarding : why.StartsWith(Carts.Prefix) && double.TryParse(why.Substring(Carts.Prefix.Length), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double trip) ? trip : Trading.Decode(why, out _, out TradeWay way) ? Clock.DayLength * Trading.AwayDays(way) : Clock.DayLength; // (a carter's round trip; a trader's day, longer by sea)
             R.Fallen.Add(new Fallen { Vid = s.Vid, State = s.Save(), Gear = bag ?? new byte[0], At = Now + away - Plugin.Instance.RespawnSeconds.Value, X = at.x, Y = at.y, Z = at.z, Killer = why });
             _dirty = true; Flush();
         }
@@ -393,7 +393,8 @@ namespace Jarldom
                 if (s == null) { R.Fallen.Remove(f); continue; }
                 if (Villagers.Body(s.Vid) != null) { R.Fallen.Remove(f); continue; } // already up somewhere
                 bool carter = f.Killer.StartsWith(Carts.Prefix);
-                bool trader = f.Killer.StartsWith("trade:") || carter;
+                bool miner = f.Killer.StartsWith(Mining.Prefix) || f.Killer.StartsWith(Mining.Escort);
+                bool trader = f.Killer.StartsWith("trade:") || carter || miner;
                 Vector3? at = trader ? Spot(Position + Seat.transform.forward * 3, 2.5f) : Survey_BedSpot(s.Bed) ?? (Vector3?)Spot(Position, 3);
                 if (at == null) continue;
                 if (!ZNetScene.instance.IsAreaReady(at.Value)) continue;
@@ -401,7 +402,8 @@ namespace Jarldom
                 if (h == null) continue;
                 R.Fallen.Remove(f);
                 Assets.Effect("vfx_spawn", at.Value);
-                if (trader)
+                if (miner) Plugin.Guard(() => Claims.Home(this, h, s, f));
+                else if (trader)
                 {
                     TradeWay way = TradeWay.Foot;
                     int coins = !carter && Trading.Decode(f.Killer, out int n, out way) ? n : 0;

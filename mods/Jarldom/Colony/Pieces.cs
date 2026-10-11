@@ -10,7 +10,7 @@ namespace Jarldom
     // from other game prefabs: the High-Seat Pillars, the gods' altars, the war horn, the gilded pieces and the funeral pyre.
     internal static class Pieces
     {
-        public const string WatchPostName = "JarldomWatchPost";
+        public const string WatchPostName = "JarldomWatchPost", OreClaimName = "JarldomOreClaim";
         public const string PillarsName = "JarldomHighSeatPillars", HornName = "JarldomWarHorn", PyreName = "JarldomPyre", DesignateName = "JarldomDesignate";
         public const string AltarPrefix = "JarldomAltar_", GildedSeatName = "JarldomGildedSeat", GildedBannerName = "JarldomGildedBanner";
         public static readonly int PillarsHash = PillarsName.GetStableHashCode();
@@ -37,6 +37,7 @@ namespace Jarldom
             foreach (var a in Altars) if (Get(AltarPrefix + a.god) == null) Altar(a.god, a.emblem, a.scale, a.offset, Quaternion.Euler(a.turn));
             if (Get(HornName) == null) Horn();
             if (Get(WatchPostName) == null) WatchPost();
+            if (Get(OreClaimName) == null) OreClaim();
             if (Get(GildedSeatName) == null) Gilded(GildedSeatName, "piece_throne02", "Gilded high seat", "A high seat for the jarl's hall, its carving picked out in gold: the hall's pride and a great hall's grade S.", 60, ("FineWood", 10), ("Coins", 100));
             if (Get(GildedBannerName) == null) Gilded(GildedBannerName, "piece_banner02", "Gilded banner", "A banner worked with gold thread. Halls and temples grade higher for it.", 0, ("LinenCloth", 2), ("Coins", 20), ("Wood", 2));
             if (Get(PyreName) == null) Pyre();
@@ -202,6 +203,35 @@ namespace Jarldom
             Finish(go, look, "Watch post", "A waypoint for the colony's guards: they walk its watch posts in turn, in the order they were raised, and look about at each. Raise two or more round what's to be watched.",
                 Piece.PieceCategory.Misc, ("Wood", 2), ("LeatherScraps", 1));
             go.AddComponent<WatchPost>();
+        }
+
+        // An ore claim: a stake with an ochre pennant and a pick's head lashed on, driven in beside a deposit found in the wilds.
+        private static void OreClaim()
+        {
+            GameObject pole = Assets.Find("wood_pole_log");
+            GameObject go = Base("wood_pole_log", OreClaimName);
+            if (go == null || pole == null) return;
+            var look = new GameObject("new"); look.transform.SetParent(go.transform, false);
+            GameObject p = Assets.Model(pole, look.transform, Vector3.zero, Quaternion.identity, 1f);
+            p.transform.localScale = new Vector3(0.6f, 0.6f, 0.6f);
+            Bounds pb = Assets.MeshBounds(look.transform, p); p.transform.localPosition += Vector3.up * -pb.min.y;
+            Material wood = pole.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null && m.HasProperty("_Color"));
+            var flag = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Object.DestroyImmediate(flag.GetComponent<Collider>());
+            flag.transform.SetParent(look.transform, false);
+            flag.transform.localScale = new Vector3(0.04f, 0.3f, 0.46f);
+            flag.transform.localPosition = new Vector3(0, pb.size.y * 0.84f, 0.25f);
+            flag.GetComponent<MeshRenderer>().sharedMaterial = Plain(wood, new Color(0.78f, 0.5f, 0.16f));
+            var head = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Object.DestroyImmediate(head.GetComponent<Collider>());
+            head.transform.SetParent(look.transform, false);
+            head.transform.localScale = new Vector3(0.5f, 0.07f, 0.07f);
+            head.transform.localPosition = new Vector3(0, pb.size.y * 0.55f, 0f);
+            head.GetComponent<MeshRenderer>().sharedMaterial = Plain(wood, new Color(0.35f, 0.35f, 0.37f));
+            Finish(go, look, "Ore claim", "Drive it in beside a deposit you've found (copper, tin, silver; by a sunken crypt's door for its iron): the colony's miners go out to it and bring the ore home. Build a camp round it (a bed, a chest and a fire) and they work everything near, more of them, staying longer.",
+                Piece.PieceCategory.Misc, ("Wood", 2), ("Stone", 1));
+            go.GetComponent<Piece>().m_craftingStation = null; // (driven in out in the wilds: no workbench there)
+            go.AddComponent<OreClaim>();
         }
 
         private static void Gilded(string name, string source, string title, string text, int comfort, params (string, int)[] cost)
