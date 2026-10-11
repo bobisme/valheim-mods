@@ -233,7 +233,17 @@ namespace Jarldom
                 case "villager": case "needs":
                     {
                         Brain b = a.Length > 2 ? Who(a[2]) : Villagers.All.FirstOrDefault();
-                        if (b == null) { error("no such villager loaded here (owned by this game)"); return; }
+                        if (b == null)
+                        {
+                            // Why not (a body here without a brain): who owns it, is it dead, can its state be read.
+                            Character body = a.Length > 2 ? Villagers.Bodies().FirstOrDefault(h => h.GetComponent<ZNetView>().GetZDO().GetString(Villagers.NameKey, "").StartsWith(a[2], StringComparison.OrdinalIgnoreCase)) : null;
+                            if (body == null) { error("no such villager loaded here"); return; }
+                            ZDO bz = body.GetComponent<ZNetView>().GetZDO();
+                            byte[] st = SoulStore.StateOf(bz);
+                            string read; try { read = VillagerState.Load(st) == null ? "null" : "ok"; } catch (Exception e) { read = e.Message; }
+                            error($"{bz.GetString(Villagers.NameKey)} has no brain: owner {(bz.IsOwner() ? "this game" : bz.GetOwner().ToString())}, dead {body.IsDead()}, at {V(body.transform.position)}, soul {(SoulStore.Of(bz) != null ? "found" : "missing")}, state {st?.Length ?? 0} B ({read}), ai {(body.GetComponent<MonsterAI>()?.enabled.ToString() ?? "none")}");
+                            return;
+                        }
                         output(Villager(b));
                     }
                     break;
@@ -591,6 +601,7 @@ namespace Jarldom
                     if (a.Length > 2 && a[2] == "raise") Warband.Raise(c, c.Day);
                     else if (a.Length > 2 && a[2] == "band") { c.R.Flags["barrow:next"] = c.Day; Warband.Dusk(c, c.Day); }
                     else if (a.Length > 2 && a[2] == "clear") { foreach (string k in c.R.Flags.Keys.Where(k => k.StartsWith("barrow:")).ToList()) c.R.Flags.Remove(k); c.MarkDirty(); }
+                    else if (a.Length > 2 && a[2] == "retreat") Warband.Retreat(c);
                     output(new JObject { ["stands"] = Warband.Stands(c), ["at"] = V(Warband.Barrow(c)), ["jarl"] = Warband.JarlName(c), ["next"] = c.R.Flag("barrow:next"), ["raiding"] = Warband.Raiding(c) });
                     break;
                 case "backup":

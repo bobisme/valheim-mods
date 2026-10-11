@@ -21,6 +21,7 @@ namespace Jarldom
 
         public static void Dawn(Colony c, int day)
         {
+            Retreat(c);
             if (Stands(c)) { Net.Pin(PinKey(c), Barrow(c), "The barrow of " + JarlName(c), true); return; } // (pins aren't saved: each day again)
             if (c.R.Flag("barrow:raised") != 0 || !Plugin.Instance.Raids.Value || c.R.Rank < Rank.Hamlet) return;
             if (ZoneSystem.instance == null || !ZoneSystem.instance.GetGlobalKey("defeated_bonemass")) return;
@@ -45,23 +46,26 @@ namespace Jarldom
             Vector3 jarl = at; jarl.y = Ground(at) + 0.5f;
             Make("Draugr_Elite", jarl, Quaternion.identity, z => { z.Set(ZDOVars.s_level, 3); z.Set(JarlKey, c.Id); z.Set(Draugr.NameKey, "Draugr jarl " + JarlName(c)); });
             Net.Pin(PinKey(c), at, "The barrow of " + JarlName(c), true);
-            c.Log("text", "", "", $"An ancient barrow has opened in the swamp, {Mathf.RoundToInt(Utils.DistanceXZ(at, c.Position))} m to the {ScoutTask.Compass(at - c.Position)}: {JarlName(c)}, a draugr jarl, wakes and covets {c.R.Name}. His warbands will come until he is cut down.");
+            c.Log("text", "", "", $"An ancient barrow has opened in the {(WorldGenerator.instance.GetBiome(at) == Heightmap.Biome.Swamp ? "swamp" : "forest")}, {Mathf.RoundToInt(Utils.DistanceXZ(at, c.Position))} m to the {ScoutTask.Compass(at - c.Position)}: {JarlName(c)}, a draugr jarl, wakes and covets {c.R.Name}. His warbands will come until he is cut down.");
             c.MarkDirty();
         }
         private static float Ground(Vector3 p) => WorldGenerator.instance != null ? WorldGenerator.instance.GetHeight(p.x, p.z) : p.y;
+        // Where the barrow opens: in a swamp 300 m to 1.8 km off, else further (to 5 km), else in the Black Forest's old burial ground
+        // (a world without a swamp near).
         private static Vector3? Swamp(Vector3 from)
         {
             if (WorldGenerator.instance == null) return null;
             var rng = new System.Random(Mathf.RoundToInt(from.x * 31 + from.z));
-            for (int i = 0; i < 400; i++)
-            {
-                double a = rng.NextDouble() * Math.PI * 2, d = 300 + rng.NextDouble() * 1500;
-                Vector3 p = from + new Vector3((float)Math.Sin(a), 0, (float)Math.Cos(a)) * (float)d;
-                if (WorldGenerator.instance.GetBiome(p) != Heightmap.Biome.Swamp) continue;
-                float h = WorldGenerator.instance.GetHeight(p.x, p.z);
-                if (h < (ZoneSystem.instance?.m_waterLevel ?? 30) + 0.5f) continue;
-                p.y = h; return p;
-            }
+            foreach ((Heightmap.Biome biome, float far) in new[] { (Heightmap.Biome.Swamp, 1800f), (Heightmap.Biome.Swamp, 5000f), (Heightmap.Biome.BlackForest, 1800f) })
+                for (int i = 0; i < 400; i++)
+                {
+                    double a = rng.NextDouble() * Math.PI * 2, d = 300 + rng.NextDouble() * (far - 300);
+                    Vector3 p = from + new Vector3((float)Math.Sin(a), 0, (float)Math.Cos(a)) * (float)d;
+                    if (WorldGenerator.instance.GetBiome(p) != biome) continue;
+                    float h = WorldGenerator.instance.GetHeight(p.x, p.z);
+                    if (h < (ZoneSystem.instance?.m_waterLevel ?? 30) + 0.5f) continue;
+                    p.y = h; return p;
+                }
             return null;
         }
         // A saved object where no one is: its record made as the game makes one, so it appears when its ground loads.
@@ -77,6 +81,20 @@ namespace Jarldom
             set?.Invoke(z);
         }
 
+        // The sun up: what's left of the warband goes back into the ground (a raid doesn't last past the night).
+        public static int Retreat(Colony c)
+        {
+            int n = 0;
+            foreach (Character ch in Character.GetAllCharacters().Where(ch => ch != null && !ch.IsDead() && ch.GetComponent<ZNetView>()?.GetZDO()?.GetString(BandKey, "") == c.Id).ToList())
+            {
+                ZNetView v = ch.GetComponent<ZNetView>();
+                if (!v.IsOwner()) v.ClaimOwnership();
+                Assets.Effect("vfx_ghost_death", ch.transform.position);
+                ZNetScene.instance.Destroy(ch.gameObject); n++;
+            }
+            if (n > 0) c.Log("text", "", "", $"With the sun, what was left of {JarlName(c)}'s warband ({n}) sank back into the earth.");
+            return n;
+        }
         // At dusk, when it's time: the warband at the colony's edge, from the barrow's side.
         public static void Dusk(Colony c, int day)
         {
@@ -92,6 +110,7 @@ namespace Jarldom
                 Vector3 at = Colony.Spot(c.Position + dir * (c.Radius * 0.7f) + UnityEngine.Random.insideUnitSphere * 6f, 5f) ?? c.Position + dir * 40;
                 GameObject go = UnityEngine.Object.Instantiate(prefab, at, Quaternion.LookRotation(-dir));
                 go.GetComponent<ZNetView>().GetZDO().Set(BandKey, c.Id);
+                go.GetComponent<MonsterAI>()?.SetHuntPlayer(true); // (in, as a raid's creatures come, not waiting at the edge)
                 Assets.Effect("vfx_ghost_death", at);
             }
             c.Tell($"The warband of {JarlName(c)} comes out of the dusk!", true);

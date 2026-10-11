@@ -22,15 +22,17 @@ namespace Jarldom
             // A guard without a ring may lose heart early in a raid (one roll a raid).
             if (b.S.Prof == Prof.Guard && b.S.Count("rings") == 0 && b.Colony.RaidOn && new System.Random(b.S.Vid.GetStableHashCode() ^ b.Colony.R.Log.Count(e => e.Kind == "raid")).NextDouble() < 0.2) fleeAt = 0.7f;
             if (tyr && b.S.Prof == Prof.Guard) fleeAt = 0;
-            Character foe = b.HasFoe ? b.Foe : null;
+            Character foe = b.HasFoe && Utils.DistanceXZ(b.Foe.transform.position, b.Colony.Position) < b.Colony.Radius + 25 ? b.Foe : null;
             if (foe == null)
             {
+                // Fighters meet what comes within 25 m; in a raid they go out to the raiders anywhere in the colony (raiders first).
+                bool raid = fighter && b.Colony.RaidOn;
                 float reach = fighter ? 25f : 8f;
                 foe = Character.GetAllCharacters().Where(c => c != null && !c.IsDead() && c != b.Body && !c.IsPlayer() && !VillagerPrefab.Is(c) && !Tribute.IsHerald(c) && BaseAI.IsEnemy(b.Body, c)
                         && (fighter || Hunting(c) || Vector3.Distance(c.transform.position, me) < 4f)
                         && (c.GetFaction() != Character.Faction.AnimalsVeg || b.Task is WorkTask w && w.Kind == "hunt" && w.Target == c)
-                        && Vector3.Distance(c.transform.position, me) < reach && Utils.DistanceXZ(c.transform.position, b.Colony.Position) < b.Colony.Radius + 25)
-                    .OrderBy(c => Vector3.Distance(c.transform.position, me)).FirstOrDefault();
+                        && (Vector3.Distance(c.transform.position, me) < reach || raid && Raider(c, b.Colony)) && Utils.DistanceXZ(c.transform.position, b.Colony.Position) < b.Colony.Radius + 25)
+                    .OrderBy(c => raid && Raider(c, b.Colony) ? 0 : 1).ThenBy(c => Vector3.Distance(c.transform.position, me)).FirstOrDefault();
             }
             if (foe == null) { b.Fighting = false; return; }
             if (Utils.DistanceXZ(foe.transform.position, b.Colony.Position) < b.Colony.Radius && foe.IsBoss() == false && foe.GetMaxHealth() > 300 && !Mood.Has(b.S, "bigcreature", b.Now)) Mood.Add(b.S, "bigcreature", b.Now);
@@ -48,6 +50,12 @@ namespace Jarldom
             b.SetDoing(b.Combat_Bow ? "shooting at " + Localization.instance.Localize(foe.m_name) : "fighting " + Localization.instance.Localize(foe.m_name));
         }
 
+        // One of a raid: the draugr jarl's warband, an event's creature (the Fulings' army), or one hunting players or villagers.
+        private static bool Raider(Character c, Colony col)
+        {
+            ZDO z = c.GetComponent<ZNetView>()?.GetZDO();
+            return z != null && (z.GetString(Warband.BandKey, "") == col.Id || z.GetBool(ZDOVars.s_eventCreature)) || Hunting(c);
+        }
         // Is it after someone (a player or a villager)?
         private static bool Hunting(Character c) { Character t = (c.GetBaseAI() as MonsterAI)?.GetTargetCreature(); return t != null && (t.IsPlayer() || VillagerPrefab.Is(t)); }
         private static void Flee(Brain b, Character from)
@@ -66,6 +74,7 @@ namespace Jarldom
             Humanoid h = b.Body;
             if (!b.Fighting || b.FightTarget == null || b.FightTarget.IsDead()) { if (b.Fighting) { b.Fighting = false; b.Move.Stop(); } Body_.Blocking(h) = false; return; }
             Character t = b.FightTarget;
+            if (Utils.DistanceXZ(t.transform.position, b.Colony.Position) > b.Colony.Radius + 25) { b.Fighting = false; b.FightTarget = null; b.Move.Stop(); return; } // (it ran off: not chased out of the colony)
             ItemDrop.ItemData weapon = h.GetCurrentWeapon();
             bool ranged = weapon != null && weapon.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Bow;
             float dist = Vector3.Distance(t.transform.position, b.Pos) - t.GetRadius();

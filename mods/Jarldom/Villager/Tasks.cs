@@ -378,10 +378,10 @@ namespace Jarldom
     // A raid: fighters to their posts, everyone else into the great hall (door shut) or back to the pillars.
     internal sealed class DefendTask : Task
     {
-        private Vector3 _to; private bool _shelter;
+        private Vector3 _to; private bool _shelter; public bool Fighter;
         public override void Start(Brain b)
         {
-            bool fighter = Gear.CanFight(b) && (b.S.Prof == Prof.Guard || b.S.Prof == Prof.Hunter || b.S.Has("brave"));
+            bool fighter = Fighter = Gear.CanFight(b) && (b.S.Prof == Prof.Guard || b.S.Prof == Prof.Hunter || b.S.Has("brave"));
             Room hall = b.Colony.Best(RoomType.GreatHall);
             if (fighter)
             {
