@@ -74,6 +74,14 @@ a lost soul's draugr, a dedicated server, and villagers run by a joining player'
 8. Let one die with a bed (tombstone, rises at the bed) and one without (a named draugr).
 9. A raid near the colony: the horn, fighters out, the rest in the hall.
 10. `jarldom worth <name> 100`, build a pyre, send them at dusk.
+11. With the marker out, E on a room: check it, change what it is, remove it. Build a house of two storeys and mark a room on each.
+12. Commission something in the Work tab: a smith makes it at the forge or workbench; a cook brews mead bases at the mead ketill.
+13. Sit in the gilded high seat and press J: pan, zoom, drag a box round villagers, set their profession, mark a zone.
+14. Take the pillars down with the hammer, pick up the heart, raise new pillars: the colony is back.
+15. Mark a pasture round tame beasts and make someone a herder; a woodlot with seeds in the stores gets saplings; fields get sown.
+16. At hamlet rank: pay the Fuling herald, or don't. In their raid, a captive may be taken: go to the pinned camp, or pay.
+17. Leave the colony for a day or two (go far away) and come back: "While you were away" in the saga.
+18. Make a colony 300 m or more away and, from its Hall tab, an outpost of the first.
 
 ## Looking-Glass Portals
 

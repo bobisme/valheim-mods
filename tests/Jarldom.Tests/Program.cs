@@ -145,6 +145,17 @@ hallFacts.Walls[2] = 1; hallFacts.Count["banner"] = 4; hallFacts.Count["carving"
 Check(RoomRules.Judge(RoomType.GreatHall, hallFacts).Points > verdict.Points, "Seats and banners raise the grade");
 hallFacts.Count["highseat"] = 1; hallFacts.Count["gilded"] = 6; hallFacts.Count["trophy"] = 10; hallFacts.Count["rug"] = 6; hallFacts.Comfort = 8;
 Check(RoomRules.Judge(RoomType.GreatHall, hallFacts).Grade == 'S', "Gilding and the high seat make an S hall");
+var brew = new RoomFacts { Walls = new[] { 1f, 1f, 1f, 1f }, Roof = 1, Doors = 1, Area = 40 };
+Check(!RoomRules.Judge(RoomType.Brewhouse, brew).Ok && RoomRules.Judge(RoomType.Brewhouse, brew).Failures.Any(f => f.Contains("cauldron")), "A brewhouse needs a cauldron or a fermenter");
+brew.Count["fermenter"] = 1;
+var brewed = RoomRules.Judge(RoomType.Brewhouse, brew);
+Check(brewed.Ok, "A fermenter under a roof makes a brewhouse");
+brew.Count["fermenter"] = 3; brew.Count["cauldron"] = 1;
+Check(RoomRules.Judge(RoomType.Brewhouse, brew).Points > brewed.Points, "More fermenters and a cauldron grade it higher");
+brew.Roof = 0.3f;
+Check(!RoomRules.Judge(RoomType.Brewhouse, brew).Ok, "A brewhouse must be roofed");
+Check(Tables.Rooms.Select((r, i) => (int)r.Id == i).All(x => x), "Room types and their table line up (Brewhouse appended last)");
+Check(Tables.Professions.Select((p, i) => (int)p.Id == i).All(x => x) && Tables.Zones.Select((z, i) => (int)z.Id == i).All(x => x), "Professions and zones line up with their tables (Herder, Pasture appended)");
 var small = new RoomFacts { Walls = new[] { 1f, 1f, 1f }, Roof = 1, Doors = 1, Area = 12 }; small.Count["fire"] = 1; small.Count["seat"] = 4; small.Count["table"] = 2;
 Check(RoomRules.Judge(RoomType.GreatHall, small).Failures.Any(f => f.Contains("m²")), "Halls need room");
 var lh = new RoomFacts { Walls = new[] { 1f, 1f, 1f, 1f }, Roof = 0.5f, Doors = 0 }; lh.Count["bed"] = 2;
