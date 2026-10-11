@@ -209,7 +209,9 @@ namespace Jarldom
                 return;
             }
             int pick = h.GetInventory().GetAllItems().Where(i => i.GetDamage().m_pickaxe > 0).Select(i => i.m_shared.m_toolTier).DefaultIfEmpty(-1).Max();
-            var got = Mining.Take(claim.Left, Mining.Carry(Carts.CartNear(c) != null, claim.Camp), pick);
+            // (by weight: the heaviest ore there sets the load; a cart only where one can go)
+            float weight = claim.Left.Keys.Select(k => Carts_Item(k)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_weight ?? 10f).DefaultIfEmpty(10f).Max();
+            var got = Mining.Take(claim.Left, Mining.Carry(weight, Carts.CartNear(c) != null && Mining.CartGoes(claim.Biome, claim.Crypt), claim.Crypt), pick);
             Took(claim.Id, got);
             if (got.Count == 0 && claim.Ore > 0) { c.Log("text", s.Name, "", $"{s.Name} came back from {where} {Where(claim, c.Position)} with nothing: their pickaxe couldn't break what's left there."); return; }
             var told = new List<string>();
@@ -248,7 +250,7 @@ namespace Jarldom
             if (!b.Move.Failed && !b.Move.Arrived && b.Move.Distance > 6f) { if (!b.Move.Moving) b.Move.To(b.Move.Goal, 3f); return; }
             Colony c = b.Colony;
             float far = Utils.DistanceXZ(Claims.At(_claim), c.Position);
-            double secs = Mining.TripSeconds(far, _claim.Camp, Clock.DayLength);
+            double secs = Mining.TripSeconds(far, _claim.Camp, Clock.DayLength, _claim.Biome);
             var (wound, death) = Mining.Risk(_claim.Biome, _claim.Crypt, _claim.Camp, false);
             // (a guard with nothing to do goes along where it's dangerous)
             Brain guard = wound + death > 0.045f ? Villagers.All.FirstOrDefault(x => x.S.Colony == c.Id && x.S.Prof == Prof.Guard && x.Alive && (x.Task == null || x.Task is LeisureTask || x.Task is WorkTask wt && wt.Kind == "guard") && x.Activity == Activity.Work && Gear.CanFight(x)) : null; // (idle, or on their rounds: called off them to go along)

@@ -309,8 +309,9 @@ Check(Mining.Take(cl.Left, 60, 1).Keys.Single() == "tinore" && Mining.Take(cl.Le
 Check(Mining.Take(cl.Left, 300, 2).Values.Sum() == 280, "Never more than is left");
 Mining.Apply(cl, load);
 Check(cl.Left["copperore"].n == 180 && cl.Taken["copperore"] == 90, "A load comes off what's left and onto what's to be taken out of the world");
-Check(Mining.Carry(false, false) < Mining.Carry(true, false) && Mining.Carry(false, true) == 2 * Mining.Carry(false, false), "A cart and a camp bring more");
-Check(Mining.TripSeconds(500, true, 1800) > Mining.TripSeconds(500, false, 1800) && Mining.TripSeconds(1000, false, 1800) > Mining.TripSeconds(500, false, 1800), "Further and longer at a camp take more time");
+Check(Mining.Carry(10, false, false) == 25 && Mining.Carry(10, true, false) == 90 && Mining.Carry(10, true, true) == Mining.CryptDig && Mining.Carry(10, false, true) == 20, "A back carries what a person can (25 ore), a cart more, a crypt's dig less");
+Check(Mining.CartGoes("BlackForest", false) && !Mining.CartGoes("swamp", false) && !Mining.CartGoes("meadows", true) && !Mining.CartGoes("Mountain", false), "A cart goes only where the ground is open");
+Check(Mining.TripSeconds(500, true, 1800) > Mining.TripSeconds(500, false, 1800) && Mining.TripSeconds(1000, false, 1800) > Mining.TripSeconds(500, false, 1800) && Mining.TripSeconds(500, false, 1800, "swamp") > Mining.TripSeconds(500, false, 1800, "meadows"), "Further, longer at a camp, and slower through a swamp");
 var meadow = Mining.Risk("meadows", false, false, false); var crypt = Mining.Risk("swamp", true, false, false); var guarded = Mining.Risk("swamp", true, true, true);
 Check(meadow.wound == 0 && crypt.wound > Mining.Risk("Swamp", false, false, false).wound && crypt.death > 0 && guarded.death < crypt.death && guarded.wound < crypt.wound, "Crypts are dangerous; a camp and a guard make them less so; biome names in any case");
 Check(Mining.Room(new Claim()) == 1 && Mining.Room(cl) == 2, "One miner at a bare claim, one a bed at a camp");

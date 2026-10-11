@@ -49,10 +49,20 @@ namespace Jarldom
     public static class Mining
     {
         public const float BareReach = 8f, CampReach = 60f, CampNear = 15f, CryptReach = 45f, Walk = 2.5f;
-        // Away: there and back at a walk, and the digging (half a day at a bare claim; a camp's miners stay the day).
-        public static double TripSeconds(float distance, bool camp, double dayLength) => 2 * distance / Walk + dayLength * (camp ? 1.0 : 0.4);
-        // What one miner brings home: a back's load, a cart's with the colony's cart; twice that from a camp (they dug the day).
-        public static int Carry(bool cart, bool camp) => (cart ? 90 : 30) * (camp ? 2 : 1);
+        public const float Back = 250f, CartLoad = 900f; // weight a miner carries home on their back (a player carries 300 with nothing else), and on a cart
+        public const int CryptDig = 20; // what one miner can dig in a day in a crypt's dark, draugr about
+        // Walking pace by the ground: a swamp's roots and water, a mountain's climb.
+        public static float Pace(string biome) { switch ((biome ?? "").ToLowerInvariant()) { case "swamp": return 1.4f; case "mountain": case "mistlands": case "ashlands": case "deepnorth": return 1.6f; default: return Walk; } }
+        // Away: there and back at the ground's pace, and the digging (half a day at a bare claim; a camp's miners stay the day).
+        public static double TripSeconds(float distance, bool camp, double dayLength, string biome = "") => 2 * distance / Pace(biome) + dayLength * (camp ? 1.0 : 0.4);
+        // A cart goes where the ground is open: meadows, forest, plains; never into a swamp, up a mountain, or down a crypt.
+        public static bool CartGoes(string biome, bool crypt) { string b = (biome ?? "").ToLowerInvariant(); return !crypt && (b == "meadows" || b == "blackforest" || b == "plains"); }
+        // What one miner brings home of an ore of that weight: a back's load, or a cart's where a cart can go; a crypt's dig is less.
+        public static int Carry(float weight, bool cart, bool crypt)
+        {
+            int n = Math.Max(1, (int)Math.Floor((cart ? CartLoad : Back) / Math.Max(0.1f, weight)));
+            return crypt ? Math.Min(n, CryptDig) : n;
+        }
         // The chance of coming back wounded, and of not coming back on their feet (they rise at home, without their pickaxe).
         public static (float wound, float death) Risk(string biome, bool crypt, bool camp, bool guard)
         {
