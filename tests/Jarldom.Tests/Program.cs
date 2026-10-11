@@ -155,6 +155,13 @@ Check(RoomRules.At(both, 5, 38.05f, 4)?.Id == "u" && RoomRules.At(both, 5, 40f, 
 Check(RoomRules.At(both, 5, 37.7f, 4)?.Id == "g", "Just under the floor above (a chest's top): still the room below");
 Check(RoomRules.At(both, 5, 43f, 4) == null && RoomRules.At(both, 12, 36f, 4) == null, "Above the roof, or outside the walls: no room");
 Check(RoomRules.At(both, 5, 39f, 4, RoomType.Longhouse) == null, "Asked for the longhouse while upstairs: not the one below");
+// A room drawn inside another (a shrine in a corner of the great hall, from the live colony), its floor a little lower.
+var hall = new Room { Id = "h", Type = RoomType.GreatHall, Floor = 40.6f, Height = 3, Xz = new List<float> { 285, 1115, 293, 1115, 293, 1123, 285, 1123 } };
+var shrineRoom = new Room { Id = "s", Type = RoomType.OdinShrine, Floor = 40.55f, Height = 3, Xz = new List<float> { 290.5f, 1120, 293, 1120, 293, 1123, 290.5f, 1123 } };
+var nested = new List<Room> { hall, shrineRoom };
+Check(RoomRules.At(nested, 291.8f, 41f, 1121.6f)?.Id == "s", "In the shrine in the hall's corner: the shrine");
+Check(RoomRules.At(nested, 287f, 41f, 1117f)?.Id == "h", "Elsewhere in the hall: the hall");
+Check(RoomRules.At(nested, 291.8f, 41f, 1121.6f, RoomType.GreatHall)?.Id == "h", "Asked for the hall in the shrine's corner: the hall");
 var loft = new RoomFacts { Walls = new[] { 1f, 1f, 1f, 1f }, Roof = 1, Doors = 0, Area = 40 }; loft.Count["fire"] = 1; loft.Count["bed"] = 1;
 Check(!RoomRules.Judge(RoomType.Longhouse, loft).Ok, "An upstairs room with no way in fails");
 loft.Count["stairs"] = 1;

@@ -28,7 +28,8 @@ namespace Jarldom
         // The room a point is in: inside its outline and within its storey; in a house of storeys, the one whose floor is nearest below.
         public static Room At(IEnumerable<Room> rooms, float x, float y, float z, RoomType? type = null) =>
             rooms.Where(r => (type == null || r.Type == type) && Geometry.Inside(r.Xz, x, z) && y > r.Floor - 1.5f && y < r.Floor + r.Height + 0.5f)
-                .OrderBy(r => y >= r.Floor - 0.25f ? y - r.Floor : 100 + r.Floor - y).FirstOrDefault(); // (a little under a floor is still on it: feet sink in)
+                .OrderBy(r => Math.Floor((y >= r.Floor - 0.25f ? y - r.Floor : 100 + r.Floor - y) / 1.5f)) // (the storey: a little under a floor is still on it, feet sink in)
+                .ThenBy(r => Geometry.Area(r.Xz)).FirstOrDefault(); // (a room drawn inside another, a shrine in a hall: the inner one)
         public const float WallShare = 0.8f, RoofShare = 0.9f;
 
         public static RoomVerdict Judge(RoomType type, RoomFacts f, string god = "")

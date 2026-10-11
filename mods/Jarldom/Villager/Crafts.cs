@@ -280,7 +280,7 @@ namespace Jarldom
         private void Look(Brain b)
         {
             Net.Explore(b.Pos, 50f);
-            var foes = Character.GetAllCharacters().Where(c => c != null && !c.IsDead() && !c.IsPlayer() && !VillagerPrefab.Is(c) && !c.IsTamed() && !Tribute.IsHerald(c)
+            var foes = Character.GetAllCharacters().Where(c => c != null && !c.IsDead() && !c.IsPlayer() && !VillagerPrefab.Is(c) && !c.IsTamed() && !Tribute.IsHerald(c) && !Visitors.IsMerc(c)
                 && c.GetFaction() != Character.Faction.AnimalsVeg && c.GetFaction() != Character.Faction.Players && Vector3.Distance(c.transform.position, b.Pos) < 45f).ToList();
             if (foes.Count == 0) return;
             var groups = foes.GroupBy(f => Localization.instance.Localize(f.m_name)).OrderByDescending(g => g.Count()).ToList();

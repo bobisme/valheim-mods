@@ -222,7 +222,7 @@ namespace Jarldom
     // thing, one of it), laid on the altar as a player would; otherwise they mind a temple.
     internal sealed class GothiTask : Task
     {
-        private readonly Room _temple; private Altar _altar; private Container _from; private string _gift; private int _phase;
+        private readonly Room _temple; private Piece _altar; private string _god; private Container _from; private string _gift; private int _phase;
         public GothiTask(Room temple) { _temple = temple; }
         public override bool Interruptible => _phase == 0;
         public static Task Next(Brain b)
@@ -239,9 +239,11 @@ namespace Jarldom
         public override void Start(Brain b)
         {
             Colony c = b.Colony;
-            _altar = c.PiecesIn(c.Radius).Select(p => p.GetComponent<Altar>()).FirstOrDefault(a => a != null && c.RoomAt(a.transform.position + Vector3.up * 0.3f) == _temple);
+            // (by its prefab's name, as the room's check finds it: altars from before a reload keep the old Altar component)
+            _altar = c.PiecesIn(c.Radius).Where(p => Utils.GetPrefabName(p.gameObject).StartsWith(Pieces.AltarPrefix) && c.RoomAt(p.transform.position + Vector3.up * 0.3f, _temple.Type) == _temple)
+                .OrderBy(p => Vector3.Distance(p.transform.position, c.Centre(_temple))).FirstOrDefault();
             if (_altar == null) { Skip(b, "the temple has no altar"); return; }
-            string god = _altar.God;
+            string god = _god = Utils.GetPrefabName(_altar.gameObject).Substring(Pieces.AltarPrefix.Length);
             var gifts = Stock.Chests(c, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest))
                 .SelectMany(x => x.chest.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && !Items.IsRing(i) && Faith.Wants(god, i) && Faith.Value(i) > 0).Select(i => (x.chest, i)))
                 .OrderBy(g => Faith.Value(g.i)).ToList();
@@ -250,7 +252,11 @@ namespace Jarldom
             Doing = "fetching an offering for " + Tables.God(god)?.Name;
             b.Move.To(_from.transform.position, 1.8f);
         }
-        private void Skip(Brain b, string why) { Done = true; b.NoOfferUntil = Time.time + 300; b.Colony.R.Flags["offered:" + _temple.Id] = b.Colony.Day; b.Colony.MarkDirty(); b.Idle(why); }
+        private void Skip(Brain b, string why)
+        {
+            Done = true; b.NoOfferUntil = Time.time + 300; b.Colony.R.Flags["offered:" + _temple.Id] = b.Colony.Day; b.Colony.MarkDirty(); b.Idle(why);
+            b.Colony.Log("text", b.S.Name, "", $"{b.S.Name} the gothi made no offering today: {why}."); // (once a day a temple, so the jarl knows what's wanted)
+        }
         public override void Tick(Brain b)
         {
             if (Done) return;
@@ -261,7 +267,7 @@ namespace Jarldom
                 if (Vector3.Distance(b.Pos, _from.transform.position) > 2.4f) { if (!b.Move.Moving) b.Move.To(_from.transform.position, 1.8f); if (b.Move.Failed) { Done = true; b.NoOfferUntil = Time.time + 120; } return; }
                 ItemDrop.ItemData stack = _from.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == _gift);
                 if (stack == null || Stock.Take(_from, bag, stack, 1) == 0) { Done = true; b.NoOfferUntil = Time.time + 60; return; }
-                _phase = 1; Doing = "going to the altar of " + Tables.God(_altar.God)?.Name;
+                _phase = 1; Doing = "going to the altar of " + Tables.God(_god)?.Name;
                 b.Move.To(_altar.transform.position, 1.8f);
                 return;
             }
@@ -276,7 +282,7 @@ namespace Jarldom
             bag.RemoveItem(gift, 1);
             Assets.Effect("vfx_offering", _altar.transform.position + Vector3.up);
             Assets.Effect("sfx_offering", _altar.transform.position);
-            Faith.Received(b.Colony, _altar.God, points, name.ToLower(), b.S.Name);
+            Faith.Received(b.Colony, _god, points, name.ToLower(), b.S.Name);
             b.Colony.R.Flags["offered:" + _temple.Id] = b.Colony.Day;
             b.S.Bump("offerings");
             Mood.Satisfy(b.S, Need.Faith, 20);
