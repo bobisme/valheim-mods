@@ -10,12 +10,15 @@ namespace Jarldom
     {
         public static void Ensure(Fireplace f)
         {
-            if (f == null || f.GetComponent<NavMeshObstacle>() != null || !Classes.Warms(f)) return;
-            float r = 1.1f;
-            foreach (EffectArea a in f.GetComponentsInChildren<EffectArea>(true))
-                if ((a.m_type & EffectArea.Type.Burning) != 0 && a.GetComponent<Collider>() is Collider col) r = Mathf.Max(r, Mathf.Max(col.bounds.extents.x, col.bounds.extents.z) + 0.3f);
+            if (f == null || !Classes.Warms(f)) return;
+            if (f.GetComponent<NavMeshObstacle>() is NavMeshObstacle had) { if (had.radius > 1.2f) had.radius = 1.2f; return; } // (one cut too wide by an earlier build)
+            // (the fire itself, its stones, not the warmth round it: a wide cut walled the hall's door off from the rest of the floor,
+            // and the hearth no longer burns them anyway)
+            float r = 0.8f;
+            foreach (Collider col in f.GetComponentsInChildren<Collider>(true))
+                if (!col.isTrigger && col.enabled) r = Mathf.Max(r, Mathf.Max(col.bounds.extents.x, col.bounds.extents.z));
             var o = f.gameObject.AddComponent<NavMeshObstacle>();
-            o.shape = NavMeshObstacleShape.Capsule; o.radius = Mathf.Min(r, 3f); o.height = 2f; o.center = Vector3.up;
+            o.shape = NavMeshObstacleShape.Capsule; o.radius = Mathf.Min(r, 1.2f); o.height = 2f; o.center = Vector3.up;
             o.carving = true; o.carveOnlyStationary = true;
         }
         [HarmonyPatch(typeof(Fireplace), "Start")]

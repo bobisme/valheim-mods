@@ -126,7 +126,9 @@ namespace Jarldom
                     if (!Pathfinding.instance.HavePath(me, near, _b.Ai.m_pathAgentType) && !sameSide) { LastDoorPlan += $"; no way to {near:F1}"; continue; }
                     // The far side must lead to the goal, or at least be close to it in the same room (the navmesh behind a shut door can be cut off).
                     bool sameRoom = _b.Colony != null && _b.Colony.RoomAt(far) is Room r && Geometry.Inside(r.Xz, goal.x, goal.z);
-                    if (!Pathfinding.instance.HavePath(far, goal, _b.Ai.m_pathAgentType) && Utils.DistanceXZ(far, goal) > 3f && !(sameRoom && Utils.DistanceXZ(far, goal) < 15f)) { LastDoorPlan += $"; no way from {far:F1}"; continue; }
+                    // (or it's the way out of this room to another behind its own shut door: out first, then that door, planned from outside)
+                    bool outThenIn = from != null && to != from && _b.Colony.RoomAt(far) == null && Pathfinding.instance.HavePath(far, _b.Colony.Position, _b.Ai.m_pathAgentType);
+                    if (!outThenIn && !Pathfinding.instance.HavePath(far, goal, _b.Ai.m_pathAgentType) && Utils.DistanceXZ(far, goal) > 3f && !(sameRoom && Utils.DistanceXZ(far, goal) < 15f)) { LastDoorPlan += $"; no way from {far:F1}"; continue; }
                     LastDoorPlan += $"; through {d.name}";
                     Pathfinding.instance.GetPath(me, near, _path, _b.Ai.m_pathAgentType);
                     _path.Add(near);
@@ -173,6 +175,15 @@ namespace Jarldom
                 // ground; the goal itself may be behind a wall or up on a roof).
                 _stuckStage = 3;
                 if (_path.Count > 0 && Vector3.Distance(me, _path[0]) < 12f && Steer.SafeSpot(_path[0])) _b.Place(_path[0] + Vector3.up * 0.2f);
+                else if (_path.Count == 0 && _b.Colony != null)
+                {
+                    // (no way at all from here: a pocket behind the pillars or a table, cut off from the rest; out to the middle of the
+                    // room they're in, or by the pillars, where the ways join up again)
+                    Room room = _b.Colony.RoomAt(me);
+                    Vector3 centre = room != null ? _b.Colony.Centre(room) : _b.Colony.Position + _b.Colony.Seat.transform.forward * 3f;
+                    Vector3? free = Colony.Spot(centre, 1.5f);
+                    if (free != null && Utils.DistanceXZ(free.Value, me) > 1.5f) _b.Place(free.Value + Vector3.up * 0.2f);
+                }
                 _lastProgressAt = Time.time; _lastProgressPos = _b.Body.transform.position; _stuckStage = 0; _nextPath = 0;
                 if (++_unsticks >= 3) { _failed = true; _failedAt = Time.time; _active = false; _b.Ai.StopMoving(); } // it isn't getting anywhere: give up the goal
             }
