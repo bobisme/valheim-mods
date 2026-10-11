@@ -117,7 +117,7 @@ namespace Jarldom
             if (functions == null) return;
             foreach (string n in Names) functions.Remove(n.GetStableHashCode());
         }
-        private static long Owner(Colony c) => c.Z.GetOwner();
+        private static long Owner(Colony c) => c?.Z?.GetOwner() ?? 0; // (no record while the world shuts down)
         private static string Who(long sender)
         {
             if (ZNet.instance == null) return "";
@@ -176,9 +176,9 @@ namespace Jarldom
             return s.orders.Where(o => o.State == OrderState.Open && canDo(o.Prof) && !Refused.Contains((b.S.Vid, o.Id)) && Work.GearFor(b, o) == null && o.Kind != "craft")
                 .OrderByDescending(o => o.Priority).ThenBy(o => (o.X - b.Pos.x) * (o.X - b.Pos.x) + (o.Z - b.Pos.z) * (o.Z - b.Pos.z)).FirstOrDefault();
         }
-        public static void Claim(Colony c, Brain b, Order o) => ZRoutedRpc.instance?.InvokeRoutedRPC(Owner(c), ClaimRpc, c.Id, b.S.Vid, o.Id);
+        public static void Claim(Colony c, Brain b, Order o) { long to = Owner(c); if (to != 0) ZRoutedRpc.instance?.InvokeRoutedRPC(to, ClaimRpc, c.Id, b.S.Vid, o.Id); } // (0 would be everyone)
         public static bool Renew(Colony c, Brain b, Order o) { if (Refused.Contains((b.S.Vid, o.Id))) return false; Claim(c, b, o); return true; }
-        public static void Report(Colony c, Brain b, Order o, string what) => ZRoutedRpc.instance?.InvokeRoutedRPC(Owner(c), ReportRpc, c.Id, b.S.Vid, o.Id, what);
+        public static void Report(Colony c, Brain b, Order o, string what) { long to = Owner(c); if (to != 0) ZRoutedRpc.instance?.InvokeRoutedRPC(to, ReportRpc, c.Id, b.S.Vid, o.Id, what); }
         private static readonly HashSet<(string, int)> Refused = new HashSet<(string, int)>();
         private static void OnClaim(long sender, string colony, string vid, int order)
         {
