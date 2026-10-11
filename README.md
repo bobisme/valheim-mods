@@ -23,18 +23,22 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
   the Rooms tab), guarding, hunting, fishing, feeding fires, smelters (fuel first) and cooking stations, brewing mead bases at the mead
   ketill and keeping fermenters filled and tapped, **commissions** (Work tab: smiths at the forge and workbench, cooks at the cauldron,
   from the stores), healers tending the injured (twice as well in a healer's house), scouts ranging past the edge and filling in the
-  map, herders feeding a pasture's tame beasts and culling the surplus (never named or young ones). Without the gear their profession
-  needs, villagers haul and say why.
+  map, herders feeding a pasture's tame beasts and culling the surplus (never named or young ones). Villagers fetch the tools of their
+  trade (and arrows) from the stockpiles; without them they haul and say why, and an idle villager says what's missing (no zone marked,
+  nothing left in it). Food beyond a few meals goes to the stores, not into one villager's bag.
 - **The colony's own ground**: villagers take beds only inside the colony's rooms or within 15 m of the pillars, and pick up what lies
   about only in its rooms, zones and by the pillars, so a neighbour's base inside the radius is left alone.
 - **Daily life**: work by day, the great hall at dusk (a seat, food, gossip about things that really happened), their own bed at night
-  (or the hall fire, unhappily). Seven needs and many moodlets make a mood (-100 to +100) that sets how fast they work (60% to 130%).
-- **Death**: a tombstone with their bag, rising at their bed after 30 s with worn gear kept. With no bed (or disgraced) they're lost
-  and rise as a named draugr carrying their hoard.
+  (or the hall fire, unhappily: anyone without a bed takes a free one at dusk). Upper storeys are fine: villagers climb stairs to them
+  (Jarldom links stairs and upper floors across the game's 32 m navmesh tiles, which otherwise never join there). Seven needs and many moodlets make a mood (-100 to +100) that sets how fast they work (60% to 130%).
+- **Death**: rising at their bed after 30 s with their own gear (armour, weapons, tools); the rest goes to a tombstone they walk back
+  to for it (haulers empty the graves of those who won't come back). With no bed (or disgraced) they're lost and rise as a named
+  draugr carrying their hoard.
 - **Gold**: wages every five days from the treasury chest (all or nothing), feasts, offerings at the eight gods' altars, coins thrown
   into a sacred bog (favour without end), gilded high seat and banners. **The Thing** meets every five days with petitions.
   **Ascension**: a worthy villager (100 worth) goes up on the funeral pyre at dusk with grave goods.
-- **Raids** near the colony sound the war horn and grow with renown; fighters take guard posts, the rest run for the great hall.
+- **Raids** near the colony sound the war horn and grow with renown; fighters arm themselves and go out to the raiders, the rest run
+  for the great hall. What's left of a draugr warband sinks back into the earth at dawn.
   **The Fulings** (hamlet and up) send a herald now and then: pay from the hall tab by dusk (more each time), or they raid; paying
   mid-raid turns them back (a Shieldwall siege too, from 0.4.12).
 - **More of the world**: a master visits at village rank (150 coins: +10 in a skill); Dvergr mercenaries at jarldom rank after the
@@ -51,16 +55,21 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
 Works with Omens (Odin's favour is the gods' Fate), AICompanion (bed and chest claims respected both ways), Gary, SkalTavern; needs
 none. **Install on the host and every player** (the hammer refuses Jarldom pieces where the host lacks the mod). **Disband** the colony
 from its window before uninstalling: everyone's gear goes into chests by the pillars. Claude Tools: `jarldom status`, `roster`,
-`villager <name>`, `rooms`, `room check <n>`, `board`, `log`, `saga`, and (single player or host) `place pillars`, `spawn`, `migrate`,
-`room`/`zone <type> x1 z1 x2 z2`, `prof`, `mood`, `worth`, `give`, `time <hours>`, `pay`, `feast`, `thing now`, `ascend`, `raid`.
+`villager <name>`, `rooms`, `room check <n>`, `board`, `log`, `saga`, `flags`, `graves`, `netsize`, `pathtest`, `heights`, `spot`, `ui
+colony|villager|room|zone|seat`, and (single player or host) `place pillars`, `spawn`, `migrate`, `room`/`zone <type> x1 z1 x2 z2`,
+`prof`, `mood`, `worth`, `give`, `time <hours>`, `pay`, `feast`, `thing now`, `ascend`, `raid`, `clear`.
 
 **Tested live** (Creative, host with a second player): founding; the colony window and taking a newcomer in; felling, mining,
 harvesting and replanting, hauling to stockpiles, cooking at a spit, feeding a kiln and smelter; eating from the stores; the great hall
 at dusk (seats, the skald's songs); sleeping in own beds and by the hall fire; doors; guards fighting; a Shieldwall siege at the colony
 as a raid (everyone into the hall); death, tombstone and rising at the bed; wages; a feast and the rank it brings; the Thing; an offering
-at Odin's shrine; ascension on the pyre; 24 villagers at about 0.07 ms a frame. **Not yet tested by a player**: marking rooms with the
-hammer, the villager panel, the Valkyrie fly-in, raids from the game's own events, trade runs, builders (BuildOrders), Omens' Fate,
-a lost soul's draugr, a dedicated server, and villagers run by a joining player's game.
+at Odin's shrine; ascension on the pyre; 24 villagers at about 0.07 ms a frame. Also live (by tools, not yet by a player's hands): the
+gothi's offerings, a skald's drum, master training, Dvergr mercenaries, captives and ransom, a barrow's warband fought by guards, the
+Fuling tribute, catch-up after two days away, an outpost 515 m off with a carter whose ore reached the main colony, a two-storey house
+(a stockpile below, a longhouse above, villagers sleeping upstairs), fetching gear and going back to graves, every window and the
+jarl's seat view with a real colony, and villagers' state surviving a world reload. **Not yet tested by a player**: marking rooms with
+the hammer, the Valkyrie fly-in, trade runs, builders (BuildOrders), a lost soul's draugr, a dedicated server, and villagers run by a
+joining player's game.
 
 **First playtest**:
 1. Build the pillars near a workbench; E on them: the window opens, the colony is a camp of 0.
