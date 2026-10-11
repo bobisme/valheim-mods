@@ -33,7 +33,7 @@ namespace Jarldom
             if (TaflTable(c, out _, out _)) kinds.Add(("tafl", b.S.Has("lazy") ? 4 : 3));
             kinds.Add(("glima", b.S.Has("strong") || b.S.Has("brave") ? 4 : 2));
             if (armed && Find(c, "piece_TrainingDummy") != null) kinds.Add(("dummy", fighter ? 6 : 2));
-            if (Gear.Tool(b, "bow") is ItemDrop.ItemData bow && Gear.Items(b).Where(i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Ammo && i.m_shared.m_ammoType == bow.m_shared.m_ammoType).Sum(i => i.m_stack) >= 20 && Find(c, "piece_ArcheryTarget") != null)
+            if (Gear.Tool(b, "bow") is ItemDrop.ItemData bow && Gear.Items(b).Where(i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Ammo && i.m_shared.m_ammoType == bow.m_shared.m_ammoType).Sum(i => i.m_stack) >= 20 && Find(c, "piece_ArcheryTarget") is Piece target && LeisureTask.Range(target) != null) // (only a target that can be shot at)
                 kinds.Add(("archery", b.S.Prof == Prof.Hunter ? 6 : 2));
             kinds.Add(("stones", b.S.Has("strong") ? 3 : 1));
             kinds.Add(("stroll", 2));
@@ -110,11 +110,31 @@ namespace Jarldom
         }
         private Vector3 Stand(Brain b)
         {
-            if (Kind == "archery") { Transform t = _thing.transform; Vector3 front = t.position - t.forward * 14f; return Colony.Spot(front, 2f) ?? front; } // (the target's face is its back: the board faces -forward)
+            if (Kind == "archery") { if (_range == null) _range = Range(_thing) ?? _thing.transform.position - _thing.transform.forward * 12f; return _range.Value; }
             Vector3 d = b.Pos - _thing.transform.position; d.y = 0; if (d.sqrMagnitude < 0.01f) d = Vector3.forward;
             return _thing.transform.position + d.normalized * 1.4f;
         }
         private float _nextWork; private int _openAtStart = -1;
+        // A place to shoot from: in front of the target's face, as far as 15 m, with nothing between (a fence, a wall, a hill).
+        private Vector3? _range;
+        private static int _sightMask = -1;
+        public static Vector3? Range(Piece target)
+        {
+            if (_sightMask == -1) _sightMask = LayerMask.GetMask("Default", "static_solid", "terrain", "piece", "Default_small");
+            Transform t = target.transform;
+            Vector3 centre = (t.Find("ArcheryTarget/Center") ?? t).position;
+            foreach (float d in new[] { 14f, 11f, 8f })
+                foreach (float ang in new[] { 0f, -25f, 25f, -50f, 50f })
+                {
+                    Vector3 dir = Quaternion.Euler(0, ang, 0) * -t.forward; dir.y = 0;
+                    Vector3? at = Colony.Spot(t.position + dir.normalized * d, 1.5f);
+                    if (at == null) continue;
+                    Vector3 eye = at.Value + Vector3.up * 1.5f;
+                    if (Physics.Linecast(eye, centre, out RaycastHit hit, _sightMask, QueryTriggerInteraction.Ignore) && hit.collider.GetComponentInParent<Piece>() != target) continue; // (something in the way)
+                    return at;
+                }
+            return null;
+        }
         public override void Tick(Brain b)
         {
             if (Time.time > _until) { Finish(b); return; }

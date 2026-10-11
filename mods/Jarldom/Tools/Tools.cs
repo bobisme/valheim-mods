@@ -65,7 +65,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "slay", "unlose", "forgetrow", "away", "master", "envoy", "capture", "barrow" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "slay", "unlose", "forgetrow", "away", "master", "envoy", "capture", "barrow" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or with devcommands"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -736,6 +736,7 @@ namespace Jarldom
                         output(new JObject { ["replant"] = new JArray(seeds), ["sowOrders"] = c.Board.All.Count(o => o.Kind == "sow" && (o.State == OrderState.Open || o.State == OrderState.Claimed)) });
                     }
                     break;
+                case "leisure": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } b.Task?.Stop(b); b.Task = new LeisureTask(a[3], "test"); b.Task.Start(b); output(new JObject { ["doing"] = b.Task.Doing }); } break;
                 case "slay":
                     {
                         // Test only: every creature of a prefab in the colony (and 30 m round) dies.
