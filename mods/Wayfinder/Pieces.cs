@@ -433,9 +433,9 @@ namespace Wayfinder
         internal static void Tick()
         {
             Player me=Player.m_localPlayer;
-            if(me==null||ZNet.instance==null||Time.time<_next)return;
+            if(me==null||Plugin.World()==null||Time.time<_next)return;
             _next=Time.time+2f;
-            string key=Prefix+ZNet.instance.GetWorldUID();
+            string key=Prefix+Plugin.World();
             if(_for!=key+me.GetPlayerID()){Clear();_for=key+me.GetPlayerID();Load(me,key);}
             bool changed=false;
             Vector3 here=me.transform.position;

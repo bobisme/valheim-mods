@@ -23,7 +23,7 @@ namespace Wayfinder
         internal static Vector3 At(int i)=>new Vector3((float)Points[i].x,0,(float)Points[i].z);
         internal static string Label(int i)=>string.IsNullOrEmpty(Points[i].name)?"waypoint "+(i+1):Points[i].name;
 
-        private static string Key()=>ZNet.instance!=null?KeyPrefix+ZNet.instance.GetWorldUID():null;
+        private static string Key()=>Plugin.World() is string w?KeyPrefix+w:null;
         // The character's saved course for this world, once they are in it.
         internal static void Tick()
         {

@@ -28,7 +28,7 @@ namespace Wayfinder
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name,"wayfinder",
-                    "wayfinder info | course [add x z [name] | here [name] | clear | reverse | skip] | weather | give <compass|sunstone|line|stave|raven|all> | take | place <vane|beacon|mark> [ahead=6] | remove | map [large|small] [zoom] | raven | climb | ship: check Wayfinder. give/take put test items in the player's inventory and take them back; place/remove put test pieces ahead of the player and take them away.",
+                    "wayfinder info | course [add x z [name] | here [name] | clear | reverse | skip] | weather | give <compass|sunstone|line|stave|raven|all> | take | place <vane|beacon|mark> [ahead=6] | remove | boat [prefab] [x z yaw] | name <text> | map [large|small] [zoom] | raven | climb | ship: check Wayfinder. give/take put test items in the player's inventory and take them back; place/remove put test pieces ahead of the player and take them away.",
                     (Func<string[],Action<JObject>,Action<string>,IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: wayfinder command added");
             }
@@ -51,7 +51,7 @@ namespace Wayfinder
             {
                 case "info":
                 {
-                    Ship ship=Ship.GetLocalShip();
+                    Ship ship=Ships.Aboard();
                     output(new JObject{
                         ["course"]=new JArray(Course.Points.Select((p,i)=>new JObject{["i"]=i+1,["at"]=new JArray(Math.Round(p.x),Math.Round(p.z)),["name"]=p.name})),
                         ["next"]=Course.Next+1,["active"]=Course.Active,
@@ -128,6 +128,7 @@ namespace Wayfinder
                     else if(ZoneSystem.instance.GetSolidHeight(at,out float h))at.y=h;
                     GameObject go=Object.Instantiate(prefab,at,Quaternion.LookRotation(-f));
                     go.GetComponent<ZNetView>()?.GetZDO()?.Set(TestKey,true);
+                    if(what=="beacon")go.GetComponent<ZNetView>()?.GetZDO()?.Set(ZDOVars.s_fuel,10f);
                     output(new JObject{["placed"]=what,["at"]=V(at)});
                     break;
                 }
@@ -148,12 +149,32 @@ namespace Wayfinder
                     output(new JObject{["mode"]=Minimap.instance.m_mode.ToString(),["zoom"]=Minimap.instance.LargeZoom});
                     break;
                 }
+                case "boat":
+                {
+                    // wayfinder boat <prefab> <x> <z>: a test ship on the water (taken away by remove)
+                    string prefab=args.Length>2?args[2]:"Karve";
+                    GameObject p=ZNetScene.instance.GetPrefab(prefab);
+                    if(p==null||p.GetComponent<Ship>()==null){error("wayfinder boat: no ship "+prefab);break;}
+                    Vector3 at=new Vector3(Arg(args,3,me.transform.position.x),ZoneSystem.instance.m_waterLevel,Arg(args,4,me.transform.position.z));
+                    GameObject go=Object.Instantiate(p,at,Quaternion.Euler(0,Arg(args,5,0),0));
+                    go.GetComponent<ZNetView>()?.GetZDO()?.Set(TestKey,true);
+                    output(new JObject{["boat"]=prefab,["at"]=V(at),["depth"]=Math.Round(ZoneSystem.instance.m_waterLevel-Sounding.Ground(at),1)});
+                    break;
+                }
+                case "name":
+                {
+                    Ship ship=Ships.Aboard();
+                    if(ship==null){error("wayfinder name: not aboard");break;}
+                    new ShipNamer(ship).SetText(args.Length>2?string.Join(" ",args.Skip(2)):"");
+                    output(new JObject{["ship"]=Ships.NameOf(ship)});
+                    break;
+                }
                 case "raven":
                     output(new JObject{["released"]=Raven.Release(me)});
                     break;
                 case "climb":
                 {
-                    Ship ship=Ship.GetLocalShip();
+                    Ship ship=Ships.Aboard();
                     Chair mast=ship!=null?ship.GetComponentsInChildren<Chair>().FirstOrDefault(c=>c.name=="mast"):null;
                     if(mast==null){error("wayfinder climb: not aboard a ship with a mast");break;}
                     Masthead.Climb(me,ship,mast);

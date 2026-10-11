@@ -13,7 +13,7 @@ namespace Wayfinder
     {
         public const string Guid="com.bobisme.wayfinder";
         public const string Name="Wayfinder";
-        public const string Version="0.1.1";
+        public const string Version="0.1.2";
         internal static Plugin Instance;
         internal static ConfigEntry<float> ArriveRadius,MastheadSight,RavenRange;
         internal static ConfigEntry<bool> ShowOnMap,ShowHud,ShipNames,ShipPins,ShipLanterns,ShipVanes,MastheadClimb,ShowLandmarks;
@@ -44,6 +44,12 @@ namespace Wayfinder
             Logger.LogInfo($"{Name} {Version} loaded.");
         }
         internal static void Log(string text)=>Instance?.Logger.LogInfo(text);
+        // The world's id, for keeping things per world; null while no world is loaded (ZNet without one throws).
+        internal static string World()
+        {
+            if(ZNet.instance==null||ZNet.World==null)return null;
+            try{return ZNet.instance.GetWorldUID().ToString();}catch{return null;}
+        }
 
         internal static bool Plotting()
         {

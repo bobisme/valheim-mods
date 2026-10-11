@@ -15,6 +15,8 @@ namespace Wayfinder
         internal const string RenameRpc="bob_wayfinder_rename",HelmRpc="bob_wayfinder_helm";
         private const string FleetPrefix="bob_wayfinder_ships:";
 
+        // The ship you are on: the game's (its deck trigger), or the one whose masthead you sit at, above that trigger.
+        internal static Ship Aboard()=>Ship.GetLocalShip()??Masthead.Ship;
         internal static string NameOf(Ship ship)
         {
             ZNetView view=ship!=null?ship.GetComponent<ZNetView>():null;
@@ -42,7 +44,7 @@ namespace Wayfinder
         {
             Player me=Player.m_localPlayer;
             if(me==null){Helm.Clear();_helmText=null;return;}
-            Ship ship=Ship.GetLocalShip();
+            Ship ship=Ships.Aboard();
             ZNetView view=ship!=null?ship.GetComponent<ZNetView>():null;
             bool valid=view!=null&&view.IsValid();
             if(valid&&me.GetControlledShip()==ship)
@@ -83,7 +85,7 @@ namespace Wayfinder
         private static readonly List<Known> Fleet_=new List<Known>();
         private static string _fleetFor;
         internal static int FleetCount=>Fleet_.Count;
-        private static string FleetKey()=>ZNet.instance!=null?FleetPrefix+ZNet.instance.GetWorldUID():null;
+        private static string FleetKey()=>Plugin.World() is string w?FleetPrefix+w:null;
         private static void Fleet(Player me,Ship aboard)
         {
             string key=FleetKey();
@@ -345,18 +347,30 @@ namespace Wayfinder
     {
         internal static bool Aloft;
         private static Transform _perch;
+        internal static Ship Ship=>Aloft&&_perch!=null?_perch.GetComponentInParent<Ship>():null;
+        internal static bool IsPerch(Transform t)=>t!=null&&t.name=="WayfinderMasthead";
         internal static void Climb(Player me,Ship ship,Chair mastChair)
         {
             if(ship==null||ship.m_mastObject==null)return;
             if(Items.Bounds(ship.m_mastObject.transform).size.y<2.5f){me.Message(MessageHud.MessageType.Center,"There is no masthead to climb.");return;}
             Bounds b=Items.Bounds(ship.m_mastObject.transform);
             Vector3 top=ship.transform.InverseTransformPoint(new Vector3(b.center.x,b.max.y,b.center.z));
+            Vector3 foot=ship.transform.InverseTransformPoint(new Vector3(b.center.x,b.min.y,b.center.z));
             if(_perch!=null)Object.Destroy(_perch.gameObject);
             _perch=new GameObject("WayfinderMasthead").transform;
             _perch.SetParent(ship.transform,false);
             _perch.localPosition=top+new Vector3(0,-1.35f,0.18f);
-            Vector3 deck=ship.transform.InverseTransformPoint(mastChair.m_attachPoint.position);
-            me.AttachStart(_perch,null,false,false,true,"attach_chair",deck-_perch.localPosition+new Vector3(0,0.4f,0));
+            // back down onto the deck beside the mast: found by looking straight down there for the ship's own floor
+            Vector3 deck=mastChair.m_attachPoint.position;
+            int mask=LayerMask.GetMask("vehicle","piece","Default","static_solid");
+            foreach(float side in new[]{0.9f,-0.9f,1.3f})
+            {
+                Vector3 from=ship.transform.TransformPoint(new Vector3(top.x+side,Mathf.Lerp(foot.y,top.y,0.3f),top.z)); // (under the yard)
+                foreach(RaycastHit hit in Physics.RaycastAll(from,Vector3.down,12,mask,QueryTriggerInteraction.Ignore).OrderBy(h=>h.distance))
+                    if(hit.collider.GetComponentInParent<Ship>()==ship){deck=hit.point;goto found;}
+            }
+            found:
+            me.AttachStart(_perch,null,false,false,true,"attach_chair",_perch.InverseTransformPoint(deck+Vector3.up*0.3f));
             me.Message(MessageHud.MessageType.Center,"You climb to the masthead.");
         }
         internal static void Tick(Player me)
@@ -365,6 +379,21 @@ namespace Wayfinder
             if(_perch!=null&&!me.IsAttached()){Object.Destroy(_perch.gameObject);_perch=null;}
         }
         internal static void Stop(){if(_perch!=null){Player.m_localPlayer?.AttachStop();Object.Destroy(_perch.gameObject);}_perch=null;Aloft=false;}
+    }
+    // Leaving the masthead (a key pressed, or a reload) sets you down on the deck: no fall from the height you sat at. (While
+    // seated the game keeps your highest point in the air at the seat, and a low chair never matters; a masthead would.)
+    [HarmonyPatch(typeof(Player),nameof(Player.AttachStop))]
+    internal static class SafeDescent
+    {
+        private static readonly AccessTools.FieldRef<Character,float> MaxAir=AccessTools.FieldRefAccess<Character,float>("m_maxAirAltitude");
+        private static void Prefix(Player __instance,out bool __state)=>__state=__instance.IsAttached()&&Masthead.IsPerch(__instance.GetAttachPoint());
+        private static void Postfix(Player __instance,bool __state)
+        {
+            if(!__state)return;
+            MaxAir(__instance)=__instance.transform.position.y;
+            Rigidbody body=__instance.GetComponent<Rigidbody>();
+            if(body!=null)body.linearVelocity=Vector3.zero;
+        }
     }
     [HarmonyPatch(typeof(Chair),nameof(Chair.GetHoverText))]
     internal static class MastHover

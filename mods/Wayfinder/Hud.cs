@@ -129,7 +129,7 @@ namespace Wayfinder
         {
             var sb=new StringBuilder();
             Vector3 here=me.transform.position;
-            Ship ship=Ship.GetLocalShip();
+            Ship ship=Ships.Aboard();
             float speed=ship!=null?Mathf.Abs(ship.GetSpeed()):me.GetVelocity().magnitude;
             Vector3? legDir=null;
             if(_seenNext!=Course.Next){if(Course.Points.Count>0&&Course.Next>=Course.Points.Count&&_seenNext>=0&&_seenNext<Course.Points.Count)_finishedAt=Time.time;_seenNext=Course.Next;}

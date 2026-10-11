@@ -15,7 +15,7 @@ namespace Wayfinder
         internal static void Tick()
         {
             Player me=Player.m_localPlayer;
-            Ship ship=Ship.GetLocalShip();
+            Ship ship=Ships.Aboard();
             if(me==null||ship==null||!Items.Has(me,Items.SoundingLine)||WorldGenerator.instance==null||ZoneSystem.instance==null){Line="";Alert=false;_warned=false;return;}
             if(Time.time<_next)return;
             float speed=ship.GetSpeed();
