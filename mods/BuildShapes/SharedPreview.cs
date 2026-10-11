@@ -94,7 +94,8 @@ namespace BuildShapes
     {
         private float _nextChange,_nextHeartbeat;
         internal bool Due(float now,bool dirty)=>now>=_nextChange&&(dirty||now>=_nextHeartbeat);
-        internal void Sent(float now){_nextChange=now+0.5f;_nextHeartbeat=now+4;}
+        // Big drafts go out no faster than about 40 KB/s in all (a hall of a thousand pieces is tens of KB to each player).
+        internal void Sent(float now,int bytes=0){_nextChange=now+Math.Max(0.5f,bytes/40000f);_nextHeartbeat=now+4;}
     }
     internal sealed class SharedPreviewSet
     {
@@ -121,6 +122,13 @@ namespace BuildShapes
             if(preview.Tool==0){_cleared.Add(sender);return Entries.Remove(sender);}
             _cleared.Remove(sender);
             Entries[sender]=new Entry{Preview=preview,Seen=now};return true;
+        }
+        // An unchanged draft's heartbeat: true if this one is already shown (or was cleared), false if it should be asked for.
+        internal bool Alive(long sender,long revision,float now)
+        {
+            if(!_latest.TryGetValue(sender,out long latest)||latest!=revision)return false;
+            if(Entries.TryGetValue(sender,out var current)){current.Seen=now;return true;}
+            return _cleared.Contains(sender);
         }
         internal long[] Expire(float now,ISet<long> online)
         {var gone=Entries.Where(p=>now-p.Value.Seen>Lifetime||!online.Contains(p.Key)).Select(p=>p.Key).ToArray();foreach(long id in gone)Entries.Remove(id);foreach(long id in _latest.Keys.Where(id=>!online.Contains(id)).ToArray()){_latest.Remove(id);_cleared.Remove(id);}return gone;}

@@ -1,3 +1,5 @@
+0.6.6: Less network traffic when sharing drafts. An unchanged draft was resent whole to every other player every four seconds (tens of KB for a big hall); now only a tiny "still here" goes out, and a player who missed it asks for it again. Big drafts being edited go out no faster than about 40 KB/s in all. Everyone needs 0.6.6 to see each other's drafts stay up.
+
 0.6.5: Works with BuildOrders under its new id (com.quad.buildorders, from 1.12.1) and Claude Tools under its (com.quad.claudetools), and still with older copies.
 
 0.6.4: Use the live BepInEx plugin registry to reconnect to ClaudeTools instead of scanning every loaded Unity object every two seconds. Preserves late loading and reload detection while removing unnecessary main-thread scene scans, including while the designer is idle.

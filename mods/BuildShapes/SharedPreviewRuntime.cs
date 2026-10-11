@@ -11,7 +11,7 @@ namespace BuildShapes
 {
     public sealed partial class Plugin
     {
-        private const string SharedDraftRpc="Bob_BuildShapes_Draft_v1",SharedHelloRpc="Bob_BuildShapes_DraftHello_v1";
+        private const string SharedDraftRpc="Bob_BuildShapes_Draft_v1",SharedHelloRpc="Bob_BuildShapes_DraftHello_v1",SharedAliveRpc="Bob_BuildShapes_DraftAlive_v1";
         private ConfigEntry<bool> _shareDrafts,_showSharedDrafts,_shareDraftPieces,_showSharedPieces;
         private ZRoutedRpc _sharedRpc;
         private long _sharedWorld,_sharedRevision=DateTime.UtcNow.Ticks;
@@ -44,7 +44,7 @@ namespace BuildShapes
         {
             if(_sharedRpc==null)return;
             var table=AccessTools.Field(typeof(ZRoutedRpc),"m_functions")?.GetValue(_sharedRpc) as IDictionary;
-            table?.Remove(SharedDraftRpc.GetStableHashCode());table?.Remove(SharedHelloRpc.GetStableHashCode());_sharedRpc=null;
+            table?.Remove(SharedDraftRpc.GetStableHashCode());table?.Remove(SharedHelloRpc.GetStableHashCode());table?.Remove(SharedAliveRpc.GetStableHashCode());_sharedRpc=null;
         }
         private void UpdateSharedPreviews()
         {
@@ -57,8 +57,8 @@ namespace BuildShapes
                 if(rpc==null||player==null||Time.frameCount<=_sharedAwakeFrame+2)return;
                 _sharedRpc=rpc;
                 var table=AccessTools.Field(typeof(ZRoutedRpc),"m_functions")?.GetValue(rpc) as IDictionary;
-                table?.Remove(SharedDraftRpc.GetStableHashCode());table?.Remove(SharedHelloRpc.GetStableHashCode());
-                rpc.Register<ZPackage>(SharedDraftRpc,OnSharedPreview);rpc.Register<long>(SharedHelloRpc,OnSharedHello);
+                table?.Remove(SharedDraftRpc.GetStableHashCode());table?.Remove(SharedHelloRpc.GetStableHashCode());table?.Remove(SharedAliveRpc.GetStableHashCode());
+                rpc.Register<ZPackage>(SharedDraftRpc,OnSharedPreview);rpc.Register<long>(SharedHelloRpc,OnSharedHello);rpc.Register<long,long>(SharedAliveRpc,OnSharedAlive);
             }
             if(_sharedRpc==null||player==null){ClearSharedLines();return;}
             float now=Time.unscaledTime;
@@ -76,15 +76,21 @@ namespace BuildShapes
             if(active!=_sharedLastEnabled||_shareDraftPieces.Value!=_sharedLastPieces||_hallShowRoof!=_sharedLastRoof||_hallGuideOnly!=_sharedLastLayout)
             {_sharedDirty=true;_sharedLastEnabled=active;_sharedLastPieces=_shareDraftPieces.Value;_sharedLastRoof=_hallShowRoof;_sharedLastLayout=_hallGuideOnly;}
             if(!_sharedCadence.Due(now,_sharedDirty))return;
-            // Stable heartbeats reuse geometry and do not rebuild the receiver's renderers.
+            // A changed draft goes out whole; an unchanged one only says it is still there (a few bytes, not the whole draft every
+            // four seconds), and whoever lacks it asks for it with a hello.
             if(_sharedDirty||_sharedPacket==null)
             {
                 _sharedDirty=false;
                 try{_sharedPacket=SharedPreviewCodec.Encode(CaptureSharedPreview(active));}
                 catch(Exception ex){Logger.LogWarning("Shared preview was not sent: "+ex.GetBaseException().Message);_sharedPacket=SharedPreviewCodec.Encode(CaptureSharedPreview(false));}
+                _sharedCadence.Sent(now,_sharedPacket.Length*_sharedParticipants.Count);
+                foreach(long id in _sharedParticipants)SendSharedPacket(id);
             }
-            _sharedCadence.Sent(now);
-            foreach(long id in _sharedParticipants)SendSharedPacket(id);
+            else
+            {
+                _sharedCadence.Sent(now);
+                foreach(long id in _sharedParticipants)try{_sharedRpc?.InvokeRoutedRPC(id,SharedAliveRpc,_sharedWorld,_sharedRevision);}catch(Exception ex){Logger.LogDebug(ex.Message);}
+            }
         }
         private SharedPreview CaptureSharedPreview(bool active)
         {
@@ -116,6 +122,11 @@ namespace BuildShapes
         {
             if(world!=_sharedWorld||!_sharedOnline.ContainsKey(sender)||sender==ZDOMan.GetSessionID())return;
             if(_sharedParticipants.Add(sender))SendSharedHello(sender);SendSharedPacket(sender);
+        }
+        private void OnSharedAlive(long sender,long world,long revision)
+        {
+            if(!_enabled.Value||!_showSharedDrafts.Value||world!=_sharedWorld||!_sharedOnline.ContainsKey(sender)||sender==ZDOMan.GetSessionID())return;
+            if(!_sharedDraftSet.Alive(sender,revision,Time.unscaledTime))SendSharedHello(sender); // missed or expired: the hello brings it again
         }
         private void OnSharedPreview(long sender,ZPackage package)
         {

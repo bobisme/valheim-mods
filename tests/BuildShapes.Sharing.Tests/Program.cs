@@ -30,4 +30,10 @@ var state=new SharedPreviewSet();var peers=new HashSet<long>(Enumerable.Range(1,
 for(long i=2;i<=8;i++)Check(state.Accept(i,Frame(),24),"eight active viewers allowed");Check(!state.Accept(9,Frame(),25)&&state.Entries.Count==8,"ninth active draft rejected");Check(state.Accept(1,Frame(2,0),26),"clear frees slot");Check(state.Accept(9,Frame(),27),"freed slot reusable");
 var tombstones=new SharedPreviewSet();for(long i=1;i<=16;i++)tombstones.Accept(i,Frame(1,0),0);Check(!tombstones.Accept(17,Frame(),1),"tombstones bounded");tombstones.Expire(2,new HashSet<long>());Check(tombstones.Accept(17,Frame(),3),"offline tombstones reclaimed");
 var cadence=new SharedPreviewCadence();Check(cadence.Due(0,true),"initial frame immediate");cadence.Sent(0);Check(!cadence.Due(0.49f,true)&&cadence.Due(0.5f,true),"edits bounded to two per second");Check(!cadence.Due(3.9f,false)&&cadence.Due(4,false),"unchanged heartbeat every four seconds");Check(cadence.Due(1,true),"stable draft does not delay next edit until heartbeat");cadence.Sent(1);Check(!cadence.Due(1.25f,true)&&cadence.Due(1.5f,true)&&cadence.Due(5,false),"timers reset after changes");
+{var big=new SharedPreviewCadence();big.Sent(0,200000);Check(!big.Due(4.9f,true)&&big.Due(5,true),"big drafts are throttled by size");}
+{var set=new SharedPreviewSet();Check(!set.Alive(7,1,0),"a heartbeat for an unseen draft asks for it");
+ var live=new SharedPreview{World=1,Revision=3,Tool=1};set.Accept(7,live,0);
+ Check(set.Alive(7,3,10)&&set.Entries[7].Seen==10,"a heartbeat keeps a shown draft alive");Check(!set.Alive(7,4,10),"a newer revision is asked for");
+ set.Expire(30,new HashSet<long>{7});Check(!set.Alive(7,3,30),"an expired draft is asked for again");
+ set.Accept(7,new SharedPreview{World=1,Revision=5,Tool=0},31);Check(set.Alive(7,5,32),"a cleared draft's heartbeat needs nothing");}
 Console.WriteLine($"Shared preview checks passed: {checks}");
