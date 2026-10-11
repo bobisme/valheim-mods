@@ -380,6 +380,7 @@ namespace Jarldom
                     {
                         int seed = UnityEngine.Random.Range(0, int.MaxValue);
                         Newcomer n = Souls.Make(seed, "test" + seed.ToString("x"), null);
+                        string named = a.FirstOrDefault(x => x.StartsWith("name=")); if (named != null) { bool fem = a.Contains("female"); for (int s2 = seed; n.Female != fem; s2++) n = Souls.Make(s2, n.Group, null); n.Name = named.Substring(5).Replace('_', ' '); } // (a particular soul: name=Odd, female)
                         if (a.Length > 3) { var traits = a.Skip(3).Where(t => Tables.Trait(t) != null).Take(2).ToList(); if (traits.Count > 0) n.Traits = string.Join(",", traits.Concat(n.Traits.Split(',').Where(t => !traits.Contains(t) && traits.All(x => !Tables.Clash(x, t)))).Take(2)); }
                         c.R.Coming.Add(n); c.R.ComingLanded = true;
                         Migration.Accept(c, c.R.Coming.Count - 1, me?.GetPlayerName() ?? "");

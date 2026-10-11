@@ -51,6 +51,8 @@ namespace Jarldom
         public static IEnumerable<Recipe> All() => Table.Select(t => RecipeFor(t.item)).Where(r => r != null);
 
         // What's clothes (the colony's own and Hildir's), and what's rags.
+        private static readonly HashSet<string> Dyes = new HashSet<string> { "Blueberries", "Raspberry", "Dandelion", "Thistle" };
+        public static bool IsDye(ItemDrop.ItemData i) => i?.m_dropPrefab != null && Dyes.Contains(i.m_dropPrefab.name);
         public static bool IsRags(ItemDrop.ItemData i) => i?.m_dropPrefab != null && i.m_dropPrefab.name.StartsWith("ArmorRags");
         public static bool IsClothes(ItemDrop.ItemData i)
         {

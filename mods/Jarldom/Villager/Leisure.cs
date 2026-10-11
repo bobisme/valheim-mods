@@ -114,9 +114,17 @@ namespace Jarldom
             Vector3 d = b.Pos - _thing.transform.position; d.y = 0; if (d.sqrMagnitude < 0.01f) d = Vector3.forward;
             return _thing.transform.position + d.normalized * 1.4f;
         }
+        private float _nextWork; private int _openAtStart = -1;
         public override void Tick(Brain b)
         {
             if (Time.time > _until) { Finish(b); return; }
+            // (work of their own trade turned up: back to it)
+            if (Time.time > _nextWork && b.Colony.IsOwner && b.S.Prof != Prof.Hauler)
+            {
+                _nextWork = Time.time + 8f;
+                int open = b.Colony.Board.All.Count(o => o.State == OrderState.Open && o.Prof == b.S.Prof); // (more than when they sat down: something new)
+                if (_openAtStart < 0) _openAtStart = open; else if (open > _openAtStart) { Done = true; return; }
+            }
             if (Seeking)
             {
                 // Nobody came: something else to do.

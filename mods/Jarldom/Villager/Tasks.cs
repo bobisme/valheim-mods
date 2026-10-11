@@ -438,7 +438,7 @@ namespace Jarldom
         // A food that may be eaten now: as a player may, not while the same meal is still more than half there.
         public static bool Fresh(Brain b, ItemDrop.ItemData i) => !b.Meals.Any(m => m.Prefab == i.m_dropPrefab?.name && m.Left > m.Total * 0.5f);
         private static IEnumerable<ItemDrop.ItemData> Bag(Brain b) =>
-            b.Body.GetInventory().GetAllItems().Where(i => Stock.Edible(i) && Fresh(b, i));
+            b.Body.GetInventory().GetAllItems().Where(i => Stock.Edible(i) && Fresh(b, i) && !(b.S.Prof == Prof.Weaver && Weaving.IsDye(i))); // (a weaver's berries are for the dye pot)
         public static bool EatFromBag(Brain b)
         {
             ItemDrop.ItemData item = Bag(b).OrderByDescending(i => i.m_shared.m_food).FirstOrDefault();

@@ -83,6 +83,8 @@ namespace Jarldom
             {
                 ItemDrop.ItemData best = inv.GetAllItems().Where(i => i.m_shared.m_itemType == type && (i.m_durability > 0 || !i.m_shared.m_useDurability)).OrderByDescending(i => i.GetArmor()).ThenBy(i => Weaving.IsRags(i) ? 1 : 0).ThenByDescending(i => i.m_quality).FirstOrDefault(); // (clothes over rags, armour over both)
                 if (best != null && !h.IsItemEquiped(best)) h.EquipItem(best, false);
+                // (one worn per slot: a flag left on the old one from a reload comes off)
+                foreach (ItemDrop.ItemData other in inv.GetAllItems().Where(i => i != best && i.m_equipped && i.m_shared.m_itemType == type).ToList()) { if (h.IsItemEquiped(other)) h.UnequipItem(other, false); other.m_equipped = false; }
             }
             string want = Want(b);
             ItemDrop.ItemData hand = want == "" ? null : Tool(b, want);

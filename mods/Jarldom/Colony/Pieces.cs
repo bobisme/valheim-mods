@@ -236,7 +236,7 @@ namespace Jarldom
             var look = new GameObject("new"); look.transform.SetParent(go.transform, false);
             GameObject flag = Assets.Find("piece_banner01");
             if (flag != null) Assets.Model(flag, look.transform, Vector3.zero, Quaternion.identity, 0.6f);
-            Finish(go, look, "Mark rooms and zones", "Not built. With this chosen, click the corners of a room or a work zone on the ground (click the first corner again to close it), then choose what it is. Backspace removes the last corner, right click with nothing marked forgets a room under your aim.",
+            Finish(go, look, "Mark rooms and zones", "Not built. With this chosen, click the corners of a room or a work zone on the ground (click the first corner again to close it), then choose what it is; click one spot twice for a round work zone. Backspace takes back the last corner. E on a marked room or zone checks, changes, widens or removes it. With the hammer out, marked rooms and zones show on the ground (green when they work, red gaps in walls).",
                 Piece.PieceCategory.Misc, ("Wood", 1));
             Piece marker = go.GetComponent<Piece>();
             marker.m_resources = new Piece.Requirement[0]; // free: nothing is ever built (Designate refuses placement)
