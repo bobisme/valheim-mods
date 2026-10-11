@@ -51,6 +51,8 @@ namespace Shieldwall
         // ---- the Warstone ----
         internal const int MaxMarks=10;
         internal const float WardRadius=40,HearthRadius=10,MinApart=80;
+        // How far the ward reaches: 40 m, and 4 m more for each mark it works at (80 m at ten).
+        internal static float WardReach(int strength)=>WardRadius+4*Marks(strength);
         internal static int Marks(int marks)=>Math.Max(0,Math.Min(MaxMarks,marks));
         // A cracked stone (the horde reached it) works two marks lower until the next siege it holds.
         internal static int Strength(int marks,bool cracked)=>Math.Max(0,Marks(marks)-(cracked?2:0));

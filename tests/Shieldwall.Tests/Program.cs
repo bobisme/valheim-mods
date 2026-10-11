@@ -146,6 +146,7 @@ Check(Policy.BoonCapacity(kept)==2&&Policy.BoonReach(kept)==8&&Policy.BoonRange(
 Check(Policy.BoonCapacity(new string[0])==0&&Policy.BoonBorrowed(new string[0])==Policy.BorrowedPower,"No boons, no change");
 Check(Policy.Boons.Select(b=>b.Id).Distinct().Count()==Policy.Boons.Length&&Policy.Boons.All(b=>!b.Id.Contains(",")),"Boon ids are unique and save cleanly");
 Check(Policy.PowerRadius(Policy.MaxLevel)+8<=Policy.WardRadius+20,"Long reach stays near the stone");
+Check(Policy.WardReach(0)==40&&Policy.WardReach(5)==60&&Policy.WardReach(10)==80&&Policy.WardReach(14)==80,"The ward reaches 40 m, 4 m more a mark, 80 m at ten");
 Check(Policy.Carried(Role.Grunt,0.2,true)==1&&Policy.Carried(Role.Grunt,0.2,false)==0,"Shard-luck doubles the carriers");
 
 // The saga's shard breakdown adds up.

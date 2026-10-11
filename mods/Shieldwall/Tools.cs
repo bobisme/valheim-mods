@@ -550,6 +550,16 @@ namespace Shieldwall
                     }
                     output(new JObject{["spoils"]=Director.TestSpoils(stone)});
                     break;
+                case "day":
+                {
+                    // day: on to the next morning (test worlds; the host's clock is the world's).
+                    if(ZNet.instance==null||!ZNet.instance.IsServer()||EnvMan.instance==null){error("siege day: only the host");break;}
+                    double dayLen=EnvMan.instance.m_dayLengthSec,now=ZNet.instance.GetTimeSeconds(),day=Math.Floor(now/dayLen);
+                    double to=(day+0.3)*dayLen;if(to<=now)to+=dayLen; // about seven in the morning
+                    ZNet.instance.SetNetTime(to);
+                    output(new JObject{["day"]=(long)(to/dayLen),["hour"]=Math.Round(24*(to/dayLen-Math.Floor(to/dayLen)),1)});
+                    break;
+                }
                 case "rampart":
                 {
                     // rampart <metres> <angle> [length=8]: a stone rampart facing out from the stone, 2 m high with a 2 m walk on top,

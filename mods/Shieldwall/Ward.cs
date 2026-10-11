@@ -5,7 +5,7 @@ using Object=UnityEngine.Object;
 
 namespace Shieldwall
 {
-    // The Warstone's ward on you: a status effect while you are within 40 m of a stone, stronger with its marks and at full strength
+    // The Warstone's ward on you: a status effect while you are within reach of a stone (40 m, 4 m more a mark), stronger with its marks and at full strength
     // when the stone stands at a hearth (under a roof, a fire burning within 10 m). It lingers a minute after you step out.
     internal static class Ward
     {
@@ -21,7 +21,7 @@ namespace Shieldwall
             Player me=Player.m_localPlayer;
             if(me==null||Time.time<_next)return;
             _next=Time.time+1;
-            Warstone stone=Warstone.Loaded.Where(w=>w!=null&&w.Z!=null&&Vector3.Distance(w.transform.position,me.transform.position)<=Policy.WardRadius)
+            Warstone stone=Warstone.Loaded.Where(w=>w!=null&&w.Z!=null&&Vector3.Distance(w.transform.position,me.transform.position)<=Policy.WardReach(w.Strength))
                 .OrderByDescending(w=>w.Strength).FirstOrDefault();
             if(stone==null){_signature="";return;} // the effect runs down on its own
             bool hearth=AtHearth(stone);
@@ -36,7 +36,7 @@ namespace Shieldwall
             se.name=EffectName;
             se.m_name=stone.Marks>0?$"Warstone's ward ({Policy.Numeral(stone.Strength)})":"Warstone's ward";
             se.m_icon=Stone.Station!=null?Stone.Station.m_icon:null;
-            se.m_tooltip=string.Join("\n",Policy.Describe(ward))+
+            se.m_tooltip=string.Join("\n",Policy.Describe(ward))+$"\nReaches {Policy.WardReach(stone.Strength):0} m from the stone."+
                 (hearth?"\nThe stone stands at a hearth: full strength.":"\nHalf strength: set the stone under a roof with a fire near for the full ward.")+
                 (stone.Cracked?"\nThe stone is cracked: hold a siege to mend it.":"");
             se.m_ttl=60;

@@ -59,7 +59,7 @@ namespace Shieldwall
 
             Piece piece=go.GetComponent<Piece>();
             piece.m_name=StationName;
-            piece.m_description="A standing stone that wards your home: regeneration, carry weight and more for all within 40 m, twice as strong under a roof by a fire. "+
+            piece.m_description="A standing stone that wards your home: regeneration, carry weight and more for all within 40 m (4 m farther with each mark), twice as strong under a roof by a fire. "+
                 "It grows stronger with every siege it holds. Shift+E sounds its war horn and calls a horde to break against it; staves are crafted here.";
             piece.m_category=Piece.PieceCategory.Misc;
             piece.m_comfort=0;

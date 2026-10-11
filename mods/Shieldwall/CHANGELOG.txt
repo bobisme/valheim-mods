@@ -1,3 +1,5 @@
+0.4.11: The ward reaches farther as the stone grows: 40 m, and 4 m more for each mark (80 m at ten); its tooltip says how far. Claude Tools: siege day (host) moves on to the next morning.
+
 0.4.10: Fixed spoils chests vanishing, unlooted, as soon as they loaded in (after leaving and coming back, or a restart): a chest fills from its saved contents a moment after it loads, and 0.4.9 took it for empty. A spoils chest now goes only once it has been seen full and then emptied. Claude Tools: siege spoils works on a stone another game runs.
 
 0.4.9: The spoils chest is gone, in a puff, once it has been emptied and closed (named "Spoils of the siege"). ShatteredStone in F7 (off by default): a Warstone broken in a siege shatters and is gone, with its marks, level and boons, and the saga says so; its upgrades, sockets and staves still stand. Claude Tools: siege lose [shatter] ends a siege as lost; siege spoils leaves a spoils chest, siege spoils clear removes old spoils chests piled by the stone.
