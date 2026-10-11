@@ -66,6 +66,20 @@ namespace Jarldom
             Colony c = Here();
             string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "away", "master", "envoy", "capture", "barrow" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or with devcommands"); return; }
+            if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
+            if (cmd == "pintest")
+            {
+                // A pin of ours by its key (local only): add, then look; remove, then look; the player's own pins are counted each time.
+                Vector3 here = Player.m_localPlayer.transform.position + Vector3.forward * 5;
+                var pins = HarmonyLib.AccessTools.Field(typeof(Minimap), "m_pins").GetValue(Minimap.instance) as List<Minimap.PinData>;
+                int Theirs() => pins.Count(pp => pp.m_save);
+                bool Ours() => pins.Any(pp => pp.m_name == "Jarldom test pin");
+                string step = a.Length > 2 ? a[2] : "add";
+                int before = Theirs();
+                if (step == "add") Net.PinHere("jarldom-test", here, "Jarldom test pin", true); else Net.PinHere("jarldom-test", here, "", false);
+                output(new JObject { ["step"] = step, ["ourPin"] = Ours(), ["playerPinsBefore"] = before, ["playerPinsAfter"] = Theirs() });
+                return;
+            }
             if (cmd == "pathtest")
             {
                 // A villager's road (read-only): "pathtest mark" remembers where the player stands; "pathtest" asks the navmesh for the way

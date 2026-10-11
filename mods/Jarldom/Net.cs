@@ -97,7 +97,7 @@ namespace Jarldom
         public static void Pin(string key, Vector3 at, string text, bool add) => ZRoutedRpc.instance?.InvokeRoutedRPC(ZRoutedRpc.Everybody, PinRpc, key, at, text, add);
         // Our own pins, kept by key: never a player's (the game's RemovePin by place takes the nearest saved pin, which is theirs).
         private static readonly Dictionary<string, Minimap.PinData> Pins = new Dictionary<string, Minimap.PinData>();
-        private static void PinHere(string key, Vector3 at, string text, bool add)
+        internal static void PinHere(string key, Vector3 at, string text, bool add)
         {
             if (Minimap.instance == null) return;
             if (Pins.TryGetValue(key, out Minimap.PinData old))

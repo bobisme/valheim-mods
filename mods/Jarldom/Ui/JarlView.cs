@@ -13,7 +13,7 @@ namespace Jarldom.Ui
     internal static class JarlView
     {
         public static bool Active { get; private set; }
-        private static Colony _c; private static Vector3 _centre; private static float _height = 45f;
+        private static Colony _c; private static Vector3 _centre; private static float _height = 45f; private static bool _test;
         private static readonly HashSet<string> Chosen = new HashSet<string>();
         private static Vector3? _dragFrom; private static bool _zoneMode;
         private static RectTransform _bar; private static TMP_Text _status, _hover;
@@ -41,21 +41,28 @@ namespace Jarldom.Ui
                 }
                 return;
             }
-            if (p == null || _c == null || !_c.Valid || !InHighSeat(p) || Input.GetKeyDown(KeyCode.J) && !GameUi.Typing) { End(); return; }
+            if (p == null || !_test && (_c == null || !_c.Valid || !InHighSeat(p)) || Input.GetKeyDown(KeyCode.J) && !GameUi.Typing) { End(); return; }
             if (ColonyWindow.IsOpen || VillagerPanel.IsOpen || RoomPicker.IsOpen) { HideMarks(); return; } // (a window on top has the mouse)
             Steer();
             Pick();
             Marks();
         }
+        // For tests: the view over the player, with or without a colony or a high seat (jarldom seatview).
+        public static void Test()
+        {
+            if (Active) { End(); return; }
+            _c = Colony.Nearest(Player.m_localPlayer.transform.position, Renown.ZoneReach + 20);
+            _test = true; Begin();
+        }
         private static void Begin()
         {
             Active = true; Chosen.Clear(); _zoneMode = false; _dragFrom = null;
-            _centre = _c.Position; _height = 45f;
+            _centre = _c != null ? _c.Position : Player.m_localPlayer.transform.position; _height = 45f;
             BuildBar();
         }
         public static void End()
         {
-            Active = false; Chosen.Clear(); _dragFrom = null;
+            Active = false; _test = false; Chosen.Clear(); _dragFrom = null;
             if (_bar != null) Object.Destroy(_bar.gameObject);
             _bar = null;
             foreach (LineRenderer l in Rings) if (l != null) Object.Destroy(l.gameObject);
@@ -76,8 +83,9 @@ namespace Jarldom.Ui
             if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) move += Vector3.right;
             _centre += move * speed;
             // Never far past the colony's edge.
-            Vector3 off = _centre - _c.Position; off.y = 0;
-            if (off.magnitude > _c.Radius + 30) _centre = _c.Position + off.normalized * (_c.Radius + 30);
+            Vector3 home = _c != null ? _c.Position : Player.m_localPlayer.transform.position; float reach = _c != null ? _c.Radius + 30 : 80;
+            Vector3 off = _centre - home; off.y = 0;
+            if (off.magnitude > reach) _centre = home + off.normalized * reach;
             _height = Mathf.Clamp(_height - Input.mouseScrollDelta.y * 4f, 15f, 120f);
             _centre.y = ZoneSystem.instance.GetGroundHeight(_centre);
         }
@@ -103,7 +111,7 @@ namespace Jarldom.Ui
             Humanoid best = null; float bestD = 1.5f;
             foreach (Humanoid h in Villagers.Bodies())
             {
-                if (h.GetComponent<ZNetView>()?.GetZDO()?.GetString(Villagers.ColonyKey, "") != _c.Id) continue;
+                if (_c == null || h.GetComponent<ZNetView>()?.GetZDO()?.GetString(Villagers.ColonyKey, "") != _c.Id) continue;
                 Vector3 at = h.GetCenterPoint();
                 float d = Vector3.Cross(ray.direction, at - ray.origin).magnitude; // distance from the ray
                 if (d < bestD) { bestD = d; best = h; }
@@ -132,7 +140,7 @@ namespace Jarldom.Ui
             bool wide = Utils.DistanceXZ(a, b) > 1.5f;
             if (_zoneMode)
             {
-                if (!wide) return;
+                if (!wide || _c == null) { if (_c == null) { _zoneMode = false; Status(); } return; }
                 _zoneMode = false;
                 float x1 = Mathf.Min(a.x, b.x), x2 = Mathf.Max(a.x, b.x), z1 = Mathf.Min(a.z, b.z), z2 = Mathf.Max(a.z, b.z);
                 RoomPicker.Open(_c, new List<float> { x1, z1, x2, z1, x2, z2, x1, z2 }, Mathf.Min(a.y, b.y));
@@ -148,7 +156,7 @@ namespace Jarldom.Ui
                 foreach (Humanoid h in Villagers.Bodies())
                 {
                     Vector3 p = h.transform.position;
-                    if (p.x >= x1 && p.x <= x2 && p.z >= z1 && p.z <= z2 && h.GetComponent<ZNetView>()?.GetZDO()?.GetString(Villagers.ColonyKey, "") == _c.Id) Chosen.Add(Vid(h));
+                    if (_c != null && p.x >= x1 && p.x <= x2 && p.z >= z1 && p.z <= z2 && h.GetComponent<ZNetView>()?.GetZDO()?.GetString(Villagers.ColonyKey, "") == _c.Id) Chosen.Add(Vid(h));
                 }
             }
             Status();
@@ -195,7 +203,7 @@ namespace Jarldom.Ui
             }
             x = 20; y += 40;
             GameUi.Button(_bar, "Mark a zone", new Vector2(x, -y), new Vector2(150, 32), () => { _zoneMode = true; Status(); }, true, 14); x += 158;
-            GameUi.Button(_bar, "Colony window", new Vector2(x, -y), new Vector2(170, 32), () => ColonyWindow.Open(_c, "work"), true, 14); x += 178;
+            GameUi.Button(_bar, "Colony window", new Vector2(x, -y), new Vector2(170, 32), () => { if (_c != null) ColonyWindow.Open(_c, "work"); }, _c != null, 14); x += 178;
             GameUi.Button(_bar, "Choose none", new Vector2(x, -y), new Vector2(150, 32), () => { Chosen.Clear(); Status(); }, true, 14); x += 158;
             GameUi.Button(_bar, "Leave the seat's view (J)", new Vector2(x, -y), new Vector2(260, 32), End, true, 14);
             _bar.sizeDelta = new Vector2(1180, y + 46);
@@ -203,6 +211,7 @@ namespace Jarldom.Ui
         }
         private static void SetProf(Prof prof)
         {
+            if (_c == null) { Player.m_localPlayer?.Message(MessageHud.MessageType.Center, "(a test view: no colony here)"); return; }
             if (Chosen.Count == 0) { Player.m_localPlayer?.Message(MessageHud.MessageType.Center, "Choose villagers first: click one, or drag a box round several."); return; }
             foreach (string vid in Chosen) Net.Act(_c, "prof", vid + "|" + prof);
             Player.m_localPlayer?.Message(MessageHud.MessageType.TopLeft, $"{Chosen.Count} set to {Tables.Of(prof).Name.ToLower()}");
@@ -210,7 +219,7 @@ namespace Jarldom.Ui
         private static void Status()
         {
             if (_status == null) return;
-            _status.text = _zoneMode ? "Drag the zone's rectangle on the ground." :
+            _status.text = _c == null ? "A test of the jarl's seat view (no colony here): WASD or arrows pan, the wheel zooms, J or Esc leaves." : _zoneMode ? "Drag the zone's rectangle on the ground." :
                 Chosen.Count == 0 ? $"{_c.R.Name}: click a villager, or drag a box round several (Shift adds). Right-click: their panel." :
                 $"{Chosen.Count} chosen: set their profession below.";
         }
