@@ -9,7 +9,7 @@ namespace Jarldom
     // What players ask of the colony (through the window, the hammer, the altars), carried out by the colony owner.
     internal sealed partial class Colony
     {
-        private static readonly HashSet<string> Open = new HashSet<string> { "offer", "horn", "bogpaid", "gone", "away", "log", "heraldslain", "rescue" }; // anyone may pray or blow the horn
+        private static readonly HashSet<string> Open = new HashSet<string> { "offer", "horn", "bogpaid", "gone", "away", "log", "heraldslain", "rescue", "jarlslain" }; // anyone may pray or blow the horn
         public bool AllowedName(string who) => string.IsNullOrEmpty(who) || R.Founder == 0 || who == R.FounderName || R.Allowed.Contains(who) || R.Allowed.Contains("*");
 
         public void Handle(string action, string arg, string who)
@@ -52,6 +52,7 @@ namespace Jarldom
                 case "ransom": Captives.Free(this, a[0], "ransom"); break;
                 case "hire": Visitors.Hire(this, who); break;
                 case "heraldslain": Tribute.HeraldSlain(this); break;
+                case "jarlslain": Warband.Broken(this); break;
                 case "away": break; // (logged by the trader; the record follows from SoulAway)
                 case "bogpaid": R.BogPaid += Int(a, 0); break;
                 case "gone": { ReleaseBed(a[0]); RosterRow row = R.Row(a[0]); if (row != null) row.State = Get(a, 1) == "deserted" ? SoulState.Deserted : Get(a, 1) == "ascended" ? SoulState.Ascended : SoulState.Dismissed; Rerank(); } break;

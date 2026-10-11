@@ -178,10 +178,12 @@ namespace Jarldom
             bool near = ev != null && Utils.DistanceXZ(ev.m_pos, c.Position) < c.Radius + 80;
             bool siege = Compat.Siege(c.Position, c.Radius, out Vector3 stone);
             if (siege && !near) { near = true; ev = null; }
+            bool band = !near && Warband.Raiding(c);
+            if (band) { near = true; ev = null; stone = c.Position; }
             if (near && !c.RaidOn)
             {
                 c.RaidOn = true; c.RaidAt = ev != null ? ev.m_pos : stone;
-                string name = ev == null ? "a siege at the Warstone" : Localization.instance.Localize(ev.GetHudText()) is string t && t.Length > 0 ? t : ev.m_name;
+                string name = band ? "the warband of " + Warband.JarlName(c) : ev == null ? "a siege at the Warstone" : Localization.instance.Localize(ev.GetHudText()) is string t && t.Length > 0 ? t : ev.m_name;
                 Running[c.Id] = (name, c.R.Log.Count(e => e.Kind == "death" || e.Kind == "lost"));
                 c.Log("raid", "", name);
                 c.HornUntil = Time.time + 600;

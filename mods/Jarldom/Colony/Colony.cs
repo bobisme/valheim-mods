@@ -208,6 +208,7 @@ namespace Jarldom
             Spirit.Dawn(this);
             Visitors.Dawn(this, day);
             Captives.Dawn(this);
+            Warband.Dawn(this, day);
             if (day - R.LastThing >= 5 && Population >= 3) Thing.Call(this, day);
         }
         private void Dusk(int day)
@@ -215,6 +216,7 @@ namespace Jarldom
             Migration.Dusk(this, day);
             Feast.Dusk(this, day);
             Tribute.Dusk(this, day);
+            Warband.Dusk(this, day);
         }
 
         // ---- souls falling and rising ----
