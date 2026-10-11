@@ -311,8 +311,18 @@ namespace Jarldom
             ZoneInfo zone = Tables.Zones.FirstOrDefault(z => z.Worker == p);
             if (zone != null)
             {
-                if (!c.R.Zones.Any(z => z.Type == zone.Id)) return $"no {zone.Name.ToLower()} marked (no {zone.Text})";
-                return $"nothing in the {zone.Name.ToLower()} now (no {zone.Text})";
+                if (!c.R.Zones.Any(z => z.Type == zone.Id)) return $"no {zone.Name.ToLower()} marked ({zone.Text})";
+                switch (zone.Id)
+                {
+                    case ZoneType.Woodlot: return "no trees left to fell in the woodlot";
+                    case ZoneType.Mine: return "nothing left to dig in the quarry";
+                    case ZoneType.Fields: return "nothing to harvest or sow in the fields yet";
+                    case ZoneType.Foraging: return "nothing ripe in the foraging grounds yet";
+                    case ZoneType.Hunting: return "no game in the hunting grounds";
+                    case ZoneType.FishingDock: return "nothing to fish at the dock";
+                    case ZoneType.GuardPost: return "between watches";
+                    case ZoneType.Pasture: return "the pasture's beasts are seen to";
+                }
             }
             switch (p)
             {
@@ -322,6 +332,8 @@ namespace Jarldom
                 case Prof.Builder: return "nothing planned to build";
                 case Prof.Hauler: return "nothing to carry";
                 case Prof.Skald: return "resting until the evening's songs";
+                case Prof.Trader: return c.R.Rank < Rank.Village ? "trade runs wait for village rank" : "nothing to sell in the stores (amber, silver, gems)";
+                case Prof.Carter: return "no ore or metal at the outpost to cart";
                 default: return "idle";
             }
         }
