@@ -10,6 +10,7 @@ namespace Jarldom
     internal sealed partial class Colony
     {
         private static readonly HashSet<string> Open = new HashSet<string> { "offer", "horn", "bogpaid", "gone", "away", "log", "heraldslain", "rescue", "jarlslain", "ruin", "unruin", "thingspoke" }; // anyone may pray or blow the horn
+        private bool FounderSays(string who) => string.IsNullOrEmpty(who) || R.Founder == 0 || who == R.FounderName;
         public bool AllowedName(string who) => string.IsNullOrEmpty(who) || R.Founder == 0 || who == R.FounderName || R.Allowed.Contains(who) || R.Allowed.Contains("*");
 
         public void Handle(string action, string arg, string who)
@@ -45,8 +46,9 @@ namespace Jarldom
                 case "thingend": if (Thing.Held(this)) Thing.Close(this, "adjourned by " + who); break;
                 case "dismiss": Villagers.Command(a[0], "dismiss", ""); break;
                 case "disband": Disband(who); break;
-                case "allow": if (a[0].Length > 0 && !R.Allowed.Contains(a[0])) R.Allowed.Add(a[0]); break;
-                case "disallow": R.Allowed.Remove(a[0]); break;
+                // (who runs it with the founder: the founder's say only)
+                case "allow": if (!FounderSays(who)) { TellPlayer(who, $"Only {R.FounderName} can choose who runs {R.Name}."); return; } if (a[0].Length > 0 && !R.Allowed.Contains(a[0])) { R.Allowed.Add(a[0]); Log("text", who, "", $"{who} lets {a[0]} run {R.Name} too."); } break;
+                case "disallow": if (!FounderSays(who)) { TellPlayer(who, $"Only {R.FounderName} can choose who runs {R.Name}."); return; } if (R.Allowed.Remove(a[0])) Log("text", who, "", $"{a[0]} no longer runs {R.Name}."); break;
                 case "rename":
                     {
                         // (a name the jarl chose: plain letters, no markup; kept from then on, whoever founded it)

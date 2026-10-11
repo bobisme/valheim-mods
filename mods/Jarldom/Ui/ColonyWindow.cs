@@ -288,7 +288,19 @@ namespace Jarldom.Ui
             y += 4;
             // The hall's name: the founder's by default; any name the jarl likes.
             if (!_renaming) y = NameBox(list, y);
-            y = Text(list, $"Founded by {r.FounderName}. {(r.Allowed.Count > 0 ? "Also run by " + string.Join(", ", r.Allowed) + "." : "")}  Disband (Jarldom's way out: everyone's things in chests by the pillars):", y, 15, GameUi.Dim);
+            // Who runs it: the founder, and those the founder lets (they mark rooms, set trades, call the Thing).
+            Player me = Player.m_localPlayer;
+            bool founder = me != null && (r.Founder == 0 || me.GetPlayerID() == r.Founder || me.GetPlayerName() == r.FounderName);
+            y = Text(list, $"Founded by {r.FounderName}." + (r.Allowed.Count > 0 ? " Run with them by " + string.Join(", ", r.Allowed) + "." : "") + (founder ? "" : _c.Allows(me) ? " You run it with them." : $" Only {r.FounderName} and those they let can run it: mark rooms, set trades, call the Thing."), y, 15, GameUi.Dim);
+            if (founder)
+            {
+                bx = 8;
+                foreach (string name in r.Allowed.ToList()) { string n = name; Tip(Btn(list, $"Stop {n} running it", ref bx, y, () => Net.Act(_c, "disallow", n)), n, $"{n} can no longer mark rooms, set trades or call the Thing here."); }
+                foreach (Player other in Player.GetAllPlayers().Where(p => p != null && p != me && !r.Allowed.Contains(p.GetPlayerName()) && Utils.DistanceXZ(p.transform.position, _c.Position) < _c.Radius + 60))
+                { string n = other.GetPlayerName(); Tip(Btn(list, $"Let {n} run it", ref bx, y, () => Net.Act(_c, "allow", n)), n, $"{n} may mark rooms and zones, set trades and beds, take newcomers in and call the Thing, as you do. Only you choose who."); }
+                if (bx > 8) y += 50;
+            }
+            y = Text(list, "Disband (Jarldom's way out: everyone's things in chests by the pillars):", y, 15, GameUi.Dim);
             bx = 8; Btn(list, "Disband the colony", ref bx, y, () => Confirm("disband"), true);
             if (_confirm == "disband") { Btn(list, "Yes: disband", ref bx, y, () => { _confirm = ""; Net.Act(_c, "disband", ""); }, true); }
             return y + 52;

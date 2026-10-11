@@ -16,7 +16,8 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
 - **Rooms and zones**: hammer → Misc → *Mark rooms and zones*, click the corners, click the first again, choose what it is. Walls
   (80% of each edge), roof (90%), a door and what's inside are checked and graded D to S; with the hammer out the overlay shows rooms,
   zones and wall gaps; **E** on a marked room or zone (marker out) to check it, change what it is or remove it. Rooms in houses of
-  storeys measure their own ceiling. Zones (click one spot twice for a round one with soft edges; **E** on its marker makes it wider
+  storeys measure their own ceiling. **Ctrl+Shift+click** on a room's floor finds the room from its walls in one go (a red post shows
+  where they leak). Zones (click one spot twice for a round one with soft edges; **E** on its marker makes it wider
   or narrower): woodlot, quarry, fields, foraging and hunting grounds, fishing dock, sacred bog, pasture. Guards walk the **watch posts**
   you raise (hammer → Misc), in the order they were raised.
 - **Work** comes from a job board of leases (no job taken twice): felling, clearing stumps and planting saplings (a tree to every
@@ -72,6 +73,8 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
   them along, through portals; **Go home** sends them back.
 - **Moving the pillars**: taken down (or broken) they leave the *heart of the high seat*; raise new pillars carrying it and the colony
   is back, people, rooms and saga and all.
+- **Running it together**: the founder lets other players run the colony from the hall tab (a button for each player near it; only
+  the founder chooses). They mark rooms, set trades and beds, take newcomers in and call the Thing.
 - **Multiplayer**: villager state, bags and what they're doing live on still objects, so a walking villager sends about 470 B an update.
   Games tell each other their Jarldom versions; while two differ in what they save, no colony is saved and everyone is told. Jarldom
   keeps its world keys out of players' character files.
