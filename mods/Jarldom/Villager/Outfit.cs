@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Jarldom
 {
@@ -61,6 +62,51 @@ namespace Jarldom
             int got = item == null ? 0 : Stock.Take(_chest, b.Body.GetInventory(), item, Math.Min(_count, item.m_stack));
             if (got > 0) { b.Say($"I'll take {(got > 1 ? got + " " : "the ")}{Localization.instance.Localize(item.m_shared.m_name).ToLower()} for the work.", 4); b.Dirty(); }
             else b.NoGearUntil = Time.time + 60;
+            Done = true;
+        }
+    }
+}
+
+namespace Jarldom
+{
+    // Back for their things: a villager who rose goes to their own tombstone (in or near the colony) and takes back what's in it, as a
+    // player does; the game takes the empty stone away.
+    internal sealed class GraveTask : Task
+    {
+        private readonly TombStone _grave;
+        private GraveTask(TombStone grave) { _grave = grave; }
+        public static Task Next(Brain b)
+        {
+            Colony c = b.Colony;
+            if (c == null || Time.time < b.NoGraveUntil) return null;
+            b.NoGraveUntil = Time.time + 30;
+            // Their own; for a hauler, also those of villagers who won't come back for theirs (ascended, lost, gone).
+            bool Mine(string vid) => vid == b.S.Vid || b.S.Prof == Prof.Hauler && vid != "" && !c.R.Roster.Any(r => r.Vid == vid && r.State == SoulState.Active);
+            TombStone grave = Object.FindObjectsByType<TombStone>(FindObjectsSortMode.None)
+                .Where(t => Mine(t.GetComponent<ZNetView>()?.GetZDO()?.GetString(Villagers.TombKey, "") ?? "") && Utils.DistanceXZ(t.transform.position, c.Position) < c.Radius + 60)
+                .OrderBy(t => Vector3.Distance(t.transform.position, b.Pos)).FirstOrDefault();
+            return grave != null && grave.GetComponent<Container>()?.GetInventory().NrOfItems() > 0 ? new GraveTask(grave) : null;
+        }
+        public override void Start(Brain b)
+        {
+            Doing = _grave.GetComponent<ZNetView>()?.GetZDO()?.GetString(Villagers.TombKey, "") == b.S.Vid ? "going back for their things" : "clearing an old grave";
+            b.Move.To(_grave.transform.position, 1.5f);
+        }
+        public override void Tick(Brain b)
+        {
+            if (_grave == null) { Done = true; return; }
+            if (Vector3.Distance(b.Pos, _grave.transform.position) > 2.2f) { if (!b.Move.Moving) b.Move.To(_grave.transform.position, 1.5f); if (b.Move.Failed) { Done = true; b.NoGraveUntil = Time.time + 300; } return; }
+            Container box = _grave.GetComponent<Container>();
+            Inventory bag = b.Body.GetInventory();
+            int got = 0;
+            bool own = _grave.GetComponent<ZNetView>()?.GetZDO()?.GetString(Villagers.TombKey, "") == b.S.Vid;
+            foreach (ItemDrop.ItemData item in box.GetInventory().GetAllItems().ToList())
+            {
+                if (!own && item.m_dropPrefab != null) b.Hauled.Add(item.m_dropPrefab.name); // (someone else's: for the stores)
+                got += Stock.Take(box, bag, item, item.m_stack);
+            }
+            if (got > 0) { b.Say("There it all is.", 3); b.Dirty(); }
+            if (box.GetInventory().NrOfItems() > 0) b.NoGraveUntil = Time.time + 120; // (their bag is full: the rest waits)
             Done = true;
         }
     }

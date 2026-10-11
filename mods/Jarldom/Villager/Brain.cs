@@ -32,7 +32,7 @@ namespace Jarldom
             if (_body != null && _body.isKinematic) _body.isKinematic = false; // (a body left seated when ownership went elsewhere)
             Poses.Clear(h);
         }
-        public float NoStoreUntil, NoFoodUntil, NoRepairUntil, NoBuildUntil, NoTradeUntil, NoCraftUntil, NoHealUntil, NoScoutUntil, NoOfferUntil, NextMischief, NoCartUntil, NoGearUntil; private bool _captureRolled; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f;
+        public float NoStoreUntil, NoFoodUntil, NoRepairUntil, NoBuildUntil, NoTradeUntil, NoCraftUntil, NoHealUntil, NoScoutUntil, NoOfferUntil, NextMischief, NoCartUntil, NoGearUntil, NoGraveUntil; private bool _captureRolled; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f;
         public bool Alive => Body != null && !Body.IsDead() && View != null && View.IsValid() && View.IsOwner() && S != null;
         public Vector3 Pos => Body.transform.position;
         public double Now => ZNet.instance.GetTimeSeconds();
@@ -156,7 +156,7 @@ namespace Jarldom
                 case Activity.Sleep: return new SleepTask();
                 case Activity.Home: return new SleepTask { JustRest = Colony.Hour < 21 };
                 case Activity.Wake: return Food.CanEat(this) ? new EatTask() : (Task)new WanderTask(Colony.Position, 8, "getting up");
-                case Activity.Work: return Work.Next(this) ?? new WanderTask(Colony.Position, 15, Gear.Problem ?? "idle");
+                case Activity.Work: return Work.Next(this) ?? new WanderTask(Colony.Position, 15, Gear.Problem ?? Work.WhyIdle(this));
                 case Activity.Hall: return new HallTask();
                 case Activity.Shelter: return new HallTask { Shelter = true };
                 case Activity.Defend: return new DefendTask();

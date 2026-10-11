@@ -218,6 +218,11 @@ namespace Jarldom
                         ["compat"] = new JObject(Compat.Report().Select(r => new JProperty(r.name, r.present ? r.version : "absent"))),
                     });
                     break;
+                case "graves":
+                    // Villagers' tombstones (read-only): whose, where, what's in them.
+                    output(new JObject { ["graves"] = new JArray(UnityEngine.Object.FindObjectsByType<TombStone>(FindObjectsSortMode.None).Where(t => t.GetComponent<ZNetView>()?.GetZDO()?.GetString(Villagers.TombKey, "") != "").Select(t =>
+                        $"{t.GetComponent<ZNetView>().GetZDO().GetString(Villagers.TombKey)} at {t.transform.position.x:0},{t.transform.position.z:0}: " + string.Join(", ", t.GetComponent<Container>().GetInventory().GetAllItems().Select(i => i.m_dropPrefab?.name + " x" + i.m_stack)))) });
+                    break;
                 case "flags":
                     {
                         // The colony's flags (read-only), those starting with the prefix if one is given.

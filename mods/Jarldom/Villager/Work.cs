@@ -304,6 +304,28 @@ namespace Jarldom
         }
         public static void Forget() { FirstSeen.Clear(); _learned = false; Crops.Clear(); Replant.Clear(); Saplings.Clear(); }
 
+        // Why a villager has nothing to do (shown in their panel): their trade's zone missing, or empty, or nothing for them.
+        public static string WhyIdle(Brain b)
+        {
+            Colony c = b.Colony; Prof p = b.S.Prof;
+            ZoneInfo zone = Tables.Zones.FirstOrDefault(z => z.Worker == p);
+            if (zone != null)
+            {
+                if (!c.R.Zones.Any(z => z.Type == zone.Id)) return $"no {zone.Name.ToLower()} marked (no {zone.Text})";
+                return $"nothing in the {zone.Name.ToLower()} now (no {zone.Text})";
+            }
+            switch (p)
+            {
+                case Prof.Smelter: return "no ore or fuel for the smelters";
+                case Prof.Cook: return "nothing to cook or brew";
+                case Prof.Smith: return "no commissions (mark some in the colony window)";
+                case Prof.Builder: return "nothing planned to build";
+                case Prof.Hauler: return "nothing to carry";
+                case Prof.Skald: return "resting until the evening's songs";
+                default: return "idle";
+            }
+        }
+
         // ---- what a villager does next ----
         public static Task Next(Brain b)
         {
@@ -315,6 +337,7 @@ namespace Jarldom
                 b.NoStoreUntil = Time.time + 30; b.Say("Where do I put all this? (no stockpile for it)", 5);
             }
             if (Time.time > b.NoRepairUntil && RepairTask.Worn(b).Count > 0) return new RepairTask();
+            Task grave = GraveTask.Next(b); if (grave != null) return grave;
             Task outfit = OutfitTask.Next(b); if (outfit != null) return outfit;
             Prof prof = b.S.Prof;
             if (prof == Prof.Skald) return null; // skalds rest by day and play at dusk
@@ -351,8 +374,26 @@ namespace Jarldom
         }
         public static int Carrying(Brain b) => b.Body.GetInventory().GetAllItems().Count(i => Stores(b, i));
         // What goes to the stores from this villager's bag: loot, and gear they picked up off the ground for the colony (not theirs).
-        public static bool Stores(Brain b, ItemDrop.ItemData i) => Loot(i) || !i.m_equipped && i.m_dropPrefab != null && b.Hauled.Contains(i.m_dropPrefab.name);
+        public static bool Stores(Brain b, ItemDrop.ItemData i) => Loot(i) || !i.m_equipped && i.m_dropPrefab != null && (b.Hauled.Contains(i.m_dropPrefab.name) || Surplus(b, i));
+        // Food beyond what a villager keeps for themselves (a small stack of their best, up to a day's few meals): the colony's.
+        private const int KeepFood = 5;
+        public static bool Surplus(Brain b, ItemDrop.ItemData i)
+        {
+            if (!Stock.Edible(i)) return false;
+            var food = b.Body.GetInventory().GetAllItems().Where(Stock.Edible).ToList();
+            if (food.Sum(f => f.m_stack) <= KeepFood) return false;
+            ItemDrop.ItemData keep = food.Where(f => f.m_stack <= KeepFood).OrderByDescending(f => f.m_shared.m_food).FirstOrDefault();
+            return i != keep;
+        }
         // What a villager carries that belongs in the stockpiles (not its own gear, food for a day, or its seeds for replanting).
+        // A villager's own gear: armour, weapons, shields, bows and arrows, tools.
+        public static bool OwnGear(ItemDrop.ItemData i)
+        {
+            var t = i.m_shared.m_itemType;
+            return t == ItemDrop.ItemData.ItemType.Helmet || t == ItemDrop.ItemData.ItemType.Chest || t == ItemDrop.ItemData.ItemType.Legs || t == ItemDrop.ItemData.ItemType.Shoulder || t == ItemDrop.ItemData.ItemType.Utility
+                || t == ItemDrop.ItemData.ItemType.OneHandedWeapon || t == ItemDrop.ItemData.ItemType.TwoHandedWeapon || t == ItemDrop.ItemData.ItemType.TwoHandedWeaponLeft || t == ItemDrop.ItemData.ItemType.Bow
+                || t == ItemDrop.ItemData.ItemType.Shield || t == ItemDrop.ItemData.ItemType.Tool || t == ItemDrop.ItemData.ItemType.Ammo || t == ItemDrop.ItemData.ItemType.Torch;
+        }
         public static bool Loot(ItemDrop.ItemData i)
         {
             if (i.m_equipped) return false;

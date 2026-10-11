@@ -174,7 +174,8 @@ namespace Jarldom
             byte[] gear = new byte[0];
             if (bag != null)
             {
-                var worn = bag.GetEquippedItems().ToList();
+                // (their own gear by what it is, not only what's in hand: an item's worn flag doesn't always survive a rise or a reload)
+                var worn = bag.GetAllItems().Where(i => i.m_equipped || Items.IsDrum(i) || Work.OwnGear(i) && !(i.m_dropPrefab != null && b != null && b.Hauled.Contains(i.m_dropPrefab.name))).ToList();
                 foreach (ItemDrop.ItemData item in worn) { h.UnequipItem(item, false); item.m_equipped = false; }
                 if (!lost)
                 {
