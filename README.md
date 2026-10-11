@@ -97,7 +97,7 @@ step out of the other mirror moving and looking the same way. The camera follows
 behind fades to a glow; and while you are partway through, the part of you that has gone in is seen coming out of the other mirror.
 Arrows, spears, bombs and dropped items fly through too, and creatures that fit the opening walk through: your followers come after
 you, and whatever hunts you follows you in. While you are near a mirror, the area round its partner is kept loaded and alive, however
-far off; the host does the same for each player who joined, sending them the far side and keeping it moving for them.
+far off; the host does the same for each player who joined, sending them the far side and keeping it moving for them (and keeping hold of it, rather than letting it go and taking it back every two seconds, which resent everything out there).
 A linked mirror hums softly, and its crystals chime now and then. Sounds made near the other mirror are
 heard from behind this one, and a far land of another kind (birds, wind, surf) murmurs at the glass. Light from the far side falls out
 of the glass in the colour and brightness of the view. A mirror seen in another mirror's view shows its own view too.

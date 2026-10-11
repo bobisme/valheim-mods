@@ -290,6 +290,18 @@ namespace LocalPortals
                 }
             Mine.Clear();
         }
+        // Not let go in the first place: a far zone in the ring the game releases (beyond the area it keeps alive, inside the one it
+        // searches) was let go and taken straight back every two seconds, and each round trip resent every object out there to
+        // every player. What a far side keeps owned is kept (Reclaim still takes back what nobody owns).
+        private static long _releasing;
+        internal static void Releasing(long uid)=>_releasing=Zones.Count==0&&Peers.Count==0?0:uid;
+        internal static bool KeepOwner(ZDO zdo,long uid)
+        {
+            if(uid!=0||_releasing==0||zdo.GetOwner()!=_releasing||!zdo.Persistent)return false;
+            Vector2s zone=ZoneSystem.GetZone(zdo.GetPosition());
+            if(_releasing==ZDOMan.GetSessionID())return Zones.Contains(zone);
+            return !Zones.Contains(zone)&&Peers.TryGetValue(_releasing,out PeerArea area)&&area.Zones.Contains(zone);
+        }
         // Someone is there to move it: in their live area, or it is in their far side.
         private static bool LooksAfter(long owner,Vector3 at,Vector2s zone)
         {
@@ -322,6 +334,17 @@ namespace LocalPortals
     internal static class KeepFarOwned
     {
         private static void Postfix(ZDOMan __instance)=>Far.Reclaim(__instance);
+    }
+    [HarmonyPatch(typeof(ZDOMan),"ReleaseNearbyZDOS")]
+    internal static class KeepFarUnreleased
+    {
+        private static void Prefix(long uid)=>Far.Releasing(uid);
+        private static void Finalizer()=>Far.Releasing(0);
+    }
+    [HarmonyPatch(typeof(ZDO),nameof(ZDO.SetOwner))]
+    internal static class KeepFarOwner
+    {
+        private static bool Prefix(ZDO __instance,long uid)=>!Far.KeepOwner(__instance,uid);
     }
     [HarmonyPatch(typeof(ZNetScene),"CreateDestroyObjects")]
     internal static class KeepFarLoaded
