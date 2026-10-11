@@ -10,8 +10,8 @@ namespace LocalPortals
     // by a wooden full-length mirror whose glass shows the view from the linked portal.
     internal static class PortalPrefab
     {
-        internal const string Name="BobLocalPortal",DisplayName="Local Portal";
-        private const string ModelVersion="Model4";
+        internal const string Name="BobLocalPortal",DisplayName="Looking-Glass Portal"; // (the name it is saved under stays: built ones keep loading)
+        private const string ModelVersion="Model7";
         internal static int Hash=>Name.GetStableHashCode();
         internal static GameObject Prefab=>_prefab;
         private static GameObject _holder,_prefab;
@@ -41,7 +41,7 @@ namespace LocalPortals
 
             var piece=go.GetComponent<Piece>();
             piece.m_name=DisplayName;
-            piece.m_description="A tall wooden mirror that looks out of another one nearby: see the other side in its glass, walk into it and step out of the other. Build two within "+Policy.LinkRange+" m and the second links to the first; or name two the same (E), like the game's portals.";
+            piece.m_description="A tall looking-glass in a root-bound frame that looks out of another one: see the other side in its glass, walk into it and step out of the other. Build two within "+Policy.LinkRange+" m and the second links to the first; or name two the same (E), like the game's portals.";
             piece.m_resources=new[]{Requirement(scene,"FineWood",10),Requirement(scene,"GreydwarfEye",6),Requirement(scene,"SurtlingCore",1)}.Where(r=>r!=null).ToArray();
 
             Model(go.transform,scene,vanilla);
@@ -52,10 +52,11 @@ namespace LocalPortals
             return go;
         }
 
-        // The mirror: an arched frame of dark wood in three mouldings (a wide band, a pale bead round the glass and a raised
-        // outer lip), a thin inlay along the band that glows in the portal's colour, carved capitals where the arch springs,
-        // stepped feet, a crest at the top holding a surtling core, a solid board behind the glass, a soft light and motes of
-        // light drifting up the glass. Frame, feet and back are solid; the back lets its own player through from the front
+        // The looking-glass: an arched frame of dark wood in three mouldings (a wide band, a pale bead round the glass and a
+        // raised outer lip), carved capitals where the arch springs, stepped feet and a solid board behind the glass; not the
+        // same on both sides: an old root climbs the left and over the arch, an inlay glowing in the portal's colour runs with
+        // it, runes glow up the right, crystals grow by the right foot and one floats above the arch; a soft light, and motes
+        // of light drifting up the glass. Frame, feet and back are solid; the back lets its own player through from the front
         // (Crossing), so they can step into the glass.
         private static void Model(Transform root,ZNetScene scene,GameObject vanilla)
         {
@@ -75,7 +76,7 @@ namespace LocalPortals
             Part(visual,"Band",band,dark);
             Part(visual,"Bead",Shapes.Moulding(-0.015f,0.035f,-0.02f,0.085f,y0),pale);
             Part(visual,"Lip",Shapes.Moulding(0.15f,0.21f,-0.14f,0.075f,y0),dark);
-            Part(visual,"Trim",Shapes.Moulding(0.075f,0.095f,0.04f,0.062f,y0+0.12f),glow,false);
+            Part(visual,"Trim",Shapes.Moulding(0.075f,0.095f,0.04f,0.062f,y0+0.12f,0,0.68f),glow,false); // up the left and over the arch
             var bandCollider=new GameObject("Band");
             bandCollider.layer=solid.gameObject.layer;
             bandCollider.transform.SetParent(solid,false);
@@ -97,10 +98,9 @@ namespace LocalPortals
                 Block(visual,null,"Capital"+n,pale,new Vector3(s*side,spring,z+0.01f),new Vector3(0.3f,0.07f,0.27f));
                 Block(visual,null,"Corbel"+n,dark,new Vector3(s*side,spring-0.08f,z),new Vector3(0.22f,0.09f,0.22f));
             }
-            float crown=top+0.21f;
-            Block(visual,null,"Crest",dark,new Vector3(0,crown+0.04f,z),new Vector3(0.34f,0.1f,0.26f));
-            Block(visual,null,"CrestCap",pale,new Vector3(0,crown+0.11f,z),new Vector3(0.24f,0.05f,0.2f));
-            Gem(visual,scene,new Vector3(0,crown+0.22f,z));
+            Runes(visual,glow,hw);
+            Root(visual,Bark(MaterialOf(scene,vanilla,"Oak_log","beech_log","Beech_log","Pinetree_log","FirTree_log","darkwood_pole")));
+            Crystals(visual,glow,hw,top);
 
             var glass=new GameObject("Surface");
             glass.transform.SetParent(visual,false);
@@ -120,7 +120,139 @@ namespace LocalPortals
             if(wear!=null){wear.m_new=wear.m_worn=wear.m_broken=visual.gameObject;wear.m_fragmentRoots=null;}
         }
 
-        private static void Part(Transform parent,string name,Mesh mesh,Material material,bool shadows=true)
+        // A column of glowing runes carved up the right side of the frame, where the inlay is not.
+        private static readonly (float x0,float y0,float x1,float y1)[][] Glyphs=
+        {
+            new[]{(0f,0f,0f,1f),(0f,0.75f,0.55f,1f),(0f,0.45f,0.55f,0.7f)},                                 // fehu
+            new[]{(0.28f,0f,0.28f,1f),(0.28f,0.62f,0f,1f),(0.28f,0.62f,0.56f,1f)},                          // algiz
+            new[]{(0f,0f,0f,1f),(0f,1f,0.45f,0.78f),(0.45f,0.78f,0f,0.55f),(0f,0.55f,0.5f,0f)},             // raidho
+            new[]{(0.5f,1f,0f,0.5f),(0f,0.5f,0.5f,0f)},                                                      // kenaz
+            new[]{(0f,0f,0f,1f),(0.6f,0f,0.6f,1f),(0f,1f,0.6f,0f),(0f,0f,0.6f,1f)},                          // dagaz
+            new[]{(0f,0f,0f,1f),(0f,0.78f,0.5f,0.58f),(0f,0.52f,0.5f,0.32f)},                               // ansuz
+            new[]{(0.3f,1f,0f,0.65f),(0.3f,1f,0.6f,0.65f),(0f,0.65f,0.6f,0.18f),(0.6f,0.65f,0f,0.18f)},     // othala
+            new[]{(0f,0f,0f,1f),(0f,0.72f,0.42f,0.5f),(0.42f,0.5f,0f,0.28f)},                               // thurisaz
+            new[]{(0.3f,0f,0.3f,1f),(0f,0.7f,0.6f,0.3f)},                                                    // nauthiz
+        };
+        private static void Runes(Transform visual,Material glow,float hw)
+        {
+            var strokes=new List<(Vector2,Vector2)>();
+            const float tall=0.12f,wide=0.065f;
+            for(int i=0;i<Glyphs.Length;i++)
+            {
+                Vector2 at=new Vector2(hw+0.085f-wide/2,0.32f+i*0.158f);
+                foreach(var (x0,y0,x1,y1) in Glyphs[i])
+                    strokes.Add((at+new Vector2(x0/0.6f*wide,y0*tall),at+new Vector2(x1/0.6f*wide,y1*tall)));
+            }
+            Part(visual,"TrimRunes",Shapes.Strokes(strokes,0.011f,0.05f,0.009f),glow,false);
+        }
+
+        // An old root grown up out of the ground by the left foot: it winds in and out round the frame, climbs over the arch
+        // and curls up past the top towards the floating crystal, with a few twigs and roots spread on the ground.
+        private static void Root(Transform visual,Material bark)
+        {
+            var edge=Policy.Edge(0.25,48,-0.12);
+            var line=new List<Vector3>();
+            foreach(var (x,y) in edge)line.Add(new Vector3((float)x,(float)y,0));
+            // along the edge to a little past the top, a point every 6 cm
+            var path=new List<Vector3>();
+            float total=0;for(int i=1;i<line.Count;i++)total+=Vector3.Distance(line[i-1],line[i]);
+            float stop=total*0.58f,step=0.06f;
+            for(float d=0;d<=stop;d+=step)path.Add(Along(line,d));
+            // then a curl, turning up and back on itself
+            Vector3 dir=(path[path.Count-1]-path[path.Count-2]).normalized,at=path[path.Count-1];
+            for(int k=0;k<16;k++)
+            {
+                dir=Quaternion.Euler(0,0,24)*dir;
+                at+=dir*(0.075f*(1-k/19f));
+                path.Add(at);
+            }
+            var radius=new List<float>();
+            float length=0;
+            for(int i=0;i<path.Count;i++)
+            {
+                if(i>0)length+=Vector3.Distance(path[i-1],path[i]);
+                float t=i/(float)(path.Count-1);
+                Vector3 p=path[i];
+                float weave=Mathf.Clamp01((stop-length)/0.4f+0.5f); // it stops winding round the frame as it curls
+                p.z=-0.035f+0.12f*Mathf.Sin(length*2.4f)*weave;
+                Vector3 outward=new Vector3(p.x,p.y-(float)Policy.Spring,0).normalized;if(p.y<Policy.Spring)outward=new Vector3(Mathf.Sign(p.x),0,0);
+                p+=outward*(0.025f*Mathf.Sin(length*7.3f)*weave); // knotted
+                path[i]=p;
+                radius.Add(Mathf.Lerp(0.075f,0.012f,Mathf.Pow(t,0.8f))*(1+0.16f*Mathf.Sin(length*9.1f))*(i<3?1.35f:1));
+            }
+            Part(visual,"Root",Shapes.Tube(path,radius),bark);
+            // short knotted twigs off the root, curling up and back
+            int twig=0;
+            foreach(var (f,lean) in new[]{(0.24f,0.5f),(0.43f,-0.45f),(0.86f,0.35f)})
+            {
+                int i=Mathf.RoundToInt(f*(path.Count-1));
+                Vector3 from=path[i];
+                Vector3 outward=new Vector3(from.x,from.y-(float)Policy.Spring*0.8f,0).normalized;
+                Vector3 d=(outward+Vector3.forward*lean).normalized;
+                var twigPath=new List<Vector3>();var twigRadius=new List<float>();
+                Vector3 at2=from;
+                for(int k=0;k<8;k++)
+                {
+                    twigPath.Add(at2);
+                    twigRadius.Add(Mathf.Lerp(radius[i]*0.6f,0.006f,k/7f));
+                    d=(Quaternion.AngleAxis(16,Vector3.Cross(d,Vector3.up).normalized)*d).normalized; // turning up, then over
+                    at2+=d*0.028f;
+                }
+                Part(visual,"Twig"+twig++,Shapes.Tube(twigPath,twigRadius,6),bark);
+            }
+            // thick roots spread on the ground round its foot, sinking in
+            Vector3 foot=path[1];foot.y=0.03f;
+            int n=0;
+            foreach(Vector3 d in new[]{new Vector3(-1,0,0.35f),new Vector3(-0.45f,0,-0.9f),new Vector3(-0.25f,0,1f),new Vector3(-0.9f,0,-0.3f)})
+            {
+                var p=new List<Vector3>();var r=new List<float>();
+                float reach=n==3?0.18f:0.28f;
+                for(int k=0;k<6;k++){float t=k/5f;p.Add(foot+d.normalized*(t*reach)+Vector3.up*(0.03f-t*t*0.09f));r.Add(Mathf.Lerp(0.065f,0.02f,t));}
+                Part(visual,"GroundRoot"+n++,Shapes.Tube(p,r,6),bark);
+            }
+        }
+        private static Vector3 Along(List<Vector3> line,float d)
+        {
+            for(int i=1;i<line.Count;i++)
+            {
+                float l=Vector3.Distance(line[i-1],line[i]);
+                if(d<=l)return Vector3.Lerp(line[i-1],line[i],l>0?d/l:0);
+                d-=l;
+            }
+            return line[line.Count-1];
+        }
+
+        // A long crystal floating above the arch, off to the right where the root curls up to it (it turns and bobs: LocalPortal),
+        // and a little cluster of crystals grown out of the ground by the right foot. All glow in the portal's colour.
+        private static void Crystals(Transform visual,Material glow,float hw,float top)
+        {
+            Mesh tall=Shapes.Crystal(0.06f,0.38f),small=Shapes.Crystal(0.035f,0.2f),tiny=Shapes.Crystal(0.022f,0.12f);
+            var floating=new GameObject("TrimCrystal");
+            floating.transform.SetParent(visual,false);
+            floating.transform.localPosition=new Vector3(0.2f,top+0.66f,-0.035f);
+            floating.transform.localRotation=Quaternion.Euler(0,0,-8);
+            floating.AddComponent<MeshFilter>().sharedMesh=tall;
+            var r=floating.AddComponent<MeshRenderer>();r.sharedMaterial=glow;r.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
+            for(int k=0;k<3;k++) // shards circling it (LocalPortal turns them)
+            {
+                var shard=new GameObject("TrimShard"+k);
+                shard.transform.SetParent(floating.transform.parent,false);
+                shard.transform.localPosition=floating.transform.localPosition;
+                shard.AddComponent<MeshFilter>().sharedMesh=k==0?small:tiny;
+                var sr=shard.AddComponent<MeshRenderer>();sr.sharedMaterial=glow;sr.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+            var cluster=new (Vector3 at,Vector3 tilt,Mesh mesh)[]
+            {
+                (new Vector3(hw+0.36f,0.06f,0.24f),new Vector3(8,0,-22),small),
+                (new Vector3(hw+0.45f,0.03f,0.1f),new Vector3(-12,0,-48),tiny),
+                (new Vector3(hw+0.29f,0.03f,0.36f),new Vector3(28,0,-8),tiny),
+                (new Vector3(hw+0.42f,0.02f,0.33f),new Vector3(20,40,-35),tiny),
+            };
+            int i=0;
+            foreach(var (at,tilt,mesh) in cluster)Part(visual,"TrimCluster"+i++,mesh,glow,false).transform.SetPositionAndRotation(visual.TransformPoint(at),visual.rotation*Quaternion.Euler(tilt));
+        }
+
+        private static GameObject Part(Transform parent,string name,Mesh mesh,Material material,bool shadows=true)
         {
             var go=new GameObject(name);
             go.transform.SetParent(parent,false);
@@ -128,23 +260,7 @@ namespace LocalPortals
             var r=go.AddComponent<MeshRenderer>();
             if(material!=null)r.sharedMaterial=material;
             r.shadowCastingMode=shadows?UnityEngine.Rendering.ShadowCastingMode.On:UnityEngine.Rendering.ShadowCastingMode.Off;
-        }
-
-        // The game's own surtling core, set in the crest.
-        private static void Gem(Transform parent,ZNetScene scene,Vector3 at)
-        {
-            MeshRenderer core=scene.GetPrefab("SurtlingCore")?.GetComponentsInChildren<MeshRenderer>(true).FirstOrDefault(x=>x.GetComponent<MeshFilter>()?.sharedMesh!=null);
-            if(core==null)return;
-            var go=new GameObject("Gem");
-            go.transform.SetParent(parent,false);
-            go.transform.localPosition=at;
-            go.transform.localRotation=Quaternion.Euler(0,30,0);
-            Mesh mesh=core.GetComponent<MeshFilter>().sharedMesh;
-            float size=Mathf.Max(mesh.bounds.size.x,mesh.bounds.size.y,mesh.bounds.size.z);
-            go.transform.localScale=Vector3.one*(size>0?0.2f/size:1);
-            go.transform.localPosition-=go.transform.localRotation*Vector3.Scale(mesh.bounds.center,go.transform.localScale);
-            go.AddComponent<MeshFilter>().sharedMesh=mesh;
-            go.AddComponent<MeshRenderer>().sharedMaterials=core.sharedMaterials;
+            return go;
         }
 
         // Motes of light drifting slowly up in front of the glass; each portal tints them.
@@ -223,15 +339,27 @@ namespace LocalPortals
                 .Where(m=>m!=null&&m.shader!=null&&!m.name.ToLower().Contains("snow")&&!m.shader.name.ToLower().Contains("snow")).ToList();
             return all.FirstOrDefault(m=>m.shader.name.Contains("Piece"))??all.FirstOrDefault();
         }
+        // The root's bark: an oak log's, darker and older.
+        private static Material _bark;
+        private static Material Bark(Material log)
+        {
+            if(_bark!=null||log==null)return _bark??log;
+            _bark=new Material(log){name="LocalPortalBark"};
+            if(_bark.HasProperty("_Color"))_bark.color=new Color(0.42f,0.36f,0.3f,1);
+            if(_bark.HasProperty("_Glossiness"))_bark.SetFloat("_Glossiness",0.05f);
+            return _bark;
+        }
+
         // The inlay: a copy of the wood's material (a shader the game surely has), untextured and glowing; each portal tints it.
         private static Material GlowMaterial(Material wood)
         {
             if(_glowMaterial!=null)return _glowMaterial;
             if(wood==null)return null;
             _glowMaterial=new Material(wood){name="LocalPortalGlow"};
-            _glowMaterial.mainTexture=null;
+            _glowMaterial.mainTexture=Texture2D.whiteTexture; // (none at all and the piece shader cuts it away as see-through)
             if(_glowMaterial.HasProperty("_Color"))_glowMaterial.color=Color.white;
             _glowMaterial.EnableKeyword("_EMISSION");
+            if(_glowMaterial.HasProperty("_EmissionMap"))_glowMaterial.SetTexture("_EmissionMap",Texture2D.whiteTexture);
             return _glowMaterial;
         }
 

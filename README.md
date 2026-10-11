@@ -2,23 +2,26 @@
 
 Bob's Valheim mods, built for native Linux and Windows and packaged for the in-game mod manager.
 
-## Local Portals
+## Looking-Glass Portals
 
-Tall wooden **mirrors you can see through and walk through**, with no loading screen. Hammer → next to the game's portal (10 fine
-wood, 6 greydwarf eyes, 1 surtling core, near a workbench).
+Tall, root-bound **looking-glasses you can see through and walk through**, with no loading screen. Hammer → next to the game's
+portal (10 fine wood, 6 greydwarf eyes, 1 surtling core, near a workbench). An old root climbs one side of each frame and curls over
+the arch, runes glow up the other side in the mirror's colour, and a crystal circled by shards floats above.
 
-Two mirrors built within 80 m of each other link (one glows blue, the other orange), or give two the same name with **E**, like
-the game's portals: a name links just two, so a base can hold any number of pairs. The glass shows the other side live, from wherever
-you stand, with the world's light and fog. Walk into it and you step out of the other mirror moving and looking the same way. The
-camera follows you through the glass; a mirror in its way from behind is cut away; and while you are partway through, the part of you
-that has gone in is seen coming out of the other mirror (on every player's screen). The mirrors are solid from behind; only players go
-through (not items, creatures or carts).
+Two mirrors built within 200 m of each other link (one glows blue, the other orange; the distance is a setting, up to 2 km, the
+host's in multiplayer), or give two the same name with **E**, like the game's portals: a name links just two, so a base can hold any
+number of pairs. The glass shows the other side live, from wherever you stand, with the world's light and fog. Walk into it and you
+step out of the other mirror moving and looking the same way. The camera follows you through the glass; a mirror in its way from
+behind fades to a glow; and while you are partway through, the part of you that has gone in is seen coming out of the other mirror.
+Arrows, spears, bombs and dropped items fly through too, and creatures that fit the opening walk through: your followers come after
+you, and whatever hunts you follows you in. While you are near a mirror, the area round its partner is kept loaded and alive, however
+far off (host or single player only).
 
 Each live view draws the world a second time, but only as much of it as the glass covers on screen: two views cost about 1.4 ms a
-frame at 4K in testing. Settings: `MaxViews` (2), `Resolution` and `BodyDoubles`. **Install on the host and every player.** With Quad's
-Claude Tools, `lportal` places mirrors, names them, walks the player through one (optionally filming every frame), stands them
-halfway into the glass, measures the views' cost and removes the test mirrors. Linking, naming, walking through, the camera, the body
-double and the views were tested in a live world; remote players walking through in multiplayer still need a playtest.
+frame at 4K in testing. Settings: `MaxDistance` (200), `PreloadOnApproach`, `MaxViews` (2), `Resolution` and `BodyDoubles`.
+**Install on the host and every player.** With Quad's Claude Tools, `lportal` places mirrors, names them, walks the player, creatures,
+arrows and thrown items through, measures the views' cost and removes the test mirrors. Remote players walking through in
+multiplayer still need a playtest.
 
 ## Passenger Cart
 

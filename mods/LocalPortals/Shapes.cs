@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -27,9 +28,10 @@ namespace LocalPortals
 
         // A moulding swept along the edge of the glass: between `inner` and `outer` metres out from the edge, from z0 back to
         // z1 front, closed at both ends on the ground. The wood's grain runs along it.
-        internal static Mesh Moulding(float inner,float outer,float z0,float z1,float bottom=0)
+        internal static Mesh Moulding(float inner,float outer,float z0,float z1,float bottom=0,float from=0,float to=1)
         {
             var edge=Policy.Edge(0,28,bottom);
+            if(from>0||to<1)edge=Part(edge,from,to);
             int n=edge.Count;
             var at=new Vector2[n];var normal=new Vector2[n];var along=new float[n];
             for(int i=0;i<n;i++)at[i]=new Vector2((float)edge[i].x,(float)edge[i].y);
@@ -74,6 +76,26 @@ namespace LocalPortals
             }
             return Build("LocalPortalMoulding",vertices,uv,triangles);
         }
+
+        // The part of a path between two fractions of its length (cut exactly at both ends).
+        private static List<(double x,double y)> Part(List<(double x,double y)> path,float from,float to)
+        {
+            var length=new List<double>{0};
+            for(int i=1;i<path.Count;i++)length.Add(length[i-1]+Math.Sqrt(Sq(path[i].x-path[i-1].x)+Sq(path[i].y-path[i-1].y)));
+            double total=length[length.Count-1],a=from*total,b=to*total;
+            (double x,double y) At(double d)
+            {
+                int i=1;
+                while(i<path.Count-1&&length[i]<d)i++;
+                double t=(d-length[i-1])/Math.Max(1e-9,length[i]-length[i-1]);
+                return (path[i-1].x+(path[i].x-path[i-1].x)*t,path[i-1].y+(path[i].y-path[i-1].y)*t);
+            }
+            var part=new List<(double x,double y)>{At(a)};
+            for(int i=0;i<path.Count;i++)if(length[i]>a&&length[i]<b)part.Add(path[i]);
+            part.Add(At(b));
+            return part;
+        }
+        private static double Sq(double v)=>v*v;
 
         // A flat board the shape of the glass grown by `grow`, from z0 back to z1 front.
         internal static Mesh Board(float grow,float z0,float z1,float bottom)
@@ -150,6 +172,91 @@ namespace LocalPortals
             for(int i=0;i<white.Length;i++)white[i]=Color.white; // (the ghost drawn while a mirror is cut away tints by vertex colour)
             mesh.colors=white;
             return mesh;
+        }
+
+        // A tube along a path (a root or a twig): `radius` at each point, round in `sides`, its bark running along it; both ends
+        // closed. Each point's ring is turned to follow the path (parallel transport), so it does not twist.
+        internal static Mesh Tube(IList<Vector3> path,IList<float> radius,int sides=7)
+        {
+            var vertices=new List<Vector3>();var uv=new List<Vector2>();var triangles=new List<int>();
+            int n=path.Count;
+            Vector3 forward=(path[1]-path[0]).normalized;
+            Vector3 side=Vector3.Cross(forward,Mathf.Abs(forward.y)<0.9f?Vector3.up:Vector3.right).normalized;
+            float along=0;
+            for(int i=0;i<n;i++)
+            {
+                Vector3 next=(path[Mathf.Min(i+1,n-1)]-path[Mathf.Max(i-1,0)]).normalized;
+                side=(side-next*Vector3.Dot(side,next)).normalized; // carried along, kept square to the path
+                Vector3 up=Vector3.Cross(next,side);
+                if(i>0)along+=Vector3.Distance(path[i-1],path[i]);
+                for(int k=0;k<=sides;k++)
+                {
+                    float a=k*Mathf.PI*2/sides;
+                    vertices.Add(path[i]+(side*Mathf.Cos(a)+up*Mathf.Sin(a))*radius[i]);
+                    uv.Add(new Vector2(k/(float)sides*0.35f,along/0.7f));
+                }
+            }
+            int ring=sides+1;
+            for(int i=0;i<n-1;i++)
+                for(int k=0;k<sides;k++)
+                {
+                    int a=i*ring+k,b=a+ring;
+                    Vector3 outward=vertices[a]-path[i];
+                    Triangle(triangles,vertices,a,b,a+1,outward);
+                    Triangle(triangles,vertices,a+1,b,b+1,outward);
+                }
+            foreach(int end in new[]{0,n-1})
+            {
+                int c=vertices.Count;
+                vertices.Add(path[end]);uv.Add(new Vector2(0.5f,0.5f));
+                Vector3 facing=end==0?path[0]-path[1]:path[n-1]-path[n-2];
+                for(int k=0;k<sides;k++)Triangle(triangles,vertices,c,end*ring+k,end*ring+k+1,facing);
+            }
+            return Build("LocalPortalTube",vertices,uv,triangles);
+        }
+
+        // A crystal: a six-sided prism `length` long (along y) and `radius` round, pointed at both ends (the top point longer).
+        internal static Mesh Crystal(float radius,float length,int sides=6)
+        {
+            var vertices=new List<Vector3>();var uv=new List<Vector2>();var triangles=new List<int>();
+            float body=length*0.5f,tip=length*0.32f,foot=length*0.18f; // straight middle, long top point, short bottom point
+            float y0=-length/2,y1=y0+foot,y2=y1+body,y3=y2+tip;
+            for(int k=0;k<sides;k++)
+            {
+                float a0=k*Mathf.PI*2/sides,a1=(k+1)*Mathf.PI*2/sides;
+                Vector3 p0=new Vector3(Mathf.Cos(a0)*radius,0,Mathf.Sin(a0)*radius),p1=new Vector3(Mathf.Cos(a1)*radius,0,Mathf.Sin(a1)*radius);
+                Vector3 outward=(p0+p1)/2;
+                Face(vertices,uv,triangles,new[]{p0+Vector3.up*y1,p1+Vector3.up*y1,p1+Vector3.up*y2,p0+Vector3.up*y2},outward);  // the side
+                Face(vertices,uv,triangles,new[]{p0+Vector3.up*y2,p1+Vector3.up*y2,Vector3.up*y3},outward+Vector3.up*radius);       // the top point
+                Face(vertices,uv,triangles,new[]{p1+Vector3.up*y1,p0+Vector3.up*y1,Vector3.up*y0},outward-Vector3.up*radius);       // the bottom point
+            }
+            return Build("LocalPortalCrystal",vertices,uv,triangles);
+        }
+        private static void Face(List<Vector3> vertices,List<Vector2> uv,List<int> triangles,Vector3[] corners,Vector3 facing)
+        {
+            int s=vertices.Count;
+            foreach(Vector3 c in corners){vertices.Add(c);uv.Add(new Vector2(c.x+c.z,c.y));}
+            for(int i=1;i<corners.Length-1;i++)Triangle(triangles,vertices,s,s+i,s+i+1,facing);
+        }
+
+        // Thin raised strokes on a flat face (runes): each stroke from (x0,y0) to (x1,y1) in the face's x,y, `width` wide and
+        // standing `depth` out of it at z.
+        internal static Mesh Strokes(IEnumerable<(Vector2 a,Vector2 b)> strokes,float width,float z,float depth)
+        {
+            var vertices=new List<Vector3>();var uv=new List<Vector2>();var triangles=new List<int>();
+            foreach(var (a,b) in strokes)
+            {
+                Vector2 d=(b-a).normalized,n=new Vector2(-d.y,d.x)*(width/2);
+                Vector2 a2=a-d*(width/2),b2=b+d*(width/2); // (square ends overlap at the joins)
+                Vector3 P(Vector2 p,float zz)=>new Vector3(p.x,p.y,zz);
+                Vector3[] front={P(a2-n,z+depth),P(b2-n,z+depth),P(b2+n,z+depth),P(a2+n,z+depth)};
+                Face(vertices,uv,triangles,front,Vector3.forward);
+                Face(vertices,uv,triangles,new[]{P(a2-n,z),P(b2-n,z),P(b2-n,z+depth),P(a2-n,z+depth)},new Vector3(-n.x,-n.y,0));
+                Face(vertices,uv,triangles,new[]{P(a2+n,z),P(b2+n,z),P(b2+n,z+depth),P(a2+n,z+depth)},new Vector3(n.x,n.y,0));
+                Face(vertices,uv,triangles,new[]{P(b2-n,z),P(b2+n,z),P(b2+n,z+depth),P(b2-n,z+depth)},new Vector3(d.x,d.y,0));
+                Face(vertices,uv,triangles,new[]{P(a2-n,z),P(a2+n,z),P(a2+n,z+depth),P(a2-n,z+depth)},new Vector3(-d.x,-d.y,0));
+            }
+            return Build("LocalPortalStrokes",vertices,uv,triangles);
         }
 
         // A soft glowing film for a portal with nothing to show: brighter towards the rim.

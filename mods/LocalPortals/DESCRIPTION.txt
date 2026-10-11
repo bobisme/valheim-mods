@@ -1,4 +1,4 @@
-Local Portals: tall wooden mirrors you can see through and walk through, with no loading screen. Built with the hammer next to the game's portal (workbench nearby; 10 fine wood, 6 greydwarf eyes, 1 surtling core).
+Looking-Glass Portals: tall, root-bound looking-glasses you can see through and walk through, with no loading screen. An old root climbs one side of each frame and curls over the arch, runes glow up the other side in the mirror's colour, and a crystal circled by shards floats above. Built with the hammer next to the game's portal (workbench nearby; 10 fine wood, 6 greydwarf eyes, 1 surtling core).
 
 Build two within 200 m of each other (a setting, up to 2 km) and the second links to the first; one glows blue, the other orange. Or name them like the game's portals (look at one and press E): two mirrors with the same name are linked, and a name links just two, so a base can have as many pairs as it likes. The mirror tells you what it is linked to, or why it is not.
 

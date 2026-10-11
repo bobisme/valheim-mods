@@ -28,6 +28,9 @@ namespace LocalPortals
         private Renderer[] _glow;
         private Light _light;
         private ParticleSystem _motes;
+        private Transform _crystal;
+        private Vector3 _crystalAt;
+        private Transform[] _shards=new Transform[0];
         private MeshRenderer[] _body;       // the frame, back and crest: shadow and ghost only while cut away for the camera
         private MeshFilter[] _bodyShapes;
         private UnityEngine.Rendering.ShadowCastingMode[] _bodyShadows;
@@ -48,6 +51,9 @@ namespace LocalPortals
             Solid=transform.Find("Frame")?.GetComponentsInChildren<Collider>(true)??new Collider[0];
             _light=transform.Find("Visual/Light")?.GetComponent<Light>();
             _motes=transform.Find("Visual/Motes")?.GetComponent<ParticleSystem>();
+            _crystal=transform.Find("Visual/TrimCrystal");
+            if(_crystal!=null)_crystalAt=_crystal.localPosition;
+            _shards=Enumerable.Range(0,3).Select(i=>transform.Find("Visual/TrimShard"+i)).Where(t=>t!=null).ToArray();
             _body=visual!=null?visual.GetComponentsInChildren<MeshRenderer>(true).Where(r=>r.name!="Surface"&&!r.name.StartsWith("Trim")&&!r.name.StartsWith("Gem")).ToArray():new MeshRenderer[0];
             _bodyShapes=_body.Select(r=>r.GetComponent<MeshFilter>()).ToArray();
             _bodyShadows=_body.Select(r=>r.shadowCastingMode).ToArray();
@@ -183,6 +189,19 @@ namespace LocalPortals
         // The inlay and the light slowly brighten and dim, out of step with other portals: alive, not neon.
         private void Breathe()
         {
+            if(_crystal!=null) // the floating crystal turns slowly and bobs
+            {
+                _crystal.localPosition=_crystalAt+Vector3.up*(0.035f*Mathf.Sin(Time.time*1.3f+_phase));
+                _crystal.localRotation=Quaternion.Euler(0,0,-8)*Quaternion.Euler(0,Time.time*22f+_phase*57f,0);
+                for(int i=0;i<_shards.Length;i++) // each on its own tilted circle, at its own pace
+                {
+                    if(_shards[i]==null)continue;
+                    float a=Time.time*(0.9f+0.35f*i)+_phase+i*2.1f;
+                    Vector3 ring=Quaternion.Euler(18+i*24,i*60,0)*new Vector3(Mathf.Cos(a),0,Mathf.Sin(a))*(0.16f+0.05f*i);
+                    _shards[i].localPosition=_crystal.localPosition+ring;
+                    _shards[i].localRotation=Quaternion.Euler(a*40,a*65,i*30);
+                }
+            }
             if(_glow.Length==0||!_glow[0].isVisible)return;
             Color c=_shownColour>=0&&_shownColour<Colours.Length?Colours[_shownColour]:Unlinked;
             float pulse=0.78f+0.22f*Mathf.Sin(Time.time*1.15f+_phase)+0.06f*Mathf.Sin(Time.time*3.1f+_phase*2);
@@ -191,13 +210,15 @@ namespace LocalPortals
             foreach(Renderer glow in _glow)
             {
                 glow.GetPropertyBlock(_block);
-                _block.SetColor("_Color",c*0.35f);
+                _block.SetColor("_Color",Dim(c));
                 _block.SetColor("_EmissionColor",c*(strength*pulse));
                 glow.SetPropertyBlock(_block);
             }
             if(_light!=null)_light.intensity=(_shownColour>=0?0.45f:0.15f)*pulse;
         }
 
+        // The glowing parts' own colour, dimmed (their glow is the emission); kept opaque, or the piece shader cuts them away.
+        private static Color Dim(Color c)=>new Color(c.r*0.35f,c.g*0.35f,c.b*0.35f,1);
         private void ShowColour(int colour)
         {
             if(colour==_shownColour)return;
@@ -213,7 +234,7 @@ namespace LocalPortals
             foreach(Renderer glow in _glow)
             {
                 glow.GetPropertyBlock(_block);
-                _block.SetColor("_Color",c*0.35f);
+                _block.SetColor("_Color",Dim(c));
                 _block.SetColor("_EmissionColor",c*(colour>=0?1.1f:0.25f));
                 glow.SetPropertyBlock(_block);
             }

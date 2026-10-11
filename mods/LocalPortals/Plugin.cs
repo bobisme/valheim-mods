@@ -12,8 +12,8 @@ namespace LocalPortals
     public sealed class Plugin:BaseUnityPlugin
     {
         public const string Guid="com.bobisme.localportals";
-        public const string Name="Local Portals";
-        public const string Version="0.1.9";
+        public const string Name="Looking-Glass Portals";
+        public const string Version="0.2.0";
         internal static Plugin Instance;
         internal static ConfigEntry<int> MaxViews;
         internal static ConfigEntry<float> Resolution;
