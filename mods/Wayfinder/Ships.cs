@@ -256,10 +256,19 @@ namespace Wayfinder
         internal static void MastLine(Ship ship,out Vector3 top,out Vector3 foot)
         {
             Transform mast=ship.m_mastObject.transform;
-            Bounds b=Items.Bounds(mast);
+            Bounds b=MastBounds(mast);
             Vector3 axis=ship.transform.InverseTransformPoint(mast.position);
             top=new Vector3(axis.x,ship.transform.InverseTransformPoint(new Vector3(0,b.max.y,0)+Vector3.ProjectOnPlane(mast.position,Vector3.up)).y,axis.z);
             foot=new Vector3(axis.x,ship.transform.InverseTransformPoint(new Vector3(0,b.min.y,0)+Vector3.ProjectOnPlane(mast.position,Vector3.up)).y,axis.z);
+        }
+        // The mast's solid parts only: shown, plain meshes (the longship and the drakkar also carry hidden sails and cloth
+        // colliders under the mast, one of them reaching far below the keel).
+        private static Bounds MastBounds(Transform mast)
+        {
+            Bounds? b=null;
+            foreach(MeshRenderer r in mast.GetComponentsInChildren<MeshRenderer>())
+                if(r.enabled){if(b.HasValue){Bounds c=b.Value;c.Encapsulate(r.bounds);b=c;}else b=r.bounds;}
+            return b??new Bounds(mast.position,Vector3.zero);
         }
         // Where the lookout sits, from the masthead (the top of the mast's bounds), in the ship's space.
         internal static Vector3 SeatAt(Vector3 top)=>top+new Vector3(0,-1.35f,0.32f);
@@ -390,8 +399,8 @@ namespace Wayfinder
         internal static void Climb(Player me,Ship ship,Chair mastChair)
         {
             if(ship==null||ship.m_mastObject==null)return;
-            if(Items.Bounds(ship.m_mastObject.transform).size.y<2.5f){me.Message(MessageHud.MessageType.Center,"There is no masthead to climb.");return;}
             Fittings.MastLine(ship,out Vector3 top,out Vector3 foot);
+            if(top.y-foot.y<2.5f){me.Message(MessageHud.MessageType.Center,"There is no masthead to climb.");return;}
             if(_perch!=null)Object.Destroy(_perch.gameObject);
             _perch=new GameObject("WayfinderMasthead").transform;
             _perch.SetParent(ship.transform,false);
