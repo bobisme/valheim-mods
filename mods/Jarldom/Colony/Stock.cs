@@ -10,6 +10,13 @@ namespace Jarldom
     {
         public static readonly string[] Categories = { "any", "wood", "stone", "ore", "metal", "food", "rawfood", "hides", "seeds", "gear", "valuables" };
 
+        // A prefab's item as one in the world would be (its own data has no drop prefab set, so it wouldn't know what it is).
+        public static ItemDrop.ItemData Of(GameObject prefab)
+        {
+            ItemDrop.ItemData i = prefab.GetComponent<ItemDrop>().m_itemData.Clone();
+            i.m_dropPrefab = prefab;
+            return i;
+        }
         public static string Category(ItemDrop.ItemData item)
         {
             if (item == null) return "any";

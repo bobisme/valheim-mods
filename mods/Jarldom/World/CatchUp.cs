@@ -93,7 +93,7 @@ namespace Jarldom
                 if (drop == null) continue;
                 int left = kv.Value;
                 int stack = Math.Max(1, drop.m_itemData.m_shared.m_maxStackSize);
-                foreach (Container chest in Chests(c, drop.m_itemData))
+                foreach (Container chest in Chests(c, Stock.Of(prefab)))
                 {
                     ContainerAccess.TakeOver(chest);
                     while (left > 0)

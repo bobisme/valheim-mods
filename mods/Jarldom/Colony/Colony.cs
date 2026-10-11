@@ -89,7 +89,8 @@ namespace Jarldom
             Piece piece = Seat.GetComponent<Piece>();
             long creator = piece != null ? piece.GetCreator() : 0;
             string founder = Player.GetAllPlayers().FirstOrDefault(p => p.GetPlayerID() == creator)?.GetPlayerName() ?? Player.m_localPlayer?.GetPlayerName() ?? "the jarl";
-            R = new ColonyRecord { Id = NewId(), Founded = Now, Founder = creator, FounderName = founder, Name = founder + "'s hall" };
+            R = new ColonyRecord { Id = NewId(), Founded = Now, Founder = creator, FounderName = founder };
+            R.Name = DefaultName(founder, R.Id);
             if (creator == 0 && Player.m_localPlayer != null && Vector3.Distance(Player.m_localPlayer.transform.position, Position) < 30) R.FounderName = Player.m_localPlayer.GetPlayerName();
             R.LastDawn = Day; R.LastDusk = Hour >= 18 ? Day : Day - 1; R.LastPayday = Day;
             Log("found", founder, "");
@@ -102,8 +103,16 @@ namespace Jarldom
             if (creator == 0) return;
             R.Founder = creator;
             string name = Player.GetAllPlayers().FirstOrDefault(p => p.GetPlayerID() == creator)?.GetPlayerName();
-            if (!string.IsNullOrEmpty(name) && name != R.FounderName) { R.FounderName = name; R.Name = name + "'s hall"; }
+            if (!string.IsNullOrEmpty(name) && name != R.FounderName) { R.FounderName = name; R.Name = DefaultName(name, R.Id); }
             _dirty = true;
+        }
+        // A founder's first colony is their hall; the others (outposts) take the name of a place, so the two aren't confused.
+        private static readonly string[] Places = { "Ravnsholt", "Eikvik", "Ulfsdal", "Hrafnsey", "Birkiness", "Steinvik", "Askrholm", "Fjallby", "Sigrsstead", "Vargtorp", "Myrkvik", "Eldhaug", "Sjøvangr", "Hjartaby", "Kaldbekk", "Gullnes", "Lindholm", "Ormsfjord", "Haukadal", "Tyrsvik" };
+        private static string DefaultName(string founder, string id)
+        {
+            string me = founder.Replace(' ', '_').ToLowerInvariant();
+            bool other = ZoneSystem.instance != null && ZoneSystem.instance.GetGlobalKeys().Any(l => l.StartsWith("jarldom_colony_") && !l.StartsWith("jarldom_colony_" + id) && l.EndsWith("," + me));
+            return other ? Places[(id.GetStableHashCode() & 0x7fffffff) % Places.Length] : founder + "'s hall";
         }
         public static string NewId() => Guid.NewGuid().ToString("N").Substring(0, 12);
 
@@ -171,6 +180,10 @@ namespace Jarldom
                 else return;
             }
             if (Time.time >= _nextLive) { _nextLive = Time.time + 60; CatchUp.Live(this); Plugin.Guard(() => Outposts.Announce(this)); }
+            // (dawn and dusk wait until the colony has settled in after loading: its chests and people there, or payday finds no treasury
+            // and nobody to pay)
+            bool settled = Time.time - _attachedAt > 8 && (Villagers.All.Any(b => b.S.Colony == R.Id) || Time.time - _attachedAt > 30);
+            if (!settled) return;
             if (hour >= Schedule.WakeAt && hour < 12 && R.LastDawn != day) { R.LastDawn = day; _dirty = true; Plugin.Guard(() => Dawn(day)); }
             if (hour >= Schedule.HallAt && R.LastDusk != day) { R.LastDusk = day; _dirty = true; Plugin.Guard(() => Dusk(day)); }
             if (Time.time >= _nextSurvey) { _nextSurvey = Time.time + 300; Plugin.Guard(Survey); Plugin.Guard(Rerank); }

@@ -509,6 +509,24 @@ namespace Jarldom
                         output(new JObject { ["pieces"] = new JArray((t?.m_pieces ?? new List<GameObject>()).Where(p => p != null).Select(p => p.name + " [" + string.Join(",", p.GetComponents<Component>().Select(x => x.GetType().Name)) + "]")) });
                     }
                     break;
+                case "spot":
+                    {
+                        // Flat dry meadow min..max metres from the pillars, from the world's generator (anywhere, loaded or not; read-only).
+                        float lo = F(a[2]), hi = F(a[3]); var found = new JArray(); var rng = new System.Random(7);
+                        float H(float x, float z) => WorldGenerator.instance.GetHeight(x, z);
+                        for (int i = 0; i < 4000 && found.Count < 6; i++)
+                        {
+                            double ang = rng.NextDouble() * Math.PI * 2, d = lo + rng.NextDouble() * (hi - lo);
+                            float x = c.Position.x + (float)(Math.Sin(ang) * d), z = c.Position.z + (float)(Math.Cos(ang) * d);
+                            if (WorldGenerator.instance.GetBiome(x, z) != Heightmap.Biome.Meadows) continue;
+                            float y = H(x, z), spread = 0;
+                            for (int k = 0; k < 8; k++) { double t = k * Math.PI / 4; spread = Math.Max(spread, Math.Abs(H(x + (float)Math.Sin(t) * 10, z + (float)Math.Cos(t) * 10) - y)); }
+                            if (y < ZoneSystem.instance.m_waterLevel + 2 || spread > (a.Length > 4 ? F(a[4]) : 3f)) continue;
+                            found.Add($"{x:0},{y:0.0},{z:0} ({d:0} m, spread {spread:0.0})");
+                        }
+                        output(new JObject { ["spots"] = found });
+                    }
+                    break;
                 case "site":
                     {
                         // Somewhere to build: the ground's lowest and highest over a rectangle, and what stands on it.

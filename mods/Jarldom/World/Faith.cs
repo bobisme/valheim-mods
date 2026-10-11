@@ -252,10 +252,13 @@ namespace Jarldom
             Doing = "fetching an offering for " + Tables.God(god)?.Name;
             b.Move.To(_from.transform.position, 1.8f);
         }
+        // Nothing to offer (or no altar): tried again in a while (the stores may only just be loading), and said in the saga once a day.
         private void Skip(Brain b, string why)
         {
-            Done = true; b.NoOfferUntil = Time.time + 300; b.Colony.R.Flags["offered:" + _temple.Id] = b.Colony.Day; b.Colony.MarkDirty(); b.Idle(why);
-            b.Colony.Log("text", b.S.Name, "", $"{b.S.Name} the gothi made no offering today: {why}."); // (once a day a temple, so the jarl knows what's wanted)
+            Done = true; b.NoOfferUntil = Time.time + 300; b.Idle(why);
+            if (b.Colony.R.Flag("offerwhy:" + _temple.Id) == b.Colony.Day) return;
+            b.Colony.R.Flags["offerwhy:" + _temple.Id] = b.Colony.Day; b.Colony.MarkDirty();
+            b.Colony.Log("text", b.S.Name, "", $"{b.S.Name} the gothi has no offering to make yet: {why}.");
         }
         public override void Tick(Brain b)
         {

@@ -67,9 +67,10 @@ namespace Jarldom
             ItemDrop drop = prefab.GetComponent<ItemDrop>();
             int stack = Math.Max(1, drop.m_itemData.m_shared.m_maxStackSize), put = 0;
             var chests = new List<Container>();
-            Container best = Stock.Destination(c, drop.m_itemData, c.Position);
+            ItemDrop.ItemData item = Stock.Of(prefab);
+            Container best = Stock.Destination(c, item, c.Position);
             if (best != null) chests.Add(best);
-            chests.AddRange(Stock.Chests(c, c.Position).Where(x => x.category == "any" || x.category == Stock.Category(drop.m_itemData)).Select(x => x.chest).Where(ch => ch != best));
+            chests.AddRange(Stock.Chests(c, c.Position).Where(x => x.category == "any" || x.category == Stock.Category(item)).Select(x => x.chest).Where(ch => ch != best));
             foreach (Container chest in chests.Where(ch => !ContainerAccess.InUse(ch)))
             {
                 ContainerAccess.TakeOver(chest);
@@ -120,7 +121,7 @@ namespace Jarldom
             float distance = Utils.DistanceXZ(main, c.Position);
             var load = bag.GetAllItems().Where(Carts.IsCargo).GroupBy(i => i.m_dropPrefab.name).Select(g => (name: g.Key, n: g.Sum(i => i.m_stack))).ToList();
             foreach (ItemDrop.ItemData i in bag.GetAllItems().Where(Carts.IsCargo).ToList()) bag.RemoveItem(i);
-            string what = string.Join(", ", load.Select(l => $"{l.n} {l.name}"));
+            string what = string.Join(", ", load.Select(l => $"{l.n} {Localization.instance.Localize(ObjectDB.instance.GetItemPrefab(l.name)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name ?? l.name).ToLower()}"));
             if (UnityEngine.Random.value < Carts.AmbushChance(distance))
                 c.Log("text", b.S.Name, "", $"{b.S.Name}'s cart was ambushed on the road, {Mathf.RoundToInt(distance)} m long: the load ({what}) was lost.");
             else
