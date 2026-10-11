@@ -54,9 +54,29 @@ namespace Jarldom
             if (sourceDrop == null) return null;
             GameObject go = Object.Instantiate(source, Assets.Holder);
             go.name = DrumName;
-            foreach (Transform t in go.transform) if (t.GetComponentInChildren<MeshRenderer>() != null) t.localScale = Vector3.Scale(t.localScale, new Vector3(2.4f, 1.1f, 2.4f)); // a broad, shallow drum
+            // A drum of the tankard's own wood: a broad, shallow shell, hide heads top and bottom, dark cords laced round it.
+            MeshRenderer mug = go.GetComponentsInChildren<MeshRenderer>(true).FirstOrDefault();
+            if (mug != null)
+            {
+                Material wood = mug.sharedMaterials.FirstOrDefault(m => m != null && m.name.StartsWith("mug")) ?? mug.sharedMaterial;
+                Material hide = Pieces.Plain(wood, new Color(0.86f, 0.78f, 0.62f)), cord = Pieces.Plain(wood, new Color(0.18f, 0.12f, 0.08f)), shell = Pieces.Plain(wood, new Color(0.45f, 0.27f, 0.14f)); // (the mug's texture is an atlas: plain colours)
+                Transform at = mug.transform.parent;
+                Vector3 centre = mug.transform.localPosition;
+                mug.gameObject.SetActive(false);
+                var drum = new GameObject("drum"); drum.transform.SetParent(at, false); drum.transform.localPosition = centre; drum.transform.localRotation = Quaternion.Euler(90, 0, 0);
+                Part(drum.transform, PrimitiveType.Cylinder, Vector3.zero, new Vector3(0.42f, 0.11f, 0.42f), shell);
+                Part(drum.transform, PrimitiveType.Cylinder, new Vector3(0, 0.1f, 0), new Vector3(0.43f, 0.012f, 0.43f), cord); // rims
+                Part(drum.transform, PrimitiveType.Cylinder, new Vector3(0, -0.1f, 0), new Vector3(0.43f, 0.012f, 0.43f), cord);
+                Part(drum.transform, PrimitiveType.Cylinder, new Vector3(0, 0.112f, 0), new Vector3(0.40f, 0.004f, 0.40f), hide);
+                Part(drum.transform, PrimitiveType.Cylinder, new Vector3(0, -0.112f, 0), new Vector3(0.40f, 0.004f, 0.40f), hide);
+                for (int k = 0; k < 8; k++)
+                {
+                    float t = k * Mathf.PI / 4;
+                    Transform c = Part(drum.transform, PrimitiveType.Cube, new Vector3(Mathf.Cos(t) * 0.212f, 0, Mathf.Sin(t) * 0.212f), new Vector3(0.01f, 0.2f, 0.01f), cord);
+                    c.localRotation = Quaternion.Euler(0, -t * Mathf.Rad2Deg, 8f); // (laced at a slant)
+                }
+            }
             var shared = (ItemDrop.ItemData.SharedData)CloneShared.Invoke(sourceDrop.m_itemData.m_shared, null);
-            Assets.Tint(go, new Color(0.95f, 0.85f, 0.7f), new Color(0.05f, 0.03f, 0.0f));
             shared.m_name = "Skald's drum";
             shared.m_description = "Deer hide stretched over a hoop of wood. Give it to a skald: at dusk they play it in the great hall, and everyone who hears it is the merrier.";
             shared.m_itemType = ItemDrop.ItemData.ItemType.Misc; shared.m_maxStackSize = 1; shared.m_weight = 2f; shared.m_value = 0; shared.m_teleportable = true;
@@ -67,6 +87,14 @@ namespace Jarldom
             drop.m_itemData.m_shared = shared; drop.m_itemData.m_stack = 1; drop.m_itemData.m_quality = 1; drop.m_itemData.m_dropPrefab = go;
             Prefabs[DrumName] = go;
             return go;
+        }
+        private static Transform Part(Transform parent, PrimitiveType shape, Vector3 at, Vector3 size, Material material)
+        {
+            GameObject g = GameObject.CreatePrimitive(shape);
+            Object.DestroyImmediate(g.GetComponent<Collider>());
+            g.transform.SetParent(parent, false); g.transform.localPosition = at; g.transform.localScale = size;
+            if (material != null) g.GetComponent<MeshRenderer>().sharedMaterial = material;
+            return g.transform;
         }
         public static bool IsDrum(ItemDrop.ItemData item) => item?.m_dropPrefab != null && item.m_dropPrefab.name == DrumName;
         public static bool IsRelic(ItemDrop.ItemData item) => item != null && (item.m_dropPrefab != null ? item.m_dropPrefab.name == RelicName : item.m_customData.ContainsKey(global::Jarldom.Relic.RecordKey));

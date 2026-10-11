@@ -245,7 +245,7 @@ namespace Jarldom
 
         // ---- plumbing ----
         // A game material in a plain colour (its texture taken away): for small made-up parts.
-        private static Material Plain(Material from, Color color)
+        internal static Material Plain(Material from, Color color)
         {
             if (from == null) return null;
             var m = new Material(from) { name = "JarldomPlain", hideFlags = HideFlags.HideAndDontSave };

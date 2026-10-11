@@ -65,6 +65,29 @@ namespace Jarldom
             Colony c = Here();
             string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "away", "master", "envoy", "capture", "barrow" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or with devcommands"); return; }
+            if (cmd == "roomtest")
+            {
+                // Measure a room without marking it (read-only, anywhere): roomtest <type> <x1> <z1> <x2> <z2> [floor y]
+                if (a.Length < 7 || !Enum.TryParse(a[2], true, out RoomType type)) { error("roomtest <type> <x1> <z1> <x2> <z2> [floor]"); return; }
+                float x1 = Math.Min(F(a[3]), F(a[5])), x2 = Math.Max(F(a[3]), F(a[5])), z1 = Math.Min(F(a[4]), F(a[6])), z2 = Math.Max(F(a[4]), F(a[6]));
+                float floor = a.Length > 7 ? F(a[7]) : Floor(new Vector3((x1 + x2) / 2, 0, (z1 + z2) / 2));
+                var room = new Room { Id = "test", Type = type, Floor = floor, Xz = new List<float> { x1, z1, x2, z1, x2, z2, x1, z2 } };
+                room.Height = Colony.Ceiling(room);
+                RoomFacts f = Colony.Measure(room);
+                RoomVerdict v = RoomRules.Judge(type, f, "");
+                output(new JObject { ["floor"] = Math.Round(floor, 2), ["ceiling"] = Math.Round(room.Height, 2), ["ok"] = v.Ok, ["grade"] = v.Grade.ToString(), ["failures"] = new JArray(v.Failures),
+                    ["walls"] = new JArray(f.Walls.Select(w => Math.Round(w, 2))), ["roof"] = Math.Round(f.Roof, 2), ["doors"] = f.Doors, ["contents"] = new JObject(f.Count.Select(kv => new JProperty(kv.Key, kv.Value))) });
+                return;
+            }
+            if (cmd == "items")
+            {
+                // Jarldom's items as the game has them: in the item list, and their recipes (read-only, anywhere).
+                var db = ObjectDB.instance;
+                output(new JObject { ["items"] = new JArray(Items.All.Select(i => i.name + (db != null && db.GetItemPrefab(i.name) == i ? "" : " (not in ObjectDB)"))),
+                    ["recipes"] = new JArray((db?.m_recipes ?? new List<Recipe>()).Where(r => r != null && r.m_item != null && r.m_item.name.StartsWith("Jarldom"))
+                        .Select(r => $"{r.m_item.name}: {r.m_craftingStation?.name ?? "by hand"} lvl {r.m_minStationLevel}, " + string.Join(" + ", r.m_resources.Select(q => $"{q.m_amount} {q.m_resItem?.name}")))) });
+                return;
+            }
             if (cmd == "pickrelic")
             {
                 // The nearest dropped heart of the high seat into the local player's bag, wherever it lies (for tests).
