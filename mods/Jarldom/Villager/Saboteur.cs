@@ -52,7 +52,9 @@ namespace Jarldom
             ContainerAccess.TakeOver(chest);
             item.m_durability *= 0.4f;
             chest.GetInventory().m_onChanged?.Invoke(); // (the chest saves its contents)
-            return $"A {Localization.instance.Localize(item.m_shared.m_name).ToLower()} in the stores was found notched and blunted.";
+            string what = Localization.instance.Localize(item.m_shared.m_name).ToLower();
+            bool many = what.EndsWith("s") && !what.EndsWith("ss"); // (trousers, greaves: "the", and "were")
+            return $"{(many ? "The" : "A")} {what} in the stores {(many ? "were" : "was")} found {(item.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Legs || item.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Chest || item.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Shoulder || item.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Helmet ? "torn and slashed" : "notched and blunted")}.";
         }
         private static string OpenDoor(Colony c, Brain b)
         {
