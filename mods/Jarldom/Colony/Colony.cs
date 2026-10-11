@@ -395,13 +395,14 @@ namespace Jarldom
                 bool carter = f.Killer.StartsWith(Carts.Prefix);
                 bool miner = f.Killer.StartsWith(Mining.Prefix) || f.Killer.StartsWith(Mining.Escort);
                 bool trader = f.Killer.StartsWith("trade:") || carter || miner;
-                Vector3? at = trader ? Spot(Position + Seat.transform.forward * 3, 2.5f) : Survey_BedSpot(s.Bed) ?? (Vector3?)Spot(Position, 3);
+                // (one back from the road comes walking in from the colony's edge, on the side they went; the dead rise at their bed)
+                Vector3? at = trader ? Road(f) ?? Spot(Position + Seat.transform.forward * 3, 2.5f) : Survey_BedSpot(s.Bed) ?? (Vector3?)Spot(Position, 3);
                 if (at == null) continue;
                 if (!ZNetScene.instance.IsAreaReady(at.Value)) continue;
                 Humanoid h = Villagers.Spawn(this, s, at.Value, f.Gear);
                 if (h == null) continue;
                 R.Fallen.Remove(f);
-                Assets.Effect("vfx_spawn", at.Value);
+                if (!trader) Assets.Effect("vfx_spawn", at.Value);
                 if (miner) Plugin.Guard(() => Claims.Home(this, h, s, f));
                 else if (trader)
                 {
@@ -420,6 +421,26 @@ namespace Jarldom
             }
         }
 
+        // Where one coming home from a trip appears: on the ground at the colony's edge, toward where they were (the claim, the main
+        // colony, the coast), far enough out to be seen walking in, and loaded.
+        private Vector3? Road(Fallen f)
+        {
+            Vector3 dir = Vector3.zero;
+            if (Mining.Decode(f.Killer, out string claim, out _, out _) && Claims.Get(claim) is Claim cl) dir = Claims.At(cl) - Position;
+            else if (f.Killer.StartsWith(Carts.Prefix) && Outposts.Where(Outposts.Parent(this)) is Vector3 main) dir = main - Position;
+            else { dir = new Vector3(f.X, 0, f.Z) - Position; } // (where they set out from)
+            dir.y = 0;
+            if (dir.sqrMagnitude < 1f) dir = Seat.transform.forward;
+            dir.Normalize();
+            for (float far = Mathf.Clamp(Radius * 0.9f, 30f, 70f); far >= 20f; far -= 10f)
+            {
+                Vector3 p = Position + dir * far;
+                if (!ZNetScene.instance.IsAreaReady(p)) continue;
+                Vector3? spot = Spot(p, 5f);
+                if (spot != null) return spot;
+            }
+            return null;
+        }
         // A free spot on the ground near a point (navmesh first, then the solid height).
         public static Vector3? Spot(Vector3 near, float radius)
         {
