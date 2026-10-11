@@ -34,6 +34,24 @@ namespace Jarldom
         public static Brain ByVid(string vid) => Order.FirstOrDefault(b => b.Alive && b.S != null && b.S.Vid == vid);
 
         // Villager bodies loaded here (owned or not), found through the game's character list.
+        // The small things others' games show about a villager (what they're doing, why they're idle, what they just said, their meals)
+        // kept on the still soul, not the walking body: the game sends a body whole many times a second while it walks, the soul only
+        // when something on it changes. Read from the soul, or the body where there's no soul here yet.
+        public static ZDO Tags(ZDO body) => SoulStore.Of(body) ?? body;
+        public static void Tag(ZDO body, string key, string value)
+        {
+            ZDO soul = SoulStore.Of(body);
+            if (soul == null) { if (body.GetString(key, "") != value) body.Set(key, value); return; }
+            if (soul.GetString(key, "") != value) { if (!soul.IsOwner()) soul.SetOwner(ZDOMan.GetSessionID()); soul.Set(key, value); }
+            if (body.IsOwner() && body.GetString(key, "") != "") body.Set(key, ""); // (an old copy off the body)
+        }
+        public static void Tag(ZDO body, string key, long value)
+        {
+            ZDO soul = SoulStore.Of(body);
+            if (soul == null) { body.Set(key, value); return; }
+            if (soul.GetLong(key, 0L) != value) { if (!soul.IsOwner()) soul.SetOwner(ZDOMan.GetSessionID()); soul.Set(key, value); }
+            if (body.IsOwner() && body.GetLong(key, 0L) != 0L) body.Set(key, 0L);
+        }
         public static IEnumerable<Humanoid> Bodies()
         {
             foreach (Character c in Character.GetAllCharacters())
@@ -224,7 +242,7 @@ namespace Jarldom
         {
             ZDO z = c?.GetComponent<ZNetView>()?.GetZDO();
             if (z == null) return "";
-            string doing = z.GetString(DoingKey, "");
+            string doing = Tags(z).GetString(DoingKey, "");
             int mood = z.GetInt(MoodKey, 0);
             string moodWord = mood >= 50 ? "<color=#99e08c>content</color>" : mood >= 10 ? "fine" : mood > -30 ? "<color=#ffd27a>unhappy</color>" : "<color=#ff8c59>miserable</color>";
             long leader = z.GetLong(Follow.Key, 0L);

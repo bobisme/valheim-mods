@@ -120,7 +120,8 @@ namespace Jarldom.Ui
             {
                 ZDO z = h.GetComponent<ZNetView>().GetZDO();
                 if (z.GetString(Villagers.ColonyKey, "") != c.Id) continue;
-                string doing = z.GetString(Leisure.IdleKey, "") is string idle && idle != "" ? idle : z.GetString(Villagers.DoingKey, ""); // (idle, and at their leisure: why)
+                ZDO tags = Villagers.Tags(z);
+                string doing = tags.GetString(Leisure.IdleKey, "") is string idle && idle != "" ? idle : tags.GetString(Villagers.DoingKey, ""); // (idle, and at their leisure: why)
                 // (what the jarl can do something about: gear, a zone to mark or widen, a place to put things; not a lull, as fields growing)
                 if (!(doing.StartsWith("needs gear") || doing.StartsWith("no ") && !doing.StartsWith("no game") || doing.StartsWith("nothing left") || doing.StartsWith("nothing to sell") || doing.StartsWith("Where do I put") || doing.StartsWith("trade runs wait"))) continue;
                 if (!stuck.TryGetValue(doing, out var who)) stuck[doing] = who = new List<string>();
@@ -348,7 +349,7 @@ namespace Jarldom.Ui
                 if (master != null) { string pupil = row.Vid; GameUi.Button(list, "Teach", new Vector2(W - 120, -y + 2), new Vector2(70, 30), () => Net.Act(_c, "train", pupil), true, 14); }
                 Humanoid h = Villagers.Body(row.Vid);
                 ZDO z = h?.GetComponent<ZNetView>()?.GetZDO();
-                string doing = z?.GetString(Villagers.DoingKey, "") ?? "far away";
+                string doing = z != null ? Villagers.Tags(z).GetString(Villagers.DoingKey, "") : "far away";
                 int mood = z?.GetInt(Villagers.MoodKey, 0) ?? 0;
                 GameUi.Line(list, row.Name, new Vector2(8, -y), 250, 18, GameUi.Warm);
                 GameUi.Line(list, Tables.Of(row.Prof).Name, new Vector2(262, -y), 130, 16, GameUi.Text);

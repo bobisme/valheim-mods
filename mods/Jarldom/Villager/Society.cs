@@ -21,8 +21,8 @@ namespace Jarldom
             Last[who] = (text, Time.time);
             if (Last.Count > 400) Last.Clear();
             ZDO z = b.View.GetZDO();
-            z.Set(SayKey, text + "\u001f" + ttl.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            z.Set(SayTimeKey, ZNet.instance.GetTime().Ticks);
+            Villagers.Tag(z, SayKey, text + "\u001f" + ttl.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            Villagers.Tag(z, SayTimeKey, ZNet.instance.GetTime().Ticks);
         }
         public static void Tick()
         {
@@ -32,10 +32,10 @@ namespace Jarldom
             foreach (Humanoid h in Villagers.Bodies())
             {
                 if (Vector3.Distance(h.transform.position, me) > 30) continue;
-                ZDO z = h.GetComponent<ZNetView>().GetZDO();
+                ZDO body = h.GetComponent<ZNetView>().GetZDO(), z = Villagers.Tags(body);
                 long at = z.GetLong(SayTimeKey, 0L);
-                if (at == 0 || Shown.TryGetValue(z.m_uid, out long seen) && seen == at) continue;
-                Shown[z.m_uid] = at;
+                if (at == 0 || Shown.TryGetValue(body.m_uid, out long seen) && seen == at) continue;
+                Shown[body.m_uid] = at;
                 if ((ZNet.instance.GetTime().Ticks - at) / TimeSpan.TicksPerSecond > 8) continue;
                 string[] f = z.GetString(SayKey, "").Split('\u001f');
                 float ttl = f.Length > 1 && float.TryParse(f[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float t) ? t : 5;

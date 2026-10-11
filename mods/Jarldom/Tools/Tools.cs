@@ -54,7 +54,7 @@ namespace Jarldom
             ?? Villagers.All.FirstOrDefault(b => b.S.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase));
 
         private static string Box(IList<float> xz) { var xs = xz.Where((v, i) => i % 2 == 0).ToList(); var zs = xz.Where((v, i) => i % 2 == 1).ToList(); return $"{xs.Min():0.#},{zs.Min():0.#} to {xs.Max():0.#},{zs.Max():0.#}"; }
-        private static Vector3? _pathMark;
+        private static Vector3? _pathMark; private static Dictionary<ZDOID, uint> NetMark = new Dictionary<ZDOID, uint>(); private static float NetMarkAt;
         public static void RunNow(string[] args, Action<JObject> output, Action<string> error) => Run(args, output, error); // (the server's own mailbox)
         private static IEnumerator Run(string[] args, Action<JObject> output, Action<string> error)
         {
@@ -90,6 +90,37 @@ namespace Jarldom
                 foreach (Colony col in Colony.All) o[col.R.Name] = new JObject { ["pillars"] = Size(col.Z), ["board"] = Size(col.BoardZ), ["record"] = col.Z.GetByteArray(Colony.RecordKey)?.Length ?? 0, ["saga"] = Size(col.SagaZ), ["parts"] = $"log {col.R.Log.Count}, flags {col.R.Flags.Count}, rooms {col.R.Rooms.Count}, zones {col.R.Zones.Count}, roster {col.R.Roster.Count}, fallen {col.R.Fallen.Count}" };
                 o["villagers"] = new JArray(Villagers.Bodies().Select(h => { ZDO z = h.GetComponent<ZNetView>().GetZDO(); return $"{z.GetString(Villagers.NameKey)}: body {Size(z)} B (bag {z.GetByteArray(ZDOVars.s_items)?.Length ?? 0}), soul {Size(SoulStore.Of(z))} B"; }));
                 output(o);
+                return;
+            }
+            if (cmd == "netrate")
+            {
+                // Test: how much Jarldom's objects send. "netrate start", wait, "netrate": each object's changes (data revisions) since,
+                // times its whole size (a changed object goes out whole to every peer near it).
+                int Size(ZDO z) { if (z == null) return 0; var pkg = new ZPackage(); z.Serialize(pkg); return pkg.Size(); }
+                var all = new List<(string what, ZDO z)>();
+                foreach (Colony col in Colony.All) { all.Add(("pillars", col.Z)); all.Add(("board", col.BoardZ)); all.Add(("saga", col.SagaZ)); }
+                foreach (Humanoid h in Villagers.Bodies()) { ZDO z = h.GetComponent<ZNetView>().GetZDO(); string n = z.GetString(Villagers.NameKey).Split(' ')[0]; all.Add((n + " body", z)); all.Add((n + " soul", SoulStore.Of(z))); }
+                if (a.Length > 2 && a[2] == "start") { NetMark = all.Where(x => x.z != null).ToDictionary(x => x.z.m_uid, x => x.z.DataRevision); NetMarkAt = Time.time; output(new JObject { ["marked"] = NetMark.Count }); return; }
+                float secs = Mathf.Max(0.1f, Time.time - NetMarkAt);
+                var rows = all.Where(x => x.z != null && NetMark.ContainsKey(x.z.m_uid)).Select(x => (x.what, changes: (long)(x.z.DataRevision - NetMark[x.z.m_uid]), size: Size(x.z))).ToList();
+                double total = rows.Sum(r => r.changes * r.size) / secs;
+                output(new JObject { ["seconds"] = Math.Round(secs, 1), ["bytesPerSecond"] = Math.Round(total), ["bodiesPerSecond"] = Math.Round(rows.Where(r => r.what.EndsWith("body")).Sum(r => r.changes * r.size) / secs), ["soulsPerSecond"] = Math.Round(rows.Where(r => r.what.EndsWith("soul")).Sum(r => r.changes * r.size) / secs),
+                    ["top"] = new JArray(rows.OrderByDescending(r => r.changes * r.size).Take(10).Select(r => $"{r.what}: {r.changes} changes x {r.size} B = {r.changes * r.size / secs:0} B/s")) });
+                return;
+            }
+            if (cmd == "zdokeys")
+            {
+                // Test: what a villager's body object carries, by kind (strings and byte arrays with their sizes).
+                Brain b = Who(a[2]); if (b == null) { error("who?"); return; }
+                ZDO z = b.Body.GetComponent<ZNetView>().GetZDO();
+                ZDOExtraData.GetData(z.m_uid, out var fl, out var v3, out var qu, out var it, out var lo, out var st, out var ba, out var con);
+                var names = typeof(ZDOVars).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static).Where(f => f.FieldType == typeof(int)).ToDictionary(f => (int)f.GetValue(null), f => f.Name, EqualityComparer<int>.Default);
+                foreach (string k in new[] { Villagers.VidKey, Villagers.ColonyKey, Villagers.NameKey, Villagers.DoingKey, Villagers.MoodKey, Villagers.StateKey, "jarldom_soul", "dhc_home", "dhc_homename", Leisure.IdleKey, Follow.Key }) names[k.GetStableHashCode()] = k;
+                string N(int h) => names.TryGetValue(h, out string n) ? n : h.ToString();
+                output(new JObject { ["floats"] = fl.Count, ["vec3"] = v3.Count, ["quats"] = qu.Count, ["ints"] = it.Count, ["longs"] = lo.Count,
+                    ["intKeys"] = string.Join(", ", it.Select(kv => N(kv.Key))), ["floatKeys"] = string.Join(", ", fl.Select(kv => N(kv.Key))), ["longKeys"] = string.Join(", ", lo.Select(kv => N(kv.Key))), ["vecKeys"] = string.Join(", ", v3.Select(kv => N(kv.Key))),
+                    ["strings"] = new JArray(st.Select(kv => $"{N(kv.Key)}: {kv.Value.Length} \"{(kv.Value.Length > 40 ? kv.Value.Substring(0, 40) + "…" : kv.Value)}\"")),
+                    ["bytes"] = new JArray(ba.Select(kv => $"{N(kv.Key)}: {kv.Value.Length} B")) });
                 return;
             }
             if (cmd == "pathtest")

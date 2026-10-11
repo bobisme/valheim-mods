@@ -45,7 +45,7 @@ namespace Jarldom
             if (S == null) return false;
             Colony = Colony.Of(S.Colony);
             Body.m_name = S.FullName;
-            LoadMeals(z.GetString(MealKey, ""));
+            LoadMeals(Villagers.Tags(z).GetString(MealKey, "") is string m && m != "" ? m : z.GetString(MealKey, ""));
             _lastNeeds = Now;
             Body.SetMaxHealth(MaxHealth());
             return true;
@@ -59,7 +59,7 @@ namespace Jarldom
             SoulStore.Write(z, S, Colony);
             if (z.GetString(Villagers.NameKey, "") != S.FullName) z.Set(Villagers.NameKey, S.FullName);
             string meals = SaveMeals();
-            if (z.GetString(MealKey, "") != meals) z.Set(MealKey, meals);
+            Villagers.Tag(z, MealKey, meals);
         }
         // Let go of the body: stand up, stop, save (a reload, a death, ownership moving away).
         public void Release()
@@ -189,7 +189,7 @@ namespace Jarldom
         {
             if (doing == Doing) return;
             Doing = doing;
-            View.GetZDO().Set(Villagers.DoingKey, doing);
+            Villagers.Tag(View.GetZDO(), Villagers.DoingKey, doing);
         }
         private void SyncHover()
         {

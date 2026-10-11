@@ -17,8 +17,7 @@ namespace Jarldom
 
         public static Task Next(Brain b, string why, bool indoors = false)
         {
-            ZDO z = b.View.GetZDO();
-            if (z.GetString(IdleKey, "") != why) z.Set(IdleKey, why);
+            Villagers.Tag(b.View.GetZDO(), IdleKey, why);
             Colony c = b.Colony;
             // A partner waiting for one more?
             if (Seeking.TryGetValue(c.Id, out LeisureTask host) && host.Seeking && host.Owner != b && host.Owner.Alive && Vector3.Distance(host.Owner.Pos, b.Pos) < 60f)
@@ -71,7 +70,7 @@ namespace Jarldom
             return false;
         }
         public static void Unseek(LeisureTask t) { foreach (var kv in Seeking.Where(kv => kv.Value == t).ToList()) Seeking.Remove(kv.Key); }
-        public static void Clean(Brain b) { ZDO z = b.View?.GetZDO(); if (z != null && z.GetString(IdleKey, "") != "") z.Set(IdleKey, ""); }
+        public static void Clean(Brain b) { ZDO z = b.View?.GetZDO(); if (z != null) Villagers.Tag(z, IdleKey, ""); }
     }
 
     internal sealed class LeisureTask : Task
