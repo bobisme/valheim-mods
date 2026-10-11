@@ -16,8 +16,9 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
 - **Rooms and zones**: hammer → Misc → *Mark rooms and zones*, click the corners, click the first again, choose what it is. Walls
   (80% of each edge), roof (90%), a door and what's inside are checked and graded D to S; with the hammer out the overlay shows rooms,
   zones and wall gaps; **E** on a marked room or zone (marker out) to check it, change what it is or remove it. Rooms in houses of
-  storeys measure their own ceiling. Zones: woodlot, quarry, fields, foraging and hunting grounds, fishing dock, guard post, sacred
-  bog, pasture.
+  storeys measure their own ceiling. Zones (click one spot twice for a round one with soft edges; **E** on its marker makes it wider
+  or narrower): woodlot, quarry, fields, foraging and hunting grounds, fishing dock, sacred bog, pasture. Guards walk the **watch posts**
+  you raise (hammer → Misc), in the order they were raised.
 - **Work** comes from a job board of leases (no job taken twice): felling, clearing stumps and planting saplings (a tree to every
   30 m² of woodlot), mining, harvesting, hoeing, sowing and replanting, foraging, hauling to stockpiles (choose each chest's category in
   the Rooms tab), guarding, hunting, fishing, feeding fires, smelters (fuel first) and cooking stations, brewing mead bases at the mead
@@ -35,7 +36,10 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
   to for it (haulers empty the graves of those who won't come back). With no bed (or disgraced) they're lost and rise as a named
   draugr carrying their hoard.
 - **Gold**: wages every five days from the treasury chest (all or nothing), feasts, offerings at the eight gods' altars, coins thrown
-  into a sacred bog (favour without end), gilded high seat and banners. **The Thing** meets every five days with petitions.
+  into a sacred bog (favour without end), gilded high seat and banners. **The Thing** is held when you call it (The Thing tab):
+  matters raised day by day by those they touch wait for it; everyone gathers in the great hall, each petitioner speaks before the
+  high seat, and you rule from a bar at the foot of the screen (Esc to put it off, E on the petitioner to bring it back). Matters
+  unheard five days sour the colony; promises made there are kept or broken.
   **Ascension**: a worthy villager (100 worth) goes up on the funeral pyre at dusk with grave goods.
 - **Raids** near the colony sound the war horn and grow with renown; fighters arm themselves and go out to the raiders, the rest run
   for the great hall. What's left of a draugr warband sinks back into the earth at dawn.
@@ -49,11 +53,31 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
   Inspired villagers work faster for a day; a jarl most of the colony loves lifts their followers. After the first boss, one newcomer
   in twelve may be **Forsaken-touched**: watch the mischief, and name them at the Thing. Roads (paved ground, stone floors): a sixth
   faster. **While you were away**: a colony that was unloaded makes up the time at the rates it showed live (goods, meals, wages, raids).
+- **Upkeep**: builders with nothing planned mend what's damaged, rebuild from the stores what raiders broke (not what a player took down),
+  and pave the paths villagers wear. Haulers keep the fires, torches and braziers fed, and light them at dusk; villagers never burn at
+  the colony's own hearths. Doors found shut are shut behind them; routes plan through as many shut doors as it takes.
+- **Ore claims**: drive an **ore claim** (hammer → Misc, no workbench needed) in beside a deposit found in the wilds: copper, tin,
+  silver, or a sunken crypt's door for its muddy scrap (after the Elder). Miners go out on trips (told, not walked: the far world stands
+  still) and bring home what one can carry (25 ore), 90 with the colony's cart where a cart can go (not swamps, mountains or crypts),
+  20 scrap from a day in a crypt. A **mining camp** (a bed, a chest and a fire within 15 m of the stake) works everything within 60 m,
+  one miner a bed. Miners go for the ore the stores lack most (each kind kept to a limit set in the Work tab, 300 by default; tin while
+  short for bronze), the walk counting against it. Danger by biome (a camp and a guard escort halve it): wounds, or home without the ore
+  and the pickaxe. Worked-out deposits leave the world when the stake is next loaded. The Work tab lists the claims.
+- **Trade runs** grow with the colony: on foot (6 lots), with a cart in the colony (18), by karve at jarldom rank (30, better prices),
+  by longship or drakkar at hold rank (60, the far markets); the smallest that carries what's for sale. Home from a trip, a villager
+  walks in from the colony's edge.
+- **Clothes**: a **weaver** spins flax (sown in the colony's fields; a trader brings the first seed) into linen and weaves dyed tunics,
+  dresses and caps; once Hildir is known traders buy her clothes. **Time off**: hnefatafl, glíma, the training dummy, the archery
+  target, stone lifting, walks, the hall; each keeps a tankard they carved at the workbench. **Follow me** (a villager's panel) takes
+  them along, through portals; **Go home** sends them back.
 - **Moving the pillars**: taken down (or broken) they leave the *heart of the high seat*; raise new pillars carrying it and the colony
   is back, people, rooms and saga and all.
+- **Multiplayer**: villager state, bags and what they're doing live on still objects, so a walking villager sends about 470 B an update.
+  Games tell each other their Jarldom versions; while two differ in what they save, no colony is saved and everyone is told. Jarldom
+  keeps its world keys out of players' character files.
 
 Works with Omens (Odin's favour is the gods' Fate), AICompanion (bed and chest claims respected both ways), Gary, SkalTavern; needs
-none. **Install on the host and every player** (the hammer refuses Jarldom pieces where the host lacks the mod). **Disband** the colony
+none. **Restart Valheim after installing or updating** (it adds pieces and villagers). **Install on the host and every player** (the hammer refuses Jarldom pieces where the host lacks the mod). **Disband** the colony
 from its window before uninstalling: everyone's gear goes into chests by the pillars. Claude Tools: `jarldom status`, `roster`,
 `villager <name>`, `rooms`, `room check <n>`, `board`, `log`, `saga`, `flags`, `graves`, `netsize`, `pathtest`, `heights`, `spot`, `ui
 colony|villager|room|zone|seat`, and (single player or host) `place pillars`, `spawn`, `migrate`, `room`/`zone <type> x1 z1 x2 z2`,
@@ -68,11 +92,13 @@ gothi's offerings, a skald's drum, master training, Dvergr mercenaries, captives
 Fuling tribute, catch-up after two days away, an outpost 515 m off with a carter whose ore reached the main colony, a two-storey house
 (a stockpile below, a longhouse above, villagers sleeping upstairs), fetching gear and going back to graves, every window and the
 jarl's seat view with a real colony, villagers' state surviving a world reload, a trade run there and back (230 coins), a builder
-raising a BuildOrders blueprint from the stores, and a lost soul rising as a draugr. **Not yet tested by a player**: marking rooms with
-the hammer, the Valkyrie fly-in seen in person, a dedicated server, and villagers run by a joining player's game.
+raising a BuildOrders blueprint from the stores, and a lost soul rising as a draugr. Since then, live: the Thing as an event (gathering,
+petitioners, rulings), ore claims on tin, copper, silver and a crypt's iron with camps, escorts and wounds, a cart trade run, the fires
+fed, relogs, and a dedicated server with Bob joining (bags and claims through a reconnect). **Not yet tested by a player**: a fresh
+first hour in a normal world, two players sharing a colony, following by ship, karve and longship trade.
 
 **First playtest**:
-1. Build the pillars near a workbench; E on them: the window opens, the colony is a camp of 0.
+1. Build the pillars near a workbench; E on them: the window opens, the colony is a camp of 0; name the hall.
 2. `jarldom spawn woodcutter`, or wait for renown: build beds in a longhouse (or by the pillars), check `jarldom renown`; at dawn Hugin
    speaks, at dusk the Valkyrie comes.
 3. Take a newcomer in: they appear at the pillars in rags with a bed of their own.

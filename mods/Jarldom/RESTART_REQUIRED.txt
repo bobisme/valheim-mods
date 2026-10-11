@@ -1,0 +1,1 @@
+Adds saved pieces (the high-seat pillars, altars, watch posts, ore claims and more) and the villagers. Install Jarldom on the host and every player, then restart Valheim before loading the world.
