@@ -228,7 +228,10 @@ namespace Jarldom
                 return;
             }
             if (Current(c) == null) { Next(c); return; }
-            if (c.R.Flag(Spoken) == 0 && real > 30) { Speak(c); return; } // (the teller couldn't come forward: it's read out)
+            // (the teller couldn't come forward, or there's none here to: it's read out)
+            Petition cur = Current(c);
+            bool teller = cur.By != "" && Villagers.All.Any(b => b.S.Vid == cur.By && b.Task is ThingTask);
+            if (c.R.Flag(Spoken) == 0 && real > (teller ? 30 : 3)) { Speak(c); return; }
             if (c.R.Flag(Spoken) == 1 && real > 240) Close(c, "adjourned: the jarl gave no ruling");
         }
         private static void Next(Colony c)
@@ -282,6 +285,7 @@ namespace Jarldom
             if (yes && p.Id == "accuse") Saboteur.CastOut(c, p.About, who);
             if (yes && Promises.Contains(p.Id)) c.R.Flags["promise:" + p.Id] = c.Day + 5; // to be kept within five days
             c.Log("text", who, "", $"At the Thing, {who} said {(yes ? p.Yes.ToLower() : p.No.ToLower())}: \"{p.Text}\"");
+            c.Tell($"{who}: “{(yes ? p.Yes : p.No)}.” {(mood > 0 ? "The Thing cheers." : mood < 0 ? "The Thing grumbles." : "The Thing murmurs.")}", true);
             React(c, p, mood);
             c.R.Flags[Ruled] = c.R.Flag(Ruled) + 1;
             c.R.Flags[Spoken] = 0; c.R.Flags[Since] = (int)c.Now; // (the next matter, at the same place in the list)
@@ -296,8 +300,9 @@ namespace Jarldom
             var rng = new System.Random();
             foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id && b.Task is ThingTask t && t.Arrived))
             {
-                if (rng.NextDouble() < 0.4) b.Say(mood >= 0 ? Cheers[rng.Next(Cheers.Length)] : Grumbles[rng.Next(Grumbles.Length)], 4);
-                if (mood >= 0 && rng.NextDouble() < 0.5) Body_.Anim(b.Body)?.SetTrigger("emote_cheer");
+                if (rng.NextDouble() < 0.5) b.Say(mood >= 0 ? Cheers[rng.Next(Cheers.Length)] : Grumbles[rng.Next(Grumbles.Length)], 4);
+                if (b.Held != null) continue; // (on a bench: words only)
+                Body_.Anim(b.Body)?.SetTrigger(mood >= 0 ? "emote_cheer" : "emote_nonono");
             }
             Brain teller = Villagers.ByVid(p.By);
             teller?.Say(mood >= 0 ? "Thank you, jarl." : "...As the jarl wills.", 5);
