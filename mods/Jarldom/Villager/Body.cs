@@ -19,7 +19,7 @@ namespace Jarldom
         internal static bool OpeningBag;
 
         internal static bool IsBag(Container c) => c != null && c.m_name == VillagerPrefab.BagName && c.GetComponent<Humanoid>() != null;
-        internal static void Forget() => Loaded.Clear();
+        internal static void Forget() { Loaded.Clear(); SoulSeen.Clear(); }
 
         [HarmonyPatch(typeof(Container), "Awake")]
         private static class ShareBag
@@ -31,8 +31,41 @@ namespace Jarldom
             }
         }
 
-        // A container reloads from its save whenever anything in its ZDO changes, and a villager writes its ZDO often: the owner loads once
-        // when it takes over and is the truth after that (or worn gear and wear would be replaced by old copies over and over).
+        // The bag is kept on the villager's still soul, not the walking body (the game sends a moving body whole up to twenty times a
+        // second; a bag's list of items is a quarter of it). A copy on the body is the newer one (written while there was no soul here)
+        // and is taken over by the next save.
+        public const string BagKey = "jarldom_bag";
+        private static readonly AccessTools.FieldRef<Container, bool> Loading = AccessTools.FieldRefAccess<Container, bool>("m_loading");
+        private static readonly Dictionary<int, uint> SoulSeen = new Dictionary<int, uint>();
+        private static byte[] Saved(ZDO body, ZDO soul, out bool onBody)
+        {
+            byte[] b = body.GetByteArray(ZDOVars.s_items);
+            onBody = b != null && b.Length > 0;
+            return onBody ? b : soul?.GetByteArray(BagKey);
+        }
+        [HarmonyPatch(typeof(Container), "Save")]
+        private static class SaveOnSoul
+        {
+            private static bool Prefix(Container __instance) => !IsBag(__instance) || !ToSoul(__instance);
+        }
+        // Written to the soul (false: no soul here yet, so on the body, as the game would).
+        private static bool ToSoul(Container __instance)
+        {
+            {
+                ZNetView v = __instance.GetComponent<ZNetView>();
+                if (v == null || !v.IsValid()) return false;
+                ZDO body = v.GetZDO(), soul = SoulStore.Of(body);
+                if (soul == null) return false;
+                var pkg = new ZPackage(); __instance.GetInventory().Save(pkg);
+                if (!soul.IsOwner()) soul.SetOwner(ZDOMan.GetSessionID());
+                soul.Set(BagKey, pkg.GetArray());
+                if ((body.GetByteArray(ZDOVars.s_items)?.Length ?? 0) > 0) body.Set(ZDOVars.s_items, new byte[0]);
+                LastRevision(__instance) = body.DataRevision; SoulSeen[__instance.GetInstanceID()] = soul.DataRevision;
+                return true;
+            }
+        }
+        // The owner loads once when it takes over and is the truth after that (or worn gear and wear would be replaced by old copies over
+        // and over); another game loads again when the soul's copy changes.
         [HarmonyPatch(typeof(Container), "Load")]
         private static class LoadOnce
         {
@@ -42,10 +75,24 @@ namespace Jarldom
                 ZNetView v = __instance.GetComponent<ZNetView>();
                 if (v == null || !v.IsValid()) return true;
                 int id = __instance.GetInstanceID();
-                if (!v.IsOwner()) { Loaded.Remove(id); return true; }
-                if (Loaded.Add(id)) return true;
-                LastRevision(__instance) = v.GetZDO().DataRevision;
+                ZDO body = v.GetZDO(), soul = SoulStore.Of(body);
                 __result = false;
+                if (v.IsOwner()) { if (!Loaded.Add(id)) { LastRevision(__instance) = body.DataRevision; return false; } }
+                else
+                {
+                    Loaded.Remove(id);
+                    // (the body's revision moves with every step: only a change to the bag itself, on the soul or the body, is a reason)
+                    uint rev = (soul?.DataRevision ?? 0) * 31u + (uint)(body.GetByteArray(ZDOVars.s_items)?.Length ?? 0);
+                    if (__instance.IsInUse() || SoulSeen.TryGetValue(id, out uint seen) && seen == rev) return false;
+                    SoulSeen[id] = rev;
+                }
+                LastRevision(__instance) = body.DataRevision;
+                byte[] data = Saved(body, soul, out bool onBody);
+                if (data == null || data.Length == 0) return false;
+                Loading(__instance) = true;
+                try { __instance.GetInventory().Load(new ZPackage(data)); } finally { Loading(__instance) = false; }
+                if (onBody && v.IsOwner() && soul != null) ToSoul(__instance); // (an old copy on the body: over to the soul at once)
+                __result = true;
                 return false;
             }
         }

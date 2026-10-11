@@ -175,7 +175,13 @@ namespace Jarldom
                 case Activity.Sleep: return new SleepTask();
                 case Activity.Home: return new SleepTask { JustRest = Colony.Hour < 21 };
                 case Activity.Wake: return Food.CanEat(this) ? new EatTask() : (Task)new WanderTask(Colony.Position, 8, "getting up");
-                case Activity.Work: { Task work = Work.Next(this); if (work != null) { Leisure.Clean(this); return work; } return Leisure.Next(this, Gear.Problem ?? Work.WhyIdle(this)); } // (nothing to do: some sport, or the hall)
+                case Activity.Work:
+                    {
+                        Task work = Work.Next(this); if (work != null) { Leisure.Clean(this); return work; }
+                        // (nothing to do: first whatever's in the bag to the stores, a light bag being a small body to send; then some sport, or the hall)
+                        if (Time.time > NoStoreUntil && Work.Carrying(this) > 0 && Body.GetInventory().GetAllItems().Where(i => Work.Stores(this, i)).Any(i => Stock.Destination(Colony, i, Pos) != null)) return new DepositTask();
+                        return Leisure.Next(this, Gear.Problem ?? Work.WhyIdle(this));
+                    }
                 case Activity.Hall: return Work.Lamplight(this) ?? new HallTask(); // (the hauler sees to the fires and torches first)
                 case Activity.Shelter: return Leisure.Next(this, "out of the storm", indoors: true); // (games and talk under a roof)
                 case Activity.Defend: return new DefendTask();
