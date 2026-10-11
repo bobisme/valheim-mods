@@ -9,7 +9,7 @@ namespace Jarldom
     // What players ask of the colony (through the window, the hammer, the altars), carried out by the colony owner.
     internal sealed partial class Colony
     {
-        private static readonly HashSet<string> Open = new HashSet<string> { "offer", "horn", "bogpaid", "gone", "away", "log", "heraldslain", "rescue", "jarlslain", "ruin", "unruin" }; // anyone may pray or blow the horn
+        private static readonly HashSet<string> Open = new HashSet<string> { "offer", "horn", "bogpaid", "gone", "away", "log", "heraldslain", "rescue", "jarlslain", "ruin", "unruin", "thingspoke" }; // anyone may pray or blow the horn
         public bool AllowedName(string who) => string.IsNullOrEmpty(who) || R.Founder == 0 || who == R.FounderName || R.Allowed.Contains(who) || R.Allowed.Contains("*");
 
         public void Handle(string action, string arg, string who)
@@ -40,6 +40,9 @@ namespace Jarldom
                 case "offer": Faith.Received(this, Get(a, 0), Int(a, 1), Get(a, 2), who); break;
                 case "ascend": Ascension.Begin(this, a[0], who); break;
                 case "rule": Thing.Rule(this, Int(a, 0), Get(a, 1) == "yes", who); break;
+                case "thingcall": Thing.Call(this, who); break;
+                case "thingspoke": Thing.Speak(this); break;
+                case "thingend": if (Thing.Held(this)) Thing.Close(this, "adjourned by " + who); break;
                 case "dismiss": Villagers.Command(a[0], "dismiss", ""); break;
                 case "disband": Disband(who); break;
                 case "allow": if (a[0].Length > 0 && !R.Allowed.Contains(a[0])) R.Allowed.Add(a[0]); break;

@@ -276,6 +276,25 @@ Check(Petitions.Raise(new Random(1), view, 10).Any(p => p.Id == "exile" && p.Abo
 var suspicious = new ColonyView { Population = 5, Beds = 5, HasBeautyRoom = true, HasShrine = true, GuardWage = 9, Suspects = { ("Hrafn", 2), ("Oddny", 1) } };
 var accused = Petitions.Raise(new Random(1), suspicious, 10).Where(p => p.Id == "accuse").ToList();
 Check(accused.Count == 1 && accused[0].About == "Hrafn", "The Thing names one seen twice near the mischief, not one seen once");
+// The Thing's matters pile up one a day, are withdrawn when they no longer stand, and are told by one they touch.
+var standing = Petitions.Raise(new Random(1), view, 99);
+var waiting = new List<Petition>();
+for (int d = 10; d < 20; d++) { var (up, gone) = Petitions.Update(waiting, Petitions.Raise(new Random(1), view, 99), d, new Random(d)); Check(up.Count <= 1 && gone.Count == 0, "One matter a day at most"); waiting.AddRange(up); }
+Check(waiting.Count == Math.Min(standing.Count, Petitions.Most) && waiting.Select(p => p.Key).Distinct().Count() == waiting.Count, "Matters pile up, never twice");
+Check(waiting[0].Day == 10 && Petitions.Waited(waiting, 20) == 10 && Petitions.Waited(new List<Petition>(), 20) == 0, "How long the oldest has waited");
+var mended = new ColonyView { Population = 5, Troublemakers = { ("Ulf", 2, 0) }, MissedPaydays = 0, Beds = 5 };
+var (_, withdrawn) = Petitions.Update(waiting, Petitions.Raise(new Random(1), mended, 99), 21, new Random(21));
+Check(withdrawn.Any(p => p.Id == "wages") && withdrawn.Any(p => p.Id == "beds") && !withdrawn.Any(p => p.Id == "exile"), "Matters seen to are withdrawn");
+var folk = new List<(string vid, string name, string prof, bool bedless)> { ("v1", "Ulf", "Guard", false), ("v2", "Astrid", "Farmer", true), ("v3", "Odd", "Guard", false) };
+var exile = new Petition { Id = "exile", About = "Ulf" };
+for (int i = 0; i < 20; i++) Check(Petitions.Speaker(exile, folk, new Random(i)) != "v1", "The accused doesn't speak against themselves");
+Check(Petitions.Speaker(new Petition { Id = "beds" }, folk, new Random(3)) == "v2" && Petitions.Speaker(new Petition { Id = "guardpay" }, folk, new Random(3)) is "v1" or "v3", "The bedless ask for beds, a guard for the guards' pay");
+var withPets = new ColonyRecord { Id = "p1", Name = "x", FounderName = "Bob" };
+withPets.Petitions.Add(new Petition { Id = "beds", About = "", Text = "Build beds", Yes = "Promise", No = "No", YesMood = 4, NoMood = -4, By = "v2", ByName = "Astrid", Day = 7 });
+var pBack = ColonyRecord.Load(withPets.Save());
+Check(pBack.Petitions.Count == 1 && pBack.Petitions[0].ByName == "Astrid" && pBack.Petitions[0].Day == 7 && pBack.Petitions[0].NoMood == -4, "Petitions round-trip in the record");
+var oldBytes = new ColonyRecord { Id = "o1", Name = "x", FounderName = "Bob" }.Save();
+Check(ColonyRecord.Load(oldBytes.Take(oldBytes.Length - 4).ToArray()).Petitions.Count == 0, "A record from before petitions were kept loads");
 Check(Renown.TributeAsk(0, 0) == 40 && Renown.TributeAsk(80, 0) == 80 && Renown.TributeAsk(80, 1) == 120 && Renown.TributeAsk(80, 2) == 180, "The Fulings want more each time");
 Check(Renown.TributeAsk(1000, 99) > 0, "The Fulings' price never overflows");
 // Away: 40 wood in 2 worked hours is 20 an hour; two woodcutters, 48 hours away (11 of every 24 working) → 2 × 20 × 22 × 0.9.

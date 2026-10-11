@@ -17,7 +17,7 @@ namespace Jarldom
 
     public enum Rank { Camp, Homestead, Hamlet, Village, Jarldom, Hold }
 
-    public enum Activity { Sleep, Wake, Work, Shelter, Hall, Home, Defend, Flee, Idle, Follow }
+    public enum Activity { Sleep, Wake, Work, Shelter, Hall, Home, Defend, Flee, Idle, Follow, Thing }
 
     public sealed class ProfessionInfo
     {
@@ -137,6 +137,8 @@ namespace Jarldom
             M("brawl", "Got into a brawl", -6, 24),
             M("thingheard", "Heard at the Thing", 6, 48),
             M("thingignored", "Ignored at the Thing", -8, 48),
+            M("thingheld", "Had their say at the Thing", 5, 48),
+            M("unheard", "Petitions wait unheard: no Thing called", -4, 24),
             M("promisekept", "The jarl kept their word", 8, 48),
             M("promisebroken", "The jarl broke their word", -10, 72),
             M("ashdreams", "Dreams of ash", -2, 24),

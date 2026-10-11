@@ -11,14 +11,14 @@ namespace Jarldom.Ui
     // Every window of the mod, ticked and closed together.
     internal static class Windows
     {
-        public static bool AnyOpen => ColonyWindow.IsOpen || VillagerPanel.IsOpen || RoomPicker.IsOpen || RoomEditor.IsOpen || JarlView.Active;
+        public static bool AnyOpen => ColonyWindow.IsOpen || VillagerPanel.IsOpen || RoomPicker.IsOpen || RoomEditor.IsOpen || JarlView.Active || ThingPanel.IsOpen;
         public static void Tick()
         {
             GameUi.IsOpen = () => AnyOpen;
             GameUi_EscapeCloses.Close = CloseAll;
-            ColonyWindow.Tick(); VillagerPanel.Tick(); RoomPicker.Tick(); RoomEditor.Tick(); JarlView.Tick();
+            ColonyWindow.Tick(); VillagerPanel.Tick(); RoomPicker.Tick(); RoomEditor.Tick(); JarlView.Tick(); ThingPanel.Tick();
         }
-        public static void CloseAll() { if (ColonyWindow.IsOpen || VillagerPanel.IsOpen || RoomPicker.IsOpen || RoomEditor.IsOpen) { ColonyWindow.Close(); VillagerPanel.Close(); RoomPicker.Close(); RoomEditor.Close(); } else JarlView.End(); } // (Esc closes a window first, then the seat's view)
+        public static void CloseAll() { if (ThingPanel.IsOpen) { ThingPanel.Dismiss(); return; } if (ColonyWindow.IsOpen || VillagerPanel.IsOpen || RoomPicker.IsOpen || RoomEditor.IsOpen) { ColonyWindow.Close(); VillagerPanel.Close(); RoomPicker.Close(); RoomEditor.Close(); } else JarlView.End(); } // (Esc closes a window first, then the seat's view)
         public static string Pct(float f) => Mathf.RoundToInt(f * 100) + "%";
         public static string Signed(int v) => v > 0 ? "+" + v : v.ToString();
     }
@@ -141,6 +141,11 @@ namespace Jarldom.Ui
                 int fires = g.Count(Classes.Warms), lights = g.Count() - fires;
                 string what = string.Join(" and ", new[] { fires > 0 ? $"{fires} fire{(fires == 1 ? "" : "s")}" : null, lights > 0 ? $"{lights} torch{(lights == 1 ? "" : "es")}" : null }.Where(x => x != null));
                 list.Add($"{what} out: no {Localization.instance.Localize(g.First().m_fuelItem.m_itemData.m_shared.m_name).ToLower()} in the stores to feed them (the haulers keep them fed from there).");
+            }
+            if (Thing.Pending(c).Count > 0 && !Thing.Held(c))
+            {
+                int waited = Petitions.Waited(Thing.Pending(c), c.Day);
+                if (waited >= 2) list.Add($"{Thing.Pending(c).Count} matter{(Thing.Pending(c).Count == 1 ? "" : "s")} wait for the Thing, the oldest {waited} days{(waited >= Petitions.UnheardAfter ? " (they grumble: unheard)" : "")}: call it from The Thing tab and go to the hall.");
             }
             var failing = c.R.Rooms.Where(x => !x.Ok).Select(x => Tables.Of(x.Type).Name.ToLower()).ToList();
             if (failing.Count > 0) list.Add($"Rooms that don't pass ({string.Join(", ", failing)}): the Rooms tab says why.");
@@ -493,20 +498,45 @@ namespace Jarldom.Ui
         private static float ThingTab(RectTransform list)
         {
             float y = 4;
-            var petitions = Thing.Shown(_c);
-            int next = 5 - (_c.Day - _c.R.LastThing);
-            y = Text(list, petitions.Count == 0 ? $"No petitions. The Thing meets every five days at dawn (next in {Math.Max(0, next)} day{(next == 1 ? "" : "s")}, once three souls live here)." : "The Thing has met. Rule on what was asked:", y, 16, GameUi.Dim);
+            var petitions = Thing.Pending(_c);
+            y = Text(list, "The Thing is the colony's assembly. Matters are raised day by day and wait here; nothing is decided until you call the Thing. Then everyone gathers in the great hall (at the pillars before there is one), each petitioner comes before the high seat in turn and speaks, and you rule there. Matters left unheard five days sour the colony.", y, 15, GameUi.Dim);
+            float bx = 8;
+            if (Thing.Held(_c))
+            {
+                Petition cur = Thing.Current(_c);
+                string who = cur == null ? "" : cur.ByName != "" ? cur.ByName : "A voice";
+                string state = _c.R.Flag(Thing.Cur) == 0 ? "The Thing is gathering" + (_c.IsOwner ? $": {Thing.Gathered(_c, out int expected)} of {expected} here." : ".")
+                    : cur == null ? "The Thing sits." : Thing.Ready(_c) ? $"{who} has spoken. Rule on it in the hall (or here)." : $"{who} comes forward to speak.";
+                y = Text(list, state, y + 4, 18, GameUi.Good);
+                Tip(Btn(list, "Adjourn the Thing", ref bx, y, () => Net.Act(_c, "thingend", "")), "Adjourn", "End the Thing now; the matters not yet heard wait for the next one.");
+                y += 50;
+            }
+            else
+            {
+                string why = Thing.CanCall(_c);
+                Tip(Btn(list, "Call the Thing", ref bx, y + 4, () => Net.Act(_c, "thingcall", ""), why == ""), "Call the Thing", "Everyone stops what they're doing and gathers in the great hall. Go there too: each petitioner speaks before the high seat, and you rule on each matter in turn.");
+                if (why != "") GameUi.Line(list, why + ".", new Vector2(bx + 8, -y - 12), W - bx - 20, 15, GameUi.Dim);
+                y += 54;
+            }
+            if (petitions.Count == 0) y = Text(list, "No one has a matter for the Thing yet. They come up as the colony lives: beds short, wages owed, a thief, a feud.", y, 16, GameUi.Dim);
+            else y = Heading(list, $"Matters waiting ({petitions.Count})", y);
             for (int i = 0; i < petitions.Count; i++)
             {
                 Petition p = petitions[i]; int idx = i;
-                y = Text(list, "“" + p.Text + "”", y + 4, 18, GameUi.Text);
-                float bx = 8;
-                Btn(list, p.Yes, ref bx, y, () => Net.Act(_c, "rule", idx + "|yes"));
-                Btn(list, p.No, ref bx, y, () => Net.Act(_c, "rule", idx + "|no"));
-                y += 50;
+                int waited = _c.Day - p.Day;
+                y = Text(list, "“" + p.Text + "”", y + 2, 18, GameUi.Text);
+                y = Text(list, $"{(p.ByName != "" ? "Raised by " + p.ByName : "Raised")} {(waited <= 0 ? "today" : waited == 1 ? "yesterday" : waited + " days ago")}. {p.Yes}: {Effect(p.YesMood)}; {p.No.ToLower()}: {Effect(p.NoMood)}.", y - 2, 14, waited >= Petitions.UnheardAfter ? GameUi.Warn : GameUi.Dim, 24);
+                if (Thing.Ready(_c) && Thing.Current(_c) == p)
+                {
+                    float rx = 8;
+                    Btn(list, p.Yes, ref rx, y, () => Net.Act(_c, "rule", idx + "|yes"));
+                    Btn(list, p.No, ref rx, y, () => Net.Act(_c, "rule", idx + "|no"));
+                    y += 50;
+                }
             }
             return y;
         }
+        private static string Effect(int mood) => mood > 0 ? "pleases them" : mood < 0 ? "angers them" : "no one minds";
 
         private static float Gods(RectTransform list)
         {

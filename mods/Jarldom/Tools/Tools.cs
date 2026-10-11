@@ -443,7 +443,20 @@ namespace Jarldom
                 case "pay": c.Payday(c.Day); output(new JObject { ["log"] = c.R.Log.Last().Text, ["missed"] = c.R.MissedPaydays }); break;
                 case "favour": Faith.Add(c, a[2], int.Parse(a[3]), "test"); output(new JObject { ["favour"] = new JObject(c.R.Favour.Select(kv => new JProperty(kv.Key, kv.Value))), ["odin"] = Faith.Odin(c) }); break;
                 case "feast": Feast.Call(c, me?.GetPlayerName() ?? "test"); output(new JObject { ["ready"] = Feast.Ready(c, out _, out _), ["lastFeast"] = c.R.LastFeast }); break;
-                case "thing": Thing.Call(c, c.Day); output(new JObject { ["petitions"] = new JArray(Thing.Shown(c).Select(p => p.Text)) }); break;
+                case "thing":
+                    {
+                        // Test: thing (raise today's matters now) | call | end | rule <yes|no> | speak (as if the teller spoke).
+                        string sub = a.Length > 2 ? a[2] : "raise";
+                        if (sub == "raise") Thing.Dawn(c, c.Day + Thing.Pending(c).Count, force: true);
+                        else if (sub == "call") Thing.Call(c, Player.m_localPlayer?.GetPlayerName() ?? "the jarl");
+                        else if (sub == "end") Thing.Close(c, "adjourned");
+                        else if (sub == "speak") Thing.Speak(c);
+                        else if (sub == "rule") Thing.Rule(c, c.R.Flag(Thing.Cur) - 1, a.Length > 3 && a[3] == "yes", Player.m_localPlayer?.GetPlayerName() ?? "the jarl");
+                        int here = Thing.Gathered(c, out int expected);
+                        output(new JObject { ["held"] = Thing.Held(c), ["current"] = c.R.Flag(Thing.Cur), ["spoken"] = c.R.Flag(Thing.Spoken), ["gathered"] = $"{here}/{expected}", ["canCall"] = Thing.CanCall(c),
+                            ["petitions"] = new JArray(Thing.Pending(c).Select(p => $"day {p.Day} by {p.ByName}: {p.Text}")) });
+                        break;
+                    }
                 case "ascend": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } Ascension.Begin(c, b.S.Vid, me?.GetPlayerName() ?? ""); output(new JObject { ["why"] = Ascension.Why(c, b.S) }); } break;
                 case "hurt": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } float pct = a.Length > 3 ? F(a[3]) : 80; b.Body.SetHealth(b.Body.GetMaxHealth() * Mathf.Clamp01(1 - pct / 100f)); if (a.Contains("injure")) { b.S.InjuredUntil = b.Now + Clock.DayLength; Mood.Add(b.S, "injured", b.Now); b.Dirty(); } output(new JObject { ["health"] = b.Body.GetHealth(), ["injured"] = b.S.InjuredUntil > b.Now }); } break;
                 case "kill": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } var hit = new HitData(); hit.m_damage.m_damage = 99999; hit.m_point = b.Body.GetCenterPoint(); b.Body.Damage(hit); output(new JObject { ["killed"] = b.S.Name }); } break;

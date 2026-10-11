@@ -445,6 +445,65 @@ namespace Jarldom
         }
     }
 
+    // At the Thing: to the hall, a bench or a place on the floor; at their turn, before the high seat to speak their matter, and
+    // back to their place once the jarl has ruled.
+    internal sealed class ThingTask : Task
+    {
+        public bool Arrived; private Chair _chair; private Vector3 _stand; private bool _speaking, _spoke; private float _faceAt;
+        public override void Start(Brain b) => Place(b);
+        private void Place(Brain b)
+        {
+            Colony c = b.Colony; Room hall = Thing.Hall(c);
+            _chair = hall != null ? Seats.Free(b, hall, c) : null;
+            Vector3 at = Thing.Place(c);
+            _stand = _chair != null ? _chair.transform.position : Colony.Spot(at, 4f) ?? at;
+            Arrived = false; Doing = "off to the Thing";
+            b.Move.To(_stand, _chair != null ? 1.2f : 2f);
+        }
+        public override void Tick(Brain b)
+        {
+            Colony c = b.Colony;
+            Petition cur = Thing.Current(c);
+            if (!_speaking && cur != null && cur.By == b.S.Vid && c.R.Flag(Thing.Spoken) == 0)
+            {
+                _speaking = true; _spoke = false; Seats.Free(b); b.Stand(); _chair = null;
+                _stand = Thing.Floor(c); b.Move.To(_stand, 1.2f); Doing = "coming forward at the Thing";
+                return;
+            }
+            if (_speaking)
+            {
+                if (cur == null || cur.By != b.S.Vid) { _speaking = false; Place(b); return; } // (ruled on: back to their place)
+                if (!_spoke)
+                {
+                    if (b.Move.Moving && !b.Move.Failed && Utils.DistanceXZ(b.Pos, _stand) > 1.5f) return;
+                    Face(b, c);
+                    b.Say(cur.Text, 12);
+                    _spoke = true; Doing = "speaking at the Thing";
+                    if (c.IsOwner) Thing.Speak(c); else Net.Act(c, "thingspoke", "");
+                }
+                if (Time.time > _faceAt) { _faceAt = Time.time + 2f; Face(b, c); }
+                return;
+            }
+            if (!Arrived)
+            {
+                if (b.Move.Moving && !b.Move.Failed) return;
+                if (!b.Move.Failed && !b.Move.Arrived && Utils.DistanceXZ(b.Pos, _stand) > 2.5f) { b.Move.To(_stand, _chair != null ? 1.2f : 2f); return; }
+                Arrived = true; Doing = "at the Thing";
+                if (_chair != null && _chair.m_attachPoint != null) b.Sit(_chair.m_attachPoint, string.IsNullOrEmpty(_chair.m_attachAnimation) ? "attach_chair" : _chair.m_attachAnimation, Vector3.zero);
+            }
+            if (_chair == null && Time.time > _faceAt) { _faceAt = Time.time + 3f; Face(b, c); }
+            Mood.Satisfy(b.S, Need.Social, (float)(b.GameDt / Clock.Hour) * 10f);
+        }
+        // Toward the high seat, or the jarl where there's none.
+        private static void Face(Brain b, Colony c)
+        {
+            Vector3? to = Thing.HighSeat(c)?.position ?? Player.GetAllPlayers().Where(p => p != null && c.Allows(p)).OrderBy(p => Utils.DistanceXZ(p.transform.position, b.Pos)).FirstOrDefault()?.transform.position;
+            if (to == null) return;
+            Vector3 d = to.Value - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized);
+        }
+        public override void Stop(Brain b) { Seats.Free(b); base.Stop(b); }
+    }
+
     // Chairs in use by villagers (the game only sees players on them).
     internal static class Seats
     {

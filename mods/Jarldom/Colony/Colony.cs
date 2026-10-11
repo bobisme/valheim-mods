@@ -278,6 +278,7 @@ namespace Jarldom
             if (Time.time >= _nextRooms) { _nextRooms = Time.time + 20; Plugin.Guard(RoomsDue); }
             if (Time.time >= _nextScan) { _nextScan = Time.time + 8; Plugin.Guard(() => Work.Scan(this)); }
             Plugin.Guard(() => Defense.Tick(this));
+            Plugin.Guard(() => Thing.Tick(this));
         }
         // Jobs done today, for the colony window (the board's own count starts again each time it loads).
         private int _doneSeen = -1;
@@ -325,7 +326,7 @@ namespace Jarldom
             Visitors.Dawn(this, day);
             Captives.Dawn(this);
             Warband.Dawn(this, day);
-            if (day - R.LastThing >= 5 && Population >= 3) Thing.Call(this, day);
+            Thing.Dawn(this, day); // (matters raised for the Thing, which the jarl calls)
             Plugin.Guard(() => MorningWord(day));
         }
         // Hugin's word at dawn to the jarl at home: yesterday's work, and the one thing that most needs them (the hall tab has the rest).

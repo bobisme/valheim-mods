@@ -85,11 +85,53 @@ namespace Jarldom
     }
 
     // The Thing: every five days the colony's petitions, from what really happened; rulings change moods and opinions.
+    // The Thing: petitions are raised day by day and wait; the jarl calls the Thing, everyone gathers in the great hall (or at the
+    // pillars, before there is one), each petitioner in turn stands before the high seat and speaks, and the jarl rules there. Nothing
+    // is decided without it, and petitions left unheard too long sour the colony.
     internal static class Thing
     {
-        public static void Call(Colony c, int day)
+        // The meeting's state, in the record's flags (so every game sees it): on; the petition being heard (1-based, 0 while they
+        // gather); spoken (its teller has said it, the jarl may rule); when the stage began; rulings made.
+        public const string On = "thing:on", Cur = "thing:cur", Spoken = "thing:spoken", Since = "thing:since", Ruled = "thing:ruled";
+        public static bool Held(Colony c) => c?.R != null && c.R.Flag(On) == 1;
+        public static List<Petition> Pending(Colony c) { Migrate(c); return c.R.Petitions; }
+        public static Petition Current(Colony c) { int i = c.R.Flag(Cur) - 1; var l = Pending(c); return Held(c) && i >= 0 && i < l.Count ? l[i] : null; }
+        public static bool Ready(Colony c) => Current(c) != null && c.R.Flag(Spoken) == 1;
+        public static Room Hall(Colony c) => c.Best(RoomType.GreatHall);
+        public static Vector3 Place(Colony c) { Room h = Hall(c); return h != null ? c.Centre(h) : c.Position + c.Seat.transform.forward * 4f; }
+        public static bool There(Colony c, Vector3 p) { Room h = Hall(c); return h != null ? Geometry.Inside(h.Xz, p.x, p.z) && Mathf.Abs(p.y - h.Floor) < 4f : Utils.DistanceXZ(p, c.Position) < 15f; }
+        // The high seat in the hall, if there is one: petitioners stand before it.
+        public static Transform HighSeat(Colony c)
         {
-            c.R.LastThing = day;
+            Room h = Hall(c); if (h == null) return null;
+            return c.PiecesIn(c.Radius).FirstOrDefault(p => Classes.IsHighSeat(p.gameObject) && Geometry.Inside(h.Xz, p.transform.position.x, p.transform.position.z))?.transform;
+        }
+        public static Vector3 Floor(Colony c)
+        {
+            Transform seat = HighSeat(c);
+            Vector3 at = seat != null ? seat.position + seat.forward * 3f : Place(c);
+            return Colony.Spot(at, 1f) ?? at;
+        }
+
+        // (petitions once kept in the saga: moved into the record)
+        private static void Migrate(Colony c)
+        {
+            if (c.R.Flag("petitions:moved") == 1) return;
+            c.R.Flags["petitions:moved"] = 1;
+            foreach (LogEntry e in c.R.Log.Where(e => e.Kind == "petition"))
+            {
+                string[] f = e.Text.Split('\u001f');
+                int Num(int i) => f.Length > i && int.TryParse(f[i], out int v) ? v : 0;
+                if (c.R.Petitions.Any(p => p.Id == e.A && p.About == e.B)) continue;
+                c.R.Petitions.Add(new Petition { Id = e.A, About = e.B, Text = f.Length > 0 ? f[0] : "", Yes = f.Length > 1 ? f[1] : "Yes", No = f.Length > 2 ? f[2] : "No", YesMood = Num(3), NoMood = Num(4), YesFavour = Num(5), YesDeed = f.Length > 6 ? f[6] : "", Day = e.Day });
+            }
+            c.R.Log.RemoveAll(e => e.Kind == "petition");
+            c.MarkDirty();
+        }
+
+        // What the colony would ask for now.
+        private static List<Petition> Standing(Colony c, int day)
+        {
             var view = new ColonyView
             {
                 Population = c.Population, HasBeautyRoom = c.R.Rooms.Any(r => r.Ok && r.Type == RoomType.GreatHall && Tables.GradeRank(r.Grade) >= 2),
@@ -103,40 +145,112 @@ namespace Jarldom
             }
             foreach (var feud in Villagers.All.Where(b => b.S.Colony == c.Id).SelectMany(b => b.S.Bonds.Where(kv => kv.Value < -50).Select(kv => (b.S.Name, Villagers.ByVid(kv.Key)?.S.Name))).Where(f => f.Item2 != null && string.CompareOrdinal(f.Item1, f.Item2) < 0).Distinct())
                 view.Feuds.Add((feud.Item1, feud.Item2));
-            var list = Petitions.Raise(new System.Random(c.Id.GetStableHashCode() ^ day), view);
-            ByColony[c.Id] = list.ToList();
-            c.Log("thing", "", list.Count == 0 ? "nobody spoke" : $"{list.Count} petition{(list.Count == 1 ? "" : "s")}");
-            if (list.Count > 0) c.Tell($"The Thing meets: {list.Count} petition{(list.Count == 1 ? "" : "s")} wait at the high seat.", true);
-            c.R.Flags["thingday"] = day;
-            Save(c);
+            return Petitions.Raise(new System.Random(c.Id.GetStableHashCode() ^ day), view, int.MaxValue);
         }
-        private static readonly Dictionary<string, List<Petition>> ByColony = new Dictionary<string, List<Petition>>();
-        public static List<Petition> Pending(Colony c)
+
+        // Each dawn: matters raised and withdrawn; and if the oldest has waited too long, the colony grumbles.
+        public static void Dawn(Colony c, int day, bool force = false)
         {
-            var l = Load(c); ByColony[c.Id] = l; // always from the record (ownership may have moved since)
-            return l;
+            var pending = Pending(c);
+            if (c.Population < 3 && !force) return;
+            if (Held(c)) return; // (not while it sits)
+            var rng = new System.Random(c.Id.GetStableHashCode() ^ day * 31);
+            var (raised, withdrawn) = Petitions.Update(pending, Standing(c, day), day, rng);
+            foreach (Petition p in withdrawn) pending.Remove(p);
+            var people = Villagers.All.Where(b => b.S.Colony == c.Id && b.Alive).Select(b => (b.S.Vid, b.S.Name, b.S.Prof.ToString(), string.IsNullOrEmpty(b.S.Bed))).ToList();
+            foreach (Petition p in raised)
+            {
+                p.By = Petitions.Speaker(p, people, rng);
+                p.ByName = Villagers.ByVid(p.By)?.S.Name ?? "";
+                pending.Add(p);
+                c.Log("text", p.ByName, "", $"{(p.ByName != "" ? p.ByName : "Someone")} has a matter for the Thing: “{p.Text}”");
+            }
+            if (raised.Count > 0 || withdrawn.Count > 0) c.MarkDirty();
+            if (pending.Count > 0 && Petitions.Waited(pending, day) >= Petitions.UnheardAfter)
+                foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) { Mood.Add(b.S, "unheard", b.Now); b.Dirty(); }
         }
-        // Kept in the record's log as one text line per petition (so other games see them too).
-        private const string Kind = "petition";
-        private static void Save(Colony c)
+
+        // The jarl calls it: everyone to the hall.
+        public static string CanCall(Colony c)
         {
-            var keep = ByColony.TryGetValue(c.Id, out var l) ? l : new List<Petition>();
-            c.R.Log.RemoveAll(e => e.Kind == Kind);
-            foreach (Petition p in keep) c.R.Add(new LogEntry(c.Now, c.Day, Kind, p.Id, p.About, string.Join("\u001f", p.Text, p.Yes, p.No, p.YesMood, p.NoMood, p.YesFavour, p.YesDeed)));
-            c.MarkDirty();
+            if (Held(c)) return "the Thing is sitting";
+            if (Pending(c).Count == 0) return "no one has a matter for the Thing yet";
+            if (c.RaidOn) return "not while there's a raid";
+            double h = c.Hour;
+            if (h < Schedule.WakeAt || h >= Schedule.SleepAt) return "the folk are abed: call it by day or in the evening";
+            return "";
         }
-        private static List<Petition> Load(Colony c) => c.R.Log.Where(e => e.Kind == Kind).Select(e =>
+        public static void Call(Colony c, string who)
         {
-            string[] f = e.Text.Split('\u001f');
-            int Num(int i) => f.Length > i && int.TryParse(f[i], out int v) ? v : 0;
-            return new Petition { Id = e.A, About = e.B, Text = f.Length > 0 ? f[0] : "", Yes = f.Length > 1 ? f[1] : "Yes", No = f.Length > 2 ? f[2] : "No", YesMood = Num(3), NoMood = Num(4), YesFavour = Num(5), YesDeed = f.Length > 6 ? f[6] : "" };
-        }).ToList();
-        public static List<Petition> Shown(Colony c) => Load(c);
+            string why = CanCall(c);
+            if (why != "") { c.Tell("No Thing: " + why + "."); return; }
+            c.R.Flags[On] = 1; c.R.Flags[Cur] = 0; c.R.Flags[Spoken] = 0; c.R.Flags[Ruled] = 0; c.R.Flags[Since] = (int)c.Now;
+            c.Tell($"{who} calls the Thing! Everyone to {(Hall(c) != null ? "the great hall" : "the pillars")}.", true);
+            c.Log("text", who, "", $"{who} called the Thing: {Pending(c).Count} matter{(Pending(c).Count == 1 ? "" : "s")} to hear.");
+            c.MarkDirty(); c.Flush();
+        }
+        // Who should come: those at home and on their feet (not away, abed wounded, or out with the jarl).
+        public static bool Comes(Brain b) => b.Alive && b.S.InjuredUntil <= b.Now && Follow.LeaderId(b) == 0;
+        public static int Gathered(Colony c, out int expected)
+        {
+            var folk = Villagers.All.Where(b => b.S.Colony == c.Id && Comes(b)).ToList();
+            expected = folk.Count;
+            return folk.Count(b => b.Task is ThingTask t && t.Arrived);
+        }
+
+        // On the owner, every second while it sits: gathering, then each matter heard in turn.
+        public static void Tick(Colony c)
+        {
+            if (!Held(c)) return;
+            double real = c.Now - c.R.Flag(Since); // (the stage's age: the world's seconds are the real ones, whatever the day length)
+            if (c.RaidOn) { Close(c, "adjourned: a raid"); return; }
+            // (no one who may rule anywhere near for a minute: adjourned)
+            if (Player.GetAllPlayers().Any(p => p != null && c.Allows(p) && Utils.DistanceXZ(p.transform.position, Place(c)) < c.Radius + 30)) JarlSeen[c.Id] = Time.time;
+            else if (!JarlSeen.TryGetValue(c.Id, out float seen)) JarlSeen[c.Id] = Time.time;
+            else if (Time.time - seen > 60) { Close(c, "adjourned: the jarl went away"); return; }
+            if (Pending(c).Count == 0) { Close(c, ""); return; }
+            if (c.R.Flag(Cur) == 0)
+            {
+                int here = Gathered(c, out int expected);
+                if (here >= Math.Ceiling(expected * 0.75) || real > 60) Next(c);
+                return;
+            }
+            if (Current(c) == null) { Next(c); return; }
+            if (c.R.Flag(Spoken) == 0 && real > 30) { Speak(c); return; } // (the teller couldn't come forward: it's read out)
+            if (c.R.Flag(Spoken) == 1 && real > 240) Close(c, "adjourned: the jarl gave no ruling");
+        }
+        private static void Next(Colony c)
+        {
+            if (Pending(c).Count == 0) { Close(c, ""); return; }
+            c.R.Flags[Cur] = 1; c.R.Flags[Spoken] = 0; c.R.Flags[Since] = (int)c.Now;
+            c.MarkDirty(); c.Flush();
+        }
+        // The teller has said it (or it was read out): the jarl may rule.
+        public static void Speak(Colony c)
+        {
+            Petition p = Current(c); if (p == null || c.R.Flag(Spoken) == 1) return;
+            c.R.Flags[Spoken] = 1; c.R.Flags[Since] = (int)c.Now;
+            c.Tell($"{(p.ByName != "" ? p.ByName : "A voice")} speaks before the Thing: “{p.Text}”", true);
+            c.MarkDirty(); c.Flush();
+        }
+        public static void Close(Colony c, string why)
+        {
+            int ruled = c.R.Flag(Ruled);
+            foreach (string k in new[] { On, Cur, Spoken, Since, Ruled }) c.R.Flags.Remove(k);
+            JarlSeen.Remove(c.Id);
+            c.R.LastThing = c.Day;
+            if (ruled > 0)
+                foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id && b.Task is ThingTask t && t.Arrived)) { Mood.Add(b.S, "thingheld", b.Now); b.Dirty(); }
+            c.Log("thing", "", $"{ruled} ruling{(ruled == 1 ? "" : "s")}{(why != "" ? ", " + why : "")}");
+            int left = Pending(c).Count;
+            c.Tell(why == "" ? "The Thing is over." : $"The Thing is {why}.{(left > 0 ? $" {left} matter{(left == 1 ? "" : "s")} still wait." : "")}", true);
+            c.MarkDirty(); c.Flush();
+        }
+
         public static void Rule(Colony c, int index, bool yes, string who)
         {
             var list = Pending(c);
-            if (index < 0 || index >= list.Count) return;
-            ByColony[c.Id] = list;
+            if (!Held(c) || index != c.R.Flag(Cur) - 1 || index < 0 || index >= list.Count || c.R.Flag(Spoken) != 1) return; // (only at the Thing, on the matter being heard)
             Petition p = list[index];
             list.RemoveAt(index);
             int mood = yes ? p.YesMood : p.NoMood;
@@ -153,9 +267,28 @@ namespace Jarldom
             if (yes && p.Id == "accuse") Saboteur.CastOut(c, p.About, who);
             if (yes && Promises.Contains(p.Id)) c.R.Flags["promise:" + p.Id] = c.Day + 5; // to be kept within five days
             c.Log("text", who, "", $"At the Thing, {who} said {(yes ? p.Yes.ToLower() : p.No.ToLower())}: \"{p.Text}\"");
-            Save(c);
+            React(c, p, mood);
+            c.R.Flags[Ruled] = c.R.Flag(Ruled) + 1;
+            c.R.Flags[Spoken] = 0; c.R.Flags[Since] = (int)c.Now; // (the next matter, at the same place in the list)
+            if (list.Count == 0) Close(c, "");
+            c.MarkDirty();
         }
-        public static void Forget() => ByColony.Clear();
+        // The crowd's answer to a ruling: a cheer, or a grumble; the teller's word.
+        private static readonly string[] Cheers = { "Hail!", "Well judged!", "Hear, hear!", "The jarl is wise.", "So it shall be!" };
+        private static readonly string[] Grumbles = { "Hmph.", "That's no answer.", "We'll remember this.", "Unfair!", "Shame..." };
+        private static void React(Colony c, Petition p, int mood)
+        {
+            var rng = new System.Random();
+            foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id && b.Task is ThingTask t && t.Arrived))
+            {
+                if (rng.NextDouble() < 0.4) b.Say(mood >= 0 ? Cheers[rng.Next(Cheers.Length)] : Grumbles[rng.Next(Grumbles.Length)], 4);
+                if (mood >= 0 && rng.NextDouble() < 0.5) Body_.Anim(b.Body)?.SetTrigger("emote_cheer");
+            }
+            Brain teller = Villagers.ByVid(p.By);
+            teller?.Say(mood >= 0 ? "Thank you, jarl." : "...As the jarl wills.", 5);
+        }
+        private static readonly Dictionary<string, float> JarlSeen = new Dictionary<string, float>();
+        public static void Forget() => JarlSeen.Clear();
 
         // Promises made at the Thing, checked each dawn: kept is remembered well, broken (five days gone) badly.
         private static readonly string[] Promises = { "beauty", "shrine", "beds", "food", "wages" };

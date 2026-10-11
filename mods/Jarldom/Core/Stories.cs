@@ -85,7 +85,7 @@ namespace Jarldom
                 case "sworn": return $"{e.A} and {e.B} swore brotherhood.";
                 case "desert": return $"{e.A} deserted in the night.";
                 case "exile": return $"{e.A} was exiled by the Thing.";
-                case "thing": return $"The Thing met{(string.IsNullOrEmpty(e.B) ? "" : ": " + e.B)}.";
+                case "thing": return $"The Thing was held{(string.IsNullOrEmpty(e.B) ? "" : ": " + e.B)}.";
                 case "tribute": return $"The Fulings were paid {e.B} coins to go away.";
                 case "worthy": return $"{e.A} was found worthy of Valhalla.";
                 case "injured": return $"{e.A} was wounded.";
@@ -145,6 +145,8 @@ namespace Jarldom
     public sealed class Petition
     {
         public string Id, Text, Yes, No; public string About = ""; public int YesMood, NoMood, YesFavour; public string YesDeed = "";
+        public string By = "", ByName = ""; public int Day; // who raised it (vid, name), and when
+        public string Key => Id + "|" + About;
     }
 
     public sealed class ColonyView
@@ -172,6 +174,34 @@ namespace Jarldom
                 all.Add(new Petition { Id = "accuse", About = s.name, Text = $"{s.name} has been seen near the mischief {s.seen} times. Cast them out?", Yes = "Cast them out", No = "Let it be", YesMood = 2, NoMood = -2 });
             if (c.Beds < c.Population) all.Add(new Petition { Id = "beds", Text = "Build beds: some of us sleep on the hall floor.", Yes = "Promise beds", No = "Sleep by the fire", YesMood = 4, NoMood = -4 });
             return all.OrderBy(_ => rng.Next()).Take(max).ToList();
+        }
+        public const int Most = 6, UnheardAfter = 5;
+        // The day's change to what waits for the Thing: what no longer stands is withdrawn (the beds were built, the thief is gone),
+        // and at most one new matter is raised a day, up to Most waiting.
+        public static (List<Petition> raised, List<Petition> withdrawn) Update(List<Petition> pending, List<Petition> standing, int day, Random rng)
+        {
+            var keys = new HashSet<string>(standing.Select(p => p.Key));
+            var withdrawn = pending.Where(p => !keys.Contains(p.Key)).ToList();
+            var raised = new List<Petition>();
+            var waiting = new HashSet<string>(pending.Select(p => p.Key));
+            if (pending.Count - withdrawn.Count < Most)
+            {
+                Petition fresh = standing.Where(p => !waiting.Contains(p.Key)).OrderBy(_ => rng.Next()).FirstOrDefault();
+                if (fresh != null) { fresh.Day = day; raised.Add(fresh); }
+            }
+            return (raised, withdrawn);
+        }
+        // Days the oldest petition has waited unheard.
+        public static int Waited(IEnumerable<Petition> pending, int day) => pending.Select(p => day - p.Day).DefaultIfEmpty(0).Max();
+        // A petition's teller: one it touches first (a guard for the guards' pay, one without a bed for beds), else anyone; never the
+        // one it accuses.
+        public static string Speaker(Petition p, IList<(string vid, string name, string prof, bool bedless)> people, Random rng)
+        {
+            var can = people.Where(x => !p.About.Split('|').Contains(x.name)).ToList();
+            if (can.Count == 0) return "";
+            var first = p.Id == "guardpay" ? can.Where(x => x.prof == "Guard").ToList() : p.Id == "beds" ? can.Where(x => x.bedless).ToList() : new List<(string vid, string name, string prof, bool bedless)>();
+            var from = first.Count > 0 ? first : can;
+            return from[rng.Next(from.Count)].vid;
         }
     }
 }

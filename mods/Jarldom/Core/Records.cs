@@ -70,6 +70,7 @@ namespace Jarldom
         public int LastDawn = -1, LastDusk = -1, LastFeast = -100, LastPayday = -1, MissedPaydays, LastThing = -1, BogPaid, GuaranteedArrival;
         public List<string> Allowed = new List<string>();        // players (by name) the founder lets run the colony
         public Dictionary<string, int> Flags = new Dictionary<string, int>(); // small counters and switches
+        public List<Petition> Petitions = new List<Petition>(); // raised day by day, waiting for the Thing
 
         public int LogChanges; // (not saved: counts this session's additions, so a change is never missed)
         public void Add(LogEntry e)
@@ -124,6 +125,8 @@ namespace Jarldom
             w.Int(Flags.Count); foreach (var kv in Flags) { w.Str(kv.Key); w.Int(kv.Value); }
             w.Int(Fallen.Count);
             foreach (var f in Fallen) { w.Str(f.Vid); w.Blob(f.State); w.Blob(f.Gear); w.Dbl(f.At); w.Flt(f.X); w.Flt(f.Y); w.Flt(f.Z); w.Str(f.Killer); }
+            w.Int(Petitions.Count);
+            foreach (var p in Petitions) { w.Str(p.Id); w.Str(p.About); w.Str(p.Text); w.Str(p.Yes); w.Str(p.No); w.Int(p.YesMood); w.Int(p.NoMood); w.Int(p.YesFavour); w.Str(p.YesDeed); w.Str(p.By); w.Str(p.ByName); w.Int(p.Day); }
             return w.Bytes();
         }
 
@@ -178,6 +181,9 @@ namespace Jarldom
             for (int i = r.Int(); i > 0; i--) c.Flags[r.Str()] = r.Int();
             for (int i = r.Int(); i > 0; i--)
                 c.Fallen.Add(new Fallen { Vid = r.Str(), State = r.Blob(), Gear = r.Blob(), At = r.Dbl(), X = r.Flt(), Y = r.Flt(), Z = r.Flt(), Killer = r.Str() });
+            if (r.More)
+                for (int i = r.Int(); i > 0; i--)
+                    c.Petitions.Add(new Petition { Id = r.Str(), About = r.Str(), Text = r.Str(), Yes = r.Str(), No = r.Str(), YesMood = r.Int(), NoMood = r.Int(), YesFavour = r.Int(), YesDeed = r.Str(), By = r.Str(), ByName = r.Str(), Day = r.Int() });
             return c;
         }
     }
@@ -281,5 +287,6 @@ namespace Jarldom
         public List<string> Strs() { var l = new List<string>(); for (int i = Int(); i > 0; i--) l.Add(Str()); return l; }
         public List<float> Floats() { var l = new List<float>(); for (int i = Int(); i > 0; i--) l.Add(Flt()); return l; }
         public byte[] Blob() { int n = Int(); return _r.ReadBytes(n); }
+        public bool More => _r.BaseStream.Position < _r.BaseStream.Length; // (a field added later: absent from an older record)
     }
 }

@@ -219,6 +219,9 @@ namespace Jarldom
             string moodWord = mood >= 50 ? "<color=#99e08c>content</color>" : mood >= 10 ? "fine" : mood > -30 ? "<color=#ffd27a>unhappy</color>" : "<color=#ff8c59>miserable</color>";
             long leader = z.GetLong(Follow.Key, 0L);
             string with = leader != 0 && Player.m_localPlayer != null && leader == Player.m_localPlayer.GetPlayerID() ? " · <color=#99e08c>with you</color>" : "";
+            string vid = z.GetString(VidKey, "");
+            if (vid != "" && Colony.All.Any(x => x.Valid && Thing.Ready(x) && Thing.Current(x).By == vid)) // (speaking at the Thing)
+                return Localization.instance.Localize($"{DisplayName(c)}\n<size=80%>has spoken before the Thing</size>\n[<color=yellow><b>$KEY_Use</b></color>] Give your ruling");
             return Localization.instance.Localize($"{DisplayName(c)}\n<size=80%>{doing} ({moodWord}){with}</size>\n[<color=yellow><b>$KEY_Use</b></color>] Talk   [<color=yellow><b>$KEY_AltPlace + $KEY_Use</b></color>] Bag   <size=80%>(a hotbar key hands them food)</size>");
         }
         public static bool Feed(Humanoid h, Humanoid giver, ItemDrop.ItemData item)

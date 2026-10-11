@@ -150,6 +150,7 @@ namespace Jarldom
         {
             if (Follow.Check(this)) return Activity.Follow; // (out with the jarl: a raid at home is the guards' to meet)
             if (Colony.RaidOn || Colony.HornUntil > Time.time) return Activity.Defend;
+            if (Thing.Held(Colony) && Thing.Comes(this)) return Activity.Thing; // (everyone to the Thing)
             if (Body.GetHealthPercentage() < 0.1f || S.InjuredUntil > Now) return S.Needs[(int)Need.Food] < Mood.EatBelow && Time.time > NoFoodUntil && Food.CanEat(this) ? Activity.Wake : Activity.Home;
             Activity a = Schedule.At(Colony.Hour, S.Traits, heavyRain: Storm(), outdoorTask: true, urgent: false);
             if (a == Activity.Work || a == Activity.Wake) { if (S.Needs[(int)Need.Food] < Mood.EatBelow && Time.time > NoFoodUntil && Food.CanEat(this)) return Activity.Wake; }
@@ -177,6 +178,7 @@ namespace Jarldom
                 case Activity.Shelter: return Leisure.Next(this, "out of the storm", indoors: true); // (games and talk under a roof)
                 case Activity.Defend: return new DefendTask();
                 case Activity.Follow: return new FollowTask();
+                case Activity.Thing: return new ThingTask();
                 default: return new WanderTask(Colony.Position, 10, "idle");
             }
         }
