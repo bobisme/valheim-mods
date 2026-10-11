@@ -13,7 +13,7 @@ namespace LocalPortals
     {
         public const string Guid="com.bobisme.localportals";
         public const string Name="Looking-Glass Portals";
-        public const string Version="0.2.0";
+        public const string Version="0.2.1";
         internal static Plugin Instance;
         internal static ConfigEntry<int> MaxViews;
         internal static ConfigEntry<float> Resolution;

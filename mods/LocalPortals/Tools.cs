@@ -203,6 +203,15 @@ namespace LocalPortals
                         ["viewExit"]=$"view world {cam.x:F2} {cam.y:F2} {cam.z:F2} {yaw:F1} 12",["viewBehindEntry"]=$"view world {cam2.x:F2} {cam2.y:F2} {cam2.z:F2} {yaw2:F1} 12"});
                     break;
                 }
+                case "icon":
+                {
+                    // Saves the build menu picture (as drawn when the piece was made) to a file, to look at.
+                    if(Icon.Last==null){error("lportal icon: no picture was drawn");break;}
+                    string file=System.IO.Path.Combine(BepInEx.Paths.BepInExRootPath,"claude","shots","lportal-icon.png");
+                    System.IO.File.WriteAllBytes(file,ImageConversion.EncodeToPNG(Icon.Last));
+                    output(new JObject{["saved"]=file,["menuIcon"]=PortalPrefab.Prefab?.GetComponent<Piece>()?.m_icon?.name});
+                    break;
+                }
                 case "range":
                 {
                     // The link distance for this session only (tests); no number: back to the setting.

@@ -45,6 +45,8 @@ namespace LocalPortals
             piece.m_resources=new[]{Requirement(scene,"FineWood",10),Requirement(scene,"GreydwarfEye",6),Requirement(scene,"SurtlingCore",1)}.Where(r=>r!=null).ToArray();
 
             Model(go.transform,scene,vanilla);
+            try{Sprite icon=Icon.Draw(go);if(icon!=null)piece.m_icon=icon;} // (or the game's portal's picture stays)
+            catch(System.Exception e){Debug.LogWarning("[LocalPortals] Could not draw the build menu picture: "+e.Message);}
             var wear=go.GetComponent<WearNTear>();
             if(wear!=null)wear.m_materialType=WearNTear.MaterialType.Wood;
             go.AddComponent<LocalPortal>();
