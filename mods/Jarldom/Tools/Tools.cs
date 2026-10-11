@@ -235,7 +235,7 @@ namespace Jarldom
                 output(new JObject { ["relic"] = lines[1] });
                 return;
             }
-            if (c == null && cmd != "place" && cmd != "put" && cmd != "claims" && cmd != "find" && cmd != "compat" && cmd != "status") { error("no colony near (jarldom place pillars makes one)"); return; }
+            if (c == null && cmd != "place" && cmd != "put" && cmd != "claims" && cmd != "find" && cmd != "profile" && cmd != "compat" && cmd != "status") { error("no colony near (jarldom place pillars makes one)"); return; }
             Player me = Player.m_localPlayer;
             switch (cmd)
             {
@@ -847,6 +847,16 @@ namespace Jarldom
                             output(new JObject { ["found"] = hits });
                         }
                         else error("find location <name> | find biome <Biome>");
+                        break;
+                    }
+                case "profile":
+                    {
+                        // Test: Jarldom's entries in the local profile's known world keys (and prune them).
+                        PlayerProfile pr = Game.instance?.GetPlayerProfile();
+                        int had = pr?.m_playerStats?.Sum(st => st.m_knownWorldKeys.Keys.Count(k => k.StartsWith(ProfileKeys.Prefix))) ?? -1;
+                        int total = pr?.m_playerStats?.Sum(st => st.m_knownWorldKeys.Count) ?? -1;
+                        int gone = a.Length > 2 && a[2] == "prune" ? ProfileKeys.Prune(pr) : 0;
+                        output(new JObject { ["jarldomEntries"] = had, ["allEntries"] = total, ["pruned"] = gone });
                         break;
                     }
                 case "fallen": output(new JObject { ["now"] = c.Now, ["respawn"] = Plugin.Instance.RespawnSeconds.Value, ["fallen"] = new JArray(c.R.Fallen.Select(f => $"{c.R.Row(f.Vid)?.Name ?? f.Vid}: {f.Killer}, back in {f.At + Plugin.Instance.RespawnSeconds.Value - c.Now:0} s")) }); break;
