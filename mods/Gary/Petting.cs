@@ -60,7 +60,7 @@ namespace Gary
             if(c==null||p==null||!Companion.Is(c)||!c.GetComponent<ZNetView>().IsOwner())return;
             ZDO z=Companion.Data(c);
             if(!Policy.CanPet(Companion.Owner(c)==p,Vector3.Distance(c.transform.position,p.transform.position),!p.IsDead()&&p.GetHealth()>0,z.GetBool(Companion.Retreating,false))||
-                (Companion.Now-z.GetLong("bob_gary_last_pet",0))/(double)TimeSpan.TicksPerSecond<3||Brain.ThreatFor(c,p)!=null)return;
+                (Companion.Now-z.GetLong("bob_gary_last_pet",0))/(double)TimeSpan.TicksPerSecond<3.5||Brain.ThreatFor(c,p)!=null)return;
             Companion.State st=Companion.Get(c);
             Activities.Cancel(st);
             if(Personality.Mood(st,Personality.Pet,"*happy forest noises*"))z.Set("bob_gary_last_pet",Companion.Now);

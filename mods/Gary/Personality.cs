@@ -8,7 +8,7 @@ namespace Gary
     internal static class Personality
     {
         internal const int Pet=1,Greeting=2,Victory=3,Warning=4,Cozy=5;
-        private const string MoodAt="bob_gary_mood_at",MoodKind="bob_gary_mood_kind",VibeUntil="bob_gary_vibe_until";
+        internal const string MoodAt="bob_gary_mood_at",MoodKind="bob_gary_mood_kind";private const string VibeUntil="bob_gary_vibe_until";
         private static readonly Action<BaseAI,Vector3> Look=AccessTools.MethodDelegate<Action<BaseAI,Vector3>>(AccessTools.Method(typeof(BaseAI),"LookAt"));
         internal static readonly Action<Humanoid,GameObject> Pat=AccessTools.MethodDelegate<Action<Humanoid,GameObject>>(AccessTools.Method(typeof(Humanoid),"DoInteractAnimation"));
         private static readonly AccessTools.FieldRef<Player,GameObject> Ghost=AccessTools.FieldRefAccess<Player,GameObject>("m_placementGhost");
@@ -20,7 +20,6 @@ namespace Gary
             ZDO z=Companion.Data(st.Body);
             if(!Policy.MoodDue((Companion.Now-z.GetLong(MoodAt,0))/(double)TimeSpan.TicksPerSecond))return false;
             z.Set(MoodKind,kind);z.Set(MoodAt,Companion.Now);
-            z.Set(VibeUntil,kind==Warning?0L:Companion.Now+TimeSpan.TicksPerSecond*2);
             if(message!=null&&Companion.Owner(st.Body)==Player.m_localPlayer)Plugin.Tell(message);
             return true;
         }
@@ -41,7 +40,8 @@ namespace Gary
         {
             if(ZNet.instance!=null&&ZNet.instance.IsDedicated())return;
             ZDO z=Companion.Data(st.Body);long now=Companion.Now,at=z.GetLong(MoodAt,0),until=z.GetLong(VibeUntil,0);
-            Vibe(st,z.GetLong(Activities.PoseUntil,0)<=now&&until>now&&until-now<=TimeSpan.TicksPerSecond*3&&!z.GetBool(Companion.Retreating,false)&&!st.Body.InAttack()&&st.Body.GetVelocity().sqrMagnitude<0.1f);
+            // The greydwarf's own "vibing" sits on a seat that isn't there (he sat in mid-air): never used now. A pet gets a dance instead.
+            if(until!=0)Vibe(st,false);
             if(at!=st.SeenMood)
             {
                 st.SeenMood=at;

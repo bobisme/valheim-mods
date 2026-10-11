@@ -26,7 +26,7 @@ namespace Gary
         private sealed class View
         {
             internal Character Gary;internal GameObject Crown,Pouch,Feather,Nest,Find;
-            internal ZDOID Home;internal int FindKind=-1;
+            internal ZDOID Home;internal int FindKind=-1;internal float DanceGate;
             internal LODGroup Lod;internal readonly List<Renderer> LodRenderers=new List<Renderer>();
             internal readonly List<Mesh> Meshes=new List<Mesh>();
             internal readonly Dictionary<string,Bone> Bones=new Dictionary<string,Bone>();
@@ -168,6 +168,7 @@ namespace Gary
             return Quaternion.Inverse(c.transform.rotation)*bone.rotation;
         }
         internal static void PlaceCrowns(){foreach(View v in Views.Values)if(v.Crown!=null&&v.Gary!=null&&v.Crown.transform.parent!=null)Place(v.Crown.transform,v.Gary,Rest(v.Gary,v.Crown.transform.parent),CrownAt,CrownTilt,CrownSize);}
+        internal static float DanceWeight(Character c)=>c!=null&&Views.TryGetValue(c,out View v)?v.DanceGate:-1;
         internal static Transform HeadBone(Character c)=>c!=null&&Views.TryGetValue(c,out View v)?BoneOf(v,"head"):null;
         internal static GameObject CrownOf(Character c)=>c!=null&&Views.TryGetValue(c,out View v)?v.Crown:null;
         private static Transform BoneOf(View v,string name)=>v.Bones.TryGetValue(name,out Bone bone)?bone.Transform:null;
@@ -257,7 +258,9 @@ namespace Gary
                 v.Crown.SetActive(Plugin.Instance.FlowerCrown.Value);v.Pouch.SetActive(Plugin.Instance.ForestPouch.Value);v.Feather.SetActive(Plugin.Instance.EarFeather.Value);
                 Nest(v,z);
                 int kind=z.GetLong(Activities.PoseUntil,0)>Companion.Now?z.GetInt(Activities.PoseKey,0):0;
-                if(z.GetBool(Companion.Retreating,false)||c.InAttack()||(!BoatRide.IsRiding(c)&&c.GetVelocity().sqrMagnitude>1))kind=0;
+                bool busy=z.GetBool(Companion.Retreating,false)||c.InAttack()||(!BoatRide.IsRiding(c)&&c.GetVelocity().sqrMagnitude>1);
+                if(busy)kind=0;
+                if(Dance(v,z,kind==0&&!busy))kind=0;
                 float t=(float)((Companion.Now-z.GetLong(Activities.PoseAt,0))/(double)TimeSpan.TicksPerSecond),wiggle=Mathf.Sin(t*9);
                 switch(kind)
                 {
@@ -276,6 +279,25 @@ namespace Gary
                 }
                 Find(v,z,kind==Activities.Show);
             }
+        }
+        // Petted, he dances (the clip made in Blender), from when the pet was (shared on his data, so everyone sees it at once),
+        // fading in and out over the animator's pose, and out early if he has to move or fight.
+        private static bool Dance(View v,ZDO z,bool free)
+        {
+            Clip clip=z.GetInt(Personality.MoodKind,0)==Personality.Pet?Clip.Get("pet_dance"):null;
+            float t=clip==null?-1:(float)((Companion.Now-z.GetLong(Personality.MoodAt,0))/(double)TimeSpan.TicksPerSecond);
+            bool on=clip!=null&&t>=0&&t<clip.Length;
+            v.DanceGate=Mathf.MoveTowards(v.DanceGate,on&&free?1:0,Time.deltaTime/0.2f);
+            if(!on||v.DanceGate<=0)return false;
+            float weight=Mathf.Min(v.DanceGate,Mathf.SmoothStep(0,1,t/0.25f),Mathf.SmoothStep(0,1,(clip.Length-t)/0.4f));
+            for(int i=0;i<clip.Bones.Length;i++)
+            {
+                if(!v.Bones.TryGetValue(clip.Bones[i],out Bone bone)||bone.Transform==null)continue;
+                Quaternion now=bone.Transform.localRotation,want=Quaternion.Slerp(now,clip.Rotation(i,t),weight);
+                Vector3 shift=clip.Bones[i]=="root"?(clip.Root(t)-bone.Transform.localPosition)*weight:Vector3.zero;
+                bone.Rotate(Quaternion.Inverse(now)*want,shift);
+            }
+            return true;
         }
         private static void Release(Character c)
         {

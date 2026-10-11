@@ -693,8 +693,8 @@ he can toss you one as a normal ground item. At most two pockets hold feathers, 
 skips protected plants and plants close to players, and leaves bushes/mushrooms on their normal regrowth timers. In multiplayer,
 he gathers only plants owned by his current simulator; other players' harvests never become his food.
 
-Look at Gary and press your normal **Use key (E)** to pet him: a friendly pat, quiet forest chirp, purple sparkles, and a short happy
-dance. Petting has no stat bonus. He greets you after returning from a dungeon/absence and celebrates foes he fought and your nearby victories over huge enemies.
+Look at Gary and press your normal **Use key (E)** to pet him: a friendly pat, quiet forest chirp, purple sparkles, and a little
+three-second dance (a side-to-side shuffle waving one arm then the other, a hop and a ta-da), hand-keyed in Blender. Petting has no stat bonus. He greets you after returning from a dungeon/absence and celebrates foes he fought and your nearby victories over huge enemies.
 Occasionally, he chirps and looks toward a nearby **visible** danger, sounding nervous around huge creatures. He still starts combat
 only after an enemy hurts you or him.
 
