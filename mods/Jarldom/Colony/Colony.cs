@@ -170,7 +170,7 @@ namespace Jarldom
             double now = Now; int day = Day; double hour = Hour;
             if (R.Founder == 0) Founder(); // the piece's creator is set just after it wakes
             Board.Expire(now); Board.Prune(now);
-            if (Time.time >= _nextRoster) { _nextRoster = Time.time + 5; Roster(); Plugin.Guard(() => Captives.Owner(this)); Plugin.Guard(() => Warband.Owner(this)); Plugin.Guard(() => Carts.Unload(this)); }
+            if (Time.time >= _nextRoster) { _nextRoster = Time.time + 5; Roster(); CountDone(); Plugin.Guard(() => Captives.Owner(this)); Plugin.Guard(() => Warband.Owner(this)); Plugin.Guard(() => Carts.Unload(this)); }
             Rise(now);
             // Back after time unloaded: the missing hours made up first (once its people have loaded, or after a while if none do).
             if (!_caughtUp)
@@ -191,6 +191,20 @@ namespace Jarldom
             if (Time.time >= _nextScan) { _nextScan = Time.time + 8; Plugin.Guard(() => Work.Scan(this)); }
             Plugin.Guard(() => Defense.Tick(this));
         }
+        // Jobs done today, for the colony window (the board's own count starts again each time it loads).
+        private int _doneSeen = -1;
+        private void CountDone()
+        {
+            int now = Board.CompletedCount;
+            if (_doneSeen >= 0 && now > _doneSeen)
+            {
+                string key = "done:" + Day;
+                foreach (string old in R.Flags.Keys.Where(k => k.StartsWith("done:") && k != key).ToList()) R.Flags.Remove(old);
+                R.Flags[key] = R.Flag(key) + (now - _doneSeen); // (goes out with the next change worth sending)
+            }
+            _doneSeen = now;
+        }
+        public int DoneToday => R.Flag("done:" + Day);
         public void SurveySoon() => _nextSurvey = Mathf.Min(_nextSurvey, Time.time + 2);
         public void RoomsSoon() => _nextRooms = Mathf.Min(_nextRooms, Time.time + 2);
 

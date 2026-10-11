@@ -107,7 +107,7 @@ namespace Jarldom
         {
             RankInfo info = Tables.Of(next);
             var list = rooms.ToList(); var parts = new List<string>();
-            if (population < info.Population) parts.Add($"{info.Population - population} more souls");
+            if (population < info.Population) parts.Add(info.Population - population == 1 ? "1 more soul" : $"{info.Population - population} more souls");
             foreach (var t in info.Rooms.Distinct())
                 if (!HasRooms(new RankInfo { Id = info.Id, Rooms = info.Rooms.Where(r => r == t).ToArray(), GradedRoom = info.GradedRoom, MinGrade = info.MinGrade }, list))
                     parts.Add(info.GradedRoom == t ? $"a {Tables.Of(t).Name.ToLower()} of grade {info.MinGrade} or better" : $"a {Tables.Of(t).Name.ToLower()}");
@@ -120,7 +120,7 @@ namespace Jarldom
     public static class Mood
     {
         // Points per in-game hour each need falls.
-        public static readonly float[] Decay = { 2.2f, 2.0f, 1.0f, 1.5f, 0.8f, 0.5f, 0.6f };
+        public static readonly float[] Decay = { 2.2f, 2.0f, 1.0f, 1.0f, 0.8f, 0.5f, 0.6f }; // (Social 1.0: an evening in the hall and company at work keep it up; at 1.5 it never got over half)
         // The most each need adds (full) or takes (empty) from mood.
         public static readonly float[] Weight = { 15, 15, 10, 10, 10, 5, 5 };
 

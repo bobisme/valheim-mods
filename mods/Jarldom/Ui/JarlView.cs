@@ -130,7 +130,7 @@ namespace Jarldom.Ui
             Humanoid under = Under();
             if (_hover != null) _hover.text = under != null ? Villagers.Brain(under)?.S.FullName ?? under.GetHoverName() : "";
             if (OverBar()) return;
-            if (Input.GetMouseButtonDown(1) && under != null) { VillagerPanel.Open(under); return; }
+            if (Input.GetMouseButtonDown(1) && under != null) { VillagerPanel.Open(under, true); return; }
             if (Input.GetMouseButtonDown(0)) _dragFrom = Ground();
             if (_dragFrom.HasValue && Input.GetMouseButton(0)) DrawBox(_dragFrom.Value, Ground() ?? _dragFrom.Value);
             if (!Input.GetMouseButtonUp(0) || !_dragFrom.HasValue) return;

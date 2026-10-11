@@ -110,7 +110,7 @@ namespace Jarldom
         {
             M("finemeal", "Ate a fine meal", 8, 24),
             M("samefood", "The same food three days running", -6, 0),
-            M("hungry", "Hungry", -10, 0),
+            M("hungry", "Starving", -10, 0),
             M("hall", "An evening in the great hall", 6, 24),
             M("skald", "Heard the skald", 4, 24),
             M("feast", "Feasted", 20, 48),

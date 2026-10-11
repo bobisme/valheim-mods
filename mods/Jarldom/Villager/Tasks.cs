@@ -85,7 +85,7 @@ namespace Jarldom
                 return;
             }
             double hours = (b.Now - _since) / Clock.Hour;
-            Mood.Satisfy(b.S, Need.Rest, (float)(b.DecideDt / Clock.Hour * (4 + _comfort))); // a night in a good bed fills it
+            Mood.Satisfy(b.S, Need.Rest, (float)(b.GameDt / Clock.Hour * (4 + _comfort))); // a night in a good bed fills it
             if (JustRest && b.Colony.Hour >= 22) JustRest = false;
             if (JustRest && Activity_Over(b)) Done = true;
         }
@@ -165,7 +165,7 @@ namespace Jarldom
                 if (_chair != null && _chair.m_attachPoint != null) b.Sit(_chair.m_attachPoint, string.IsNullOrEmpty(_chair.m_attachAnimation) ? "attach_chair" : _chair.m_attachAnimation, Vector3.zero);
                 Doing = Shelter ? "sheltering" : _chair != null ? "in the hall" : "keeping company";
             }
-            Mood.Satisfy(b.S, Need.Social, b.DecideDt / (float)Clock.Hour * (Shelter ? 6f : 12f)); // (huddled together in a raid is company too)
+            Mood.Satisfy(b.S, Need.Social, (float)(b.GameDt / Clock.Hour) * (Shelter ? 6f : 12f)); // (huddled together in a raid is company too)
             if (Shelter) return;
             if (b.S.Prof == Prof.Skald && b.Held == null && Time.time > _nextSong) Sing(b);
             if (!_counted && b.Colony.RoomAt(b.Pos, RoomType.GreatHall) != null) { _counted = true; Mood.Add(b.S, "hall", b.Now); b.S.Bump("halls"); }

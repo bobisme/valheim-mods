@@ -32,7 +32,7 @@ namespace Jarldom
             if (_body != null && _body.isKinematic) _body.isKinematic = false; // (a body left seated when ownership went elsewhere)
             Poses.Clear(h);
         }
-        public float NoStoreUntil, NoFoodUntil, NoRepairUntil, NoBuildUntil, NoTradeUntil, NoCraftUntil, NoHealUntil, NoScoutUntil, NoOfferUntil, NextMischief, NoCartUntil, NoGearUntil, NoGraveUntil; private bool _captureRolled; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f;
+        public float NoStoreUntil, NoFoodUntil, NoRepairUntil, NoBuildUntil, NoTradeUntil, NoCraftUntil, NoHealUntil, NoScoutUntil, NoOfferUntil, NextMischief, NoCartUntil, NoGearUntil, NoGraveUntil; private bool _captureRolled; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f; public double GameDt; private double _lastWorld;
         public bool Alive => Body != null && !Body.IsDead() && View != null && View.IsValid() && View.IsOwner() && S != null;
         public Vector3 Pos => Body.transform.position;
         public double Now => ZNet.instance.GetTimeSeconds();
@@ -117,6 +117,9 @@ namespace Jarldom
             if (!Alive) return;
             if (Time.time < _nextDecide) return;
             DecideDt = Mathf.Clamp(Time.time - LastDecide, 0.05f, 2f); LastDecide = Time.time;
+            // (the world's seconds since the last decision: what needs fill and work counts by, as the clock runs, which isn't always
+            // as fast as the real one: sleeping players, a faster day; a jump of the clock counts as an hour at most)
+            double world = Now; GameDt = _lastWorld > 0 ? Math.Min(Math.Max(0, world - _lastWorld), Clock.Hour) : 0; _lastWorld = world;
             _nextDecide = Time.time + 0.25f; // four times a second is plenty
             if (Colony == null || !Colony.Valid) { Colony = Colony.Of(S.Colony); if (Colony == null) { Idle("waiting for the hall to load"); return; } }
             double now = Now;
@@ -138,7 +141,7 @@ namespace Jarldom
             }
             Task?.Tick(this);
             if (Task != null) SetDoing(Task.Doing);
-            if (Activity == Activity.Work && Task != null && !(Task is WanderTask)) CatchUp.Work(this, DecideDt); // (working hours, for the rates kept while away)
+            if (Activity == Activity.Work && Task != null && !(Task is WanderTask)) CatchUp.Work(this, (float)GameDt); // (working hours, for the rates kept while away)
         }
 
         private Activity Want()

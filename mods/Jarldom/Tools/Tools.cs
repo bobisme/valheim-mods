@@ -248,6 +248,24 @@ namespace Jarldom
                     output(new JObject { ["graves"] = new JArray(UnityEngine.Object.FindObjectsByType<TombStone>(FindObjectsSortMode.None).Where(t => t.GetComponent<ZNetView>()?.GetZDO()?.GetString(Villagers.TombKey, "") != "").Select(t =>
                         $"{t.GetComponent<ZNetView>().GetZDO().GetString(Villagers.TombKey)} at {t.transform.position.x:0},{t.transform.position.z:0}: " + string.Join(", ", t.GetComponent<Container>().GetInventory().GetAllItems().Select(i => i.m_dropPrefab?.name + " x" + i.m_stack)))) });
                     break;
+                case "ui":
+                    {
+                        // A window opened as a player would open it, for a look (shot) or a click (screen): "ui colony [tab]", "ui villager <name>",
+                        // "ui room <n>", "ui zone <n>", "ui seat" (the jarl's view, the colony's own), "ui close".
+                        string what = a.Length > 2 ? a[2] : "colony";
+                        switch (what)
+                        {
+                            case "colony": Ui.ColonyWindow.Open(c, a.Length > 3 ? a[3] : null); break;
+                            case "villager": { Brain b = Who(a[3]); if (b == null) { error("who?"); return; } Ui.VillagerPanel.Open(b.Body, true); break; }
+                            case "room": Ui.RoomEditor.Open(c, c.R.Rooms[int.Parse(a[3])], null); break;
+                            case "zone": Ui.RoomEditor.Open(c, null, c.R.Zones[int.Parse(a[3])]); break;
+                            case "seat": if (!Ui.JarlView.Active) Ui.JarlView.Test(); break;
+                            case "close": Ui.Windows.CloseAll(); Ui.JarlView.End(); break;
+                            default: error("ui colony|villager|room|zone|seat|close"); return;
+                        }
+                        output(new JObject { ["opened"] = what });
+                        break;
+                    }
                 case "flags":
                     {
                         // The colony's flags (read-only), those starting with the prefix if one is given.

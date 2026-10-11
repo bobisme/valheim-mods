@@ -225,10 +225,10 @@ namespace Jarldom.Ui
                 int mood = z?.GetInt(Villagers.MoodKey, 0) ?? 0;
                 GameUi.Line(list, row.Name, new Vector2(8, -y), 250, 18, GameUi.Warm);
                 GameUi.Line(list, Tables.Of(row.Prof).Name, new Vector2(262, -y), 130, 16, GameUi.Text);
-                GameUi.Line(list, doing, new Vector2(396, -y), 300, 15, GameUi.Dim);
-                GameUi.Line(list, $"mood {Windows.Signed(mood)}  worth {Mathf.RoundToInt(row.Worth)}{(string.IsNullOrEmpty(row.Bed) ? "  <color=#ff8c59>no bed</color>" : "")}", new Vector2(700, -y), 190, 15, mood < -30 ? GameUi.Warn : GameUi.Text);
+                GameUi.Line(list, doing, new Vector2(396, -y), 250, 15, GameUi.Dim);
+                GameUi.Line(list, $"mood {Windows.Signed(mood)}  worth {Mathf.RoundToInt(row.Worth)}{(string.IsNullOrEmpty(row.Bed) ? "  <color=#ff8c59>no bed</color>" : "")}", new Vector2(650, -y), W - 650 - 52, 15, mood < -30 ? GameUi.Warn : GameUi.Text);
                 string vid = row.Vid;
-                if (h != null) GameUi.Button(list, "...", new Vector2(W - 44, -y + 2), new Vector2(44, 30), () => VillagerPanel.Open(h), true, 15);
+                if (h != null) GameUi.Button(list, "...", new Vector2(W - 44, -y + 2), new Vector2(44, 30), () => VillagerPanel.Open(h, true), true, 15);
                 y += 36;
             }
             var lost = _c.R.Roster.Where(r => r.State != SoulState.Active).ToList();
@@ -282,7 +282,7 @@ namespace Jarldom.Ui
             float y = 4;
             var orders = _c.IsOwner ? _c.Board.All.ToList() : JobBoard.FromSnapshot(_c.BoardBytes());
             int open = orders.Count(o => o.State == OrderState.Open), claimed = orders.Count(o => o.State == OrderState.Claimed), blocked = orders.Count(o => o.State == OrderState.Blocked);
-            y = Text(list, $"{open} open, {claimed} being done, {blocked} blocked. Done so far: {_c.Board.CompletedCount}.", y);
+            y = Text(list, $"{open} open, {claimed} being done, {blocked} blocked. Done today: {_c.DoneToday}.", y);
             y = Commissions(list, y);
             foreach (var g in orders.Where(o => o.State != OrderState.Done && o.State != OrderState.Cancelled).GroupBy(o => o.Kind).OrderByDescending(g => g.Count()))
             {
@@ -355,7 +355,7 @@ namespace Jarldom.Ui
         private static float Gods(RectTransform list)
         {
             float y = 4;
-            y = Text(list, Compat.Has("Omens") ? "Odin's favour is the gods' favour of Omens." : "Build an altar (hammer → Misc) and make offerings with Use, or use an item on it. Coins thrown into a sacred bog zone buy favour without end.", y, 15, GameUi.Dim);
+            y = Text(list, Compat.Has("Omens") ? $"Odin's favour is the gods' favour of Omens: offerings to Odin move it a step for every 20 points of favour ({_c.R.Flag("omenspool")} of 20 so far)." : "Build an altar (hammer → Misc) and make offerings with Use, or use an item on it. Coins thrown into a sacred bog zone buy favour without end.", y, 15, GameUi.Dim);
             foreach (GodInfo g in Tables.Gods)
             {
                 int f = g.Id == "odin" ? Faith.Odin(_c) : _c.FavourOf(g.Id);

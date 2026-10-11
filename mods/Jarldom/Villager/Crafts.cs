@@ -11,8 +11,11 @@ namespace Jarldom
     internal static class Crafts
     {
         public const string Prefix = "craft:", BrewPrefix = "brew:";
+        // The way to make a thing: the game's own recipe for it first (other mods add recipes for the same thing: a recycler's, an
+        // upgrade path, one asking for some mod's idol), else another.
         public static Recipe RecipeFor(string prefab) =>
-            ObjectDB.instance?.m_recipes.FirstOrDefault(r => r != null && r.m_enabled && r.m_item != null && r.m_item.name == prefab && r.m_resources.Length > 0 && !r.m_requireOnlyOneIngredient && !r.m_noCraftOnlyUpgrade);
+            ObjectDB.instance?.m_recipes.Where(r => r != null && r.m_enabled && r.m_item != null && r.m_item.name == prefab && r.m_resources.Length > 0 && !r.m_requireOnlyOneIngredient && !r.m_noCraftOnlyUpgrade)
+                .OrderBy(r => r.name == "Recipe_" + prefab ? 0 : 1).ThenBy(r => r.m_resources.Length).FirstOrDefault();
         public static bool AtCauldron(Recipe r) => r?.m_craftingStation != null && r.m_craftingStation.name == "piece_cauldron";
         public static Prof Maker(Recipe r) => AtCauldron(r) ? Prof.Cook : Prof.Smith;
         // A station of the recipe's kind in the colony, at the recipe's level (null if it needs one and the colony has none).

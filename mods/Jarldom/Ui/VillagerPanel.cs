@@ -11,15 +11,16 @@ namespace Jarldom.Ui
     internal static class VillagerPanel
     {
         private static RectTransform _window; private static Humanoid _h; private static string _shown = ""; private static bool _confirm;
-        private static float _openedAt, _closedAt = -1, _next;
+        private static float _openedAt, _closedAt = -1, _next; private static bool _remote;
         public static bool IsOpen => _window != null;
-        private static readonly Vector2 Size = new Vector2(900f, 640f);
+        private static readonly Vector2 Size = new Vector2(900f, 680f);
 
-        public static void Open(Humanoid h)
+        // Opened with E beside them, it closes when they walk off; from the colony window or the seat's view (remote), it stays.
+        public static void Open(Humanoid h, bool remote = false)
         {
             if (!GameUi.Ready() || h == null || Time.unscaledTime < _closedAt + 0.25f) return;
             ColonyWindow.Close();
-            _h = h; _confirm = false;
+            _h = h; _confirm = false; _remote = remote;
             if (InventoryGui.IsVisible()) InventoryGui.instance.Hide();
             _openedAt = Time.unscaledTime;
             Build();
@@ -34,7 +35,7 @@ namespace Jarldom.Ui
             if (_window == null) return;
             Player p = Player.m_localPlayer;
             bool useAgain = Time.unscaledTime > _openedAt + 0.2f && ZInput.GetButtonDown("Use");
-            if (p == null || p.IsDead() || global::Menu.IsVisible() || useAgain || _h == null || _h.IsDead() || Vector3.Distance(p.transform.position, _h.transform.position) > 10f) { Close(); return; }
+            if (p == null || p.IsDead() || global::Menu.IsVisible() || useAgain || _h == null || _h.IsDead() || !_remote && Vector3.Distance(p.transform.position, _h.transform.position) > 10f) { Close(); return; }
             if (Time.unscaledTime < _next || Input.GetMouseButton(0)) return;
             _next = Time.unscaledTime + 0.5f;
             if (Signature() != _shown) Build();
