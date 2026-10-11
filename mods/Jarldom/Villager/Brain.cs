@@ -21,6 +21,7 @@ namespace Jarldom
         private readonly List<Meal> _meals = new List<Meal>();
         private readonly Rigidbody _body;
         public Seat Held; // sitting or lying: the spot we're snapped to
+        public readonly HashSet<string> Hauled = new HashSet<string>(); // gear picked up off the ground for the stores (not theirs to keep)
 
         public sealed class Meal { public string Prefab; public float Health, Stamina, Left, Total; }
         public sealed class Seat { public Transform Point; public string Anim; public Vector3 Offset; public float Since; }
@@ -31,7 +32,7 @@ namespace Jarldom
             if (_body != null && _body.isKinematic) _body.isKinematic = false; // (a body left seated when ownership went elsewhere)
             Poses.Clear(h);
         }
-        public float NoStoreUntil, NoFoodUntil, NoRepairUntil, NoBuildUntil, NoTradeUntil, NoCraftUntil, NoHealUntil, NoScoutUntil, NoOfferUntil, NextMischief, NoCartUntil; private bool _captureRolled; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f;
+        public float NoStoreUntil, NoFoodUntil, NoRepairUntil, NoBuildUntil, NoTradeUntil, NoCraftUntil, NoHealUntil, NoScoutUntil, NoOfferUntil, NextMischief, NoCartUntil, NoGearUntil; private bool _captureRolled; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f;
         public bool Alive => Body != null && !Body.IsDead() && View != null && View.IsValid() && View.IsOwner() && S != null;
         public Vector3 Pos => Body.transform.position;
         public double Now => ZNet.instance.GetTimeSeconds();
@@ -200,6 +201,8 @@ namespace Jarldom
             bool sheltered = cover >= 0.8f && roof, warm = EffectArea.IsPointInsideArea(Pos, EffectArea.Type.Heat) != null;
             if (sheltered || warm) Jarldom.Mood.Satisfy(S, Need.Shelter, (float)hours * (warm && sheltered ? 6 : 3));
             else if (EnvMan.IsWet()) { Jarldom.Mood.Satisfy(S, Need.Shelter, -(float)hours * 4); if (!Jarldom.Mood.Has(S, "rain", now)) Jarldom.Mood.Add(S, "rain", now); }
+            // Company: working or resting near someone of the colony keeps loneliness off a little (the evening in the hall does most).
+            if (Villagers.All.Any(o => o != this && o.S.Colony == S.Colony && Vector3.Distance(o.Pos, Pos) < 8f)) Jarldom.Mood.Satisfy(S, Need.Social, (float)hours * 0.8f);
             // Safety: walls and guards near, no threats seen lately.
             float safe = (Colony.RoomAt(Pos) != null ? 1 : 0) + (Villagers.All.Any(b => b.S.Prof == Prof.Guard && b.S.Colony == S.Colony) ? 1 : 0);
             Jarldom.Mood.Satisfy(S, Need.Safety, (float)hours * (safe * 1.5f));

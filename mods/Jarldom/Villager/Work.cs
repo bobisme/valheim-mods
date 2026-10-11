@@ -311,10 +311,11 @@ namespace Jarldom
             Gear.Problem = null;
             if (Time.time > b.NoStoreUntil && (Carrying(b) >= 4 || b.Body.GetInventory().GetEmptySlots() <= 2 && Carrying(b) > 0))
             {
-                if (b.Body.GetInventory().GetAllItems().Where(Loot).Any(i => Stock.Destination(c, i, b.Pos) != null)) return new DepositTask();
+                if (b.Body.GetInventory().GetAllItems().Where(i => Stores(b, i)).Any(i => Stock.Destination(c, i, b.Pos) != null)) return new DepositTask();
                 b.NoStoreUntil = Time.time + 30; b.Say("Where do I put all this? (no stockpile for it)", 5);
             }
             if (Time.time > b.NoRepairUntil && RepairTask.Worn(b).Count > 0) return new RepairTask();
+            Task outfit = OutfitTask.Next(b); if (outfit != null) return outfit;
             Prof prof = b.S.Prof;
             if (prof == Prof.Skald) return null; // skalds rest by day and play at dusk
             if (prof == Prof.Healer) { Task heal = HealTask.Next(b); if (heal != null) return heal; }
@@ -348,7 +349,9 @@ namespace Jarldom
             if (o.Kind == "harvest" || o.Kind == "pick" || o.Kind == "fuel" || o.Kind == "smelt" || o.Kind == "cook" || o.Kind == "ferment" || o.Kind == "tap" || o.Kind == "craft" || o.Kind == "plant" || o.Kind == "sow" || o.Kind == "feed" || o.Kind == "guard") return o.Kind == "guard" ? Gear.Lacks(b, Prof.Guard) : null;
             return Gear.Lacks(b, o.Prof, tier);
         }
-        public static int Carrying(Brain b) => b.Body.GetInventory().GetAllItems().Count(i => Loot(i));
+        public static int Carrying(Brain b) => b.Body.GetInventory().GetAllItems().Count(i => Stores(b, i));
+        // What goes to the stores from this villager's bag: loot, and gear they picked up off the ground for the colony (not theirs).
+        public static bool Stores(Brain b, ItemDrop.ItemData i) => Loot(i) || !i.m_equipped && i.m_dropPrefab != null && b.Hauled.Contains(i.m_dropPrefab.name);
         // What a villager carries that belongs in the stockpiles (not its own gear, food for a day, or its seeds for replanting).
         public static bool Loot(ItemDrop.ItemData i)
         {
@@ -370,7 +373,7 @@ namespace Jarldom
         public override void Start(Brain b)
         {
             Doing = "taking things to the stores";
-            _to = b.Body.GetInventory().GetAllItems().Where(Work.Loot).Select(i => Stock.Destination(b.Colony, i, b.Pos)).FirstOrDefault(d => d != null);
+            _to = b.Body.GetInventory().GetAllItems().Where(i => Work.Stores(b, i)).Select(i => Stock.Destination(b.Colony, i, b.Pos)).FirstOrDefault(d => d != null);
             if (_to == null) { Done = true; b.NoStoreUntil = Time.time + 30; b.Idle("nowhere to put things (no stockpile)"); return; }
             b.Move.To(_to.transform.position, 1.8f);
         }
@@ -381,11 +384,13 @@ namespace Jarldom
             if (!b.Move.Arrived && Vector3.Distance(b.Pos, _to.transform.position) > 2.5f) { if (!b.Move.Moving) b.Move.To(_to.transform.position, 1.8f); return; }
             Inventory bag = b.Body.GetInventory();
             int moved = 0;
-            foreach (ItemDrop.ItemData item in bag.GetAllItems().Where(Work.Loot).ToList())
+            foreach (ItemDrop.ItemData item in bag.GetAllItems().Where(i => Work.Stores(b, i)).ToList())
             {
                 Container dest = Stock.Destination(b.Colony, item, b.Pos);
                 if (dest != _to) continue;
+                string name = item.m_dropPrefab?.name;
                 int put = Stock.Put(bag, _to, item);
+                if (put > 0 && name != null && !bag.GetAllItems().Any(i => i.m_dropPrefab?.name == name)) b.Hauled.Remove(name);
                 if (put > 0) { b.S.Bump("loads"); moved++; CatchUp.Made(b, item, put); }
             }
             if (moved == 0) b.NoStoreUntil = Time.time + 30;
@@ -770,6 +775,7 @@ namespace Jarldom
                 ItemDrop drop = _target != null ? _target.GetComponent<ItemDrop>() : null;
                 if (drop == null) { Gone(b); return; }
                 if (Vector3.Distance(b.Pos, drop.transform.position) > 1.4f) { if (!b.Move.Moving) b.Move.To(drop.transform.position, 0.8f); if (b.Move.Failed) Block(b, "can't reach it"); return; }
+                if (!Work.Loot(drop.m_itemData) && drop.m_itemData.m_dropPrefab != null && !Stock.Edible(drop.m_itemData)) b.Hauled.Add(drop.m_itemData.m_dropPrefab.name); // (a weapon or tool off the ground: the colony's, for the stores)
                 Got got = PickUpNow(b, drop);
                 if (got == Got.Failed) { Finish(b, false); return; }
                 if (got == Got.Waiting) { _waitUntil = Time.time + 0.3f; return; }

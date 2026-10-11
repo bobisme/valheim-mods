@@ -11,6 +11,27 @@ namespace Jarldom
 
         public static IEnumerable<ItemDrop.ItemData> Items(Brain b) => b.Body.GetInventory()?.GetAllItems() ?? Enumerable.Empty<ItemDrop.ItemData>();
 
+        public static bool Usable(ItemDrop.ItemData i) => i.m_durability > 0 || !i.m_shared.m_useDurability;
+        // Is the item a tool of the kind (any one, for fetching from the stores)?
+        public static bool Is(string kind, ItemDrop.ItemData i)
+        {
+            if (!Usable(i) || i.m_dropPrefab == null) return false;
+            string n = i.m_dropPrefab.name;
+            switch (kind)
+            {
+                case "axe": return i.GetDamage().m_chop > 0 && (i.m_shared.m_skillType == Skills.SkillType.Axes || i.m_shared.m_skillType == Skills.SkillType.WoodCutting);
+                case "pickaxe": return i.GetDamage().m_pickaxe > 0;
+                case "cultivator": return n == "Cultivator";
+                case "hammer": return n == "Hammer";
+                case "hoe": return n == "Hoe";
+                case "rod": return n == "FishingRod";
+                default: return false;
+            }
+        }
+        public static bool IsWeapon(ItemDrop.ItemData i) => Usable(i) &&
+            (i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.OneHandedWeapon || i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.TwoHandedWeapon || i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.TwoHandedWeaponLeft)
+            && i.m_shared.m_skillType != Skills.SkillType.Pickaxes && i.m_dropPrefab != null && i.m_dropPrefab.name != "Hammer" && i.m_dropPrefab.name != "Hoe" && i.m_dropPrefab.name != "Cultivator" && i.m_dropPrefab.name != "FishingRod";
+
         public static ItemDrop.ItemData Tool(Brain b, string kind, int tier = 0)
         {
             IEnumerable<ItemDrop.ItemData> all = Items(b).Where(i => i.m_durability > 0 || !i.m_shared.m_useDurability);
@@ -26,9 +47,7 @@ namespace Jarldom
                 default: return null;
             }
         }
-        public static ItemDrop.ItemData Weapon(Brain b) => Items(b).Where(i => (i.m_durability > 0 || !i.m_shared.m_useDurability) &&
-            (i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.OneHandedWeapon || i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.TwoHandedWeapon || i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.TwoHandedWeaponLeft)
-            && i.m_shared.m_skillType != Skills.SkillType.Pickaxes && i.m_dropPrefab != null && i.m_dropPrefab.name != "Hammer" && i.m_dropPrefab.name != "Hoe" && i.m_dropPrefab.name != "Cultivator" && i.m_dropPrefab.name != "FishingRod")
+        public static ItemDrop.ItemData Weapon(Brain b) => Items(b).Where(IsWeapon)
             .OrderByDescending(i => i.GetDamage().m_slash + i.GetDamage().m_pierce + i.GetDamage().m_blunt + i.GetDamage().m_fire + i.GetDamage().m_frost + i.GetDamage().m_poison + i.GetDamage().m_lightning + i.GetDamage().m_spirit).FirstOrDefault();
         public static ItemDrop.ItemData Shield(Brain b) => Items(b).Where(i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Shield).OrderByDescending(i => i.m_shared.m_blockPower).FirstOrDefault();
         public static ItemDrop.ItemData Ammo(Brain b, ItemDrop.ItemData bow) => string.IsNullOrEmpty(bow.m_shared.m_ammoType) ? null : Items(b).FirstOrDefault(i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Ammo && i.m_shared.m_ammoType == bow.m_shared.m_ammoType);

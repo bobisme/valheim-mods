@@ -1,0 +1,67 @@
+using System;
+using System.Linq;
+using UnityEngine;
+
+namespace Jarldom
+{
+    // Fetching what the work needs from the colony's stockpiles: the tool of a trade (an axe, a pickaxe, a cultivator, a rod, a
+    // hammer; a farmer's hoe too), a weapon for a guard, a bow and arrows for a hunter (and more arrows when they run low). Only from
+    // stockpiles: a player's own chests in the colony stay theirs.
+    internal sealed class OutfitTask : Task
+    {
+        private const int LowArrows = 10, Arrows = 50;
+        private readonly Container _chest; private readonly string _prefab; private readonly int _count;
+        private OutfitTask(Container chest, string prefab, int count) { _chest = chest; _prefab = prefab; _count = count; }
+
+        public static Task Next(Brain b)
+        {
+            Colony c = b.Colony;
+            if (c == null || Time.time < b.NoGearUntil || b.Body.GetInventory().GetEmptySlots() < 1) return null;
+            foreach (string kind in Kinds(b.S.Prof))
+            {
+                Func<ItemDrop.ItemData, bool> want = Wanted(b, kind, out int count);
+                if (want == null) continue;
+                var found = Stock.Chests(c, b.Pos).Where(x => x.category != "" && x.category != "treasury" && !ContainerAccess.InUse(x.chest))
+                    .SelectMany(x => x.chest.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && want(i)).Select(i => (x.chest, i))).FirstOrDefault();
+                if (found.chest != null) return new OutfitTask(found.chest, found.i.m_dropPrefab.name, count);
+            }
+            b.NoGearUntil = Time.time + 90;
+            return null;
+        }
+        private static string[] Kinds(Prof p)
+        {
+            string tool = Tables.Of(p).Tool;
+            if (p == Prof.Farmer) return new[] { tool, "hoe" };
+            return tool == "" ? new string[0] : new[] { tool };
+        }
+        // What to look for, or null when they have it.
+        private static Func<ItemDrop.ItemData, bool> Wanted(Brain b, string kind, out int count)
+        {
+            count = 1;
+            switch (kind)
+            {
+                case "bow":
+                    ItemDrop.ItemData bow = Gear.Items(b).Where(i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Bow && Gear.Usable(i)).OrderByDescending(i => i.GetDamage().GetTotalDamage()).FirstOrDefault();
+                    if (bow == null) return i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Bow && Gear.Usable(i);
+                    string ammo = bow.m_shared.m_ammoType;
+                    if (string.IsNullOrEmpty(ammo) || Gear.Items(b).Where(i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Ammo && i.m_shared.m_ammoType == ammo).Sum(i => i.m_stack) >= LowArrows) return null;
+                    count = Arrows;
+                    return i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Ammo && i.m_shared.m_ammoType == ammo;
+                case "weapon": return Gear.CanFight(b) ? null : (Func<ItemDrop.ItemData, bool>)Gear.IsWeapon;
+                default: return Gear.Tool(b, kind) != null ? null : i => Gear.Is(kind, i);
+            }
+        }
+
+        public override void Start(Brain b) { Doing = "fetching gear from the stores"; b.Move.To(_chest.transform.position, 1.8f); }
+        public override void Tick(Brain b)
+        {
+            if (_chest == null) { Done = true; return; }
+            if (Vector3.Distance(b.Pos, _chest.transform.position) > 2.4f) { if (!b.Move.Moving) b.Move.To(_chest.transform.position, 1.8f); if (b.Move.Failed) { Done = true; b.NoGearUntil = Time.time + 120; } return; }
+            ItemDrop.ItemData item = _chest.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == _prefab);
+            int got = item == null ? 0 : Stock.Take(_chest, b.Body.GetInventory(), item, Math.Min(_count, item.m_stack));
+            if (got > 0) { b.Say($"I'll take {(got > 1 ? got + " " : "the ")}{Localization.instance.Localize(item.m_shared.m_name).ToLower()} for the work.", 4); b.Dirty(); }
+            else b.NoGearUntil = Time.time + 60;
+            Done = true;
+        }
+    }
+}

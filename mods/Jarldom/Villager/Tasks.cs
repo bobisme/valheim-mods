@@ -165,9 +165,9 @@ namespace Jarldom
                 if (_chair != null && _chair.m_attachPoint != null) b.Sit(_chair.m_attachPoint, string.IsNullOrEmpty(_chair.m_attachAnimation) ? "attach_chair" : _chair.m_attachAnimation, Vector3.zero);
                 Doing = Shelter ? "sheltering" : _chair != null ? "in the hall" : "keeping company";
             }
+            Mood.Satisfy(b.S, Need.Social, b.DecideDt / (float)Clock.Hour * (Shelter ? 6f : 12f)); // (huddled together in a raid is company too)
             if (Shelter) return;
             if (b.S.Prof == Prof.Skald && b.Held == null && Time.time > _nextSong) Sing(b);
-            Mood.Satisfy(b.S, Need.Social, b.DecideDt / (float)Clock.Hour * 12f);
             if (!_counted && b.Colony.RoomAt(b.Pos, RoomType.GreatHall) != null) { _counted = true; Mood.Add(b.S, "hall", b.Now); b.S.Bump("halls"); }
             if (_counted && !_drank) { _drank = true; Drink(b); }
             if (b.S.Needs[(int)Need.Food] < 70 && Food.CanEat(b)) Food.EatFromBag(b);
