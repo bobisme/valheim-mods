@@ -56,6 +56,7 @@ namespace Shieldwall
             z.Set(LitKey,Now+(long)(Policy.PitBurns*System.TimeSpan.TicksPerSecond));
             z.Set(SpentKey,Now+(long)((Policy.PitBurns+Policy.PitSeeps)*System.TimeSpan.TicksPerSecond));
             Assets.Effect("vfx_FireballHit",transform.position+Vector3.up*0.3f);
+            if(Plugin.Instance.DebugHits.Value)Plugin.Log($"[pit] lit at {transform.position:F0}");
         }
 
         private void Update()
@@ -66,19 +67,21 @@ namespace Shieldwall
             if(!_view.IsOwner()||Time.time<_next)return;
             _next=Time.time+1;
             if(Spent)return;
+            int waded=0;
             // The horde wading in: slowed, and burned while it is alight.
             foreach(Raider r in Raider.Loaded)
             {
                 if(r==null||r.Body==null||r.Body.IsDead()||r.Body.IsFlying())continue;
                 Vector3 d=r.transform.position-transform.position;
                 if(new Vector2(d.x,d.z).magnitude>Radius||Mathf.Abs(d.y)>1.5f)continue;
-                r.Body.GetSEMan().AddStatusEffect(Tared,true);
+                r.Body.GetSEMan().AddStatusEffect(Tared,true);waded++;
                 if(!burning)continue;
                 var hit=new HitData{m_point=r.Body.GetCenterPoint(),m_hitType=HitData.HitType.Burning};
                 hit.m_damage.m_fire=Policy.PitFire;
                 Burned[r.Body]=Time.time;
                 r.Body.Damage(hit);
             }
+            if(waded>0&&Plugin.Instance.DebugHits.Value)Plugin.Log($"[pit] {waded} raider(s) in the pitch at {transform.position:F0}{(burning?", burning":"")}");
         }
 
         public string GetHoverText()

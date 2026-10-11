@@ -88,6 +88,9 @@ namespace Shieldwall
             piece.m_resources=Needs(("Stone",8),("Resin",8));
             piece.m_groundOnly=true;
             pit.GetComponent<WearNTear>().m_health=800;
+            // Not a wall: on the layer rugs use, which the game's road-finding and creatures' bodies pass through, so the horde wades in.
+            int open=LayerMask.NameToLayer("piece_nonsolid");
+            foreach(Transform t in pit.GetComponentsInChildren<Transform>(true))t.gameObject.layer=open;
             pit.AddComponent<PitchPit>();
         }
         // A copy of a vanilla piece (its working parts: network view, piece, wear and tear) wearing another prefab's look.

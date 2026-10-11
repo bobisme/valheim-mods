@@ -382,6 +382,15 @@ namespace Shieldwall
                     output(new JObject{["cleared"]=JObject.FromObject(gone),["bodies"]=bodies,["keptStaves"]=new JArray(kept.ToArray())});
                     break;
                 }
+                case "layers":
+                {
+                    // layers: which layers the game's pathfinding builds its road map from, and which a character bumps into (test).
+                    string Names(int mask)=>string.Join(",",Enumerable.Range(0,32).Where(i=>(mask&(1<<i))!=0).Select(LayerMask.LayerToName));
+                    int body=LayerMask.NameToLayer("character");
+                    output(new JObject{["pathfinding"]=Pathfinding.instance!=null?Names(Pathfinding.instance.m_layers.value):"",
+                        ["characterCollides"]=string.Join(",",Enumerable.Range(0,32).Where(i=>!Physics.GetIgnoreLayerCollision(body,i)).Select(LayerMask.LayerToName).Where(n=>n!=""))});
+                    break;
+                }
                 case "ignite":
                     // ignite: light every loaded pitch pit (test).
                     foreach(PitchPit pit in PitchPit.Loaded)pit?.Light();
