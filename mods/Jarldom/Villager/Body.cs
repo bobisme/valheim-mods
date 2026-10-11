@@ -37,10 +37,15 @@ namespace Jarldom
         public const string BagKey = "jarldom_bag";
         private static readonly AccessTools.FieldRef<Container, bool> Loading = AccessTools.FieldRefAccess<Container, bool>("m_loading");
         private static readonly Dictionary<int, uint> SoulSeen = new Dictionary<int, uint>();
+        // What's left on the body: a real, empty bag (the game's own loader reads it when Jarldom isn't there to: in a reload, or
+        // after an uninstall), not no bytes at all, which it can't read.
+        private static byte[] _empty;
+        private static byte[] Empty { get { if (_empty == null) { var pkg = new ZPackage(); new Inventory("", null, VillagerPrefab.BagWidth, VillagerPrefab.BagRows).Save(pkg); _empty = pkg.GetArray(); } return _empty; } }
+        private static bool Blank(byte[] b) => b == null || b.Length == 0 || b.Length == Empty.Length && b.SequenceEqual(Empty);
         private static byte[] Saved(ZDO body, ZDO soul, out bool onBody)
         {
             byte[] b = body.GetByteArray(ZDOVars.s_items);
-            onBody = b != null && b.Length > 0;
+            onBody = !Blank(b);
             return onBody ? b : soul?.GetByteArray(BagKey);
         }
         [HarmonyPatch(typeof(Container), "Save")]
@@ -59,7 +64,7 @@ namespace Jarldom
                 var pkg = new ZPackage(); __instance.GetInventory().Save(pkg);
                 if (!soul.IsOwner()) soul.SetOwner(ZDOMan.GetSessionID());
                 soul.Set(BagKey, pkg.GetArray());
-                if ((body.GetByteArray(ZDOVars.s_items)?.Length ?? 0) > 0) body.Set(ZDOVars.s_items, new byte[0]);
+                if (!(body.GetByteArray(ZDOVars.s_items) is byte[] had && had.Length == Empty.Length && had.SequenceEqual(Empty))) body.Set(ZDOVars.s_items, Empty);
                 LastRevision(__instance) = body.DataRevision; SoulSeen[__instance.GetInstanceID()] = soul.DataRevision;
                 return true;
             }
@@ -82,7 +87,7 @@ namespace Jarldom
                 {
                     Loaded.Remove(id);
                     // (the body's revision moves with every step: only a change to the bag itself, on the soul or the body, is a reason)
-                    uint rev = (soul?.DataRevision ?? 0) * 31u + (uint)(body.GetByteArray(ZDOVars.s_items)?.Length ?? 0);
+                    uint rev = (soul?.DataRevision ?? 0) * 31u + (uint)(Blank(body.GetByteArray(ZDOVars.s_items)) ? 0 : body.GetByteArray(ZDOVars.s_items).Length);
                     if (__instance.IsInUse() || SoulSeen.TryGetValue(id, out uint seen) && seen == rev) return false;
                     SoulSeen[id] = rev;
                 }
@@ -92,6 +97,7 @@ namespace Jarldom
                 Loading(__instance) = true;
                 try { __instance.GetInventory().Load(new ZPackage(data)); } finally { Loading(__instance) = false; }
                 if (onBody && v.IsOwner() && soul != null) ToSoul(__instance); // (an old copy on the body: over to the soul at once)
+                else if (v.IsOwner() && body.GetByteArray(ZDOVars.s_items) is byte[] none && none.Length == 0) body.Set(ZDOVars.s_items, Empty); // (a blank from an earlier build)
                 __result = true;
                 return false;
             }
