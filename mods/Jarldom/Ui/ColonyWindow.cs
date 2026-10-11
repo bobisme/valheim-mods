@@ -280,7 +280,7 @@ namespace Jarldom.Ui
         private static float WorkTab(RectTransform list)
         {
             float y = 4;
-            var orders = _c.IsOwner ? _c.Board.All.ToList() : JobBoard.FromSnapshot(_c.Z.GetByteArray(Colony.BoardKey));
+            var orders = _c.IsOwner ? _c.Board.All.ToList() : JobBoard.FromSnapshot(_c.BoardBytes());
             int open = orders.Count(o => o.State == OrderState.Open), claimed = orders.Count(o => o.State == OrderState.Claimed), blocked = orders.Count(o => o.State == OrderState.Blocked);
             y = Text(list, $"{open} open, {claimed} being done, {blocked} blocked. Done so far: {_c.Board.CompletedCount}.", y);
             y = Commissions(list, y);

@@ -154,8 +154,8 @@ namespace Jarldom
         private void Tick()
         {
             if (!IsOwner) { Reload(); return; }
-            if (Time.time >= _nextSave) { _nextSave = Time.time + 2; Flush(); }
-            if (Time.time >= _nextBoardShare) { _nextBoardShare = Time.time + 3; ShareBoard(); }
+            if (Time.time >= _nextSave) { _nextSave = Time.time + 15; Flush(); } // (the record goes to every game when written: a few times a minute at most; players' actions write at once)
+            if (Time.time >= _nextBoardShare) { _nextBoardShare = Time.time + 5; ShareBoard(); }
             if (Time.time < _nextTick) return;
             _nextTick = Time.time + 1;
             double now = Now; int day = Day; double hour = Hour;
@@ -170,7 +170,7 @@ namespace Jarldom
                 else if (Villagers.All.Any(b => b.S.Colony == R.Id) && Time.time - _attachedAt > 5 || Time.time - _attachedAt > 20) { _caughtUp = true; Plugin.Guard(() => CatchUp.Run(this, away)); }
                 else return;
             }
-            if (Time.time >= _nextLive) { _nextLive = Time.time + 30; CatchUp.Live(this); Plugin.Guard(() => Outposts.Announce(this)); }
+            if (Time.time >= _nextLive) { _nextLive = Time.time + 60; CatchUp.Live(this); Plugin.Guard(() => Outposts.Announce(this)); }
             if (hour >= Schedule.WakeAt && hour < 12 && R.LastDawn != day) { R.LastDawn = day; _dirty = true; Plugin.Guard(() => Dawn(day)); }
             if (hour >= Schedule.HallAt && R.LastDusk != day) { R.LastDusk = day; _dirty = true; Plugin.Guard(() => Dusk(day)); }
             if (Time.time >= _nextSurvey) { _nextSurvey = Time.time + 300; Plugin.Guard(Survey); Plugin.Guard(Rerank); }
@@ -192,7 +192,7 @@ namespace Jarldom
                 if (row.Name != b.S.FullName || row.Prof != b.S.Prof || row.Bed != b.S.Bed || Math.Abs(row.Worth - b.S.Worth) > 0.5f || row.Hoard != b.S.Hoard) _dirty = true;
                 row.Name = b.S.FullName; row.Female = b.S.Female; row.Prof = b.S.Prof; row.Worth = b.S.Worth; row.Hoard = b.S.Hoard; row.Bed = b.S.Bed;
                 if (row.State != SoulState.Active) row.State = SoulState.Active;
-                if (Vector3.Distance(new Vector3(row.X, row.Y, row.Z), p) > 4f || Now - row.Seen > 120) { row.X = p.x; row.Y = p.y; row.Z = p.z; row.Seen = Now; _dirty = true; }
+                row.X = p.x; row.Y = p.y; row.Z = p.z; row.Seen = Now; // (noted, but no reason to send the record again: it goes with the next real change)
             }
         }
         public int Population => R.Living.Count();

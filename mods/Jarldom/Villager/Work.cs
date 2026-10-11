@@ -627,7 +627,7 @@ namespace Jarldom
             if (_phase <= 3) { if (Collect(b)) return; _phase = 4; }
             if (_phase == 4 && Kind == "harvest")
             {
-                if (!Work.Replant.TryGetValue(_crop ?? "", out var plant)) { b.S.Bump("replant:unknown " + _crop); Finish(b, true); return; }
+                if (!Work.Replant.TryGetValue(_crop ?? "", out var plant)) { Finish(b, true); return; }
                 if (!Replanting(b, plant)) Finish(b, true);
                 return;
             }
@@ -640,7 +640,7 @@ namespace Jarldom
             int have = bag.GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == plant.seed).Sum(i => i.m_stack);
             if (have < plant.amount)
             {
-                if (_seedsFetched) { b.Say("No seeds to replant with.", 4); b.S.Bump("replant:noseeds"); _plantFail = "no seeds in the stores"; return false; }
+                if (_seedsFetched) { b.Say("No seeds to replant with.", 4); _plantFail = "no seeds in the stores"; return false; }
                 if (_seedChest == null) _seedChest = Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury").Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == plant.seed));
                 if (_seedChest == null) { _seedsFetched = true; return true; }
                 if (Vector3.Distance(b.Pos, _seedChest.transform.position) > 2.4f) { if (!b.Move.Moving) b.Move.To(_seedChest.transform.position, 1.8f); if (b.Move.Failed) _seedsFetched = true; return true; }
@@ -655,7 +655,7 @@ namespace Jarldom
                 // Hoe it first, the cultivator's own way (its piece, as a player's click makes it), if they have one.
                 ItemDrop.ItemData hoe = Gear.Tool(b, "cultivator");
                 GameObject till = Work.TillPiece();
-                if (hoe == null || till == null || _tilled) { b.Say("The ground here wants hoeing, and I've no cultivator.", 4); b.S.Bump("replant:notcultivated"); _plantFail = hoe == null ? "needs a cultivator" : "the ground won't take the hoe"; return false; }
+                if (hoe == null || till == null || _tilled) { b.Say("The ground here wants hoeing, and I've no cultivator.", 4); _plantFail = hoe == null ? "needs a cultivator" : "the ground won't take the hoe"; return false; }
                 if (!b.Body.IsItemEquiped(hoe)) { b.Body.EquipItem(hoe, false); return true; }
                 Body_.Anim(b.Body)?.SetTrigger(hoe.m_shared.m_attack.m_attackAnimation);
                 Object.Instantiate(till, new Vector3(_cropAt.x, ZoneSystem.instance.GetGroundHeight(_cropAt), _cropAt.z), Quaternion.identity);

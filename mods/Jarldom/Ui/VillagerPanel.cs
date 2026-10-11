@@ -41,14 +41,14 @@ namespace Jarldom.Ui
         }
         private static ZDO Z => _h.GetComponent<ZNetView>().GetZDO();
         // What the panel shows (not the ZDO's revision: a villager's ZDO changes all the time).
-        private static string Signature() => (Z.GetByteArray(Villagers.StateKey)?.Length ?? 0) + "|" + Z.GetInt(Villagers.MoodKey) + "|" + _confirm + "|" + (Player.m_localPlayer?.GetInventory().GetAllItems().Any(Items.IsRing) ?? false) + "|" + Mathf.FloorToInt(Time.unscaledTime / 10);
+        private static string Signature() => (SoulStore.Of(Z)?.DataRevision ?? 0) + "|" + Z.GetInt(Villagers.MoodKey) + "|" + _confirm + "|" + (Player.m_localPlayer?.GetInventory().GetAllItems().Any(Items.IsRing) ?? false) + "|" + Mathf.FloorToInt(Time.unscaledTime / 10);
 
         private static void Build()
         {
             if (_window != null) Object.Destroy(_window.gameObject);
             _shown = Signature();
             VillagerState s;
-            try { s = VillagerState.Load(Z.GetByteArray(Villagers.StateKey)); } catch { s = null; }
+            try { s = VillagerState.Load(SoulStore.StateOf(Z)); } catch { s = null; }
             if (s == null) { Close(); return; }
             Colony c = Colony.Of(s.Colony);
             double now = ZNet.instance.GetTimeSeconds();

@@ -39,7 +39,7 @@ namespace Jarldom
         public bool Load()
         {
             ZDO z = View.GetZDO();
-            try { S = VillagerState.Load(z.GetByteArray(Villagers.StateKey)); }
+            try { S = VillagerState.Load(SoulStore.StateOf(z)); }
             catch (Exception e) { Plugin.Warn("Jarldom: a villager's state could not be read: " + e.Message); S = null; }
             if (S == null) return false;
             Colony = Colony.Of(S.Colony);
@@ -55,9 +55,10 @@ namespace Jarldom
             if (!View.IsValid() || !View.IsOwner()) return;
             _dirty = false;
             ZDO z = View.GetZDO();
-            z.Set(Villagers.StateKey, S.Save());
-            z.Set(Villagers.NameKey, S.FullName);
-            z.Set(MealKey, SaveMeals());
+            SoulStore.Write(z, S, Colony);
+            if (z.GetString(Villagers.NameKey, "") != S.FullName) z.Set(Villagers.NameKey, S.FullName);
+            string meals = SaveMeals();
+            if (z.GetString(MealKey, "") != meals) z.Set(MealKey, meals);
         }
         // Let go of the body: stand up, stop, save (a reload, a death, ownership moving away).
         public void Release()
@@ -122,7 +123,7 @@ namespace Jarldom
             if (Time.time >= _nextGear) { _nextGear = Time.time + 1f; Gear.Maintain(this); }
             if (Time.time >= _nextFoes) { _nextFoes = Time.time + 0.3f; Combat.Think(this); }
             if (Time.time >= _nextMoodSync) { _nextMoodSync = Time.time + 2f; SyncHover(); }
-            if (_dirty && Time.time >= _nextSave) { _nextSave = Time.time + 4f; Save(); }
+            if (_dirty && Time.time >= _nextSave) { _nextSave = Time.time + 30f; Save(); } // (the soul is sent to everyone when written: twice a minute is plenty; deaths and commands save at once)
             if (Combat.Busy(this)) return;
             Activity want = Want();
             // Sleep, a trade run, the road to Valhalla: carried on to the end unless a raid comes.
@@ -290,6 +291,11 @@ namespace Jarldom
 
         // Changes asked by the colony (a player's choice in the window), on the game that owns this villager.
         public void Command(string action, string arg)
+        {
+            try { Commanded(action, arg); }
+            finally { if (S != null && Alive) { _dirty = true; Save(); } } // (a player's word shows at once)
+        }
+        private void Commanded(string action, string arg)
         {
             switch (action)
             {

@@ -171,8 +171,8 @@ namespace Jarldom
         private static readonly Dictionary<string, (List<Order> orders, uint rev)> Shared = new Dictionary<string, (List<Order>, uint)>();
         public static Order BestShared(Colony c, Brain b, Func<Prof, bool> canDo)
         {
-            uint rev = c.Z.DataRevision;
-            if (!Shared.TryGetValue(c.Id, out var s) || s.rev != rev) { s = (JobBoard.FromSnapshot(c.Z.GetByteArray(Colony.BoardKey)), rev); Shared[c.Id] = s; }
+            uint rev = c.BoardRevision;
+            if (!Shared.TryGetValue(c.Id, out var s) || s.rev != rev) { s = (JobBoard.FromSnapshot(c.BoardBytes()), rev); Shared[c.Id] = s; }
             return s.orders.Where(o => o.State == OrderState.Open && canDo(o.Prof) && !Refused.Contains((b.S.Vid, o.Id)) && Work.GearFor(b, o) == null && o.Kind != "craft")
                 .OrderByDescending(o => o.Priority).ThenBy(o => (o.X - b.Pos.x) * (o.X - b.Pos.x) + (o.Z - b.Pos.z) * (o.Z - b.Pos.z)).FirstOrDefault();
         }
@@ -210,12 +210,40 @@ namespace Jarldom
     internal sealed partial class Colony
     {
         private void LoadBoard() { }
+        // The shared job board lives on a still object of its own beside the pillars: it changes every few seconds (claims, new jobs),
+        // and on the pillars it would send the whole colony record with it each time.
+        public const string BoardZdoKey = "jarldom_boardzdo";
+        public ZDO BoardZ
+        {
+            get
+            {
+                ZDOID id = Z.GetZDOID(BoardZdoKey);
+                return id.IsNone() || ZDOMan.instance == null ? null : ZDOMan.instance.GetZDO(id);
+            }
+        }
+        public byte[] BoardBytes() { byte[] b = BoardZ?.GetByteArray(BoardKey); return b != null && b.Length > 0 ? b : Z.GetByteArray(BoardKey); }
+        public uint BoardRevision => BoardZ?.DataRevision ?? Z.DataRevision;
         private void ShareBoard()
         {
             byte[] snap = Board.Snapshot();
-            byte[] had = Z.GetByteArray(BoardKey);
+            ZDO bz = BoardZ;
+            if (bz == null && Z.GetZDOID(BoardZdoKey).IsNone())
+            {
+                int hash = SoulStore.PrefabName.GetStableHashCode();
+                if (ZNetScene.instance?.GetPrefab(SoulStore.PrefabName) != null)
+                {
+                    bz = ZDOMan.instance.CreateNewZDO(Position + Vector3.down * 3f, hash);
+                    bz.Persistent = true; bz.Type = ZDO.ObjectType.Default; bz.Distant = false; bz.SetPrefab(hash);
+                    bz.Set(IdKey, Id);
+                    Z.Set(BoardZdoKey, bz.m_uid);
+                    if (Z.GetByteArray(BoardKey)?.Length > 0) Z.Set(BoardKey, new byte[0]); // (the old copy off the pillars)
+                }
+            }
+            if (bz == null) { byte[] old = Z.GetByteArray(BoardKey); if (old == null || !old.SequenceEqual(snap)) Z.Set(BoardKey, snap); return; }
+            byte[] had = bz.GetByteArray(BoardKey);
             if (had != null && had.Length == snap.Length && had.SequenceEqual(snap)) return;
-            Z.Set(BoardKey, snap);
+            if (!bz.IsOwner()) bz.SetOwner(ZDOMan.GetSessionID());
+            bz.Set(BoardKey, snap);
         }
     }
 }

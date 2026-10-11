@@ -75,7 +75,7 @@ namespace Jarldom
             Bed bed = c.FreeBeds().OrderBy(b => Vector3.Distance(b.transform.position, at)).FirstOrDefault();
             if (bed != null) s.Bed = Colony.IdOf(bed.GetComponent<ZNetView>());
             ZDO z = h.GetComponent<ZNetView>().GetZDO();
-            z.Set(Villagers.StateKey, s.Save());
+            SoulStore.Write(z, s, c);
             if (bed != null) { ZNetView bv = bed.GetComponent<ZNetView>(); if (!bv.IsOwner()) bv.ClaimOwnership(); bv.GetZDO().Set(Villagers.ClaimKey, vid); bv.GetZDO().Set("dhc_home", Colony.Hash(vid)); bv.GetZDO().Set("dhc_homename", s.FullName); }
             c.Rerank();
         }

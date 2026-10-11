@@ -43,7 +43,7 @@ namespace Jarldom
             {
                 VillagerPrefab.Ensure(scene);
                 Pieces.Ensure(scene);
-                foreach (GameObject go in VillagerPrefab.All.Concat(Pieces.All)) Register(scene, go);
+                foreach (GameObject go in VillagerPrefab.All.Concat(Pieces.All).Concat(new[] { SoulStore.Prefab })) Register(scene, go);
                 Items.RegisterScene(scene);
             }
             catch (Exception e) { Plugin.Warn("Jarldom: registering prefabs failed: " + e); }

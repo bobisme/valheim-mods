@@ -32,7 +32,7 @@ namespace Jarldom
                 {
                     c.MarkDirty(); c.Flush();
                     byte[] record = v.GetZDO().GetByteArray(Colony.RecordKey);
-                    if (record != null && record.Length > 0) saved = new Saved { Colony = c, Id = c.R.Id, Name = c.R.Name, Record = record, Board = v.GetZDO().GetByteArray(Colony.BoardKey), At = seat.transform.position };
+                    if (record != null && record.Length > 0) saved = new Saved { Colony = c, Id = c.R.Id, Name = c.R.Name, Record = record, Board = c.BoardBytes(), At = seat.transform.position };
                 });
                 __state = saved;
             }

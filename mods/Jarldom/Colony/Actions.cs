@@ -59,7 +59,7 @@ namespace Jarldom
                 case "gone": { ReleaseBed(a[0]); RosterRow row = R.Row(a[0]); if (row != null) row.State = Get(a, 1) == "deserted" ? SoulState.Deserted : Get(a, 1) == "ascended" ? SoulState.Ascended : SoulState.Dismissed; Rerank(); } break;
                 default: Plugin.Warn("Jarldom: unknown colony action " + action); return;
             }
-            _dirty = true;
+            _dirty = true; Flush(); // (a player's choice shows at once)
             SurveySoon(); // beds, chests and rooms may have changed
         }
         private static int Int(string[] a, int i) => a.Length > i && int.TryParse(a[i], out int v) ? v : 0;

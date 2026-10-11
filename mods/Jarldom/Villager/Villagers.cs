@@ -107,7 +107,7 @@ namespace Jarldom
             ZNetView view = go.GetComponent<ZNetView>();
             ZDO z = view.GetZDO();
             s.Colony = colony.Id;
-            z.Set(VidKey, s.Vid); z.Set(ColonyKey, colony.Id); z.Set(NameKey, s.FullName); z.Set(StateKey, s.Save());
+            z.Set(VidKey, s.Vid); z.Set(ColonyKey, colony.Id); z.Set(NameKey, s.FullName); SoulStore.Write(z, s, colony);
             Looks(go, s);
             Humanoid h = go.GetComponent<Humanoid>();
             h.m_name = s.FullName;
@@ -161,7 +161,7 @@ namespace Jarldom
         {
             Brain b = Brain(h);
             ZDO z = h.GetComponent<ZNetView>().GetZDO();
-            VillagerState s = b?.S ?? VillagerState.Load(z.GetByteArray(StateKey));
+            VillagerState s = b?.S ?? VillagerState.Load(SoulStore.StateOf(z));
             if (s == null) return;
             Colony colony = Colony.Of(s.Colony);
             string killer = b?.LastAttacker ?? "";
