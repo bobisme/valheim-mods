@@ -449,6 +449,7 @@ namespace Jarldom
                         // Test: thing (raise today's matters now) | call | end | rule <yes|no> | speak (as if the teller spoke).
                         string sub = a.Length > 2 ? a[2] : "raise";
                         if (sub == "raise") Thing.Dawn(c, c.Day + Thing.Pending(c).Count, force: true);
+                        else if (sub == "test") { Brain t = Villagers.All.Where(x => x.S.Colony == c.Id && Thing.Comes(x)).OrderBy(_ => UnityEngine.Random.value).FirstOrDefault(); Thing.Pending(c).Add(new Petition { Id = "test", About = "", Text = "Let us drink to the first copper from the camp!", Yes = "Drink to it", No = "Not now", YesMood = 2, NoMood = -1, By = t?.S.Vid ?? "", ByName = t?.S.Name ?? "", Day = c.Day }); c.MarkDirty(); }
                         else if (sub == "call") Thing.Call(c, Player.m_localPlayer?.GetPlayerName() ?? "the jarl");
                         else if (sub == "end") Thing.Close(c, "adjourned");
                         else if (sub == "speak") Thing.Speak(c);

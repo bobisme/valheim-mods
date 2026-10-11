@@ -177,6 +177,13 @@ namespace Jarldom
         }
 
         /// <summary>A window: the game's crafting panel wood, centred on the screen. Positions inside it are from its top-left corner (y down is negative).</summary>
+        /// <summary>A panel along the bottom of the screen (what's above it stays in view).</summary>
+        internal static RectTransform BottomWindow(string name, Vector2 size, float up = 60f)
+        {
+            RectTransform r = Rect(Canvas, name, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0, up), size);
+            Copy(_panel, r.gameObject.AddComponent<Image>());
+            return r;
+        }
         internal static RectTransform Window(string name, Vector2 size)
         {
             RectTransform r = Rect(Canvas, name, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, size);
