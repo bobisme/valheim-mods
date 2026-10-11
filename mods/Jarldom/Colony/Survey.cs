@@ -48,6 +48,9 @@ namespace Jarldom
         public const float NearPillars = 15f;
         public bool Ours(Vector3 p) => Utils.DistanceXZ(p, Position) <= NearPillars || RoomAt(p) != null;
         // Where the colony's people pick up what lies about: its rooms and zones, and by the pillars.
+        // A fire or light anywhere in the colony circle is kept fed, along the paths too, whoever built it (fuel from the stores
+        // takes nothing of theirs); only not inside a ward that keeps the jarl out (someone's own base).
+        public bool Feeds(Piece p) => Tends(p.transform.position) || Utils.DistanceXZ(p.transform.position, Position) <= Radius && PrivateArea.CheckAccess(p.transform.position, 0f, false, false);
         public bool Tends(Vector3 p) => Utils.DistanceXZ(p, Position) <= NearPillars || RoomAt(p) != null || R.Zones.Any(z => Geometry.Distance(z.Xz, p.x, p.z) <= 2f);
         public static long Hash(string vid) => (long)(uint)vid.GetStableHashCode() + 1_000_000_000L * 7;
         public static string BedOwner(Bed bed, out string kind)

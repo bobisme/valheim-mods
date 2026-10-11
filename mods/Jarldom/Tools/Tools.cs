@@ -243,6 +243,7 @@ namespace Jarldom
                     {
                         ["version"] = Plugin.Version, ["hostHasJarldom"] = Net.HostHasJarldom, ["colonies"] = new JArray(Colony.All.Select(x => x.Id)),
                         ["colony"] = c == null ? null : Describe(c),
+                        ["needsYou"] = c == null ? null : new JArray(Ui.ColonyWindow.NeedsYou(c)),
                         ["compat"] = new JObject(Compat.Report().Select(r => new JProperty(r.name, r.present ? r.version : "absent"))),
                     });
                     break;
@@ -740,7 +741,7 @@ namespace Jarldom
                 case "leisure": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } b.Task?.Stop(b); b.Task = new LeisureTask(a[3], "test"); b.Task.Start(b); output(new JObject { ["doing"] = b.Task.Doing }); } break;
                 case "deeds": c.R.Deeds += int.Parse(a[2]); c.MarkDirty(); output(new JObject { ["deeds"] = c.R.Deeds }); break; // (test mishaps undone)
                 case "hildir": if (a.Length > 2) Weaving.TestHildir = a[2] == "on"; output(new JObject { ["known"] = Weaving.HildirKnown(), ["keys"] = new JArray(new[] { "Hildir1", "Hildir2", "Hildir3" }.Where(k => ZoneSystem.instance.GetGlobalKey(k))) }); break;
-                case "fires": output(new JObject { ["fires"] = new JArray(c.PiecesIn(c.Radius).Select(pc => pc.GetComponent<Fireplace>()).Where(f => f != null).Select(f => $"{Utils.GetPrefabName(f.gameObject)} at {f.transform.position.x:0},{f.transform.position.z:0}: warms {Classes.Warms(f)}, lit {Classes.Lit(f)}, areas {string.Join("/", f.GetComponentsInChildren<EffectArea>(true).Select(e => e.m_type + (e.gameObject.activeInHierarchy ? "" : "(off)")))}")) }); break;
+                case "fires": output(new JObject { ["fires"] = new JArray(c.PiecesIn(c.Radius).Select(pc => pc.GetComponent<Fireplace>()).Where(f => f != null).Select(f => $"{Utils.GetPrefabName(f.gameObject)} at {f.transform.position.x:0},{f.transform.position.z:0}: warms {Classes.Warms(f)}, lit {Classes.Lit(f)}, areas {string.Join("/", f.GetComponentsInChildren<EffectArea>(true).Select(e => e.m_type + (e.gameObject.activeInHierarchy ? "" : "(off)")))}, fuel {f.GetComponent<ZNetView>().GetZDO().GetFloat(ZDOVars.s_fuel):0.0}/{f.m_maxFuel} {f.m_fuelItem?.name}, by {f.GetComponent<Piece>()?.GetCreator()}, fed {c.Feeds(f.GetComponent<Piece>())}")), ["founder"] = c.R.Founder, ["me"] = Player.m_localPlayer?.GetPlayerID() ?? 0, ["players"] = new JArray(Player.GetAllPlayers().Select(x => x.GetPlayerName() + " " + x.GetPlayerID())), ["allowed"] = new JArray(c.R.Allowed) }); break;
                 case "upkeep": output(new JObject { ["ruins"] = new JArray(Upkeep.Ruins(c).Select(r => $"{r.Prefab} at {r.At.x:0.0},{r.At.y:0.0},{r.At.z:0.0}")), ["hurt"] = new JArray(Upkeep.Hurt(c).Select(w => $"{Utils.GetPrefabName(w.gameObject)} at {w.transform.position.x:0},{w.transform.position.z:0}")), ["wornPaths"] = Upkeep.Worn(c), ["busiest"] = Upkeep.Busiest(c) }); break;
                 case "wreck":
                     {

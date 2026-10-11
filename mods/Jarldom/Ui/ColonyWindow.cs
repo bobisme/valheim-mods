@@ -133,6 +133,15 @@ namespace Jarldom.Ui
                 int payday = (c.Day / Payroll.EveryDays + 1) * Payroll.EveryDays;
                 list.Add(treasury == null ? "No treasury chest: wages can't be paid." : $"The treasury holds {Stock.Coins(treasury)} coins and {due} are due on day {payday}.");
             }
+            // (fires and torches gone out that no one can feed: their fuel isn't in the stores)
+            var dark = c.PiecesIn(c.Radius).Select(p => p.GetComponent<Fireplace>()).Where(f => f != null && !f.m_infiniteFuel && f.m_fuelItem != null && !Classes.Lit(f) && c.Feeds(f.GetComponent<Piece>()) && !Work.HaveInStock(c, f.m_fuelItem.name))
+                .GroupBy(f => f.m_fuelItem.name).ToList();
+            foreach (var g in dark.Take(2))
+            {
+                int fires = g.Count(Classes.Warms), lights = g.Count() - fires;
+                string what = string.Join(" and ", new[] { fires > 0 ? $"{fires} fire{(fires == 1 ? "" : "s")}" : null, lights > 0 ? $"{lights} torch{(lights == 1 ? "" : "es")}" : null }.Where(x => x != null));
+                list.Add($"{what} out: no {Localization.instance.Localize(g.First().m_fuelItem.m_itemData.m_shared.m_name).ToLower()} in the stores to feed them (the haulers keep them fed from there).");
+            }
             var failing = c.R.Rooms.Where(x => !x.Ok).Select(x => Tables.Of(x.Type).Name.ToLower()).ToList();
             if (failing.Count > 0) list.Add($"Rooms that don't pass ({string.Join(", ", failing)}): the Rooms tab says why.");
             return list;

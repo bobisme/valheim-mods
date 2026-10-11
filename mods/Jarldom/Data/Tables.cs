@@ -55,7 +55,7 @@ namespace Jarldom
     {
         public static readonly ProfessionInfo[] Professions =
         {
-            P(Prof.Hauler, "Hauler", 3, "moves things to the stockpiles", "", 1, tool: ""),
+            P(Prof.Hauler, "Hauler", 3, "moves things to the stockpiles, keeps fires and torches fed", "", 1, tool: ""),
             P(Prof.Woodcutter, "Woodcutter", 3, "chops in the woodlot and keeps the hall's woodpile", "an axe", 3, tool: "axe"),
             P(Prof.Forager, "Forager", 3, "gathers berries, mushrooms, thistle and dandelions", "", 2, tool: ""),
             P(Prof.Farmer, "Farmer", 3, "harvests and replants the fields", "a cultivator and seeds", 3, tool: "cultivator"),

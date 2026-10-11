@@ -163,9 +163,10 @@ namespace Jarldom
                 Fireplace fire = p.GetComponent<Fireplace>();
                 ZNetView v = p.GetComponent<ZNetView>();
                 if (v == null || !v.IsValid()) continue;
-                // (every fire the colony tends, in a room or out: a campfire under the cooking station, the torches along the road)
-                if (fire != null && !fire.m_infiniteFuel && fire.m_fuelItem != null && c.Tends(p.transform.position) && v.GetZDO().GetFloat(ZDOVars.s_fuel) < fire.m_maxFuel * 0.5f && HaveInStock(c, fire.m_fuelItem.name))
-                    c.Board.Post("fuel", Key(v), Prof.Woodcutter, 3, p.transform.position.x, p.transform.position.y, p.transform.position.z, now, "", "fire");
+                // (every fire the colony tends, in a room or out: a campfire under the cooking station, the torches along the road, a brazier,
+                // a hot tub; the haulers' round, and anyone idle helps: what warms or lights is one job whatever burns in it)
+                if (fire != null && !fire.m_infiniteFuel && fire.m_fuelItem != null && c.Feeds(p) && v.GetZDO().GetFloat(ZDOVars.s_fuel) < fire.m_maxFuel * 0.5f && HaveInStock(c, fire.m_fuelItem.name))
+                    c.Board.Post("fuel", Key(v), Prof.Hauler, Classes.Warms(fire) ? 4 : 3, p.transform.position.x, p.transform.position.y, p.transform.position.z, now, "", "fire");
                 Smelter smelter = p.GetComponent<Smelter>();
                 if (smelter != null)
                 {
@@ -398,7 +399,7 @@ namespace Jarldom
                 case Prof.Cook: return "nothing to cook or brew";
                 case Prof.Smith: return "no commissions (mark some in the colony window)";
                 case Prof.Builder: return Gear.Tool(b, "hammer") == null ? "needs a hammer to build, mend and pave" : "nothing to build, mend, rebuild or pave";
-                case Prof.Hauler: return "nothing to carry";
+                case Prof.Hauler: return "nothing to carry, and every fire and torch is fed";
                 case Prof.Skald: return "resting until the evening's songs";
                 case Prof.Trader: return c.R.Rank < Rank.Village ? "trade runs wait for village rank" : "nothing to sell in the stores (amber, silver, gems)";
                 case Prof.Carter: return "no ore or metal at the outpost to cart";
