@@ -441,6 +441,16 @@ namespace Jarldom
             else Net.Claim(c, b, o);
             return o.Kind == "craft" ? new CraftTask(o) : (Task)new WorkTask(o);
         }
+        // At dusk, before the hall: the hauler (or a woodcutter, if there's none) feeds the fires and torches gone low, so the colony
+        // is lit for the night.
+        public static Task Lamplight(Brain b)
+        {
+            Colony c = b.Colony;
+            if (!c.IsOwner || b.S.Prof != Prof.Hauler && !(b.S.Prof == Prof.Woodcutter && !Villagers.All.Any(v => v.S.Colony == c.Id && v.S.Prof == Prof.Hauler && v.Alive))) return null;
+            Order o = c.Board.All.Where(x => x.State == OrderState.Open && x.Kind == "fuel" && x.Prof == Prof.Hauler).OrderBy(x => (x.X - b.Pos.x) * (x.X - b.Pos.x) + (x.Z - b.Pos.z) * (x.Z - b.Pos.z)).FirstOrDefault();
+            if (o == null || !c.Board.Claim(o.Id, b.S.Vid, c.Now, out _)) return null;
+            return new WorkTask(o);
+        }
         private static bool NothingFor(Colony c, Prof p) => !c.Board.All.Any(o => o.State == OrderState.Open && o.Prof == p);
         internal static string GearFor(Brain b, Order o)
         {

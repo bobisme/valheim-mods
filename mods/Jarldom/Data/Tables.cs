@@ -158,9 +158,9 @@ namespace Jarldom
             new RankInfo { Id = Rank.Camp, Name = "Camp", Population = 0, Rooms = new RoomType[0], Cap = 3, Unlocks = "migration, basic work" },
             new RankInfo { Id = Rank.Homestead, Name = "Homestead", Population = 3, Rooms = new[] { RoomType.Longhouse }, Cap = 6, Unlocks = "the great hall" },
             new RankInfo { Id = Rank.Hamlet, Name = "Hamlet", Population = 6, Rooms = new[] { RoomType.GreatHall, RoomType.Stockpile }, Cap = 10, Unlocks = "Odin's shrine, payroll, bigger raids" },
-            new RankInfo { Id = Rank.Village, Name = "Village", Population = 12, Rooms = new[] { RoomType.OdinShrine, RoomType.Smithy }, Cap = 16, Unlocks = "temples, trade runs, the Thing" },
-            new RankInfo { Id = Rank.Jarldom, Name = "Jarldom", Population = 20, Rooms = new[] { RoomType.Temple, RoomType.GreatHall }, Cap = 26, Unlocks = "the treasure room, the Dvergr envoy", GradedRoom = RoomType.GreatHall, MinGrade = 'B' },
-            new RankInfo { Id = Rank.Hold, Name = "Hold", Population = 30, Rooms = new[] { RoomType.Temple, RoomType.BurialGround, RoomType.Watchtower }, Cap = 40, Unlocks = "everything" },
+            new RankInfo { Id = Rank.Village, Name = "Village", Population = 12, Rooms = new[] { RoomType.OdinShrine, RoomType.Smithy }, Cap = 16, Unlocks = "temples, trade runs (on foot, by cart), the Thing" },
+            new RankInfo { Id = Rank.Jarldom, Name = "Jarldom", Population = 20, Rooms = new[] { RoomType.Temple, RoomType.GreatHall }, Cap = 26, Unlocks = "the treasure room, the Dvergr envoy, trade by karve", GradedRoom = RoomType.GreatHall, MinGrade = 'B' },
+            new RankInfo { Id = Rank.Hold, Name = "Hold", Population = 30, Rooms = new[] { RoomType.Temple, RoomType.BurialGround, RoomType.Watchtower }, Cap = 40, Unlocks = "everything, trade by longship" },
         };
         public static RankInfo Of(Rank r) => Ranks[(int)r];
 

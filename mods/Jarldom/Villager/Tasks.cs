@@ -332,47 +332,90 @@ namespace Jarldom
     // A trade run: the colony's surplus valuables to the traders, coins back at the traders' own prices (never better), a day later.
     internal sealed class TradeTask : Task
     {
-        private Vector3 _edge; private bool _packed;
+        private Vector3 _edge; private bool _packed; private TradeWay _way;
         public override bool Interruptible => false;
         public override void Start(Brain b)
         {
-            Doing = "packing for a trade run";
+            Colony c = b.Colony;
+            var stores = Stock.Chests(c, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).ToList();
+            int lots = stores.Sum(x => x.chest.GetInventory().GetAllItems().Count(Trade.Sellable));
+            Component cart = Carts.CartNear(c), karve = Trade.Ship(c, false), longship = Trade.Ship(c, true);
+            _way = Trading.Choose(c.R.Rank, cart != null, karve != null, longship != null, lots);
+            Doing = "packing for a trade run " + Trading.Names[(int)_way];
             Inventory bag = b.Body.GetInventory();
-            foreach (var x in Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)))
+            int room = Trading.Lots(_way);
+            foreach (var x in stores)
                 foreach (ItemDrop.ItemData item in x.chest.GetInventory().GetAllItems().Where(Trade.Sellable).ToList())
-                    if (bag.GetEmptySlots() > 1) Stock.Take(x.chest, bag, item, item.m_stack);
+                    if (bag.GetEmptySlots() > 1 && bag.GetAllItems().Count(Trade.Sellable) < room) Stock.Take(x.chest, bag, item, item.m_stack);
             if (!bag.GetAllItems().Any(Trade.Sellable)) { Done = true; b.NoTradeUntil = Time.time + 60; return; }
-            Vector3 dir = (b.Pos - b.Colony.Position); dir.y = 0; if (dir.sqrMagnitude < 1) dir = Vector3.forward;
-            _edge = b.Colony.Position + dir.normalized * Mathf.Min(b.Colony.Radius + 10, 35f); // (a little way down the road and gone: the world past a player's own ground stands still, so a walk to the far edge could stall)
-            b.Move.To(Colony.Spot(_edge, 4f) ?? _edge, 3f);
+            // (by cart or ship: to it, and the rest is loaded there; on foot a little way down the road and gone: the world past a
+            // player's own ground stands still, so a walk to the far edge could stall)
+            Component by = _way == TradeWay.Cart ? cart : _way == TradeWay.Karve ? karve : _way == TradeWay.Longship ? longship : null;
+            Vector3 dir = (b.Pos - c.Position); dir.y = 0; if (dir.sqrMagnitude < 1) dir = Vector3.forward;
+            _edge = by != null ? Colony.Spot(by.transform.position, Trading.AtSea(_way) ? 8f : 3f) ?? b.Pos : c.Position + dir.normalized * Mathf.Min(c.Radius + 10, 35f);
+            if (by == null) _edge = Colony.Spot(_edge, 4f) ?? _edge;
+            b.Move.To(_edge, 3f);
             _packed = true;
         }
         public override void Tick(Brain b)
         {
             if (!_packed) { Done = true; return; }
-            Doing = "off on a trade run";
+            Doing = _way == TradeWay.Foot ? "off on a trade run" : Trading.AtSea(_way) ? "down to the ship for a trade run" : "off to the cart for a trade run";
             // (a fight or a flee stops the walk: walk on unless really there, or the way is lost)
             if (!b.Move.Failed && !b.Move.Arrived && b.Move.Distance > 6f) { if (!b.Move.Moving) b.Move.To(b.Move.Goal, 3f); return; }
-            Trade.Leave(b);
+            Trade.Leave(b, _way);
             Done = true;
         }
     }
     internal static class Trade
     {
         public static bool Sellable(ItemDrop.ItemData i) => i != null && i.m_shared.m_value > 0 && !i.m_equipped && !(i.m_dropPrefab != null && i.m_dropPrefab.name == "Coins") && !Items.IsRing(i);
-        public static void Leave(Brain b)
+        // A ship of the colony's lying at its shore, no one aboard: a karve, or a longship (the drakkar too).
+        public static Ship Ship(Colony c, bool longship) => c.PiecesIn(c.Radius + 40).Select(p => p.GetComponent<Ship>()).FirstOrDefault(s => s != null && !s.HasPlayerOnboard()
+            && (longship ? Utils.GetPrefabName(s.gameObject).StartsWith("VikingShip") : Utils.GetPrefabName(s.gameObject) == "Karve"));
+        // For the Work tab: how a trader would go now, and what the next way needs.
+        public static List<string> Plan(Colony c)
         {
+            var lines = new List<string>();
+            Rank rank = c.R.Rank;
+            if (rank < Rank.Village) { lines.Add("Trade runs start at village rank: a trader takes amber, silver, gems and the like from the stores and comes back with coins."); return lines; }
+            bool cart = Carts.CartNear(c) != null, karve = Ship(c, false) != null, longship = Ship(c, true) != null;
+            int lots = Stock.Chests(c).Where(x => x.category != "treasury").Sum(x => x.chest.GetInventory().GetAllItems().Count(Sellable));
+            TradeWay now = Trading.Choose(rank, cart, karve, longship, lots), most = Trading.Choose(rank, cart, karve, longship, int.MaxValue);
+            string Way(TradeWay w) => $"{Trading.Names[(int)w]} ({Trading.Lots(w)} lots{(Trading.PricePercent(w) > 100 ? $", {Trading.PricePercent(w)}% of the price" : "")})";
+            lines.Add($"{lots} lots for sale in the stores: a trader would go {Way(now)}." + (most != now ? $" With more to sell, {Way(most)}." : ""));
+            if (!cart) lines.Add("Build a cart in the colony and they take it: " + Way(TradeWay.Cart) + ".");
+            if (rank < Trading.MinRank(TradeWay.Karve)) lines.Add("At jarldom rank, a karve moored by the colony sails to better markets: " + Way(TradeWay.Karve) + ".");
+            else if (!karve && !longship) lines.Add("Moor a karve by the colony (no one aboard) and they sail it: " + Way(TradeWay.Karve) + ".");
+            if (rank >= Trading.MinRank(TradeWay.Karve) && rank < Trading.MinRank(TradeWay.Longship)) lines.Add("At hold rank, a longship or drakkar sails to the far markets: " + Way(TradeWay.Longship) + ".");
+            else if (rank >= Trading.MinRank(TradeWay.Longship) && !longship) lines.Add("Moor a longship or drakkar by the colony and they sail to the far markets: " + Way(TradeWay.Longship) + ".");
+            return lines;
+        }
+        public static void Leave(Brain b, TradeWay way)
+        {
+            Colony c = b.Colony;
             Inventory bag = b.Body.GetInventory();
-            var goods = bag.GetAllItems().Where(Sellable).ToList();
-            int coins = goods.Sum(i => i.m_shared.m_value * i.m_stack);
-            bool njord = b.Colony.R.Rooms.Any(r => r.Ok && r.Type == RoomType.Temple && r.God == "njord") && b.Colony.FavourOf("njord") > 0;
-            if (njord) coins = coins * 110 / 100;
-            bool lost = UnityEngine.Random.value < (b.Colony.FavourOf("njord") < -10 ? 0.15f : 0.05f);
-            foreach (ItemDrop.ItemData i in goods) bag.RemoveItem(i);
+            var goods = bag.GetAllItems().Where(Sellable).Select(i => (value: i.m_shared.m_value * i.m_stack, item: i)).ToList();
+            int lots = goods.Count, coins = goods.Sum(g => g.value);
+            foreach (var g in goods) bag.RemoveItem(g.item);
+            // (a cart or a ship holds more than the trader's pack: the rest of what's for sale is loaded there)
+            foreach (var x in Stock.Chests(c, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)))
+                foreach (ItemDrop.ItemData i in x.chest.GetInventory().GetAllItems().Where(Sellable).ToList())
+                {
+                    if (lots >= Trading.Lots(way)) break;
+                    coins += i.m_shared.m_value * i.m_stack; lots++;
+                    ContainerAccess.TakeOver(x.chest); x.chest.GetInventory().RemoveItem(i);
+                }
+            bool temple = c.R.Rooms.Any(r => r.Ok && r.Type == RoomType.Temple && r.God == "njord");
+            int njord = Mathf.RoundToInt(c.FavourOf("njord"));
+            coins = coins * Trading.PricePercent(way) / 100;
+            if (temple && njord > 0) coins = coins * 110 / 100;
+            bool lost = UnityEngine.Random.value < Trading.LossChance(way, njord, temple);
             b.S.Bump("trades");
-            b.Colony.Log("text", b.S.Name, "", $"{b.S.Name} set out to trade {goods.Count} lots worth {coins} coins.");
-            Net.Act(b.Colony, "away", $"{b.S.Vid}|{(lost ? 0 : coins)}");
-            b.Away(lost ? "trade:0" : "trade:" + coins);
+            string how = way == TradeWay.Foot ? "set out on foot to trade" : way == TradeWay.Cart ? "took the cart to the traders with" : way == TradeWay.Karve ? "sailed the karve to the markets down the coast with" : "sailed the longship to the far markets with";
+            c.Log("text", b.S.Name, "", $"{b.S.Name} {how} {lots} lots worth {coins} coins.");
+            Net.Act(c, "away", $"{b.S.Vid}|{(lost ? 0 : coins)}");
+            b.Away(Trading.Encode(lost ? 0 : coins, way));
         }
     }
 

@@ -45,6 +45,46 @@ namespace Jarldom
         }
     }
 
+    // Trade runs grow with the colony: a pack on the trader's back, then a cart of goods, then a karve to the markets down the coast,
+    // then a longship to the far ones. Each needs its rank and the cart or ship to be there; the run takes the smallest that carries
+    // what the stores have to sell (no ship for three lots of amber), so it grows as the colony's wealth does.
+    public enum TradeWay { Foot, Cart, Karve, Longship }
+    public static class Trading
+    {
+        public static readonly string[] Names = { "on foot", "by cart", "by karve", "by longship" };
+        public static int Lots(TradeWay w) => w == TradeWay.Foot ? 6 : w == TradeWay.Cart ? 18 : w == TradeWay.Karve ? 30 : 60;
+        public static int PricePercent(TradeWay w) => w == TradeWay.Karve ? 120 : w == TradeWay.Longship ? 140 : 100; // (markets further off pay better)
+        public static double AwayDays(TradeWay w) => w == TradeWay.Karve ? 1.5 : w == TradeWay.Longship ? 2 : 1;
+        public static Rank MinRank(TradeWay w) => w == TradeWay.Karve ? Rank.Jarldom : w == TradeWay.Longship ? Rank.Hold : Rank.Village;
+        public static bool AtSea(TradeWay w) => w >= TradeWay.Karve;
+        // The chance a run comes home with nothing: robbers on the road, a storm at sea; Njord's mood matters most at sea.
+        public static float LossChance(TradeWay w, int njord, bool njordTemple)
+        {
+            if (njord < -10) return AtSea(w) ? 0.2f : 0.15f;
+            if (AtSea(w)) return njordTemple && njord > 0 ? 0.03f : 0.07f;
+            return 0.05f;
+        }
+        public static TradeWay Choose(Rank rank, bool cart, bool karve, bool longship, int lots)
+        {
+            var ways = new List<TradeWay> { TradeWay.Foot };
+            if (cart && rank >= MinRank(TradeWay.Cart)) ways.Add(TradeWay.Cart);
+            if (karve && rank >= MinRank(TradeWay.Karve)) ways.Add(TradeWay.Karve);
+            if (longship && rank >= MinRank(TradeWay.Longship)) ways.Add(TradeWay.Longship);
+            foreach (TradeWay w in ways) if (Lots(w) >= lots) return w;
+            return ways[ways.Count - 1];
+        }
+        // Encoded in the trader's away record: "trade:<coins>@<way>" (an old "trade:<coins>" is on foot).
+        public static string Encode(int coins, TradeWay w) => "trade:" + coins + "@" + (int)w;
+        public static bool Decode(string why, out int coins, out TradeWay w)
+        {
+            coins = 0; w = TradeWay.Foot;
+            if (why == null || !why.StartsWith("trade:")) return false;
+            string rest = why.Substring(6); int at = rest.IndexOf('@');
+            if (at >= 0 && int.TryParse(rest.Substring(at + 1), out int wi) && wi >= 0 && wi <= (int)TradeWay.Longship) w = (TradeWay)wi;
+            return int.TryParse(at >= 0 ? rest.Substring(0, at) : rest, out coins);
+        }
+    }
+
     public static class Renown
     {
         // The Fulings' price: more for a colony worth more, and half again each time it's been paid (rounded to fives).

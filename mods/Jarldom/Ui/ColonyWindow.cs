@@ -423,7 +423,7 @@ namespace Jarldom.Ui
             var orders = _c.IsOwner ? _c.Board.All.ToList() : JobBoard.FromSnapshot(_c.BoardBytes());
             int open = orders.Count(o => o.State == OrderState.Open), claimed = orders.Count(o => o.State == OrderState.Claimed), blocked = orders.Count(o => o.State == OrderState.Blocked);
             y = Text(list, $"{open} open, {claimed} being done, {blocked} blocked. Done today: {_c.DoneToday}.", y);
-            y = Text(list, "Jobs come from what you mark (zones and rooms), what lies about, and fires and stations running low. Villagers take the jobs of their trade; haulers take any carrying.", y, 15, GameUi.Dim);
+            y = Text(list, "Jobs come from what you mark (zones and rooms), what lies about, and fires and stations running low. Villagers take the jobs of their trade; haulers take any carrying and keep the fires and torches fed, and anyone idle helps them.", y, 15, GameUi.Dim);
             y = Commissions(list, y);
             y = Heading(list, "Stores to keep", y);
             foreach (var (cat, who, verb) in new[] { ("wood", "Woodcutters", "fell trees"), ("stone", "Miners", "quarry stone") })
@@ -434,6 +434,11 @@ namespace Jarldom.Ui
                 GameUi.Button(list, "+500", new Vector2(W - 160, -y + 2), new Vector2(76, 28), () => Net.Act(_c, "keep", $"{k}|{(keep == 0 ? 0 : keep + 500)}"), true, 14);
                 GameUi.Button(list, "no limit", new Vector2(W - 80, -y + 2), new Vector2(80, 28), () => Net.Act(_c, "keep", $"{k}|0"), keep != 0, 13);
                 y += 32;
+            }
+            if (_c.R.Rank >= Rank.Village || _c.R.Roster.Any(x => x.State == SoulState.Active && x.Prof == Prof.Trader))
+            {
+                y = Heading(list, "Trade runs", y);
+                foreach (string line in Trade.Plan(_c)) y = Text(list, line, y, 15, GameUi.Dim);
             }
             foreach (var g in orders.Where(o => o.State != OrderState.Done && o.State != OrderState.Cancelled).GroupBy(o => o.Kind).OrderByDescending(g => g.Count()))
             {

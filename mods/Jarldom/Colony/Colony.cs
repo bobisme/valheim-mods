@@ -373,7 +373,7 @@ namespace Jarldom
         {
             if (!IsOwner) { Net.SendFallen(this, s, bag, at, why, false); return; }
             R.Fallen.RemoveAll(f => f.Vid == s.Vid);
-            double away = why.StartsWith(Carts.Prefix) && double.TryParse(why.Substring(Carts.Prefix.Length), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double trip) ? trip : Clock.DayLength; // (a carter's round trip; a trader's day)
+            double away = why.StartsWith(Carts.Prefix) && double.TryParse(why.Substring(Carts.Prefix.Length), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double trip) ? trip : Trading.Decode(why, out _, out TradeWay way) ? Clock.DayLength * Trading.AwayDays(way) : Clock.DayLength; // (a carter's round trip; a trader's day, longer by sea)
             R.Fallen.Add(new Fallen { Vid = s.Vid, State = s.Save(), Gear = bag ?? new byte[0], At = Now + away - Plugin.Instance.RespawnSeconds.Value, X = at.x, Y = at.y, Z = at.z, Killer = why });
             _dirty = true; Flush();
         }
@@ -401,13 +401,15 @@ namespace Jarldom
                 Assets.Effect("vfx_spawn", at.Value);
                 if (trader)
                 {
-                    int coins = !carter && int.TryParse(f.Killer.Substring(6), out int n) ? n : 0;
+                    TradeWay way = TradeWay.Foot;
+                    int coins = !carter && Trading.Decode(f.Killer, out int n, out way) ? n : 0;
+                    string from = carter ? "" : way == TradeWay.Foot ? "the traders" : way == TradeWay.Cart ? "the traders with the cart" : way == TradeWay.Karve ? "the markets down the coast" : "the far markets";
                     int earned = coins;
                     if (!carter) coins = Weaving.Shop(this, at.Value, s.Name, coins); // (flax seed, Hildir's clothes)
                     GameObject coin = ZNetScene.instance.GetPrefab("Coins");
                     for (int left = coins; left > 0 && coin != null;) { int stack = Math.Min(left, 999); if (!h.GetInventory().AddItem(coin, stack)) { ItemDrop.DropItem(coin.GetComponent<ItemDrop>().m_itemData.Clone(), stack, at.Value, Quaternion.identity); } left -= stack; }
                     if (carter) Log("text", s.Name, "", $"{s.Name} brought the cart back from the main colony.");
-                    else Log("text", s.Name, "", earned > 0 ? $"{s.Name} came back from the traders with {coins} coins{(coins < earned ? $" (of {earned})" : "")}." : $"{s.Name} came back from the trade run empty-handed: the goods were lost on the way.");
+                    else Log("text", s.Name, "", earned > 0 ? $"{s.Name} came back from {from} with {coins} coins{(coins < earned ? $" (of {earned})" : "")}." : $"{s.Name} came back from the trade run empty-handed: the goods were lost {(way >= TradeWay.Karve ? "at sea" : "on the road")}.");
                 }
                 else Log("text", s.Name, "", $"{s.FullName} rose again{(string.IsNullOrEmpty(s.Bed) ? " by the pillars" : " at their bed")}.");
                 _dirty = true;

@@ -147,11 +147,11 @@ namespace Jarldom
         public override void Tick(Brain b)
         {
             if (Time.time > _until) { Finish(b); return; }
-            // (work of their own trade turned up: back to it)
-            if (Time.time > _nextWork && b.Colony.IsOwner && b.S.Prof != Prof.Hauler)
+            // (work of their own trade turned up, or a fire or torch to feed, which anyone idle does: back to it)
+            if (Time.time > _nextWork && b.Colony.IsOwner)
             {
                 _nextWork = Time.time + 8f;
-                int open = b.Colony.Board.All.Count(o => o.State == OrderState.Open && o.Prof == b.S.Prof); // (more than when they sat down: something new)
+                int open = b.Colony.Board.All.Count(o => o.State == OrderState.Open && (o.Prof == b.S.Prof || o.Kind == "fuel")); // (more than when they sat down: something new)
                 if (_openAtStart < 0) _openAtStart = open; else if (open > _openAtStart) { Done = true; return; }
             }
             if (Seeking)

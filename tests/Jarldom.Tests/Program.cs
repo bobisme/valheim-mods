@@ -67,6 +67,18 @@ Check(soul2.Moodlets.Single().Id == "feast" && soul2.Foods[0] == "CookedMeat" &&
 Check(Renown.Wealth(0, 0, 0) == 0 && Renown.Wealth(400, 0, 0) == 10 && Renown.Wealth(0, 40, 0) == 10, "Wealth: a square root, coins count tenfold");
 Check(Renown.Wealth(-5, -5, -5) == 0, "Wealth never negative");
 Check(Renown.Comfort(new int[0]) == 0 && Renown.Comfort(new[] { 4, 2 }) == 15, "Comfort: three times the best bed plus the average");
+// ---- Trade runs grow with the colony ----
+Check(Trading.Choose(Rank.Village, false, false, false, 40) == TradeWay.Foot, "No cart: on foot");
+Check(Trading.Choose(Rank.Village, true, false, false, 4) == TradeWay.Foot && Trading.Choose(Rank.Village, true, false, false, 10) == TradeWay.Cart, "The cart only when there's more than a pack");
+Check(Trading.Choose(Rank.Village, true, true, true, 50) == TradeWay.Cart, "Ships wait for their rank");
+Check(Trading.Choose(Rank.Jarldom, true, true, false, 25) == TradeWay.Karve && Trading.Choose(Rank.Jarldom, true, true, true, 100) == TradeWay.Karve, "A karve at jarldom rank, not yet the longship");
+Check(Trading.Choose(Rank.Hold, false, false, true, 100) == TradeWay.Longship && Trading.Choose(Rank.Hold, true, true, true, 15) == TradeWay.Cart, "A longship for a big load; a small load stays small");
+Check(Trading.Lots(TradeWay.Foot) < Trading.Lots(TradeWay.Cart) && Trading.Lots(TradeWay.Cart) < Trading.Lots(TradeWay.Karve) && Trading.Lots(TradeWay.Karve) < Trading.Lots(TradeWay.Longship), "Each way carries more");
+Check(Trading.PricePercent(TradeWay.Longship) > Trading.PricePercent(TradeWay.Karve) && Trading.PricePercent(TradeWay.Karve) > Trading.PricePercent(TradeWay.Cart), "Further markets pay better");
+Check(Trading.LossChance(TradeWay.Karve, 5, true) < Trading.LossChance(TradeWay.Karve, 0, false) && Trading.LossChance(TradeWay.Karve, -20, true) > Trading.LossChance(TradeWay.Foot, 0, false), "Njord rules the sea");
+Check(Trading.Decode(Trading.Encode(120, TradeWay.Karve), out int tc, out TradeWay tw) && tc == 120 && tw == TradeWay.Karve, "Trade record round-trip");
+Check(Trading.Decode("trade:75", out tc, out tw) && tc == 75 && tw == TradeWay.Foot && !Trading.Decode("cart:300", out _, out _), "An old trade record is on foot");
+
 Check(Renown.Threshold(0) == 20 && Renown.Threshold(1) == 25 && Renown.Threshold(2) == 31 && Renown.Threshold(10) == 83 && Renown.Threshold(30) < 300, "Arrival thresholds grow by a quarter at first, then gently");
 Check(Renown.RaidScale(0) == 1 && Renown.RaidScale(400) == 2 && Renown.RaidScale(9999) == 2 && Renown.RaidScale(200) == 1.5f, "Raid scale 1x to 2x");
 Check(Renown.Radius(Rank.Camp) == 60 && Renown.Radius(Rank.Hold) == 110, "Radius grows with rank");
