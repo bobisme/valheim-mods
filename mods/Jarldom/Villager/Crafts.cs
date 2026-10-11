@@ -253,15 +253,18 @@ namespace Jarldom
     // what's out there is reported.
     internal sealed class ScoutTask : Task
     {
-        private Vector3 _out; private bool _back; private float _until, _nextLook; private readonly HashSet<string> _seen = new HashSet<string>();
+        private Vector3 _out, _far; private bool _back; private float _until, _nextLook; private readonly HashSet<string> _seen = new HashSet<string>();
         public override bool Interruptible => true;
         public override void Start(Brain b)
         {
             Colony c = b.Colony;
             float angle = (b.S.Count("rounds") * 137.5f) % 360f; // the golden angle: rounds spread all around
             Vector3 dir = Quaternion.Euler(0, angle, 0) * Vector3.forward;
-            Vector3 far = c.Position + dir * (c.Radius + 40);
-            _out = Colony.Spot(far, 10f) ?? far;
+            // (out to a lookout 55 m off at most, and the land beyond it to the edge and 40 m past is what they report: the world past a
+            // player's own ground stands still, so a long run would stall out there)
+            _far = c.Position + dir * (c.Radius + 40);
+            Vector3 look = c.Position + dir * Mathf.Min(c.Radius + 40, 55f);
+            _out = Colony.Spot(look, 10f) ?? look;
             Doing = "scouting to the " + Compass(dir);
             _until = Time.time + 180;
             b.Move.To(_out, 4f, run: true);
@@ -272,7 +275,7 @@ namespace Jarldom
             if (Time.time >= _nextLook) { _nextLook = Time.time + 2f; Look(b); }
             if (!_back)
             {
-                if (b.Move.Failed || b.Move.Arrived || !b.Move.Moving && b.Move.Distance < 8f) { _back = true; Net.Explore(b.Pos, 80f); b.Move.To(b.Colony.Position + (b.Pos - b.Colony.Position).normalized * 6f, 4f, run: true); Doing = "coming back from scouting"; }
+                if (b.Move.Failed || b.Move.Arrived || !b.Move.Moving && b.Move.Distance < 8f) { _back = true; Net.Explore(b.Pos, 80f); Net.Explore(_far, 80f); b.Move.To(b.Colony.Position + (b.Pos - b.Colony.Position).normalized * 6f, 4f, run: true); Doing = "coming back from scouting"; }
                 else if (!b.Move.Moving) b.Move.To(_out, 4f, run: true);
                 return;
             }

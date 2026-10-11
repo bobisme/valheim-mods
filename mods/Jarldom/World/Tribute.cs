@@ -89,7 +89,7 @@ namespace Jarldom
             ch.SetLevel(2);
             Assets.Effect("vfx_spawn", at);
         }
-        private static void Leave(Colony c)
+        public static void Leave(Colony c)
         {
             foreach (Character h in Character.GetAllCharacters().Where(IsHerald).ToList())
             {

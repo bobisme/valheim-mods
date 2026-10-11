@@ -79,7 +79,12 @@ namespace Jarldom
             c.LoadBoard();
             return c;
         }
-        public void Detach() { if (R != null && ById.TryGetValue(R.Id, out Colony c) && c == this) ById.Remove(R.Id); Flush(); }
+        public void Detach()
+        {
+            if (R != null && ById.TryGetValue(R.Id, out Colony c) && c == this) ById.Remove(R.Id);
+            if (R != null && IsOwner && _caughtUp) { R.Flags[CatchUp.LiveKey] = (int)Now; _dirty = true; } // (live until now: a reload or a walk away isn't time to make up from before)
+            Flush();
+        }
         public static void DetachAll() { foreach (Colony c in ById.Values.ToList()) c.Flush(); ById.Clear(); }
         public static void ForgetWorld() => ById.Clear();
         public static void AttachAll() => HighSeat.AttachAll();
@@ -179,7 +184,7 @@ namespace Jarldom
                 else if (Villagers.All.Any(b => b.S.Colony == R.Id) && Time.time - _attachedAt > 5 || Time.time - _attachedAt > 20) { _caughtUp = true; Plugin.Guard(() => CatchUp.Run(this, away)); }
                 else return;
             }
-            if (Time.time >= _nextLive) { _nextLive = Time.time + 60; CatchUp.Live(this); Plugin.Guard(() => Outposts.Announce(this)); }
+            if (Time.time >= _nextLive || Now - R.Flag(CatchUp.LiveKey) > Clock.Hour) { _nextLive = Time.time + 60; CatchUp.Live(this); Plugin.Guard(() => Outposts.Announce(this)); } // (a minute, or an hour of the world's clock, whichever comes first)
             // (dawn and dusk wait until the colony has settled in after loading: its chests and people there, or payday finds no treasury
             // and nobody to pay)
             bool settled = Time.time - _attachedAt > 8 && (Villagers.All.Any(b => b.S.Colony == R.Id) || Time.time - _attachedAt > 30);

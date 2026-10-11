@@ -342,7 +342,7 @@ namespace Jarldom
                     if (bag.GetEmptySlots() > 1) Stock.Take(x.chest, bag, item, item.m_stack);
             if (!bag.GetAllItems().Any(Trade.Sellable)) { Done = true; b.NoTradeUntil = Time.time + 60; return; }
             Vector3 dir = (b.Pos - b.Colony.Position); dir.y = 0; if (dir.sqrMagnitude < 1) dir = Vector3.forward;
-            _edge = b.Colony.Position + dir.normalized * (b.Colony.Radius + 10);
+            _edge = b.Colony.Position + dir.normalized * Mathf.Min(b.Colony.Radius + 10, 35f); // (a little way down the road and gone: the world past a player's own ground stands still, so a walk to the far edge could stall)
             b.Move.To(Colony.Spot(_edge, 4f) ?? _edge, 3f);
             _packed = true;
         }

@@ -433,7 +433,7 @@ namespace Jarldom
                 case "tribute":
                     if (a.Length > 2 && a[2] == "pay") Tribute.Pay(c, me?.GetPlayerName() ?? "test");
                     else if (a.Length > 2 && a[2] == "dusk") Tribute.Dusk(c, c.Day);
-                    else if (a.Length > 2 && a[2] == "clear") { foreach (string k in c.R.Flags.Keys.Where(k => k.StartsWith("tribute:")).ToList()) c.R.Flags.Remove(k); c.MarkDirty(); }
+                    else if (a.Length > 2 && a[2] == "clear") { foreach (string k in c.R.Flags.Keys.Where(k => k.StartsWith("tribute:")).ToList()) c.R.Flags.Remove(k); c.MarkDirty(); Tribute.Leave(c); }
                     else if (a.Length > 2 && a[2] == "demand") Tribute.Demand(c, c.Day);
                     output(new JObject { ["due"] = Tribute.Due(c), ["raiding"] = Tribute.Raiding(c), ["level"] = c.R.Flag("tribute:level"), ["next"] = c.R.Flag("tribute:next"), ["day"] = c.Day,
                         ["heralds"] = new JArray(Character.GetAllCharacters().Where(Tribute.IsHerald).Select(h => $"{h.transform.position.x:0},{h.transform.position.y:0},{h.transform.position.z:0}")),
