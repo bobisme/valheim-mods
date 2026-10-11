@@ -44,8 +44,8 @@ namespace Jarldom
             if (info.Roofed && f.Roof < RoofShare) v.Failures.Add($"only {Math.Round(f.Roof * 100)}% of it is roofed (needs {RoofShare * 100}%)");
             if (info.Door && f.Doors == 0 && f.C("stairs") == 0) v.Failures.Add("no door on its walls (or stairs up into it)");
             if (info.Lockable && f.LockableDoors == 0 && f.Doors == 0) v.Failures.Add("no door to lock");
-            if (info.Fire && f.C("fire") == 0) v.Failures.Add("no fire");
-            if (info.Hearth && f.C("hearth") == 0 && f.C("fire") == 0) v.Failures.Add("no hearth");
+            if (info.Fire && f.C("fire") == 0) v.Failures.Add("no fire that warms (torches and candles only light)");
+            if (info.Hearth && f.C("fire") == 0) v.Failures.Add("no hearth (a fire that warms: a hearth, campfire, bonfire or fire pit)");
             if (info.Beds > 0 && f.C("bed") < info.Beds) v.Failures.Add(info.Beds == 1 ? "no bed" : $"needs {info.Beds} beds");
             if (info.Seats > 0 && f.C("seat") < info.Seats) v.Failures.Add($"{f.C("seat")} of {info.Seats} seats");
             if (info.Tables > 0 && f.C("table") < info.Tables) v.Failures.Add($"{f.C("table")} of {info.Tables} tables");
@@ -84,7 +84,7 @@ namespace Jarldom
                     p = Math.Min(f.C("chest"), 20) * 2 + Math.Min(f.C("itemstand"), 10) * 2;
                     break;
                 case RoomType.Smithy:
-                    p = f.C("forge") * 8 + f.C("workbench") * 4 + f.C("extension") * 4;
+                    p = f.C("forge") * 8 + f.C("workbench") * 4 + f.C("smithext") * 4;
                     break;
                 case RoomType.OdinShrine:
                 case RoomType.Temple:
@@ -101,7 +101,7 @@ namespace Jarldom
                     p = Math.Min(f.C("grave"), 12) * 3 + Math.Min(f.C("runestone"), 6) * 4 + Math.Min(f.C("candle"), 8) * 2;
                     break;
                 case RoomType.Brewhouse:
-                    p = Math.Min(f.C("fermenter"), 6) * 4 + f.C("cauldron") * 6 + f.C("extension") * 2 + Math.Min(f.C("chest"), 4);
+                    p = Math.Min(f.C("fermenter"), 6) * 4 + f.C("cauldron") * 6 + f.C("brewext") * 2 + Math.Min(f.C("chest"), 4);
                     break;
                 case RoomType.Watchtower:
                     p = (int)Math.Min(40, f.FloorHeight * 4) + Math.Min(f.C("brazier"), 4) * 4;

@@ -17,7 +17,7 @@ namespace Jarldom
 
     public enum Rank { Camp, Homestead, Hamlet, Village, Jarldom, Hold }
 
-    public enum Activity { Sleep, Wake, Work, Shelter, Hall, Home, Defend, Flee, Idle }
+    public enum Activity { Sleep, Wake, Work, Shelter, Hall, Home, Defend, Flee, Idle, Follow }
 
     public sealed class ProfessionInfo
     {
@@ -143,6 +143,7 @@ namespace Jarldom
             M("belovedjarl", "Follows a jarl they love", 4, 24),
             M("unjust", "An innocent was cast out", -6, 72),
             M("tavern", "A drink in the hall", 5, 12),
+            M("expedition", "Went out with the jarl", 8, 48),
         };
         private static MoodletInfo M(string id, string text, int value, double hours, Stack stack = Stack.Refresh, int max = 1) =>
             new MoodletInfo { Id = id, Text = text, Value = value, Hours = hours, Stack = stack, MaxStacks = max };

@@ -41,6 +41,13 @@ namespace Jarldom
             }
         }
         public static void Clear() { Corners.Clear(); Draw(); }
+        public const float RoundRadius = 15f;
+        public static List<float> Circle(Vector3 at, float r)
+        {
+            var xz = new List<float>();
+            for (int i = 0; i < 16; i++) { float a = i * Mathf.PI * 2 / 16; xz.Add((float)System.Math.Round(at.x + Mathf.Sin(a) * r, 2)); xz.Add((float)System.Math.Round(at.z + Mathf.Cos(a) * r, 2)); }
+            return xz;
+        }
         public static void Stop() { Clear(); if (_line != null) Object.Destroy(_line.gameObject); _line = null; }
 
         private static void Mark(Player p)
@@ -50,6 +57,12 @@ namespace Jarldom
             Vector3 at = ghost.transform.position;
             Colony c = Colony.Nearest(at, Renown.ZoneReach + 20);
             if (c == null) { p.Message(MessageHud.MessageType.Center, "Rooms and zones belong to a colony: raise High-seat pillars first."); return; }
+            // The same spot twice: a round work zone about it (a woodlot, hunting grounds: work that has a middle more than edges).
+            if (Corners.Count == 1 && Utils.DistanceXZ(at, Corners[0]) < 1.2f)
+            {
+                Ui.RoomPicker.Open(c, Circle(Corners[0], RoundRadius), Corners[0].y, null, zonesOnly: true);
+                return;
+            }
             if (Corners.Count >= 3 && Utils.DistanceXZ(at, Corners[0]) < 1.2f)
             {
                 var xz = new List<float>(); foreach (Vector3 v in Corners) { xz.Add(v.x); xz.Add(v.z); }
@@ -60,7 +73,7 @@ namespace Jarldom
             }
             if (Corners.Count >= 24) { p.Message(MessageHud.MessageType.Center, "That's enough corners: click the first one to close it."); return; }
             Corners.Add(at);
-            p.Message(MessageHud.MessageType.TopLeft, Corners.Count < 3 ? $"Corner {Corners.Count}" + (Corners.Count == 1 ? " (E on a marked room or zone to change it)" : "") : $"Corner {Corners.Count}: click the first corner to close it");
+            p.Message(MessageHud.MessageType.TopLeft, Corners.Count < 3 ? $"Corner {Corners.Count}" + (Corners.Count == 1 ? $": click the next corner, or here again for a round work zone {RoundRadius * 2:0} m across" : "") : $"Corner {Corners.Count}: click the first corner to close it");
             Draw();
         }
 

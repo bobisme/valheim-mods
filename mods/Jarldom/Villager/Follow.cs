@@ -1,0 +1,120 @@
+using System.Linq;
+using UnityEngine;
+
+namespace Jarldom
+{
+    // Out with the jarl: a villager asked to follow keeps by a player wherever they go (through portals too: one left far behind
+    // catches up), fights what comes at either of them, and comes home when told, or when the jarl is gone. What they did out there
+    // goes into the saga. The follow is kept on the body (a player id), so whichever game owns them next knows.
+    internal static class Follow
+    {
+        public const string Key = "jarldom_follow", NameKey = "jarldom_followname", KillsKey = "jarldom_followkills", SinceKey = "jarldom_followsince";
+        public const float Keep = 4f, Reach = 30f;
+        public static long LeaderId(Brain b) => b.View.GetZDO().GetLong(Key, 0L);
+        public static Player Leader(Brain b)
+        {
+            long id = LeaderId(b);
+            if (id == 0) return null;
+            Player p = Player.GetAllPlayers().FirstOrDefault(x => x != null && x.GetPlayerID() == id);
+            return p != null && !p.IsDead() ? p : null;
+        }
+        public static bool Following(Brain b) => Leader(b) != null;
+        // Within what a follower fights for: near the jarl out there, the colony at home.
+        public static bool Near(Brain b, Vector3 p, float extra)
+        {
+            Player l = Leader(b);
+            if (l != null) return Utils.DistanceXZ(p, l.transform.position) < Reach + extra * 0.4f;
+            return b.Colony == null || !b.Colony.Valid || Utils.DistanceXZ(p, b.Colony.Position) < b.Colony.Radius + extra;
+        }
+        public static void Start(Brain b, long id, string name)
+        {
+            ZDO z = b.View.GetZDO();
+            if (z.GetLong(Key, 0L) == id) return;
+            z.Set(Key, id); z.Set(NameKey, name ?? ""); z.Set(KillsKey, b.S.Count("kills")); z.Set(SinceKey, ZNet.instance.GetTime().Ticks);
+            b.Task?.Stop(b); b.Task = null;
+            b.Say(Gear.CanFight(b) ? "I'm with you, jarl." : "I'll come, but I've nothing to fight with.", 5);
+        }
+        // Home again: the saga hears of it, and a soul who went out is the prouder for it.
+        public static void End(Brain b, string why)
+        {
+            ZDO z = b.View.GetZDO();
+            if (z.GetLong(Key, 0L) == 0) return;
+            int kills = b.S.Count("kills") - z.GetInt(KillsKey, b.S.Count("kills"));
+            string jarl = z.GetString(NameKey, "the jarl");
+            double hours = (ZNet.instance.GetTime().Ticks - z.GetLong(SinceKey, ZNet.instance.GetTime().Ticks)) / (double)System.TimeSpan.TicksPerSecond / Clock.Hour;
+            z.Set(Key, 0L);
+            b.Task?.Stop(b); b.Task = null;
+            if (hours >= 0.5 || kills > 0)
+            {
+                Mood.Add(b.S, "expedition", b.Now);
+                if (kills > 0) Worth.Gain(b.S, "expedition", Faith.OdinWorthBonus(b.Colony));
+                b.S.Bump("expeditions");
+                Tell(b, kills > 0 ? $"{b.S.FullName} went out with {jarl} and came home with {kills} {(kills == 1 ? "kill" : "kills")}." : $"{b.S.FullName} went out with {jarl}.");
+            }
+            b.Dirty();
+            b.Say(why, 5);
+        }
+        // The saga's line, held on the body when the colony wasn't loaded to hear it.
+        public const string TellKey = "jarldom_followtell";
+        private static void Tell(Brain b, string text)
+        {
+            if (b.Colony != null && b.Colony.Valid) b.Colony.Log("text", b.S.Name, "", text);
+            else b.View.GetZDO().Set(TellKey, text);
+        }
+        public static void Told(Brain b)
+        {
+            ZDO z = b.View.GetZDO(); string t = z.GetString(TellKey, "");
+            if (t == "" || b.Colony == null) return;
+            z.Set(TellKey, ""); b.Colony.Log("text", b.S.Name, "", t);
+        }
+        // From the brain, a few times a second: is the follow still on?
+        public static bool Check(Brain b)
+        {
+            if (LeaderId(b) == 0) return false;
+            if (Leader(b) != null) { b.LeaderGoneAt = 0; return true; }
+            if (b.LeaderGoneAt == 0) b.LeaderGoneAt = Time.time;
+            if (Time.time - b.LeaderGoneAt < 20f) return true; // (a portal's blink, a load: wait a little)
+            b.LeaderGoneAt = 0;
+            End(b, "The jarl's gone: I'm going home.");
+            HomeFrom(b);
+            return false;
+        }
+        // One far from home walks back if it's near; from farther, they make their own way and are next seen at the pillars.
+        public static void HomeFrom(Brain b)
+        {
+            Vector3? home = b.Colony != null && b.Colony.Valid ? b.Colony.Position : Outposts.Where(b.S.Colony);
+            if (home == null || Utils.DistanceXZ(b.Pos, home.Value) < 250f) return; // (near enough to walk)
+            Vector3 at = b.Colony != null && b.Colony.Valid ? Colony.Spot(b.Colony.Position + b.Colony.Seat.transform.forward * 3f, 2.5f) ?? b.Colony.Position + Vector3.up : new Vector3(home.Value.x + 3f, (WorldGenerator.instance?.GetHeight(home.Value.x + 3f, home.Value.z) ?? 40f) + 2f, home.Value.z); // (its ground isn't loaded: the world's own height, and a little drop)
+            Assets.Effect("vfx_spawn", b.Pos);
+            b.Place(at);
+        }
+    }
+
+    internal sealed class FollowTask : Task
+    {
+        private float _nextHungry;
+        public override void Start(Brain b) { Doing = "following the jarl"; }
+        public override void Tick(Brain b)
+        {
+            Player l = Follow.Leader(b);
+            if (l == null) { Done = true; return; }
+            Vector3 to = l.transform.position;
+            float d = Vector3.Distance(b.Pos, to);
+            Doing = $"following {l.GetPlayerName()}";
+            // Left far behind (a portal, a ship, a fall): they catch up out of sight, as companions do.
+            if (d > 70f || d > 25f && Mathf.Abs(b.Pos.y - to.y) > 12f)
+            {
+                Vector3 behind = to - l.transform.forward * 3f;
+                Vector3 spot = Nav.Valid(out Vector3 snapped, behind, 3f) ? snapped : behind;
+                Assets.Effect("vfx_spawn", spot);
+                b.Place(spot + Vector3.up * 0.2f); b.Move.Stop();
+                return;
+            }
+            if (l.IsAttachedToShip() || l.GetStandingOnShip() != null) { if (d > 6f) b.Move.To(to, 3f, true); return; }
+            if (d > Follow.Keep + 2f) { if (!b.Move.Moving || Vector3.Distance(b.Move.Goal, to) > 3f) b.Move.To(to, Follow.Keep, d > 9f); }
+            else if (d < Follow.Keep && b.Move.Moving) b.Move.Stop();
+            if (b.S.Needs[(int)Need.Food] < 40 && Food.CanEat(b)) Food.EatFromBag(b);
+            else if (b.S.Needs[(int)Need.Food] < 15 && Time.time > _nextHungry) { _nextHungry = Time.time + 120f; b.Say("I'm starving, jarl: have you any food? (hotbar key on me)", 6); }
+        }
+    }
+}

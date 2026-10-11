@@ -14,16 +14,18 @@ namespace Jarldom
         {
             Vector3 me = b.Pos;
             if (b.Fled && b.FleeUntil < Time.time) { b.Fled = false; b.Move.Stop(); } // the scare is over: the run's goal goes with it
-            bool fighter = b.S.Prof == Prof.Guard || b.S.Prof == Prof.Hunter || b.S.Has("brave");
+            bool out_ = Follow.Following(b);
+            bool fighter = b.S.Prof == Prof.Guard || b.S.Prof == Prof.Hunter || b.S.Has("brave") || out_; // (one who goes out with the jarl goes to fight)
             bool armed = Gear.CanFight(b);
             float hp = b.Body.GetHealthPercentage();
             float fleeAt = b.S.Has("brave") ? 0f : b.S.Has("coward") ? 0.5f : 0.3f;
-            bool tyr = b.Colony.R.Rooms.Any(r => r.Ok && r.Type == RoomType.Temple && r.God == "tyr") && b.Colony.FavourOf("tyr") > 0;
+            Colony home = b.Colony != null && b.Colony.Valid ? b.Colony : null; // (none far away with the jarl)
+            bool tyr = home != null && home.R.Rooms.Any(r => r.Ok && r.Type == RoomType.Temple && r.God == "tyr") && home.FavourOf("tyr") > 0;
             // A guard without a ring may lose heart early in a raid (one roll a raid).
-            if (b.S.Prof == Prof.Guard && b.S.Count("rings") == 0 && b.Colony.RaidOn && new System.Random(b.S.Vid.GetStableHashCode() ^ b.Colony.R.Log.Count(e => e.Kind == "raid")).NextDouble() < 0.2) fleeAt = 0.7f;
+            if (home != null && !out_ && b.S.Prof == Prof.Guard && b.S.Count("rings") == 0 && home.RaidOn && new System.Random(b.S.Vid.GetStableHashCode() ^ home.R.Log.Count(e => e.Kind == "raid")).NextDouble() < 0.2) fleeAt = 0.7f;
             if (tyr && b.S.Prof == Prof.Guard) fleeAt = 0;
             // (one that hit them from outside the colony isn't chased out there, but it's still run from)
-            if (b.HasFoe && Utils.DistanceXZ(b.Foe.transform.position, b.Colony.Position) >= b.Colony.Radius + 25)
+            if (b.HasFoe && !Follow.Near(b, b.Foe.transform.position, 25))
             {
                 b.Fighting = false;
                 if (Vector3.Distance(b.Foe.transform.position, me) < 12f) Flee(b, b.Foe);
@@ -33,16 +35,16 @@ namespace Jarldom
             if (foe == null)
             {
                 // Fighters meet what comes within 25 m; in a raid they go out to the raiders anywhere in the colony (raiders first).
-                bool raid = fighter && b.Colony.RaidOn;
+                bool raid = fighter && !out_ && home != null && home.RaidOn;
                 float reach = fighter ? 25f : 8f;
                 foe = Character.GetAllCharacters().Where(c => c != null && !c.IsDead() && c != b.Body && !c.IsPlayer() && !VillagerPrefab.Is(c) && !Tribute.IsHerald(c) && BaseAI.IsEnemy(b.Body, c)
                         && (fighter || Hunting(c) || Vector3.Distance(c.transform.position, me) < 4f)
                         && (c.GetFaction() != Character.Faction.AnimalsVeg || b.Task is WorkTask w && w.Kind == "hunt" && w.Target == c)
-                        && (Vector3.Distance(c.transform.position, me) < reach || raid && Raider(c, b.Colony)) && Utils.DistanceXZ(c.transform.position, b.Colony.Position) < b.Colony.Radius + 25)
-                    .OrderBy(c => raid && Raider(c, b.Colony) ? 0 : 1).ThenBy(c => Vector3.Distance(c.transform.position, me)).FirstOrDefault();
+                        && (Vector3.Distance(c.transform.position, me) < reach || raid && Raider(c, home)) && Follow.Near(b, c.transform.position, 25))
+                    .OrderBy(c => raid && Raider(c, home) ? 0 : 1).ThenBy(c => Vector3.Distance(c.transform.position, me)).FirstOrDefault();
             }
             if (foe == null) { b.Fighting = false; return; }
-            if (Utils.DistanceXZ(foe.transform.position, b.Colony.Position) < b.Colony.Radius && foe.IsBoss() == false && foe.GetMaxHealth() > 300 && !Mood.Has(b.S, "bigcreature", b.Now)) Mood.Add(b.S, "bigcreature", b.Now);
+            if (!out_ && home != null && Utils.DistanceXZ(foe.transform.position, home.Position) < home.Radius && foe.IsBoss() == false && foe.GetMaxHealth() > 300 && !Mood.Has(b.S, "bigcreature", b.Now)) Mood.Add(b.S, "bigcreature", b.Now);
             // Armed and the beast is small: stand and fight it. Otherwise those who aren't fighters run.
             bool small = foe.GetMaxHealth() <= Mathf.Max(60f, b.Body.GetMaxHealth() * 1.5f);
             if (!armed || !fighter && !b.HasFoe && !small || hp < fleeAt)
@@ -61,15 +63,17 @@ namespace Jarldom
         private static bool Raider(Character c, Colony col)
         {
             ZDO z = c.GetComponent<ZNetView>()?.GetZDO();
-            return z != null && (z.GetString(Warband.BandKey, "") == col.Id || z.GetBool(ZDOVars.s_eventCreature)) || Hunting(c);
+            return z != null && (z.GetString(Warband.BandKey, "") == (col?.Id ?? "-") || z.GetBool(ZDOVars.s_eventCreature)) || Hunting(c);
         }
         // Is it after someone (a player or a villager)?
         private static bool Hunting(Character c) { Character t = (c.GetBaseAI() as MonsterAI)?.GetTargetCreature(); return t != null && (t.IsPlayer() || VillagerPrefab.Is(t)); }
         private static void Flee(Brain b, Character from)
         {
             b.FleeUntil = Time.time + 4f; b.Fled = true;
-            Room hall = b.Colony.Best(RoomType.GreatHall);
-            Vector3 safe = hall != null ? b.Colony.Centre(hall) : b.Colony.Position;
+            Player leader = Follow.Leader(b);
+            bool home = b.Colony != null && b.Colony.Valid;
+            Room hall = home ? b.Colony.Best(RoomType.GreatHall) : null;
+            Vector3 safe = leader != null ? leader.transform.position : hall != null ? b.Colony.Centre(hall) : home ? b.Colony.Position : b.Pos + (b.Pos - from.transform.position).normalized * 20f; // (out there: back to the jarl)
             if (Vector3.Distance(safe, from.transform.position) < 6f) safe = b.Pos + (b.Pos - from.transform.position).normalized * 15f;
             b.Stand();
             b.Move.To(Colony.Spot(safe, 2f) ?? safe, 1.5f, true);
@@ -81,7 +85,7 @@ namespace Jarldom
             Humanoid h = b.Body;
             if (!b.Fighting || b.FightTarget == null || b.FightTarget.IsDead()) { if (b.Fighting) { b.Fighting = false; b.Move.Stop(); } Body_.Blocking(h) = false; return; }
             Character t = b.FightTarget;
-            if (Utils.DistanceXZ(t.transform.position, b.Colony.Position) > b.Colony.Radius + 25) { b.Fighting = false; b.FightTarget = null; b.Move.Stop(); return; } // (it ran off: not chased out of the colony)
+            if (!Follow.Near(b, t.transform.position, 25)) { b.Fighting = false; b.FightTarget = null; b.Move.Stop(); return; } // (it ran off: not chased out of the colony)
             ItemDrop.ItemData weapon = h.GetCurrentWeapon();
             bool ranged = weapon != null && weapon.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Bow;
             float dist = Vector3.Distance(t.transform.position, b.Pos) - t.GetRadius();

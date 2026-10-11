@@ -12,6 +12,19 @@ namespace Jarldom
         public static Vector3 Centre(Zone z) { var (x, cz) = Geometry.Centre(z.Xz); return new Vector3(x, z.Floor, cz); }
         public static float Reach(Zone z) { var (x, cz) = Geometry.Centre(z.Xz); float r = 0; for (int i = 0; i < z.Corners; i++) r = Mathf.Max(r, Vector2.Distance(new Vector2(x, cz), new Vector2(z.Xz[i * 2], z.Xz[i * 2 + 1]))); return r; }
         public static bool Inside(Zone z, Vector3 p) => Geometry.Inside(z.Xz, p.x, p.z);
+        // Work's edge is fuzzy: what a zone's work leaves just outside it (a felled tree rolling out, a stump) is still its work, and a
+        // tree or rock a little past the line may be, more often the nearer it is (the same answer every time for the same thing).
+        // How far past the line each kind reaches, for what's left lying and for what still stands.
+        public static (float left, float standing) Fuzz(ZoneType t) =>
+            t == ZoneType.Woodlot ? (20f, 6f) : t == ZoneType.Mine ? (12f, 4f) : t == ZoneType.Foraging ? (0f, 4f) : t == ZoneType.Hunting ? (0f, 10f) : (0f, 0f);
+        public static bool Works(Zone z, Vector3 p, bool leftLying, int seed)
+        {
+            if (Inside(z, p)) return true;
+            var (left, standing) = Fuzz(z.Type);
+            float reach = leftLying ? left : standing * (0.35f + 0.65f * ((seed & 0x7fffffff) % 1000) / 1000f);
+            return reach > 0 && Geometry.Distance(z.Xz, p.x, p.z) <= reach;
+        }
+        public static float FuzzReach(Zone z) { var (l, s) = Fuzz(z.Type); return Mathf.Max(l, s); }
         // Does the zone reach water (for a fishing dock)? Looked at once a minute a zone.
         private static readonly Dictionary<string, (bool wet, float at)> Wet = new Dictionary<string, (bool, float)>();
         public static bool HasWater(Zone z)
@@ -52,11 +65,19 @@ namespace Jarldom
         {
             double now = c.Now;
             LearnCrops();
+            // (stores full enough: no more felling or quarrying; logs already down are still cut up, ore is still dug)
+            bool enoughWood = Stock.Enough(c, "wood"), enoughStone = Stock.Enough(c, "stone");
+            if (enoughWood || enoughStone)
+                foreach (Order o in c.Board.All.Where(o => o.State == OrderState.Open && (enoughWood && o.Kind == "chop" || enoughStone && o.Kind == "mine")).ToList())
+                {
+                    GameObject t = Resolve(o.Target);
+                    if (t == null || o.Kind == "chop" && t.GetComponent<TreeLog>() == null || o.Kind == "mine" && !IsOre(t)) c.Board.Cancel(o.Id);
+                }
             foreach (Zone z in c.R.Zones)
             {
                 ZoneInfo info = Tables.Of(z.Type);
                 if (info.Worker == null) continue;
-                Vector3 centre = Zones.Centre(z); float reach = Zones.Reach(z) + 2;
+                Vector3 centre = Zones.Centre(z); float reach = Zones.Reach(z) + 2, scan = reach + Zones.FuzzReach(z);
                 switch (z.Type)
                 {
                     case ZoneType.GuardPost: c.Board.Post("guard", z.Id, Prof.Guard, 2, centre.x, centre.y, centre.z, now, z.Id, "post"); continue;
@@ -64,23 +85,25 @@ namespace Jarldom
                     case ZoneType.Pasture: Pasture(c, z, centre, reach, now); continue;
                 }
                 int posted = 0;
-                foreach (GameObject go in Things(centre, reach))
+                foreach (GameObject go in Things(centre, scan))
                 {
                     if (posted >= 12) break;
                     Vector3 p = go.transform.position;
-                    if (!Zones.Inside(z, p)) continue;
                     ZNetView v = go.GetComponent<ZNetView>();
                     if (v == null || !v.IsValid()) continue;
+                    bool lying = go.GetComponent<TreeLog>() != null || IsStump(go);
+                    if (!Zones.Works(z, p, lying, Mathf.FloorToInt(p.x * 4) * 73856093 ^ Mathf.FloorToInt(p.z * 4) * 19349663)) continue; // (by where it stands: ids change with every load)
                     string kind = null; Prof prof = info.Worker.Value; int prio = 3;
                     switch (z.Type)
                     {
                         case ZoneType.Woodlot:
                             if (go.GetComponent<TreeLog>() != null) { kind = "chop"; prio = 4; }
+                            else if (enoughWood) break;
                             else if (go.GetComponent<TreeBase>() != null) kind = "chop";
                             else if (go.GetComponent<Destructible>() != null && IsStump(go)) { kind = "chop"; prio = 2; } // stumps cleared for new trees
                             break;
                         case ZoneType.Mine:
-                            if (go.GetComponent<MineRock5>() != null || go.GetComponent<MineRock>() != null || IsRock(go)) kind = "mine";
+                            if ((go.GetComponent<MineRock5>() != null || go.GetComponent<MineRock>() != null || IsRock(go)) && (!enoughStone || IsOre(go))) kind = "mine";
                             break;
                         case ZoneType.Fields:
                             Pickable crop = go.GetComponent<Pickable>();
@@ -131,7 +154,8 @@ namespace Jarldom
                 Fireplace fire = p.GetComponent<Fireplace>();
                 ZNetView v = p.GetComponent<ZNetView>();
                 if (v == null || !v.IsValid()) continue;
-                if (fire != null && !fire.m_infiniteFuel && fire.m_fuelItem != null && c.RoomAt(p.transform.position) != null && v.GetZDO().GetFloat(ZDOVars.s_fuel) < fire.m_maxFuel * 0.5f && HaveInStock(c, fire.m_fuelItem.name))
+                // (every fire the colony tends, in a room or out: a campfire under the cooking station, the torches along the road)
+                if (fire != null && !fire.m_infiniteFuel && fire.m_fuelItem != null && c.Tends(p.transform.position) && v.GetZDO().GetFloat(ZDOVars.s_fuel) < fire.m_maxFuel * 0.5f && HaveInStock(c, fire.m_fuelItem.name))
                     c.Board.Post("fuel", Key(v), Prof.Woodcutter, 3, p.transform.position.x, p.transform.position.y, p.transform.position.z, now, "", "fire");
                 Smelter smelter = p.GetComponent<Smelter>();
                 if (smelter != null)
@@ -149,7 +173,10 @@ namespace Jarldom
                         c.Board.Post("ferment", Key(v), Prof.Cook, 3, p.transform.position.x, p.transform.position.y, p.transform.position.z, now, "", "fermenter");
                 }
                 CookingStation cook = p.GetComponent<CookingStation>();
-                if (cook != null && (Cook(cook, "HaveDoneItem") || Cook(cook, "IsFireLit") && CookFree(cook) && cook.m_conversion.Any(cv => cv.m_from != null && HaveInStock(c, cv.m_from.name))))
+                // (an oven burns its own fuel; a cooking station sits over a fire)
+                if (cook != null && cook.m_useFuel && cook.m_fuelItem != null && v.GetZDO().GetFloat(ZDOVars.s_fuel) < cook.m_maxFuel * 0.5f && HaveInStock(c, cook.m_fuelItem.name) && cook.m_conversion.Any(cv => cv.m_from != null && HaveInStock(c, cv.m_from.name)))
+                    c.Board.Post("fuel", Key(v), Prof.Cook, 3, p.transform.position.x, p.transform.position.y, p.transform.position.z, now, "", "oven");
+                if (cook != null && (Cook(cook, "HaveDoneItem") || CookLit(cook) && CookFree(cook) && cook.m_conversion.Any(cv => cv.m_from != null && HaveInStock(c, cv.m_from.name))))
                     c.Board.Post("cook", Key(v), Prof.Cook, Cook(cook, "HaveDoneItem") ? 5 : 3, p.transform.position.x, p.transform.position.y, p.transform.position.z, now, "", "station");
             }
         }
@@ -157,21 +184,28 @@ namespace Jarldom
         public static bool Roofed(Vector3 at) { Cover.GetCoverForPoint(at + Vector3.up * 0.8f, out float _, out bool roof); return roof; }
         public static string FermentStatus(Fermenter f) { try { return FermentStatusMethod.Invoke(f, null).ToString(); } catch { return ""; } }
         public static bool Cook(CookingStation s, string method) { try { return (bool)AccessTools.Method(typeof(CookingStation), method).Invoke(s, null); } catch { return false; } }
+        public static bool CookLit(CookingStation s) => s.m_useFuel ? s.GetComponent<ZNetView>().GetZDO().GetFloat(ZDOVars.s_fuel) > 0f : Cook(s, "IsFireLit");
         public static bool CookFree(CookingStation s) { try { return (int)AccessTools.Method(typeof(CookingStation), "GetFreeSlot").Invoke(s, null) >= 0; } catch { return false; } }
         private static readonly System.Reflection.MethodInfo QueueMethod = AccessTools.Method(typeof(Smelter), "GetQueueSize");
         public static int QueueSize(Smelter s) { try { return (int)QueueMethod.Invoke(s, null); } catch { return 99; } }
         public static bool HaveInStock(Colony c, string prefab) => Stock.Chests(c).Any(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest) && x.chest.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == prefab));
         private static bool Forage(Pickable p)
         {
+            // (anything wild that's food, a seed or a crop: berries, mushrooms, wild barley and flax, fiddleheads, vineberries, seed
+            // carrots and turnips; and the flint, stone and branches lying about)
             string n = p.m_itemPrefab.name;
-            return n == "Raspberry" || n == "Blueberries" || n == "Cloudberry" || n == "Mushroom" || n == "MushroomYellow" || n == "MushroomBlue" || n == "Thistle" || n == "Dandelion" || n == "Flint" || n == "Stone" || n == "Wood" || n.StartsWith("Mushroom");
+            ItemDrop d = p.m_itemPrefab.GetComponent<ItemDrop>();
+            if (n == "Flint" || n == "Stone" || n == "Wood" || n == "Thistle" || n == "Dandelion" || n.StartsWith("Mushroom")) return true;
+            if (d == null) return false;
+            string cat = Stock.Category(Stock.Of(p.m_itemPrefab));
+            return Stock.Edible(Stock.Of(p.m_itemPrefab)) || cat == "rawfood" || cat == "seeds";
         }
         private static bool IsRock(GameObject go)
         {
             Destructible d = go.GetComponent<Destructible>();
             if (d == null) return false;
             string n = Utils.GetPrefabName(go).ToLowerInvariant();
-            return n.Contains("rock") || n.Contains("copper") || n.Contains("tin") || n.Contains("silver") || n.Contains("obsidian");
+            return n.Contains("rock") || IsOre(go);
         }
         // Everything networked near a point (trees, rocks, plants, beasts), each once.
         public static IEnumerable<GameObject> Things(Vector3 at, float radius)
@@ -290,6 +324,10 @@ namespace Jarldom
             c.Board.Post("cull", Key(cv), Prof.Herder, 2, cull.transform.position.x, cull.transform.position.y, cull.transform.position.z, now, z.Id, "Pasture");
         }
 
+        // A rock with metal in it (dug whatever the stone stores hold).
+        private static readonly string[] Metals = { "copper", "tin", "silver", "iron", "blackmetal", "flametal", "obsidian", "mudpile", "scrap", "meteor" };
+        public static bool IsOre(GameObject go) { string n = Utils.GetPrefabName(go).ToLower(); return Metals.Any(m => n.Contains(m)); }
+
         internal static void LearnCrops()
         {
             if (_learned || ObjectDB.instance == null) return;
@@ -324,8 +362,8 @@ namespace Jarldom
                 if (!c.R.Zones.Any(z => z.Type == zone.Id)) return $"no {zone.Name.ToLower()} marked ({zone.Text})";
                 switch (zone.Id)
                 {
-                    case ZoneType.Woodlot: return "no trees left to fell in the woodlot";
-                    case ZoneType.Mine: return "nothing left to dig in the quarry";
+                    case ZoneType.Woodlot: return Stock.Enough(c, "wood") ? $"resting: the stores hold {Stock.Keep(c, "wood")} wood, as the Work tab asks" : "no trees left to fell in the woodlot";
+                    case ZoneType.Mine: return Stock.Enough(c, "stone") ? $"resting: the stores hold {Stock.Keep(c, "stone")} stone, as the Work tab asks" : "nothing left to dig in the quarry";
                     case ZoneType.Fields: return "nothing to harvest or sow in the fields yet";
                     case ZoneType.Foraging: return "nothing ripe in the foraging grounds yet";
                     case ZoneType.Hunting: return "no game in the hunting grounds";
@@ -425,7 +463,7 @@ namespace Jarldom
             if (t == ItemDrop.ItemData.ItemType.OneHandedWeapon || t == ItemDrop.ItemData.ItemType.TwoHandedWeapon || t == ItemDrop.ItemData.ItemType.Bow || t == ItemDrop.ItemData.ItemType.Shield || t == ItemDrop.ItemData.ItemType.Tool || t == ItemDrop.ItemData.ItemType.Ammo || t == ItemDrop.ItemData.ItemType.TwoHandedWeaponLeft || t == ItemDrop.ItemData.ItemType.Torch) return false;
             if (Stock.Edible(i)) return false;
             if (Items.IsDrum(i) || Items.IsRelic(i)) return false; // a skald's drum is theirs; a colony's heart isn't for the stores
-            if (i.m_dropPrefab != null && (i.m_dropPrefab.name == "FishingBait" || Replant.Values.Any(r => r.seed == i.m_dropPrefab.name) && i.m_stack <= 10)) return false;
+            if (i.m_dropPrefab != null && (i.m_dropPrefab.name.StartsWith("FishingBait") || (Replant.Values.Any(r => r.seed == i.m_dropPrefab.name) || Saplings.Any(s => s.seed == i.m_dropPrefab.name)) && i.m_stack <= 10)) return false; // (every bait; seeds for crops and trees alike)
             return true;
         }
     }
@@ -922,6 +960,7 @@ namespace Jarldom
                 Fireplace fire = _target.GetComponent<Fireplace>(); Smelter smelter = _target.GetComponent<Smelter>(); CookingStation cook = _target.GetComponent<CookingStation>();
                 var wants = new List<string>();
                 if (fire != null && fire.m_fuelItem != null) wants.Add(fire.m_fuelItem.name);
+                if (cook != null && cook.m_useFuel && cook.m_fuelItem != null && sv.GetZDO().GetFloat(ZDOVars.s_fuel) < cook.m_maxFuel - 1) wants.Add(cook.m_fuelItem.name); // (an oven's wood first)
                 if (smelter != null)
                 {
                     if (smelter.m_fuelItem != null && sv.GetZDO().GetFloat(ZDOVars.s_fuel) < smelter.m_maxFuel * 0.5f) wants.Add(smelter.m_fuelItem.name);
@@ -946,8 +985,9 @@ namespace Jarldom
                 ItemDrop.ItemData have = _source.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == _carry);
                 int room = 5;
                 ZNetView tv = _target.GetComponent<ZNetView>();
-                Fireplace fp = _target.GetComponent<Fireplace>(); Smelter sm = _target.GetComponent<Smelter>();
+                Fireplace fp = _target.GetComponent<Fireplace>(); Smelter sm = _target.GetComponent<Smelter>(); CookingStation oven = _target.GetComponent<CookingStation>();
                 if (fp != null) room = Mathf.Clamp(Mathf.FloorToInt(fp.m_maxFuel - tv.GetZDO().GetFloat(ZDOVars.s_fuel)), 0, 5);
+                else if (oven != null && oven.m_useFuel && oven.m_fuelItem != null && oven.m_fuelItem.name == _carry) room = Mathf.Clamp(Mathf.FloorToInt(oven.m_maxFuel - tv.GetZDO().GetFloat(ZDOVars.s_fuel)), 0, 5);
                 else if (sm != null && sm.m_fuelItem != null && sm.m_fuelItem.name == _carry) room = Mathf.Clamp(Mathf.FloorToInt(sm.m_maxFuel - tv.GetZDO().GetFloat(ZDOVars.s_fuel)), 0, 5);
                 else if (sm != null) room = Mathf.Clamp(sm.m_maxOre - Work.QueueSize(sm), 0, 5);
                 else if (_target.GetComponent<CookingStation>() != null || _target.GetComponent<Fermenter>() != null) room = 1;
@@ -964,12 +1004,12 @@ namespace Jarldom
                 if (item == null || v == null || !v.IsValid()) { Finish(b, true); return; }
                 Body_.Anim(b.Body)?.SetTrigger("interact");
                 Smelter smelter = _target.GetComponent<Smelter>(); CookingStation cook = _target.GetComponent<CookingStation>(); Fireplace fire = _target.GetComponent<Fireplace>();
-                bool fuel = (smelter != null && smelter.m_fuelItem != null && smelter.m_fuelItem.name == _carry) || fire != null;
+                bool fuel = (smelter != null && smelter.m_fuelItem != null && smelter.m_fuelItem.name == _carry) || fire != null || cook != null && cook.m_useFuel && cook.m_fuelItem != null && cook.m_fuelItem.name == _carry;
                 // Only what it will take (a full fire or station ignores the rest, and the item would be gone).
-                float max = fire != null ? fire.m_maxFuel : smelter != null ? smelter.m_maxFuel : 0;
+                float max = fire != null ? fire.m_maxFuel : smelter != null ? smelter.m_maxFuel : cook != null ? cook.m_maxFuel : 0;
                 bool full = fuel && max > 0 && Mathf.CeilToInt(v.GetZDO().GetFloat(ZDOVars.s_fuel)) >= max
                     || smelter != null && !fuel && Work.QueueSize(smelter) >= smelter.m_maxOre
-                    || cook != null && !fuel && (!Work.CookFree(cook) || !Work.Cook(cook, "IsFireLit"))
+                    || cook != null && !fuel && (!Work.CookFree(cook) || !Work.CookLit(cook))
                     || _target.GetComponent<Fermenter>() is Fermenter f && Work.FermentStatus(f) != "Empty";
                 if (full) { Finish(b, true); return; } // leftovers go back to the stores with the next deposit
                 if (_target.GetComponent<Fermenter>() != null) v.InvokeRPC("RPC_AddItem", _carry.GetStableHashCode(), false);

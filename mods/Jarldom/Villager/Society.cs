@@ -11,9 +11,15 @@ namespace Jarldom
         public const string SayKey = "jarldom_say", SayTimeKey = "jarldom_sayt";
         private static float _next;
         private static readonly Dictionary<ZDOID, long> Shown = new Dictionary<ZDOID, long>();
+        // (the same words from the same mouth at most every two minutes: a complaint is heard, not chanted)
+        private static readonly Dictionary<string, (string text, float at)> Last = new Dictionary<string, (string, float)>();
         public static void Say(Brain b, string text, float ttl)
         {
             if (b == null || string.IsNullOrEmpty(text)) return;
+            string who = b.S?.Vid ?? "";
+            if (Last.TryGetValue(who, out var last) && last.text == text && Time.time - last.at < 120f) return;
+            Last[who] = (text, Time.time);
+            if (Last.Count > 400) Last.Clear();
             ZDO z = b.View.GetZDO();
             z.Set(SayKey, text + "\u001f" + ttl.ToString(System.Globalization.CultureInfo.InvariantCulture));
             z.Set(SayTimeKey, ZNet.instance.GetTime().Ticks);

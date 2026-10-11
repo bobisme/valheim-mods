@@ -68,7 +68,9 @@ namespace Jarldom
         public static int Deed(string kind) => DeedPoints.TryGetValue(kind, out int v) ? v : 0;
 
         // The next arrival needs this much renown: 20, then a quarter more for each soul that came.
-        public static int Threshold(int arrivals) => (int)Math.Round(20 * Math.Pow(1.25, Math.Max(0, arrivals)));
+        // The spec's ×1.25 a newcomer at first (20, 25, 31, 37...), then gentler: a quarter-power rise would ask 888 renown of the 18th
+        // and tens of thousands of a hold, so it grows by a square instead (83 at ten, 141 at seventeen, 283 at thirty).
+        public static int Threshold(int arrivals) { int n = Math.Max(0, arrivals); return (int)Math.Round(20 + 5 * n + n * n / 8.0, MidpointRounding.AwayFromZero); }
 
         // Raids grow with renown: 1x at nothing, 2x at 400.
         public static float RaidScale(int renown) => 1f + Math.Min(1f, Math.Max(0, renown) / 400f);
@@ -263,7 +265,7 @@ namespace Jarldom
         public const float Full = 100;
         public static readonly Dictionary<string, float> Points = new Dictionary<string, float>
         {
-            ["kill"] = 1, ["starkill"] = 5, ["bosskill"] = 15, ["orders100"] = 1, ["feast"] = 1, ["ring"] = 3, ["festival"] = 2, ["disgrace"] = -20,
+            ["kill"] = 1, ["starkill"] = 5, ["bosskill"] = 15, ["orders100"] = 1, ["feast"] = 1, ["ring"] = 3, ["festival"] = 2, ["disgrace"] = -20, ["expedition"] = 2,
         };
         public static float Gain(VillagerState v, string source, float odinBonus = 0)
         {

@@ -237,6 +237,17 @@ namespace Jarldom
             return b;
         }
 
+        /// <summary>The game's tooltip window on any element (a button, a line): a title and what it does.</summary>
+        internal static void Tip(Component on, string title, string text)
+        {
+            UITooltip cellTip = _cell != null ? _cell.GetComponent<InventoryElement>()?.m_tooltip : null;
+            if (on == null || cellTip == null) return;
+            if (on.GetComponent<Graphic>() is Graphic g) g.raycastTarget = true;   // (the tooltip needs the pointer)
+            UITooltip tip = on.gameObject.GetComponent<UITooltip>() ?? on.gameObject.AddComponent<UITooltip>();
+            tip.m_tooltipPrefab = cellTip.m_tooltipPrefab;
+            tip.Set(title, text);
+        }
+
         /// <summary>
         /// A tab (the crafting screen's). The game shows the chosen tab by making it not clickable, which draws it pressed in: so does this.
         /// Its label is gold when chosen.

@@ -75,7 +75,9 @@ namespace Jarldom
             if (Colony == null || !Colony.Valid) return Localization.instance.Localize("High-seat pillars\n<size=80%>(founding...)</size>");
             ColonyRecord r = Colony.R;
             string coming = r.ComingLanded && r.Coming.Count > 0 ? $"\n<color=#ffd27a>{r.Coming.Count} newcomer{(r.Coming.Count == 1 ? "" : "s")} wait{(r.Coming.Count == 1 ? "s" : "")} for your word</color>" : "";
-            return Localization.instance.Localize($"{r.Name}\n<size=80%>{Tables.Of(r.Rank).Name} of {Colony.Population}, renown {Colony.Renown}</size>{coming}\n[<color=yellow><b>$KEY_Use</b></color>] Hold council");
+            string next = Ui.ColonyWindow.NextStep(Colony);
+            string hint = next != "" ? $"\n<size=75%><color=#ffd27a>Next: {next}</color> (the hall tab says how)</size>" : "";
+            return Localization.instance.Localize($"{r.Name}\n<size=80%>{Tables.Of(r.Rank).Name} of {Colony.Population}, renown {Colony.Renown}</size>{coming}{hint}\n[<color=yellow><b>$KEY_Use</b></color>] Hold council");
         }
         public bool Interact(Humanoid user, bool hold, bool alt)
         {
@@ -97,7 +99,8 @@ namespace Jarldom
         {
             GodInfo g = Tables.God(God);
             Colony c = Colony.At(transform.position);
-            string favour = c != null ? $"\n<size=80%>{g?.Name}'s favour: {Faith.FavourWord(c.FavourOf(God))} ({c.FavourOf(God)})</size>" : "";
+            int f = c == null ? 0 : God == "odin" ? Faith.Odin(c) : c.FavourOf(God);
+            string favour = c != null ? $"\n<size=80%>{g?.Name}'s favour: {Faith.FavourWord(f)} ({f})</size>" : "";
             return Localization.instance.Localize($"Altar of {g?.Name}{favour}\n<size=80%>wants {g?.Offerings}</size>\n[<color=yellow><b>$KEY_Use</b></color>] Make an offering   <size=80%>(or use an item on it)</size>");
         }
         public bool Interact(Humanoid user, bool hold, bool alt)

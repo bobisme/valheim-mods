@@ -282,24 +282,26 @@ namespace Jarldom
             string n = Prefab(p.gameObject);
             if (p.GetComponent<Bed>() != null) yield return "bed";
             Container c = p.GetComponent<Container>();
-            if (c != null && ContainerAccess.IsStorage(c)) yield return "chest";
-            if (p.GetComponent<Chair>() != null || n.Contains("bench") || n.Contains("stool") || n.Contains("throne") || n.Contains("chair")) yield return "seat";
-            if (n.Contains("throne") || n == Pieces.GildedSeatName.ToLowerInvariant()) yield return "highseat";
-            if (n.Contains("table")) yield return "table";
-            Fireplace fire = p.GetComponent<Fireplace>();
-            if (fire != null) { yield return "fire"; if (n.Contains("hearth")) yield return "hearth"; if (n.Contains("brazier")) yield return "brazier"; if (n.Contains("candle") || n.Contains("sconce")) yield return "candle"; }
+            if (c != null && ContainerAccess.IsStorage(c) && c.m_privacy != Container.PrivacySetting.Private) yield return "chest"; // (one the villagers can open)
+            if (Classes.IsSeat(p)) yield return "seat";
+            if (Classes.IsHighSeat(p.gameObject)) yield return "highseat";
+            if (Classes.IsTable(p)) yield return "table";
+            // Fires that warm (any of them: campfire, hearth, bonfire, fire pit, brazier) are fires; torches, sconces and candles are lights.
+            if (Classes.Warms(p)) { yield return "fire"; if (n.Contains("hearth")) yield return "hearth"; if (n.Contains("brazier")) yield return "brazier"; }
+            else if (Classes.IsLight(p) || n.Contains("candle")) yield return "candle";
             if (n.Contains("banner")) yield return "banner";
             if (n.StartsWith("jarldomgilded")) yield return "gilded";
             if (n.Contains("raven")) { yield return "raven"; yield return "carving"; }
             else if (n.Contains("carving") || n.Contains("darkwood_wolf") || n.Contains("dragon") || n.Contains("statue")) yield return "carving";
-            if (n.Contains("rug")) yield return "rug";
-            if (n.Contains("candle")) yield return "candle";
+            if (Classes.IsRug(n)) yield return "rug";
             if (n.Contains("rune")) { yield return "runestone"; yield return "grave"; }
             if (n.Contains("grave") || n.Contains("tomb")) yield return "grave";
             if (n.StartsWith(Pieces.AltarPrefix.ToLowerInvariant())) yield return "altar_" + n.Substring(Pieces.AltarPrefix.Length);
             if (n.Contains("forge") && p.GetComponent<CraftingStation>() != null) yield return "forge";
             if (n.Contains("workbench") && p.GetComponent<CraftingStation>() != null) yield return "workbench";
-            if (p.GetComponent<StationExtension>() != null) yield return "extension";
+            // A station's extension counts where its own station's work is done (an anvil in the smithy, a spice rack in the brewhouse).
+            StationExtension ext = p.GetComponent<StationExtension>();
+            if (ext != null && ext.m_craftingStation != null) { string st = Prefab(ext.m_craftingStation.gameObject); yield return st.Contains("cauldron") ? "brewext" : st.Contains("forge") || st.Contains("workbench") ? "smithext" : "extension"; }
             if (n.Contains("cauldron") && p.GetComponent<CraftingStation>() != null) yield return "cauldron";
             if (p.GetComponent<Fermenter>() != null) yield return "fermenter";
             ItemStand stand = p.GetComponent<ItemStand>();

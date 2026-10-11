@@ -110,7 +110,7 @@ namespace Jarldom.Ui
             int meals = Stock.Food(c, c.Position).Sum(f => f.item.m_stack);
             if (people.Count > 0 && meals < people.Count * 3)
                 list.Add(meals == 0 ? "The stores hold no food: mark fields, foraging or hunting grounds, or a fishing dock, or fill a chest." : $"Food for less than a day: {meals} meals for {people.Count} people.");
-            var full = Stock.Chests(c).Where(x => x.category != "" && x.category != "treasury" && x.chest.GetInventory().GetEmptySlots() == 0).Select(x => x.category).Distinct().ToList();
+            var full = Stock.Chests(c).Where(x => x.category != "" && x.category != "treasury").GroupBy(x => x.category).Where(g => g.All(x => x.chest.GetInventory().GetEmptySlots() == 0)).Select(g => g.Key).ToList(); // (every chest of the kind full)
             if (full.Count > 0) list.Add($"Full stockpiles ({string.Join(", ", full)}): add chests, or what's gathered lies about.");
             var stuck = new Dictionary<string, List<string>>();
             foreach (Humanoid h in Villagers.Bodies())
@@ -136,6 +136,51 @@ namespace Jarldom.Ui
             return list;
         }
 
+        // A young colony's way in: what to do, in the order it matters, ticked off as it's done (gone once the colony is a village or
+        // everything's done).
+        internal static List<(bool done, string text)> Steps(Colony c)
+        {
+            ColonyRecord r = c.R;
+            bool Room(RoomType t) => r.Rooms.Any(x => x.Ok && x.Type == t);
+            return new List<(bool, string)>
+            {
+                (c.Beds > 0, "Build a bed for a newcomer: by the pillars, or better in a house you mark as a longhouse (hammer → Misc → Mark rooms and zones)."),
+                (r.Arrivals > 0, $"Draw Odin's eye: renown {Renown.Threshold(0)} brings the first of the fallen. Build, make beds comfortable, keep coins and valuables in chests."),
+                (r.Arrivals > 0 && c.Population > 0, "Take in who the Valkyrie sets down at the pillars at dusk (the New tab)."),
+                (r.Zones.Count > 0, "Mark work: a woodlot, a quarry, fields, foraging or hunting grounds. Villagers work what's marked and haul it to the chests."),
+                (r.Roster.Any(x => x.State == SoulState.Active && x.Prof != Prof.Hauler), "Give each a trade: People tab → Details → choose their work (they say what they'd like)."),
+                (Stock.Treasury(c) != null, $"Choose a treasury chest and put coins in it: wages are paid from it every {Payroll.EveryDays} days."),
+                (Stock.Chests(c).Any(x => x.category != "" && x.category != "treasury") || Room(RoomType.Stockpile), "Sort the stores: mark a stockpile room, or stand by a chest and choose what it holds (Rooms tab)."),
+                (Room(RoomType.GreatHall), "Raise a great hall with a fire, tables and seats: villagers gather there at dusk to eat and talk."),
+            };
+        }
+        // The next of the first steps, short, for the pillars' hover ("" once there are none).
+        internal static string NextStep(Colony c)
+        {
+            if (c.R.Rank >= Rank.Village) return "";
+            if (_nextFor == c && Time.time < _nextAt) return _next; // (asked every frame the pillars are looked at)
+            var steps = Steps(c);
+            int i = steps.FindIndex(st => !st.done);
+            _nextFor = c; _nextAt = Time.time + 2f; _next = i < 0 ? "" : Short[i];
+            return _next;
+        }
+        private static Colony _nextFor; private static float _nextAt; private static string _next = "";
+        private static readonly string[] Short = { "build a bed", "raise renown to draw Odin's eye", "take in the newcomers", "mark work zones", "give them trades", "choose a treasury", "sort the stores", "raise a great hall" };
+        private static float FirstSteps(RectTransform list, float y)
+        {
+            var steps = Steps(_c);
+            int done = steps.Count(st => st.done);
+            if (_c.R.Rank >= Rank.Village || done == steps.Count) return y;
+            y = Heading(list, $"First steps ({done} of {steps.Count} done)", y);
+            bool next = true;
+            foreach (var (ok, text) in steps)
+            {
+                y = Text(list, (ok ? "<color=#99e08c>✓</color> " : next ? "<color=#ffd27a>→</color> " : "· ") + text, y, 15, ok ? GameUi.Dim : next ? GameUi.Text : GameUi.Dim, 14);
+                if (!ok) next = false;
+            }
+            return y;
+        }
+
         private static float Hall(RectTransform list)
         {
             ColonyRecord r = _c.R; float y = 4;
@@ -145,6 +190,7 @@ namespace Jarldom.Ui
                 y = Heading(list, "Needs you", y);
                 foreach (string n in needs) y = Text(list, "• " + n, y, 16, GameUi.Warn);
             }
+            y = FirstSteps(list, y);
             y = Heading(list, "Odin's attention", y);
             y = Text(list, $"Renown <color=#ffd27a>{_c.Renown}</color> = wealth {_c.WealthPart} + comfort {_c.ComfortPart} + deeds {r.Deeds}", y);
             string why = Migration.Why(_c);
@@ -178,10 +224,12 @@ namespace Jarldom.Ui
             y = Text(list, feast == "" ? "A feast can be held tonight." : "Feast: " + feast + ".", y, 16, GameUi.Dim);
             y += 6;
             float bx = 8;
-            Btn(list, "Hold a feast", ref bx, y, () => Net.Act(_c, "feast", ""), feast == "");
-            Btn(list, "Beds for all", ref bx, y, () => Net.Act(_c, "autobeds", ""));
-            Btn(list, "Nearest chest: treasury", ref bx, y, () => { Container ch = NearestChest(); if (ch != null) Net.Act(_c, "treasury", Colony.IdOf(ch.GetComponent<ZNetView>())); });
-            Btn(list, _c.HornUntil > Time.time ? "Sound the all-clear" : "Blow the war horn", ref bx, y, () => Net.Act(_c, "horn", _c.HornUntil > Time.time ? "off" : "on"));
+            Tip(Btn(list, "Hold a feast", ref bx, y, () => Net.Act(_c, "feast", ""), feast == ""), "A feast", "Tonight in the great hall: food from the hall's chests (three kinds or more) and mead if there is some. Everyone's mood rises for days, and it's a deed for renown.");
+            Tip(Btn(list, "Give out free beds", ref bx, y, () => Net.Act(_c, "autobeds", "")), "Free beds", "Everyone sleeping by the hall fire takes the nearest bed no one has. (It happens by itself at dusk too.)");
+            y += 50; bx = 8;
+            Container near = NearestChest();
+            Tip(Btn(list, near == null ? "Treasury: stand by a chest" : "Make the chest by me the treasury", ref bx, y, () => { Container ch = NearestChest(); if (ch != null) Net.Act(_c, "treasury", Colony.IdOf(ch.GetComponent<ZNetView>())); }, near != null), "The treasury", "Wages are paid from the treasury every five days, and feasts, ransoms, tribute and hired swords are paid from it. Its coins count to renown.");
+            Tip(Btn(list, _c.HornUntil > Time.time ? "Sound the all-clear" : "Blow the war horn", ref bx, y, () => Net.Act(_c, "horn", _c.HornUntil > Time.time ? "off" : "on")), "The war horn", "Fighters arm themselves and go out to the foe; everyone else runs for the great hall. It sounds by itself when a raid comes.");
             y += 52;
             y = Heading(list, "Mods it works with", y);
             y = Text(list, string.Join("   ", Compat.Report().Where(m => m.present && m.name != "ClaudeTools").Select(m => m.name)) is string s && s.Length > 0 ? s : "none of them (Jarldom needs none)", y, 15, GameUi.Dim);
@@ -219,17 +267,21 @@ namespace Jarldom.Ui
             Player p = Player.m_localPlayer;
             return Stock.Chests(_c, p.transform.position).Select(x => x.chest).FirstOrDefault(ch => Vector3.Distance(ch.transform.position, p.transform.position) < 15);
         }
-        private static void Btn(RectTransform list, string text, ref float x, float y, Action click, bool enabled = true)
+        private static Button Btn(RectTransform list, string text, ref float x, float y, Action click, bool enabled = true)
         {
             float w = Mathf.Max(150, text.Length * 9.5f + 30);
-            GameUi.Button(list, text, new Vector2(x, -y), new Vector2(w, 42), click, enabled, 16);
+            Button b = GameUi.Button(list, text, new Vector2(x, -y), new Vector2(w, 42), click, enabled, 16);
             x += w + 8;
+            return b;
         }
+        private static void Tip(Component on, string title, string text) => GameUi.Tip(on, title, text);
 
         private static float Newcomers(RectTransform list)
         {
             ColonyRecord r = _c.R; float y = 4;
-            y = Text(list, "The Valkyrie set them down at the pillars. They fell in battle and Odin sent them here: will you take them in?", y, 16, GameUi.Dim);
+            y = Text(list, "The Valkyrie set them down at the pillars. They fell in battle and Odin sent them here: will you take them in? (Turned away, they fly on. Unanswered, they wait.)", y, 16, GameUi.Dim);
+            int free = _c.FreeBeds().Count;
+            if (free < r.Coming.Count) y = Text(list, free == 0 ? "There's no free bed for them: they'd sleep by the hall fire, unhappily, and one with no bed who dies is lost to Hel. Build a bed first." : $"Only {free} free bed{(free == 1 ? "" : "s")} for {r.Coming.Count}.", y, 15, GameUi.Warn);
             for (int i = 0; i < r.Coming.Count; i++)
             {
                 Newcomer n = r.Coming[i]; int idx = i;
@@ -249,6 +301,7 @@ namespace Jarldom.Ui
             float y = 4;
             var living = _c.R.Roster.Where(r => r.State == SoulState.Active).OrderBy(r => r.Name).ToList();
             if (living.Count == 0) return Text(list, "No one lives here yet. Raise renown (build, beds with comfort, deeds) and Odin will send the fallen.", y, 16, GameUi.Dim);
+            y = Text(list, "Details shows why each feels as they do and lets you choose their work. Mood sets how fast they work.", y, 15, GameUi.Dim);
             foreach (var held in Captives.Held(_c).ToList())
             {
                 string vid = held.vid;
@@ -267,10 +320,10 @@ namespace Jarldom.Ui
                 int mood = z?.GetInt(Villagers.MoodKey, 0) ?? 0;
                 GameUi.Line(list, row.Name, new Vector2(8, -y), 250, 18, GameUi.Warm);
                 GameUi.Line(list, Tables.Of(row.Prof).Name, new Vector2(262, -y), 130, 16, GameUi.Text);
-                GameUi.Line(list, doing, new Vector2(396, -y), 250, 15, GameUi.Dim);
-                GameUi.Line(list, $"mood {Windows.Signed(mood)}  worth {Mathf.RoundToInt(row.Worth)}{(string.IsNullOrEmpty(row.Bed) ? "  <color=#ff8c59>no bed</color>" : "")}", new Vector2(650, -y), W - 650 - 52, 15, mood < -30 ? GameUi.Warn : GameUi.Text);
+                GameUi.Line(list, doing, new Vector2(396, -y), 230, 15, GameUi.Dim);
+                GameUi.Line(list, $"mood {Windows.Signed(mood)}  worth {Mathf.RoundToInt(row.Worth)}{(string.IsNullOrEmpty(row.Bed) ? "  <color=#ff8c59>no bed</color>" : "")}", new Vector2(630, -y), W - 630 - 92, 15, mood < -30 ? GameUi.Warn : GameUi.Text);
                 string vid = row.Vid;
-                if (h != null) GameUi.Button(list, "...", new Vector2(W - 44, -y + 2), new Vector2(44, 30), () => VillagerPanel.Open(h, true), true, 15);
+                if (h != null) Tip(GameUi.Button(list, "Details", new Vector2(W - 86, -y + 2), new Vector2(86, 30), () => VillagerPanel.Open(h, true), true, 14), row.Name, "Their mood and why, needs, skills, gear and bag; choose their work and their bed.");
                 y += 36;
             }
             var lost = _c.R.Roster.Where(r => r.State != SoulState.Active).ToList();
@@ -288,7 +341,7 @@ namespace Jarldom.Ui
                 string name = Tables.Of(room.Type).Name + (room.Type == RoomType.Temple && room.God != "" ? " of " + Tables.God(room.God)?.Name : "");
                 GameUi.Line(list, name, new Vector2(8, -y), 260, 18, GameUi.Warm);
                 GameUi.Line(list, room.Ok ? $"grade {room.Grade} ({room.Points} points)" : "<color=#ff8c59>not working</color>", new Vector2(272, -y), 220, 16, GameUi.Text);
-                GameUi.Line(list, $"{Math.Round(Geometry.Area(room.Xz))} m²", new Vector2(496, -y), 90, 15, GameUi.Dim);
+                GameUi.Line(list, $"{Math.Round(Geometry.Area(room.Xz))} m², {Where(room.Xz, room.Floor)}", new Vector2(496, -y), W - 496 - 196, 15, GameUi.Dim);
                 string id = room.Id;
                 GameUi.Button(list, "Check", new Vector2(W - 190, -y + 2), new Vector2(90, 30), () => Net.Act(_c, "check", id), true, 15);
                 GameUi.Button(list, "Remove", new Vector2(W - 96, -y + 2), new Vector2(96, 30), () => Net.Act(_c, "unroom", id), true, 15);
@@ -299,7 +352,7 @@ namespace Jarldom.Ui
             foreach (Zone z in _c.R.Zones)
             {
                 GameUi.Line(list, Tables.Of(z.Type).Name, new Vector2(8, -y), 260, 18, GameUi.Warm);
-                GameUi.Line(list, $"{Math.Round(Geometry.Area(z.Xz))} m², {Tables.Of(z.Type).Text}", new Vector2(272, -y), 420, 15, GameUi.Dim);
+                GameUi.Line(list, $"{Math.Round(Geometry.Area(z.Xz))} m², {Where(z.Xz, z.Floor)}: {Tables.Of(z.Type).Text}", new Vector2(272, -y), W - 272 - 104, 15, GameUi.Dim);
                 string id = z.Id;
                 GameUi.Button(list, "Remove", new Vector2(W - 96, -y + 2), new Vector2(96, 30), () => Net.Act(_c, "unroom", id), true, 15);
                 y += 34;
@@ -319,16 +372,46 @@ namespace Jarldom.Ui
             return y + 46;
         }
 
+        // Where a marked room or zone is, from the pillars ("12 m north-east", "upstairs, 20 m west", "by the pillars").
+        private static string Where(IList<float> xz, float floor)
+        {
+            float x = 0, z = 0; int n = xz.Count / 2;
+            for (int i = 0; i < n; i++) { x += xz[i * 2]; z += xz[i * 2 + 1]; }
+            Vector3 d = new Vector3(x / n, 0, z / n) - new Vector3(_c.Position.x, 0, _c.Position.z);
+            float up = floor - _c.Position.y;
+            string storey = up > 2.5f ? "upstairs, " : "";
+            return d.magnitude < 6 ? storey + "by the pillars" : $"{storey}{Mathf.RoundToInt(d.magnitude)} m {ScoutTask.Compass(d)}";
+        }
+        private static readonly Dictionary<string, string> Kinds = new Dictionary<string, string>
+        {
+            ["chop"] = "Felling", ["mine"] = "Mining", ["harvest"] = "Harvesting", ["pick"] = "Foraging", ["hunt"] = "Hunting", ["haul"] = "Hauling",
+            ["plant"] = "Planting saplings", ["sow"] = "Sowing", ["fish"] = "Fishing", ["fuel"] = "Fuelling fires", ["smelt"] = "Smelting", ["cook"] = "Cooking",
+            ["craft"] = "Commissions", ["ferment"] = "Fermenters", ["tap"] = "Tapping fermenters", ["feed"] = "Feeding beasts", ["cull"] = "Culling the herd",
+            ["guard"] = "Guarding", ["build"] = "Building",
+        };
+        private static string KindName(string k) => Kinds.TryGetValue(k, out string n) ? n : char.ToUpper(k[0]) + k.Substring(1);
+
         private static float WorkTab(RectTransform list)
         {
             float y = 4;
             var orders = _c.IsOwner ? _c.Board.All.ToList() : JobBoard.FromSnapshot(_c.BoardBytes());
             int open = orders.Count(o => o.State == OrderState.Open), claimed = orders.Count(o => o.State == OrderState.Claimed), blocked = orders.Count(o => o.State == OrderState.Blocked);
             y = Text(list, $"{open} open, {claimed} being done, {blocked} blocked. Done today: {_c.DoneToday}.", y);
+            y = Text(list, "Jobs come from what you mark (zones and rooms), what lies about, and fires and stations running low. Villagers take the jobs of their trade; haulers take any carrying.", y, 15, GameUi.Dim);
             y = Commissions(list, y);
+            y = Heading(list, "Stores to keep", y);
+            foreach (var (cat, who, verb) in new[] { ("wood", "Woodcutters", "fell trees"), ("stone", "Miners", "quarry stone") })
+            {
+                int keep = Stock.Keep(_c, cat), held = Stock.Held(_c, cat); string k = cat;
+                GameUi.Line(list, $"{who} {verb} until the stores hold {(keep == 0 ? "any amount (no limit)" : keep + " " + cat)}. Now {held}.", new Vector2(24, -y), W - 24 - 250, 15, keep > 0 && held >= keep ? GameUi.Good : GameUi.Text);
+                GameUi.Button(list, "−500", new Vector2(W - 240, -y + 2), new Vector2(76, 28), () => Net.Act(_c, "keep", $"{k}|{(keep == 0 ? 5000 : Math.Max(500, keep - 500))}"), true, 14);
+                GameUi.Button(list, "+500", new Vector2(W - 160, -y + 2), new Vector2(76, 28), () => Net.Act(_c, "keep", $"{k}|{(keep == 0 ? 0 : keep + 500)}"), true, 14);
+                GameUi.Button(list, "no limit", new Vector2(W - 80, -y + 2), new Vector2(80, 28), () => Net.Act(_c, "keep", $"{k}|0"), keep != 0, 13);
+                y += 32;
+            }
             foreach (var g in orders.Where(o => o.State != OrderState.Done && o.State != OrderState.Cancelled).GroupBy(o => o.Kind).OrderByDescending(g => g.Count()))
             {
-                y = Heading(list, $"{g.Key} ({g.Count()})", y);
+                y = Heading(list, $"{KindName(g.Key)} ({g.Count()})", y);
                 foreach (Order o in g.OrderByDescending(o => o.Priority).Take(8))
                 {
                     string who = o.State == OrderState.Claimed ? Villagers.ByVid(o.Vid)?.S.Name ?? _c.R.Row(o.Vid)?.Name ?? "someone" : "";
@@ -397,13 +480,14 @@ namespace Jarldom.Ui
         private static float Gods(RectTransform list)
         {
             float y = 4;
-            y = Text(list, Compat.Has("Omens") ? $"Odin's favour is the gods' favour of Omens: offerings to Odin move it a step for every 20 points of favour ({_c.R.Flag("omenspool")} of 20 so far)." : "Build an altar (hammer → Misc) and make offerings with Use, or use an item on it. Coins thrown into a sacred bog zone buy favour without end.", y, 15, GameUi.Dim);
+            y = Text(list, "Build a god's altar in the colony (hammer → Misc) and give it what the god wants: E gives the best such thing you carry, or use an item from your bag on it. A gothi makes offerings from the stores each morning. A god's blessing works while they're pleased and have a temple (a room around their altar, marked as their temple). Coins dropped into a sacred bog zone buy Odin's favour without end.", y, 15, GameUi.Dim);
+            if (Compat.Has("Omens")) y = Text(list, $"Odin's favour is the gods' favour of Omens: offerings to Odin move it a step for every 20 points of favour ({_c.R.Flag("omenspool")} of 20 so far).", y, 15, GameUi.Dim);
             foreach (GodInfo g in Tables.Gods)
             {
                 int f = g.Id == "odin" ? Faith.Odin(_c) : _c.FavourOf(g.Id);
                 bool temple = _c.R.Rooms.Any(r => r.Ok && (g.Id == "odin" ? r.Type == RoomType.OdinShrine : r.Type == RoomType.Temple && r.God == g.Id));
                 GameUi.Line(list, g.Name, new Vector2(8, -y), 120, 20, GameUi.Warm);
-                GameUi.Bar(list, new Vector2(132, -y - 2), new Vector2(220, 22), (f + 100) / 200f, f >= 0 ? GameUi.Gold : GameUi.Warn, $"{Faith.FavourWord(f)} ({f})");
+                GameUi.Bar(list, new Vector2(132, -y - 2), new Vector2(220, 22), Mathf.Abs(f) / 100f, f >= 0 ? GameUi.Gold : GameUi.Warn, $"{Faith.FavourWord(f)} ({f})"); // (filled toward favour or wrath from nothing)
                 GameUi.Line(list, $"{(temple ? "<color=#99e08c>has a temple</color>. " : "")}wants {g.Offerings}; {g.Blessing}", new Vector2(364, -y), W - 370, 15, GameUi.Dim);
                 y += 34;
             }

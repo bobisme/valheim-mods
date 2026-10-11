@@ -50,13 +50,26 @@ namespace Jarldom
         }
         public static string FavourWord(int f) => f <= -60 ? "wrathful" : f < -10 ? "displeased" : f <= 10 ? "watching" : f < 60 ? "pleased" : "delighted";
         public static float OdinWorthBonus(Colony c) => c != null && Odin(c) >= 30 ? 0.25f : 0;
-        public static int Odin(Colony c) => Compat.OmensFate(out int fate) ? fate * 20 : c.FavourOf("odin");
+        public static int Odin(Colony c) => Compat.OmensFate(out int fate) ? Favour.Clamp(fate * 20 + c.R.Flag("omenspool")) : c.FavourOf("odin"); // (with Omens: its fate in steps of 20, and what's put by toward the next)
 
         public static bool Wants(string god, ItemDrop.ItemData item)
         {
             GodInfo g = Tables.God(god);
+            if (g == null || item == null) return false;
             string n = item.m_dropPrefab != null ? item.m_dropPrefab.name : "";
-            return g != null && g.OfferingItems.Any(o => n.StartsWith(o) || o == "Fish" && item.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Fish || o == "Trophy" && item.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Trophy);
+            var t = item.m_shared.m_itemType;
+            // (by what a thing is, so every weapon, hide or stew of a kind is wanted alike; the names below are only the odd ones out)
+            switch (god)
+            {
+                case "odin": if (Classes.IsMead(item) || t == ItemDrop.ItemData.ItemType.Trophy || n == "Coins") return true; break;
+                case "thor": if (Classes.IsWeapon(item) && t != ItemDrop.ItemData.ItemType.Bow || t == ItemDrop.ItemData.ItemType.Trophy) return true; break;
+                case "tyr": if (Classes.IsWeapon(item) && t != ItemDrop.ItemData.ItemType.Bow || t == ItemDrop.ItemData.ItemType.Shield) return true; break;
+                case "ullr": if (t == ItemDrop.ItemData.ItemType.Bow || Stock.Category(item) == "hides") return true; break;
+                case "frigg": if (t == ItemDrop.ItemData.ItemType.Consumable && item.m_shared.m_food >= 25 && Stock.Category(item) == "food" && !Classes.IsMead(item) || n.StartsWith("Linen")) return true; break; // (cooked food, not raw)
+                case "freyja": if (n == "Honey" || n == "Dandelion" || n == "Flax" || n == "Barley" || n == "Carrot" || n == "Turnip" || n == "Onion") return true; break;
+                case "njord": if (t == ItemDrop.ItemData.ItemType.Fish || n.StartsWith("Fish") && !Classes.IsEquipment(item) || n == "Amber" || n == "AmberPearl") return true; break;
+            }
+            return g.OfferingItems.Any(o => n == o || n.StartsWith(o) && !Classes.IsEquipment(item) && god == "hel");
         }
         public static void OfferFromBag(Altar altar, Player p)
         {

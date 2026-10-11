@@ -89,6 +89,7 @@ namespace Jarldom
                 case "tribute": return $"The Fulings were paid {e.B} coins to go away.";
                 case "worthy": return $"{e.A} was found worthy of Valhalla.";
                 case "injured": return $"{e.A} was wounded.";
+                case "inspired": return $"{e.A} woke inspired.";
                 case "text": return e.Text;
                 case "petition": return null;
                 default: return string.IsNullOrEmpty(e.Text) ? null : e.Text;
@@ -101,7 +102,18 @@ namespace Jarldom
             var lines = new List<string>();
             foreach (var day in log.GroupBy(e => e.Day).OrderBy(g => g.Key).Reverse().Take(maxDays).Reverse())
             {
-                var said = day.Select(Line).Where(l => l != null).Distinct().ToList();
+                // (the everyday told once a day: "Odd and Alfhild woke inspired", "Two offerings were made to Odin")
+                var said = new List<string>();
+                foreach (LogEntry e in day)
+                {
+                    if (Inspired(e) != null || e.Kind == "offering") continue;
+                    string l = Line(e);
+                    if (l != null && !said.Contains(l)) said.Add(l);
+                }
+                var woke = day.Select(Inspired).Where(n => n != null).Distinct().ToList();
+                if (woke.Count > 0) said.Add($"{And(woke)} woke inspired.");
+                foreach (var g in day.Where(e => e.Kind == "offering").GroupBy(e => e.B))
+                    said.Add(g.Count() == 1 ? $"An offering was made to {g.Key}." : $"{Count(g.Count())} offerings were made to {g.Key}.");
                 int kills = day.Count(e => e.Kind == "kill");
                 if (kills > 0) said.Add(kills == 1 ? "One foe was slain." : $"{kills} foes were slain.");
                 if (said.Count == 0) continue;
@@ -109,6 +121,12 @@ namespace Jarldom
             }
             return lines;
         }
+
+        private const string Woke = " woke inspired.";
+        private static string Inspired(LogEntry e) => e.Kind == "inspired" ? e.A : e.Kind == "text" && e.Text != null && e.Text.EndsWith(Woke) ? e.Text.Substring(0, e.Text.Length - Woke.Length) : null; // (older sagas told it as text)
+        public static string And(IList<string> names) => names.Count == 1 ? names[0] : string.Join(", ", names.Take(names.Count - 1)) + " and " + names[names.Count - 1];
+        private static readonly string[] Numbers = { "No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten" };
+        public static string Count(int n) => n < Numbers.Length ? Numbers[n] : n.ToString();
 
         // A line of gossip from the last two days, by one villager about another. Only about things that happened.
         private static readonly string[] Openers = { "{0} says", "{0} swears", "{0} heard that", "{0} laughs that", "{0} won't stop saying" };

@@ -32,6 +32,18 @@ namespace Jarldom.Ui
             if (Time.unscaledTime >= _nextRefresh && !Input.GetMouseButton(0)) { _nextRefresh = Time.unscaledTime + 2f; Refresh(); } // (a check's news)
         }
         private static float _nextRefresh;
+        private static void Reshape(System.Collections.Generic.IList<float> xz, float by)
+        {
+            var (cx, cz) = Geometry.Centre(xz);
+            var grown = new System.Collections.Generic.List<float>();
+            for (int i = 0; i < xz.Count; i += 2)
+            {
+                Vector2 d = new Vector2(xz[i] - cx, xz[i + 1] - cz); float len = d.magnitude;
+                Vector2 to = len < 0.1f ? d : d * Mathf.Max(1f, len + by) / len;
+                grown.Add((float)Math.Round(cx + to.x, 2)); grown.Add((float)Math.Round(cz + to.y, 2));
+            }
+            Net.Act(_c, "reshape", _id + "|" + string.Join(",", grown.Select(v => v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))));
+        }
         private static Room Room() => _c.R.Rooms.FirstOrDefault(r => r.Id == _id);
         private static Zone Zone() => _c.R.Zones.FirstOrDefault(z => z.Id == _id);
         private static uint _shown;
@@ -65,6 +77,12 @@ namespace Jarldom.Ui
                 Close(); RoomPicker.Open(c, outline, f, id);
             }, true, 16); x += 198;
             GameUi.Button(_window, "Remove", new Vector2(x, -y), new Vector2(120, 42), () => { Net.Act(_c, "unroom", _id); Close(); }, true, 16); x += 128;
+            if (zone != null)
+            {
+                // (a zone grown or shrunk about its middle, 3 m a side at a time)
+                GameUi.Button(_window, "Wider", new Vector2(30, -y + 52), new Vector2(120, 38), () => Reshape(xz, 3f), true, 15);
+                GameUi.Button(_window, "Narrower", new Vector2(158, -y + 52), new Vector2(120, 38), () => Reshape(xz, -3f), Zones.Reach(zone) > 5f, 15);
+            }
             GameUi.Button(_window, "Close", new Vector2(640 - 150, -y), new Vector2(120, 42), Close, true, 16);
             // Its outline drawn bright while chosen.
             if (_glow == null) { _glow = Overlay_.NewLine("JarldomRoomChosen", new Color(1f, 0.95f, 0.5f, 1f), 0.16f); _glow.loop = true; }

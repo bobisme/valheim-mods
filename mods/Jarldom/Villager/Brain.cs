@@ -32,7 +32,7 @@ namespace Jarldom
             if (_body != null && _body.isKinematic) _body.isKinematic = false; // (a body left seated when ownership went elsewhere)
             Poses.Clear(h);
         }
-        public float NoStoreUntil, NoFoodUntil, NoRepairUntil, NoBuildUntil, NoTradeUntil, NoCraftUntil, NoHealUntil, NoScoutUntil, NoOfferUntil, NextMischief, NoCartUntil, NoGearUntil, NoGraveUntil; private bool _captureRolled; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f; public double GameDt; private double _lastWorld;
+        public float NoStoreUntil, NoFoodUntil, NoRepairUntil, NoBuildUntil, NoTradeUntil, NoCraftUntil, NoHealUntil, NoScoutUntil, NoOfferUntil, NextMischief, NoCartUntil, NoGearUntil, NoGraveUntil, LeaderGoneAt; private bool _captureRolled; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f; public double GameDt; private double _lastWorld;
         public bool Alive => Body != null && !Body.IsDead() && View != null && View.IsValid() && View.IsOwner() && S != null;
         public Vector3 Pos => Body.transform.position;
         public double Now => ZNet.instance.GetTimeSeconds();
@@ -121,7 +121,8 @@ namespace Jarldom
             // as fast as the real one: sleeping players, a faster day; a jump of the clock counts as an hour at most)
             double world = Now; GameDt = _lastWorld > 0 ? Math.Min(Math.Max(0, world - _lastWorld), Clock.Hour) : 0; _lastWorld = world;
             _nextDecide = Time.time + 0.25f; // four times a second is plenty
-            if (Colony == null || !Colony.Valid) { Colony = Colony.Of(S.Colony); if (Colony == null) { Idle("waiting for the hall to load"); return; } }
+            if (Colony == null || !Colony.Valid) { Colony = Colony.Of(S.Colony); if (Colony == null) { if (Follow.LeaderId(this) != 0) Away(); else Idle("waiting for the hall to load"); return; } }
+            Follow.Told(this); // (a homecoming told while the hall was far away)
             double now = Now;
             if (Time.time >= _nextNeeds) { _nextNeeds = Time.time + 5f; Needs(now); }
             if (Time.time >= _nextGear) { _nextGear = Time.time + 1f; Gear.Maintain(this); }
@@ -146,6 +147,7 @@ namespace Jarldom
 
         private Activity Want()
         {
+            if (Follow.Check(this)) return Activity.Follow; // (out with the jarl: a raid at home is the guards' to meet)
             if (Colony.RaidOn || Colony.HornUntil > Time.time) return Activity.Defend;
             if (Body.GetHealthPercentage() < 0.1f || S.InjuredUntil > Now) return S.Needs[(int)Need.Food] < Mood.EatBelow && Time.time > NoFoodUntil && Food.CanEat(this) ? Activity.Wake : Activity.Home;
             Activity a = Schedule.At(Colony.Hour, S.Traits, heavyRain: EnvMan.IsWet() && EnvMan.instance.GetWindIntensity() > 0.6f, outdoorTask: true, urgent: false);
@@ -163,6 +165,7 @@ namespace Jarldom
                 case Activity.Hall: return new HallTask();
                 case Activity.Shelter: return new HallTask { Shelter = true };
                 case Activity.Defend: return new DefendTask();
+                case Activity.Follow: return new FollowTask();
                 default: return new WanderTask(Colony.Position, 10, "idle");
             }
         }
@@ -243,6 +246,33 @@ namespace Jarldom
             if (mood < -60) { if (S.LowMoodSince == 0) S.LowMoodSince = now; } else S.LowMoodSince = 0;
             Society.Breakdowns(this, mood, now);
             _dirty = true;
+        }
+        // Far from home with the jarl (the colony isn't loaded here): only what a follower needs. Hunger, healing, fighting, keeping up.
+        private void Away()
+        {
+            double now = Now;
+            if (Time.time >= _nextNeeds)
+            {
+                _nextNeeds = Time.time + 5f;
+                double hours = Math.Max(0, (now - _lastNeeds) / Clock.Hour); _lastNeeds = now;
+                Jarldom.Mood.Tick(S, hours); Jarldom.Mood.Expire(S, now);
+                if (S.Needs[(int)Need.Food] < 15) { if (!Jarldom.Mood.Has(S, "hungry", now)) Jarldom.Mood.Add(S, "hungry", now); } else Jarldom.Mood.Remove(S, "hungry");
+                Food.Burn(this, 5f);
+                Body.SetMaxHealth(MaxHealth());
+                float regen = Mathf.Max(0.4f, _meals.Sum(m => m.Left > 0 ? Regen(m) : 0));
+                if (Body.GetHealth() < Body.GetMaxHealth()) Body.Heal(regen * 0.5f, false);
+                Stamina = Mathf.Min(1f, Stamina + 0.25f);
+                _dirty = true;
+            }
+            if (Time.time >= _nextGear) { _nextGear = Time.time + 1f; Gear.Maintain(this); }
+            if (Time.time >= _nextFoes) { _nextFoes = Time.time + 0.3f; Combat.Think(this); }
+            if (Time.time >= _nextMoodSync) { _nextMoodSync = Time.time + 2f; SyncHover(); }
+            if (_dirty && Time.time >= _nextSave) { _nextSave = Time.time + 30f; Save(); }
+            if (Combat.Busy(this)) return;
+            if (!Follow.Check(this)) { Idle("far from home"); return; }
+            if (!(Task is FollowTask) || Task.Done) { Task?.Stop(this); Activity = Activity.Follow; Task = new FollowTask(); Task.Start(this); }
+            Task.Tick(this);
+            if (Task != null) SetDoing(Task.Doing);
         }
         public float MaxHealth() => 25f + _meals.Where(m => m.Left > 0).Sum(m => m.Health * Mathf.Pow(Mathf.Clamp01(m.Left / Mathf.Max(1, m.Total)), 0.3f));
         private static float Regen(Meal m) { GameObject p = Assets.Find(m.Prefab); return p != null ? p.GetComponent<ItemDrop>().m_itemData.m_shared.m_foodRegen : 1f; }
@@ -339,7 +369,8 @@ namespace Jarldom
                     S.Opinions[arg] = Mathf.Clamp((S.Opinions.TryGetValue(arg, out int o) ? o : 0) + 20, -100, 100);
                     S.Bump("rings"); Say("I'll wear it with pride.", 5);
                     break;
-                case "summon": Task?.Stop(this); Task = new GoTask(Colony.Position + Colony.Seat.transform.forward * 2.5f, "coming to the pillars", 2f, true); Task.Start(this); break;
+                case "follow": if (long.TryParse(arg.Split('|')[0], out long leader) && leader != 0) Follow.Start(this, leader, arg.Contains("|") ? arg.Substring(arg.IndexOf('|') + 1) : ""); else { Follow.End(this, "Home, then."); Follow.HomeFrom(this); } break;
+                case "summon": Follow.End(this, "Coming."); Task?.Stop(this); Task = new GoTask(Colony.Position + Colony.Seat.transform.forward * 2.5f, "coming to the pillars", 2f, true); Task.Start(this); break;
                 case "dismiss": Dismiss(); return;
                 case "mood": Jarldom.Mood.Add(S, arg, Now); break;
                 case "train": { string key = arg; float now = S.Skill(key); S.Skills[key] = Mathf.Min(100, now + 10); Say($"I learned a great deal of {key.ToLower()} from the master.", 5); } break;

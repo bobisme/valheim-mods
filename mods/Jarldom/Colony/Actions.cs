@@ -24,6 +24,8 @@ namespace Jarldom
                 case "prof": Villagers.Command(a[0], "prof", Get(a, 1)); break;
                 case "bed": Villagers.Command(a[0], "bed", Get(a, 1)); break;
                 case "autobeds": AutoBeds(); break;
+                case "reshape": { Zone z = R.Zones.FirstOrDefault(x => x.Id == Get(a, 0)); var xz = Get(a, 1).Split(',').Select(Flt).ToList(); if (z != null && xz.Count >= 6 && xz.Count == z.Xz.Count && Geometry.Simple(xz)) z.Xz = xz; } break;
+                case "keep": if (Stock.KeepDefault.ContainsKey(Get(a, 0))) R.Flags["keep:" + a[0]] = Mathf.Clamp(Int(a, 1), 0, 100000); break;
                 case "chest": Villagers.Command(a[0], "chest", Get(a, 1)); break;
                 case "stockpile": if (Get(a, 1) == "") R.Stockpiles.Remove(a[0]); else R.Stockpiles[a[0]] = a[1]; if (R.Treasury == a[0] && Get(a, 1) != "treasury") R.Treasury = ""; break;
                 case "treasury": R.Treasury = a[0]; R.Stockpiles.Remove(a[0]); Log("text", "", "", "A chest was chosen to be the treasury."); break;
@@ -44,6 +46,7 @@ namespace Jarldom
                 case "swear": Society.Swear(this, Get(a, 0), Get(a, 1)); break;
                 case "ring": Villagers.Command(a[0], "ring", who); Log("ring", Villagers.ByVid(a[0])?.S.Name ?? a[0], who); break;
                 case "summon": Villagers.Command(a[0], "summon", ""); break;
+                case "follow": Villagers.Command(a[0], "follow", Get(a, 1) + "|" + who); break;
                 case "log": { string[] f = arg.Split('\u001e'); if (f.Length == 4) Log(f[0], f[1], f[2], f[3]); } break;
                 case "craft": { int n = Int(a, 1); string key = Crafts.Prefix + a[0]; int now = R.Flag(key) + n; if (now > 0) R.Flags[key] = Math.Min(now, 99); else R.Flags.Remove(key); } break;
                 case "tribute": Tribute.Pay(this, who); break;

@@ -67,7 +67,7 @@ Check(soul2.Moodlets.Single().Id == "feast" && soul2.Foods[0] == "CookedMeat" &&
 Check(Renown.Wealth(0, 0, 0) == 0 && Renown.Wealth(400, 0, 0) == 10 && Renown.Wealth(0, 40, 0) == 10, "Wealth: a square root, coins count tenfold");
 Check(Renown.Wealth(-5, -5, -5) == 0, "Wealth never negative");
 Check(Renown.Comfort(new int[0]) == 0 && Renown.Comfort(new[] { 4, 2 }) == 15, "Comfort: three times the best bed plus the average");
-Check(Renown.Threshold(0) == 20 && Renown.Threshold(1) == 25 && Renown.Threshold(2) == 31 && Renown.Threshold(10) > 180, "Arrival thresholds grow by a quarter");
+Check(Renown.Threshold(0) == 20 && Renown.Threshold(1) == 25 && Renown.Threshold(2) == 31 && Renown.Threshold(10) == 83 && Renown.Threshold(30) < 300, "Arrival thresholds grow by a quarter at first, then gently");
 Check(Renown.RaidScale(0) == 1 && Renown.RaidScale(400) == 2 && Renown.RaidScale(9999) == 2 && Renown.RaidScale(200) == 1.5f, "Raid scale 1x to 2x");
 Check(Renown.Radius(Rank.Camp) == 60 && Renown.Radius(Rank.Hold) == 110, "Radius grows with rank");
 var none = new List<(RoomType, char)>();
@@ -248,6 +248,9 @@ var vs = Souls.Become(grp[0], "vx", "c1", 10); Check(vs.Traits.Count == 2 && vs.
 var log = new List<LogEntry> { new LogEntry(0, 0, "found", "Bob", "", ""), new LogEntry(10, 0, "arrive", "Ulf", "", ""), new LogEntry(20, 0, "kill", "Ulf", "Neck", ""), new LogEntry(1900, 1, "starkill", "Ulf", "Troll", "") };
 var saga = Stories.Chronicle(log);
 Check(saga.Count == 2 && saga[0].StartsWith("Day 0:") && saga[0].Contains("Ulf came") && saga[0].Contains("One foe") && saga[1].Contains("mighty Troll"), "The chronicle tells the days");
+var everyday = new List<LogEntry> { new LogEntry(5, 2, "inspired", "Odd", "", ""), new LogEntry(6, 2, "text", "Alfhild", "", "Alfhild woke inspired."), new LogEntry(7, 2, "offering", "Odd", "Odin", ""), new LogEntry(8, 2, "offering", "Odd", "Odin", ""), new LogEntry(9, 2, "offering", "Odd", "Thor", "") };
+var told = Stories.Chronicle(everyday);
+Check(told.Count == 1 && told[0].Contains("Odd and Alfhild woke inspired.") && told[0].Contains("Two offerings were made to Odin.") && told[0].Contains("An offering was made to Thor."), "The everyday is told once a day: " + told[0]);
 for (int i = 0; i < 50; i++)
 {
     string gossip = Stories.Gossip(new Random(i), "Astrid", log, 2000);

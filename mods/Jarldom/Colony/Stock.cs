@@ -23,10 +23,13 @@ namespace Jarldom
             string n = item.m_dropPrefab != null ? item.m_dropPrefab.name : "";
             var t = item.m_shared.m_itemType;
             if (n == "Coins" || item.m_shared.m_value > 0) return "valuables";
+            // (gear by what it is first: a wooden shield or a fishing rod is gear, not wood or fish; every cape, belt and crossbow alike)
+            if (Classes.IsEquipment(item)) return "gear";
+            if (Work.Saplings.Any(s => s.seed == n)) return "seeds"; // (pine cones, fir cones, acorns: tree seeds as beech seeds are)
             if (n.Contains("Wood") || n == "RoundLog" || n == "Resin" || n == "ElderBark" || n == "YggdrasilWood" || n == "Blackwood") return "wood";
             if (n == "Stone" || n == "Flint" || n == "BlackMarble" || n == "Grausten" || n == "Obsidian" || n == "Crystal") return "stone";
             if (n.EndsWith("Ore") || n.EndsWith("Scrap") || n == "BlackMetalScrap" || n == "FlametalOreNew") return "ore";
-            if (n == "Copper" || n == "Tin" || n == "Bronze" || n == "Iron" || n == "Silver" || n == "BlackMetal" || n == "Flametal" || n.EndsWith("Nails")) return "metal";
+            if (n == "Copper" || n == "Tin" || n == "Bronze" || n == "Iron" || n == "Silver" || n == "BlackMetal" || n.StartsWith("Flametal") || n.EndsWith("Nails")) return "metal";
             if (n.Contains("Hide") || n.Contains("Pelt") || n == "LeatherScraps" || n == "Feathers" || n == "Chitin") return "hides";
             if (n.Contains("Seed") || n == "Barley" || n == "Flax") return "seeds";
             if (t == ItemDrop.ItemData.ItemType.Consumable) return item.m_shared.m_food > 0 ? "food" : "food";
@@ -35,6 +38,14 @@ namespace Jarldom
                 || t == ItemDrop.ItemData.ItemType.Helmet || t == ItemDrop.ItemData.ItemType.Chest || t == ItemDrop.ItemData.ItemType.Legs || t == ItemDrop.ItemData.ItemType.Shoulder || t == ItemDrop.ItemData.ItemType.Tool || t == ItemDrop.ItemData.ItemType.Ammo) return "gear";
             return "any";
         }
+
+        // How much the stores may hold of what woodcutters and miners bring in, before they stop (the jarl sets it in the Work tab;
+        // 0 is no limit). Without one, a woodlot fills every chest in the colony with logs.
+        public static readonly Dictionary<string, int> KeepDefault = new Dictionary<string, int> { ["wood"] = 1000, ["stone"] = 1000 };
+        public static int Keep(Colony c, string cat) => c.R.Flags.TryGetValue("keep:" + cat, out int v) ? v : KeepDefault.TryGetValue(cat, out int d) ? d : 0;
+        public static int Held(Colony c, string cat) =>
+            Chests(c).Where(x => x.category != "treasury").Sum(x => x.chest.GetInventory().GetAllItems().Where(i => Category(i) == cat).Sum(i => i.m_stack));
+        public static bool Enough(Colony c, string cat) { int keep = Keep(c, cat); return keep > 0 && Held(c, cat) >= keep; }
 
         // The colony's storage chests, loaded here, nearest first; with their category (from the record) and our id.
         // The list of chests is kept a few seconds (finding them walks every loaded piece); categories are read fresh.

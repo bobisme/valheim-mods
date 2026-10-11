@@ -61,7 +61,7 @@ namespace Jarldom
             if (_bed != null) { _own = true; _spot = _bed.m_spawnPoint != null ? _bed.m_spawnPoint : _bed.transform; b.Move.To(_spot.position, 1.2f); return; }
             Room hall = b.Colony.Best(RoomType.GreatHall);
             Vector3 at = hall != null ? b.Colony.Centre(hall) : b.Colony.Position + b.Colony.Seat.transform.forward * 3;
-            Fireplace fire = Nearest<Fireplace>(at, 12f);
+            Fireplace fire = Classes.NearestFire(at, 12f, hall?.Xz);
             if (fire != null) at = fire.transform.position + (b.Pos - fire.transform.position).normalized * 1.8f;
             Vector3 spot = Colony.Spot(at, 1.5f) ?? at;
             _marker = new GameObject("JarldomSleepSpot");
@@ -120,7 +120,7 @@ namespace Jarldom
         {
             Doing = "having a bite";
             if (Food.EatFromBag(b)) { Done = true; return; }
-            var near = Stock.Food(b.Colony, b.Pos).Where(x => !b.Meals.Any(m => m.Prefab == x.item.m_dropPrefab?.name)).OrderByDescending(x => x.item.m_shared.m_food).FirstOrDefault();
+            var near = Stock.Food(b.Colony, b.Pos).Where(x => Food.Fresh(b, x.item)).OrderByDescending(x => x.item.m_shared.m_food).FirstOrDefault();
             _chest = near.chest; _item = near.item;
             if (_chest == null) { Done = true; b.NoFoodUntil = Time.time + 60; return; }
             Doing = "fetching food";
@@ -149,7 +149,7 @@ namespace Jarldom
             Doing = Shelter ? "out of the rain" : hall != null ? "off to the hall" : "by the pillars";
             Vector3 at = hall != null ? b.Colony.Centre(hall) : b.Colony.Position + b.Colony.Seat.transform.forward * 4;
             if (hall != null && !Shelter && b.S.Prof != Prof.Skald) _chair = Seats.Free(b, hall, b.Colony); // (a skald stands by the hearth to play)
-            Fireplace hearth = hall != null && b.S.Prof == Prof.Skald ? SleepTask.Nearest<Fireplace>(at, 8f) : null;
+            Fireplace hearth = hall != null && b.S.Prof == Prof.Skald ? Classes.NearestFire(at, 12f, hall.Xz) : null;
             if (hearth != null) at = hearth.transform.position + (b.Pos - hearth.transform.position).normalized * 2f;
             _stand = _chair != null ? _chair.transform.position : Colony.Spot(at, hearth != null ? 1f : 3f) ?? at;
             b.Move.To(_stand, _chair != null ? 1.2f : 2f);
@@ -409,9 +409,9 @@ namespace Jarldom
         {
             Free(b);
             var list = new List<Piece>(); Piece.GetAllPiecesInRadius(c.Centre(hall), 30, list);
-            Chair best = list.Select(p => p.GetComponent<Chair>()).Where(ch => ch != null && Geometry.Inside(hall.Xz, ch.transform.position.x, ch.transform.position.z)
+            Chair best = list.Select(p => p.GetComponent<Chair>()).Where(ch => ch != null && !Classes.IsHighSeat(ch.gameObject) && Geometry.Inside(hall.Xz, ch.transform.position.x, ch.transform.position.z) // (the high seat is the jarl's)
                 && !(Taken.TryGetValue(ch, out Brain o) && o.Alive && o != b) && Player.GetClosestPlayer(ch.m_attachPoint != null ? ch.m_attachPoint.position : ch.transform.position, 0.3f) == null)
-                .OrderBy(ch => Colony.Prefab(ch.gameObject).Contains("throne") ? 1 : 0).ThenBy(_ => UnityEngine.Random.value).FirstOrDefault();
+                .OrderBy(_ => UnityEngine.Random.value).FirstOrDefault();
             if (best != null) Taken[best] = b;
             return best;
         }
@@ -428,13 +428,15 @@ namespace Jarldom
             if (b.Meals.Count(m => m.Left > m.Total * 0.5f) >= 3) return false;
             if (Bag(b).Any()) return true;
             if (Asked.TryGetValue(b, out var hit) && Time.time - hit.at < 5f) return hit.can;
-            bool can = Stock.Food(b.Colony, b.Pos).Any(x => !b.Meals.Any(m => m.Prefab == x.item.m_dropPrefab?.name));
+            bool can = b.Colony != null && b.Colony.Valid && Stock.Food(b.Colony, b.Pos).Any(x => Fresh(b, x.item)); // (far from home: only what they carry)
             if (Asked.Count > 200) Asked.Clear();
             Asked[b] = (Time.time, can);
             return can;
         }
+        // A food that may be eaten now: as a player may, not while the same meal is still more than half there.
+        public static bool Fresh(Brain b, ItemDrop.ItemData i) => !b.Meals.Any(m => m.Prefab == i.m_dropPrefab?.name && m.Left > m.Total * 0.5f);
         private static IEnumerable<ItemDrop.ItemData> Bag(Brain b) =>
-            b.Body.GetInventory().GetAllItems().Where(i => Stock.Edible(i) && !b.Meals.Any(m => m.Prefab == i.m_dropPrefab?.name && m.Left > m.Total * 0.5f));
+            b.Body.GetInventory().GetAllItems().Where(i => Stock.Edible(i) && Fresh(b, i));
         public static bool EatFromBag(Brain b)
         {
             ItemDrop.ItemData item = Bag(b).OrderByDescending(i => i.m_shared.m_food).FirstOrDefault();

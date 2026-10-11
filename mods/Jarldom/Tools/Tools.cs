@@ -65,7 +65,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "away", "master", "envoy", "capture", "barrow" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "away", "master", "envoy", "capture", "barrow" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or with devcommands"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -452,6 +452,11 @@ namespace Jarldom
                         ["heralds"] = new JArray(Character.GetAllCharacters().Where(Tribute.IsHerald).Select(h => $"{h.transform.position.x:0},{h.transform.position.y:0},{h.transform.position.z:0}")),
                         ["event"] = RandEventSystem.instance?.GetCurrentRandomEvent()?.m_name ?? "" });
                     break;
+                case "follow": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } bool stop = a.Length > 3 && a[3] == "stop"; b.Command("follow", stop ? "0" : me.GetPlayerID() + "|" + me.GetPlayerName()); output(new JObject { ["following"] = Follow.LeaderId(b) != 0, ["doing"] = b.Doing }); } break;
+                case "doors":
+                    if (a.Length > 2 && a[2] == "shut") foreach (Door d in c.PiecesIn(c.Radius).Select(pc => pc.GetComponent<Door>()).Where(d => d != null && d.m_keyItem == null && d.GetComponent<ZNetView>().GetZDO().GetInt(ZDOVars.s_state) != 0)) d.GetComponent<ZNetView>().InvokeRPC("UseDoor", true);
+                    output(new JObject { ["doors"] = new JArray(c.PiecesIn(c.Radius).Select(pc => pc.GetComponent<Door>()).Where(d => d != null).Select(d => $"{d.name.Replace("(Clone)", "")} at {d.transform.position.x:0},{d.transform.position.z:0}: {(d.GetComponent<ZNetView>().GetZDO().GetInt(ZDOVars.s_state) == 0 ? "shut" : "open")}")), ["waiting"] = Doors.Waiting }); break;
+                case "recipes": output(new JObject { ["recipes"] = new JArray(ObjectDB.instance.m_recipes.Where(r => r?.m_item != null && r.m_item.name == a[2]).Select(r => $"{r.name} enabled={r.m_enabled} station={r.m_craftingStation?.name} lvl={r.m_minStationLevel} one={r.m_requireOnlyOneIngredient} upgradeOnly={r.m_noCraftOnlyUpgrade}: " + string.Join(", ", r.m_resources.Select(q => $"{q.m_resItem?.name} {q.m_amount}+{q.m_amountPerLevel}")))), ["chosen"] = Crafts.RecipeFor(a[2])?.name }); break;
                 case "craft":
                     if (a.Length > 2) Net.Act(c, "craft", a[2] + "|" + (a.Length > 3 ? a[3] : "1"));
                     output(new JObject { ["commissions"] = new JArray(Crafts.Commissions(c).Select(k => $"{k.Key} x{k.Value}")),

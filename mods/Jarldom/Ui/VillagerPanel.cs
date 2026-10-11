@@ -92,7 +92,11 @@ namespace Jarldom.Ui
                 Small(right, "Nearest free bed", ref bx, ry, () => { Bed free = c.FreeBeds().OrderBy(b => Vector3.Distance(b.transform.position, Player.m_localPlayer.transform.position)).FirstOrDefault(); if (free != null) Net.Act(c, "bed", vid + "|" + Colony.IdOf(free.GetComponent<ZNetView>())); else Player.m_localPlayer.Message(MessageHud.MessageType.Center, "No free bed in the colony."); });
                 Small(right, "Open bag", ref bx, ry, () => { Humanoid h = _h; Close(); Body.OpenBag(h); });
                 ry += 44; bx = 10;
+                bool following = Z.GetLong(Follow.Key, 0L) != 0;
+                long me = Player.m_localPlayer.GetPlayerID();
+                Small(right, following ? (Z.GetLong(Follow.Key, 0L) == me ? "Go home" : "Stop following") : "Follow me", ref bx, ry, () => Net.Act(c, "follow", vid + "|" + (following ? 0 : me)));
                 Small(right, "Come to the pillars", ref bx, ry, () => Net.Act(c, "summon", vid));
+                ry += 44; bx = 10;
                 Small(right, _confirm ? "Yes, send them away" : "Dismiss", ref bx, ry, () => { if (_confirm) { Net.Act(c, "dismiss", vid); Close(); } else { _confirm = true; Build(); } });
                 ItemDrop.ItemData ring = Player.m_localPlayer.GetInventory().GetAllItems().FirstOrDefault(Items.IsRing);
                 if (ring != null && c.AllowedName(Player.m_localPlayer.GetPlayerName())) { ry += 44; bx = 10; Small(right, "Give an arm ring", ref bx, ry, () => { Player me = Player.m_localPlayer; ItemDrop.ItemData r = me.GetInventory().GetAllItems().FirstOrDefault(Items.IsRing); if (r == null) return; me.GetInventory().RemoveItem(r, 1); Net.Act(c, "ring", vid); }); }
@@ -128,13 +132,13 @@ namespace Jarldom.Ui
     // After a room or zone outline is closed: what is it?
     internal static class RoomPicker
     {
-        private static RectTransform _window; private static Colony _c; private static List<float> _xz; private static float _floor; private static bool _temple; private static string _replace;
+        private static RectTransform _window; private static Colony _c; private static List<float> _xz; private static float _floor; private static bool _temple, _zonesOnly; private static string _replace;
         public static bool IsOpen => _window != null;
         // replace: the room or zone this one takes the place of (changing what a marked outline is).
-        public static void Open(Colony c, List<float> xz, float floor, string replace = null)
+        public static void Open(Colony c, List<float> xz, float floor, string replace = null, bool zonesOnly = false)
         {
             if (!GameUi.Ready()) return;
-            _c = c; _xz = xz; _floor = floor; _temple = false; _replace = replace;
+            _c = c; _xz = xz; _floor = floor; _temple = false; _replace = replace; _zonesOnly = zonesOnly;
             Build();
         }
         public static void Close() { if (_window != null) Object.Destroy(_window.gameObject); _window = null; }
@@ -162,13 +166,13 @@ namespace Jarldom.Ui
             }
             else
             {
-                GameUi.Line(_window, "Rooms", new Vector2(30, -y), 300, 18, GameUi.Dim); y += 30;
-                foreach (RoomInfo r in Tables.Rooms)
+                if (!_zonesOnly) { GameUi.Line(_window, "Rooms", new Vector2(30, -y), 300, 18, GameUi.Dim); y += 30; }
+                foreach (RoomInfo r in _zonesOnly ? Enumerable.Empty<RoomInfo>() : Tables.Rooms)
                 {
                     RoomType t = r.Id;
                     Place(r.Name, ref x, ref y, () => { if (t == RoomType.Temple) { _temple = true; Build(); return; } Net.Act(_c, "room", $"{t}|{(t == RoomType.OdinShrine ? "odin" : "")}|{floor}|{xz}"); Close(); Designate.Clear(); });
                 }
-                x = 30; y += 52;
+                x = 30; if (!_zonesOnly) y += 52;
                 GameUi.Line(_window, "Work zones", new Vector2(30, -y), 300, 18, GameUi.Dim); y += 30;
                 foreach (ZoneInfo z in Tables.Zones)
                 {

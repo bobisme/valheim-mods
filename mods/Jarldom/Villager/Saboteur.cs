@@ -58,7 +58,7 @@ namespace Jarldom
         {
             Room hall = c.Best(RoomType.GreatHall);
             if (hall == null) return null;
-            Door door = c.PiecesIn(c.Radius).Select(p => p.GetComponent<Door>()).FirstOrDefault(d => d != null && Geometry.Distance(hall.Xz, d.transform.position.x, d.transform.position.z) <= 1.5f);
+            Door door = c.PiecesIn(c.Radius).Select(p => p.GetComponent<Door>()).FirstOrDefault(d => d != null && !Classes.IsShutter(d.gameObject) && Geometry.Distance(hall.Xz, d.transform.position.x, d.transform.position.z) <= 1.5f);
             ZNetView v = door != null ? door.GetComponent<ZNetView>() : null;
             if (v == null || !v.IsValid() || v.GetZDO().GetInt(ZDOVars.s_state) != 0) return null;
             v.InvokeRPC("UseDoor", true);
@@ -112,7 +112,7 @@ namespace Jarldom
             var people = Villagers.All.Where(b => b.S.Colony == c.Id).ToList();
             // A villager in high spirits may wake inspired: a day of their best work.
             foreach (Brain b in people)
-                if (Mood.Of(b.S, b.Now) >= 60 && !Saboteur.Touched(b.S) && Random.value < 0.15f) { Mood.Add(b.S, "inspired", b.Now); b.S.Bump("inspired"); c.Log("text", b.S.Name, "", $"{b.S.FullName} woke inspired."); b.Dirty(); }
+                if (Mood.Of(b.S, b.Now) >= 60 && !Saboteur.Touched(b.S) && Random.value < 0.15f) { Mood.Add(b.S, "inspired", b.Now); b.S.Bump("inspired"); c.Log("inspired", b.S.FullName, "", ""); b.Dirty(); }
             // Co-jarls: a player most of the colony likes (opinion over 20 for more than 60% of them) is followed gladly by those who like them.
             if (people.Count < 3) return;
             foreach (string jarl in people.SelectMany(b => b.S.Opinions.Keys).Distinct().ToList())

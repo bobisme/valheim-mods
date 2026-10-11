@@ -13,7 +13,6 @@ namespace Jarldom
         private Vector3 _goal, _pathGoal; private float _arrive; private bool _run, _active;
         private float _nextPath, _nextDoor, _stuckSince, _lastProgressAt; private Vector3 _lastProgressPos;
         private int _stuckStage, _unsticks; private bool _failed; private float _failedAt, _sidestepUntil, _giveUpAt; private Vector3 _sidestepDir;
-        private readonly List<(Door door, float at)> _opened = new List<(Door, float)>();
         private Vector3? _viaDoor; private Door _planDoor; private Vector3 _doorFar;
         private static readonly Collider[] Hits = new Collider[1024];
         private static int _doorMask = -1;
@@ -64,7 +63,6 @@ namespace Jarldom
         public bool OnRoad => _onRoad;
         public void Step(float dt)
         {
-            CloseBehind();
             if (_active) Road(_b.Body.transform.position);
             if (!_active) return;
             Vector3 me = _b.Body.transform.position;
@@ -114,7 +112,7 @@ namespace Jarldom
             int mask = DoorMask;
             int n = Physics.OverlapSphereNonAlloc(me, 16f, Hits, mask);
             var doors = new HashSet<Door>();
-            for (int i = 0; i < n; i++) { Door d = Hits[i].GetComponentInParent<Door>(); if (d != null && d.m_keyItem == null) doors.Add(d); }
+            for (int i = 0; i < n; i++) { Door d = Hits[i].GetComponentInParent<Door>(); if (d != null && d.m_keyItem == null && !Classes.IsShutter(d.gameObject)) doors.Add(d); }
             LastDoorPlan = $"{doors.Count} doors";
             foreach (Door d in doors.OrderBy(d => Vector3.Distance(d.transform.position, me) + Vector3.Distance(d.transform.position, goal)).Take(8))
             {
@@ -161,30 +159,8 @@ namespace Jarldom
             if (v == null || !v.IsValid() || v.GetZDO().GetInt(ZDOVars.s_state) != 0) return;
             bool forward = Vector3.Dot(d.transform.forward, (me - d.transform.position).normalized) < 0f;
             v.InvokeRPC("UseDoor", forward);
-            _opened.RemoveAll(x => x.door == d);
-            _opened.Add((d, Time.time));
+            Doors.Opened(d, _b);
         }
-        // Shut what we opened once we're through, unless a player or another villager is about to use it.
-        private void CloseBehind()
-        {
-            if (_opened.Count == 0) return;
-            Vector3 me = _b.Body.transform.position;
-            for (int i = _opened.Count - 1; i >= 0; i--)
-            {
-                var (d, at) = _opened[i];
-                if (d == null || Time.time - at > 60) { _opened.RemoveAt(i); continue; }
-                float dist = Vector3.Distance(me, d.transform.position);
-                if (dist < 2.5f || Time.time - at < 1.5f) continue;
-                if (dist > 15) { _opened.RemoveAt(i); continue; }
-                if (_b.KeepDoorsOpen) continue;
-                if (Player.GetAllPlayers().Any(p => Vector3.Distance(p.transform.position, d.transform.position) < 5f)) continue;
-                if (Villagers.All.Any(o => o != _b && Vector3.Distance(o.Body.transform.position, d.transform.position) < 2.5f)) continue;
-                ZNetView v = d.GetComponent<ZNetView>();
-                if (v != null && v.IsValid() && v.GetZDO().GetInt(ZDOVars.s_state) != 0) v.InvokeRPC("UseDoor", true);
-                _opened.RemoveAt(i);
-            }
-        }
-
         private void Unstick(Vector3 me, Vector3 dir)
         {
             if (Utils.DistanceXZ(me, _lastProgressPos) > 0.75f) { _lastProgressPos = me; _lastProgressAt = Time.time; _stuckStage = 0; return; }
@@ -199,6 +175,36 @@ namespace Jarldom
                 if (_path.Count > 0 && Vector3.Distance(me, _path[0]) < 12f && Steer.SafeSpot(_path[0])) _b.Place(_path[0] + Vector3.up * 0.2f);
                 _lastProgressAt = Time.time; _lastProgressPos = _b.Body.transform.position; _stuckStage = 0; _nextPath = 0;
                 if (++_unsticks >= 3) { _failed = true; _failedAt = Time.time; _active = false; _b.Ai.StopMoving(); } // it isn't getting anywhere: give up the goal
+            }
+        }
+    }
+
+    // Doors a villager opened that were shut: shut again once everyone's through. Doors found open are left open. Kept here, not
+    // by the villager, so a door is still shut behind one who sat down or went to bed straight inside it.
+    internal static class Doors
+    {
+        private static readonly Dictionary<Door, (float at, Brain by)> Open = new Dictionary<Door, (float, Brain)>();
+        private static float _next;
+        public static void Opened(Door d, Brain by) => Open[d] = (Time.time, by);
+        public static void Clear() => Open.Clear();
+        public static int Waiting => Open.Count;
+        public static void Tick()
+        {
+            if (Time.time < _next || Open.Count == 0) return;
+            _next = Time.time + 0.5f;
+            foreach (var kv in Open.ToList())
+            {
+                Door d = kv.Key; var (at, by) = kv.Value;
+                ZNetView v = d != null ? d.GetComponent<ZNetView>() : null;
+                if (v == null || !v.IsValid() || v.GetZDO().GetInt(ZDOVars.s_state) == 0 || Time.time - at > 300) { Open.Remove(d); continue; } // (gone, shut by someone, or long given up)
+                if (Time.time - at < 1.5f) continue;
+                Vector3 p = d.transform.position;
+                if (by != null && by.Alive && by.Held == null && by.Move.Moving && Vector3.Distance(by.Pos, p) < 2.5f) continue; // (still going through)
+                if (Player.GetAllPlayers().Any(pl => Vector3.Distance(pl.transform.position, p) < 2.5f)) continue; // (someone in the doorway)
+                if (Villagers.All.Any(o => o.Held == null && Vector3.Distance(o.Body.transform.position, p) < 2.2f)) continue;
+                if (by != null && by.Held == null && Vector3.Distance(by.Pos, p) < 2.5f) continue;
+                v.InvokeRPC("UseDoor", true);
+                Open.Remove(d);
             }
         }
     }

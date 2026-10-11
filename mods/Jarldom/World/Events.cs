@@ -22,7 +22,7 @@ namespace Jarldom
                 foreach (ItemDrop.ItemData i in x.chest.GetInventory().GetAllItems())
                 {
                     if (Stock.Edible(i)) food.Add((x.chest, i));
-                    if (i.m_dropPrefab != null && i.m_dropPrefab.name.StartsWith("Mead")) mead.Add((x.chest, i));
+                    if (Classes.IsMead(i)) mead.Add((x.chest, i));
                 }
             int kinds = food.Select(f => f.item.m_shared.m_name).Distinct().Count(), portions = food.Sum(f => f.item.m_stack), meads = mead.Sum(m => m.item.m_stack);
             if (kinds < 3) return $"the hall's chests hold {kinds} kinds of food (a feast wants 3)";
