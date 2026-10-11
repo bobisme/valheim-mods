@@ -46,6 +46,7 @@ namespace Jarldom
             if (prefab == null) { Plugin.Warn("Jarldom: no heart of the high seat to drop: the colony record is lost with the pillars"); return; }
             GameObject go = Object.Instantiate(prefab, s.At + Vector3.up * 1.2f, Quaternion.identity);
             ItemDrop drop = go.GetComponent<ItemDrop>();
+            drop.m_autoDestroy = false;
             drop.m_itemData.m_customData[RecordKey] = Convert.ToBase64String(s.Record);
             if (s.Board != null && s.Board.Length > 0) drop.m_itemData.m_customData[BoardKey] = Convert.ToBase64String(s.Board);
             drop.m_itemData.m_customData[IdKey] = s.Id;

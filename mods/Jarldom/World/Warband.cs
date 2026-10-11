@@ -13,14 +13,16 @@ namespace Jarldom
     {
         public const string JarlKey = "jarldom_jarl", BandKey = "jarldom_warband";
         private static readonly string[] Jarls = { "Hrolf Grave-born", "Sigurd the Hollow", "Thrain Barrow-king", "Ketil Ash-beard", "Kari the Cold" };
-        public static bool Stands(Colony c) => c.R.Flag("barrow:x") != 0 && c.R.Flag("barrow:dead") == 0;
+        public static bool Stands(Colony c) => c.R.Flag("barrow:raised") != 0 && c.R.Flag("barrow:dead") == 0;
+        private static string SlainKey(string colony) => "jarldom_jarlslain_" + colony;
+        private static string PinKey(Colony c) => "barrow:" + c.Id;
         public static Vector3 Barrow(Colony c) => new Vector3(c.R.Flag("barrow:x"), 0, c.R.Flag("barrow:z"));
         public static string JarlName(Colony c) => Jarls[(c.Id.GetStableHashCode() & 0x7fffffff) % Jarls.Length];
 
         public static void Dawn(Colony c, int day)
         {
-            if (Stands(c)) { Net.Pin(Barrow(c), "The barrow of " + JarlName(c), true); return; } // (pins aren't saved: each day again)
-            if (c.R.Flag("barrow:x") != 0 || !Plugin.Instance.Raids.Value || c.R.Rank < Rank.Hamlet) return;
+            if (Stands(c)) { Net.Pin(PinKey(c), Barrow(c), "The barrow of " + JarlName(c), true); return; } // (pins aren't saved: each day again)
+            if (c.R.Flag("barrow:raised") != 0 || !Plugin.Instance.Raids.Value || c.R.Rank < Rank.Hamlet) return;
             if (ZoneSystem.instance == null || !ZoneSystem.instance.GetGlobalKey("defeated_bonemass")) return;
             Raise(c, day);
         }
@@ -29,7 +31,7 @@ namespace Jarldom
             Vector3? spot = Swamp(c.Position);
             if (spot == null) return;
             Vector3 at = spot.Value;
-            c.R.Flags["barrow:x"] = Mathf.RoundToInt(at.x); c.R.Flags["barrow:z"] = Mathf.RoundToInt(at.z);
+            c.R.Flags["barrow:x"] = Mathf.RoundToInt(at.x); c.R.Flags["barrow:z"] = Mathf.RoundToInt(at.z); c.R.Flags["barrow:raised"] = 1;
             c.R.Flags["barrow:next"] = day + 2;
             // A ring of old stones, a heap of the dead that keeps waking, and the jarl.
             for (int i = 0; i < 4; i++)
@@ -42,7 +44,7 @@ namespace Jarldom
             Make("Spawner_DraugrPile", heap, Quaternion.identity, null);
             Vector3 jarl = at; jarl.y = Ground(at) + 0.5f;
             Make("Draugr_Elite", jarl, Quaternion.identity, z => { z.Set(ZDOVars.s_level, 3); z.Set(JarlKey, c.Id); z.Set(Draugr.NameKey, "Draugr jarl " + JarlName(c)); });
-            Net.Pin(at, "The barrow of " + JarlName(c), true);
+            Net.Pin(PinKey(c), at, "The barrow of " + JarlName(c), true);
             c.Log("text", "", "", $"An ancient barrow has opened in the swamp, {Mathf.RoundToInt(Utils.DistanceXZ(at, c.Position))} m to the {ScoutTask.Compass(at - c.Position)}: {JarlName(c)}, a draugr jarl, wakes and covets {c.R.Name}. His warbands will come until he is cut down.");
             c.MarkDirty();
         }
@@ -108,16 +110,19 @@ namespace Jarldom
                 string id = __instance.GetComponent<ZNetView>()?.GetZDO()?.GetString(JarlKey, "") ?? "";
                 if (id.Length == 0) return;
                 Colony c = Colony.Of(id);
-                if (c == null) return;
-                if (c.IsOwner) Plugin.Guard(() => Broken(c)); else Net.Act(c, "jarlslain", "");
+                if (c != null && c.IsOwner) Plugin.Guard(() => Broken(c));
+                else ZoneSystem.instance?.SetGlobalKey(SlainKey(id)); // (far from the pillars: kept for the colony to read when it next runs)
             }
         }
+        // On the owner, every few seconds: a jarl cut down while the colony was far away.
+        public static void Owner(Colony c) { if (Stands(c) && ZoneSystem.instance != null && ZoneSystem.instance.GetGlobalKey(SlainKey(c.Id))) Broken(c); }
         public static void Broken(Colony c)
         {
             if (!Stands(c)) return;
             c.R.Flags["barrow:dead"] = 1;
+            ZoneSystem.instance?.RemoveGlobalKey(SlainKey(c.Id));
             c.R.Deeds += Renown.Deed("raidheld") * 3;
-            Net.Pin(Barrow(c), "", false);
+            Net.Pin(PinKey(c), Barrow(c), "", false);
             c.Log("text", "", "", $"{JarlName(c)} is cut down in his barrow. His warbands will trouble {c.R.Name} no more.");
             c.MarkDirty();
         }

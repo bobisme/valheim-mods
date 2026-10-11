@@ -64,6 +64,7 @@ namespace Jarldom
                     if (board != null) c.Z.Set(BoardKey, board);
                     c.Z.Set(RecordKey, record);
                     c._revision = c.Z.DataRevision;
+                    c.R.Flags[CatchUp.LiveKey] = (int)c.Now; c.R.LastDawn = c.Day; c.R.LastDusk = c.Hour >= Schedule.HallAt ? c.Day : c.Day - 1; // (no making up the time it lay in a bag)
                     c.Log("text", "", "", $"The high-seat pillars of {c.R.Name} stand again.");
                     c._dirty = true;
                 }
@@ -160,7 +161,7 @@ namespace Jarldom
             double now = Now; int day = Day; double hour = Hour;
             if (R.Founder == 0) Founder(); // the piece's creator is set just after it wakes
             Board.Expire(now); Board.Prune(now);
-            if (Time.time >= _nextRoster) { _nextRoster = Time.time + 5; Roster(); }
+            if (Time.time >= _nextRoster) { _nextRoster = Time.time + 5; Roster(); Plugin.Guard(() => Captives.Owner(this)); Plugin.Guard(() => Warband.Owner(this)); }
             Rise(now);
             // Back after time unloaded: the missing hours made up first (once its people have loaded, or after a while if none do).
             if (!_caughtUp)

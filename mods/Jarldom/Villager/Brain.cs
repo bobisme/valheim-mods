@@ -31,7 +31,7 @@ namespace Jarldom
             if (_body != null && _body.isKinematic) _body.isKinematic = false; // (a body left seated when ownership went elsewhere)
             Poses.Clear(h);
         }
-        public float NoStoreUntil, NoFoodUntil, NoRepairUntil, NoBuildUntil, NoTradeUntil, NoCraftUntil, NoHealUntil, NoScoutUntil, NoOfferUntil, NextMischief; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f;
+        public float NoStoreUntil, NoFoodUntil, NoRepairUntil, NoBuildUntil, NoTradeUntil, NoCraftUntil, NoHealUntil, NoScoutUntil, NoOfferUntil, NextMischief; private bool _captureRolled; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f;
         public bool Alive => Body != null && !Body.IsDead() && View != null && View.IsValid() && View.IsOwner() && S != null;
         public Vector3 Pos => Body.transform.position;
         public double Now => ZNet.instance.GetTimeSeconds();
@@ -207,7 +207,8 @@ namespace Jarldom
                 Ai.LookTowards((gary.transform.position - Pos).normalized);
                 Say(new[] { "Who's a good greydwarf?", "Hello, Gary.", "Gary! Have you been eating the resin again?" }[UnityEngine.Random.Range(0, 3)], 4);
             }
-            if (Body.GetHealthPercentage() < 0.1f && S.InjuredUntil < now && Captives.Take(this)) return; // (dragged off by the Fulings)
+            if (Body.GetHealthPercentage() > 0.5f) _captureRolled = false;
+            if (Body.GetHealthPercentage() < 0.1f && S.InjuredUntil < now && !_captureRolled) { _captureRolled = true; if (Captives.Take(this)) return; } // (dragged off by the Fulings: one roll a fall)
             if (Body.GetHealthPercentage() < 0.1f && S.InjuredUntil < now && !Combat.Busy(this)) { S.InjuredUntil = now + Clock.DayLength / (Colony.Best(RoomType.HealersHouse)?.Ok == true ? 2 : 1); Colony.Log("injured", S.Name, ""); Jarldom.Mood.Add(S, "injured", now); }
             if (S.InjuredUntil > 0 && S.InjuredUntil < now) { S.InjuredUntil = 0; Jarldom.Mood.Remove(S, "injured"); }
             // A bed that is gone (broken, taken down) is no longer theirs, once its area is loaded and it still can't be found.

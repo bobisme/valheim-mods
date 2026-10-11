@@ -12,13 +12,21 @@ namespace Jarldom
     internal static class Tribute
     {
         public const string HeraldKey = "jarldom_herald";
-        public static bool IsHerald(Character c) => c != null && c.GetComponent<ZNetView>()?.GetZDO()?.GetString(HeraldKey, "") is string s && s.Length > 0;
+        private static readonly int HeraldHash = HeraldKey.GetStableHashCode();
+        public static bool IsHerald(Character c) => c != null && c.GetComponent<ZNetView>()?.GetZDO()?.GetString(HeraldHash, "") is string s && s.Length > 0;
+        // Only a player's blow harms the herald (it stands unarmed, and a stray wolf or wraith mustn't start a war).
+        [HarmonyPatch(typeof(Character), "RPC_Damage")]
+        private static class Untouchable
+        {
+            private static bool Prefix(Character __instance, HitData hit) => !IsHerald(__instance) || hit?.GetAttacker() is Player;
+        }
         public static int Due(Colony c) => c.R.Flag("tribute:due") != 0 ? c.R.Flag("tribute:ask") : 0;
         public static bool Raiding(Colony c) => c.R.Flag("tribute:raid") != 0;
 
         public static void Dawn(Colony c, int day)
         {
             if (c.R.Flag("tribute:due") == 0) Leave(c); // (a herald left over from a save)
+            if (Raiding(c) && day > c.R.Flag("tribute:raidday") + 1) { c.R.Flags.Remove("tribute:raid"); c.MarkDirty(); } // (their raid never came, or is long over)
             if (!Plugin.Instance.Raids.Value || !Plugin.Instance.Tribute.Value || c.R.Rank < Rank.Hamlet || c.Population < 3 || c.R.Flag("tribute:due") != 0) return;
             int next = c.R.Flag("tribute:next");
             if (next == 0) { c.R.Flags["tribute:next"] = day + 2; return; }
@@ -58,7 +66,7 @@ namespace Jarldom
         {
             c.R.Flags.Remove("tribute:due");
             c.R.Flags["tribute:next"] = day + Random.Range(6, 11);
-            c.R.Flags["tribute:raid"] = 1;
+            c.R.Flags["tribute:raid"] = 1; c.R.Flags["tribute:raidday"] = day;
             Leave(c);
             c.Log("text", "", "", why);
             Net.Event(Plugin.Instance.TributeEvent.Value, c.Position);

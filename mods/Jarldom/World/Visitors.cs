@@ -46,6 +46,7 @@ namespace Jarldom
         {
             Skills.SkillType? skill = Master(c);
             if (skill == null) { c.Tell("No master is here."); return; }
+            if (Villagers.ByVid(vid) == null) { c.Tell("They must be here to be taught: bring them near the hall."); return; } // (before the coins)
             if (!Pay(c, TrainCost)) return;
             Villagers.Command(vid, "train", skill.Value.ToString());
             c.R.Flags.Remove("master:until"); c.R.Flags.Remove("master:skill"); // (one pupil a visit)
@@ -93,9 +94,10 @@ namespace Jarldom
                 ZNetScene.instance.Destroy(m.gameObject);
             }
         }
+        private static readonly int MercHash = MercKey.GetStableHashCode();
         public static bool IsMerc(Character ch, Colony c = null)
         {
-            string id = ch.GetComponent<ZNetView>()?.GetZDO()?.GetString(MercKey, "") ?? "";
+            string id = ch.GetComponent<ZNetView>()?.GetZDO()?.GetString(MercHash, "") ?? "";
             return id.Length > 0 && (c == null || id == c.Id);
         }
 

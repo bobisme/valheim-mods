@@ -256,7 +256,7 @@ namespace Jarldom
         // more than it holds (one to every 12 m²). Named beasts and young ones are never culled; two of each kind are always kept.
         private static void Pasture(Colony c, Zone z, Vector3 centre, float reach, double now)
         {
-            var beasts = Character.GetAllCharacters().Where(ch => ch != null && !ch.IsDead() && !ch.IsPlayer() && !VillagerPrefab.Is(ch) && ch.IsTamed() && ch.GetComponent<Tameable>() != null
+            var beasts = Character.GetAllCharacters().Where(ch => ch != null && !ch.IsDead() && !ch.IsPlayer() && !VillagerPrefab.Is(ch) && ch.IsTamed() && ch.GetComponent<Tameable>() != null && ch.GetComponent<Procreation>() != null
                 && ch.m_group != "bob_gary" && Vector3.Distance(ch.transform.position, centre) < reach + 4 && Zones.Inside(z, ch.transform.position)).ToList();
             int fed = 0;
             foreach (Character beast in beasts)
@@ -272,7 +272,7 @@ namespace Jarldom
             }
             int holds = Mathf.Max(2, (int)(Geometry.Area(z.Xz) / 12f));
             if (beasts.Count <= holds || c.Board.All.Any(o => o.Kind == "cull" && o.Zone == z.Id && (o.State == OrderState.Open || o.State == OrderState.Claimed))) return;
-            var spare = beasts.Where(ch => ch.GetComponent<Growup>() == null && string.IsNullOrEmpty(ch.GetComponent<Tameable>().GetText()))
+            var spare = beasts.Where(ch => ch.GetComponent<Growup>() == null && string.IsNullOrEmpty(ch.GetComponent<Tameable>().GetText()) && ch.GetComponentInChildren<Sadle>() == null) // (never a mount)
                 .GroupBy(ch => Utils.GetPrefabName(ch.gameObject)).Where(g => g.Count() > 2).OrderByDescending(g => g.Count()).FirstOrDefault();
             Character cull = spare?.OrderBy(ch => ch.GetLevel()).ThenBy(ch => ch.GetHealth()).FirstOrDefault();
             if (cull == null) return;
@@ -337,6 +337,7 @@ namespace Jarldom
         {
             if (o.Prof == Prof.Hauler) return null;
             if (o.Kind == "cull") return Gear.Tool(b, "weapon") == null ? "a weapon to cull with" : null;
+            if (o.Kind == "sow" && Gear.Tool(b, "cultivator") == null) { Vector3 at = new Vector3(o.X, o.Y, o.Z); Heightmap hm = Heightmap.FindHeightmap(at); if (hm == null || !hm.IsCultivated(at)) return "a cultivator"; }
             int tier = 0;
             if (o.Kind == "chop" || o.Kind == "mine")
             {
@@ -631,14 +632,14 @@ namespace Jarldom
             }
             Finish(b, true);
         }
-        private bool _seedsFetched, _tilled; private Container _seedChest;
+        private bool _seedsFetched, _tilled; private Container _seedChest; private string _plantFail;
         private bool Replanting(Brain b, (GameObject sapling, string seed, int amount) plant)
         {
             Inventory bag = b.Body.GetInventory();
             int have = bag.GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == plant.seed).Sum(i => i.m_stack);
             if (have < plant.amount)
             {
-                if (_seedsFetched) { b.Say("No seeds to replant with.", 4); b.S.Bump("replant:noseeds"); return false; }
+                if (_seedsFetched) { b.Say("No seeds to replant with.", 4); b.S.Bump("replant:noseeds"); _plantFail = "no seeds in the stores"; return false; }
                 if (_seedChest == null) _seedChest = Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury").Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == plant.seed));
                 if (_seedChest == null) { _seedsFetched = true; return true; }
                 if (Vector3.Distance(b.Pos, _seedChest.transform.position) > 2.4f) { if (!b.Move.Moving) b.Move.To(_seedChest.transform.position, 1.8f); if (b.Move.Failed) _seedsFetched = true; return true; }
@@ -646,14 +647,14 @@ namespace Jarldom
                 Stock.Take(_seedChest, bag, seeds, Mathf.Max(plant.amount, 5));
                 _seedsFetched = true; return true;
             }
-            if (Vector3.Distance(b.Pos, _cropAt) > 1.6f) { if (!b.Move.Moving) b.Move.To(_cropAt, 1.0f); if (b.Move.Failed) return false; return true; }
+            if (Vector3.Distance(b.Pos, _cropAt) > 1.6f) { if (!b.Move.Moving) b.Move.To(_cropAt, 1.0f); if (b.Move.Failed) { _plantFail = "can't reach the spot"; return false; } return true; }
             Heightmap hm = Heightmap.FindHeightmap(_cropAt);
             if (plant.sapling.GetComponent<Plant>()?.m_needCultivatedGround != false && (hm == null || !hm.IsCultivated(_cropAt)))
             {
                 // Hoe it first, the cultivator's own way (its piece, as a player's click makes it), if they have one.
                 ItemDrop.ItemData hoe = Gear.Tool(b, "cultivator");
                 GameObject till = Work.TillPiece();
-                if (hoe == null || till == null || _tilled) { b.Say("The ground here wants hoeing, and I've no cultivator.", 4); b.S.Bump("replant:notcultivated"); return false; }
+                if (hoe == null || till == null || _tilled) { b.Say("The ground here wants hoeing, and I've no cultivator.", 4); b.S.Bump("replant:notcultivated"); _plantFail = hoe == null ? "needs a cultivator" : "the ground won't take the hoe"; return false; }
                 if (!b.Body.IsItemEquiped(hoe)) { b.Body.EquipItem(hoe, false); return true; }
                 Body_.Anim(b.Body)?.SetTrigger(hoe.m_shared.m_attack.m_attackAnimation);
                 Object.Instantiate(till, new Vector3(_cropAt.x, ZoneSystem.instance.GetGroundHeight(_cropAt), _cropAt.z), Quaternion.identity);
@@ -686,7 +687,7 @@ namespace Jarldom
             string name = at > 6 ? t.Substring(6, at - 6) : "";
             var s = Work.Saplings.FirstOrDefault(x => x.sapling != null && x.sapling.name == name);
             if (s.sapling == null) { Finish(b, false); return; }
-            if (!Replanting(b, (s.sapling, s.seed, s.amount))) { b.S.Bump("planted"); Finish(b, true); }
+            if (!Replanting(b, (s.sapling, s.seed, s.amount))) { if (_plantFail != null) Block(b, _plantFail); else { b.S.Bump("planted"); Finish(b, true); } }
         }
 
         private void Sow(Brain b)
@@ -695,7 +696,7 @@ namespace Jarldom
             string name = at > 4 ? t.Substring(4, at - 4) : "";
             var crop = Work.Replant.Values.FirstOrDefault(r => r.sapling != null && r.sapling.name == name);
             if (crop.sapling == null) { Finish(b, false); return; }
-            if (!Replanting(b, crop)) { b.S.Bump("sown"); Finish(b, true); }
+            if (!Replanting(b, crop)) { if (_plantFail != null) Block(b, _plantFail); else { b.S.Bump("sown"); Finish(b, true); } }
         }
 
         // Feeding a hungry beast: what it eats, from the stores, laid on the ground before it (it eats as tame beasts do).

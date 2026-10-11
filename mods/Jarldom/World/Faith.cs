@@ -39,7 +39,7 @@ namespace Jarldom
         {
             if (!c.RaidOn || Time.time < _nextBolt || !Blessed(c, "thor") || c.FavourOf("thor") < 30) return;
             _nextBolt = Time.time + UnityEngine.Random.Range(15f, 30f);
-            Character foe = Character.GetAllCharacters().Where(ch => ch != null && !ch.IsDead() && !ch.IsPlayer() && !VillagerPrefab.Is(ch) && !ch.IsTamed() && !Tribute.IsHerald(ch)
+            Character foe = Character.GetAllCharacters().Where(ch => ch != null && !ch.IsDead() && !ch.IsPlayer() && !VillagerPrefab.Is(ch) && !ch.IsTamed() && !Tribute.IsHerald(ch) && !Visitors.IsMerc(ch)
                     && ch.GetFaction() != Character.Faction.Players && ch.GetFaction() != Character.Faction.AnimalsVeg && Utils.DistanceXZ(ch.transform.position, c.Position) < c.Radius)
                 .OrderBy(_ => UnityEngine.Random.value).FirstOrDefault();
             if (foe == null) return;

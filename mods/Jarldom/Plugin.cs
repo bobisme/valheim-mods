@@ -97,6 +97,7 @@ namespace Jarldom
             Guard(Designate.Stop);
             Guard(Overlay_.Stop);
             Guard(CatchUp.Forget);
+            Guard(Net.ForgetPins);
             Tools.Stop();
             Net.Unregister();
             _harmony?.UnpatchSelf();

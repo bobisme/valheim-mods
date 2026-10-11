@@ -10,9 +10,9 @@ namespace Jarldom
     // reports, deaths) go to the game that owns the High-Seat Pillars; it alone changes the colony. The sender is who the RPC came from.
     internal static class Net
     {
-        private const string ActRpc = "Jarldom_Act", FallenRpc = "Jarldom_Fallen", ClaimRpc = "Jarldom_Claim", ReportRpc = "Jarldom_Report", RefusedRpc = "Jarldom_Refused", ValkyrieRpc = "Jarldom_Valkyrie", VillagerRpc = "Jarldom_Villager", HelloRpc = "Jarldom_Hello", ExploreRpc = "Jarldom_Explore", EventRpc = "Jarldom_Event", PinRpc = "Jarldom_Pin";
+        private const string ActRpc = "Jarldom_Act", FallenRpc = "Jarldom_Fallen", ClaimRpc = "Jarldom_Claim", ReportRpc = "Jarldom_Report", RefusedRpc = "Jarldom_Refused", ValkyrieRpc = "Jarldom_Valkyrie", VillagerRpc = "Jarldom_Villager", HelloRpc = "Jarldom_Hello", ExploreRpc = "Jarldom_Explore", EventRpc = "Jarldom_Event", PinRpc = "Jarldom_Pin", CampRpc = "Jarldom_Camp", CampAtRpc = "Jarldom_CampAt";
         private static ZRoutedRpc _on; private static int _delay;
-        private static readonly string[] Names = { ActRpc, FallenRpc, ClaimRpc, ReportRpc, RefusedRpc, ValkyrieRpc, VillagerRpc, HelloRpc, HelloRpc + "?", ExploreRpc, EventRpc, PinRpc };
+        private static readonly string[] Names = { ActRpc, FallenRpc, ClaimRpc, ReportRpc, RefusedRpc, ValkyrieRpc, VillagerRpc, HelloRpc, HelloRpc + "?", ExploreRpc, EventRpc, PinRpc, CampRpc, CampAtRpc };
 
         // Whether the host has Jarldom too (a host without it deletes our pieces and villagers as soon as it loads them).
         public static bool HostHasJarldom => ZNet.instance == null || ZNet.instance.IsServer() || _hostAnswered;
@@ -55,14 +55,21 @@ namespace Jarldom
             rpc.Register<string, Vector3>(EventRpc, (sender, name, at) => Plugin.Guard(() =>
             {
                 if (ZNet.instance == null || !ZNet.instance.IsServer() || RandEventSystem.instance == null) return;
-                if (name == "") RandEventSystem.instance.ResetRandomEvent(); else RandEventSystem.instance.SetRandomEventByName(name, at);
+                RandomEvent now = RandEventSystem.instance.GetCurrentRandomEvent();
+                if (name == "") { if (now != null && now.m_name == Plugin.Instance.TributeEvent.Value && Utils.DistanceXZ(now.m_pos, at) < 300) RandEventSystem.instance.ResetRandomEvent(); } // (only the Fulings' own)
+                else if (now == null) RandEventSystem.instance.SetRandomEventByName(name, at); // (never over another raid somewhere)
             }));
-            rpc.Register<Vector3, string, bool>(PinRpc, (sender, at, text, add) => Plugin.Guard(() =>
+            rpc.Register<string, Vector3, string, bool>(PinRpc, (sender, key, at, text, add) => Plugin.Guard(() => PinHere(key, at, text, add)));
+            // On the server (which alone knows where the world's camps are): where a captive is taken, kept as a global key; the answer back.
+            rpc.Register<string, string, Vector3, string>(CampRpc, (sender, colony, vid, from, name) => Plugin.Guard(() =>
             {
-                if (Minimap.instance == null) return;
-                Minimap.instance.RemovePin(at, 8f);
-                if (add) Minimap.instance.AddPin(at, Minimap.PinType.Icon3, text, false, false);
+                if (ZNet.instance == null || !ZNet.instance.IsServer()) return;
+                Vector3 camp = Captives.FindCamp(from);
+                ZoneSystem.instance.SetGlobalKey($"{Captives.KeyFor(colony, vid)} {Mathf.RoundToInt(camp.x)},{Mathf.RoundToInt(camp.z)}");
+                Pin(Captives.KeyFor(colony, vid), camp, name + ", held by the Fulings", true);
+                ZRoutedRpc.instance.InvokeRoutedRPC(sender, CampAtRpc, colony, vid, camp);
             }));
+            rpc.Register<string, string, Vector3>(CampAtRpc, (sender, colony, vid, camp) => Plugin.Guard(() => Captives.CampFound(colony, vid, camp)));
             rpc.Register<Vector3>(ValkyrieRpc, (sender, at) => Plugin.Guard(() => Valkyrie.Fly(at)));
         }
         // The game gives an object to whichever nearby player it likes; one without Jarldom would leave the colony or a villager frozen.
@@ -87,7 +94,21 @@ namespace Jarldom
         public static void Explore(Vector3 at, float radius) => ZRoutedRpc.instance?.InvokeRoutedRPC(ZRoutedRpc.Everybody, ExploreRpc, at, radius);
         // A game event started (or, with no name, stopped) by the host, who runs them.
         // A pin on everyone's map (or taken off), not saved: the captives' camp.
-        public static void Pin(Vector3 at, string text, bool add) => ZRoutedRpc.instance?.InvokeRoutedRPC(ZRoutedRpc.Everybody, PinRpc, at, text, add);
+        public static void Pin(string key, Vector3 at, string text, bool add) => ZRoutedRpc.instance?.InvokeRoutedRPC(ZRoutedRpc.Everybody, PinRpc, key, at, text, add);
+        // Our own pins, kept by key: never a player's (the game's RemovePin by place takes the nearest saved pin, which is theirs).
+        private static readonly Dictionary<string, Minimap.PinData> Pins = new Dictionary<string, Minimap.PinData>();
+        private static void PinHere(string key, Vector3 at, string text, bool add)
+        {
+            if (Minimap.instance == null) return;
+            if (Pins.TryGetValue(key, out Minimap.PinData old))
+            {
+                if (add && old.m_name == text && Vector3.Distance(old.m_pos, at) < 1f) return;
+                Minimap.instance.RemovePin(old); Pins.Remove(key);
+            }
+            if (add) Pins[key] = Minimap.instance.AddPin(at, Minimap.PinType.Icon3, text, false, false);
+        }
+        public static void ForgetPins() { if (Minimap.instance != null) foreach (var p in Pins.Values) Minimap.instance.RemovePin(p); Pins.Clear(); }
+        public static void FindCamp(Colony c, string vid, string name) => ZRoutedRpc.instance?.InvokeRoutedRPC(CampRpc, c.Id, vid, c.Position, name); // (to the server)
         public static void Event(string name, Vector3 at) => ZRoutedRpc.instance?.InvokeRoutedRPC(ZRoutedRpc.Everybody, EventRpc, name, at);
         public static void Unregister() { if (ZRoutedRpc.instance != null) Remove(ZRoutedRpc.instance); _on = null; }
         private static void Remove(ZRoutedRpc rpc)
@@ -141,7 +162,7 @@ namespace Jarldom
             {
                 VillagerState s = VillagerState.Load(pkg.ReadByteArray());
                 byte[] gear = pkg.ReadByteArray(); Vector3 at = pkg.ReadVector3(); string killer = pkg.ReadString(); bool lost = pkg.ReadBool();
-                if (s != null && killer.StartsWith("trade:")) c.SoulAway(s, gear, at, killer);
+                if (s != null && (killer.StartsWith("trade:") || killer.StartsWith(Captives.Prefix))) c.SoulAway(s, gear, at, killer); // (away, not dead)
                 else if (s != null) c.SoulFell(s, gear, at, killer, lost);
             });
         }

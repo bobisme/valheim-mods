@@ -40,6 +40,7 @@ namespace Jarldom
             if (icon != null) shared.m_icons = new[] { icon };
             ItemDrop drop = go.GetComponent<ItemDrop>();
             drop.m_itemData.m_shared = shared; drop.m_itemData.m_stack = 1; drop.m_itemData.m_quality = 1; drop.m_itemData.m_dropPrefab = go;
+            drop.m_autoDestroy = false; // (a colony's whole record: never tidied away)
             Prefabs[RelicName] = go;
             return go;
         }

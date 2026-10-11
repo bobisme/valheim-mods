@@ -29,7 +29,7 @@ namespace Jarldom
                 case "treasury": R.Treasury = a[0]; R.Stockpiles.Remove(a[0]); Log("text", "", "", "A chest was chosen to be the treasury."); break;
                 case "room": AddRoom(a, who); break;
                 case "zone": AddZone(a, who); break;
-                case "unroom": R.Rooms.RemoveAll(r => r.Id == a[0]); R.Zones.RemoveAll(z => z.Id == a[0]); Rerank(); break;
+                case "unroom": R.Rooms.RemoveAll(r => r.Id == a[0]); R.Zones.RemoveAll(z => z.Id == a[0]); R.Flags.Remove("offered:" + a[0]); Rerank(); break;
                 case "check": CheckRoomSoon(a[0]); break;
                 case "feast": Feast.Call(this, who); break;
                 case "horn": HornUntil = a[0] == "on" ? Time.time + 300 : 0; if (a[0] == "on") { Assets.Effect("sfx_horn", Position); Tell("The war horn sounds!", true); } else Tell("The all-clear."); break;

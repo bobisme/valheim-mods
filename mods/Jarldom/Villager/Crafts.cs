@@ -12,7 +12,7 @@ namespace Jarldom
     {
         public const string Prefix = "craft:", BrewPrefix = "brew:";
         public static Recipe RecipeFor(string prefab) =>
-            ObjectDB.instance?.m_recipes.FirstOrDefault(r => r != null && r.m_enabled && r.m_item != null && r.m_item.name == prefab && r.m_resources.Length > 0);
+            ObjectDB.instance?.m_recipes.FirstOrDefault(r => r != null && r.m_enabled && r.m_item != null && r.m_item.name == prefab && r.m_resources.Length > 0 && !r.m_requireOnlyOneIngredient && !r.m_noCraftOnlyUpgrade);
         public static bool AtCauldron(Recipe r) => r?.m_craftingStation != null && r.m_craftingStation.name == "piece_cauldron";
         public static Prof Maker(Recipe r) => AtCauldron(r) ? Prof.Cook : Prof.Smith;
         // A station of the recipe's kind in the colony, at the recipe's level (null if it needs one and the colony has none).
@@ -61,7 +61,7 @@ namespace Jarldom
         {
             if (ObjectDB.instance == null || p == null) return new List<Recipe>();
             var stations = c.PiecesIn(c.Radius).Select(x => x.GetComponent<CraftingStation>()).Where(s => s != null).ToList();
-            return ObjectDB.instance.m_recipes.Where(r => r != null && r.m_enabled && r.m_item != null && r.m_craftingStation != null && r.m_resources.Length > 0
+            return ObjectDB.instance.m_recipes.Where(r => r != null && r.m_enabled && r.m_item != null && r.m_craftingStation != null && r.m_resources.Length > 0 && !r.m_requireOnlyOneIngredient && !r.m_noCraftOnlyUpgrade
                     && p.IsRecipeKnown(r.m_item.m_itemData.m_shared.m_name)
                     && stations.Any(s => s.m_name == r.m_craftingStation.m_name && s.GetLevel() >= r.m_minStationLevel))
                 .GroupBy(r => r.m_item.name).Select(g => g.First())
@@ -156,6 +156,8 @@ namespace Jarldom
                 Body_.Anim(b.Body)?.SetInt("crafting", _st.m_useAnimation);
                 _st.m_craftItemEffects.Create(_st.transform.position, Quaternion.identity);
                 if (Crafts.Unusable(_st) is string stop) { Release(b); b.Idle(stop); b.NoCraftUntil = Time.time + 30; return; }
+                ItemDrop.ItemData product = _r.m_item.m_itemData.Clone(); product.m_stack = _r.m_amount;
+                if (!b.Body.GetInventory().CanAddItem(product, _r.m_amount)) { Release(b); b.Idle("no room in the bag for what I'd make"); b.NoCraftUntil = Time.time + 30; b.NoStoreUntil = 0; return; } // (before anything is used up)
                 if (++_beats < 3) return;
                 Body_.Anim(b.Body)?.SetInt("crafting", 0);
                 if (_needs.Any(n => Have(b, n.item) < n.amount)) { Release(b); return; }
@@ -167,7 +169,7 @@ namespace Jarldom
                         if (st == null) break;
                         int n = Math.Min(left, st.m_stack); bag.RemoveItem(st, n); left -= n;
                     }
-                _made = bag.AddItem(_r.m_item.name, _r.m_amount, 1, 0, Colony.Hash(b.S.Vid), b.S.Name, false);
+                _made = bag.AddItem(_r.m_item.name, _r.m_amount, 1, 0, Colony.Hash(b.S.Vid), b.S.Name, new Vector2i(-1, -1), false, false, false) ?? bag.GetAllItems().LastOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == _r.m_item.name);
                 _st.m_craftItemDoneEffects.Create(_st.transform.position, Quaternion.identity);
                 b.Body.RaiseSkill(Skills.SkillType.Crafting, 1f);
                 b.S.Bump("made");
@@ -286,6 +288,7 @@ namespace Jarldom
             string key = b.Colony.Id + what;
             if (!_seen.Add(key) || Reported.TryGetValue(key, out float last) && Time.time - last < 300f) return; // (each sighting once in five minutes)
             Reported[key] = Time.time;
+            if (Reported.Count > 300) foreach (string old in Reported.Where(kv => Time.time - kv.Value > 300).Select(kv => kv.Key).ToList()) Reported.Remove(old);
             Vector3 dir = foes[0].transform.position - b.Colony.Position;
             string text = $"{b.S.Name} the scout saw {what} to the {Compass(dir)}, {Mathf.RoundToInt(Utils.DistanceXZ(foes[0].transform.position, b.Colony.Position))} m out.";
             b.Say("I see " + what + "!", 5);

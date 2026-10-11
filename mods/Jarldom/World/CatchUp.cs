@@ -26,6 +26,7 @@ namespace Jarldom
         {
             if (b?.Colony == null || !b.Colony.IsOwner || item?.m_dropPrefab == null || count <= 0) return;
             if (item.m_dropPrefab.name == "Coins" || Items.IsRelic(item)) return;
+            if (!Gatherers.Contains(b.S.Prof)) return; // (only what's taken from the land: refining and carrying back make nothing new)
             string key = "made:" + b.S.Prof + ":" + item.m_dropPrefab.name;
             b.Colony.R.Flags[key] = b.Colony.R.Flag(key) + count;
             b.Colony.MarkDirty();
@@ -45,6 +46,7 @@ namespace Jarldom
             c.MarkDirty();
         }
         public static void Forget() => Worked.Clear();
+        private static readonly HashSet<Prof> Gatherers = new HashSet<Prof> { Prof.Woodcutter, Prof.Miner, Prof.Forager, Prof.Farmer, Prof.Hunter, Prof.Fisherman };
 
         // What one villager of a profession makes in an hour of work, by item (from what was counted).
         public static Dictionary<string, float> Rates(Colony c, Prof p)
@@ -141,14 +143,14 @@ namespace Jarldom
             c.Log("text", "", "", $"While you were away ({span}): " + string.Join("; ", lines) + ".");
             c.Tell($"While you were away ({span}), {c.R.Name} carried on: see the saga.", true);
             c.R.Flags[LiveKey] = (int)c.Now;
-            c.MarkDirty();
+            c.MarkDirty(); c.Flush(); // (at once: an owner change right after mustn't see the old time and make it up again)
             Plugin.Log($"Jarldom: {c.R.Id} caught up {hours:0.0} h: {stored} goods stored, {eaten}/{meals} meals, {paydays} paydays, {raids} raids");
         }
         private static IEnumerable<Container> Chests(Colony c, ItemDrop.ItemData item)
         {
             Container best = Stock.Destination(c, item, c.Position);
-            if (best != null) yield return best;
-            foreach (var x in Stock.Chests(c, c.Position).Where(x => x.category != "treasury" && x.chest != best && (x.category == "any" || x.category == Stock.Category(item))))
+            if (best != null && !ContainerAccess.InUse(best)) yield return best;
+            foreach (var x in Stock.Chests(c, c.Position).Where(x => x.category != "treasury" && x.chest != best && !ContainerAccess.InUse(x.chest) && (x.category == "any" || x.category == Stock.Category(item))))
                 yield return x.chest;
         }
         private static int Count(Container chest, string prefab) => chest.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == prefab).Sum(i => i.m_stack);
