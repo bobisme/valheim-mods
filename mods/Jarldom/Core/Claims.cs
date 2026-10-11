@@ -23,7 +23,7 @@ namespace Jarldom
         private static string F(float f) => Math.Round(f).ToString(CultureInfo.InvariantCulture);
         public string Encode() =>
             $"{Colony},{F(X)},{F(Z)},{Biome.ToLowerInvariant()},{(Crypt ? 1 : 0)},{Beds}," +
-            string.Join(";", Left.Select(kv => $"{kv.Key}:{kv.Value.n}:{kv.Value.tier}")) + "," + string.Join(";", Taken.Where(kv => kv.Value > 0).Select(kv => $"{kv.Key}:{kv.Value}"));
+            string.Join(";", Left.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => $"{kv.Key}:{kv.Value.n}:{kv.Value.tier}")) + "," + string.Join(";", Taken.Where(kv => kv.Value > 0).OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => $"{kv.Key}:{kv.Value}")); // (sorted: the same claim, the same key)
         public static Claim Decode(string id, string value)
         {
             if (string.IsNullOrEmpty(value)) return null;

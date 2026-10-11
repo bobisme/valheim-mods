@@ -114,7 +114,7 @@ namespace Jarldom
             Guard(Villagers.DetachAll);
             Guard(PieceScripts.DetachAll);
             Guard(Colony.DetachAll);
-            Guard(Passing.Clear); Guard(Seats.Clear); Guard(Stock.Forget); Guard(Thing.Forget); Guard(Defense.Forget); Guard(Work.Forget); Guard(Valkyrie.Clear);
+            Guard(Passing.Clear); Guard(Seats.Clear); Guard(Stock.Forget); Guard(Thing.Forget); Guard(Claims.Forget); Guard(Defense.Forget); Guard(Work.Forget); Guard(Valkyrie.Clear);
             Guard(Assets.UnregisterAll);
             Guard(GameUi.Destroy);
             Synced?.Dispose();

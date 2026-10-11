@@ -13,20 +13,62 @@ namespace Jarldom
         public const string KeyHead = "jarldom_claim_", ColonyKey = "jarldom_claimcolony", IdKey = "jarldom_claimid";
         private static ZoneSystem Z => ZoneSystem.instance;
 
+        public const string TakeHead = "jarldom_claimtake_";
+        // Keys this game set or removed a moment ago: a client's change comes back from the server only after a round trip, and
+        // reading the old value meanwhile would count a load twice (or take deposits out of the world twice).
+        private static readonly Dictionary<string, (string value, float at)> Recent = new Dictionary<string, (string, float)>();
+        private const float RecentFor = 15f;
+        private static Dictionary<string, string> Keys(string head)
+        {
+            var keys = new Dictionary<string, string>();
+            if (Z == null) return keys;
+            foreach (string line in Z.GetGlobalKeys().Where(l => l.StartsWith(head)))
+            {
+                int space = line.IndexOf(' ');
+                keys[space < 0 ? line : line.Substring(0, space)] = space < 0 ? "" : line.Substring(space + 1);
+            }
+            foreach (var kv in Recent.Where(kv => kv.Key.StartsWith(head) && Time.time - kv.Value.at < RecentFor).ToList())
+            {
+                if (kv.Value.value == null) keys.Remove(kv.Key); else keys[kv.Key] = kv.Value.value;
+            }
+            return keys;
+        }
+        private static void Set(string key, string value) { if (Z == null) return; Recent[key] = (value, Time.time); Z.SetGlobalKey(key + " " + value); }
+        internal static void Unset(string key) { if (Z == null) return; Recent[key] = (null, Time.time); Z.RemoveGlobalKey(key); }
+        public static void Forget() => Recent.Clear();
+
+        // Every claim, with the loads brought home since its stake last looked (each load a key of its own, so the colony's game and
+        // the stake's never write over each other): less left, more to take out of the world.
         public static IEnumerable<Claim> All()
         {
-            if (Z == null) yield break;
-            foreach (string line in Z.GetGlobalKeys().Where(l => l.StartsWith(KeyHead)).ToList())
+            var takes = Takes();
+            foreach (var kv in Keys(KeyHead))
             {
-                int space = line.IndexOf(' '); if (space < 0) continue;
-                Claim c = Claim.Decode(line.Substring(KeyHead.Length, space - KeyHead.Length), line.Substring(space + 1));
-                if (c != null) yield return c;
+                Claim c = Claim.Decode(kv.Key.Substring(KeyHead.Length), kv.Value);
+                if (c == null) continue;
+                foreach (var t in takes.Where(t => t.claim == c.Id)) Mining.Apply(c, t.got);
+                yield return c;
             }
+        }
+        public static List<(string key, string claim, Dictionary<string, int> got)> Takes()
+        {
+            var list = new List<(string, string, Dictionary<string, int>)>();
+            foreach (var kv in Keys(TakeHead))
+            {
+                string rest = kv.Key.Substring(TakeHead.Length); int us = rest.LastIndexOf('_'); if (us <= 0) continue;
+                var got = new Dictionary<string, int>();
+                foreach (string part in kv.Value.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)) { string[] p = part.Split(':'); if (p.Length == 2 && int.TryParse(p[1], out int n)) got[p[0]] = n; }
+                list.Add((kv.Key, rest.Substring(0, us), got));
+            }
+            return list;
         }
         public static IEnumerable<Claim> Of(Colony c) => All().Where(x => x.Colony == c.Id.ToLowerInvariant());
         public static Claim Get(string id) => All().FirstOrDefault(x => x.Id == id);
-        public static void Save(Claim c) { if (Z != null) Z.SetGlobalKey(KeyHead + c.Id + " " + c.Encode()); }
-        public static void Remove(string id) { if (Z != null) Z.RemoveGlobalKey(KeyHead + id); }
+        public static void Save(Claim c) { if (c.Id != "") Set(KeyHead + c.Id, c.Encode()); }
+        public static void Took(string claim, Dictionary<string, int> got) { if (got.Count > 0) Set(TakeHead + claim + "_" + Colony.NewId().Substring(0, 6), string.Join(";", got.Select(kv => kv.Key + ":" + kv.Value))); }
+        public static void Remove(string id) { Unset(KeyHead + id); foreach (var t in Takes().Where(t => t.claim == id)) Unset(t.key); }
+        // The claim as the stake last wrote it, without loads not yet taken in: for the stake's own survey.
+        internal static Claim Stored(string id) => Keys(KeyHead).TryGetValue(KeyHead + id, out string v) ? Claim.Decode(id, v) : null;
         public static Vector3 At(Claim c) => new Vector3(c.X, 0, c.Z);
         public static string Ores(Claim c) => c.Left.Where(kv => kv.Value.n > 0).Any() ? string.Join(", ", c.Left.Where(kv => kv.Value.n > 0).OrderByDescending(kv => kv.Value.n).Select(kv => $"~{kv.Value.n} {Name(kv.Key)}")) : "worked out";
         public static string Name(string prefab) { GameObject p = ObjectDB.instance?.GetItemPrefab(prefab) ?? Carts_Item(prefab); return p != null ? Localization.instance.Localize(p.GetComponent<ItemDrop>().m_itemData.m_shared.m_name).ToLower() : prefab; }
@@ -57,6 +99,11 @@ namespace Jarldom
                 areas = cs == null || z == null ? 1 : Enumerable.Range(0, cs.Length).Count(i => z.GetFloat("Health" + i, m.m_health) > 0f);
             }
             else if (d != null && go.GetComponent<DropOnDestroyed>() is DropOnDestroyed dod) { table = dod.m_dropWhenDestroyed; tier = d.m_minToolTier; }
+            else if (d != null && d.m_spawnWhenDestroyed != null && Whole(d.m_spawnWhenDestroyed) is var whole && whole.table != null)
+            {
+                // (an untouched deposit is one stone that breaks into its parts at the first blow: copper, silver, the muddy scrap piles)
+                table = whole.table; tier = Math.Max(d.m_minToolTier, whole.tier); areas = whole.areas;
+            }
             else return null;
             if (table == null || areas <= 0) return null;
             string key = Utils.GetPrefabName(go);
@@ -65,11 +112,19 @@ namespace Jarldom
             int n = Mathf.RoundToInt(per.each * areas * Mathf.Max(0.1f, Game.m_resourceRate));
             return n > 0 ? (per.ore, n, tier) : ((string, int, int)?)null;
         }
+        // The broken deposit an untouched one becomes: its drop table, tier and number of parts.
+        private static (DropTable table, int tier, int areas) Whole(GameObject frac)
+        {
+            MineRock5 m5 = frac.GetComponent<MineRock5>(); MineRock m = frac.GetComponent<MineRock>();
+            if (m5 != null) return (m5.m_dropItems, m5.m_minToolTier, Math.Max(1, frac.GetComponentsInChildren<Collider>(true).Length));
+            if (m != null) return (m.m_dropItems, m.m_minToolTier, Math.Max(1, (m.m_areaRoot != null ? m.m_areaRoot : frac).GetComponentsInChildren<Collider>(true).Length));
+            return (null, 0, 0);
+        }
         // The expected ore of one roll of a drop table (its most plentiful ore, if it has any).
         private static (string, float) Expect(DropTable t)
         {
             float rolls = (t.m_dropMin + t.m_dropMax) / 2f * t.m_dropChance, weights = t.m_drops.Sum(x => x.m_weight);
-            var best = t.m_drops.Where(x => x.m_item != null && x.m_item.GetComponent<ItemDrop>() is ItemDrop i && Stock.Category(i.m_itemData) == "ore")
+            var best = t.m_drops.Where(x => x.m_item != null && x.m_item.GetComponent<ItemDrop>() != null && Stock.Category(Stock.Of(x.m_item)) == "ore") // (a prefab's own item data has no drop prefab: Of gives it one)
                 .Select(x => (ore: x.m_item.name.ToLowerInvariant(), each: rolls * (x.m_stackMin + x.m_stackMax) / 2f * (t.m_oneOfEach || weights <= 0 ? 1f : x.m_weight / weights)))
                 .OrderByDescending(x => x.each).FirstOrDefault();
             return best.ore == null ? ((string)null, 0f) : best;
@@ -113,7 +168,8 @@ namespace Jarldom
             return new ClaimTrip(best);
         }
         // Miners out at a claim now.
-        public static int Out(Colony c, string claim) => c.R.Fallen.Count(f => Mining.Decode(f.Killer, out string id, out _, out _) && id == claim);
+        public static int Out(Colony c, string claim) => c.R.Fallen.Count(f => Mining.Decode(f.Killer, out string id, out _, out _) && id == claim)
+            + Villagers.All.Count(b => b.S.Colony == c.Id && b.Task is ClaimTrip t && !t.Done && t.Claim == claim); // (on the road out too)
 
         // Home again (from Colony.Rise): the load, or a wound, or worse.
         public static void Home(Colony c, Humanoid h, VillagerState s, Fallen f)
@@ -137,8 +193,8 @@ namespace Jarldom
             }
             int pick = h.GetInventory().GetAllItems().Where(i => i.GetDamage().m_pickaxe > 0).Select(i => i.m_shared.m_toolTier).DefaultIfEmpty(-1).Max();
             var got = Mining.Take(claim.Left, Mining.Carry(Carts.CartNear(c) != null, claim.Camp), pick);
-            Mining.Apply(claim, got);
-            Save(claim);
+            Took(claim.Id, got);
+            if (got.Count == 0 && claim.Ore > 0) { c.Log("text", s.Name, "", $"{s.Name} came back from {where} {Where(claim, c.Position)} with nothing: their pickaxe couldn't break what's left there."); return; }
             var told = new List<string>();
             foreach (var kv in got)
             {
@@ -146,6 +202,7 @@ namespace Jarldom
                 int left = kv.Value;
                 while (left > 0) { int stack = Math.Min(left, prefab.GetComponent<ItemDrop>().m_itemData.m_shared.m_maxStackSize); if (!h.GetInventory().AddItem(prefab, stack)) break; left -= stack; }
                 if (left > 0) left -= Carts.Put(c, prefab, left); // (more than a bag holds: straight to the stores, as from the cart)
+                for (; left > 0;) { int stack = Math.Min(left, prefab.GetComponent<ItemDrop>().m_itemData.m_shared.m_maxStackSize); ItemDrop.DropItem(prefab.GetComponent<ItemDrop>().m_itemData.Clone(), stack, h.transform.position + Vector3.up, Quaternion.identity); left -= stack; } // (stores full too: set down beside them)
                 told.Add($"{kv.Value} {Name(kv.Key)}");
             }
             if (b != null) { b.S.Bump("orehauls"); if (roll < death + wound) b.S.InjuredUntil = c.Now + Clock.Hour * 6; b.Dirty(); }
@@ -157,6 +214,7 @@ namespace Jarldom
     internal sealed class ClaimTrip : Task
     {
         private readonly Claim _claim; private Vector3 _edge;
+        public string Claim => _claim.Id;
         public ClaimTrip(Claim claim) { _claim = claim; }
         public override bool Interruptible => false;
         public override void Start(Brain b)
@@ -176,7 +234,7 @@ namespace Jarldom
             double secs = Mining.TripSeconds(far, _claim.Camp, Clock.DayLength);
             var (wound, death) = Mining.Risk(_claim.Biome, _claim.Crypt, _claim.Camp, false);
             // (a guard with nothing to do goes along where it's dangerous)
-            Brain guard = wound + death >= 0.05f ? Villagers.All.FirstOrDefault(x => x.S.Colony == c.Id && x.S.Prof == Prof.Guard && x.Alive && (x.Task == null || x.Task is LeisureTask) && x.Activity == Activity.Work && Gear.CanFight(x)) : null;
+            Brain guard = wound + death > 0.045f ? Villagers.All.FirstOrDefault(x => x.S.Colony == c.Id && x.S.Prof == Prof.Guard && x.Alive && (x.Task == null || x.Task is LeisureTask) && x.Activity == Activity.Work && Gear.CanFight(x)) : null;
             c.Log("text", b.S.Name, "", $"{b.S.Name} set out for the {Claims.Title(_claim).ToLower()} {Claims.Where(_claim, c.Position)}{(guard != null ? $", {guard.S.Name} guarding them" : "")}.");
             b.S.Bump("claimtrips"); b.Dirty();
             if (guard != null) guard.Away(Mining.Escort + Mathf.RoundToInt((float)secs));
@@ -192,17 +250,18 @@ namespace Jarldom
     // there, whether there's a camp, and the deposits the miners worked out taken away.
     internal sealed class OreClaim : MonoBehaviour, Hoverable, Interactable
     {
-        private ZNetView _v; private ZDOID _zdo; private float _next; private string _id = "";
+        private ZNetView _v; private float _next; private string _id = "";
         private ZDO Z => _v != null && _v.IsValid() ? _v.GetZDO() : null;
         public string Id => Z?.GetString(Claims.IdKey, "") ?? "";
         private void Start()
         {
             _v = GetComponent<ZNetView>();
             if (Z == null) return;
-            _zdo = Z.m_uid;
             if (_v.IsOwner() && Id == "") { Z.Set(Claims.IdKey, Colony.NewId()); Z.Set(Claims.ColonyKey, HomeOf(transform.position)); }
             _id = Id;
             _next = Time.time + 2f;
+            WearNTear wear = GetComponent<WearNTear>();
+            if (wear != null) wear.m_onDestroyed += () => { if (_id != "") Claims.Remove(_id); }; // (pulled down or broken, not merely unloaded: the claim goes)
         }
         // The colony a new claim is for: the one it stands in, else the placer's own nearest (a co-jarl's: the nearest of any).
         public static string HomeOf(Vector3 at)
@@ -227,11 +286,6 @@ namespace Jarldom
             _next = Time.time + 15f;
             Plugin.Guard(() => Survey());
         }
-        private void OnDestroy()
-        {
-            // (taken down, not just unloaded: its claim goes with it)
-            if (_id != "" && _zdo != ZDOID.None && ZDOMan.instance != null && ZDOMan.instance.GetZDO(_zdo) == null) Claims.Remove(_id);
-        }
         // The camp round the stake: its beds, if it has a chest and a fire too.
         public int CampBeds()
         {
@@ -241,19 +295,26 @@ namespace Jarldom
         }
         public Claim Survey()
         {
+            if (Id == "") return null;
             string colony = Z.GetString(Claims.ColonyKey, "");
             if (colony == "") { colony = HomeOf(transform.position); Z.Set(Claims.ColonyKey, colony); }
             if (colony == "") return null;
             Vector3 at = transform.position;
             int beds = CampBeds();
-            var inside = Claims.Near(at, beds > 0 ? Mining.CampReach : Mining.CryptReach, true);
+            float reach = beds > 0 ? Mining.CampReach : Mining.CryptReach;
+            // (not until the ground all round has loaded: half a survey would lose what was dug, and under-count what's left)
+            if (ZNetScene.instance == null || !new[] { Vector3.zero, Vector3.forward, Vector3.back, Vector3.left, Vector3.right }.All(d => ZNetScene.instance.IsAreaReady(at + d * reach))) return Claims.Get(Id);
+            var inside = Claims.Near(at, reach, true);
             bool crypt = inside.Count > 0;
             var deposits = crypt ? inside : Claims.Near(at, beds > 0 ? Mining.CampReach : Mining.BareReach, false);
             if (!crypt && beds == 0) deposits = deposits.OrderBy(d => Utils.DistanceXZ(d.go.transform.position, at)).Take(1).ToList(); // (a bare stake: the deposit beside it)
-            Claim had = Claims.Get(Id);
+            Claim had = Claims.Stored(Id);
+            var loads = Claims.Takes().Where(t => t.claim == Id).ToList();
             var claim = new Claim { Id = Id, Colony = colony, X = at.x, Z = at.z, Crypt = crypt, Beds = beds, Biome = (WorldGenerator.instance?.GetBiome(at) ?? Heightmap.Biome.Meadows).ToString() };
-            // What the miners took while it lay unloaded: worked-out deposits go, nearest first.
-            var taken = had?.Taken ?? new Dictionary<string, int>();
+            // What the miners took while it lay unloaded (the last survey's remainder, and the loads since): worked-out deposits go,
+            // nearest first; what's left of a part-dug one comes off what's left.
+            var taken = new Dictionary<string, int>(had?.Taken ?? new Dictionary<string, int>());
+            foreach (var l in loads) foreach (var kv in l.got) taken[kv.Key] = (taken.TryGetValue(kv.Key, out int t) ? t : 0) + kv.Value;
             foreach (string ore in taken.Keys.ToList())
             {
                 int left = taken[ore];
@@ -266,9 +327,10 @@ namespace Jarldom
                 }
                 if (left > 0 && deposits.Any(d => d.ore == ore)) claim.Taken[ore] = left; // (a deposit part dug: the rest when it's worked out)
             }
-            foreach (var g in deposits.GroupBy(d => d.ore)) claim.Left[g.Key] = (g.Sum(d => d.n), g.Min(d => d.tier));
-            string value = claim.Encode();
-            if (had == null || had.Encode() != value) Claims.Save(claim);
+            foreach (var g in deposits.GroupBy(d => d.ore))
+                claim.Left[g.Key] = (Math.Max(0, g.Sum(d => d.n) - (claim.Taken.TryGetValue(g.Key, out int dug) ? dug : 0)), g.Min(d => d.tier));
+            if (had == null || had.Encode() != claim.Encode() || loads.Count > 0) Claims.Save(claim);
+            foreach (var l in loads) Claims.Unset(l.key); // (taken in)
             return claim;
         }
         public string GetHoverName() => "Ore claim";
