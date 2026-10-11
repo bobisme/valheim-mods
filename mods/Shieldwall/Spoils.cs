@@ -11,7 +11,7 @@ namespace Shieldwall
     {
         internal const string Key="bob_sw_spoils";
         private static readonly List<Spoils> Loaded=new List<Spoils>();
-        private ZNetView _view;private Container _container;private float _next;
+        private ZNetView _view;private Container _container;private float _next;private bool _full;
 
         private void Awake()
         {
@@ -37,9 +37,12 @@ namespace Shieldwall
 
         private void Update()
         {
-            if(Time.time<_next||_view==null||!_view.IsValid()||!_view.IsOwner()||_container==null)return;
+            if(Time.time<_next||_view==null||!_view.IsValid()||_container==null)return;
             _next=Time.time+1;
-            if(_container.IsInUse()||_container.GetInventory().NrOfItems()>0)return;
+            // A chest just loaded fills from its saved contents a moment later: only one seen full and then emptied goes
+            // (every game watches, as whoever empties it may take it over).
+            if(_container.GetInventory().NrOfItems()>0){_full=true;return;}
+            if(!_full||!_view.IsOwner()||_container.IsInUse())return;
             Assets.Effect("vfx_spawn_small",transform.position+Vector3.up*0.5f);
             ZNetScene.instance.Destroy(gameObject);
         }

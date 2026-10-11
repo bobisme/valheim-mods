@@ -538,7 +538,7 @@ namespace Shieldwall
                     output(new JObject{["lost"]=true,["shattered"]=shatter||Plugin.Instance.ShatteredStone.Value});
                     break;
                 case "spoils":
-                    if(stone==null||!stone.View.IsOwner()){error("siege spoils [clear [radius=8]]: a stone this game owns");break;}
+                    if(stone==null){error("siege spoils [clear [radius=8]]: needs a loaded Warstone");break;}
                     if(args.Length>2&&args[2]=="clear")
                     {
                         // Old spoils chests (from before they vanished when emptied) piled by the stone; not the world's own treasure farther out.
