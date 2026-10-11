@@ -314,6 +314,10 @@ Check(Mining.CartGoes("BlackForest", false) && !Mining.CartGoes("swamp", false) 
 Check(Mining.TripSeconds(500, true, 1800) > Mining.TripSeconds(500, false, 1800) && Mining.TripSeconds(1000, false, 1800) > Mining.TripSeconds(500, false, 1800) && Mining.TripSeconds(500, false, 1800, "swamp") > Mining.TripSeconds(500, false, 1800, "meadows"), "Further, longer at a camp, and slower through a swamp");
 var meadow = Mining.Risk("meadows", false, false, false); var crypt = Mining.Risk("swamp", true, false, false); var guarded = Mining.Risk("swamp", true, true, true);
 Check(meadow.wound == 0 && crypt.wound > Mining.Risk("Swamp", false, false, false).wound && crypt.death > 0 && guarded.death < crypt.death && guarded.wound < crypt.wound, "Crypts are dangerous; a camp and a guard make them less so; biome names in any case");
+Check(Mining.Need("copperore", 300, 300, 300, 0) == 0 && Mining.Need("copperore", 0, 300, 0, 0) > Mining.Need("copperore", 200, 300, 200, 0), "Ore the stores hold enough of isn't wanted; less held, more wanted");
+Check(Mining.Need("tinore", 50, 300, 200, 50) > Mining.Need("copperore", 200, 300, 200, 50) && Mining.Need("tinore", 150, 300, 200, 150) < Mining.Need("tinore", 50, 300, 200, 50), "Tin wanted while short of half the copper (bronze)");
+Check(Mining.Score(1.0, 200) > Mining.Score(1.0, 2000) && Mining.Score(1.0, 2000) > Mining.Score(0.2, 200) && Mining.Score(0.3, 2000) < Mining.Score(0.3, 200) && Mining.Score(0.9, 400) > Mining.Score(0.3, 200), "A big lack is worth a longer walk, a small one isn't");
+Check(Mining.Need("silverore", 500, 0, 0, 0) > 0, "No limit set: still wanted, less as it piles up");
 Check(Mining.Room(new Claim()) == 1 && Mining.Room(cl) == 2, "One miner at a bare claim, one a bed at a camp");
 Check(Mining.Decode(Mining.Encode("k1", 1234.4, true), out string mc, out double ms, out bool mg) && mc == "k1" && ms == 1234 && mg && !Mining.Decode("trade:40", out _, out _, out _), "A miner's away record round-trips");
 Check(Renown.TributeAsk(0, 0) == 40 && Renown.TributeAsk(80, 0) == 80 && Renown.TributeAsk(80, 1) == 120 && Renown.TributeAsk(80, 2) == 180, "The Fulings want more each time");

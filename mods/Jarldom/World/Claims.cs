@@ -178,16 +178,22 @@ namespace Jarldom
             if (b.Body.GetInventory().GetAllItems().Any(Carts.IsCargo)) return null;
             mine = mine.Where(x => x.Left.Keys.Any(ore => Carts_Item(ore) is GameObject p && Stock.Destination(c, Stock.Of(p), c.Position) != null)).ToList();
             if (mine.Count == 0) { Gear.Problem = "no room in the stores for more ore: add a chest for ore"; return null; }
-            Claim best = mine.Where(x => x.Left.Any(kv => kv.Value.n > 0 && kv.Value.tier <= pick) && Out(c, x.Id) < Mining.Room(x) && (!x.Crypt || ElderBeaten))
-                .OrderBy(x => Utils.DistanceXZ(At(x), c.Position)).FirstOrDefault();
+            // (by what the stores lack most, the walk counting against it)
+            var open = mine.Where(x => x.Left.Any(kv => kv.Value.n > 0 && kv.Value.tier <= pick) && Out(c, x.Id) < Mining.Room(x) && (!x.Crypt || ElderBeaten)).ToList();
+            Claim best = open.Select(x => (x, score: Mining.Score(x.Left.Where(kv => kv.Value.n > 0 && kv.Value.tier <= pick).Select(kv => Need(c, kv.Key)).DefaultIfEmpty(0).Max(), Utils.DistanceXZ(At(x), c.Position))))
+                .Where(t => t.score > 0).OrderByDescending(t => t.score).Select(t => t.x).FirstOrDefault();
             if (best == null)
             {
                 Claim want = mine.OrderBy(x => x.Tier).First();
                 if (want.Tier > pick) Gear.Problem = $"needs gear: a pickaxe of tier {want.Tier} for the {Title(want).ToLower()}";
+                else if (open.Count > 0) Gear.Problem = "nothing to dig: the stores hold enough of every ore (Work tab: stores to keep)";
                 return null;
             }
             return new ClaimTrip(best);
         }
+        // How much the colony wants this ore now (Core's Mining.Need from what the stores hold).
+        public static int Held(Colony c, string ore) => Carts_Item(ore) is GameObject p ? Crafts.InStock(c, p.name) : 0;
+        public static double Need(Colony c, string ore) => Mining.Need(ore, Held(c, ore), Stock.Keep(c, "ore"), Held(c, "copperore"), Held(c, "tinore"));
         // Miners out at a claim now.
         public static int Out(Colony c, string claim) => c.R.Fallen.Count(f => Mining.Decode(f.Killer, out string id, out _, out _) && id == claim)
             + Villagers.All.Count(b => b.S.Colony == c.Id && b.Task is ClaimTrip t && !t.Done && t.Claim == claim); // (on the road out too)
@@ -215,7 +221,8 @@ namespace Jarldom
             int pick = h.GetInventory().GetAllItems().Where(i => i.GetDamage().m_pickaxe > 0).Select(i => i.m_shared.m_toolTier).DefaultIfEmpty(-1).Max();
             // (by weight: the heaviest ore there sets the load; a cart only where one can go)
             float weight = claim.Left.Keys.Select(k => Carts_Item(k)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_weight ?? 10f).DefaultIfEmpty(10f).Max();
-            var got = Mining.Take(claim.Left, Mining.Carry(weight, Carts.CartNear(c) != null && Mining.CartGoes(claim.Biome, claim.Crypt), claim.Crypt), pick);
+            var wanted = claim.Left.Where(kv => Need(c, kv.Key) > 0).ToDictionary(kv => kv.Key, kv => kv.Value); // (not what the stores already hold enough of)
+            var got = Mining.Take(wanted.Count > 0 ? wanted : claim.Left, Mining.Carry(weight, Carts.CartNear(c) != null && Mining.CartGoes(claim.Biome, claim.Crypt), claim.Crypt), pick);
             Took(claim.Id, got);
             if (got.Count == 0 && claim.Ore > 0) { c.Log("text", s.Name, "", $"{s.Name} came back from {where} {Where(claim, c.Position)} with nothing: their pickaxe couldn't break what's left there."); return; }
             var told = new List<string>();

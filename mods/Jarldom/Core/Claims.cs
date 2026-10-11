@@ -101,6 +101,19 @@ namespace Jarldom
                 c.Taken[kv.Key] = (c.Taken.TryGetValue(kv.Key, out int t) ? t : 0) + kv.Value;
             }
         }
+        // How much the colony wants an ore, 0 to about 1.3: what the stores lack of what's to be kept (300 of each kind unless the jarl says
+        // otherwise; nothing at all once that's held), and for bronze, tin wanted while there's less than half as much as copper.
+        public static double Need(string ore, int held, int keep, int copper, int tin)
+        {
+            if (keep > 0 && held >= keep) return 0;
+            double need = keep > 0 ? 1.0 - (double)held / keep : 1.0 / (1.0 + held / 100.0);
+            if (ore == "tinore" && tin * 2 < copper) need += 0.3;
+            if (ore == "copperore" && copper < tin * 2) need += 0.15;
+            return need;
+        }
+        // A claim's worth going to: its most wanted ore, less for the walk (twice as far wants a clearly bigger lack).
+        public static double Score(double need, float distance) => need / (1.0 + distance / 500.0);
+
         // Miners a claim takes at once: one at a bare stake, one a bed at a camp.
         public static int Room(Claim c) => Math.Max(1, c.Beds);
 

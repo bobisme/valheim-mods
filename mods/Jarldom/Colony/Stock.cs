@@ -41,7 +41,7 @@ namespace Jarldom
 
         // How much the stores may hold of what woodcutters and miners bring in, before they stop (the jarl sets it in the Work tab;
         // 0 is no limit). Without one, a woodlot fills every chest in the colony with logs.
-        public static readonly Dictionary<string, int> KeepDefault = new Dictionary<string, int> { ["wood"] = 1000, ["stone"] = 1000 };
+        public static readonly Dictionary<string, int> KeepDefault = new Dictionary<string, int> { ["wood"] = 1000, ["stone"] = 1000, ["ore"] = 300 }; // (ore: of each kind)
         public static int Keep(Colony c, string cat) => c.R.Flags.TryGetValue("keep:" + cat, out int v) ? v : KeepDefault.TryGetValue(cat, out int d) ? d : 0;
         public static int Held(Colony c, string cat) =>
             Chests(c).Where(x => x.category != "treasury").Sum(x => x.chest.GetInventory().GetAllItems().Where(i => Category(i) == cat).Sum(i => i.m_stack));

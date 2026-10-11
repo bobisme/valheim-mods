@@ -432,12 +432,13 @@ namespace Jarldom.Ui
             y = Text(list, "Jobs come from what you mark (zones and rooms), what lies about, and fires and stations running low. Villagers take the jobs of their trade; haulers take any carrying and keep the fires and torches fed, and anyone idle helps them.", y, 15, GameUi.Dim);
             y = Commissions(list, y);
             y = Heading(list, "Stores to keep", y);
-            foreach (var (cat, who, verb) in new[] { ("wood", "Woodcutters", "fell trees"), ("stone", "Miners", "quarry stone") })
+            foreach (var (cat, who, verb, step) in new[] { ("wood", "Woodcutters", "fell trees", 500), ("stone", "Miners", "quarry stone", 500), ("ore", "Miners", "go out to claims for each kind of ore", 100) })
             {
-                int keep = Stock.Keep(_c, cat), held = Stock.Held(_c, cat); string k = cat;
-                GameUi.Line(list, $"{who} {verb} until the stores hold {(keep == 0 ? "any amount (no limit)" : keep + " " + cat)}. Now {held}.", new Vector2(24, -y), W - 24 - 250, 15, keep > 0 && held >= keep ? GameUi.Good : GameUi.Text);
-                GameUi.Button(list, "−500", new Vector2(W - 240, -y + 2), new Vector2(76, 28), () => Net.Act(_c, "keep", $"{k}|{(keep == 0 ? 5000 : Math.Max(500, keep - 500))}"), true, 14);
-                GameUi.Button(list, "+500", new Vector2(W - 160, -y + 2), new Vector2(76, 28), () => Net.Act(_c, "keep", $"{k}|{(keep == 0 ? 0 : keep + 500)}"), true, 14);
+                int keep = Stock.Keep(_c, cat), held = Stock.Held(_c, cat); string k = cat; int st = step;
+                string now = cat != "ore" ? $"Now {held}." : "Now " + string.Join(", ", new[] { "copperore", "tinore", "ironscrap", "silverore", "blackmetalscrap" }.Select(o => (o, n: Claims.Held(_c, o))).Where(x => x.n > 0 || x.o == "copperore" || x.o == "tinore").Select(x => $"{x.n} {Claims.Name(x.o).Replace(" ore", "").Replace("scrap ", "")}")) + ".";
+                GameUi.Line(list, $"{who} {verb} until the stores hold {(keep == 0 ? "any amount (no limit)" : keep + (cat == "ore" ? " of it" : " " + cat))}. {now}", new Vector2(24, -y), W - 24 - 250, 15, cat != "ore" && keep > 0 && held >= keep ? GameUi.Good : GameUi.Text);
+                GameUi.Button(list, $"−{st}", new Vector2(W - 240, -y + 2), new Vector2(76, 28), () => Net.Act(_c, "keep", $"{k}|{(keep == 0 ? st * 10 : Math.Max(st, keep - st))}"), true, 14);
+                GameUi.Button(list, $"+{st}", new Vector2(W - 160, -y + 2), new Vector2(76, 28), () => Net.Act(_c, "keep", $"{k}|{(keep == 0 ? 0 : keep + st)}"), true, 14);
                 GameUi.Button(list, "no limit", new Vector2(W - 80, -y + 2), new Vector2(80, 28), () => Net.Act(_c, "keep", $"{k}|0"), keep != 0, 13);
                 y += 32;
             }
