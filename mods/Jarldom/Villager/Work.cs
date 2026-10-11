@@ -12,6 +12,16 @@ namespace Jarldom
         public static Vector3 Centre(Zone z) { var (x, cz) = Geometry.Centre(z.Xz); return new Vector3(x, z.Floor, cz); }
         public static float Reach(Zone z) { var (x, cz) = Geometry.Centre(z.Xz); float r = 0; for (int i = 0; i < z.Corners; i++) r = Mathf.Max(r, Vector2.Distance(new Vector2(x, cz), new Vector2(z.Xz[i * 2], z.Xz[i * 2 + 1]))); return r; }
         public static bool Inside(Zone z, Vector3 p) => Geometry.Inside(z.Xz, p.x, p.z);
+        // Does the zone reach water (for a fishing dock)? Looked at once a minute a zone.
+        private static readonly Dictionary<string, (bool wet, float at)> Wet = new Dictionary<string, (bool, float)>();
+        public static bool HasWater(Zone z)
+        {
+            if (Wet.TryGetValue(z.Id, out var w) && Time.time - w.at < 60f) return w.wet;
+            float sea = ZoneSystem.instance != null ? ZoneSystem.instance.m_waterLevel : 30f;
+            bool wet = Geometry.Grid(z.Xz, 2f).Any(p => ZoneSystem.instance.GetGroundHeight(new Vector3(p.Item1, 0, p.Item2)) < sea - 0.5f);
+            Wet[z.Id] = (wet, Time.time);
+            return wet;
+        }
     }
 
     // The colony's work: scanners (zones, the ground, fires and stations) post orders on the board; villagers take them as WorkTasks.
@@ -50,7 +60,7 @@ namespace Jarldom
                 switch (z.Type)
                 {
                     case ZoneType.GuardPost: c.Board.Post("guard", z.Id, Prof.Guard, 2, centre.x, centre.y, centre.z, now, z.Id, "post"); continue;
-                    case ZoneType.FishingDock: c.Board.Post("fish", z.Id, Prof.Fisherman, 2, centre.x, centre.y, centre.z, now, z.Id, "dock"); continue;
+                    case ZoneType.FishingDock: if (Zones.HasWater(z)) c.Board.Post("fish", z.Id, Prof.Fisherman, 2, centre.x, centre.y, centre.z, now, z.Id, "dock"); continue; // (a dock must reach the water)
                     case ZoneType.Pasture: Pasture(c, z, centre, reach, now); continue;
                 }
                 int posted = 0;
@@ -319,7 +329,7 @@ namespace Jarldom
                     case ZoneType.Fields: return "nothing to harvest or sow in the fields yet";
                     case ZoneType.Foraging: return "nothing ripe in the foraging grounds yet";
                     case ZoneType.Hunting: return "no game in the hunting grounds";
-                    case ZoneType.FishingDock: return "nothing to fish at the dock";
+                    case ZoneType.FishingDock: return c.R.Zones.Any(z => z.Type == ZoneType.FishingDock && Zones.HasWater(z)) ? "nothing to fish at the dock" : "no fishing dock reaches the water (mark one out over it)";
                     case ZoneType.GuardPost: return "between watches";
                     case ZoneType.Pasture: return "the pasture's beasts are seen to";
                 }

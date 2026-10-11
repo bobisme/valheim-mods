@@ -24,7 +24,7 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
   ketill and keeping fermenters filled and tapped, **commissions** (Work tab: smiths at the forge and workbench, cooks at the cauldron,
   from the stores), healers tending the injured (twice as well in a healer's house), scouts ranging past the edge and filling in the
   map, herders feeding a pasture's tame beasts and culling the surplus (never named or young ones). Villagers fetch the tools of their
-  trade (and arrows) from the stockpiles; without them they haul and say why, and an idle villager says what's missing (no zone marked,
+  trade (and arrows and bait) from the stockpiles; a fishing dock must reach the water; without them they haul and say why, and an idle villager says what's missing (no zone marked,
   nothing left in it). Food beyond a few meals goes to the stores, not into one villager's bag.
 - **The colony's own ground**: villagers take beds only inside the colony's rooms or within 15 m of the pillars, and pick up what lies
   about only in its rooms, zones and by the pillars, so a neighbour's base inside the radius is left alone.

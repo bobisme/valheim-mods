@@ -33,6 +33,7 @@ namespace Jarldom
         {
             string tool = Tables.Of(p).Tool;
             if (p == Prof.Farmer) return new[] { tool, "hoe" };
+            if (p == Prof.Fisherman) return new[] { tool, "bait" };
             return tool == "" ? new string[0] : new[] { tool };
         }
         // What to look for, or null when they have it.
@@ -49,10 +50,15 @@ namespace Jarldom
                     count = Arrows;
                     return i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Ammo && i.m_shared.m_ammoType == ammo;
                 case "weapon": return Gear.CanFight(b) ? null : (Func<ItemDrop.ItemData, bool>)Gear.IsWeapon;
+                case "bait":
+                    if (Gear.Items(b).Where(Bait).Sum(i => i.m_stack) >= 5) return null;
+                    count = 20;
+                    return Bait;
                 default: return Gear.Tool(b, kind) != null ? null : i => Gear.Is(kind, i);
             }
         }
 
+        private static bool Bait(ItemDrop.ItemData i) => i.m_dropPrefab != null && i.m_dropPrefab.name.StartsWith("FishingBait");
         public override void Start(Brain b) { Doing = "fetching gear from the stores"; b.Move.To(_chest.transform.position, 1.8f); }
         public override void Tick(Brain b)
         {
