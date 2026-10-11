@@ -458,7 +458,7 @@ namespace Jarldom
             ["needs"] = new JObject(Enum.GetValues(typeof(Need)).Cast<Need>().Select(n => new JProperty(n.ToString(), Math.Round(b.S.Needs[(int)n])))),
             ["reasons"] = new JArray(Mood.Reasons(b.S, b.Now).Select(r => $"{r.value:+0;-0} {r.text}")), ["meals"] = new JArray(b.Meals.Select(m => $"{m.Prefab} {m.Left:0}s")),
             ["bed"] = b.S.Bed, ["worth"] = b.S.Worth, ["skills"] = new JObject(b.S.Skills.Where(kv => !kv.Key.EndsWith("#")).Select(kv => new JProperty(kv.Key, Math.Round(kv.Value, 1)))),
-            ["bag"] = new JArray(b.Body.GetInventory().GetAllItems().Select(i => $"{Prefab(i)} x{i.m_stack}{(i.m_equipped ? " (worn)" : "")}")), ["held"] = b.Held != null, ["fighting"] = b.Fighting, ["anim"] = AnimInfo(b.Body), ["combat"] = $"{b.CombatNote} swings {b.SwingsStarted}/{b.Swings} weapon {b.Body.GetCurrentWeapon()?.m_shared.m_name}",
+            ["bag"] = new JArray(b.Body.GetInventory().GetAllItems().Select(i => $"{Prefab(i)} x{i.m_stack}{(i.m_equipped ? " (worn)" : "")}")), ["held"] = b.Held != null, ["fighting"] = b.Fighting, ["anim"] = AnimInfo(b.Body), ["lastAttacker"] = b.LastAttacker, ["foe"] = b.Foe != null ? b.Foe.m_name : "", ["combat"] = $"{b.CombatNote} swings {b.SwingsStarted}/{b.Swings} weapon {b.Body.GetCurrentWeapon()?.m_shared.m_name}",
             ["counts"] = new JObject(b.S.Counts.Select(kv => new JProperty(kv.Key, kv.Value))), ["moving"] = b.Move.Moving, ["goal"] = V(b.Move.Goal), ["taskDebug"] = b.Task?.Debug(b) ?? "", ["move"] = b.Move.Debug, ["velocity"] = Math.Round(b.Body.GetVelocity().magnitude, 2), ["moveDir"] = V(b.Body.GetMoveDir()),
         };
     }

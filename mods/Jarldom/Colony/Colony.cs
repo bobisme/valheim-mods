@@ -183,6 +183,7 @@ namespace Jarldom
             foreach (string god in R.Favour.Keys.ToList()) R.Favour[god] = Favour.Decay(R.Favour[god], 1);
             if (Plugin.Instance.Payroll.Value && Payroll.IsPayday(day, R.LastPayday)) Payday(day);
             Migration.Dawn(this, day);
+            Thing.CheckPromises(this, day);
             if (day - R.LastThing >= 5 && Population >= 3) Thing.Call(this, day);
         }
         private void Dusk(int day)

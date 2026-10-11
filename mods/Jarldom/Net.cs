@@ -12,7 +12,7 @@ namespace Jarldom
     {
         private const string ActRpc = "Jarldom_Act", FallenRpc = "Jarldom_Fallen", ClaimRpc = "Jarldom_Claim", ReportRpc = "Jarldom_Report", RefusedRpc = "Jarldom_Refused", ValkyrieRpc = "Jarldom_Valkyrie", VillagerRpc = "Jarldom_Villager", HelloRpc = "Jarldom_Hello";
         private static ZRoutedRpc _on; private static int _delay;
-        private static readonly string[] Names = { ActRpc, FallenRpc, ClaimRpc, ReportRpc, RefusedRpc, ValkyrieRpc, VillagerRpc, HelloRpc };
+        private static readonly string[] Names = { ActRpc, FallenRpc, ClaimRpc, ReportRpc, RefusedRpc, ValkyrieRpc, VillagerRpc, HelloRpc, HelloRpc + "?" };
 
         // Whether the host has Jarldom too (a host without it deletes our pieces and villagers as soon as it loads them).
         public static bool HostHasJarldom => ZNet.instance == null || ZNet.instance.IsServer() || _hostAnswered;
@@ -22,15 +22,17 @@ namespace Jarldom
         public static void Tick()
         {
             ZRoutedRpc rpc = ZRoutedRpc.instance;
-            if (rpc != null && rpc == _on && !_hostAnswered && ZNet.instance != null && !ZNet.instance.IsServer() && ZNet.instance.GetServerPeer() != null && Time.time >= _nextHello)
+            // (every 5 s until the host answers, then every minute: a host that reloaded Jarldom has forgotten who said hello)
+            if (rpc != null && rpc == _on && ZNet.instance != null && !ZNet.instance.IsServer() && ZNet.instance.GetServerPeer() != null && Time.time >= _nextHello)
             {
-                _nextHello = Time.time + 5;
+                _nextHello = Time.time + (_hostAnswered ? 60 : 5);
                 rpc.InvokeRoutedRPC(HelloRpc, Plugin.Version);
             }
             if (rpc == null || rpc == _on) return;
             _hostAnswered = false; _nextHello = 0;
             if (_delay++ < 2) return; // after a reload, the old copy unregisters at the end of its last frame
             _delay = 0; _on = rpc;
+            _nextOwners = Time.time + 15; // give every game time to say hello before taking anything back
             Remove(rpc);
             rpc.Register<string, string, string>(ActRpc, OnAct);
             rpc.Register<string, ZPackage>(FallenRpc, OnFallen);
@@ -42,6 +44,12 @@ namespace Jarldom
             {
                 if (ZNet.instance != null && ZNet.instance.IsServer()) { WithJarldom.Add(sender); if (sender != ZDOMan.GetSessionID()) ZRoutedRpc.instance.InvokeRoutedRPC(sender, HelloRpc, Plugin.Version); }
                 else { if (!_hostAnswered) Plugin.Log($"Jarldom: the host has Jarldom {version}"); _hostAnswered = true; }
+            });
+            // A host that has just (re)loaded asks everyone: the games with Jarldom say hello back.
+            if (ZNet.instance != null && ZNet.instance.IsServer()) rpc.InvokeRoutedRPC(ZRoutedRpc.Everybody, HelloRpc + "?");
+            rpc.Register(HelloRpc + "?", sender =>
+            {
+                if (ZNet.instance != null && !ZNet.instance.IsServer()) _nextHello = 0;
             });
             rpc.Register<Vector3>(ValkyrieRpc, (sender, at) => Plugin.Guard(() => Valkyrie.Fly(at)));
         }
@@ -56,7 +64,11 @@ namespace Jarldom
             WithJarldom.Add(me);
             bool Lacks(long owner) => owner != 0 && owner != me && !WithJarldom.Contains(owner) && ZNet.instance.GetPeer(owner) != null;
             foreach (Colony c in Colony.All.ToList()) if (Lacks(c.Z.GetOwner())) { c.View.ClaimOwnership(); Plugin.Log($"Jarldom: took {c.R.Name} back from a game without Jarldom"); }
-            foreach (Humanoid h in Villagers.Bodies().ToList()) { ZNetView v = h.GetComponent<ZNetView>(); if (Lacks(v.GetZDO().GetOwner())) v.ClaimOwnership(); }
+            foreach (Humanoid h in Villagers.Bodies().ToList())
+            {
+                ZNetView v = h.GetComponent<ZNetView>(); Container bag = h.GetComponent<Container>();
+                if (Lacks(v.GetZDO().GetOwner()) && !(bag != null && ContainerAccess.InUse(bag))) v.ClaimOwnership(); // (not while someone has the bag open)
+            }
         }
         public static void Unregister() { if (ZRoutedRpc.instance != null) Remove(ZRoutedRpc.instance); _on = null; }
         private static void Remove(ZRoutedRpc rpc)
@@ -121,7 +133,7 @@ namespace Jarldom
         {
             uint rev = c.Z.DataRevision;
             if (!Shared.TryGetValue(c.Id, out var s) || s.rev != rev) { s = (JobBoard.FromSnapshot(c.Z.GetByteArray(Colony.BoardKey)), rev); Shared[c.Id] = s; }
-            return s.orders.Where(o => o.State == OrderState.Open && canDo(o.Prof) && !Refused.Contains((b.S.Vid, o.Id)))
+            return s.orders.Where(o => o.State == OrderState.Open && canDo(o.Prof) && !Refused.Contains((b.S.Vid, o.Id)) && Work.GearFor(b, o) == null)
                 .OrderByDescending(o => o.Priority).ThenBy(o => (o.X - b.Pos.x) * (o.X - b.Pos.x) + (o.Z - b.Pos.z) * (o.Z - b.Pos.z)).FirstOrDefault();
         }
         public static void Claim(Colony c, Brain b, Order o) => ZRoutedRpc.instance?.InvokeRoutedRPC(Owner(c), ClaimRpc, c.Id, b.S.Vid, o.Id);

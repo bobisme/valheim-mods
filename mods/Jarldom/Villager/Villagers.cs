@@ -37,7 +37,7 @@ namespace Jarldom
         public static IEnumerable<Humanoid> Bodies()
         {
             foreach (Character c in Character.GetAllCharacters())
-                if (c is Humanoid h && VillagerPrefab.Is(c) && !c.IsDead()) yield return h;
+                if (c is Humanoid h && VillagerPrefab.Is(c) && !c.IsDead() && c.GetComponent<ZNetView>() is ZNetView v && v.IsValid()) yield return h; // (not one destroyed this frame)
         }
         public static Humanoid Body(string vid) => Bodies().FirstOrDefault(h => h.GetComponent<ZNetView>().GetZDO().GetString(VidKey) == vid);
 

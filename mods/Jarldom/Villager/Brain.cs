@@ -31,7 +31,7 @@ namespace Jarldom
             if (_body != null && _body.isKinematic) _body.isKinematic = false; // (a body left seated when ownership went elsewhere)
             Poses.Clear(h);
         }
-        public float NoStoreUntil, NoFoodUntil, NoRepairUntil, NoBuildUntil; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f;
+        public float NoStoreUntil, NoFoodUntil, NoRepairUntil, NoBuildUntil, NoTradeUntil; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f;
         public bool Alive => Body != null && !Body.IsDead() && View != null && View.IsValid() && View.IsOwner() && S != null;
         public Vector3 Pos => Body.transform.position;
         public double Now => ZNet.instance.GetTimeSeconds();
@@ -126,7 +126,7 @@ namespace Jarldom
             if (Combat.Busy(this)) return;
             Activity want = Want();
             // Sleep, a trade run, the road to Valhalla: carried on to the end unless a raid comes.
-            if (Task != null && !Task.Done && !Task.Interruptible && want != Activity.Defend) { Task.Tick(this); SetDoing(Task.Doing); return; }
+            if (Task != null && !Task.Done && !Task.Interruptible && want != Activity.Defend) { Task.Tick(this); if (Task != null && Alive) SetDoing(Task.Doing); return; }
             if (want != Activity || Task == null || Task.Done)
             {
                 if (Task != null && (Task.Done || want != Activity)) { Task.Stop(this); Task = null; }
@@ -141,7 +141,7 @@ namespace Jarldom
         private Activity Want()
         {
             if (Colony.RaidOn || Colony.HornUntil > Time.time) return Activity.Defend;
-            if (Body.GetHealthPercentage() < 0.1f || S.InjuredUntil > Now) return Activity.Home;
+            if (Body.GetHealthPercentage() < 0.1f || S.InjuredUntil > Now) return S.Needs[(int)Need.Food] < Mood.EatBelow && Time.time > NoFoodUntil && Food.CanEat(this) ? Activity.Wake : Activity.Home;
             Activity a = Schedule.At(Colony.Hour, S.Traits, heavyRain: EnvMan.IsWet() && EnvMan.instance.GetWindIntensity() > 0.6f, outdoorTask: true, urgent: false);
             if (a == Activity.Work || a == Activity.Wake) { if (S.Needs[(int)Need.Food] < Mood.EatBelow && Time.time > NoFoodUntil && Food.CanEat(this)) return Activity.Wake; }
             return a;
@@ -213,7 +213,8 @@ namespace Jarldom
             // Food burns as a player's does; health follows the meals.
             Food.Burn(this, 5f);
             Body.SetMaxHealth(MaxHealth());
-            float regen = _meals.Sum(m => m.Left > 0 ? Regen(m) : 0) * (Held != null ? 2 : 1);
+            // Meals heal as a player's do; with none, a little anyway (the game's own idle healing is part of the AI we replace). Twice in bed.
+            float regen = Mathf.Max(0.4f, _meals.Sum(m => m.Left > 0 ? Regen(m) : 0)) * (Held != null ? 2 : 1);
             if (regen > 0 && Body.GetHealth() < Body.GetMaxHealth()) Body.Heal(regen * 0.5f, false);
             Stamina = Mathf.Min(1f, Stamina + 0.25f);
             int mood = Jarldom.Mood.Of(S, now);
@@ -298,7 +299,7 @@ namespace Jarldom
                     if (bed != null)
                     {
                         string owner = Colony.BedOwner(bed, out string kind);
-                        if (kind == "player" || kind == "companion" || kind == "villager" && owner != S.Vid) { Say("That bed is someone else's.", 4); break; }
+                        if (kind == "player" || kind == "companion" || kind == "villager" && owner != S.Vid && Colony.R.Row(owner)?.State == SoulState.Active) { Say("That bed is someone else's.", 4); break; }
                         Claim(bed.GetComponent<ZNetView>(), true);
                         S.Bed = arg;
                         Say("A bed of my own!", 4);

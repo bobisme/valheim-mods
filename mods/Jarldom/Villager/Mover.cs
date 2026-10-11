@@ -12,7 +12,7 @@ namespace Jarldom
         private readonly List<Vector3> _path = new List<Vector3>();
         private Vector3 _goal, _pathGoal; private float _arrive; private bool _run, _active;
         private float _nextPath, _nextDoor, _stuckSince, _lastProgressAt; private Vector3 _lastProgressPos;
-        private int _stuckStage, _unsticks; private bool _failed;
+        private int _stuckStage, _unsticks; private bool _failed; private float _failedAt, _sidestepUntil; private Vector3 _sidestepDir;
         private readonly List<(Door door, float at)> _opened = new List<(Door, float)>();
         private Vector3? _viaDoor; private Door _planDoor; private Vector3 _doorFar;
         private static readonly Collider[] Hits = new Collider[1024];
@@ -27,6 +27,8 @@ namespace Jarldom
         public void To(Vector3 goal, float arrive = 1f, bool run = false)
         {
             if (_active && Vector3.Distance(goal, _goal) < 0.3f && !_failed) { _run = run; _arrive = arrive; return; }
+            // The same goal again soon after failing stays failed, so a task that re-paths and then checks Failed sees it.
+            if (_failed && Vector3.Distance(goal, _goal) < 0.3f && Time.time - _failedAt < 20f) return;
             _goal = goal; _arrive = Mathf.Max(0.4f, arrive); _run = run; _active = true; Arrived = false; _failed = false;
             _nextPath = 0; _stuckStage = 0; _lastProgressAt = Time.time; _failAt = 0; _unsticks = 0; _lastProgressPos = _b.Body.transform.position; _viaDoor = null; _planDoor = null; _doorNear = null;
         }
@@ -55,6 +57,7 @@ namespace Jarldom
             Vector3 dir = next - me; dir.y = 0;
             if (dir.sqrMagnitude < 0.0001f) dir = _goal - me;
             bool run = _run && _b.Stamina > 0.2f;
+            if (Time.time < _sidestepUntil) { dir = _sidestepDir; run = false; }
             _b.Ai.MoveTowards(dir.normalized, run);
             Unstick(me, dir);
         }
@@ -74,7 +77,7 @@ namespace Jarldom
             if (!ok) { _path.Clear(); if (Utils.DistanceXZ(me, _goal) > 25f) _failedSoon(); }
         }
         private float _failAt;
-        private void _failedSoon() { if (_failAt == 0) _failAt = Time.time + 6; else if (Time.time > _failAt) { _failed = true; _active = false; _failAt = 0; _b.Ai.StopMoving(); } }
+        private void _failedSoon() { if (_failAt == 0) _failAt = Time.time + 6; else if (Time.time > _failAt) { _failed = true; _failedAt = Time.time; _active = false; _failAt = 0; _b.Ai.StopMoving(); } }
 
         private bool PlanDoor(Vector3 me)
         {
@@ -161,15 +164,15 @@ namespace Jarldom
             if (Utils.DistanceXZ(me, _lastProgressPos) > 0.75f) { _lastProgressPos = me; _lastProgressAt = Time.time; _stuckStage = 0; return; }
             float stuck = Time.time - _lastProgressAt;
             if (stuck > 2.5f && _stuckStage == 0) { _stuckStage = 1; _b.Body.Jump(); }
-            else if (stuck > 5f && _stuckStage == 1) { _stuckStage = 2; _nextPath = 0; _b.Ai.MoveTowards(Quaternion.Euler(0, Random.value < 0.5f ? 90 : -90, 0) * dir.normalized, false); }
+            else if (stuck > 5f && _stuckStage == 1) { _stuckStage = 2; _nextPath = 0; _sidestepDir = Quaternion.Euler(0, Random.value < 0.5f ? 90 : -90, 0) * dir.normalized; _sidestepUntil = Time.time + 1f; }
             else if (stuck > 9f && _stuckStage == 2)
             {
-                // Still stuck: step to the next waypoint (or the goal, if near), as if the feet had found the way.
+                // Still stuck: step to the next waypoint, as if the feet had found the way (only a waypoint: the navmesh's own, reachable
+                // ground; the goal itself may be behind a wall or up on a roof).
                 _stuckStage = 3;
-                Vector3 to = _path.Count > 0 ? _path[0] : _goal;
-                if (Vector3.Distance(me, to) < 12f && Steer.SafeSpot(to)) _b.Place(to + Vector3.up * 0.2f);
+                if (_path.Count > 0 && Vector3.Distance(me, _path[0]) < 12f && Steer.SafeSpot(_path[0])) _b.Place(_path[0] + Vector3.up * 0.2f);
                 _lastProgressAt = Time.time; _lastProgressPos = _b.Body.transform.position; _stuckStage = 0; _nextPath = 0;
-                if (++_unsticks >= 3) { _failed = true; _active = false; _b.Ai.StopMoving(); } // it isn't getting anywhere: give up the goal
+                if (++_unsticks >= 3) { _failed = true; _failedAt = Time.time; _active = false; _b.Ai.StopMoving(); } // it isn't getting anywhere: give up the goal
             }
         }
     }

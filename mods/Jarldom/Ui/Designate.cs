@@ -122,8 +122,20 @@ namespace Jarldom
             foreach (Zone z in c.R.Zones)
             {
                 LineRenderer l = NewLine("JarldomZoneEdge", new Color(0.55f, 0.75f, 1f, 0.7f), 0.06f);
-                l.loop = true; l.positionCount = z.Corners;
-                l.SetPositions(Enumerable.Range(0, z.Corners).Select(i => { var (x, zz) = z.Corner(i); float y = ZoneSystem.instance.GetGroundHeight(new Vector3(x, 0, zz)); return new Vector3(x, y + 0.15f, zz); }).ToArray());
+                // Following the ground (as a workbench's circle does): a point every half metre along each edge, on the terrain.
+                var pts = new List<Vector3>();
+                for (int i = 0; i < z.Corners; i++)
+                {
+                    var (ax, az) = z.Corner(i); var (bx, bz) = z.Corner((i + 1) % z.Corners);
+                    int steps = Mathf.Max(1, Mathf.CeilToInt(Mathf.Sqrt((bx - ax) * (bx - ax) + (bz - az) * (bz - az)) / 0.5f));
+                    for (int k = 0; k < steps; k++)
+                    {
+                        float t = (float)k / steps, x = Mathf.Lerp(ax, bx, t), zz = Mathf.Lerp(az, bz, t);
+                        pts.Add(new Vector3(x, ZoneSystem.instance.GetGroundHeight(new Vector3(x, 0, zz)) + 0.1f, zz));
+                    }
+                }
+                l.loop = true; l.positionCount = pts.Count;
+                l.SetPositions(pts.ToArray());
                 Drawn.Add(l.gameObject);
                 Vector3 centre = Zones.Centre(z); centre.y = ZoneSystem.instance.GetGroundHeight(centre) + 2f;
                 Drawn.Add(Label(centre, Tables.Of(z.Type).Name, new Color(0.55f, 0.75f, 1f, 0.9f)));

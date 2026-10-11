@@ -134,6 +134,7 @@ namespace Jarldom
             c.R.GuaranteedArrival = 1;
             pyre.GetComponent<ZNetView>().GetZDO().Set(BurnKey, ZNet.instance.GetTime().Ticks);
             RosterRow row = c.R.Row(s.Vid); if (row != null) row.State = SoulState.Ascended;
+            c.ReleaseBed(s.Vid);
             c.Log("ascend", s.FullName, "");
             c.Log("text", "", "", $"A runestone remembers {s.FullName}: {s.Story} Worth {Mathf.RoundToInt(s.Worth)}, {s.Count("kills")} foes slain.");
             Blessing(c);

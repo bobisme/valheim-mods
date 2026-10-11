@@ -53,11 +53,15 @@ namespace Jarldom
             if (z.GetLong("dhc_home", 0L) != 0) { kind = "companion"; return z.GetString("dhc_homename", "a companion"); }
             return "";
         }
-        public List<Bed> FreeBeds() => AllBeds().Where(b => BedOwner(b, out _) == "").ToList();
+        // Free: nobody's, or claimed by a soul who no longer lives here (gone to Valhalla, lost, sent away).
+        public List<Bed> FreeBeds() => AllBeds().Where(b => { string who = BedOwner(b, out string kind); return who == "" || kind == "villager" && R.Row(who) is RosterRow r && r.State != SoulState.Active; }).ToList();
         public Bed BedById(string id)
         {
             if (string.IsNullOrEmpty(id)) return null;
-            return AllBeds().FirstOrDefault(b => IdOf(b.GetComponent<ZNetView>(), false) == id);
+            // Any bed in reach, ours or not: a bed already held (or given from the panel) stays held. Ours() only limits choosing new ones.
+            PieceBuffer.Clear();
+            Piece.GetAllPiecesInRadius(Position, Radius + 20, PieceBuffer);
+            return PieceBuffer.Select(p => p.GetComponent<Bed>()).FirstOrDefault(b => b != null && IdOf(b.GetComponent<ZNetView>(), false) == id);
         }
         private Vector3? Survey_BedSpot(string bedId)
         {

@@ -19,6 +19,8 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
 - **Work** comes from a job board of leases (no job taken twice): felling, mining, harvesting and replanting, foraging, hauling to
   stockpiles (choose each chest's category in the Rooms tab), guarding, hunting, fishing, feeding fires, smelters and cooking stations.
   Without the gear their profession needs, villagers haul and say why.
+- **The colony's own ground**: villagers take beds only inside the colony's rooms or within 15 m of the pillars, and pick up what lies
+  about only in its rooms, zones and by the pillars, so a neighbour's base inside the radius is left alone.
 - **Daily life**: work by day, the great hall at dusk (a seat, food, gossip about things that really happened), their own bed at night
   (or the hall fire, unhappily). Seven needs and many moodlets make a mood (-100 to +100) that sets how fast they work (60% to 130%).
 - **Death**: a tombstone with their bag, rising at their bed after 30 s with worn gear kept. With no bed (or disgraced) they're lost
@@ -34,13 +36,22 @@ from its window before uninstalling: everyone's gear goes into chests by the pil
 `villager <name>`, `rooms`, `room check <n>`, `board`, `log`, `saga`, and (single player or host) `place pillars`, `spawn`, `migrate`,
 `room`/`zone <type> x1 z1 x2 z2`, `prof`, `mood`, `worth`, `give`, `time <hours>`, `pay`, `feast`, `thing now`, `ascend`, `raid`.
 
-**First playtest** (none of this has been played yet):
+**Tested live** (Creative, host with a second player): founding; the colony window and taking a newcomer in; felling, mining,
+harvesting and replanting, hauling to stockpiles, cooking at a spit, feeding a kiln and smelter; eating from the stores; the great hall
+at dusk (seats, the skald's songs); sleeping in own beds and by the hall fire; doors; guards fighting; a Shieldwall siege at the colony
+as a raid (everyone into the hall); death, tombstone and rising at the bed; wages; a feast and the rank it brings; the Thing; an offering
+at Odin's shrine; ascension on the pyre; 24 villagers at about 0.07 ms a frame. **Not yet tested by a player**: marking rooms with the
+hammer, the villager panel, the Valkyrie fly-in, raids from the game's own events, trade runs, builders (BuildOrders), Omens' Fate,
+a lost soul's draugr, a dedicated server, and villagers run by a joining player's game.
+
+**First playtest**:
 1. Build the pillars near a workbench; E on them: the window opens, the colony is a camp of 0.
-2. `jarldom spawn woodcutter`, or wait for renown: build beds, check `jarldom renown`; at dawn Hugin speaks, at dusk the Valkyrie comes.
+2. `jarldom spawn woodcutter`, or wait for renown: build beds in a longhouse (or by the pillars), check `jarldom renown`; at dawn Hugin
+   speaks, at dusk the Valkyrie comes.
 3. Take a newcomer in: they appear at the pillars in rags with a bed of their own.
-4. Give them an axe (Shift+E on them), mark a woodlot round some trees, a stockpile room round four chests: they fell, gather, store.
-5. Mark fields round a planted crop and give seeds to a chest: harvested and replanted.
-6. Mark a great hall (4 seats, 2 tables, a fire, 40 m²): at dusk they sit in it; at night they go to their beds.
+4. Give them an axe (Shift+E on them), mark a woodlot round some trees, a stockpile round four chests: they fell, gather, store.
+5. Mark fields round a planted crop and put seeds in a chest: harvested and replanted.
+6. Mark a great hall (4 seats, 2 tables, a fire, 40 m², a real roof: floor tiles leak): at dusk they sit in it; at night they go to bed.
 7. Hold a feast (3 kinds of food × people and a mead each in the hall's chests): moods rise.
 8. Let one die with a bed (tombstone, rises at the bed) and one without (a named draugr).
 9. A raid near the colony: the horn, fighters out, the rest in the hall.

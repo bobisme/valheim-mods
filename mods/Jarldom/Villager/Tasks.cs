@@ -67,6 +67,7 @@ namespace Jarldom
         public override void Tick(Brain b)
         {
             if (_spot == null) { Done = true; return; }
+            if (!JustRest && b.Colony.Hour >= Schedule.WakeAt && b.Colony.Hour < Schedule.HomeAt) { Done = true; return; } // morning
             if (!_down)
             {
                 if (b.Move.Failed) { Done = true; return; }
@@ -141,8 +142,10 @@ namespace Jarldom
             if (hall == null && Shelter) hall = b.Colony.R.Rooms.FirstOrDefault(r => r.Ok);
             Doing = Shelter ? "out of the rain" : hall != null ? "off to the hall" : "by the pillars";
             Vector3 at = hall != null ? b.Colony.Centre(hall) : b.Colony.Position + b.Colony.Seat.transform.forward * 4;
-            if (hall != null && !Shelter) _chair = Seats.Free(b, hall, b.Colony);
-            _stand = _chair != null ? _chair.transform.position : Colony.Spot(at, 3f) ?? at;
+            if (hall != null && !Shelter && b.S.Prof != Prof.Skald) _chair = Seats.Free(b, hall, b.Colony); // (a skald stands by the hearth to play)
+            Fireplace hearth = hall != null && b.S.Prof == Prof.Skald ? SleepTask.Nearest<Fireplace>(at, 8f) : null;
+            if (hearth != null) at = hearth.transform.position + (b.Pos - hearth.transform.position).normalized * 2f;
+            _stand = _chair != null ? _chair.transform.position : Colony.Spot(at, hearth != null ? 1f : 3f) ?? at;
             b.Move.To(_stand, _chair != null ? 1.2f : 2f);
         }
         public override void Tick(Brain b)
@@ -151,6 +154,7 @@ namespace Jarldom
             {
                 if (b.Move.Failed) { _there = true; return; }
                 if (b.Move.Moving) return;
+                if (!b.Move.Arrived && Utils.DistanceXZ(b.Pos, _stand) > 2.5f) { b.Move.To(_stand, _chair != null ? 1.2f : 2f); return; } // stopped by a fight
                 _there = true;
                 if (_chair != null && _chair.m_attachPoint != null) b.Sit(_chair.m_attachPoint, string.IsNullOrEmpty(_chair.m_attachAnimation) ? "attach_chair" : _chair.m_attachAnimation, Vector3.zero);
                 Doing = Shelter ? "sheltering" : _chair != null ? "in the hall" : "keeping company";
@@ -224,16 +228,24 @@ namespace Jarldom
     {
         private string _id, _prefab; private Vector3 _at; private Piece _piece; private int _phase; private float _next;
         private List<(string item, int amount)> _needs;
+        private static readonly Dictionary<string, float> Held = new Dictionary<string, float>(); // plan id -> until (a builder that vanished lets go)
+        private static class Taken
+        {
+            public static bool Contains(string id) => Held.TryGetValue(id, out float until) && until > Time.time;
+            public static void Add(string id) => Held[id] = Time.time + 180;
+        }
+        public override void Stop(Brain b) { if (_id != null) Held.Remove(_id); base.Stop(b); }
         public override bool Interruptible => _phase == 0;
         public override void Start(Brain b)
         {
-            string[] next = Compat.NextGhosts(b.Colony.Position, b.Colony.Radius, 1);
+            // The first plan no other builder is on (each fetches the whole cost: two on one plan would waste a trip).
+            string[] next = Compat.NextGhosts(b.Colony.Position, b.Colony.Radius, 8).Where(g => !Taken.Contains(g.Split('|')[0])).Take(1).ToArray();
             if (next.Length == 0) { Done = true; b.NoBuildUntil = Time.time + 30; string[] why = Compat.GhostBlockers(b.Colony.Position, b.Colony.Radius); if (why.Length > 0) b.Say("I can't build the plans: " + why[0].Replace("|", " ").Trim(), 6); return; }
             string[] f = next[0].Split('|');
-            _id = f[0]; _prefab = f[1];
+            _id = f[0]; _prefab = f[1]; Taken.Add(_id);
             _at = new Vector3(float.Parse(f[2], System.Globalization.CultureInfo.InvariantCulture), float.Parse(f[3], System.Globalization.CultureInfo.InvariantCulture), float.Parse(f[4], System.Globalization.CultureInfo.InvariantCulture));
             _piece = Assets.Find(_prefab)?.GetComponent<Piece>();
-            if (_piece == null) { Done = true; return; }
+            if (_piece == null) { Done = true; b.NoBuildUntil = Time.time + 30; return; }
             _needs = _piece.m_resources.Where(r => r.m_resItem != null && !r.m_upgraderResource && r.m_amount > 0).Select(r => (r.m_resItem.name, r.m_amount)).ToList();
             Doing = "building " + Localization.instance.Localize(_piece.m_name).ToLower();
         }
@@ -252,23 +264,24 @@ namespace Jarldom
                     { Done = true; b.NoBuildUntil = Time.time + 60; b.Say($"The stores have too little {Localization.instance.Localize(Assets.Find(item)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name ?? item).ToLower()} to build the plans.", 6); return; }
                 var (want, count) = missing[0];
                 Container from = chests.Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want));
-                if (from == null) { Done = true; return; }
+                if (from == null) { Done = true; b.NoBuildUntil = Time.time + 20; return; }
                 if (Vector3.Distance(b.Pos, from.transform.position) > 2.4f) { if (!b.Move.Moving) b.Move.To(from.transform.position, 1.8f); if (b.Move.Failed) Done = true; return; }
                 ItemDrop.ItemData stack = from.GetInventory().GetAllItems().First(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want);
-                if (Stock.Take(from, b.Body.GetInventory(), stack, count - Have(b, want)) == 0) { Done = true; return; }
+                if (Stock.Take(from, b.Body.GetInventory(), stack, count - Have(b, want)) == 0) { Done = true; b.NoBuildUntil = Time.time + 30; return; }
                 return;
             }
-            if (Vector3.Distance(b.Pos, _at) > 3.5f) { if (!b.Move.Moving) b.Move.To(_at, 2.5f); if (b.Move.Failed) { Done = true; b.NoBuildUntil = Time.time + 20; } return; }
+            // (near enough across the ground, and within reach in height: a roof or upper wall is built from below)
+            if (Utils.DistanceXZ(b.Pos, _at) > 3.5f || _at.y - b.Pos.y > 6f || b.Pos.y - _at.y > 3f) { if (!b.Move.Moving) b.Move.To(_at, 2.5f); if (b.Move.Failed) { Done = true; b.NoBuildUntil = Time.time + 20; } return; }
             b.Move.Stop();
             Vector3 d = _at - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized);
             if (Time.time < _next) return;
             _next = Time.time + 1.2f / Mathf.Max(0.4f, b.Productivity());
             ItemDrop.ItemData hammer = Gear.Tool(b, "hammer");
-            if (hammer == null) { Done = true; return; }
+            if (hammer == null) { Done = true; b.NoBuildUntil = Time.time + 30; return; }
             if (!b.Body.IsItemEquiped(hammer)) b.Body.EquipItem(hammer, false);
             Body_.Anim(b.Body)?.SetTrigger("swing_hammer");
             if (++_phase < 3) return; // a couple of blows, then it stands
-            if (_needs.Any(n => Have(b, n.item) < n.amount)) { Done = true; return; }
+            if (_needs.Any(n => Have(b, n.item) < n.amount)) { Done = true; b.NoBuildUntil = Time.time + 20; return; }
             if (!Compat.PlaceGhost(_id)) { Done = true; b.NoBuildUntil = Time.time + 10; return; }
             Inventory bag = b.Body.GetInventory();
             foreach (var (item, amount) in _needs)
@@ -296,7 +309,7 @@ namespace Jarldom
             foreach (var x in Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)))
                 foreach (ItemDrop.ItemData item in x.chest.GetInventory().GetAllItems().Where(Trade.Sellable).ToList())
                     if (bag.GetEmptySlots() > 1) Stock.Take(x.chest, bag, item, item.m_stack);
-            if (!bag.GetAllItems().Any(Trade.Sellable)) { Done = true; return; }
+            if (!bag.GetAllItems().Any(Trade.Sellable)) { Done = true; b.NoTradeUntil = Time.time + 60; return; }
             Vector3 dir = (b.Pos - b.Colony.Position); dir.y = 0; if (dir.sqrMagnitude < 1) dir = Vector3.forward;
             _edge = b.Colony.Position + dir.normalized * (b.Colony.Radius + 10);
             b.Move.To(Colony.Spot(_edge, 4f) ?? _edge, 3f);
@@ -306,7 +319,8 @@ namespace Jarldom
         {
             if (!_packed) { Done = true; return; }
             Doing = "off on a trade run";
-            if (b.Move.Moving && !b.Move.Failed) return;
+            // (a fight or a flee stops the walk: walk on unless really there, or the way is lost)
+            if (!b.Move.Failed && !b.Move.Arrived && b.Move.Distance > 6f) { if (!b.Move.Moving) b.Move.To(b.Move.Goal, 3f); return; }
             Trade.Leave(b);
             Done = true;
         }

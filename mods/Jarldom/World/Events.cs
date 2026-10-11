@@ -137,10 +137,30 @@ namespace Jarldom
             if (yes && p.YesDeed != "") c.R.Deeds += Renown.Deed(p.YesDeed);
             if (yes && p.Id == "exile") { Brain b = Villagers.All.FirstOrDefault(x => x.S.Colony == c.Id && x.S.Name == p.About); if (b != null) { c.Log("exile", b.S.FullName, who); Villagers.Command(b.S.Vid, "dismiss", ""); } }
             if (yes && p.Id == "guardpay") c.R.Flags["guardraise"] = 1;
+            if (yes && Promises.Contains(p.Id)) c.R.Flags["promise:" + p.Id] = c.Day + 5; // to be kept within five days
             c.Log("text", who, "", $"At the Thing, {who} said {(yes ? p.Yes.ToLower() : p.No.ToLower())}: \"{p.Text}\"");
             Save(c);
         }
         public static void Forget() => ByColony.Clear();
+
+        // Promises made at the Thing, checked each dawn: kept is remembered well, broken (five days gone) badly.
+        private static readonly string[] Promises = { "beauty", "shrine", "beds", "food", "wages" };
+        public static void CheckPromises(Colony c, int day)
+        {
+            foreach (string key in c.R.Flags.Keys.Where(k => k.StartsWith("promise:")).ToList())
+            {
+                string id = key.Substring(8); int due = c.R.Flags[key];
+                bool kept = id == "beauty" ? c.R.Rooms.Any(r => r.Ok && r.Type == RoomType.GreatHall && Tables.GradeRank(r.Grade) >= 2)
+                    : id == "shrine" ? c.R.Rooms.Any(r => r.Ok && r.Type == RoomType.OdinShrine)
+                    : id == "beds" ? c.Beds >= c.Population
+                    : id == "food" ? day >= due - 3 && Villagers.All.Any(b => b.S.Colony == c.Id) && Villagers.All.Where(b => b.S.Colony == c.Id).All(b => b.S.Needs[(int)Need.Food] > 40) // (fed for a couple of days, not one morning)
+                    : id == "wages" && c.R.MissedPaydays == 0 && c.R.LastPayday > due - 5;
+                if (!kept && day < due) continue;
+                c.R.Flags.Remove(key);
+                foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) { Mood.Add(b.S, kept ? "promisekept" : "promisebroken", b.Now); b.Dirty(); }
+                c.Log("text", "", "", kept ? $"The jarl kept the promise made at the Thing ({id})." : $"The promise made at the Thing ({id}) was broken.");
+            }
+        }
     }
 
     // Raids at the colony: the game's own events, found when they start near the pillars; the horn sounds, raids grow with renown.

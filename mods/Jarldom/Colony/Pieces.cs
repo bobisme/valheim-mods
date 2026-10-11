@@ -44,24 +44,81 @@ namespace Jarldom
         // ---- the pieces ----
         private static void Pillars()
         {
-            GameObject pole = Assets.Find("stave_pole_4m"), band = Assets.Find("stave_deco_pole_2m"), raven = Assets.Find("darkwood_raven");
-            if (pole == null) return;
+            GameObject shaftSrc = Assets.Find("darkwood_pole4"), stone = Assets.Find("stone_pillar"), raven = Assets.Find("darkwood_raven"), wolf = Assets.Find("darkwood_wolf");
+            if (shaftSrc == null) return;
             GameObject go = Base("stave_pole_4m", PillarsName);
             if (go == null) return;
+            Material wood = shaftSrc.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null && m.HasProperty("_Color"));
+            Material iron = Plain(wood, new Color(0.16f, 0.155f, 0.15f));
             var look = new GameObject("new"); look.transform.SetParent(go.transform, false);
-            foreach (float x in new[] { -1.2f, 1.2f })
+            const float apart = 1.3f;                                   // each pillar's centre from the middle
+            var bodies = new List<GameObject>();
+            // The pair is mirrored about x = 0: s is the side (-1 left, +1 right), and every turn about y is mirrored by its sign.
+            foreach (float s in new[] { -1f, 1f })
             {
-                var col = new GameObject("pillar"); col.transform.SetParent(look.transform, false); col.transform.localPosition = new Vector3(x, 0, 0);
-                GameObject p = Assets.Model(pole, col.transform, new Vector3(0, 2.0f, 0), Quaternion.identity, 0.85f);
-                Bounds pb = Assets.MeshBounds(col.transform, p); p.transform.localPosition += Vector3.up * -pb.min.y;
-                if (band != null) { GameObject b = Assets.Model(band, col.transform, new Vector3(0, 1.8f, -0.32f), Quaternion.identity, 0.9f); }
-                if (raven != null) Assets.Model(raven, col.transform, new Vector3(0, pb.size.y - 0.1f, -0.15f), Quaternion.Euler(0, x < 0 ? 200 : 160, 0), 0.38f);
+                var col = new GameObject(s < 0 ? "pillar_left" : "pillar_right"); col.transform.SetParent(look.transform, false); col.transform.localPosition = new Vector3(s * apart, 0, 0);
+                Quaternion Turn(float yaw) => Quaternion.Euler(0, -s * yaw, 0); // yaw for the left pillar (0 = facing the front, -z)
+                var body = new GameObject("body"); body.transform.SetParent(col.transform, false); bodies.Add(body);
+                // A stone plinth at the foot.
+                float top = 0;
+                if (stone != null)
+                {
+                    GameObject plinth = Assets.Model(stone, body.transform, Vector3.zero, Turn(s < 0 ? 0 : 180), 1f);
+                    plinth.transform.localScale = new Vector3(0.68f, 0.3f, 0.68f);
+                    Bounds b = Assets.MeshBounds(body.transform, plinth); plinth.transform.localPosition += Vector3.up * -b.min.y;
+                    top = b.size.y;
+                }
+                // The carved darkwood shaft.
+                GameObject shaft = Assets.Model(shaftSrc, body.transform, Vector3.zero, Turn(s < 0 ? 0 : 180), 1f);
+                shaft.transform.localScale = new Vector3(1f, 0.82f, 1f);
+                Bounds sb = Assets.MeshBounds(body.transform, shaft); shaft.transform.localPosition += Vector3.up * (top - sb.min.y);
+                float foot = top, head = top + sb.size.y, width = Mathf.Max(sb.size.x, sb.size.z);
+                // Iron bands: at the foot, two along the shaft, and a broad one under the head.
+                foreach ((float at, float h) in new[] { (0.06f, 0.1f), (0.36f, 0.06f), (0.64f, 0.06f), (0.93f, 0.12f) })
+                    Block(body.transform, iron, new Vector3(0, Mathf.Lerp(foot, head, at), 0), new Vector3(width + 0.06f, h, width + 0.06f));
+                // A darkwood capital: a squat, wider block of the same carving.
+                GameObject cap = Assets.Model(shaftSrc, body.transform, Vector3.zero, Turn(s < 0 ? 0 : 180), 1f);
+                cap.transform.localScale = new Vector3(1.45f, 0.05f, 1.45f);
+                Bounds cb = Assets.MeshBounds(body.transform, cap); cap.transform.localPosition += Vector3.up * (head - cb.min.y);
+                head += cb.size.y;
+                Block(body.transform, iron, new Vector3(0, head + 0.02f, 0), new Vector3(width * 1.45f + 0.04f, 0.04f, width * 1.45f + 0.04f));
+                head += 0.04f;
+                // Geri and Freki: a carved wolf's head on each pillar's face under the capital, looking out to the front and a little away from the middle.
+                if (wolf != null)
+                {
+                    GameObject w = Assets.Model(wolf, col.transform, Vector3.zero, Turn(195), 0.32f);
+                    Bounds wb = Assets.MeshBounds(col.transform, w);
+                    w.transform.localPosition += new Vector3(0, head - 0.88f - wb.min.y, 0);
+                }
+                // Huginn and Muninn: each raven's branch reaches in from its pillar's top, the two birds facing each other over the way between.
+                if (raven != null)
+                {
+                    GameObject r = Assets.Model(raven, col.transform, Vector3.zero, Turn(90), 0.3f);
+                    Bounds rb = Assets.MeshBounds(col.transform, r);
+                    r.transform.localPosition += new Vector3(0, head - 0.12f - rb.min.y, 0);
+                }
             }
             Finish(go, look, "High-seat pillars",
                 "Raise them to found a hall, as the settlers of old threw their high-seat pillars ashore and built where they landed. Odin sends the fallen to a hall worth noticing. " +
-                "Use them to open the colony: its rank, its renown, its people, and the newcomers who wait for your word.", Piece.PieceCategory.Misc,
+                "Use them to open the colony: its rank, its renown, its people, and the newcomers who wait for your word.", Piece.PieceCategory.Misc, false,
                 ("FineWood", 2), ("Wood", 4), ("Resin", 1));
+            // One box per pillar (plinth, shaft and capital; the carvings up top stay out of it), so the way between them is open.
+            int layer = LayerMask.NameToLayer("piece");
+            foreach (GameObject body in bodies)
+            {
+                Bounds b = Assets.MeshBounds(go.transform, body);
+                var box = new GameObject("collider_" + body.transform.parent.name) { layer = layer }; box.transform.SetParent(go.transform, false);
+                BoxCollider c = box.AddComponent<BoxCollider>(); c.center = b.center + Vector3.down * 0.025f; c.size = b.size + Vector3.up * 0.05f;
+            }
             go.AddComponent<HighSeat>();
+        }
+        // A plain block (a Unity cube without its collider) for bands and fittings.
+        private static void Block(Transform parent, Material material, Vector3 centre, Vector3 size)
+        {
+            var b = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Object.DestroyImmediate(b.GetComponent<Collider>());
+            b.name = "band"; b.transform.SetParent(parent, false); b.transform.localPosition = centre; b.transform.localScale = size;
+            b.GetComponent<MeshRenderer>().sharedMaterial = material;
         }
 
         private static void Altar(string god, string emblemName, float scale, Vector3 offset, Quaternion turn)
@@ -209,6 +266,8 @@ namespace Jarldom
             return go;
         }
         private static void Finish(GameObject go, GameObject look, string title, string text, Piece.PieceCategory category, params (string, int)[] cost)
+            => Finish(go, look, title, text, category, true, cost);
+        private static void Finish(GameObject go, GameObject look, string title, string text, Piece.PieceCategory category, bool box, params (string, int)[] cost)
         {
             int layer = LayerMask.NameToLayer("piece");
             Bounds raw = Assets.MeshBounds(go.transform, look);
@@ -216,8 +275,11 @@ namespace Jarldom
             foreach (Transform t in look.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = layer;
             Bounds b = Assets.MeshBounds(go.transform, look);
             // A convex box round the look, reaching a little below the base (support needs the touch; the ghost needs a convex collider).
-            var box = new GameObject("collider") { layer = layer }; box.transform.SetParent(go.transform, false);
-            BoxCollider collider = box.AddComponent<BoxCollider>(); collider.center = b.center + Vector3.down * 0.025f; collider.size = b.size + Vector3.up * 0.05f;
+            if (box)
+            {
+                var holder = new GameObject("collider") { layer = layer }; holder.transform.SetParent(go.transform, false);
+                BoxCollider collider = holder.AddComponent<BoxCollider>(); collider.center = b.center + Vector3.down * 0.025f; collider.size = b.size + Vector3.up * 0.05f;
+            }
             WearNTear wear = go.GetComponent<WearNTear>();
             if (wear != null) { wear.m_new = look; wear.m_worn = look; wear.m_broken = look; wear.m_health = Math.Max(wear.m_health, 600); }
             Piece piece = go.GetComponent<Piece>();

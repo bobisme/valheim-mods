@@ -29,6 +29,13 @@ namespace Jarldom
             if (p.Length != 2 || !long.TryParse(p[0], out long user) || !uint.TryParse(p[1], out uint id)) return null;
             return ZNetScene.instance.FindInstance(new ZDOID(user, id));
         }
+        // Whether the target is gone from the world (not just unloaded on this game).
+        public static bool Exists(string target)
+        {
+            if (string.IsNullOrEmpty(target) || ZDOMan.instance == null) return false;
+            string[] p = target.Split(':');
+            return p.Length == 2 && long.TryParse(p[0], out long user) && uint.TryParse(p[1], out uint id) && ZDOMan.instance.GetZDO(new ZDOID(user, id)) != null;
+        }
 
         // ---- the scanners (colony owner, every few seconds) ----
         public static void Scan(Colony c)
@@ -198,7 +205,7 @@ namespace Jarldom
             Prof prof = b.S.Prof;
             if (prof == Prof.Skald) return null; // skalds rest by day and play at dusk
             if (prof == Prof.Builder && c.IsOwner && Compat.GhostCount(c.Position, c.Radius) > 0 && Gear.Tool(b, "hammer") != null && Time.time > b.NoBuildUntil) return new BuildTask();
-            if (prof == Prof.Trader && c.R.Rank >= Rank.Village && Stock.Chests(c, b.Pos).Any(x => x.category != "treasury" && x.chest.GetInventory().GetAllItems().Count(Trade.Sellable) >= 3)) return new TradeTask();
+            if (prof == Prof.Trader && c.R.Rank >= Rank.Village && Time.time > b.NoTradeUntil && b.Body.GetInventory().GetEmptySlots() > 1 && Stock.Chests(c, b.Pos).Any(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest) && x.chest.GetInventory().GetAllItems().Count(Trade.Sellable) >= 3)) return new TradeTask();
             Func<Prof, bool> canDo = p => p == prof || p == Prof.Hauler && (prof == Prof.Hauler || Gear.Lacks(b, prof) != null || NothingFor(c, prof));
             string problem = null;
             Order o = c.IsOwner ? c.Board.Best(b.S.Vid, canDo, b.Pos.x, b.Pos.z, order => { string p = GearFor(b, order); if (p != null) problem = p; return p; }, c.Now) : Net.BestShared(c, b, canDo);
@@ -209,7 +216,7 @@ namespace Jarldom
             return new WorkTask(o);
         }
         private static bool NothingFor(Colony c, Prof p) => !c.Board.All.Any(o => o.State == OrderState.Open && o.Prof == p);
-        private static string GearFor(Brain b, Order o)
+        internal static string GearFor(Brain b, Order o)
         {
             if (o.Prof == Prof.Hauler) return null;
             int tier = 0;
@@ -242,23 +249,24 @@ namespace Jarldom
         public override void Start(Brain b)
         {
             Doing = "taking things to the stores";
-            ItemDrop.ItemData first = b.Body.GetInventory().GetAllItems().FirstOrDefault(Work.Loot);
-            _to = first != null ? Stock.Destination(b.Colony, first, b.Pos) : null;
-            if (_to == null) { Done = true; b.Idle("nowhere to put things (no stockpile)"); return; }
+            _to = b.Body.GetInventory().GetAllItems().Where(Work.Loot).Select(i => Stock.Destination(b.Colony, i, b.Pos)).FirstOrDefault(d => d != null);
+            if (_to == null) { Done = true; b.NoStoreUntil = Time.time + 30; b.Idle("nowhere to put things (no stockpile)"); return; }
             b.Move.To(_to.transform.position, 1.8f);
         }
         public override void Tick(Brain b)
         {
             if (Done) return;
-            if (_to == null || b.Move.Failed) { Done = true; return; }
+            if (_to == null || b.Move.Failed) { Done = true; b.NoStoreUntil = Time.time + 30; return; }
             if (!b.Move.Arrived && Vector3.Distance(b.Pos, _to.transform.position) > 2.5f) { if (!b.Move.Moving) b.Move.To(_to.transform.position, 1.8f); return; }
             Inventory bag = b.Body.GetInventory();
+            int moved = 0;
             foreach (ItemDrop.ItemData item in bag.GetAllItems().Where(Work.Loot).ToList())
             {
                 Container dest = Stock.Destination(b.Colony, item, b.Pos);
                 if (dest != _to) continue;
-                if (Stock.Put(bag, _to, item) > 0) { b.S.Bump("loads"); }
+                if (Stock.Put(bag, _to, item) > 0) { b.S.Bump("loads"); moved++; }
             }
+            if (moved == 0) b.NoStoreUntil = Time.time + 30;
             if (b.S.Count("loads") >= 1000 && string.IsNullOrEmpty(b.S.Byname)) { b.S.Byname = Names.Byname("hauler"); b.Colony.Log("byname", b.S.Name, b.S.Byname); }
             b.Dirty();
             Done = true; // another trip if something else is left for another chest
@@ -407,7 +415,7 @@ namespace Jarldom
             }
             if (Walking(b, 2.0f)) return;
             ItemDrop.ItemData tool = Gear.Tool(b, Tool);
-            if (tool == null) { Block(b, Gear.Lacks(b, O.Prof) ?? "no tool"); return; }
+            if (tool == null) { b.Idle(Gear.Lacks(b, O.Prof) ?? "no tool"); Finish(b, false); return; } // (this one's lack: the job stays open for others)
             if (!b.Body.IsItemEquiped(tool)) { b.Body.EquipItem(tool, false); return; }
             Collider hitCol = Solid(_target, b.Pos);
             Vector3 aim = hitCol != null ? Closest(hitCol, b.Body.GetCenterPoint()) : _target.transform.position + Vector3.up * 0.8f;
@@ -613,11 +621,12 @@ namespace Jarldom
                     if (Work.QueueSize(smelter) < smelter.m_maxOre / 2) wants.AddRange(smelter.m_conversion.Where(cv => cv.m_from != null).Select(cv => cv.m_from.name));
                 }
                 if (cook != null) wants.AddRange(cook.m_conversion.Where(cv => cv.m_from != null).Select(cv => cv.m_from.name));
-                foreach (var x in Stock.Chests(b.Colony, b.Pos))
+                // In the order wanted: fuel before ore (ore in a cold smelter does nothing).
+                var chests = Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).ToList();
+                foreach (string want in wants)
                 {
-                    if (x.category == "treasury" || ContainerAccess.InUse(x.chest)) continue;
-                    ItemDrop.ItemData have = x.chest.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && wants.Contains(i.m_dropPrefab.name));
-                    if (have != null) { _source = x.chest; _carry = have.m_dropPrefab.name; break; }
+                    _source = chests.Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want));
+                    if (_source != null) { _carry = want; break; }
                 }
                 if (_source == null) { Finish(b, false); return; }
                 _phase = 1;
@@ -671,6 +680,7 @@ namespace Jarldom
         }
         private void Gone(Brain b)
         {
+            if (Work.Exists(O.Target)) { Finish(b, false); return; } // still in the world, only not loaded here: let it go, don't cancel it
             Done = true;
             if (b.Colony == null) return;
             if (b.Colony.IsOwner) b.Colony.Board.Cancel(O.Id); else Net.Report(b.Colony, b, O, "cancel");
