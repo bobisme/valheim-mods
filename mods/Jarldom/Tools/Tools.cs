@@ -728,6 +728,14 @@ namespace Jarldom
                             ["restless"] = new JArray(Character.GetAllCharacters().Where(ch => ch != null && !ch.IsDead() && Utils.DistanceXZ(ch.transform.position, c.Position) < c.Radius + 10 && (ch.GetComponent<ZNetView>()?.GetZDO()?.GetString(Draugr.NameKey, "") ?? "").StartsWith("Draugr ")).Select(ch => ch.GetHoverName() + " at " + V(ch.transform.position) + " hp " + ch.GetHealth())) });
                     }
                     break;
+                case "plants": output(new JObject { ["plants"] = new JArray(c.PiecesIn(c.Radius).Select(pc => pc.GetComponent<Plant>()).Where(pl => pl != null && Utils.GetPrefabName(pl.gameObject) == a[2]).Select(pl => $"{V(pl.transform.position)} {pl.GetStatus()}")) }); break;
+                case "sowwhy":
+                    {
+                        Work.LearnCrops();
+                        var seeds = Work.Replant.Select(kv => $"{kv.Key} <- {kv.Value.sapling.name} ({kv.Value.seed} x{kv.Value.amount}) stock {Crafts.InStock(c, kv.Value.seed)} grows here {Weaving.GrowsHere(kv.Value.sapling, c.Position)} biome {kv.Value.sapling.GetComponent<Plant>()?.m_biome}");
+                        output(new JObject { ["replant"] = new JArray(seeds), ["sowOrders"] = c.Board.All.Count(o => o.Kind == "sow" && (o.State == OrderState.Open || o.State == OrderState.Claimed)) });
+                    }
+                    break;
                 case "slay":
                     {
                         // Test only: every creature of a prefab in the colony (and 30 m round) dies.

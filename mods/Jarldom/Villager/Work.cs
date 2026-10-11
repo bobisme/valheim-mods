@@ -241,6 +241,7 @@ namespace Jarldom
             int open = c.Board.All.Count(o => o.Kind == "sow" && o.Zone == z.Id && (o.State == OrderState.Open || o.State == OrderState.Claimed));
             if (open >= 3) return;
             var seeds = Replant.Values.GroupBy(r => r.seed).Select(g => g.First()).Where(r => HaveInStock(c, r.seed)).ToList();
+            bool flaxWanted = Villagers.All.Any(v => v.S.Colony == c.Id && v.S.Prof == Prof.Weaver) && InStockCount(c, Weaving.Flax) < 30;
             if (seeds.Count == 0) return;
             var taken = Things(centre, reach).Where(go => go.GetComponent<Plant>() != null || go.GetComponent<Pickable>() != null).Select(go => go.transform.position).ToList();
             taken.AddRange(c.Board.All.Where(o => o.Kind == "sow" && o.Zone == z.Id && o.State != OrderState.Done && o.State != OrderState.Cancelled).Select(o => new Vector3(o.X, o.Y, o.Z)));
@@ -254,7 +255,7 @@ namespace Jarldom
                     p.y = ZoneSystem.instance.GetGroundHeight(p);
                     if (p.y < ZoneSystem.instance.m_waterLevel + 0.3f) continue;
                     Heightmap.Biome biome = WorldGenerator.instance != null ? WorldGenerator.instance.GetBiome(p) : Heightmap.Biome.Meadows;
-                    var fits = seeds.Where(r => r.sapling.GetComponent<Plant>() is Plant pl && ((pl.m_biome & biome) != 0 || Weaving.GrowsHere(r.sapling, p))).OrderByDescending(r => InStockCount(c, r.seed)).ToList(); // (flax grows in the colony's fields anywhere)
+                    var fits = seeds.Where(r => r.sapling.GetComponent<Plant>() is Plant pl && ((pl.m_biome & biome) != 0 || Weaving.GrowsHere(r.sapling, p))).OrderBy(r => r.seed == Weaving.Flax && flaxWanted ? 0 : 1).ThenByDescending(r => InStockCount(c, r.seed)).ToList(); // (flax grows in the colony's fields anywhere; first, while a weaver wants it)
                     if (fits.Count == 0) return;
                     c.Board.Post("sow", $"sow:{fits[0].sapling.name}@{x:0.00},{zz:0.00}", Prof.Farmer, 2, p.x, p.y, p.z, now, z.Id, "Fields");
                     taken.Add(p); open++;

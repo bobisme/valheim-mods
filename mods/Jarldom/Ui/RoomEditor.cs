@@ -66,7 +66,13 @@ namespace Jarldom.Ui
                        (room.Ok ? $"<color=#99e08c>Grade {room.Grade}</color> ({room.Points} points from {Tables.Of(room.Type).PointsFrom})." : $"<color=#ff8c59>Not yet a {Tables.Of(room.Type).Name.ToLower()}: {room.Failures}.</color>") +
                        (room.OpenEdges.Length > 0 ? "\nThe red edges on the ground are gaps in its walls." : "");
             }
-            else text = $"{Math.Round(Geometry.Area(xz))} m². Worked by {(Tables.Of(zone.Type).Worker is Prof p ? Tables.Of(p).Name.ToLower() + "s" : "no one")}.";
+            else
+            {
+                var (left, standing) = Zones.Fuzz(zone.Type);
+                text = $"{Math.Round(Geometry.Area(xz))} m². Worked by {(Tables.Of(zone.Type).Worker is Prof p ? Tables.Of(p).Name.ToLower() + "s" : "no one")}: {Tables.Of(zone.Type).Text}." +
+                       (left > 0 || standing > 0 ? $"\n<color=#b0a890>Its edge is soft: {(left > 0 ? $"what's left lying up to {left:0} m past it is still its work, " : "")}and what stands a few metres past it may be.</color>" : "") +
+                       "\n<color=#b0a890>Wider and Narrower move every edge 3 m.</color>";
+            }
             TMPro.TMP_Text t = GameUi.Label(_window, text, new Vector2(30, -90), new Vector2(580, 150), 18, GameUi.Text);
             t.enableWordWrapping = true;
             float x = 30, y = 360 - 64;

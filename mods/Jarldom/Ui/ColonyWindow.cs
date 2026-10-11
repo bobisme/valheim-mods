@@ -101,7 +101,7 @@ namespace Jarldom.Ui
         private static float Heading(RectTransform list, string text, float y) => Text(list, text, y + 6, 22, GameUi.Warm);
 
         // What's holding the colony back, plainly: the first thing a jarl looks at.
-        private static List<string> NeedsYou(Colony c)
+        internal static List<string> NeedsYou(Colony c)
         {
             var list = new List<string>();
             var people = c.R.Living.ToList();

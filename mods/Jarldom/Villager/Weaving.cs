@@ -93,13 +93,15 @@ namespace Jarldom
                 if (hats.Count > 0) { make = hats[rng.Next(hats.Count)].m_item.name; c.R.Flags["weave:hatday"] = c.Day; }
             }
             // No thread to weave with: spin some from the flax in the stores, by hand if there's no spinning wheel (one feeds itself).
-            if (make == null && (ragged > spare.chest || hatless > 0) && thread < 6 && Crafts.InStock(c, Flax) >= 2
+            if (make == null && (ragged > spare.chest || hatless > 0) && thread < 6 && Crafts.InStock(c, Flax) - SeedFlax(c) >= 2
                 && !c.PiecesIn(c.Radius).Any(p => p.GetComponent<Smelter>() is Smelter s && s.m_conversion.Any(cv => cv.m_from != null && cv.m_from.name == Flax)))
                 make = Thread;
             if (make == null) return;
             Vector3 at = bench.transform.position;
             c.Board.Post("craft", Prefix + make, Prof.Weaver, 2, at.x, at.y, at.z, now, "", "clothes");
         }
+        // Flax kept back for sowing, where the colony has fields (spin the last of it and there's none to grow).
+        public static int SeedFlax(Colony c) => c.R.Zones.Any(z => z.Type == ZoneType.Fields) ? 10 : 0;
         private static (int chest, int hat) Crafts_Spare(Colony c)
         {
             var items = Stock.Chests(c).Where(x => x.category != "treasury").SelectMany(x => x.chest.GetInventory().GetAllItems()).Where(IsClothes).ToList();

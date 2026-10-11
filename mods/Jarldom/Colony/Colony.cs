@@ -326,6 +326,16 @@ namespace Jarldom
             Captives.Dawn(this);
             Warband.Dawn(this, day);
             if (day - R.LastThing >= 5 && Population >= 3) Thing.Call(this, day);
+            Plugin.Guard(() => MorningWord(day));
+        }
+        // Hugin's word at dawn to the jarl at home: yesterday's work, and the one thing that most needs them (the hall tab has the rest).
+        private void MorningWord(int day)
+        {
+            if (Population == 0) return;
+            int done = R.Flag("done:" + (day - 1));
+            var needs = Ui.ColonyWindow.NeedsYou(this);
+            string need = needs.Count == 0 ? "All is well." : (needs[0].Length > 110 ? needs[0].Substring(0, 107) + "..." : needs[0]) + (needs.Count > 1 ? $" (+{needs.Count - 1} more in the hall tab)" : "");
+            Tell($"Hugin, at dawn: {(done > 0 ? done + " jobs were done yesterday at " + R.Name + "." : "Day " + day + " at " + R.Name + ".")} {need}");
         }
         private void Dusk(int day)
         {
