@@ -415,6 +415,8 @@ namespace Jarldom
             if (best != null) Taken[best] = b;
             return best;
         }
+        public static bool IsFree(Chair ch) => !(Taken.TryGetValue(ch, out Brain o) && o.Alive) && Player.GetClosestPlayer(ch.m_attachPoint != null ? ch.m_attachPoint.position : ch.transform.position, 0.3f) == null;
+        public static void Take(Brain b, Chair ch) { Free(b); Taken[ch] = b; }
         public static void Free(Brain b) { foreach (Chair ch in Taken.Where(kv => kv.Value == b || kv.Key == null).Select(kv => kv.Key).ToList()) Taken.Remove(ch); }
         public static void Clear() => Taken.Clear();
     }

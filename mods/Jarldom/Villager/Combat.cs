@@ -8,6 +8,8 @@ namespace Jarldom
     internal static class Combat
     {
         private static readonly AccessTools.FieldRef<Character, HitData> LastHit = AccessTools.FieldRefAccess<Character, HitData>("m_lastHit");
+        // Never a foe: players, villagers, players' companions (on the players' side), tame beasts, and pieces (a training dummy).
+        public static bool Friendly(Character c) => c == null || c.IsPlayer() || VillagerPrefab.Is(c) || c.IsTamed() || c.GetFaction() == Character.Faction.Players || c.GetComponent<Piece>() != null;
         public static bool Busy(Brain b) => b.Fighting || b.FleeUntil > Time.time;
 
         public static void Think(Brain b)
@@ -37,7 +39,7 @@ namespace Jarldom
                 // Fighters meet what comes within 25 m; in a raid they go out to the raiders anywhere in the colony (raiders first).
                 bool raid = fighter && !out_ && home != null && home.RaidOn;
                 float reach = fighter ? 25f : 8f;
-                foe = Character.GetAllCharacters().Where(c => c != null && !c.IsDead() && c != b.Body && !c.IsPlayer() && !VillagerPrefab.Is(c) && !Tribute.IsHerald(c) && BaseAI.IsEnemy(b.Body, c)
+                foe = Character.GetAllCharacters().Where(c => c != null && !c.IsDead() && c != b.Body && !Friendly(c) && !Tribute.IsHerald(c) && BaseAI.IsEnemy(b.Body, c)
                         && (fighter || Hunting(c) || Vector3.Distance(c.transform.position, me) < 4f)
                         && (c.GetFaction() != Character.Faction.AnimalsVeg || b.Task is WorkTask w && w.Kind == "hunt" && w.Target == c)
                         && (Vector3.Distance(c.transform.position, me) < reach || raid && Raider(c, home)) && Follow.Near(b, c.transform.position, 25))

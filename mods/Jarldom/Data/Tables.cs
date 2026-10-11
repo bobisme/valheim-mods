@@ -7,7 +7,7 @@ namespace Jarldom
     // Everything the colony's rules are made of, as plain tables: professions, rooms, traits, moodlets, ranks, wages, gods.
     // No Unity here (tests/Jarldom.Tests compiles it); the numbers are starting values to tune, not contracts.
 
-    public enum Prof { Hauler, Woodcutter, Forager, Farmer, Guard, Miner, Hunter, Fisherman, Smelter, Cook, Builder, Smith, Scout, Trader, Gothi, Skald, Healer, Herder, Carter }
+    public enum Prof { Hauler, Woodcutter, Forager, Farmer, Guard, Miner, Hunter, Fisherman, Smelter, Cook, Builder, Smith, Scout, Trader, Gothi, Skald, Healer, Herder, Carter, Weaver }
 
     public enum Need { Food, Rest, Shelter, Social, Safety, Faith, Beauty }
 
@@ -74,6 +74,7 @@ namespace Jarldom
             P(Prof.Healer, "Healer", 6, "tends the injured (twice as well in a healer's house)", "", 6, tool: ""),
             P(Prof.Herder, "Herder", 5, "feeds the tame beasts in the pasture and culls the surplus", "a weapon to cull with", 3, tool: ""),
             P(Prof.Carter, "Carter", 10, "carries an outpost's ore and metal to the main colony by cart", "an outpost and a cart", 4, tool: ""),
+            P(Prof.Weaver, "Weaver", 3, "spins flax into linen and weaves and dyes clothes and caps at the workbench, so no one goes in rags", "a workbench, and flax or linen thread", 4, tool: ""),
         };
 
         private static ProfessionInfo P(Prof id, string name, int milestone, string does, string needs, int wage, string tool, bool combat = false) =>
@@ -144,6 +145,8 @@ namespace Jarldom
             M("unjust", "An innocent was cast out", -6, 72),
             M("tavern", "A drink in the hall", 5, 12),
             M("expedition", "Went out with the jarl", 8, 48),
+            M("dressed", "Dressed well", 4, 0),
+            M("sport", "Had some sport", 4, 24),
         };
         private static MoodletInfo M(string id, string text, int value, double hours, Stack stack = Stack.Refresh, int max = 1) =>
             new MoodletInfo { Id = id, Text = text, Value = value, Hours = hours, Stack = stack, MaxStacks = max };
@@ -213,6 +216,6 @@ namespace Jarldom
         public static float GradeScale(char g) => 0.8f + 0.15f * Math.Max(0, GradeRank(g)); // D 0.8 .. S 1.4
 
         // Profession defaults for a newcomer's preference, drawn from the first milestones' jobs.
-        public static readonly Prof[] Starting = { Prof.Woodcutter, Prof.Forager, Prof.Farmer, Prof.Guard, Prof.Hauler, Prof.Miner, Prof.Hunter, Prof.Skald, Prof.Cook, Prof.Smelter };
+        public static readonly Prof[] Starting = { Prof.Woodcutter, Prof.Forager, Prof.Farmer, Prof.Guard, Prof.Hauler, Prof.Miner, Prof.Hunter, Prof.Skald, Prof.Cook, Prof.Smelter, Prof.Weaver };
     }
 }

@@ -66,7 +66,7 @@ namespace Jarldom
             double now = c.Now;
             LearnCrops();
             // (stores full enough: no more felling or quarrying; logs already down are still cut up, ore is still dug)
-            bool enoughWood = Stock.Enough(c, "wood"), enoughStone = Stock.Enough(c, "stone");
+            bool enoughWood = Stock.Enough(c, "wood") || !Room(c, "Wood"), enoughStone = Stock.Enough(c, "stone") || !Room(c, "Stone"); // (or nowhere to put it: no use filling bags)
             if (enoughWood || enoughStone)
                 foreach (Order o in c.Board.All.Where(o => o.State == OrderState.Open && (enoughWood && o.Kind == "chop" || enoughStone && o.Kind == "mine")).ToList())
                 {
@@ -146,6 +146,7 @@ namespace Jarldom
             }
             Faith.Bog(c);
             Crafts.Scan(c, now);
+            Weaving.Scan(c, now);
             // BuildOrders' planned ghosts in the colony: one standing order for the builders (they take the pieces one by one).
             if (Compat.GhostCount(c.Position, c.Radius) > 0) c.Board.Post("build", "ghosts", Prof.Builder, 3, c.Position.x, c.Position.y, c.Position.z, now, "", "plans");
             // Fires that burn low, and the stations: fuel and feeding.
@@ -253,7 +254,7 @@ namespace Jarldom
                     p.y = ZoneSystem.instance.GetGroundHeight(p);
                     if (p.y < ZoneSystem.instance.m_waterLevel + 0.3f) continue;
                     Heightmap.Biome biome = WorldGenerator.instance != null ? WorldGenerator.instance.GetBiome(p) : Heightmap.Biome.Meadows;
-                    var fits = seeds.Where(r => r.sapling.GetComponent<Plant>() is Plant pl && (pl.m_biome & biome) != 0).OrderByDescending(r => InStockCount(c, r.seed)).ToList();
+                    var fits = seeds.Where(r => r.sapling.GetComponent<Plant>() is Plant pl && ((pl.m_biome & biome) != 0 || Weaving.GrowsHere(r.sapling, p))).OrderByDescending(r => InStockCount(c, r.seed)).ToList(); // (flax grows in the colony's fields anywhere)
                     if (fits.Count == 0) return;
                     c.Board.Post("sow", $"sow:{fits[0].sapling.name}@{x:0.00},{zz:0.00}", Prof.Farmer, 2, p.x, p.y, p.z, now, z.Id, "Fields");
                     taken.Add(p); open++;
@@ -324,6 +325,14 @@ namespace Jarldom
             c.Board.Post("cull", Key(cv), Prof.Herder, 2, cull.transform.position.x, cull.transform.position.y, cull.transform.position.z, now, z.Id, "Pasture");
         }
 
+        // Is there a chest in the stores with room for this?
+        private static bool Room(Colony c, string prefab)
+        {
+            GameObject p = ObjectDB.instance?.GetItemPrefab(prefab);
+            if (p == null) return true;
+            ItemDrop.ItemData item = Stock.Of(p);
+            return Stock.Destination(c, item, c.Position) != null;
+        }
         // A rock with metal in it (dug whatever the stone stores hold).
         private static readonly string[] Metals = { "copper", "tin", "silver", "iron", "blackmetal", "flametal", "obsidian", "mudpile", "scrap", "meteor" };
         public static bool IsOre(GameObject go) { string n = Utils.GetPrefabName(go).ToLower(); return Metals.Any(m => n.Contains(m)); }
@@ -362,8 +371,8 @@ namespace Jarldom
                 if (!c.R.Zones.Any(z => z.Type == zone.Id)) return $"no {zone.Name.ToLower()} marked ({zone.Text})";
                 switch (zone.Id)
                 {
-                    case ZoneType.Woodlot: return Stock.Enough(c, "wood") ? $"resting: the stores hold {Stock.Keep(c, "wood")} wood, as the Work tab asks" : "no trees left to fell in the woodlot";
-                    case ZoneType.Mine: return Stock.Enough(c, "stone") ? $"resting: the stores hold {Stock.Keep(c, "stone")} stone, as the Work tab asks" : "nothing left to dig in the quarry";
+                    case ZoneType.Woodlot: return !Room(c, "Wood") ? "no room for wood in the stockpiles: add chests" : Stock.Enough(c, "wood") ? $"resting: the stores hold {Stock.Keep(c, "wood")} wood, as the Work tab asks" : "no trees left to fell in the woodlot";
+                    case ZoneType.Mine: return !Room(c, "Stone") ? "no room for stone in the stockpiles: add chests" : Stock.Enough(c, "stone") ? $"resting: the stores hold {Stock.Keep(c, "stone")} stone, as the Work tab asks" : "nothing left to dig in the quarry";
                     case ZoneType.Fields: return "nothing to harvest or sow in the fields yet";
                     case ZoneType.Foraging: return "nothing ripe in the foraging grounds yet";
                     case ZoneType.Hunting: return "no game in the hunting grounds";
@@ -382,6 +391,7 @@ namespace Jarldom
                 case Prof.Skald: return "resting until the evening's songs";
                 case Prof.Trader: return c.R.Rank < Rank.Village ? "trade runs wait for village rank" : "nothing to sell in the stores (amber, silver, gems)";
                 case Prof.Carter: return "no ore or metal at the outpost to cart";
+                case Prof.Weaver: return !c.PiecesIn(c.Radius).Any(x => Utils.GetPrefabName(x.gameObject) == "piece_workbench") ? "no workbench to weave at" : Crafts.InStock(c, Weaving.Thread) < 4 && Crafts.InStock(c, Weaving.Flax) < 2 ? "no flax or linen thread (farmers sow flax; a trader can buy seed)" : "everyone's dressed";
                 default: return "idle";
             }
         }
@@ -434,7 +444,8 @@ namespace Jarldom
         }
         public static int Carrying(Brain b) => b.Body.GetInventory().GetAllItems().Count(i => Stores(b, i));
         // What goes to the stores from this villager's bag: loot, and gear they picked up off the ground for the colony (not theirs).
-        public static bool Stores(Brain b, ItemDrop.ItemData i) => Loot(i) || !i.m_equipped && i.m_dropPrefab != null && (b.Hauled.Contains(i.m_dropPrefab.name) || Surplus(b, i));
+        // (a weaver keeps their spun thread by them)
+        public static bool Stores(Brain b, ItemDrop.ItemData i) => !(b.S.Prof == Prof.Weaver && i.m_dropPrefab?.name == Weaving.Thread && i.m_stack <= 20) && Loot(i) || !i.m_equipped && i.m_dropPrefab != null && (b.Hauled.Contains(i.m_dropPrefab.name) || Surplus(b, i));
         // Food beyond what a villager keeps for themselves (a small stack of their best, five or fewer; a bigger one goes in whole and they
         // fetch a meal back when hungry): the colony's.
         private const int KeepFood = 5;

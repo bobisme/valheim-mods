@@ -18,7 +18,7 @@ namespace Jarldom
         {
             Colony c = b.Colony;
             if (c == null || Time.time < b.NoGearUntil || b.Body.GetInventory().GetEmptySlots() < 1) return null;
-            foreach (string kind in Kinds(b.S.Prof))
+            foreach (string kind in Kinds(b.S.Prof).Concat(new[] { "clothes", "hat" }))
             {
                 Func<ItemDrop.ItemData, bool> want = Wanted(b, kind, out int count);
                 if (want == null) continue;
@@ -50,6 +50,8 @@ namespace Jarldom
                     count = Arrows;
                     return i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Ammo && i.m_shared.m_ammoType == ammo;
                 case "weapon": return Gear.CanFight(b) ? null : (Func<ItemDrop.ItemData, bool>)Gear.IsWeapon;
+                case "clothes": return Weaving.InRags(b) && !Gear.Items(b).Any(i => Weaving.IsClothes(i) && i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Chest) ? (Func<ItemDrop.ItemData, bool>)(i => Weaving.IsClothes(i) && i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Chest) : null;
+                case "hat": return Weaving.Hatless(b) ? (Func<ItemDrop.ItemData, bool>)(i => Weaving.IsClothes(i) && i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Helmet) : null;
                 case "bait":
                     if (Gear.Items(b).Where(Bait).Sum(i => i.m_stack) >= 5) return null;
                     count = 20;

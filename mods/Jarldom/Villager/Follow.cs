@@ -90,6 +90,27 @@ namespace Jarldom
         }
     }
 
+    // A jarl going through a portal (or any teleport) takes those following close behind along: they're set down by the far end, and
+    // load there when the jarl does.
+    [HarmonyLib.HarmonyPatch(typeof(Player), nameof(Player.TeleportTo))]
+    internal static class FollowThroughPortals
+    {
+        private static void Postfix(Player __instance, Vector3 pos, bool __result)
+        {
+            if (!__result || __instance == null) return;
+            Plugin.Guard(() =>
+            {
+                long id = __instance.GetPlayerID(); int k = 0;
+                foreach (Brain b in Villagers.All.Where(x => Follow.LeaderId(x) == id && Vector3.Distance(x.Pos, __instance.transform.position) < 45f).ToList())
+                {
+                    float a = k++ * 2.1f;
+                    b.Task?.Stop(b); b.Task = null; b.Move.Stop();
+                    b.Place(pos + new Vector3(Mathf.Sin(a) * 2.5f, 0.3f, Mathf.Cos(a) * 2.5f));
+                }
+            });
+        }
+    }
+
     internal sealed class FollowTask : Task
     {
         private float _nextHungry;

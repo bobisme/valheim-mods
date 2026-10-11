@@ -65,7 +65,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "away", "master", "envoy", "capture", "barrow" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "away", "master", "envoy", "capture", "barrow" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or with devcommands"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -201,6 +201,8 @@ namespace Jarldom
                     ["walls"] = new JArray(f.Walls.Select(w => Math.Round(w, 2))), ["roof"] = Math.Round(f.Roof, 2), ["doors"] = f.Doors, ["contents"] = new JObject(f.Count.Select(kv => new JProperty(kv.Key, kv.Value))) });
                 return;
             }
+            if (cmd == "finditems") { string q = a[2].ToLowerInvariant(); output(new JObject { ["items"] = new JArray(ObjectDB.instance.m_items.Where(i => i != null && i.name.ToLowerInvariant().Contains(q)).Select(i => { var sh = i.GetComponent<ItemDrop>().m_itemData.m_shared; return $"{i.name} ({sh.m_itemType}, {Localization.instance.Localize(sh.m_name)}, armor {sh.m_armor}, value {sh.m_value})"; })) }); return; }
+            if (cmd == "traders") { output(new JObject { ["traders"] = new JArray(ZNetScene.instance.m_prefabs.Where(pf => pf != null && pf.GetComponent<Trader>() != null).Select(pf => pf.name + ": " + string.Join(", ", pf.GetComponent<Trader>().m_items.Select(t => $"{t.m_prefab?.name} x{t.m_stack} {t.m_price}c{(string.IsNullOrEmpty(t.m_requiredGlobalKey) ? "" : " [" + t.m_requiredGlobalKey + "]")}")))) }); return; }
             if (cmd == "items")
             {
                 // Jarldom's items as the game has them: in the item list, and their recipes (read-only, anywhere).
@@ -453,6 +455,22 @@ namespace Jarldom
                         ["event"] = RandEventSystem.instance?.GetCurrentRandomEvent()?.m_name ?? "" });
                     break;
                 case "follow": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } bool stop = a.Length > 3 && a[3] == "stop"; b.Command("follow", stop ? "0" : me.GetPlayerID() + "|" + me.GetPlayerName()); output(new JObject { ["following"] = Follow.LeaderId(b) != 0, ["doing"] = b.Doing }); } break;
+                case "purge":
+                    {
+                        // Test only: the stores and every villager's bag keep at most N of an item (the rest is gone).
+                        string what = a[2]; int keep = a.Length > 3 ? int.Parse(a[3]) : 0, gone = 0;
+                        var invs = Stock.Chests(c).Select(x => x.chest.GetInventory()).Concat(Villagers.All.Where(x => x.S.Colony == c.Id).Select(x => x.Body.GetInventory())).ToList();
+                        int seen = 0;
+                        foreach (Inventory inv in invs)
+                            foreach (ItemDrop.ItemData i in inv.GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == what && !i.m_equipped).ToList())
+                            {
+                                int take = Math.Min(i.m_stack, Math.Max(0, seen + i.m_stack - keep));
+                                seen += i.m_stack - take;
+                                if (take > 0) { inv.RemoveItem(i, take); gone += take; }
+                            }
+                        output(new JObject { ["removed"] = gone, ["kept"] = seen });
+                    }
+                    break;
                 case "doors":
                     if (a.Length > 2 && a[2] == "shut") foreach (Door d in c.PiecesIn(c.Radius).Select(pc => pc.GetComponent<Door>()).Where(d => d != null && d.m_keyItem == null && d.GetComponent<ZNetView>().GetZDO().GetInt(ZDOVars.s_state) != 0)) d.GetComponent<ZNetView>().InvokeRPC("UseDoor", true);
                     output(new JObject { ["doors"] = new JArray(c.PiecesIn(c.Radius).Select(pc => pc.GetComponent<Door>()).Where(d => d != null).Select(d => $"{d.name.Replace("(Clone)", "")} at {d.transform.position.x:0},{d.transform.position.z:0}: {(d.GetComponent<ZNetView>().GetZDO().GetInt(ZDOVars.s_state) == 0 ? "shut" : "open")}")), ["waiting"] = Doors.Waiting }); break;

@@ -117,7 +117,7 @@ namespace Jarldom.Ui
             {
                 ZDO z = h.GetComponent<ZNetView>().GetZDO();
                 if (z.GetString(Villagers.ColonyKey, "") != c.Id) continue;
-                string doing = z.GetString(Villagers.DoingKey, "");
+                string doing = z.GetString(Leisure.IdleKey, "") is string idle && idle != "" ? idle : z.GetString(Villagers.DoingKey, ""); // (idle, and at their leisure: why)
                 // (what the jarl can do something about: gear, a zone to mark or widen, a place to put things; not a lull, as fields growing)
                 if (!(doing.StartsWith("needs gear") || doing.StartsWith("no ") && !doing.StartsWith("no game") || doing.StartsWith("nothing left") || doing.StartsWith("nothing to sell") || doing.StartsWith("Where do I put") || doing.StartsWith("trade runs wait"))) continue;
                 if (!stuck.TryGetValue(doing, out var who)) stuck[doing] = who = new List<string>();

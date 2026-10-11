@@ -392,10 +392,12 @@ namespace Jarldom
                 if (trader)
                 {
                     int coins = !carter && int.TryParse(f.Killer.Substring(6), out int n) ? n : 0;
+                    int earned = coins;
+                    if (!carter) coins = Weaving.Shop(this, at.Value, s.Name, coins); // (flax seed, Hildir's clothes)
                     GameObject coin = ZNetScene.instance.GetPrefab("Coins");
                     for (int left = coins; left > 0 && coin != null;) { int stack = Math.Min(left, 999); if (!h.GetInventory().AddItem(coin, stack)) { ItemDrop.DropItem(coin.GetComponent<ItemDrop>().m_itemData.Clone(), stack, at.Value, Quaternion.identity); } left -= stack; }
                     if (carter) Log("text", s.Name, "", $"{s.Name} brought the cart back from the main colony.");
-                    else Log("text", s.Name, "", coins > 0 ? $"{s.Name} came back from the traders with {coins} coins." : $"{s.Name} came back from the trade run empty-handed: the goods were lost on the way.");
+                    else Log("text", s.Name, "", earned > 0 ? $"{s.Name} came back from the traders with {coins} coins{(coins < earned ? $" (of {earned})" : "")}." : $"{s.Name} came back from the trade run empty-handed: the goods were lost on the way.");
                 }
                 else Log("text", s.Name, "", $"{s.FullName} rose again{(string.IsNullOrEmpty(s.Bed) ? " by the pillars" : " at their bed")}.");
                 _dirty = true;

@@ -102,6 +102,8 @@ namespace Jarldom
             Guard(Net.ForgetPins);
             Guard(StairLinks.Clear);
             Guard(Doors.Clear);
+            Guard(Leisure.Clear);
+            Guard(Weaving.Forget);
             Guard(SoulStore.Forget);
             Tools.Stop();
             Net.Unregister();

@@ -70,7 +70,7 @@ namespace Jarldom
         }
 
         // Once a second: armour on, the right thing in hand.
-        public static string Want(Brain b) => b.Task is BuildTask ? "hammer" : b.Task is WorkTask w ? w.Tool : Combat.Busy(b) || b.HasFoe ? (b.Combat_Bow ? "bow" : "weapon") : b.Task is DefendTask d && d.Fighter ? "weapon" : "";
+        public static string Want(Brain b) => b.Task is LeisureTask lt && lt.Tool != "" ? lt.Tool : b.Task is BuildTask ? "hammer" : b.Task is WorkTask w ? w.Tool : Combat.Busy(b) || b.HasFoe ? (b.Combat_Bow ? "bow" : "weapon") : b.Task is DefendTask d && d.Fighter || b.Task is FollowTask && CanFight(b) ? "weapon" : ""; // (out with the jarl: weapon in hand)
         public static void Maintain(Brain b)
         {
             Humanoid h = b.Body;
@@ -81,7 +81,7 @@ namespace Jarldom
             foreach (ItemDrop.ItemData worn in new[] { h.RightItem, h.LeftItem }) if (worn != null && !inv.ContainsItem(worn)) h.UnequipItem(worn, false);
             foreach (var type in new[] { ItemDrop.ItemData.ItemType.Helmet, ItemDrop.ItemData.ItemType.Chest, ItemDrop.ItemData.ItemType.Legs, ItemDrop.ItemData.ItemType.Shoulder, ItemDrop.ItemData.ItemType.Utility })
             {
-                ItemDrop.ItemData best = inv.GetAllItems().Where(i => i.m_shared.m_itemType == type && (i.m_durability > 0 || !i.m_shared.m_useDurability)).OrderByDescending(i => i.GetArmor()).ThenByDescending(i => i.m_quality).FirstOrDefault();
+                ItemDrop.ItemData best = inv.GetAllItems().Where(i => i.m_shared.m_itemType == type && (i.m_durability > 0 || !i.m_shared.m_useDurability)).OrderByDescending(i => i.GetArmor()).ThenBy(i => Weaving.IsRags(i) ? 1 : 0).ThenByDescending(i => i.m_quality).FirstOrDefault(); // (clothes over rags, armour over both)
                 if (best != null && !h.IsItemEquiped(best)) h.EquipItem(best, false);
             }
             string want = Want(b);

@@ -15,9 +15,9 @@ namespace Jarldom
         // upgrade path, one asking for some mod's idol), else another.
         public static Recipe RecipeFor(string prefab) =>
             ObjectDB.instance?.m_recipes.Where(r => r != null && r.m_enabled && r.m_item != null && r.m_item.name == prefab && r.m_resources.Length > 0 && !r.m_requireOnlyOneIngredient && !r.m_noCraftOnlyUpgrade)
-                .OrderBy(r => r.name == "Recipe_" + prefab ? 0 : 1).ThenBy(r => r.m_resources.Length).FirstOrDefault();
+                .OrderBy(r => r.name == "Recipe_" + prefab ? 0 : 1).ThenBy(r => r.m_resources.Length).FirstOrDefault() ?? Weaving.RecipeFor(prefab); // (clothes: the colony's own weaving)
         public static bool AtCauldron(Recipe r) => r?.m_craftingStation != null && r.m_craftingStation.name == "piece_cauldron";
-        public static Prof Maker(Recipe r) => AtCauldron(r) ? Prof.Cook : Prof.Smith;
+        public static Prof Maker(Recipe r) => Weaving.Is(r) ? Prof.Weaver : AtCauldron(r) ? Prof.Cook : Prof.Smith;
         // A station of the recipe's kind in the colony, at the recipe's level (null if it needs one and the colony has none).
         public static CraftingStation StationFor(Colony c, Recipe r, Vector3 near)
         {
@@ -67,6 +67,7 @@ namespace Jarldom
             return ObjectDB.instance.m_recipes.Where(r => r != null && r.m_enabled && r.m_item != null && r.m_craftingStation != null && r.m_resources.Length > 0 && !r.m_requireOnlyOneIngredient && !r.m_noCraftOnlyUpgrade
                     && p.IsRecipeKnown(r.m_item.m_itemData.m_shared.m_name)
                     && stations.Any(s => s.m_name == r.m_craftingStation.m_name && s.GetLevel() >= r.m_minStationLevel))
+                .Concat(stations.Any(s => Utils.GetPrefabName(s.gameObject) == "piece_workbench") ? Weaving.All() : Enumerable.Empty<Recipe>()) // (a weaver's clothes, wherever there's a workbench)
                 .GroupBy(r => r.m_item.name).Select(g => g.First())
                 .OrderBy(r => r.m_craftingStation.m_name).ThenBy(r => Localization.instance.Localize(r.m_item.m_itemData.m_shared.m_name)).ToList();
         }
@@ -180,6 +181,7 @@ namespace Jarldom
                 if (b.Colony.IsOwner) { if (b.Colony.Board.Complete(O.Id, b.S.Vid)) { b.S.Bump("orders"); Crafts.Made(b.Colony, O.Target, b.S.Name); } }
                 b.Dirty();
                 if (_made == null) { Done = true; return; } // (a full bag: it dropped at their feet, and the haulers will see it)
+                if (_r.m_item.name == Weaving.Thread && b.S.Prof == Prof.Weaver) { b.Hauled.Remove(_r.m_item.name); Done = true; return; } // (spun thread stays with the weaver, for the loom)
                 _to = Stock.Destination(b.Colony, _made, b.Pos) ?? Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury" && x.chest.GetInventory().CanAddItem(_made)).Select(x => x.chest).FirstOrDefault();
                 Doing = "taking " + Localization.instance.Localize(_made.m_shared.m_name).ToLower() + " to the stores";
                 _phase = 2;
