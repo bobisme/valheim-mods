@@ -124,6 +124,7 @@ namespace Jarldom
 
         // ---- saving ----
         public void MarkDirty() => _dirty = true;
+        public int GuardExtra => R.Flag("guardraise") > 0 ? Payroll.GuardRaise : 0; // (the Thing raised the guards' pay)
         public bool SagaRead => _sagaRead;
         public void Flush()
         {
@@ -462,7 +463,7 @@ namespace Jarldom
         {
             R.LastPayday = day;
             var souls = Villagers.All.Where(b => b.S.Colony == R.Id).ToList();
-            int due = Payroll.Due(souls.Select(b => b.S)) * Plugin.Instance.WageScale.Value / 100;
+            int due = Payroll.Due(souls.Select(b => b.S), Payroll.EveryDays, GuardExtra) * Plugin.Instance.WageScale.Value / 100;
             if (due <= 0) return;
             Container treasury = Stock.Treasury(this);
             int coins = treasury != null ? Stock.Coins(treasury) : 0;
@@ -471,7 +472,7 @@ namespace Jarldom
             {
                 foreach (Brain b in souls)
                 {
-                    int wage = Tables.Wage(b.S.Prof, b.S.Has("greedy")) * Payroll.EveryDays * Plugin.Instance.WageScale.Value / 100;
+                    int wage = (Tables.Wage(b.S.Prof, b.S.Has("greedy")) + (b.S.Prof == Prof.Guard ? GuardExtra : 0)) * Payroll.EveryDays * Plugin.Instance.WageScale.Value / 100;
                     b.S.Hoard += Payroll.Hoarded(wage); b.S.Unpaid = 0; Mood.Remove(b.S, "unpaid"); b.Dirty();
                 }
                 R.MissedPaydays = 0;

@@ -128,7 +128,7 @@ namespace Jarldom.Ui
             }
             foreach (var kv in stuck.Take(4)) list.Add($"{string.Join(", ", kv.Value)}: {kv.Key}.");
             Container treasury = Stock.Treasury(c);
-            int due = (c.IsOwner ? Payroll.Due(Villagers.All.Where(b => b.S.Colony == c.Id).Select(b => b.S)) : people.Sum(p => Tables.Wage(p.Prof, false) * Payroll.EveryDays)) * Plugin.Instance.WageScale.Value / 100; // (another game runs the people: from the roster)
+            int due = (c.IsOwner ? Payroll.Due(Villagers.All.Where(b => b.S.Colony == c.Id).Select(b => b.S), Payroll.EveryDays, c.GuardExtra) : people.Sum(p => (Tables.Wage(p.Prof, false) + (p.Prof == Prof.Guard ? c.GuardExtra : 0)) * Payroll.EveryDays)) * Plugin.Instance.WageScale.Value / 100; // (another game runs the people: from the roster)
             if (Plugin.Instance.Payroll.Value && due > 0 && (treasury == null || Stock.Coins(treasury) < due))
             {
                 int payday = (c.Day / Payroll.EveryDays + 1) * Payroll.EveryDays;
@@ -231,7 +231,7 @@ namespace Jarldom.Ui
             if (r.Rank < Rank.Hold) { Rank next = r.Rank + 1; string miss = Ranks.Missing(next, _c.Population, _c.WorkingRooms()); y = Text(list, $"To become a {Tables.Of(next).Name.ToLower()}: {(miss == "" ? "ready at the next check" : miss)}.", y, 16, GameUi.Dim); }
             y = Heading(list, "The colony", y);
             Container treasury = Stock.Treasury(_c);
-            y = Text(list, $"Treasury: {(treasury == null ? "<color=#ff8c59>none chosen</color> (mark a chest from the hammer's room tool, or below)" : Stock.Coins(treasury) + " coins")}. Wages due every {Payroll.EveryDays} days: {Payroll.Due(Villagers.All.Where(b => b.S.Colony == _c.Id).Select(b => b.S)) * Plugin.Instance.WageScale.Value / 100} coins.{(r.MissedPaydays > 0 ? $" <color=#ff8c59>{r.MissedPaydays} missed paydays.</color>" : "")}", y);
+            y = Text(list, $"Treasury: {(treasury == null ? "<color=#ff8c59>none chosen</color> (mark a chest from the hammer's room tool, or below)" : Stock.Coins(treasury) + " coins")}. Wages due every {Payroll.EveryDays} days: {Payroll.Due(Villagers.All.Where(b => b.S.Colony == _c.Id).Select(b => b.S), Payroll.EveryDays, _c.GuardExtra) * Plugin.Instance.WageScale.Value / 100} coins.{(r.MissedPaydays > 0 ? $" <color=#ff8c59>{r.MissedPaydays} missed paydays.</color>" : "")}", y);
             int tribute = Tribute.Due(_c);
             if (tribute > 0 || Tribute.Raiding(_c))
             {

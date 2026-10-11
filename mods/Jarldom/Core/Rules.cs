@@ -279,7 +279,8 @@ namespace Jarldom
     {
         public const int EveryDays = 5;
         public const float HoardShare = 0.3f;
-        public static int Due(IEnumerable<VillagerState> souls, int days = EveryDays) => souls.Sum(v => Tables.Wage(v.Prof, v.Has("greedy")) * days);
+        public const int GuardRaise = 2; // a day, for each guard, once the Thing has raised their pay
+        public static int Due(IEnumerable<VillagerState> souls, int days = EveryDays, int guardExtra = 0) => souls.Sum(v => (Tables.Wage(v.Prof, v.Has("greedy")) + (v.Prof == Prof.Guard ? guardExtra : 0)) * days);
         public static bool CanPay(int treasury, int due) => due <= 0 || treasury >= due;
         public static int Hoarded(int wage) => (int)Math.Floor(wage * HoardShare);
         public static bool IsPayday(int day, int lastPayday) => day > 0 && day % EveryDays == 0 && day != lastPayday;

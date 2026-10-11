@@ -137,6 +137,7 @@ namespace Jarldom
                 Population = c.Population, HasBeautyRoom = c.R.Rooms.Any(r => r.Ok && r.Type == RoomType.GreatHall && Tables.GradeRank(r.Grade) >= 2),
                 HasShrine = c.R.Rooms.Any(r => r.Ok && r.Type == RoomType.OdinShrine), MissedPaydays = c.R.MissedPaydays, Beds = c.Beds,
                 Hungry = Villagers.All.Count(b => b.S.Colony == c.Id && b.S.Needs[(int)Need.Food] < 30) > c.Population / 2,
+                GuardWage = Tables.Wage(Prof.Guard, false) + c.GuardExtra, // (raised at a Thing: not asked again)
             };
             foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id))
             {
