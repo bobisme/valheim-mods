@@ -53,6 +53,7 @@ namespace Jarldom
         private static Brain Who(string name) => Villagers.All.FirstOrDefault(b => b.S.Vid == name || b.S.Name.Equals(name, StringComparison.OrdinalIgnoreCase) || b.S.FullName.Equals(name.Replace('_', ' '), StringComparison.OrdinalIgnoreCase))
             ?? Villagers.All.FirstOrDefault(b => b.S.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase));
 
+        private static string Box(IList<float> xz) { var xs = xz.Where((v, i) => i % 2 == 0).ToList(); var zs = xz.Where((v, i) => i % 2 == 1).ToList(); return $"{xs.Min():0.#},{zs.Min():0.#} to {xs.Max():0.#},{zs.Max():0.#}"; }
         private static Vector3? _pathMark;
         private static IEnumerator Run(string[] args, Action<JObject> output, Action<string> error)
         {
@@ -64,7 +65,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "away", "master", "envoy", "capture", "barrow" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "away", "master", "envoy", "capture", "barrow" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or with devcommands"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -135,6 +136,30 @@ namespace Jarldom
                 output(new JObject { ["stations"] = new JArray(stations), ["fermenters"] = new JArray(ferms), ["cooking"] = new JArray(cooks), ["smelters"] = new JArray(smelters),
                     ["saplings"] = new JArray(Work.Saplings.Select(x => $"{x.sapling.name} from {x.amount} {x.seed}, biomes {x.plant.m_biome}")), ["crops"] = Work.Crops.Count,
                     ["tamed"] = new JArray(beasts), ["commissionable"] = known, ["costMsPerFrame"] = Plugin.CostFrames > 0 ? Math.Round(Plugin.CostMs / Plugin.CostFrames, 4) : -1 });
+                return;
+            }
+            if (cmd == "stitch")
+            {
+                // What the navmesh's tile stitching sees at a point (read-only): the raw hits of a ray down, in the order the engine gives.
+                Vector3 p = new Vector3(F(a[2]), 6000f, F(a[3]));
+                var buf = new RaycastHit[64];
+                int n = Physics.RaycastNonAlloc(p, Vector3.down, buf, 10000f, Pathfinding.instance.m_layers.value);
+                output(new JObject { ["raw"] = new JArray(buf.Take(n).Select(h => $"{h.point.y:0.00} {Utils.GetPrefabName(h.collider.transform.root.gameObject)}")), ["stairLinks"] = StairLinks.Count });
+                return;
+            }
+            if (cmd == "heights")
+            {
+                // Along a line (read-only): what a ray down from the top first hits, and how high ("heights x1 z1 x2 z2 top [step]").
+                float x1 = F(a[2]), z1 = F(a[3]), x2 = F(a[4]), z2 = F(a[5]), top = F(a[6]), step = a.Length > 7 ? F(a[7]) : 0.5f;
+                int mask = LayerMask.GetMask("piece", "Default", "static_solid", "terrain");
+                int n = Mathf.Max(1, Mathf.RoundToInt(Vector2.Distance(new Vector2(x1, z1), new Vector2(x2, z2)) / step));
+                var line = new JArray();
+                for (int i = 0; i <= n; i++)
+                {
+                    Vector3 p = new Vector3(Mathf.Lerp(x1, x2, i / (float)n), top, Mathf.Lerp(z1, z2, i / (float)n));
+                    line.Add(Physics.Raycast(p, Vector3.down, out RaycastHit h, 30f, mask, QueryTriggerInteraction.Ignore) ? $"{p.x:0.0},{p.z:0.0}: {h.point.y:0.00} {Utils.GetPrefabName(h.collider.transform.root.gameObject)}" : $"{p.x:0.0},{p.z:0.0}: none");
+                }
+                output(new JObject { ["line"] = line });
                 return;
             }
             if (cmd == "probe")
@@ -254,9 +279,17 @@ namespace Jarldom
                     break;
                 case "renown": c.SurveySoon(); output(new JObject { ["renown"] = c.Renown, ["wealth"] = c.WealthPart, ["comfort"] = c.ComfortPart, ["deeds"] = c.R.Deeds, ["pieceValue"] = c.PieceValue, ["beds"] = c.Beds, ["threshold"] = Renown.Threshold(c.R.Arrivals), ["migration"] = Migration.Why(c) }); break;
                 case "rooms":
-                    output(new JObject { ["rooms"] = new JArray(c.R.Rooms.Select((r, i) => new JObject { ["n"] = i, ["id"] = r.Id, ["type"] = r.Type.ToString(), ["god"] = r.God, ["ok"] = r.Ok, ["grade"] = r.Grade.ToString(), ["points"] = r.Points, ["failures"] = r.Failures, ["open"] = r.OpenEdges, ["area"] = Math.Round(Geometry.Area(r.Xz)) })), ["zones"] = new JArray(c.R.Zones.Select(z => new JObject { ["id"] = z.Id, ["type"] = z.Type.ToString(), ["area"] = Math.Round(Geometry.Area(z.Xz)) })) });
+                    output(new JObject { ["rooms"] = new JArray(c.R.Rooms.Select((r, i) => new JObject { ["n"] = i, ["id"] = r.Id, ["type"] = r.Type.ToString(), ["god"] = r.God, ["ok"] = r.Ok, ["grade"] = r.Grade.ToString(), ["points"] = r.Points, ["failures"] = r.Failures, ["open"] = r.OpenEdges, ["area"] = Math.Round(Geometry.Area(r.Xz)), ["floor"] = Math.Round(r.Floor, 2), ["height"] = Math.Round(r.Height, 2), ["box"] = Box(r.Xz) })), ["zones"] = new JArray(c.R.Zones.Select(z => new JObject { ["id"] = z.Id, ["type"] = z.Type.ToString(), ["area"] = Math.Round(Geometry.Area(z.Xz)), ["box"] = Box(z.Xz) })) });
                     break;
                 case "room":
+                    if (a.Length > 3 && a[2] == "roof")
+                    {
+                        // Which cells of a room the game doesn't see as under a roof (read-only).
+                        Room r = c.R.Rooms[int.Parse(a[3])];
+                        var open = Geometry.Grid(r.Xz, 1f).Where(p => !Cover.IsUnderRoof(new Vector3(p.Item1, r.Floor + 1.2f, p.Item2))).Select(p => $"{p.Item1:0.#},{p.Item2:0.#}");
+                        output(new JObject { ["open"] = new JArray(open) });
+                        return;
+                    }
                     if (a.Length > 3 && a[2] == "check")
                     {
                         int n = int.Parse(a[3]);
@@ -271,7 +304,9 @@ namespace Jarldom
                     {
                         if (a.Length < 7) { error("room <type> <x1> <z1> <x2> <z2> [god]"); return; }
                         float x1 = F(a[3]), z1 = F(a[4]), x2 = F(a[5]), z2 = F(a[6]);
-                        float floor = Floor(new Vector3((x1 + x2) / 2, 0, (z1 + z2) / 2));
+                        string at = a.FirstOrDefault(x => x.StartsWith("y=")); // ("y=<height>": a room on an upper floor, as the marker's corners would be)
+                        if (at != null) a = a.Where(x => x != at).ToArray();
+                        float floor = at != null ? F(at.Substring(2)) : Floor(new Vector3((x1 + x2) / 2, 0, (z1 + z2) / 2));
                         string god = a.Length > 7 && Tables.God(a[7]) != null ? a[7] : a[2].Equals("OdinShrine", StringComparison.OrdinalIgnoreCase) ? "odin" : "";
                         Net.Act(c, "room", $"{Parse<RoomType>(a[2])}|{god}|{floor.ToString(CultureInfo.InvariantCulture)}|{Rect(x1, z1, x2, z2)}");
                         output(new JObject { ["added"] = a[2], ["floor"] = floor });
@@ -431,7 +466,9 @@ namespace Jarldom
                     {
                         int n = 0;
                         string only = a.Length > 2 ? a[2] : ""; float minY = a.Length > 3 ? F(a[3]) : float.MinValue;
-                        foreach (Piece p in c.PiecesIn(c.Radius + 30).Where(p => p.GetComponent<ZNetView>()?.GetZDO()?.GetBool(TestKey) == true && (only == "" || Utils.GetPrefabName(p.gameObject) == only) && p.transform.position.y >= minY).ToList()) { p.GetComponent<ZNetView>().ClaimOwnership(); p.GetComponent<ZNetView>().Destroy(); n++; }
+                        bool boxed = a.Length > 7; float bx1 = boxed ? F(a[4]) : 0, bz1 = boxed ? F(a[5]) : 0, bx2 = boxed ? F(a[6]) : 0, bz2 = boxed ? F(a[7]) : 0; // ("unput <prefab> <minY> x1 z1 x2 z2": only there)
+                        bool In(Vector3 q) => !boxed || q.x >= Math.Min(bx1, bx2) && q.x <= Math.Max(bx1, bx2) && q.z >= Math.Min(bz1, bz2) && q.z <= Math.Max(bz1, bz2);
+                        foreach (Piece p in c.PiecesIn(c.Radius + 30).Where(p => p.GetComponent<ZNetView>()?.GetZDO()?.GetBool(TestKey) == true && (only == "" || Utils.GetPrefabName(p.gameObject) == only) && p.transform.position.y >= minY && In(p.transform.position)).ToList()) { p.GetComponent<ZNetView>().ClaimOwnership(); p.GetComponent<ZNetView>().Destroy(); n++; }
                         output(new JObject { ["removed"] = n });
                     }
                     break;
@@ -507,6 +544,19 @@ namespace Jarldom
                     {
                         PieceTable t = ObjectDB.instance.GetItemPrefab(a[2])?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces;
                         output(new JObject { ["pieces"] = new JArray((t?.m_pieces ?? new List<GameObject>()).Where(p => p != null).Select(p => p.name + " [" + string.Join(",", p.GetComponents<Component>().Select(x => x.GetType().Name)) + "]")) });
+                    }
+                    break;
+                case "clear":
+                    {
+                        // Ground cleared for building: trees, stumps, bushes, rocks and plants in the rectangle (not pieces, creatures or items).
+                        float x1 = Math.Min(F(a[2]), F(a[4])), x2 = Math.Max(F(a[2]), F(a[4])), z1 = Math.Min(F(a[3]), F(a[5])), z2 = Math.Max(F(a[3]), F(a[5]));
+                        Vector3 mid = new Vector3((x1 + x2) / 2, me.transform.position.y, (z1 + z2) / 2);
+                        var gone = Physics.OverlapBox(mid, new Vector3((x2 - x1) / 2, 40, (z2 - z1) / 2), Quaternion.identity, ~0, QueryTriggerInteraction.Collide).Select(col => col.GetComponentInParent<ZNetView>())
+                            .Where(v => v != null && v.IsValid() && v.GetComponent<Piece>() == null && v.GetComponent<Character>() == null && v.GetComponent<ItemDrop>() == null
+                                && (v.GetComponent<TreeBase>() != null || v.GetComponent<TreeLog>() != null || v.GetComponent<Destructible>() != null || v.GetComponent<MineRock>() != null || v.GetComponent<MineRock5>() != null || v.GetComponent<Pickable>() != null || v.GetComponent<Plant>() != null))
+                            .Where(v => { Vector3 q = v.transform.position; return q.x >= x1 && q.x <= x2 && q.z >= z1 && q.z <= z2; }).Distinct().ToList();
+                        foreach (ZNetView v in gone) { v.ClaimOwnership(); ZNetScene.instance.Destroy(v.gameObject); }
+                        output(new JObject { ["cleared"] = gone.Count });
                     }
                     break;
                 case "spot":
@@ -646,6 +696,7 @@ namespace Jarldom
                     break;
                 case "remove":
                     {
+                        if (a.Length < 3 || a[2] != "everything") { error("jarldom remove everything: every villager and every high seat in the world, gone (for a clean test world only)"); return; }
                         int n = 0;
                         foreach (Humanoid h in Villagers.Bodies().ToList()) { Villagers.Brain(h)?.Release(); h.GetComponent<ZNetView>().ClaimOwnership(); h.GetComponent<ZNetView>().Destroy(); n++; }
                         foreach (ZNetView v in Assets.Instances(Pieces.PillarsHash).ToList()) { v.ClaimOwnership(); v.Destroy(); n++; }

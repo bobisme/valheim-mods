@@ -80,6 +80,7 @@ namespace Jarldom
             Guard(Designate.Tick);
             Guard(Overlay_.Tick);
             Guard(Captives.Tick);
+            Guard(StairLinks.Tick);
         }
         private static float _lastError;
         internal static void Guard(Action a)
@@ -98,6 +99,7 @@ namespace Jarldom
             Guard(Overlay_.Stop);
             Guard(CatchUp.Forget);
             Guard(Net.ForgetPins);
+            Guard(StairLinks.Clear);
             Guard(SoulStore.Forget);
             Tools.Stop();
             Net.Unregister();

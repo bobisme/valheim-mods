@@ -227,6 +227,7 @@ namespace Jarldom
         }
         private void Dusk(int day)
         {
+            Plugin.Guard(AutoBeds); // (anyone sleeping by the fire takes a bed that stands free)
             Migration.Dusk(this, day);
             Feast.Dusk(this, day);
             Tribute.Dusk(this, day);

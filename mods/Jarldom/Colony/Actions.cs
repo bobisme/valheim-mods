@@ -116,6 +116,8 @@ namespace Jarldom
                 if (bed == null) break;
                 free.Remove(bed);
                 b.Command("bed", IdOf(bed.GetComponent<ZNetView>()));
+                Room room = RoomAt(bed.transform.position + Vector3.up * 0.3f);
+                Log("text", b.S.Name, "", $"{b.S.Name} took a free bed{(room != null ? " in the " + Tables.Of(room.Type).Name.ToLower() : "")}.");
             }
         }
 
