@@ -137,6 +137,7 @@ Check(LootPolicy.Update(ledger,"5,6",LootState.Empty)&&ledger.Contains("5,6"),"O
 for(int n=0;n<1000;n++)LootPolicy.Update(ledger,n+",0",LootState.Empty);
 Check(ledger.Count==512&&ledger.Last()=="999,0","Saved knowledge keeps a bounded recent history");
 Check(LootPolicy.Ledger(new string('x',16385)).Count==0,"Oversized saved ledger does not allocate unbounded entries");
+Check(LootPolicy.Near(new List<string>{"0,0","100,0","500,500","-140,0"},10,0,150).SequenceEqual(new[]{"0,0","100,0","-140,0"}),"Only cleared dungeons in noticing range are mirrored to the network");
 Check(RidePolicy.CanBoard(true,false,false,true,12,5),"Nearby following Gary can board at inclusive reach limits");
 foreach(var state in new[]{(false,false,false,true),(true,true,false,true),(true,false,true,true),(true,false,false,false)})
     Check(!RidePolicy.CanBoard(state.Item1,state.Item2,state.Item3,state.Item4,2,1),"Waiting, retreating, fighting or no boat prevents new boarding");

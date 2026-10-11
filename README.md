@@ -697,7 +697,7 @@ Near a loaded **burial chamber, sunken crypt, troll cave, or frost cave**, he ma
 confirmed fully looted and can revisit unfinished ones after a ten-minute shown-entrance cooldown. Saved chest contents, loose treasures,
 cores, scrap piles, collectible cave materials, and removable valuables count; enemies, regrowing mushrooms, and ordinary furniture salvage do not.
 He reads saved chest item counts without opening chests, spawning items, or rolling loot. Incomplete/unloaded interiors stay **unknown** and
-remain eligible. He remembers up to 512 confirmed cleared entrances per player/world, saved with your character and shared with Gary's simulator.
+remain eligible. He remembers up to 512 confirmed cleared entrances per player/world, saved with your character; only the ones within his noticing range are shared with Gary's simulator, so the list doesn't ride along with every step in multiplayer.
 Older visits have no automatic history: Gary must get a complete nearby scan or observe you inside. Guiding uses nearby loaded entrances;
 it does not reveal distant locations or add map pins.
 

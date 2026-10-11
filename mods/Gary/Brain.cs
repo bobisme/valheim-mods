@@ -101,7 +101,11 @@ namespace Gary
             Target(ai)=target;Static(ai)=null;TargetInfo(ai,target!=null?target.GetZDOID():ZDOID.None);Alert(ai,target!=null);
         }
         internal static void Status(Companion.State st,string status)
-        {st.Status=status;ZDO z=Companion.Data(st.Body);if(z.GetString("bob_gary_status","")!=status)z.Set("bob_gary_status",status);}
+        {
+            // Only hover text reads it: at most one write a second, so statuses that alternate within a tick don't resend Gary every frame.
+            st.Status=status;if(Time.time<st.NextStatusSync)return;
+            ZDO z=Companion.Data(st.Body);if(z.GetString("bob_gary_status","")!=status){z.Set("bob_gary_status",status);st.NextStatusSync=Time.time+1;}
+        }
         private static void Gift(Companion.State st,Player master)
         {
             if(!Plugin.Instance.Gifts.Value)return;

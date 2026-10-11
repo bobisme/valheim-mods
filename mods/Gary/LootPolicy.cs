@@ -44,6 +44,18 @@ namespace Gary
             {list.Add(id);if(list.Count>MaxLedger)list.RemoveAt(0);}
             return list;
         }
+        // The ids within range of a spot (x,z), most recent last.
+        internal static List<string> Near(List<string> list,float x,float z,float range)
+        {
+            var near=new List<string>();
+            foreach(string id in list)
+            {
+                string[] p=id.Split(',');
+                if(p.Length==2&&int.TryParse(p[0],NumberStyles.AllowLeadingSign,CultureInfo.InvariantCulture,out int ix)&&
+                    int.TryParse(p[1],NumberStyles.AllowLeadingSign,CultureInfo.InvariantCulture,out int iz)&&(ix-x)*(ix-x)+(iz-z)*(iz-z)<=range*range)near.Add(id);
+            }
+            return near;
+        }
         internal static bool Update(List<string> list,string id,LootState state)
         {
             if(!ValidId(id)||state==LootState.Unknown)return false;

@@ -47,8 +47,9 @@ namespace Gary
             if(p==null||ZNet.instance==null||ZNetScene.instance==null||ZDOMan.instance==null||ZoneSystem.instance==null)return;
             ZDO player=Companion.Data(p);if(player==null||!p.GetComponent<ZNetView>().IsOwner())return;
             Load(p);_next=Time.time+2;
-            // Mirror only the owner's saved knowledge into native player state for Gary's simulator.
-            string saved=string.Join(";",_cleared);
+            // Mirror the owner's saved knowledge into native player state for Gary's simulator, but only the dungeons he could
+            // notice from here: the player's ZDO is resent with every step, so the whole ledger would cost every peer kilobytes a second.
+            string saved=string.Join(";",LootPolicy.Near(_cleared,p.transform.position.x,p.transform.position.z,Plugin.Instance.GuideRange.Value+60));
             if(player.GetString(Cleared,"")!=saved)player.Set(Cleared,saved);
             if(p.IsTeleporting()||p.IsDead()){_emptyId=null;return;}
             if(!p.InInterior())
@@ -63,10 +64,14 @@ namespace Gary
             else if(Time.time-_emptySince<6)return;
             if(LootPolicy.Update(_cleared,_activeId,state))
             {
-                saved=string.Join(";",_cleared);p.m_customData[_world]=saved;player.Set(Cleared,saved);
+                p.m_customData[_world]=string.Join(";",_cleared);_next=0;
             }
         }
-        internal static bool IsCleared(Player p,string id) => LootPolicy.Ledger(Companion.Data(p)?.GetString(Cleared,"")).Contains(id);
+        internal static bool IsCleared(Player p,string id)
+        {
+            if(p==Player.m_localPlayer&&_player==p)return _cleared.Contains(id);
+            return LootPolicy.Ledger(Companion.Data(p)?.GetString(Cleared,"")).Contains(id);
+        }
         internal static bool Eligible(Player player,string id,Vector3 interior)
         {
             LootState state=Inspect(interior);

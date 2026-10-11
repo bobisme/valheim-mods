@@ -160,7 +160,8 @@ namespace Gary
         {
             Character c=st.Body;ZDO z=Companion.Data(c);
             Vector3 friend=master!=null?master.transform.position:z.GetVec3("bob_gary_retreat_from",c.transform.position);
-            if(master!=null||!z.GetBool("bob_gary_retreat_anchor",false))
+            // The anchor only matters once the friend is gone: move it when they've gone a few metres, not with every step.
+            if(!z.GetBool("bob_gary_retreat_anchor",false)||master!=null&&Vector3.Distance(z.GetVec3("bob_gary_retreat_from",friend),friend)>4)
             {z.Set("bob_gary_retreat_from",friend);z.Set("bob_gary_retreat_anchor",true);}
             if(Time.time>=st.NextRetreatSpot)
             {

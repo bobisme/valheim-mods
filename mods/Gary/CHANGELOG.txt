@@ -1,3 +1,5 @@
+0.5.3: Less network traffic in multiplayer. Your whole list of cleared dungeons rode along on your player (sent to everyone with each step, up to several KB); now only the ones within Gary's noticing range do. Gary's status line no longer flips (and resends him) every frame while he waits to show you an entrance or rides rough seas, and his retreat spot only moves when you've gone a few metres.
+
 0.5.2: Fixed an error when Gary tidied up deadfall that never regrows (a branch or stone the game removes once picked): he no longer touches it after picking it up.
 
 0.5.1: Smoother play. Gary looked through every item and plant loaded in the world to find fetch sticks (every second, about 10 ms), forage, feathers, harvest, stumps, trees, berry spots and trophies (up to 30 ms every few seconds). He now looks only around you and himself through the physics scene, and counts his saplings from the world's saved sapling records.
