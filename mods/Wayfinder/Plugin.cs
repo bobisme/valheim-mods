@@ -13,7 +13,7 @@ namespace Wayfinder
     {
         public const string Guid="com.bobisme.wayfinder";
         public const string Name="Wayfinder";
-        public const string Version="0.1.0";
+        public const string Version="0.1.1";
         internal static Plugin Instance;
         internal static ConfigEntry<float> ArriveRadius,MastheadSight,RavenRange;
         internal static ConfigEntry<bool> ShowOnMap,ShowHud,ShipNames,ShipPins,ShipLanterns,ShipVanes,MastheadClimb,ShowLandmarks;

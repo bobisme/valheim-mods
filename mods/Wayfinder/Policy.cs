@@ -156,6 +156,15 @@ namespace Wayfinder
             }
             return sb.ToString();
         }
+        // What goes on a ship for the others aboard: from the leg being sailed, the next few waypoints ("" with no course).
+        internal const int AheadWaypoints=6;
+        internal static string Ahead(IList<(double x,double z,string name)> course,int next)
+        {
+            if(course==null||course.Count==0)return "";
+            int from=Math.Max(0,Math.Min(course.Count-1,next-1));
+            // (an unnamed waypoint keeps its number in the whole course)
+            return Save(course.Skip(from).Take(AheadWaypoints).Select((w,i)=>(w.x,w.z,string.IsNullOrEmpty(w.name)?"waypoint "+(from+i+1):w.name)).ToList(),next-from);
+        }
         internal static string Clean(string name)=>new string((name??"").Where(c=>c!=';'&&c!='|'&&c!=','&&!char.IsControl(c)).Take(40).ToArray()).Trim();
         internal static bool Load(string text,List<(double x,double z,string name)> into,out int next)
         {

@@ -535,7 +535,7 @@ The course is drawn on both maps as a dashed line. Legs already sailed fade, a f
 numbered rune-rings mark the waypoints. Lines are clipped to the visible map. Reaching a waypoint (40 m) advances the course,
 and reaching a later one first skips ahead. Each character keeps one course per world in `m_customData`. Writing your map at
 a cartography table also stores your course on the table, and reading the table takes it (respecting wards). While you steer,
-the ship carries your course, and everyone else aboard sees it in blue.
+the ship carries your course (the leg you're sailing and the next few waypoints), and everyone else aboard sees it in blue.
 
 **Navigator's notes**, centred under the compass band:
 - the next waypoint, its distance and point of the compass, the total distance left and the time left at your speed

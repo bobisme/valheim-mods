@@ -50,6 +50,14 @@ Check(Policy.Load(saved,back,out int next)&&next==1&&back.Count==3,"A saved cour
 Check(Near(back[0].x,1.25,0.051)&&back[1].name=="Swamp landingxy"&&back[2].name=="","Names lose the separators; positions keep a decimetre");
 Check(!Policy.Load("",back,out _)&&!Policy.Load("2|0|1,1,a",back,out _)&&!Policy.Load("junk",back,out _),"Empty, unknown versions and junk do not load");
 Check(Policy.Load("1|99|1,1,a;bad;2,nan,b;3,3",back,out next)&&back.Count==2&&next==2,"Bad waypoints are skipped and next is clamped");
+{
+    var longCourse=new List<(double x,double z,string name)>();for(int i=0;i<40;i++)longCourse.Add((i*100,0,i==12?"Cape":""));
+    Check(Policy.Load(Policy.Ahead(longCourse,10),back,out next)&&back.Count==Policy.AheadWaypoints&&next==1&&Near(back[1].x,1000,0.01),"Aboard: the leg being sailed and the next few");
+    Check(back[0].name=="waypoint 10"&&back[3].name=="Cape","Unnamed waypoints keep their number in the whole course");
+    Check(Policy.Ahead(longCourse,10).Length*2<Policy.Save(longCourse,10).Length,"Far less rides on the ship than the whole course");
+    Check(Policy.Ahead(new List<(double x,double z,string name)>(),0)=="","No course, nothing aboard");
+    Check(Policy.Load(Policy.Ahead(longCourse,0),back,out next)&&next==0&&back.Count==Policy.AheadWaypoints,"A course not yet begun starts at its first waypoint");
+}
 Check(Policy.Load("1|0|"+string.Join(";",Enumerable.Range(0,100).Select(i=>i+","+i+",w")),back,out _)&&back.Count==Policy.MaxWaypoints,"A course holds at most the maximum waypoints");
 Check(Policy.Load("1|0|99999,0,far",back,out _)&&back.Count==0,"Waypoints off the edge of the world are dropped");
 Check(Policy.Clean(new string('a',80)).Length==40,"Names are kept short");

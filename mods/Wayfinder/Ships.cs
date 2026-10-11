@@ -37,7 +37,7 @@ namespace Wayfinder
         internal static Vector3? HelmNext=>Helm.Count>0&&_helmNext<Helm.Count?new Vector3((float)Helm[_helmNext].x,0,(float)Helm[_helmNext].z):(Vector3?)null;
         internal static string HelmLabel=>Helm.Count>0&&_helmNext<Helm.Count?(string.IsNullOrEmpty(Helm[_helmNext].name)?"waypoint "+(_helmNext+1):Helm[_helmNext].name)+(HelmBy!=""?" <size=80%>("+HelmBy+")</size>":""):"";
 
-        private static float _next;
+        private static float _next,_resend;private static Ship _steered;
         internal static void Tick()
         {
             Player me=Player.m_localPlayer;
@@ -47,14 +47,25 @@ namespace Wayfinder
             bool valid=view!=null&&view.IsValid();
             if(valid&&me.GetControlledShip()==ship)
             {
-                // steering: our course goes on the ship for the others
-                string text=Course.Points.Count>0?Policy.Save(Course.Points,Course.Next):"";
-                if(text!=_pushed||view.GetZDO().GetString(HelmKey)!=text){_pushed=text;view.InvokeRPC(HelmRpc,text,me.GetPlayerName());}
+                // steering: our course goes on the ship for the others. Only the legs ahead: a moving ship is resent to everyone
+                // with each step, so the whole course would ride along kilobytes at a time. Asked again every 2 s until it lands.
+                string text=Policy.Ahead(Course.Points,Course.Next);
+                if(text!=_pushed||view.GetZDO().GetString(HelmKey)!=text&&Time.time>=_resend)
+                {_pushed=text;_resend=Time.time+2;view.InvokeRPC(HelmRpc,text,me.GetPlayerName());}
+                _steered=ship;
                 Helm.Clear();_helmText=null;
             }
             else
             {
                 _pushed=null;
+                // Off the helm: the course comes off the ship (if nobody else took the helm), not left riding on it for good.
+                if(_steered!=null)
+                {
+                    ZNetView left=_steered.GetComponent<ZNetView>();
+                    if(left!=null&&left.IsValid()&&(_steered.m_shipControlls==null||!_steered.m_shipControlls.HaveValidUser())&&left.GetZDO().GetString(HelmKey)!="")
+                        left.InvokeRPC(HelmRpc,"","");
+                    _steered=null;
+                }
                 string text=valid&&ship.m_shipControlls!=null&&ship.m_shipControlls.HaveValidUser()&&ship.m_shipControlls.GetUser()!=me.GetPlayerID()?view.GetZDO().GetString(HelmKey):"";
                 if(text!=_helmText)
                 {
