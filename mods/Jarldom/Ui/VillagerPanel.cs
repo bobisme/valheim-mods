@@ -177,7 +177,7 @@ namespace Jarldom.Ui
                 }
                 x = 30; if (!_zonesOnly) y += 52;
                 GameUi.Line(_window, "Work zones", new Vector2(30, -y), 300, 18, GameUi.Dim); y += 30;
-                foreach (ZoneInfo z in Tables.Zones)
+                foreach (ZoneInfo z in Tables.Zones.Where(z => z.Id != ZoneType.GuardPost)) // (guards walk watch posts now)
                 {
                     ZoneType t = z.Id;
                     Place(z.Name, ref x, ref y, () => { Net.Act(_c, "zone", $"{t}|{floor}|{xz}"); Close(); Designate.Clear(); });

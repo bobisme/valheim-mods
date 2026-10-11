@@ -129,7 +129,8 @@ namespace Jarldom
         }
 
         // ---- the trader's shopping, on the way home ----
-        public static bool HildirKnown() =>
+        public static bool TestHildir; // (jarldom hildir on: as if she were known, for tests only, without touching the world's keys)
+        public static bool HildirKnown() => TestHildir ||
             ZoneSystem.instance != null && (new[] { "Hildir1", "Hildir2", "Hildir3" }.Any(k => ZoneSystem.instance.GetGlobalKey(k))
                 || Minimap.instance != null && AccessTools.FieldRefAccess<Minimap, List<Minimap.PinData>>("m_pins")(Minimap.instance).Any(p => p.m_type == Minimap.PinType.Hildir1));
         // Coins in: coins out. What was bought goes to the stores (or by the pillars, for the haulers), and the saga hears of it.
@@ -164,7 +165,8 @@ namespace Jarldom
                     if (n >= Math.Min(ragged, 2) || t.m_price > budget) continue;
                     Stow(c, t.m_prefab.gameObject, 1, at);
                     budget -= t.m_price; coins -= t.m_price; n++;
-                    bought.Add(Localization.instance.Localize(t.m_prefab.m_itemData.m_shared.m_name).ToLower() + " from Hildir");
+                    string what = Localization.instance.Localize(t.m_prefab.m_itemData.m_shared.m_name).ToLower();
+                    bought.Add(("aeiou".IndexOf(what[0]) >= 0 ? "an " : "a ") + what + " from Hildir");
                 }
             }
             if (bought.Count > 0) c.Log("text", name, "", $"{name} bought {Stories.And(bought)}.");

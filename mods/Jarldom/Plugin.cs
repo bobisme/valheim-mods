@@ -103,6 +103,7 @@ namespace Jarldom
             Guard(StairLinks.Clear);
             Guard(Doors.Clear);
             Guard(Leisure.Clear);
+            Guard(Upkeep.Forget);
             Guard(Weaving.Forget);
             Guard(SoulStore.Forget);
             Tools.Stop();

@@ -15,7 +15,7 @@ namespace Jarldom
         private static readonly Dictionary<string, LeisureTask> Seeking = new Dictionary<string, LeisureTask>();
         public static void Clear() => Seeking.Clear();
 
-        public static Task Next(Brain b, string why)
+        public static Task Next(Brain b, string why, bool indoors = false)
         {
             ZDO z = b.View.GetZDO();
             if (z.GetString(IdleKey, "") != why) z.Set(IdleKey, why);
@@ -28,6 +28,15 @@ namespace Jarldom
             }
             var rng = new System.Random(b.S.Vid.GetHashCode() ^ (int)(Time.time / 30f));
             var kinds = new List<(string kind, int weight)>();
+            // No tankard of their own: carve one at the workbench, from the stores (fine wood and resin).
+            if (Gear.Tool(b, "tankard") == null && Carve.Can(c)) return new Carve();
+            if (indoors)
+            {
+                // (out of the storm: a game at a table, or the hall and its talk)
+                var inside = new LeisureTask(TaflTable(c, out _, out _) && rng.Next(3) == 0 ? "tafl" : "hall", why);
+                if (inside.Kind == "tafl") { inside.Seeking = true; Seeking[c.Id] = inside; }
+                return inside;
+            }
             bool armed = Gear.Weapon(b) != null && Gear.Weapon(b).m_shared.m_itemType != ItemDrop.ItemData.ItemType.Bow;
             bool fighter = b.S.Prof == Prof.Guard || b.S.Prof == Prof.Hunter || b.S.Has("brave");
             if (TaflTable(c, out _, out _)) kinds.Add(("tafl", b.S.Has("lazy") ? 4 : 3));
@@ -114,7 +123,7 @@ namespace Jarldom
             Vector3 d = b.Pos - _thing.transform.position; d.y = 0; if (d.sqrMagnitude < 0.01f) d = Vector3.forward;
             return _thing.transform.position + d.normalized * 1.4f;
         }
-        private float _nextWork; private int _openAtStart = -1;
+        private float _nextWork, _nextSip; private int _openAtStart = -1;
         // A place to shoot from: in front of the target's face, as far as 15 m, with nothing between (a fence, a wall, a hill).
         private Vector3? _range;
         private static int _sightMask = -1;
@@ -251,13 +260,14 @@ namespace Jarldom
         }
         private void Hall(Brain b)
         {
-            if (b.Held != null) { if (Time.time > _next) { _next = Time.time + Random.Range(25f, 50f); Talk.Gossip(b); } Mood.Satisfy(b.S, Need.Social, (float)(b.GameDt / Clock.Hour) * 4f); return; }
+            if (b.Held != null) { Tankards.Sip(b, ref _nextSip); if (Time.time > _next) { _next = Time.time + Random.Range(25f, 50f); Talk.Gossip(b); } Mood.Satisfy(b.S, Need.Social, (float)(b.GameDt / Clock.Hour) * 4f); return; }
             if (!Arrive(b, _spot, _seat != null ? 1.2f : 1f)) return;
             if (_seat != null && _seat.m_attachPoint != null) { b.Sit(_seat.m_attachPoint, string.IsNullOrEmpty(_seat.m_attachAnimation) ? "attach_chair" : _seat.m_attachAnimation, Vector3.zero); return; }
             // (no seat: standing about the hearth, talking)
             if (!_looked) { _looked = true; _fire = Classes.NearestFire(b.Pos, 8f); } // (once: not four times a second)
             if (_fire != null) Face(b, _fire.transform.position);
             if (Time.time > _next) { _next = Time.time + Random.Range(25f, 50f); Talk.Gossip(b); }
+            Tankards.Sip(b, ref _nextSip);
             Mood.Satisfy(b.S, Need.Social, (float)(b.GameDt / Clock.Hour) * 3f);
         }
         private void Finish(Brain b)
@@ -273,5 +283,68 @@ namespace Jarldom
             base.Stop(b);
         }
         private void Leisure_Unseek(Brain b) => Leisure.Unseek(this);
+    }
+}
+
+namespace Jarldom
+{
+    // Tankards: every villager keeps one (the game's own: a drink is its blow), and in the hall lifts it now and then.
+    internal static class Tankards
+    {
+        public static void Sip(Brain b, ref float next)
+        {
+            if (Time.time < next) return;
+            next = Time.time + UnityEngine.Random.Range(14f, 35f);
+            ItemDrop.ItemData mug = b.Body.RightItem;
+            if (mug == null || !Gear.IsTankard(mug) || b.Body.InAttack()) return;
+            Body_.Anim(b.Body)?.SetTrigger("emote_drink"); // (the tankard's own drink)
+            if (UnityEngine.Random.value < 0.15f) b.Say(new[] { "Skål!", "To the jarl!", "Another!", "To Odin, who sent us here." }[UnityEngine.Random.Range(0, 4)], 3);
+            Mood.Satisfy(b.S, Need.Social, 1);
+        }
+    }
+
+    // Carving a tankard at the workbench, from the stores: a villager's own, kept.
+    internal sealed class Carve : Task
+    {
+        private static readonly (string item, int n)[] Needs = { ("FineWood", 5), ("Resin", 2) };
+        private CraftingStation _bench; private int _phase, _beats; private float _next;
+        public static bool Can(Colony c) => Bench(c) != null && Needs.All(n => Crafts.InStock(c, n.item) >= n.n);
+        private static CraftingStation Bench(Colony c) => c.PiecesIn(c.Radius).Select(p => p.GetComponent<CraftingStation>()).FirstOrDefault(s => s != null && Utils.GetPrefabName(s.gameObject) == "piece_workbench" && Crafts.Unusable(s) == null);
+        private int Have(Brain b, string item) => b.Body.GetInventory().GetAllItems().Where(i => Classes.Prefab(i) == item).Sum(i => i.m_stack);
+        public override void Start(Brain b) { _bench = Bench(b.Colony); Doing = "carving a tankard"; if (_bench == null) Done = true; }
+        public override void Tick(Brain b)
+        {
+            if (Done || _bench == null) { Done = true; return; }
+            if (_phase == 0)
+            {
+                var missing = Needs.Where(n => Have(b, n.item) < n.n).ToList();
+                if (missing.Count == 0) { _phase = 1; b.Move.To(_bench.transform.position, 2f); return; }
+                var (want, count) = missing[0];
+                Container from = Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => Classes.Prefab(i) == want));
+                if (from == null) { Done = true; return; }
+                if (Vector3.Distance(b.Pos, from.transform.position) > 2.4f) { if (!b.Move.Moving) b.Move.To(from.transform.position, 1.8f); if (b.Move.Failed) Done = true; return; }
+                ItemDrop.ItemData stack = from.GetInventory().GetAllItems().First(i => Classes.Prefab(i) == want);
+                if (Stock.Take(from, b.Body.GetInventory(), stack, count - Have(b, want)) == 0) Done = true;
+                return;
+            }
+            if (Vector3.Distance(b.Pos, _bench.transform.position) > 3f) { if (!b.Move.Moving) b.Move.To(_bench.transform.position, 2f); if (b.Move.Failed) Done = true; return; }
+            b.Move.Stop();
+            Vector3 d = _bench.transform.position - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized);
+            if (Time.time < _next) return;
+            _next = Time.time + 1.5f;
+            Body_.Anim(b.Body)?.SetInt("crafting", _bench.m_useAnimation);
+            if (++_beats < 4) return;
+            Body_.Anim(b.Body)?.SetInt("crafting", 0);
+            Inventory bag = b.Body.GetInventory();
+            if (Needs.Any(n => Have(b, n.item) < n.n)) { Done = true; return; }
+            foreach (var (item, n) in Needs)
+                for (int left = n; left > 0;) { ItemDrop.ItemData st = bag.GetAllItems().FirstOrDefault(i => Classes.Prefab(i) == item); if (st == null) break; int k = System.Math.Min(left, st.m_stack); bag.RemoveItem(st, k); left -= k; }
+            bag.AddItem("Tankard", 1, 1, 0, Colony.Hash(b.S.Vid), b.S.Name, new Vector2i(-1, -1), false, false, false);
+            _bench.m_craftItemDoneEffects.Create(_bench.transform.position, Quaternion.identity);
+            b.Say("A tankard of my own. Now for something to put in it.", 4);
+            b.S.Bump("tankard"); b.Dirty();
+            Done = true;
+        }
+        public override void Stop(Brain b) { Body_.Anim(b.Body)?.SetInt("crafting", 0); base.Stop(b); }
     }
 }

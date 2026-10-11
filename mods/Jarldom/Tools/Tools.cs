@@ -65,7 +65,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "deeds", "slay", "unlose", "forgetrow", "away", "master", "envoy", "capture", "barrow" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "deeds", "wreck", "slay", "unlose", "forgetrow", "away", "master", "envoy", "capture", "barrow" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or with devcommands"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -202,6 +202,7 @@ namespace Jarldom
                 return;
             }
             if (cmd == "finditems") { string q = a[2].ToLowerInvariant(); output(new JObject { ["items"] = new JArray(ObjectDB.instance.m_items.Where(i => i != null && i.name.ToLowerInvariant().Contains(q)).Select(i => { var sh = i.GetComponent<ItemDrop>().m_itemData.m_shared; return $"{i.name} ({sh.m_itemType}, {Localization.instance.Localize(sh.m_name)}, armor {sh.m_armor}, value {sh.m_value})"; })) }); return; }
+            if (cmd == "attackof") { var sh = ObjectDB.instance.GetItemPrefab(a[2]).GetComponent<ItemDrop>().m_itemData.m_shared; output(new JObject { ["anim"] = sh.m_attack?.m_attackAnimation, ["type"] = sh.m_attack?.m_attackType.ToString(), ["skill"] = sh.m_skillType.ToString(), ["damage"] = sh.m_damages.GetTotalDamage(), ["equipDur"] = sh.m_equipDuration, ["status"] = sh.m_attackStatusEffect?.name }); return; }
             if (cmd == "traders") { output(new JObject { ["traders"] = new JArray(ZNetScene.instance.m_prefabs.Where(pf => pf != null && pf.GetComponent<Trader>() != null).Select(pf => pf.name + ": " + string.Join(", ", pf.GetComponent<Trader>().m_items.Select(t => $"{t.m_prefab?.name} x{t.m_stack} {t.m_price}c{(string.IsNullOrEmpty(t.m_requiredGlobalKey) ? "" : " [" + t.m_requiredGlobalKey + "]")}")))) }); return; }
             if (cmd == "items")
             {
@@ -738,6 +739,22 @@ namespace Jarldom
                     break;
                 case "leisure": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } b.Task?.Stop(b); b.Task = new LeisureTask(a[3], "test"); b.Task.Start(b); output(new JObject { ["doing"] = b.Task.Doing }); } break;
                 case "deeds": c.R.Deeds += int.Parse(a[2]); c.MarkDirty(); output(new JObject { ["deeds"] = c.R.Deeds }); break; // (test mishaps undone)
+                case "hildir": if (a.Length > 2) Weaving.TestHildir = a[2] == "on"; output(new JObject { ["known"] = Weaving.HildirKnown(), ["keys"] = new JArray(new[] { "Hildir1", "Hildir2", "Hildir3" }.Where(k => ZoneSystem.instance.GetGlobalKey(k))) }); break;
+                case "fires": output(new JObject { ["fires"] = new JArray(c.PiecesIn(c.Radius).Select(pc => pc.GetComponent<Fireplace>()).Where(f => f != null).Select(f => $"{Utils.GetPrefabName(f.gameObject)} at {f.transform.position.x:0},{f.transform.position.z:0}: warms {Classes.Warms(f)}, lit {Classes.Lit(f)}, areas {string.Join("/", f.GetComponentsInChildren<EffectArea>(true).Select(e => e.m_type + (e.gameObject.activeInHierarchy ? "" : "(off)")))}")) }); break;
+                case "upkeep": output(new JObject { ["ruins"] = new JArray(Upkeep.Ruins(c).Select(r => $"{r.Prefab} at {r.At.x:0.0},{r.At.y:0.0},{r.At.z:0.0}")), ["hurt"] = new JArray(Upkeep.Hurt(c).Select(w => $"{Utils.GetPrefabName(w.gameObject)} at {w.transform.position.x:0},{w.transform.position.z:0}")), ["wornPaths"] = Upkeep.Worn(c) }); break;
+                case "wreck":
+                    {
+                        // Test only: the nearest piece to x z hurt to pct% (or broken, at 0), as a monster's blow would (no player's hand).
+                        Vector3 at = new Vector3(F(a[2]), 0, F(a[3])); float pct = a.Length > 4 ? F(a[4]) : 0;
+                        WearNTear w = c.PiecesIn(c.Radius + 30).Select(pc => pc.GetComponent<WearNTear>()).Where(x => x != null).OrderBy(x => Utils.DistanceXZ(x.transform.position, at)).FirstOrDefault();
+                        if (w == null) { error("no piece there"); return; }
+                        ZNetView wv = w.GetComponent<ZNetView>(); wv.ClaimOwnership();
+                        string what = Utils.GetPrefabName(w.gameObject);
+                        if (pct <= 0) { var hit = new HitData(); hit.m_damage.m_blunt = 99999; hit.m_point = w.transform.position; hit.m_toolTier = 99; w.Damage(hit); }
+                        else wv.GetZDO().Set(ZDOVars.s_health, w.m_health * pct / 100f);
+                        output(new JObject { ["piece"] = what, ["at"] = V(w.transform.position), ["health"] = pct });
+                    }
+                    break;
                 case "slay":
                     {
                         // Test only: every creature of a prefab in the colony (and 30 m round) dies.

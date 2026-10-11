@@ -11,7 +11,7 @@ namespace Jarldom
     {
         private static readonly (string prefix, Type type)[] Kinds =
         {
-            (Pieces.PillarsName, typeof(HighSeat)), (Pieces.AltarPrefix, typeof(Altar)), (Pieces.HornName, typeof(WarHorn)), (Pieces.PyreName, typeof(Pyre)),
+            (Pieces.PillarsName, typeof(HighSeat)), (Pieces.AltarPrefix, typeof(Altar)), (Pieces.HornName, typeof(WarHorn)), (Pieces.PyreName, typeof(Pyre)), (Pieces.WatchPostName, typeof(WatchPost)),
         };
         public static void AttachAll()
         {
@@ -133,6 +133,45 @@ namespace Jarldom
         }
         public bool UseItem(Humanoid user, ItemDrop.ItemData item) => false;
         public float GetHoverOffset() => 1.5f;
+    }
+
+    // A watch post: its place in the guards' round (numbered as raised; E sends it to the end of the round).
+    internal sealed class WatchPost : MonoBehaviour, Hoverable, Interactable
+    {
+        public const string OrderKey = "jarldom_round";
+        private ZNetView _v;
+        private void Start()
+        {
+            _v = GetComponent<ZNetView>();
+            if (_v != null && _v.IsValid() && _v.IsOwner() && _v.GetZDO().GetInt(OrderKey, 0) == 0) _v.GetZDO().Set(OrderKey, Next(transform.position));
+        }
+        public int Order => _v != null && _v.IsValid() ? _v.GetZDO().GetInt(OrderKey, 0) : 0;
+        public static int Next(Vector3 at) => All(at).Select(w => w.Order).DefaultIfEmpty(0).Max() + 1;
+        // The colony's watch posts in the order of the round.
+        public static List<WatchPost> All(Vector3 at)
+        {
+            Colony c = Colony.At(at);
+            if (c == null) return new List<WatchPost>();
+            return c.PiecesIn(c.Radius + 10).Select(p => p.GetComponent<WatchPost>()).Where(w => w != null).OrderBy(w => w.Order).ToList();
+        }
+        public string GetHoverName() => "Watch post";
+        public string GetHoverText()
+        {
+            var round = All(transform.position);
+            int i = round.IndexOf(this) + 1;
+            string where = Colony.At(transform.position) == null ? "\n<size=80%><color=#ff8c59>Outside any colony: no guard will walk to it.</color></size>" : round.Count < 2 ? "\n<size=80%>Raise another: guards walk between them.</size>" : "";
+            return Localization.instance.Localize($"Watch post {i} of {round.Count}\n<size=80%>Guards walk the posts in turn.</size>{where}\n[<color=yellow><b>$KEY_Use</b></color>] Make it the last of the round");
+        }
+        public bool Interact(Humanoid user, bool hold, bool alt)
+        {
+            if (hold || _v == null || !_v.IsValid()) return false;
+            if (!_v.IsOwner()) _v.ClaimOwnership();
+            _v.GetZDO().Set(OrderKey, Next(transform.position));
+            user.Message(MessageHud.MessageType.Center, "Now the last post of the round.");
+            return true;
+        }
+        public bool UseItem(Humanoid user, ItemDrop.ItemData item) => false;
+        public float GetHoverOffset() => 1.2f;
     }
 
     // The funeral pyre: grave goods in its hold; lit from the colony window for a worthy soul.

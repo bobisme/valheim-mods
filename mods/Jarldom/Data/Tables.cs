@@ -187,7 +187,7 @@ namespace Jarldom
             new ZoneInfo { Id = ZoneType.Foraging, Name = "Foraging grounds", Worker = Prof.Forager, Text = "wild food to gather" },
             new ZoneInfo { Id = ZoneType.Hunting, Name = "Hunting grounds", Worker = Prof.Hunter, Text = "game to hunt" },
             new ZoneInfo { Id = ZoneType.FishingDock, Name = "Fishing dock", Worker = Prof.Fisherman, Text = "water to fish" },
-            new ZoneInfo { Id = ZoneType.GuardPost, Name = "Guard post", Worker = Prof.Guard, Text = "a post to hold" },
+            new ZoneInfo { Id = ZoneType.GuardPost, Name = "Guard post", Worker = Prof.Guard, Text = "an old guard post (raise watch posts instead: guards walk them in turn)" },
             new ZoneInfo { Id = ZoneType.SacredBog, Name = "Sacred bog", Worker = null, Text = "where coins go to the gods" },
             new ZoneInfo { Id = ZoneType.Pasture, Name = "Pasture", Worker = Prof.Herder, Text = "tame beasts to keep" },
         };

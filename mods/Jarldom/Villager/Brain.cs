@@ -32,7 +32,7 @@ namespace Jarldom
             if (_body != null && _body.isKinematic) _body.isKinematic = false; // (a body left seated when ownership went elsewhere)
             Poses.Clear(h);
         }
-        public float NoStoreUntil, NoFoodUntil, NoRepairUntil, NoBuildUntil, NoTradeUntil, NoCraftUntil, NoHealUntil, NoScoutUntil, NoOfferUntil, NextMischief, NoCartUntil, NoGearUntil, NoGraveUntil, LeaderGoneAt; private bool _captureRolled; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f; public double GameDt; private double _lastWorld;
+        public float NoStoreUntil, NoFoodUntil, NoRepairUntil, NoBuildUntil, NoTradeUntil, NoCraftUntil, NoHealUntil, NoScoutUntil, NoOfferUntil, NextMischief, NoCartUntil, NoGearUntil, NoGraveUntil, LeaderGoneAt, NoUpkeepUntil; private float _nextStep; private bool _captureRolled; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f; public double GameDt; private double _lastWorld;
         public bool Alive => Body != null && !Body.IsDead() && View != null && View.IsValid() && View.IsOwner() && S != null;
         public Vector3 Pos => Body.transform.position;
         public double Now => ZNet.instance.GetTimeSeconds();
@@ -128,6 +128,7 @@ namespace Jarldom
             if (Time.time >= _nextGear) { _nextGear = Time.time + 1f; Gear.Maintain(this); }
             if (Time.time >= _nextFoes) { _nextFoes = Time.time + 0.3f; Combat.Think(this); }
             if (Time.time >= _nextMoodSync) { _nextMoodSync = Time.time + 2f; SyncHover(); }
+            if (Time.time >= _nextStep) { _nextStep = Time.time + 2f; Upkeep.Step(this); } // (where feet wear a path)
             if (_dirty && Time.time >= _nextSave) { _nextSave = Time.time + 30f; Save(); } // (the soul is sent to everyone when written: twice a minute is plenty; deaths and commands save at once)
             if (Combat.Busy(this)) return;
             Activity want = Want();
@@ -150,9 +151,19 @@ namespace Jarldom
             if (Follow.Check(this)) return Activity.Follow; // (out with the jarl: a raid at home is the guards' to meet)
             if (Colony.RaidOn || Colony.HornUntil > Time.time) return Activity.Defend;
             if (Body.GetHealthPercentage() < 0.1f || S.InjuredUntil > Now) return S.Needs[(int)Need.Food] < Mood.EatBelow && Time.time > NoFoodUntil && Food.CanEat(this) ? Activity.Wake : Activity.Home;
-            Activity a = Schedule.At(Colony.Hour, S.Traits, heavyRain: EnvMan.IsWet() && EnvMan.instance.GetWindIntensity() > 0.6f, outdoorTask: true, urgent: false);
+            Activity a = Schedule.At(Colony.Hour, S.Traits, heavyRain: Storm(), outdoorTask: true, urgent: false);
             if (a == Activity.Work || a == Activity.Wake) { if (S.Needs[(int)Need.Food] < Mood.EatBelow && Time.time > NoFoodUntil && Food.CanEat(this)) return Activity.Wake; }
             return a;
+        }
+        // A storm (thunder, or rain in a gale) drives them in; plain rain doesn't: it lasts, and work in the wet is still work.
+        private static float _stormAt; private static bool _storm;
+        private static bool Storm()
+        {
+            if (Time.time - _stormAt < 5f) return _storm;
+            _stormAt = Time.time;
+            string env = EnvMan.instance?.GetCurrentEnvironment()?.m_name ?? "";
+            _storm = EnvMan.IsWet() && (env.IndexOf("Thunder", StringComparison.OrdinalIgnoreCase) >= 0 || env.IndexOf("Storm", StringComparison.OrdinalIgnoreCase) >= 0 || EnvMan.instance.GetWindIntensity() > 0.85f);
+            return _storm;
         }
         private Task Choose(Activity a)
         {
@@ -163,7 +174,7 @@ namespace Jarldom
                 case Activity.Wake: return Food.CanEat(this) ? new EatTask() : (Task)new WanderTask(Colony.Position, 8, "getting up");
                 case Activity.Work: { Task work = Work.Next(this); if (work != null) { Leisure.Clean(this); return work; } return Leisure.Next(this, Gear.Problem ?? Work.WhyIdle(this)); } // (nothing to do: some sport, or the hall)
                 case Activity.Hall: return new HallTask();
-                case Activity.Shelter: return new HallTask { Shelter = true };
+                case Activity.Shelter: return Leisure.Next(this, "out of the storm", indoors: true); // (games and talk under a roof)
                 case Activity.Defend: return new DefendTask();
                 case Activity.Follow: return new FollowTask();
                 default: return new WanderTask(Colony.Position, 10, "idle");

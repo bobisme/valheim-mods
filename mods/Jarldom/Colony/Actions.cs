@@ -9,7 +9,7 @@ namespace Jarldom
     // What players ask of the colony (through the window, the hammer, the altars), carried out by the colony owner.
     internal sealed partial class Colony
     {
-        private static readonly HashSet<string> Open = new HashSet<string> { "offer", "horn", "bogpaid", "gone", "away", "log", "heraldslain", "rescue", "jarlslain" }; // anyone may pray or blow the horn
+        private static readonly HashSet<string> Open = new HashSet<string> { "offer", "horn", "bogpaid", "gone", "away", "log", "heraldslain", "rescue", "jarlslain", "ruin", "unruin" }; // anyone may pray or blow the horn
         public bool AllowedName(string who) => string.IsNullOrEmpty(who) || R.Founder == 0 || who == R.FounderName || R.Allowed.Contains(who) || R.Allowed.Contains("*");
 
         public void Handle(string action, string arg, string who)
@@ -24,6 +24,8 @@ namespace Jarldom
                 case "prof": Villagers.Command(a[0], "prof", Get(a, 1)); break;
                 case "bed": Villagers.Command(a[0], "bed", Get(a, 1)); break;
                 case "autobeds": AutoBeds(); break;
+                case "ruin": Upkeep.Add(this, string.Join("|", a)); break;
+                case "unruin": Upkeep.Remove(this, string.Join("|", a)); break;
                 case "reshape": { Zone z = R.Zones.FirstOrDefault(x => x.Id == Get(a, 0)); var xz = Get(a, 1).Split(',').Select(Flt).ToList(); if (z != null && xz.Count >= 6 && xz.Count == z.Xz.Count && Geometry.Simple(xz)) z.Xz = xz; } break;
                 case "keep": if (Stock.KeepDefault.ContainsKey(Get(a, 0))) R.Flags["keep:" + a[0]] = Mathf.Clamp(Int(a, 1), 0, 100000); break;
                 case "chest": Villagers.Command(a[0], "chest", Get(a, 1)); break;

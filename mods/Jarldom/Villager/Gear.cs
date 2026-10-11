@@ -25,12 +25,15 @@ namespace Jarldom
                 case "hammer": return n == "Hammer";
                 case "hoe": return n == "Hoe";
                 case "rod": return n == "FishingRod";
+                case "tankard": return IsTankard(i);
                 default: return false;
             }
         }
+        // A tankard (a drinking horn, Dvergr or Odin's too): the game makes it a one-handed weapon whose blow is a drink. Not for fighting.
+        public static bool IsTankard(ItemDrop.ItemData i) => Classes.Prefab(i).StartsWith("Tankard");
         public static bool IsWeapon(ItemDrop.ItemData i) => Usable(i) &&
             (i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.OneHandedWeapon || i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.TwoHandedWeapon || i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.TwoHandedWeaponLeft)
-            && i.m_shared.m_skillType != Skills.SkillType.Pickaxes && i.m_dropPrefab != null && i.m_dropPrefab.name != "Hammer" && i.m_dropPrefab.name != "Hoe" && i.m_dropPrefab.name != "Cultivator" && i.m_dropPrefab.name != "FishingRod";
+            && i.m_shared.m_skillType != Skills.SkillType.Pickaxes && i.m_dropPrefab != null && !IsTankard(i) && i.m_dropPrefab.name != "Hammer" && i.m_dropPrefab.name != "Hoe" && i.m_dropPrefab.name != "Cultivator" && i.m_dropPrefab.name != "FishingRod";
 
         public static ItemDrop.ItemData Tool(Brain b, string kind, int tier = 0)
         {
@@ -43,6 +46,7 @@ namespace Jarldom
                 case "hammer": return all.FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == "Hammer");
                 case "hoe": return all.FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == "Hoe");
                 case "rod": return all.FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == "FishingRod");
+                case "tankard": return Items(b).FirstOrDefault(IsTankard);
                 case "bow": return all.Where(i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Bow && Ammo(b, i) != null).OrderByDescending(i => i.GetDamage().GetTotalDamage()).FirstOrDefault();
                 case "weapon": return Weapon(b);
                 default: return null;
@@ -70,7 +74,7 @@ namespace Jarldom
         }
 
         // Once a second: armour on, the right thing in hand.
-        public static string Want(Brain b) => b.Task is LeisureTask lt && lt.Tool != "" ? lt.Tool : b.Task is BuildTask ? "hammer" : b.Task is WorkTask w ? w.Tool : Combat.Busy(b) || b.HasFoe ? (b.Combat_Bow ? "bow" : "weapon") : b.Task is DefendTask d && d.Fighter || b.Task is FollowTask && CanFight(b) ? "weapon" : ""; // (out with the jarl: weapon in hand)
+        public static string Want(Brain b) => b.Task is LeisureTask lt && lt.Tool != "" ? lt.Tool : (b.Task is HallTask ht && !ht.Shelter || b.Task is LeisureTask lh && lh.Kind == "hall") && Tool(b, "tankard") != null ? "tankard" : b.Task is BuildTask || b.Task is UpkeepTask ? "hammer" : b.Task is WorkTask w ? w.Tool : Combat.Busy(b) || b.HasFoe ? (b.Combat_Bow ? "bow" : "weapon") : b.Task is DefendTask d && d.Fighter || b.Task is FollowTask && CanFight(b) ? "weapon" : ""; // (out with the jarl: weapon in hand)
         public static void Maintain(Brain b)
         {
             Humanoid h = b.Body;

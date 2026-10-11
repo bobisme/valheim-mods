@@ -141,7 +141,7 @@ namespace Jarldom
     internal sealed class HallTask : Task
     {
         public bool Shelter;
-        private Chair _chair; private Vector3 _stand; private bool _there, _counted, _drank; private float _nextTalk;
+        private Chair _chair; private Vector3 _stand; private bool _there, _counted, _drank; private float _nextTalk, _nextSip;
         public override void Start(Brain b)
         {
             Room hall = b.Colony.Best(RoomType.GreatHall);
@@ -172,6 +172,7 @@ namespace Jarldom
             if (_counted && !_drank) { _drank = true; Drink(b); }
             if (b.S.Needs[(int)Need.Food] < 70 && Food.CanEat(b)) Food.EatFromBag(b);
             if (Time.time > _nextTalk) { _nextTalk = Time.time + UnityEngine.Random.Range(25f, 60f); Talk.Gossip(b); }
+            Tankards.Sip(b, ref _nextSip);
         }
         public override void Stop(Brain b) { Seats.Free(b); base.Stop(b); }
         // A drink of the evening (SkalTavern's ale, mead and wine) from a chest in the hall, and a toast.

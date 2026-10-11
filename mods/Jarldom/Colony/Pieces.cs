@@ -10,6 +10,7 @@ namespace Jarldom
     // from other game prefabs: the High-Seat Pillars, the gods' altars, the war horn, the gilded pieces and the funeral pyre.
     internal static class Pieces
     {
+        public const string WatchPostName = "JarldomWatchPost";
         public const string PillarsName = "JarldomHighSeatPillars", HornName = "JarldomWarHorn", PyreName = "JarldomPyre", DesignateName = "JarldomDesignate";
         public const string AltarPrefix = "JarldomAltar_", GildedSeatName = "JarldomGildedSeat", GildedBannerName = "JarldomGildedBanner";
         public static readonly int PillarsHash = PillarsName.GetStableHashCode();
@@ -35,6 +36,7 @@ namespace Jarldom
             if (Get(PillarsName) == null) Pillars();
             foreach (var a in Altars) if (Get(AltarPrefix + a.god) == null) Altar(a.god, a.emblem, a.scale, a.offset, Quaternion.Euler(a.turn));
             if (Get(HornName) == null) Horn();
+            if (Get(WatchPostName) == null) WatchPost();
             if (Get(GildedSeatName) == null) Gilded(GildedSeatName, "piece_throne02", "Gilded high seat", "A high seat for the jarl's hall, its carving picked out in gold: the hall's pride and a great hall's grade S.", 60, ("FineWood", 10), ("Coins", 100));
             if (Get(GildedBannerName) == null) Gilded(GildedBannerName, "piece_banner02", "Gilded banner", "A banner worked with gold thread. Halls and temples grade higher for it.", 0, ("LinenCloth", 2), ("Coins", 20), ("Wood", 2));
             if (Get(PyreName) == null) Pyre();
@@ -177,6 +179,29 @@ namespace Jarldom
             Finish(go, look, "War horn", "Sounds by itself when raiders come near the colony, or blow it yourself: those who can't fight run to the great hall and shut the door, guards go to their posts, the rest fall back to the pillars. Blow it again to sound the all-clear.",
                 Piece.PieceCategory.Misc, ("Wood", 4), ("TrophyDeer", 1), ("LeatherScraps", 2));
             go.AddComponent<WarHorn>();
+        }
+
+        // A watch post: a stake with a red pennant. Guards walk the colony's posts in turn, in the order they were raised.
+        private static void WatchPost()
+        {
+            GameObject pole = Assets.Find("wood_pole_log");
+            GameObject go = Base("wood_pole_log", WatchPostName);
+            if (go == null || pole == null) return;
+            var look = new GameObject("new"); look.transform.SetParent(go.transform, false);
+            GameObject p = Assets.Model(pole, look.transform, Vector3.zero, Quaternion.identity, 1f);
+            p.transform.localScale = new Vector3(0.6f, 0.75f, 0.6f);
+            Bounds pb = Assets.MeshBounds(look.transform, p); p.transform.localPosition += Vector3.up * -pb.min.y;
+            Material wood = pole.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null && m.HasProperty("_Color"));
+            Material red = Plain(wood, new Color(0.62f, 0.12f, 0.08f));
+            var flag = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Object.DestroyImmediate(flag.GetComponent<Collider>());
+            flag.transform.SetParent(look.transform, false);
+            flag.transform.localScale = new Vector3(0.04f, 0.32f, 0.5f);
+            flag.transform.localPosition = new Vector3(0, pb.size.y * 0.86f, 0.27f);
+            flag.GetComponent<MeshRenderer>().sharedMaterial = red;
+            Finish(go, look, "Watch post", "A waypoint for the colony's guards: they walk its watch posts in turn, in the order they were raised, and look about at each. Raise two or more round what's to be watched.",
+                Piece.PieceCategory.Misc, ("Wood", 2), ("LeatherScraps", 1));
+            go.AddComponent<WatchPost>();
         }
 
         private static void Gilded(string name, string source, string title, string text, int comfort, params (string, int)[] cost)

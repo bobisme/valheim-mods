@@ -80,7 +80,7 @@ namespace Jarldom
                 Vector3 centre = Zones.Centre(z); float reach = Zones.Reach(z) + 2, scan = reach + Zones.FuzzReach(z);
                 switch (z.Type)
                 {
-                    case ZoneType.GuardPost: c.Board.Post("guard", z.Id, Prof.Guard, 2, centre.x, centre.y, centre.z, now, z.Id, "post"); continue;
+                    case ZoneType.GuardPost: c.Board.Post("guard", z.Id, Prof.Guard, 2, centre.x, centre.y, centre.z, now, z.Id, "post"); continue; // (an old guard post: its corners walked)
                     case ZoneType.FishingDock: if (Zones.HasWater(z)) c.Board.Post("fish", z.Id, Prof.Fisherman, 2, centre.x, centre.y, centre.z, now, z.Id, "dock"); continue; // (a dock must reach the water)
                     case ZoneType.Pasture: Pasture(c, z, centre, reach, now); continue;
                 }
@@ -143,6 +143,14 @@ namespace Jarldom
                     hauls++;
                 }
                 if (FirstSeen.Count > 4000) FirstSeen.Clear();
+            }
+            // Watch posts: a round for each guard (two may walk it at once, from different posts).
+            var posts = WatchPost.All(c.Position);
+            if (posts.Count > 0)
+            {
+                int guards = Math.Max(1, Math.Min(3, Villagers.All.Count(v => v.S.Colony == c.Id && v.S.Prof == Prof.Guard)));
+                Vector3 p0 = posts[0].transform.position;
+                for (int i = 0; i < guards; i++) c.Board.Post("guard", "round:" + i, Prof.Guard, 2, p0.x, p0.y, p0.z, now, "", "watch posts");
             }
             Faith.Bog(c);
             Crafts.Scan(c, now);
@@ -366,6 +374,7 @@ namespace Jarldom
         public static string WhyIdle(Brain b)
         {
             Colony c = b.Colony; Prof p = b.S.Prof;
+            if (p == Prof.Guard) return WatchPost.All(c.Position).Count == 0 && !c.R.Zones.Any(z => z.Type == ZoneType.GuardPost) ? "no watch posts to walk (hammer, Misc: raise two or more)" : "between watches";
             ZoneInfo zone = Tables.Zones.FirstOrDefault(z => z.Worker == p);
             if (zone != null)
             {
@@ -387,7 +396,7 @@ namespace Jarldom
                 case Prof.Smelter: return "no ore or fuel for the smelters";
                 case Prof.Cook: return "nothing to cook or brew";
                 case Prof.Smith: return "no commissions (mark some in the colony window)";
-                case Prof.Builder: return "nothing planned to build";
+                case Prof.Builder: return Gear.Tool(b, "hammer") == null ? "needs a hammer to build, mend and pave" : "nothing to build, mend, rebuild or pave";
                 case Prof.Hauler: return "nothing to carry";
                 case Prof.Skald: return "resting until the evening's songs";
                 case Prof.Trader: return c.R.Rank < Rank.Village ? "trade runs wait for village rank" : "nothing to sell in the stores (amber, silver, gems)";
@@ -417,6 +426,7 @@ namespace Jarldom
             if (prof == Prof.Gothi) { Task rite = GothiTask.Next(b); if (rite != null) return rite; }
             if (prof == Prof.Carter) { Task cart = Carts.Next(b); if (cart != null) return cart; }
             if (prof == Prof.Builder && c.IsOwner && Compat.GhostCount(c.Position, c.Radius) > 0 && Gear.Tool(b, "hammer") != null && Time.time > b.NoBuildUntil) return new BuildTask();
+            if (prof == Prof.Builder) { Task up = Upkeep.Next(b); if (up != null) return up; } // (nothing planned: mend, rebuild, pave)
             if (prof == Prof.Trader && c.R.Rank >= Rank.Village && Time.time > b.NoTradeUntil && b.Body.GetInventory().GetEmptySlots() > 1 && Stock.Chests(c, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).Sum(x => x.chest.GetInventory().GetAllItems().Count(Trade.Sellable)) >= 3) return new TradeTask(); // (three lots to sell, in whatever chests)
             Func<Prof, bool> canDo = p => p == prof || p == Prof.Hauler && (prof == Prof.Hauler || Gear.Lacks(b, prof) != null || NothingFor(c, prof));
             string problem = null;
@@ -550,7 +560,7 @@ namespace Jarldom
                 case "pick": return "foraging";
                 case "haul": return "carrying " + (_target?.GetComponent<ItemDrop>() != null ? Localization.instance.Localize(_target.GetComponent<ItemDrop>().m_itemData.m_shared.m_name).ToLower() : "things");
                 case "hunt": return "hunting";
-                case "guard": return "on guard";
+                case "guard": return "on patrol";
                 case "fish": return "fishing";
                 case "fuel": return "tending the fire";
                 case "smelt": return "feeding the smelter";
@@ -907,16 +917,26 @@ namespace Jarldom
             b.SetFoeFor(30);
         }
         private float _guardUntil;
+        // A patrol: the route's waypoints in turn (from the nearest, so two guards go apart), a pause at each to look about.
+        private int _wp = -1; private bool _looking;
         private void Guard(Brain b)
         {
-            if (_guardUntil == 0) _guardUntil = Time.time + 90f;
+            if (_guardUntil == 0) _guardUntil = Time.time + 120f;
             if (Time.time > _guardUntil) { Finish(b, true); return; }
+            // The round: the colony's watch posts in order; an old guard post's corners.
+            var stops = new List<Vector3>();
+            if (O.Target.StartsWith("round:")) stops.AddRange(WatchPost.All(b.Colony.Position).Select(w => w.transform.position + w.transform.forward * 1.2f));
+            else { Zone route = b.Colony.R.Zones.FirstOrDefault(z => z.Id == O.Target); if (route != null) for (int i = 0; i < route.Corners; i++) { var (x, z) = route.Corner(i); stops.Add(new Vector3(x, route.Floor, z)); } }
+            if (stops.Count == 0) { Finish(b, true); return; }
+            Vector3 Point(int i) { Vector3 p = stops[i % stops.Count]; return Colony.Spot(p, 1.5f) ?? p; }
+            int count = stops.Count;
+            if (_wp < 0) { float best = float.MaxValue; for (int i = 0; i < count; i++) { float d = Utils.DistanceXZ(b.Pos, Point(i)); if (d < best) { best = d; _wp = i; } } }
             if (b.Move.Moving) return;
-            Zone post = b.Colony.R.Zones.FirstOrDefault(z => z.Id == O.Target);
-            Vector3 c = post != null ? Zones.Centre(post) : _at;
-            Vector3? to = Colony.Spot(c, post != null ? Mathf.Min(8, Zones.Reach(post)) : 6);
-            if (to != null) b.Move.To(to.Value, 1f);
-            _waitUntil = Time.time + UnityEngine.Random.Range(4f, 9f);
+            Vector3 at = Point(_wp);
+            if (Utils.DistanceXZ(b.Pos, at) > 2f && !b.Move.Failed) { _looking = false; b.Move.To(at, 1.2f); return; }
+            if (!_looking) { _looking = true; _waitUntil = Time.time + UnityEngine.Random.Range(3f, 6f); b.Ai.LookTowards(Quaternion.Euler(0, UnityEngine.Random.Range(0f, 360f), 0) * Vector3.forward); return; } // (a look about at each waypoint)
+            _looking = false; _wp = (_wp + 1) % count;
+            b.Move.To(Point(_wp), 1.2f);
         }
         // Fishing from the dock: a rod and bait, and patience (the catch comes at the game's pace, not by the minigame).
         private float _fishUntil;

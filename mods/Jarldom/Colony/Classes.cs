@@ -50,7 +50,7 @@ namespace Jarldom
         public static string Prefab(ItemDrop.ItemData i) => i != null && i.m_dropPrefab != null ? i.m_dropPrefab.name : "";
         public static void Forget() { WarmByPrefab.Clear(); _meads = null; }
         // Equipment by what the game says it is.
-        public static bool IsWeapon(ItemDrop.ItemData i) { var t = i.m_shared.m_itemType; return t == ItemDrop.ItemData.ItemType.OneHandedWeapon || t == ItemDrop.ItemData.ItemType.TwoHandedWeapon || t == ItemDrop.ItemData.ItemType.TwoHandedWeaponLeft || t == ItemDrop.ItemData.ItemType.Bow; }
+        public static bool IsWeapon(ItemDrop.ItemData i) { var t = i.m_shared.m_itemType; return !Prefab(i).StartsWith("Tankard") && (t == ItemDrop.ItemData.ItemType.OneHandedWeapon || t == ItemDrop.ItemData.ItemType.TwoHandedWeapon || t == ItemDrop.ItemData.ItemType.TwoHandedWeaponLeft || t == ItemDrop.ItemData.ItemType.Bow); }
         public static bool IsEquipment(ItemDrop.ItemData i)
         {
             var t = i.m_shared.m_itemType;
