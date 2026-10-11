@@ -112,6 +112,7 @@ namespace Jarldom
         }
         public static void Walked(Colony c, Vector3 at) { if (Steps.TryGetValue(c.Id, out var cells)) cells.Remove(Cell(at)); }
         public static int Worn(Colony c) => Steps.TryGetValue(c.Id, out var cells) ? cells.Count(kv => kv.Value >= RoadAfter) : 0;
+        public static string Busiest(Colony c) => Steps.TryGetValue(c.Id, out var cells) && cells.Count > 0 ? string.Join(", ", cells.OrderByDescending(kv => kv.Value).Take(5).Select(kv => $"{Centre(kv.Key).x:0},{Centre(kv.Key).z:0}:{kv.Value}")) + $" ({cells.Count} squares)" : "none";
         // The game's own paint, straight on the land's terrain records (as the hoe's paved path, without the hoe).
         private static readonly System.Reflection.MethodInfo DoOp = AccessTools.Method(typeof(TerrainComp), "DoOperation");
         public static void Pave(Vector3 at)
@@ -143,8 +144,10 @@ namespace Jarldom
         {
             Colony c = b.Colony;
             if (Gear.Tool(b, "hammer") == null || Time.time < b.NoUpkeepUntil) return null;
-            WearNTear hurt = Hurt(c).OrderBy(w => Vector3.Distance(w.transform.position, b.Pos)).FirstOrDefault(w => !UpkeepTask.Taken(w.transform.position));
-            if (hurt != null) return new UpkeepTask("mend", hurt.transform.position) { Wnt = hurt };
+            // (badly damaged first, then what was lost, then the weather's wear, then roads: wear never ends, and would keep the rest waiting)
+            var hurtAll = Hurt(c).Where(w => !UpkeepTask.Taken(w.transform.position)).OrderBy(w => Vector3.Distance(w.transform.position, b.Pos)).ToList();
+            WearNTear bad = hurtAll.FirstOrDefault(w => w.GetComponent<ZNetView>().GetZDO().GetFloat(ZDOVars.s_health, w.m_health) < w.m_health * 0.5f);
+            if (bad != null) return new UpkeepTask("mend", bad.transform.position) { Wnt = bad };
             if (c.IsOwner)
                 foreach (Ruin r in Ruins(c))
                 {
@@ -154,8 +157,11 @@ namespace Jarldom
                     var needs = prefab.m_resources.Where(q => q.m_resItem != null && !q.m_upgraderResource && q.m_amount > 0).Select(q => (q.m_resItem.name, q.m_amount)).ToList();
                     if (needs.All(n => Crafts.InStock(c, n.Item1) >= n.Item2)) return new UpkeepTask("rebuild", r.At) { Ruin = r, Needs = needs, Prefab = prefab };
                 }
+            WearNTear hurt = hurtAll.FirstOrDefault();
+            if (hurt != null && UnityEngine.Random.value < 0.6f) return new UpkeepTask("mend", hurt.transform.position) { Wnt = hurt }; // (now and then a road instead)
             Vector3? road = Crafts.InStock(c, "Stone") > 0 ? NextRoad(c, b.Pos) : null;
             if (road != null && !UpkeepTask.Taken(road.Value)) return new UpkeepTask("pave", road.Value) { Needs = new List<(string, int)> { ("Stone", 1) } };
+            if (hurt != null) return new UpkeepTask("mend", hurt.transform.position) { Wnt = hurt };
             b.NoUpkeepUntil = Time.time + 20;
             return null;
         }

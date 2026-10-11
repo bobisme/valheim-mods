@@ -337,7 +337,7 @@ namespace Jarldom
         public void Attacked(Character by)
         {
             LastAttacker = by.IsPlayer() ? (by as Player)?.GetPlayerName() : Localization.instance.Localize(by.m_name);
-            if (!Combat.Friendly(by)) { Foe = by; _foeUntil = Time.time + 20; Stand(); } // (a companion's stray blow, a tame boar's kick: not a foe)
+            if (!Combat.Friendly(by) && !(Task is CatchTask ct && ct.Target == by)) { Foe = by; _foeUntil = Time.time + 20; Stand(); } // (a companion's stray blow, a tame boar's kick: not a foe)
         }
         public bool HasFoe => Foe != null && !Foe.IsDead() && Time.time < _foeUntil;
         public void SetFoeFor(float seconds) => _foeUntil = Time.time + seconds;

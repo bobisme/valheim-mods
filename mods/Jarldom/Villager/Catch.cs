@@ -38,7 +38,9 @@ namespace Jarldom
 
     internal sealed class CatchTask : Task
     {
-        private Character _boar; private readonly Zone _pasture; private int _phase, _beats, _level = 1; private float _next, _until;
+        private Character _boar; private readonly Zone _pasture;
+        public Character Target => _boar; // (not a foe: a beast being roped is taken, kicks and all)
+        private int _phase, _beats, _level = 1; private float _next, _until;
         public CatchTask(Character boar, Zone pasture) { _boar = boar; _pasture = pasture; }
         public override bool Interruptible => _phase == 0;
         public override void Start(Brain b) { Doing = "going after a wild boar for the pasture"; _until = Time.time + 180; b.Move.To(_boar.transform.position, 2f); }

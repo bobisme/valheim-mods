@@ -25,6 +25,13 @@ namespace Jarldom
                 var found = Stock.Chests(c, b.Pos).Where(x => x.category != "" && x.category != "treasury" && !ContainerAccess.InUse(x.chest))
                     .SelectMany(x => x.chest.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && want(i)).Select(i => (x.chest, i))).FirstOrDefault();
                 if (found.chest != null) return new OutfitTask(found.chest, found.i.m_dropPrefab.name, count);
+                // (a hunter with no bow or arrows in the stores makes their own: a crude bow, flint arrows if there's flint, else wooden)
+                if (kind == "bow")
+                {
+                    bool noBow = !Gear.Items(b).Any(i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Bow && Gear.Usable(i));
+                    string make = noBow ? "Bow" : MakeOwn.Can(c, "ArrowFlint", b.Pos) ? "ArrowFlint" : "ArrowWood";
+                    if (MakeOwn.Can(c, make, b.Pos)) return new MakeOwn(make);
+                }
             }
             b.NoGearUntil = Time.time + 90;
             return null;

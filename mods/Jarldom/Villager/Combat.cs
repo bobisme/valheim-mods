@@ -45,6 +45,7 @@ namespace Jarldom
                         && (Vector3.Distance(c.transform.position, me) < reach || raid && Raider(c, home)) && Follow.Near(b, c.transform.position, 25))
                     .OrderBy(c => raid && Raider(c, home) ? 0 : 1).ThenBy(c => Vector3.Distance(c.transform.position, me)).FirstOrDefault();
             }
+            if (foe != null && b.Task is CatchTask ct && ct.Target == foe) foe = null; // (the boar being roped)
             if (foe == null) { b.Fighting = false; return; }
             if (!out_ && home != null && Utils.DistanceXZ(foe.transform.position, home.Position) < home.Radius && foe.IsBoss() == false && foe.GetMaxHealth() > 300 && !Mood.Has(b.S, "bigcreature", b.Now)) Mood.Add(b.S, "bigcreature", b.Now);
             // Armed and the beast is small: stand and fight it. Otherwise those who aren't fighters run.
@@ -57,7 +58,7 @@ namespace Jarldom
             }
             b.Stand();
             b.Fighting = true; b.FightTarget = foe;
-            b.Combat_Bow = Gear.Tool(b, "bow") != null && (Gear.Weapon(b) == null || Vector3.Distance(foe.transform.position, me) > 6f);
+            b.Combat_Bow = Gear.Tool(b, "bow") != null && (b.S.Prof == Prof.Hunter || Gear.Weapon(b) == null || Vector3.Distance(foe.transform.position, me) > 6f); // (a hunter keeps to the bow)
             b.SetDoing(b.Combat_Bow ? "shooting at " + Localization.instance.Localize(foe.m_name) : "fighting " + Localization.instance.Localize(foe.m_name));
         }
 

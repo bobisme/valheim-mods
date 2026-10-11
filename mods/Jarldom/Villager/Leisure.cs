@@ -29,7 +29,7 @@ namespace Jarldom
             var rng = new System.Random(b.S.Vid.GetHashCode() ^ (int)(Time.time / 30f));
             var kinds = new List<(string kind, int weight)>();
             // No tankard of their own: carve one at the workbench, from the stores (fine wood and resin).
-            if (Gear.Tool(b, "tankard") == null && Carve.Can(c)) return new Carve();
+            if (Gear.Tool(b, "tankard") == null && MakeOwn.Can(c, "Tankard", b.Pos)) return new MakeOwn("Tankard");
             if (indoors)
             {
                 // (out of the storm: a game at a table, or the hall and its talk)
@@ -182,12 +182,23 @@ namespace Jarldom
             b.Move.Stop(); _there = true;
             return true;
         }
+        // Close enough to a seat to sit (a bench's seats are inside its collider: walking right onto one fails).
+        private bool Near(Brain b, Chair seat)
+        {
+            Vector3 at = seat.m_attachPoint != null ? seat.m_attachPoint.position : seat.transform.position;
+            float d = Utils.DistanceXZ(b.Pos, at);
+            if (d < 2.2f && Mathf.Abs(b.Pos.y - at.y) < 1.5f) { b.Move.Stop(); return true; }
+            if (b.Move.Failed && d < 4f) return true;
+            if (b.Move.Failed) { Done = true; return false; }
+            if (!b.Move.Moving) b.Move.To(at, 1.5f);
+            return false;
+        }
         private void Face(Brain b, Vector3 at) { Vector3 d = at - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized); }
 
         private void Tafl(Brain b)
         {
             if (_seat == null) { Done = true; return; }
-            if (b.Held == null) { if (!Arrive(b, _seat.transform.position, 1.4f)) return; b.Sit(_seat.m_attachPoint, string.IsNullOrEmpty(_seat.m_attachAnimation) ? "attach_chair" : _seat.m_attachAnimation, Vector3.zero); _next = Time.time + 6f; return; }
+            if (b.Held == null) { if (!Near(b, _seat)) return; b.Sit(_seat.m_attachPoint, string.IsNullOrEmpty(_seat.m_attachAnimation) ? "attach_chair" : _seat.m_attachAnimation, Vector3.zero); _next = Time.time + 6f; return; }
             if (Partner.Held == null || Time.time < _next || !Host) return;
             _next = Time.time + Random.Range(8f, 14f);
             _beat++;
@@ -261,7 +272,7 @@ namespace Jarldom
         private void Hall(Brain b)
         {
             if (b.Held != null) { Tankards.Sip(b, ref _nextSip); if (Time.time > _next) { _next = Time.time + Random.Range(25f, 50f); Talk.Gossip(b); } Mood.Satisfy(b.S, Need.Social, (float)(b.GameDt / Clock.Hour) * 4f); return; }
-            if (!Arrive(b, _spot, _seat != null ? 1.2f : 1f)) return;
+            if (_seat != null ? !Near(b, _seat) : !Arrive(b, _spot, 1f)) return;
             if (_seat != null && _seat.m_attachPoint != null) { b.Sit(_seat.m_attachPoint, string.IsNullOrEmpty(_seat.m_attachAnimation) ? "attach_chair" : _seat.m_attachAnimation, Vector3.zero); return; }
             // (no seat: standing about the hearth, talking)
             if (!_looked) { _looked = true; _fire = Classes.NearestFire(b.Pos, 8f); } // (once: not four times a second)
@@ -305,21 +316,33 @@ namespace Jarldom
         }
     }
 
-    // Carving a tankard at the workbench, from the stores: a villager's own, kept.
-    internal sealed class Carve : Task
+    // Making something of their own at a station from the stores, by the game's own recipe, and keeping it: a tankard, a hunter's
+    // crude bow and arrows.
+    internal sealed class MakeOwn : Task
     {
-        private static readonly (string item, int n)[] Needs = { ("FineWood", 5), ("Resin", 2) };
-        private CraftingStation _bench; private int _phase, _beats; private float _next;
-        public static bool Can(Colony c) => Bench(c) != null && Needs.All(n => Crafts.InStock(c, n.item) >= n.n);
-        private static CraftingStation Bench(Colony c) => c.PiecesIn(c.Radius).Select(p => p.GetComponent<CraftingStation>()).FirstOrDefault(s => s != null && Utils.GetPrefabName(s.gameObject) == "piece_workbench" && Crafts.Unusable(s) == null);
-        private int Have(Brain b, string item) => b.Body.GetInventory().GetAllItems().Where(i => Classes.Prefab(i) == item).Sum(i => i.m_stack);
-        public override void Start(Brain b) { _bench = Bench(b.Colony); Doing = "carving a tankard"; if (_bench == null) Done = true; }
+        private readonly string _prefab; private Recipe _r; private List<(string item, int amount)> _needs; private CraftingStation _bench; private int _phase, _beats; private float _next;
+        public MakeOwn(string prefab) { _prefab = prefab; }
+        public static bool Can(Colony c, string prefab, Vector3 near)
+        {
+            Recipe r = Crafts.RecipeFor(prefab);
+            CraftingStation st = r == null ? null : Crafts.StationFor(c, r, near);
+            return st != null && Crafts.Unusable(st) == null && Crafts.CanAfford(c, r);
+        }
+        private int Have(Brain b, string item) => b.Body.GetInventory().GetAllItems().Where(i => Classes.Prefab(i) == item && !i.m_equipped).Sum(i => i.m_stack);
+        public override void Start(Brain b)
+        {
+            _r = Crafts.RecipeFor(_prefab); _bench = _r == null ? null : Crafts.StationFor(b.Colony, _r, b.Pos);
+            if (_bench == null) { Done = true; return; }
+            _needs = Crafts.Needs(_r);
+            string what = Crafts.Name(_prefab).ToLower();
+            Doing = _r.m_amount > 1 ? $"making {what}s of their own" : "making " + ("aeiou".IndexOf(what[0]) >= 0 ? "an " : "a ") + what + " of their own";
+        }
         public override void Tick(Brain b)
         {
             if (Done || _bench == null) { Done = true; return; }
             if (_phase == 0)
             {
-                var missing = Needs.Where(n => Have(b, n.item) < n.n).ToList();
+                var missing = _needs.Where(n => Have(b, n.item) < n.amount).ToList();
                 if (missing.Count == 0) { _phase = 1; b.Move.To(_bench.transform.position, 2f); return; }
                 var (want, count) = missing[0];
                 Container from = Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => Classes.Prefab(i) == want));
@@ -338,13 +361,13 @@ namespace Jarldom
             if (++_beats < 4) return;
             Body_.Anim(b.Body)?.SetInt("crafting", 0);
             Inventory bag = b.Body.GetInventory();
-            if (Needs.Any(n => Have(b, n.item) < n.n)) { Done = true; return; }
-            foreach (var (item, n) in Needs)
-                for (int left = n; left > 0;) { ItemDrop.ItemData st = bag.GetAllItems().FirstOrDefault(i => Classes.Prefab(i) == item); if (st == null) break; int k = System.Math.Min(left, st.m_stack); bag.RemoveItem(st, k); left -= k; }
-            bag.AddItem("Tankard", 1, 1, 0, Colony.Hash(b.S.Vid), b.S.Name, new Vector2i(-1, -1), false, false, false);
+            if (_needs.Any(n => Have(b, n.item) < n.amount)) { Done = true; return; }
+            foreach (var (item, n) in _needs)
+                for (int left = n; left > 0;) { ItemDrop.ItemData st = bag.GetAllItems().FirstOrDefault(i => Classes.Prefab(i) == item && !i.m_equipped); if (st == null) break; int k = System.Math.Min(left, st.m_stack); bag.RemoveItem(st, k); left -= k; }
+            bag.AddItem(_prefab, _r.m_amount, 1, 0, Colony.Hash(b.S.Vid), b.S.Name, new Vector2i(-1, -1), false, false, false);
             _bench.m_craftItemDoneEffects.Create(_bench.transform.position, Quaternion.identity);
-            b.Say("A tankard of my own. Now for something to put in it.", 4);
-            b.S.Bump("tankard"); b.Dirty();
+            b.Say(Gear.IsTankard(Stock.Of(Assets.Find(_prefab))) ? "A tankard of my own. Now for something to put in it." : $"There: {Crafts.Name(_prefab).ToLower()}, my own make.", 4);
+            b.S.Bump("made"); b.Dirty();
             Done = true;
         }
         public override void Stop(Brain b) { Body_.Anim(b.Body)?.SetInt("crafting", 0); base.Stop(b); }

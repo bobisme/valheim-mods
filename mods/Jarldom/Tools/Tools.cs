@@ -65,7 +65,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "deeds", "wreck", "slay", "unlose", "forgetrow", "away", "master", "envoy", "capture", "barrow" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "away", "master", "envoy", "capture", "barrow" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or with devcommands"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -741,7 +741,7 @@ namespace Jarldom
                 case "deeds": c.R.Deeds += int.Parse(a[2]); c.MarkDirty(); output(new JObject { ["deeds"] = c.R.Deeds }); break; // (test mishaps undone)
                 case "hildir": if (a.Length > 2) Weaving.TestHildir = a[2] == "on"; output(new JObject { ["known"] = Weaving.HildirKnown(), ["keys"] = new JArray(new[] { "Hildir1", "Hildir2", "Hildir3" }.Where(k => ZoneSystem.instance.GetGlobalKey(k))) }); break;
                 case "fires": output(new JObject { ["fires"] = new JArray(c.PiecesIn(c.Radius).Select(pc => pc.GetComponent<Fireplace>()).Where(f => f != null).Select(f => $"{Utils.GetPrefabName(f.gameObject)} at {f.transform.position.x:0},{f.transform.position.z:0}: warms {Classes.Warms(f)}, lit {Classes.Lit(f)}, areas {string.Join("/", f.GetComponentsInChildren<EffectArea>(true).Select(e => e.m_type + (e.gameObject.activeInHierarchy ? "" : "(off)")))}")) }); break;
-                case "upkeep": output(new JObject { ["ruins"] = new JArray(Upkeep.Ruins(c).Select(r => $"{r.Prefab} at {r.At.x:0.0},{r.At.y:0.0},{r.At.z:0.0}")), ["hurt"] = new JArray(Upkeep.Hurt(c).Select(w => $"{Utils.GetPrefabName(w.gameObject)} at {w.transform.position.x:0},{w.transform.position.z:0}")), ["wornPaths"] = Upkeep.Worn(c) }); break;
+                case "upkeep": output(new JObject { ["ruins"] = new JArray(Upkeep.Ruins(c).Select(r => $"{r.Prefab} at {r.At.x:0.0},{r.At.y:0.0},{r.At.z:0.0}")), ["hurt"] = new JArray(Upkeep.Hurt(c).Select(w => $"{Utils.GetPrefabName(w.gameObject)} at {w.transform.position.x:0},{w.transform.position.z:0}")), ["wornPaths"] = Upkeep.Worn(c), ["busiest"] = Upkeep.Busiest(c) }); break;
                 case "wreck":
                     {
                         // Test only: the nearest piece to x z hurt to pct% (or broken, at 0), as a monster's blow would (no player's hand).
@@ -768,10 +768,13 @@ namespace Jarldom
                         BaseUnityPlugin skal = Compat.Find(Compat.Known.First(k => k.name == "SkalTavern").guids);
                         MethodInfo raise = skal == null ? null : HarmonyLib.AccessTools.Method(skal.GetType().Assembly.GetType("SkalTavern.Toast"), "Raise");
                         if (raise == null) { error("no SkalTavern toast"); return; }
+                        bool hooked = HarmonyLib.Harmony.GetPatchInfo(raise)?.Postfixes.Any(px => px.owner == "com.bobisme.jarldom.skal") == true;
+                        if (a.Length > 2 && a[2] == "hall") { Skal.Answer(c.Centre(c.Best(RoomType.GreatHall)), me.GetPlayerName()); output(new JObject { ["hooked"] = hooked, ["answered"] = "at the hall" }); break; }
                         raise.Invoke(null, new object[] { me });
-                        output(new JObject { ["toasted"] = true, ["near"] = Villagers.All.Count(v => Vector3.Distance(v.Pos, me.transform.position) < 12f) });
+                        output(new JObject { ["hooked"] = hooked, ["toasted"] = true, ["near"] = Villagers.All.Count(v => Vector3.Distance(v.Pos, me.transform.position) < 12f) });
                     }
                     break;
+                case "makeown": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } if (!MakeOwn.Can(c, a[3], b.Pos)) { error("can't make " + a[3] + " here (station, stores)"); return; } b.Task?.Stop(b); b.Task = new MakeOwn(a[3]); b.Task.Start(b); output(new JObject { ["doing"] = b.Task.Doing }); } break;
                 case "slay":
                     {
                         // Test only: every creature of a prefab in the colony (and 30 m round) dies.
