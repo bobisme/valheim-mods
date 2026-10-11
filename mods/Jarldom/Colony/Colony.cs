@@ -54,6 +54,7 @@ namespace Jarldom
             try { c.R = ColonyRecord.Load(data); }
             catch (Exception e) { Plugin.Warn("Jarldom: a colony record could not be read and is kept as it is: " + e.Message); return null; }
             c._revision = c.Z.DataRevision;
+            c.LoadSaga();
             if (c.R == null)
             {
                 if (!c.IsOwner) return null; // the owner founds it; others see it once the record arrives (HighSeat retries)
@@ -127,15 +128,72 @@ namespace Jarldom
         {
             if (!_dirty || !IsOwner || R == null) return;
             _dirty = false;
-            Z.Set(RecordKey, R.Save());
+            bool apart = SaveSaga();
+            Z.Set(RecordKey, R.Save(withLog: !apart));
             _revision = Z.DataRevision;
+        }
+
+        // The saga on a still object of its own beside the pillars (found by the colony's id, as the board is): it changes with every
+        // event, and in the record it would send the whole record with it each time.
+        public const string SagaKey = "jarldom_saga", SagaLogKey = "jarldom_log", SagaZdoKey = "jarldom_sagazdo";
+        private int _sagaSaved = -1; private uint _sagaRevision;
+        public ZDO SagaZ
+        {
+            get
+            {
+                if (ZDOMan.instance == null) return null;
+                ZDOID id = Z.GetZDOID(SagaZdoKey);
+                ZDO sz = id.IsNone() ? null : ZDOMan.instance.GetZDO(id);
+                if (sz != null && sz.GetPrefab() == SoulStore.PrefabName.GetStableHashCode() && sz.GetString(SagaKey, "") == Id) return sz;
+                if (id.IsNone()) return null;
+                sz = SoulStore.Find(SagaKey, Id);
+                if (sz != null && IsOwner) Z.Set(SagaZdoKey, sz.m_uid);
+                return sz;
+            }
+        }
+        private int SagaStamp => R.Log.Count == 0 ? 0 : R.Log.Count * 7919 ^ R.Log[R.Log.Count - 1].Time.GetHashCode();
+        // On the owner: the saga written apart (made the first time); false while it can't be (then it rides in the record as before).
+        private bool SaveSaga()
+        {
+            ZDO sz = SagaZ;
+            if (sz == null && Z.GetZDOID(SagaZdoKey).IsNone() && ZNetScene.instance?.GetPrefab(SoulStore.PrefabName) != null)
+            {
+                int hash = SoulStore.PrefabName.GetStableHashCode();
+                sz = ZDOMan.instance.CreateNewZDO(Position + Vector3.down * 4f, hash);
+                sz.Persistent = true; sz.Type = ZDO.ObjectType.Default; sz.Distant = false; sz.SetPrefab(hash);
+                sz.Set(SagaKey, Id);
+                Z.Set(SagaZdoKey, sz.m_uid);
+                _sagaSaved = -1;
+            }
+            if (sz == null) return false;
+            int stamp = SagaStamp;
+            if (stamp != _sagaSaved || sz.GetByteArray(SagaLogKey) == null)
+            {
+                if (!sz.IsOwner()) sz.SetOwner(ZDOMan.GetSessionID());
+                sz.Set(SagaLogKey, R.SaveLog());
+                _sagaSaved = stamp; _sagaRevision = sz.DataRevision;
+            }
+            return true;
+        }
+        // The saga read back (when the record came without it, or the saga changed on the owner's game).
+        private void LoadSaga()
+        {
+            if (R == null) return;
+            ZDO sz = SagaZ;
+            if (sz == null) return;
+            if (R.Log.Count > 0 && sz.DataRevision == _sagaRevision) return;
+            byte[] bytes = sz.GetByteArray(SagaLogKey);
+            if (bytes == null || bytes.Length == 0) return;
+            if (R.Log.Count > 0 && IsOwner) return; // (the owner's own copy is the newer one)
+            try { R.Log = ColonyRecord.LoadLog(bytes); _sagaRevision = sz.DataRevision; _sagaSaved = SagaStamp; }
+            catch (Exception e) { Plugin.Warn("Jarldom: a colony's saga could not be read: " + e.Message); }
         }
         // Other games pick up the owner's changes; a new owner starts from the record as saved.
         private void Reload()
         {
             if (Z.DataRevision == _revision) return;
             _revision = Z.DataRevision;
-            try { var fresh = ColonyRecord.Load(Z.GetByteArray(RecordKey)); if (fresh != null) R = fresh; }
+            try { var fresh = ColonyRecord.Load(Z.GetByteArray(RecordKey)); if (fresh != null) { if (fresh.Log.Count == 0 && R != null) fresh.Log = R.Log; R = fresh; } }
             catch (Exception e) { Plugin.Warn("Jarldom: colony record unreadable: " + e.Message); }
             LoadBoard();
         }
@@ -167,7 +225,7 @@ namespace Jarldom
         private float _nextTick;
         private void Tick()
         {
-            if (!IsOwner) { Reload(); return; }
+            if (!IsOwner) { Reload(); LoadSaga(); return; }
             if (Time.time >= _nextSave) { _nextSave = Time.time + 15; Flush(); } // (the record goes to every game when written: a few times a minute at most; players' actions write at once)
             if (Time.time >= _nextBoardShare) { _nextBoardShare = Time.time + 5; ShareBoard(); }
             if (Time.time < _nextTick) return;

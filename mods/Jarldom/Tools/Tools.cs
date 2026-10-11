@@ -86,7 +86,7 @@ namespace Jarldom
                 // What the game sends for Jarldom's objects (read-only): each one's whole record, as sent when it changes or moves.
                 int Size(ZDO z) { if (z == null) return 0; var pkg = new ZPackage(); z.Serialize(pkg); return pkg.Size(); }
                 var o = new JObject();
-                foreach (Colony col in Colony.All) o[col.R.Name] = new JObject { ["pillars"] = Size(col.Z), ["board"] = Size(col.BoardZ), ["record"] = col.Z.GetByteArray(Colony.RecordKey)?.Length ?? 0 };
+                foreach (Colony col in Colony.All) o[col.R.Name] = new JObject { ["pillars"] = Size(col.Z), ["board"] = Size(col.BoardZ), ["record"] = col.Z.GetByteArray(Colony.RecordKey)?.Length ?? 0, ["saga"] = Size(col.SagaZ), ["parts"] = $"log {col.R.Log.Count}, flags {col.R.Flags.Count}, rooms {col.R.Rooms.Count}, zones {col.R.Zones.Count}, roster {col.R.Roster.Count}, fallen {col.R.Fallen.Count}" };
                 o["villagers"] = new JArray(Villagers.Bodies().Select(h => { ZDO z = h.GetComponent<ZNetView>().GetZDO(); return $"{z.GetString(Villagers.NameKey)}: body {Size(z)} B (bag {z.GetByteArray(ZDOVars.s_items)?.Length ?? 0}), soul {Size(SoulStore.Of(z))} B"; }));
                 output(o);
                 return;
@@ -701,7 +701,7 @@ namespace Jarldom
                         // The colony's record and board to a file (BepInEx/claude/jarldom-<id>-<time>.txt), for jarldom relic to bring back.
                         c.MarkDirty(); c.Flush();
                         string file = System.IO.Path.Combine(BepInEx.Paths.BepInExRootPath, "claude", $"jarldom-{c.Id}-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
-                        System.IO.File.WriteAllLines(file, new[] { c.Id, c.R.Name, Convert.ToBase64String(c.Z.GetByteArray(Colony.RecordKey)), Convert.ToBase64String(c.BoardBytes() ?? new byte[0]) });
+                        System.IO.File.WriteAllLines(file, new[] { c.Id, c.R.Name, Convert.ToBase64String(c.R.Save(withLog: true)), Convert.ToBase64String(c.BoardBytes() ?? new byte[0]) });
                         output(new JObject { ["file"] = file, ["bytes"] = c.Z.GetByteArray(Colony.RecordKey).Length });
                     }
                     break;

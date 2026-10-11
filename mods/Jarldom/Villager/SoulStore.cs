@@ -60,8 +60,9 @@ namespace Jarldom
             foreach (ZDO o in ById(ZDOMan.instance).Values)
             {
                 if (o.GetPrefab() != hash) continue;
-                string vid = o.GetString(Villagers.VidKey, ""), id = o.GetString(Colony.IdKey, "");
+                string vid = o.GetString(Villagers.VidKey, ""), saga = o.GetString(Colony.SagaKey, ""), id = o.GetString(Colony.IdKey, "");
                 if (vid != "") Index[Villagers.VidKey + "=" + vid] = o;
+                else if (saga != "") Index[Colony.SagaKey + "=" + saga] = o;
                 else if (id != "") Index[Colony.IdKey + "=" + id] = o;
             }
             if (Index.TryGetValue(k, out z)) return z;
@@ -110,8 +111,12 @@ namespace Jarldom
         {
             private static void Prefix(GameObject go)
             {
-                if (go != null && go.GetComponent<HighSeat>() is HighSeat seat && seat.Colony?.BoardZ is ZDO board && go.GetComponent<ZNetView>()?.IsOwner() == true)
-                { if (!board.IsOwner()) board.SetOwner(ZDOMan.GetSessionID()); ZDOMan.instance.DestroyZDO(board); return; } // (the pillars' board goes with them)
+                if (go != null && go.GetComponent<HighSeat>() is HighSeat seat && seat.Colony != null && go.GetComponent<ZNetView>()?.IsOwner() == true)
+                {
+                    // (the pillars' board and saga go with them: a heart carries the saga on)
+                    foreach (ZDO z in new[] { seat.Colony.BoardZ, seat.Colony.SagaZ }) if (z != null) { if (!z.IsOwner()) z.SetOwner(ZDOMan.GetSessionID()); ZDOMan.instance.DestroyZDO(z); }
+                    return;
+                }
                 if (go == null || !VillagerPrefab.Is(go.GetComponent<Character>())) return;
                 ZNetView v = go.GetComponent<ZNetView>();
                 if (v == null || !v.IsValid() || !v.IsOwner()) return;

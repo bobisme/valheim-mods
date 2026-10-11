@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -20,15 +21,10 @@ namespace Jarldom
             if (Time.time < b.NextMischief) return;
             b.NextMischief = Time.time + Random.Range(900f, 1800f); // about once a day or so
             Colony c = b.Colony;
-            string what = null;
-            int pick = c.RaidOn ? 2 : Random.Range(0, 4);
-            switch (pick)
-            {
-                case 0: what = Spoil(c, b); break;
-                case 1: what = Blunt(c, b); break;
-                case 2: what = c.RaidOn ? OpenDoor(c, b) : null; break;
-                case 3: what = Rumour(c, b); break;
-            }
+            // (in a raid, a door left open first; otherwise one of the rest at random, and another if that can't be done here)
+            var tricks = new List<System.Func<string>> { () => Spoil(c, b), () => Blunt(c, b), () => Rumour(c, b) }.OrderBy(_ => Random.value).ToList();
+            if (c.RaidOn) tricks.Insert(0, () => OpenDoor(c, b));
+            string what = tricks.Select(t => t()).FirstOrDefault(w => w != null);
             if (what == null) return;
             c.Log("text", "", "", what);
             // Who was near: the touched one is noticed more often than not; sometimes an innocent instead (or as well).

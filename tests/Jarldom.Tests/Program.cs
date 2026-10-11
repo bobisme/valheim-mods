@@ -34,6 +34,15 @@ Check(Convert.ToBase64String(back.Save()) == Convert.ToBase64String(colony.Save(
 bool threw = false; var newer = colony.Save(); newer[0] = 99; try { ColonyRecord.Load(newer); } catch (InvalidDataException) { threw = true; }
 Check(threw, "A newer save is refused, not misread");
 Check(ColonyRecord.Load(null) == null && ColonyRecord.Load(new byte[0]) == null, "No data, no colony");
+// The saga kept apart: the record without it, the saga on its own, and the two together again.
+var bare = ColonyRecord.Load(colony.Save(withLog: false));
+Check(bare.Log.Count == 0 && bare.Roster.Single().Name == "Ulf" && bare.Flag("testflag") == 3 && bare.Coming[0].Name == "Astrid", "A record saved without its saga keeps the rest");
+Check(colony.Save(withLog: false).Length < colony.Save().Length / 3, "The record without its saga is small");
+var sagaApart = ColonyRecord.LoadLog(colony.SaveLog());
+Check(sagaApart.Count == ColonyRecord.LogSize && sagaApart[0].Time == colony.Log[0].Time && sagaApart.Last().Kind == "kill" && sagaApart.Last().B == "Greydwarf", "The saga round-trips on its own");
+bare.Log = sagaApart;
+Check(Convert.ToBase64String(bare.Save()) == Convert.ToBase64String(colony.Save()), "Record and saga together are the record as it was");
+Check(ColonyRecord.LoadLog(null).Count == 0 && ColonyRecord.LoadLog(new byte[0]).Count == 0, "No saga, an empty one");
 
 var soul = new VillagerState { Vid = "v1", Name = "Ulf", Traits = { "brave", "glutton" }, Prof = Prof.Guard, Worth = 12, Hoard = 30, Bed = "b1" };
 soul.Skills["Axes"] = 21.5f; soul.Bonds["v2"] = 60; soul.Opinions["Bob"] = 40; soul.Bump("kills", 3); soul.Foods.Add("CookedMeat");

@@ -80,7 +80,8 @@ namespace Jarldom
         public IEnumerable<RosterRow> Living => Roster.Where(r => r.State == SoulState.Active);
         public int Flag(string key) => Flags.TryGetValue(key, out int v) ? v : 0;
 
-        public byte[] Save()
+        // The record; without its saga when the saga is kept apart (it changes with every event, the record by the minute).
+        public byte[] Save(bool withLog = true)
         {
             var w = new Writer();
             w.Byte(Version);
@@ -103,8 +104,7 @@ namespace Jarldom
             }
             w.Int(Zones.Count);
             foreach (var z in Zones) { w.Str(z.Id); w.Int((int)z.Type); w.Floats(z.Xz); w.Flt(z.Floor); }
-            w.Int(Log.Count);
-            foreach (var e in Log) { w.Dbl(e.Time); w.Int(e.Day); w.Str(e.Kind); w.Str(e.A); w.Str(e.B); w.Str(e.Text); }
+            WriteLog(w, withLog ? Log : new List<LogEntry>());
             w.Int(Coming.Count);
             foreach (var n in Coming) { w.Str(n.Name); w.Bool(n.Female); w.Str(n.Traits); w.Int((int)n.Prof); w.Str(n.Story); w.Int(n.Seed); w.Str(n.Group); }
             w.Int(ComingDay); w.Bool(ComingLanded);
@@ -116,6 +116,22 @@ namespace Jarldom
             return w.Bytes();
         }
 
+        private static void WriteLog(Writer w, List<LogEntry> log)
+        {
+            w.Int(log.Count);
+            foreach (var e in log) { w.Dbl(e.Time); w.Int(e.Day); w.Str(e.Kind); w.Str(e.A); w.Str(e.B); w.Str(e.Text); }
+        }
+        // The saga on its own.
+        public byte[] SaveLog() { var w = new Writer(); w.Byte(Version); WriteLog(w, Log); return w.Bytes(); }
+        public static List<LogEntry> LoadLog(byte[] data)
+        {
+            var list = new List<LogEntry>();
+            if (data == null || data.Length == 0) return list;
+            var r = new Reader(data);
+            if (r.Byte() != Version) return list;
+            for (int i = r.Int(); i > 0; i--) list.Add(new LogEntry(r.Dbl(), r.Int(), r.Str(), r.Str(), r.Str(), r.Str()));
+            return list;
+        }
         public static ColonyRecord Load(byte[] data)
         {
             if (data == null || data.Length == 0) return null;
@@ -181,7 +197,8 @@ namespace Jarldom
         public string FullName => string.IsNullOrEmpty(Byname) ? Name : Byname.StartsWith("the ") || Byname.StartsWith("Who ") ? Name + " " + Byname : Name + " " + Byname;
         public float Skill(string s) => Skills.TryGetValue(s, out float v) ? v : 0;
 
-        public byte[] Save()
+        // The record; without its saga when the saga is kept apart (it changes with every event, the record by the minute).
+        public byte[] Save(bool withLog = true)
         {
             var w = new Writer();
             w.Byte(Version);
