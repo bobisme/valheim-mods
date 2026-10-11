@@ -134,9 +134,11 @@ namespace Wayfinder
                 }
                 case "remove":
                 {
+                    // wayfinder remove [prefab...]: test objects that are loaded, all of them or only those prefabs
                     int n=0;
+                    var only=new System.Collections.Generic.HashSet<string>(args.Skip(2));
                     foreach(ZNetView v in Object.FindObjectsByType<ZNetView>(FindObjectsSortMode.None))
-                        if(v!=null&&v.IsValid()&&v.GetZDO().GetBool(TestKey)){v.ClaimOwnership();ZNetScene.instance.Destroy(v.gameObject);n++;}
+                        if(v!=null&&v.IsValid()&&v.GetZDO().GetBool(TestKey)&&(only.Count==0||only.Contains(Utils.GetPrefabName(v.gameObject)))){v.ClaimOwnership();ZNetScene.instance.Destroy(v.gameObject);n++;}
                     output(new JObject{["removed"]=n});
                     break;
                 }
