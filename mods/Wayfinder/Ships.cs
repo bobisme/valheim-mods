@@ -250,7 +250,28 @@ namespace Wayfinder
             vane.localPosition=top+new Vector3(0,0.05f,0);
             Vane(vane,_looks,0.5f);
             fit.Vane=vane.Find("Turn");
+            Seat(root,_looks,top,foot);
             Fits.Add(fit);
+        }
+        // Where the lookout sits, from the masthead (the top of the mast's bounds), in the ship's space.
+        internal static Vector3 SeatAt(Vector3 top)=>top+new Vector3(0,-1.35f,0.32f);
+        // The lookout's seat: a board lashed to the fore side of the mast under the masthead, slung from it by two ropes, and
+        // pegs up the mast to climb by (so whoever is aloft sits on something, for everyone aboard to see).
+        private static void Seat(Transform root,Looks l,Vector3 top,Vector3 foot)
+        {
+            Vector3 seat=SeatAt(top);
+            Vector3 mast=new Vector3(top.x,seat.y,top.z);
+            Models.Part(root,"SeatBoard",PrimitiveType.Cube,l.Get("DarkWood"),new Vector3(seat.x,seat.y-0.03f,top.z+0.3f),Vector3.zero,new Vector3(0.5f,0.05f,0.42f));
+            Models.Part(root,"SeatCleat",PrimitiveType.Cube,l.Get("DarkWood"),new Vector3(seat.x,seat.y-0.1f,top.z+0.13f),Vector3.zero,new Vector3(0.3f,0.1f,0.08f));
+            foreach(float side in new[]{-0.22f,0.22f})
+                Models.Rod(root,"SeatRope",l.Get("Leather"),new Vector3(seat.x+side,seat.y-0.01f,top.z+0.48f),mast+new Vector3(side*0.25f,0.75f,0.1f),0.012f);
+            Models.Part(root,"SeatLashing",PrimitiveType.Cylinder,l.Get("Leather"),mast+new Vector3(0,0.75f,0),Vector3.zero,new Vector3(0.24f,0.03f,0.24f));
+            int i=0;
+            for(float y=foot.y+0.7f;y<seat.y-0.35f;y+=0.5f,i++) // pegs, port and starboard by turns
+            {
+                float side=i%2==0?0.1f:-0.1f;
+                Models.Rod(root,"Peg",l.Get("DarkWood"),new Vector3(top.x+side*0.6f,y,top.z+0.04f),new Vector3(top.x+side*2.2f,y+0.03f,top.z+0.04f),0.02f);
+            }
         }
         // A bronze lantern with a horn window glowing warm.
         internal static void Lantern(Transform at,Looks l,out Renderer glow)
@@ -359,7 +380,7 @@ namespace Wayfinder
             if(_perch!=null)Object.Destroy(_perch.gameObject);
             _perch=new GameObject("WayfinderMasthead").transform;
             _perch.SetParent(ship.transform,false);
-            _perch.localPosition=top+new Vector3(0,-1.35f,0.18f);
+            _perch.localPosition=Fittings.SeatAt(top); // (on the lookout's seat)
             // back down onto the deck beside the mast: found by looking straight down there for the ship's own floor
             Vector3 deck=mastChair.m_attachPoint.position;
             int mask=LayerMask.GetMask("vehicle","piece","Default","static_solid");
