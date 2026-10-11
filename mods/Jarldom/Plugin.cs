@@ -93,6 +93,7 @@ namespace Jarldom
         private void OnDestroy()
         {
             Guard(Ui.Windows.CloseAll);
+            Guard(Ui.JarlView.End);
             Guard(Designate.Stop);
             Guard(Overlay_.Stop);
             Guard(CatchUp.Forget);
