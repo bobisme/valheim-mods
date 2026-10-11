@@ -139,6 +139,8 @@ namespace Jarldom
                     if (Player.GetAllPlayers().Any(pl => Vector3.Distance(pl.transform.position, drop.transform.position) < 4f)) continue;
                     if (!c.Tends(drop.transform.position)) continue; // someone else's things lying in their own base
                     if (drop.m_itemData.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Trophy && Stock.Destination(c, drop.m_itemData, drop.transform.position) == null) continue;
+                    // (only what lies where feet can get to it: not on a roof or a wall top, not up a tree)
+                    if (OnTop(drop.transform.position)) continue;
                     c.Board.Post("haul", Key(v), Prof.Hauler, 2, drop.transform.position.x, drop.transform.position.y, drop.transform.position.z, now, "", "ground");
                     hauls++;
                 }
@@ -210,6 +212,19 @@ namespace Jarldom
             if (d == null) return false;
             string cat = Stock.Category(Stock.Of(p.m_itemPrefab));
             return Stock.Edible(Stock.Of(p.m_itemPrefab)) || cat == "rawfood" || cat == "seeds";
+        }
+        // Lying on a roof, a wall top, a pole or a beam (where no one walks up to it), from what's under it.
+        private static readonly RaycastHit[] Under = new RaycastHit[8];
+        public static bool OnTop(Vector3 at)
+        {
+            int n = Physics.RaycastNonAlloc(at + Vector3.up * 0.3f, Vector3.down, Under, 1.5f, LayerMask.GetMask("piece", "piece_nonsolid", "terrain", "Default", "static_solid"), QueryTriggerInteraction.Ignore);
+            RaycastHit first = default; float best = float.MaxValue;
+            for (int i = 0; i < n; i++) if (Under[i].distance < best && Under[i].collider.GetComponentInParent<ItemDrop>() == null) { best = Under[i].distance; first = Under[i]; }
+            if (first.collider == null) return false;
+            Piece p = first.collider.GetComponentInParent<Piece>();
+            if (p == null) return false;
+            string name = Utils.GetPrefabName(p.gameObject).ToLowerInvariant();
+            return name.Contains("roof") || name.Contains("wall") || name.Contains("pole") || name.Contains("beam") || name.Contains("log");
         }
         private static bool IsRock(GameObject go)
         {
@@ -658,10 +673,14 @@ namespace Jarldom
         private bool Renew(Brain b) => b.Colony.IsOwner ? b.Colony.Board.Renew(O.Id, b.S.Vid, b.Colony.Now) : Net.Renew(b.Colony, b, O);
 
         private float _closeIn;
+        private float _walkSince;
         private bool Walking(Brain b, float near)
         {
-            if (Near(b, near)) { b.Move.Stop(); _closeIn = 0; return false; }
+            if (Near(b, near)) { b.Move.Stop(); _closeIn = 0; _walkSince = 0; return false; }
             if (b.Move.Failed) { Block(b, "can't reach it"); return true; }
+            // (pacing at the foot of a wall for something on top of it: after a while, not reachable)
+            if (_walkSince == 0) _walkSince = Time.time;
+            else if (Time.time - _walkSince > 60f && Utils.DistanceXZ(b.Pos, _target != null ? _target.transform.position : _at) < 6f) { Block(b, "can't reach it"); return true; }
             // The navmesh stops short of trunks and rocks: the last few metres straight at it.
             if (!b.Move.Moving && _target != null && _closeIn < 3f)
             {
