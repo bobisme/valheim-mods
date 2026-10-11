@@ -143,6 +143,27 @@ namespace Jarldom.Ui
             y += 52;
             y = Heading(list, "Mods it works with", y);
             y = Text(list, string.Join("   ", Compat.Report().Where(m => m.present && m.name != "ClaudeTools").Select(m => m.name)) is string s && s.Length > 0 ? s : "none of them (Jarldom needs none)", y, 15, GameUi.Dim);
+            // Outposts.
+            string parent = Outposts.Parent(_c);
+            if (parent != "")
+            {
+                Vector3 at = Outposts.Where(parent) ?? _c.Position;
+                y = Text(list, $"An outpost of the colony {Mathf.RoundToInt(Utils.DistanceXZ(at, _c.Position))} m to the {ScoutTask.Compass(at - _c.Position)}: its treasury meets the wages this one's can't.", y, 15, GameUi.Dim);
+                float ox = 8; Btn(list, "Stand alone", ref ox, y, () => Net.Act(_c, "outpost", "")); y += 52;
+            }
+            else
+            {
+                int n = Outposts.OutpostsOf(_c);
+                if (n > 0) y = Text(list, $"{n} outpost{(n == 1 ? "" : "s")} look to this colony: their wages may fall to its treasury.", y, 15, GameUi.Dim);
+                var mains = Outposts.Candidates(_c);
+                if (mains.Count > 0)
+                {
+                    y = Text(list, "Make this an outpost of another of your colonies (its own rank and people; the main colony's treasury meets its wages):", y, 15, GameUi.Dim);
+                    float ox = 8;
+                    foreach (var m in mains.Take(3)) { string id = m.id; Btn(list, $"Outpost of the one {Mathf.RoundToInt(Utils.DistanceXZ(m.at, _c.Position))} m {ScoutTask.Compass(m.at - _c.Position)}", ref ox, y, () => Net.Act(_c, "outpost", id)); }
+                    y += 52;
+                }
+            }
             y += 4;
             y = Text(list, $"Founded by {r.FounderName}. {(r.Allowed.Count > 0 ? "Also run by " + string.Join(", ", r.Allowed) + "." : "")}  Disband (Jarldom's way out: everyone's things in chests by the pillars):", y, 15, GameUi.Dim);
             bx = 8; Btn(list, "Disband the colony", ref bx, y, () => Confirm("disband"), true);

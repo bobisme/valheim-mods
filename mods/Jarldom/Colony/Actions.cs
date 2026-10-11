@@ -51,6 +51,7 @@ namespace Jarldom
                 case "rescue": Captives.Free(this, a[0], Get(a, 1) == "" ? who : Get(a, 1)); break;
                 case "ransom": Captives.Free(this, a[0], "ransom"); break;
                 case "hire": Visitors.Hire(this, who); break;
+                case "outpost": Outposts.Link(this, Get(a, 0), who); break;
                 case "heraldslain": Tribute.HeraldSlain(this); break;
                 case "jarlslain": Warband.Broken(this); break;
                 case "away": break; // (logged by the trader; the record follows from SoulAway)
@@ -121,6 +122,7 @@ namespace Jarldom
         // Everyone's things into a vanilla chest by the pillars, and the colony's people sent away: the way to uninstall safely.
         private void Disband(string who)
         {
+            Outposts.Forget(this);
             GameObject chestPrefab = ZNetScene.instance.GetPrefab("piece_chest_wood");
             int n = 0;
             foreach (Humanoid h in Villagers.Bodies().Where(h => h.GetComponent<ZNetView>().GetZDO().GetString(Villagers.ColonyKey) == R.Id).ToList())

@@ -170,7 +170,7 @@ namespace Jarldom
                 else if (Villagers.All.Any(b => b.S.Colony == R.Id) && Time.time - _attachedAt > 5 || Time.time - _attachedAt > 20) { _caughtUp = true; Plugin.Guard(() => CatchUp.Run(this, away)); }
                 else return;
             }
-            if (Time.time >= _nextLive) { _nextLive = Time.time + 30; CatchUp.Live(this); }
+            if (Time.time >= _nextLive) { _nextLive = Time.time + 30; CatchUp.Live(this); Plugin.Guard(() => Outposts.Announce(this)); }
             if (hour >= Schedule.WakeAt && hour < 12 && R.LastDawn != day) { R.LastDawn = day; _dirty = true; Plugin.Guard(() => Dawn(day)); }
             if (hour >= Schedule.HallAt && R.LastDusk != day) { R.LastDusk = day; _dirty = true; Plugin.Guard(() => Dusk(day)); }
             if (Time.time >= _nextSurvey) { _nextSurvey = Time.time + 300; Plugin.Guard(Survey); Plugin.Guard(Rerank); }
@@ -307,7 +307,8 @@ namespace Jarldom
             if (due <= 0) return;
             Container treasury = Stock.Treasury(this);
             int coins = treasury != null ? Stock.Coins(treasury) : 0;
-            if (treasury != null && Payroll.CanPay(coins, due) && Stock.TakeCoins(treasury, due))
+            bool paid = treasury != null && Payroll.CanPay(coins, due) && Stock.TakeCoins(treasury, due) || Outposts.Credit(this, due); // (an outpost's wages fall to its main colony)
+            if (paid)
             {
                 foreach (Brain b in souls)
                 {
