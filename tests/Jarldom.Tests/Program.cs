@@ -145,6 +145,20 @@ hallFacts.Walls[2] = 1; hallFacts.Count["banner"] = 4; hallFacts.Count["carving"
 Check(RoomRules.Judge(RoomType.GreatHall, hallFacts).Points > verdict.Points, "Seats and banners raise the grade");
 hallFacts.Count["highseat"] = 1; hallFacts.Count["gilded"] = 6; hallFacts.Count["trophy"] = 10; hallFacts.Count["rug"] = 6; hallFacts.Comfort = 8;
 Check(RoomRules.Judge(RoomType.GreatHall, hallFacts).Grade == 'S', "Gilding and the high seat make an S hall");
+// Storeys: a ground floor at 35 (3 m to the floor above) and an upper room at 38 over the same outline (from a real house).
+var square = new List<float> { 0, 0, 10, 0, 10, 8, 0, 8 };
+var ground = new Room { Id = "g", Type = RoomType.Longhouse, Floor = 35, Height = 3.04f, Xz = square };
+var upper = new Room { Id = "u", Type = RoomType.Stockpile, Floor = 38, Height = 4.49f, Xz = square };
+var both = new List<Room> { upper, ground };
+Check(RoomRules.At(both, 5, 35.1f, 4)?.Id == "g" && RoomRules.At(both, 5, 36.8f, 4)?.Id == "g", "On the ground floor: the ground-floor room");
+Check(RoomRules.At(both, 5, 38.05f, 4)?.Id == "u" && RoomRules.At(both, 5, 40f, 4)?.Id == "u", "Upstairs (even just on the floor): the upper room");
+Check(RoomRules.At(both, 5, 37.7f, 4)?.Id == "g", "Just under the floor above (a chest's top): still the room below");
+Check(RoomRules.At(both, 5, 43f, 4) == null && RoomRules.At(both, 12, 36f, 4) == null, "Above the roof, or outside the walls: no room");
+Check(RoomRules.At(both, 5, 39f, 4, RoomType.Longhouse) == null, "Asked for the longhouse while upstairs: not the one below");
+var loft = new RoomFacts { Walls = new[] { 1f, 1f, 1f, 1f }, Roof = 1, Doors = 0, Area = 40 }; loft.Count["fire"] = 1; loft.Count["bed"] = 1;
+Check(!RoomRules.Judge(RoomType.Longhouse, loft).Ok, "An upstairs room with no way in fails");
+loft.Count["stairs"] = 1;
+Check(RoomRules.Judge(RoomType.Longhouse, loft).Ok, "Stairs up into it are its door");
 var brew = new RoomFacts { Walls = new[] { 1f, 1f, 1f, 1f }, Roof = 1, Doors = 1, Area = 40 };
 Check(!RoomRules.Judge(RoomType.Brewhouse, brew).Ok && RoomRules.Judge(RoomType.Brewhouse, brew).Failures.Any(f => f.Contains("cauldron")), "A brewhouse needs a cauldron or a fermenter");
 brew.Count["fermenter"] = 1;

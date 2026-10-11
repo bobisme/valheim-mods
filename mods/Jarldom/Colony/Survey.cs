@@ -204,13 +204,15 @@ namespace Jarldom
             foreach (Piece p in list)
             {
                 Vector3 at = p.transform.position;
+                // Stairs or a ladder coming up into the room from the storey below: its way in, as a door is.
+                string pn = Prefab(p.gameObject);
+                if ((pn.Contains("stair") || pn.Contains("ladder")) && at.y < floor - 0.5f && at.y > floor - 4f && Geometry.Distance(xz, at.x, at.z) <= 1.5f) { f.Count["stairs"] = f.C("stairs") + 1; continue; }
                 if (at.y < floor - 1f || at.y > floor + room.Height - 0.15f) continue; // (not the storey above)
                 Door door = p.GetComponent<Door>();
                 if (door != null)
                 {
-                    // A door in this room's own walls: near its outline, and in sight from its middle (not a neighbour's, beyond a wall).
-                    // Window shutters are doors to the game; not here.
-                    if (!Prefab(p.gameObject).Contains("window") && Geometry.Distance(xz, at.x, at.z) <= 1.5f && EdgeDistance(xz, at.x, at.z) <= 1.5f && InSight(new Vector3(cx, floor + 1f, cz), p))
+                    // A door in this room's walls: near its outline. Window shutters are doors to the game; not here.
+                    if (!Prefab(p.gameObject).Contains("window") && Geometry.Distance(xz, at.x, at.z) <= 1.5f && EdgeDistance(xz, at.x, at.z) <= 1.5f)
                     { f.Doors++; if (door.m_keyItem != null) f.LockableDoors++; }
                     continue;
                 }
@@ -255,13 +257,6 @@ namespace Jarldom
                 if (Solid(new Vector3(px, floor + 0.7f, pz)) && (Solid(new Vector3(px, floor + 1.8f, pz)) || Solid(new Vector3(px, floor + 2.4f, pz)))) return true;
             }
             return false;
-        }
-        private static bool InSight(Vector3 from, Piece door)
-        {
-            Vector3 to = door.transform.position + Vector3.up * 1f;
-            if (!Physics.Linecast(from, to, out RaycastHit hit, PieceMask, QueryTriggerInteraction.Ignore)) return true;
-            Piece first = hit.collider.GetComponentInParent<Piece>();
-            return first == door || Vector3.Distance(hit.point, to) < 0.6f; // (the door itself, or right at it)
         }
         private static float EdgeDistance(IList<float> xz, float x, float z)
         {
@@ -319,9 +314,7 @@ namespace Jarldom
 
         // The room the point is in, of a kind (the great hall, a longhouse...).
         // In a house of storeys, the room whose floor is nearest below the point.
-        public Room RoomAt(Vector3 p, RoomType? type = null) =>
-            R.Rooms.Where(r => (type == null || r.Type == type) && Geometry.Inside(r.Xz, p.x, p.z) && p.y > r.Floor - 1.5f && p.y < r.Floor + r.Height + 0.5f)
-                .OrderBy(r => p.y >= r.Floor - 0.6f ? p.y - r.Floor : 100 + r.Floor - p.y).FirstOrDefault();
+        public Room RoomAt(Vector3 p, RoomType? type = null) => RoomRules.At(R.Rooms, p.x, p.y, p.z, type);
         public Room Best(RoomType type) => R.Rooms.Where(r => r.Type == type && r.Ok).OrderByDescending(r => r.Points).FirstOrDefault() ?? R.Rooms.FirstOrDefault(r => r.Type == type);
         public Vector3 Centre(Room r) { var (x, z) = Geometry.Centre(r.Xz); return new Vector3(x, r.Floor, z); }
     }

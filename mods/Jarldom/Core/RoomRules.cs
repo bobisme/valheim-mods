@@ -25,6 +25,10 @@ namespace Jarldom
 
     public static class RoomRules
     {
+        // The room a point is in: inside its outline and within its storey; in a house of storeys, the one whose floor is nearest below.
+        public static Room At(IEnumerable<Room> rooms, float x, float y, float z, RoomType? type = null) =>
+            rooms.Where(r => (type == null || r.Type == type) && Geometry.Inside(r.Xz, x, z) && y > r.Floor - 1.5f && y < r.Floor + r.Height + 0.5f)
+                .OrderBy(r => y >= r.Floor - 0.25f ? y - r.Floor : 100 + r.Floor - y).FirstOrDefault(); // (a little under a floor is still on it: feet sink in)
         public const float WallShare = 0.8f, RoofShare = 0.9f;
 
         public static RoomVerdict Judge(RoomType type, RoomFacts f, string god = "")
@@ -37,7 +41,7 @@ namespace Jarldom
                 if (v.OpenEdges.Count > 0) v.Failures.Add(v.OpenEdges.Count == 1 ? "a wall has a gap" : $"{v.OpenEdges.Count} walls have gaps");
             }
             if (info.Roofed && f.Roof < RoofShare) v.Failures.Add($"only {Math.Round(f.Roof * 100)}% of it is roofed (needs {RoofShare * 100}%)");
-            if (info.Door && f.Doors == 0) v.Failures.Add("no door on its walls");
+            if (info.Door && f.Doors == 0 && f.C("stairs") == 0) v.Failures.Add("no door on its walls (or stairs up into it)");
             if (info.Lockable && f.LockableDoors == 0 && f.Doors == 0) v.Failures.Add("no door to lock");
             if (info.Fire && f.C("fire") == 0) v.Failures.Add("no fire");
             if (info.Hearth && f.C("hearth") == 0 && f.C("fire") == 0) v.Failures.Add("no hearth");
