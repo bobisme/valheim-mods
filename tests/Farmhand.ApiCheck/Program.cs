@@ -533,6 +533,21 @@ Field("Inventory","m_onChanged","System.Action");
 Field("VisEquipment","m_rightItem","System.Int32");
 Field("ZNetScene","m_namedPrefabs","System.Collections.Generic.Dictionary`2<System.Int32,UnityEngine.GameObject>");
 
+// Demolisher removes pieces by the hammer's own path (Player.RemovePiece) and asks with the game's yes/no popup.
+Method("Piece","GetAllPiecesInRadius","System.Void","UnityEngine.Vector3","System.Single","System.Collections.Generic.List`1<Piece>");
+Method("Piece","IsPlacedByPlayer","System.Boolean");
+Method("Piece","DropResources","System.Void","HitData");
+Method("WearNTear","Remove","System.Void","System.Boolean");
+Method("Location","IsInsideNoBuildLocation","System.Boolean","UnityEngine.Vector3");
+Method("CraftingStation","HaveBuildStationInRange","CraftingStation","System.String","UnityEngine.Vector3");
+Method("Player","NoCostCheat","System.Boolean");
+Method("Player","UpdateKnownRecipesList","System.Void");
+Method("Player","UpdateAvailablePiecesList","System.Void");
+Method("UnifiedPopup","Push","System.Void","PopupBase");
+Method("UnifiedPopup","Pop","System.Void");
+Method("YesNoPopup",".ctor","System.Void","System.String","System.String","PopupButtonCallback","PopupButtonCallback","System.Boolean","System.Boolean");
+Method("MaterialMan","ResetValue","System.Void","UnityEngine.GameObject","System.Int32");
+
 using var catalog = JsonDocument.Parse(File.ReadAllText(args[1]));
 foreach (var entry in catalog.RootElement.GetProperty("mods").EnumerateArray())
 {

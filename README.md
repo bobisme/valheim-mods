@@ -814,6 +814,29 @@ First-playtest checklist (automated policy checks and assembly verification do n
 15. Shift+E on your own wood pile with open space; pause eight seconds, move away, mark another pile, then forget/remove it. Try someone else's pile and a ward. Check F6/save/restart home persistence and ordinary pile materials/support/removal.
 16. Pause in rain near a roof and walk away again; watch shelter choice and the dry-off shake. Sail through calm and rough water near birds. Let your Quad companions build/gather and check greetings/imitation. Watch a due gift's preview/toss and interrupt presentation; stash counts must change only when a real gift appears.
 
+## Demolisher
+
+Take a building down in one go. Pick the **Demolition stake** (hammer → Misc; free, never built: a thin pole with a red flag) and
+**click the ground** for each corner of the area. A white line runs from the last corner to where the next click lands, a faint one back
+to the first. **Click the first corner** again, or press **E**, to close the outline: everything inside it the hammer could remove from
+where you stand turns red. **E** asks *Demolish N structures?* with what's left standing and why; **Yes** removes them top first, a few
+each frame (F7 → `PerFrame`, default 8), each by the hammer's own path (`WearNTear.Remove`, or for other pieces drop resources and
+destroy), so materials drop on the ground and other players see it as an ordinary removal.
+
+- What counts: loaded pieces whose position is inside the outline, at any height. Left standing, counted in the question: pieces not built
+  by a player, ones that can't be removed, ships and carts, no-build zones, wards you aren't permitted on, chests with items, and pieces
+  whose crafting station isn't in range of you (as with the hammer; not in no-cost mode or with the no-workbench world key).
+- Each piece is checked again as it comes down. Pieces outside the outline that rested on what was removed fall as they would with the hammer.
+- **Backspace** removes the last corner (or reopens a closed outline), **Shift+Backspace** clears it. **E** on a door, chest or anything
+  else usable still uses it. Corners can't make edges cross; up to 32 corners.
+
+Checks cover the outline geometry (inside tests on squares and an L, area, closing, crossing edges, corner limits) and the question's
+wording, plus the game methods it calls. Not yet tried in the game. First playtest:
+
+1. Outline a small hut with a chest of items inside and a ward nearby. Check the red tint, the counts and reasons in the question, and No.
+2. Yes: pieces go top first, materials drop, the chest with items stays; the outline clears and the message counts what came down.
+3. Backspace and Shift+Backspace; a bow-tie outline is refused; E on a door inside the outline opens the door.
+
 ## BuildShapes
 
 For disposable local testing, ClaudeTools offers `hall testsite find 64` to survey generated terrain for a dry pad. `hall testsite make <x> <z> <height> <size> <worldID>` teleports to the site, levels it with a blended edge and clears natural trees/rocks/plants. This explicit developer command requires a locally hosted world named **Creative** and its exact world ID; 32–64 m pads remain within native height limits and reject existing buildings. It saves a height-delta snapshot under `BepInEx/config/testsite-...json`; clearing natural objects is permanent. `hall testsite clear <x> <z> <size> <worldID>` clears vegetation, stumps and loose natural resource drops again without teleporting or altering heights, keeping player buildings and characters. Ordinary temple/hall controls do not invoke it.
