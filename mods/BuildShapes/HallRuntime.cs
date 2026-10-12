@@ -208,7 +208,7 @@ namespace BuildShapes
         {
             SaveHallDraft();
             var solveWatch=System.Diagnostics.Stopwatch.StartNew();
-            _hallDue=0;_hallGuideHasFloor=false;ClearVisuals();_output.Clear();_hallRoles.Clear();_hallBill.Clear();_hallStations.Clear();_hallSupport.Clear();
+            _hallDue=0;_hallGuideHasFloor=false;_hallPreviewVersion++;ClearVisuals();_output.Clear();_hallRoles.Clear();_hallBill.Clear();_hallStations.Clear();_hallSupport.Clear();
             _hallProblem=null;_hallNote=null;_hallFalls=0;_hallAddedPosts=0;_hallDesign=null;_hallGroundJob.Clear();_hallTargetMaps.Clear();
             try
             {
@@ -422,11 +422,11 @@ namespace BuildShapes
         }
         private void ClearHall()
         {
-            CloseHallMenu();_hallProblemUntil=0;_hallAnnouncedProblem=null;_hallAnnouncedCorners=-1;_hallGuideHasFloor=false;_hallDoorPoints.Clear();_hallChimneyPoints.Clear();_hallGroundJob.Clear();_hallTargetMaps.Clear();_hallDesign=null;_hallDue=0;_hallProblem=_hallNote=_hallFingerprint=null;
+            CloseHallMenu();ClearHallPieces();_hallProblemUntil=0;_hallAnnouncedProblem=null;_hallAnnouncedCorners=-1;_hallGuideHasFloor=false;_hallDoorPoints.Clear();_hallChimneyPoints.Clear();_hallGroundJob.Clear();_hallTargetMaps.Clear();_hallDesign=null;_hallDue=0;_hallProblem=_hallNote=_hallFingerprint=null;
             _hallRoles.Clear();_hallBill.Clear();_hallStations.Clear();_hallSupport.Clear();
         }
         private void DestroyHall()
-        {if(_hallMarkerMaterial!=null)Destroy(_hallMarkerMaterial);_hallMarkerMaterial=null;_hallCapture=null;_hallUnderlying=_hallBaseline=null;foreach(var material in _hallGhostMaterials.Values)if(material!=null)Destroy(material);_hallGhostMaterials.Clear();_hallMeshes.Clear();_hallMaterials.Clear();_hallColliderShapes.Clear();}
+        {ClearHallPieces();if(_hallTemplateHolder!=null)Destroy(_hallTemplateHolder);_hallTemplateHolder=null;_hallTemplates.Clear();if(_hallMarkerMaterial!=null)Destroy(_hallMarkerMaterial);_hallMarkerMaterial=null;_hallCapture=null;_hallUnderlying=_hallBaseline=null;foreach(var material in _hallGhostMaterials.Values)if(material!=null)Destroy(material);_hallGhostMaterials.Clear();_hallMeshes.Clear();_hallMaterials.Clear();_hallColliderShapes.Clear();}
 
         private List<HallMesh> HallMeshes(string name)
         {
@@ -463,19 +463,45 @@ namespace BuildShapes
             if(source.HasProperty("_MainTex"))material.mainTexture=source.mainTexture;
             _hallGhostMaterials[source]=material;return material;
         }
+        // The preview is made of real renderers, one stripped copy per piece: drawn straight with Graphics.DrawMesh, the game's piece
+        // shader smeared and speckled them. Rebuilt only when the design or the preview settings change.
+        private GameObject _hallPieceRoot,_hallTemplateHolder;
+        private string _hallPieceKey;
+        private int _hallPreviewVersion;
+        private readonly Dictionary<string,GameObject> _hallTemplates=new Dictionary<string,GameObject>();
+        private GameObject HallTemplate(string name)
+        {
+            if(_hallTemplates.TryGetValue(name,out var cached) && cached!=null)return cached;
+            if(_hallTemplateHolder==null){_hallTemplateHolder=new GameObject("BuildShapes hall templates");_hallTemplateHolder.SetActive(false);}
+            var template=new GameObject(name);template.transform.SetParent(_hallTemplateHolder.transform,false);
+            foreach(HallMesh mesh in HallMeshes(name))
+            {
+                var part=new GameObject(mesh.Path);part.transform.SetParent(template.transform,false);
+                part.transform.localPosition=mesh.Local.GetPosition();part.transform.localRotation=mesh.Local.rotation;part.transform.localScale=mesh.Local.lossyScale;
+                part.AddComponent<MeshFilter>().sharedMesh=mesh.Mesh;
+                var renderer=part.AddComponent<MeshRenderer>();renderer.sharedMaterials=mesh.Materials;renderer.shadowCastingMode=ShadowCastingMode.Off;
+            }
+            return _hallTemplates[name]=template;
+        }
+        private void ClearHallPieces(){if(_hallPieceRoot!=null)Destroy(_hallPieceRoot);_hallPieceRoot=null;_hallPieceKey=null;}
         private void DrawHallMeshes()
         {
-            if(_hallGuideOnly)return;
+            string key=$"{_hallPreviewVersion}:{_hallSolid}:{_hallGuideOnly}:{_hallShowRoof}";
+            if(key==_hallPieceKey)return;
+            ClearHallPieces();_hallPieceKey=key;
+            if(_hallGuideOnly || _output.Count==0)return;
+            _hallPieceRoot=new GameObject("BuildShapes hall preview");
             for(int i=0;i<_output.Count;i++)
             {
                 var pose=_output[i];if(!_hallShowRoof && _hallRoles[i].EndsWith("roof",StringComparison.Ordinal))continue;
                 _hallSupport.TryGetValue(i.ToString(),out var support);
-                _hallTint.Clear();
-                _hallTint.SetColor("_Color",support?.Collapses==true?new Color(1,0.3f,0.2f,0.75f):_hallSolid?Color.white:new Color(0.65f,0.9f,0.82f,0.65f));
-                Matrix4x4 matrix=Matrix4x4.TRS(pose.Position,pose.Rotation,Vector3.one);
-                foreach(HallMesh mesh in HallMeshes(pose.Prefab))
-                    for(int sub=0;sub<Math.Min(mesh.Mesh.subMeshCount,mesh.Materials.Length);sub++)
-                    {Material source=mesh.Materials[sub];if(source!=null)Graphics.DrawMesh(mesh.Mesh,matrix*mesh.Local,_hallSolid?source:HallGhostMaterial(source),0,null,sub,_hallTint,ShadowCastingMode.Off,false);}
+                var copy=Instantiate(HallTemplate(pose.Prefab),pose.Position,pose.Rotation,_hallPieceRoot.transform);
+                bool falls=support?.Collapses==true;
+                if(!_hallSolid || falls)foreach(var renderer in copy.GetComponentsInChildren<MeshRenderer>(true))
+                {
+                    if(!_hallSolid)renderer.sharedMaterials=renderer.sharedMaterials.Select(m=>m==null?null:HallGhostMaterial(m)).ToArray();
+                    if(falls){_hallTint.Clear();_hallTint.SetColor("_Color",new Color(1,0.3f,0.2f,0.75f));renderer.SetPropertyBlock(_hallTint);}
+                }
             }
         }
     }
