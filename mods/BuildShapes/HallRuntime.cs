@@ -94,8 +94,8 @@ namespace BuildShapes
             if((_hallStoreys>1 || _staveTemple) && _hallMaterialMode==0 && HallKnown("woodiron_pole"))kit.LoadPost="woodiron_pole";
             if(HallKnown("wood_window"))kit.Window="wood_window";
             if(HallKnown("wood_floor_1x1"))kit.SmallFloor="wood_floor_1x1";
-            if(HallKnown("stone_wall_2x1"))kit.StoneWall="stone_wall_2x1";
-            else if(_hallNorse && _hallFooting)_hallNote=(_hallNote==null?"":_hallNote+" ")+"Stone walls aren't unlocked yet (they need a stonecutter); the walls are timber to the ground.";
+            if(HallKnown("stone_fence"))kit.StoneFence="stone_fence";
+            else if(_hallNorse && _hallFooting)_hallNote=(_hallNote==null?"":_hallNote+" ")+"The stone fence isn't unlocked yet (carry some stone); the walls are timber to the ground.";
             else if(_hallShutters)_hallNote=(_hallNote==null?"":_hallNote+" ")+"Window shutters aren't unlocked yet (they need bronze nails); walls stay closed, with open daylight windows from Ornate.";
             bool steep=_hallRoof45;
             string roof=steep?"wood_roof_45":"wood_roof",ridge=steep?"wood_roof_top_45":"wood_roof_top",wedge=steep?"wood_wall_roof_45":"wood_wall_roof_a";

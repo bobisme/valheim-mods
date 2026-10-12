@@ -7,6 +7,7 @@ namespace BuildShapes
     // Pure, bounded geometry. Coordinates are metres in the footprint's first-edge frame.
     internal static class HallLayout
     {
+        internal const double FenceOut = 0.4;
         internal const int MaximumCells = 256, MaximumParts = 2048, MaximumCorners = 24, MaximumExtent = 64, MaximumChimneys = 4;
         internal enum Anchor { Floor, Bottom, RoofLow, Point, Segment }
         internal readonly struct Cell : IEquatable<Cell>
@@ -40,7 +41,7 @@ namespace BuildShapes
             internal string Floor="wood_floor", Wall="woodwall", Half="wood_wall_half", Quarter="wood_wall_quarter", Door="wood_door";
             internal string Post="wood_pole2", Beam="wood_beam", ShortBeam="wood_beam_1";
             internal string Roof="wood_roof_45", Ridge="wood_roof_top_45", Wedge="wood_wall_roof_45";
-            internal string Arch=null, Raven=null, Lattice=null, LoadPost=null, Window=null, SmallFloor=null, StoneWall=null;
+            internal string Arch=null, Raven=null, Lattice=null, LoadPost=null, Window=null, SmallFloor=null, StoneFence=null;
             internal double Slope=1, BeamLength=2, ShortLength=1, DoorHeight=2, JoistDrop=0.2;
             internal int SpanCells=4;
         }
@@ -351,9 +352,10 @@ namespace BuildShapes
                     }
                     bool shutters=details.Shutters && kit.Window!=null;
                     bool window=(shutters || !details.Norse && detail>=2 && height>=3) && !door && ((int)(Math.Abs(at.X)+Math.Abs(at.Z))/2)%2==0;
-                    // A stone footing: a course in the ground and one above the floor, under a half-height timber wall.
-                    bool footing=storey==0 && !door && details.StoneFooting && kit.StoneWall!=null && height>=2;
-                    if(footing)foreach(int h in new[]{-1,0})Add(kit.StoneWall,at+new V3(0,h,0),Anchor.Bottom,edge.yaw,"stone footing");
+                    // A stone fence footing: a course in the ground and one above the floor, under a half-height timber wall.
+                    // The fence is 1 m deep: it stands mostly outside, its inner face just inside the wall line for the timber to rest on.
+                    bool footing=storey==0 && !door && details.StoneFooting && kit.StoneFence!=null && height>=2;
+                    if(footing)foreach(int h in new[]{-1,0})Add(kit.StoneFence,at+Turn(new V3(0,h,-FenceOut),edge.yaw),Anchor.Bottom,edge.yaw,"stone footing");
                     for(int h=storey==0 && door?(int)kit.DoorHeight:footing?1:0;h<height;)
                     {
                         if(window && h==1 && shutters)

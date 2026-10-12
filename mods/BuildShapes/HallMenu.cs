@@ -87,7 +87,7 @@ namespace BuildShapes
             }
             _hallSweep=DetailSwitch(_hallSweep,"Sweeping gable timberwork");
             _hallShutters=DetailSwitch(_hallShutters,"Shuttered windows · 2 × 1 m");
-            GUILayout.Label(_staveTemple?"Layered eaves extend above lower roofs where they clear. A porch needs a 4 m edge and clear space outside. All pieces use normal materials and support.":_hallNorse?"Platforms are 2 m deep in halls 10 m wide or more, 1 m at 8 m. Hearths run down the middle of wings at least 6 × 8 m, with smoke holes beside them, never above, and rows of aisle posts carry the roof. The stone footing needs a stonecutter nearby to build.":"Overhangs fit around other wings and the porch. A porch needs a 4 m edge and clear ground outside. All pieces use normal materials and support.",_menuHint);
+            GUILayout.Label(_staveTemple?"Layered eaves extend above lower roofs where they clear. A porch needs a 4 m edge and clear space outside. All pieces use normal materials and support.":_hallNorse?"Platforms are 2 m deep in halls 10 m wide or more, 1 m at 8 m. Hearths run down the middle of wings at least 6 × 8 m, with smoke holes beside them, never above, and rows of aisle posts carry the roof. The footing is the game's stone fence, 4 stone each, built at a workbench.":"Overhangs fit around other wings and the porch. A porch needs a 4 m edge and clear ground outside. All pieces use normal materials and support.",_menuHint);
             if(!_staveTemple)
             {
                 GUILayout.Label(_hallNorse?"Smoke holes":"Chimneys",_menuText);
