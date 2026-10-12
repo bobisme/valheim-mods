@@ -40,7 +40,7 @@ namespace BuildShapes
             internal string Floor="wood_floor", Wall="woodwall", Half="wood_wall_half", Quarter="wood_wall_quarter", Door="wood_door";
             internal string Post="wood_pole2", Beam="wood_beam", ShortBeam="wood_beam_1";
             internal string Roof="wood_roof_45", Ridge="wood_roof_top_45", Wedge="wood_wall_roof_45";
-            internal string Arch=null, Raven=null, Lattice=null, LoadPost=null, Window=null;
+            internal string Arch=null, Raven=null, Lattice=null, LoadPost=null, Window=null, SmallFloor=null;
             internal double Slope=1, BeamLength=2, ShortLength=1, DoorHeight=2, JoistDrop=0.2;
             internal int SpanCells=4;
         }
@@ -71,10 +71,13 @@ namespace BuildShapes
             internal bool StairAcross;
             internal int StairRise;
             internal readonly HashSet<Cell> Chimneys=new HashSet<Cell>();
+            internal bool Norse;
+            internal int Hearths;
         }
         internal sealed class Details
         {
-            internal bool Overhang, Porch, Sweep, Basement,SuppressRoof,TallWalls,OpenGallery,Shutters;
+            internal bool Overhang, Porch, Sweep, Basement,SuppressRoof,TallWalls,OpenGallery,Shutters,Norse,Benches;
+            internal string Hearth;
             internal int Storeys=1;
             internal string Finial;
             internal IReadOnlyList<V3> DoorPoints,ChimneyPoints;
@@ -190,7 +193,8 @@ namespace BuildShapes
             var set=new HashSet<Cell>(plan.Cells);
             details=details??new Details{Finial=detail>=3?kit.Raven:null};
             if(details.Storeys<1 || details.Storeys>3)throw new ArgumentException("Choose one to three storeys.");
-            plan.Storeys=details.Storeys;plan.StoreyHeight=height;plan.Basement=details.Basement;
+            if(details.Norse && (details.Storeys>1 || details.Basement || details.Porch || details.Overhang))throw new ArgumentException("A Norse longhouse is a single sunken storey, without a basement, porch or overhangs.");
+            plan.Storeys=details.Storeys;plan.StoreyHeight=height;plan.Basement=details.Basement;plan.Norse=details.Norse;
             int roofBase=height*details.Storeys;
 
             var unique=new HashSet<string>(StringComparer.Ordinal);
@@ -241,7 +245,7 @@ namespace BuildShapes
                 }
                 return true;
             }
-            plan.Entrances.AddRange(HallDoors.Solve(corners,details.DoorPoints,entrance,details.Porch,FitsEntrances));
+            plan.Entrances.AddRange(HallDoors.Solve(corners,details.DoorPoints,entrance,details.Porch,FitsEntrances,details.Norse?3:(double?)null));
             var primary=plan.Entrances[0];
             V3 ea=corners[primary.Edge],eb=corners[(primary.Edge+1)%corners.Count];
             plan.Door=primary.At;plan.DoorYaw=primary.Yaw;
@@ -257,6 +261,33 @@ namespace BuildShapes
                     if(plan.StairHoles.Contains(cell) || plan.StairZone.Contains(cell))throw new ArgumentException("A chimney marker sits over the stairs. Move it to another tile.");
                     plan.Chimneys.Add(cell);
                 }
+            }
+            Cell CellAt(Wing wing,int col,int row){V3 p=wing.At(col*2+1,0,row*2+1);return new Cell((int)Math.Floor(p.X/2),(int)Math.Floor(p.Z/2));}
+            // A Norse long-fire: hearths end to end down the middle aisle, a smoke vent in the ridge between and beyond them.
+            // The vents sit beside the hearths, never above one, so rain through the vent can't reach the fire.
+            if(details.Norse && details.Hearth!=null)
+            {
+                var marked=plan.Chimneys.ToList();
+                foreach(Wing wing in plan.Wings)
+                {
+                    if(wing.Width<3 || wing.Length<4)continue;
+                    int fires=Math.Min(3,Math.Max(1,(wing.Length-3)/3)),start=(wing.Length-(1+3*fires))/2,col=wing.Width%2==1?wing.Width/2:wing.Width/2-1;
+                    for(int i=0;i<fires;i++)
+                    {
+                        int row=start+3*i+1;
+                        var bed=Rect(wing.At(wing.Width-1.5,0,row*2),wing.At(wing.Width+1.5,0,row*2+4));
+                        if(marked.Any(c=>Overlap(bed,(c.X*2,c.X*2+2,c.Z*2,c.Z*2+2))))continue;
+                        Add(details.Hearth,wing.At(wing.Width,0,row*2+2),Anchor.Bottom,wing.Across?180:90,"hearth");plan.Hearths++;
+                        plan.Chimneys.Add(CellAt(wing,col,row-1));plan.Chimneys.Add(CellAt(wing,col,row+2));
+                    }
+                }
+            }
+            // Raised platforms along the long walls: 2 m deep where the aisle stays 6 m wide around the hearth, else 1 m.
+            int BenchDepth(Wing wing)
+            {
+                if(!details.Norse || !details.Benches)return 0;
+                int depth=Math.Min(2,Math.Max(0,(wing.Width*2-(details.Hearth!=null?6:2))/2));
+                return depth==1 && kit.SmallFloor==null?0:depth;
             }
             foreach(Cell c in plan.Cells)
             {
@@ -319,7 +350,7 @@ namespace BuildShapes
                         continue;
                     }
                     bool shutters=details.Shutters && kit.Window!=null;
-                    bool window=(shutters || detail>=2 && height>=3) && !door && ((int)(Math.Abs(at.X)+Math.Abs(at.Z))/2)%2==0;
+                    bool window=(shutters || !details.Norse && detail>=2 && height>=3) && !door && ((int)(Math.Abs(at.X)+Math.Abs(at.Z))/2)%2==0;
                     for(int h=storey==0 && door?(int)kit.DoorHeight:0;h<height;)
                     {
                         if(window && h==1 && shutters)
@@ -350,6 +381,36 @@ namespace BuildShapes
                     }
                 }
                 if(details.Basement)for(int h=-3;h<0;h++)Add("stone_wall_2x1",at+new V3(0,h,0),Anchor.Bottom,edge.yaw,"retaining wall");
+            }
+            foreach(Wing wing in plan.Wings)
+            {
+                int depth=BenchDepth(wing);if(depth==0)continue;
+                double width=wing.Width*2,wingYaw=wing.Across?90:0;
+                var benches=new HashSet<(int row,bool left)>();
+                for(int row=0;row<wing.Length;row++)foreach(bool left in new[]{true,false})
+                {
+                    // Only along exterior walls, leaving a gap at each door and chimney.
+                    V3 wall=wing.At(left?0:width,0,row*2+1),beyond=wing.At(left?-1:width+1,0,row*2+1);
+                    if(set.Contains(new Cell((int)Math.Floor(beyond.X/2),(int)Math.Floor(beyond.Z/2))) || plan.Chimneys.Contains(CellAt(wing,left?0:wing.Width-1,row)))continue;
+                    if(plan.Entrances.Any(d=>{V3 l=Turn(wall-d.At,-d.Yaw);return Math.Abs(l.Z)<0.01 && Math.Abs(l.X)<1.999;}))continue;
+                    benches.Add((row,left));
+                }
+                foreach(var (row,left) in benches)
+                {
+                    double Inset(double u)=>left?u:width-u;
+                    if(depth==2)Add(kit.Floor,wing.At(Inset(1),0.5,row*2+1),Anchor.Floor,0,"platform");
+                    else foreach(double v in new[]{0.5,1.5})Add(kit.SmallFloor,wing.At(Inset(0.5),0.5,row*2+v),Anchor.Floor,0,"platform");
+                    // A plank front from below the floor to the platform top, and end boards where a run stops.
+                    Add(kit.Half,wing.At(Inset(depth),-0.5,row*2+1),Anchor.Bottom,wingYaw+(left?90:270),"platform front");
+                    foreach(int next in new[]{row-1,row+1})
+                    {
+                        if(benches.Contains((next,left)))continue;
+                        V3 along=wing.At(Inset(0.5),0,next*2+1);
+                        if(!set.Contains(new Cell((int)Math.Floor(along.X/2),(int)Math.Floor(along.Z/2))))continue;
+                        double v=next<row?row*2:row*2+2;
+                        Add(depth==2?kit.Half:kit.Quarter,wing.At(Inset(depth*0.5),-0.5,v),Anchor.Bottom,wingYaw,"platform front");
+                    }
+                }
             }
             // Foundation contact points include all floor corners, also under interior tiles.
             var vertices=new HashSet<Cell>();
@@ -425,7 +486,7 @@ namespace BuildShapes
                 foreach(var side in new[]{(n:new Cell(c.X,c.Z-1),a:new V3(c.X*2+1,0,c.Z*2),yaw:0.0),(n:new Cell(c.X,c.Z+1),a:new V3(c.X*2+1,0,c.Z*2+2),yaw:180.0),(n:new Cell(c.X-1,c.Z),a:new V3(c.X*2,0,c.Z*2+1),yaw:90.0),(n:new Cell(c.X+1,c.Z),a:new V3(c.X*2+2,0,c.Z*2+1),yaw:270.0)})
                     if(set.Contains(side.n) && !plan.Chimneys.Contains(side.n))
                         for(int h=height;h<roofBase;h++)Add(kit.Half,side.a+new V3(0,h,0),Anchor.Bottom,side.yaw,"chimney");
-            if(details.SuppressRoof){plan.Wings.Clear();return plan;}
+            if(details.SuppressRoof){plan.Wings.Clear();ClearDoorways();return plan;}
             foreach(Wing wing in plan.Wings)
             {
                 wing.RoofBase=roofBase;
@@ -557,24 +618,41 @@ namespace BuildShapes
                 for(int bay=0;bay<=wing.Length;bay+=2)
                 {
                     double v=Math.Min(bay*2,length);
-                    Rod(kit.Beam,wing.At(0,roofBase,v),wing.At(width,roofBase,v),kit.BeamLength);
+                    // A Norse hall has no low tie beams over its platforms: two rows of aisle posts carry the roof instead.
+                    if(!details.Norse)Rod(kit.Beam,wing.At(0,roofBase,v),wing.At(width,roofBase,v),kit.BeamLength);
                     Rafter(v,"frame");
+                    if(details.Norse && wing.TierLift==0 && wing.Width>=4)
+                    {
+                        double inset=BenchDepth(wing)>0?BenchDepth(wing):2,top=roofBase+inset*kit.Slope;
+                        foreach(double u in new[]{inset,width-inset})
+                        {
+                            V3 foot=wing.At(u,0,v);
+                            if(HallDoors.Blocks(plan,foot) || ChimneyBlocks(plan,foot))continue;
+                            for(int h=0;h<top;h+=2)Add(kit.Post,wing.At(u,Math.Min(h,top-2),v),Anchor.Bottom,0,"aisle post");
+                        }
+                        Rod(kit.Beam,wing.At(inset,top,v),wing.At(width-inset,top,v),kit.BeamLength,"aisle tie");
+                    }
                     if(wing.TierLift>0)foreach(double shoulder in new[]{2.0,width-2})
                     {
                         double top=roofBase+2*kit.Slope+wing.TierLift;
                         for(int h=0;h<top;h+=2)
                             if(!HallStairs.Blocks(plan,wing.At(shoulder,0,v)) && (!HallDoors.Blocks(plan,wing.At(shoulder,0,v)) || Math.Min(h,top-2)>=kit.DoorHeight))Add(kit.Post,wing.At(shoulder,Math.Min(h,top-2),v),Anchor.Bottom,0,"tier post");
                     }
-                    if(detail>=2 && kit.Arch!=null && width>=4)
+                    if(detail>=2 && kit.Arch!=null && width>=4 && !details.Norse)
                     {
                         Add(kit.Arch,wing.At(0,roofBase-2,v),Anchor.Bottom,yaw,"ornament");
                         Add(kit.Arch,wing.At(width,roofBase-2,v),Anchor.Bottom,yaw+180,"ornament");
                     }
-                    if(detail>=1 && width>=4)
+                    if(detail>=1 && width>=4 && !details.Norse)
                     {
                         Rod(kit.ShortBeam,wing.At(0,roofBase-1,v),wing.At(1,roofBase,v),kit.ShortLength,"ornament");
                         Rod(kit.ShortBeam,wing.At(width,roofBase-1,v),wing.At(width-1,roofBase,v),kit.ShortLength,"ornament");
                     }
+                }
+                if(details.Norse && wing.TierLift==0 && wing.Width>=4)
+                {
+                    double inset=BenchDepth(wing)>0?BenchDepth(wing):2,top=roofBase+inset*kit.Slope;
+                    foreach(double u in new[]{inset,width-inset})Rod(kit.Beam,wing.At(u,top,0),wing.At(u,top,length),kit.BeamLength,"aisle plate");
                 }
                 // The ridge beam runs through an odd-width wing's middle tiles; it stops at a flue there.
                 var openRows=wing.Width%2==1?flues.Where(f=>f.col==wing.Width/2).Select(f=>f.row).OrderBy(r=>r).ToList():new List<int>();
@@ -613,7 +691,24 @@ namespace BuildShapes
                     }
                 }
             }
+            ClearDoorways();
             return plan;
+            // A beam centred on the wall top (the plate, an end tie, a joist) hangs half its thickness into a door
+            // as tall as the wall, low enough to block the player: leave out any beam crossing the top of a doorway.
+            void ClearDoorways()
+            {
+                bool Crosses(Part p)
+                {
+                    if(p.Kind!=Anchor.Segment)return false;
+                    for(int i=0;i<=8;i++)
+                    {
+                        V3 q=p.At+(p.End-p.At)*(i/8.0);
+                        if(plan.Entrances.Any(d=>{V3 l=Turn(q-d.At,-d.Yaw);return Math.Abs(l.X)<1-0.01 && Math.Abs(l.Z)<0.35 && q.Y>-0.01 && q.Y<kit.DoorHeight+0.35;}))return true;
+                    }
+                    return false;
+                }
+                plan.Parts.RemoveAll(Crosses);
+            }
         }
     }
 }

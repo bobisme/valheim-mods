@@ -36,6 +36,13 @@ try
  Check(before.Chimneys==null&&before.Shutters,"Drafts saved before chimneys load with none, and shutters on");
  record.Chimneys=Enumerable.Range(0,5).Select(i=>new[]{i*2+1f,0f,1f}).ToArray();Reject(()=>HallDraftStore.Write(path,record),"Five chimneys accepted");
  record.Chimneys=new[]{new[]{float.NaN,0f,1f}};Reject(()=>HallDraftStore.Write(path,record),"Non-finite chimney accepted");
+ record.Chimneys=null;record.StaveTemple=false;record.Norse=true;record.Sink=1.5f;record.Bank=false;record.Benches=false;record.Hearth=false;record.Storeys=1;record.Basement=record.Porch=record.Overhang=false;HallDraftStore.Write(path,record);var norse=HallDraftStore.Read(path,17,99);
+ Check(norse.Norse&&norse.Sink==1.5f&&!norse.Bank&&!norse.Benches&&!norse.Hearth,"Longhouse style, depth and switches survive reloads");
+ old=Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(path));foreach(var key in new[]{"Norse","Sink","Bank","Benches","Hearth"})old.Remove(key);File.WriteAllText(path,old.ToString());var older=HallDraftStore.Read(path,17,99);
+ Check(!older.Norse&&older.Sink==1&&older.Bank&&older.Benches&&older.Hearth,"Drafts saved before longhouses load as timber halls with longhouse defaults ready");
+ record.Sink=2.5f;Reject(()=>HallDraftStore.Write(path,record),"Sink deeper than 2 m accepted");record.Sink=1;
+ record.Porch=true;Reject(()=>HallDraftStore.Write(path,record),"Longhouse porch accepted");record.Porch=false;
+ record.Storeys=2;Reject(()=>HallDraftStore.Write(path,record),"Two-storey longhouse accepted");record.Storeys=1;
  Console.WriteLine($"Passed {checks} production Hallwright draft persistence checks.");
 }
 finally{File.Delete(path);File.Delete(path+".tmp");}

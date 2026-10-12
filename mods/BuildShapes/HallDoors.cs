@@ -14,7 +14,7 @@ namespace BuildShapes
             internal double Yaw;
             internal int Edge;
         }
-        internal static List<Entrance> Solve(IReadOnlyList<V3> corners,IReadOnlyList<V3> requests,int fallback,bool porch,Func<IReadOnlyList<Entrance>,bool> accept=null)
+        internal static List<Entrance> Solve(IReadOnlyList<V3> corners,IReadOnlyList<V3> requests,int fallback,bool porch,Func<IReadOnlyList<Entrance>,bool> accept=null,double? fallbackAlong=null)
         {
             int edge=((fallback%corners.Count)+corners.Count)%corners.Count;
             Entrance Make(int e,double along)
@@ -26,7 +26,12 @@ namespace BuildShapes
                 double yaw=Math.Atan2(inward.X,inward.Z)*180/Math.PI;if(yaw<0)yaw+=360;
                 V3 at=a+direction*along;return new Entrance{At=at,Landing=at,Yaw=yaw,Edge=e};
             }
-            if(requests==null || requests.Count==0)return new List<Entrance>{Make(edge,(corners[(edge+1)%corners.Count]-corners[edge]).Length/2)};
+            if(requests==null || requests.Count==0)
+            {
+                // A Norse longhouse's door sits near one end of its long wall, leaving room for the platforms.
+                double length=(corners[(edge+1)%corners.Count]-corners[edge]).Length;
+                return new List<Entrance>{Make(edge,fallbackAlong.HasValue && length>=fallbackAlong.Value*2+2?fallbackAlong.Value:length/2)};
+            }
             if(requests.Count>Maximum || requests.Any(p=>!p.Finite || Math.Abs(p.X)>HallLayout.MaximumExtent || Math.Abs(p.Z)>HallLayout.MaximumExtent))throw new ArgumentException("Mark at most eight entrances near exterior walls.");
             var choices=new List<Entrance[]>();
             for(int i=0;i<requests.Count;i++)

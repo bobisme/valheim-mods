@@ -33,15 +33,13 @@ namespace BuildShapes
             }
             else Begin(player, requested);
         }
-        private void ChooseHallStyle(bool temple)
+        private void ChooseHallStyle(int style)
         {
             if(_tool!=Tool.Hall)Begin(Player.m_localPlayer,Tool.Hall);
             CloseModeMenu();
-            if(_staveTemple!=temple && temple)
-            {_hallStoreys=1;_hallBasement=false;_hallDetail=2;_hallOverhang=true;_hallSweep=true;_hallPorch=true;_hallRoof45=true;_hallHeight=3;}
-            _staveTemple=temple;
+            SetHallStyle(style);
             if(_markers.Count>=3){BuildHallPreview();OpenHallMenu();}
-            Say(temple?"Stave temple: Shift+click its floor plan, then L for chamber height, tower crowns and galleries.":"Hallwright: Shift+click its floor plan, then L for options.");
+            Say(style==2?"Stave temple: Shift+click its floor plan, then L for chamber height, tower crowns and galleries.":style==1?"Longhouse: Shift+click its floor plan, then L for its depth, hearths and platforms.":"Hallwright: Shift+click its floor plan, then L for options.");
         }
         private void ModeContents(int id)
         {
@@ -58,7 +56,7 @@ namespace BuildShapes
             bool beam = selected.Contains("beam") || selected.Contains("pole");
             bool extended = _planner.Extended;
             bool enabled = GUI.enabled;
-            Tool chosen = Tool.None;bool? hallStyle=null;
+            Tool chosen = Tool.None;int? hallStyle=null;
             _modeScroll = GUILayout.BeginScrollView(_modeScroll);
             void Mode(Tool tool, string detail, bool available)
             {
@@ -70,9 +68,12 @@ namespace BuildShapes
                 GUILayout.Space(10);
             }
             GUI.enabled=enabled && piece!=null;
-            if(GUILayout.Button("Hallwright"+(_tool==Tool.Hall&&!_staveTemple?" · active":""),_tool==Tool.Hall&&!_staveTemple?_menuSelected:_menuButton,GUILayout.Height(36)))hallStyle=false;
-            GUILayout.Label("Draw a floor plan; solve a complete timber longhouse with live roofs and intricacy.",_menuHint);GUILayout.Space(10);
-            if(GUILayout.Button("Stave temple"+(_tool==Tool.Hall&&_staveTemple?" · active":""),_tool==Tool.Hall&&_staveTemple?_menuSelected:_menuButton,GUILayout.Height(36)))hallStyle=true;
+            int current=_tool!=Tool.Hall?-1:HallStyle;
+            if(GUILayout.Button("Hallwright · timber hall"+(current==0?" · active":""),current==0?_menuSelected:_menuButton,GUILayout.Height(36)))hallStyle=0;
+            GUILayout.Label("Draw a floor plan; solve a complete timber hall with live roofs, storeys and intricacy.",_menuHint);GUILayout.Space(10);
+            if(GUILayout.Button("Longhouse"+(current==1?" · active":""),current==1?_menuSelected:_menuButton,GUILayout.Height(36)))hallStyle=1;
+            GUILayout.Label("A Norse longhouse dug into the ground: earth banks, a long hearth down the middle and raised platforms along the walls.",_menuHint);GUILayout.Space(10);
+            if(GUILayout.Button("Stave temple"+(current==2?" · active":""),current==2?_menuSelected:_menuButton,GUILayout.Height(36)))hallStyle=2;
             GUI.enabled=enabled;GUILayout.Label("A tall open chamber, surrounding galleries and narrowing tower roofs, fitted to your floor plan.",_menuHint);GUILayout.Space(10);
             if(System.IO.File.Exists(CurrentHallDraftPath) && GUILayout.Button("Resume saved Hallwright draft",_menuButton,GUILayout.Height(36)))ResumeHallDraft();
             Mode(Tool.Curve, "Three points: start, bend, and end. Uses beams or poles.", beam);

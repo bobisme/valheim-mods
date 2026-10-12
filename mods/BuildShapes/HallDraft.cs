@@ -16,6 +16,8 @@ namespace BuildShapes
         public int StaveHeight=6,StaveCrowns=1;
         public int Height,Detail,Entrance,Material,Opening,Crest,Storeys;
         public bool Roof45,Solid,ShowRoof,Tiered,Overhang,Porch,Sweep,Basement,GuideOnly,Shutters=true;
+        public bool Norse,Bank=true,Benches=true,Hearth=true;
+        public float Sink=1;
         private static bool Finite(float x)=>!float.IsNaN(x) && !float.IsInfinity(x);
         private static bool Point(float[] p)=>p!=null && p.Length==3 && p.All(x=>Finite(x) && Math.Abs(x)<1000000);
         internal bool Valid(long world,long player)=>Version==1 && World==world && Player==player &&
@@ -23,7 +25,8 @@ namespace BuildShapes
             Corners!=null && Corners.Length>=1 && Corners.Length<=24 && Corners.All(Point) &&
             Doors!=null && Doors.Length<=8 && Doors.All(Point) && (Chimneys==null || Chimneys.Length<=4 && Chimneys.All(Point)) &&
             Height>=2 && Height<=4 && Detail>=0 && Detail<=4 && Entrance>=0 && Entrance<24 &&
-            Material>=0 && Material<=4 && Opening>=0 && Opening<=2 && Crest>=0 && Crest<=3 && Storeys>=1 && Storeys<=3 && StaveHeight>=4 && StaveHeight<=8 && StaveHeight%2==0 && StaveCrowns>=1 && StaveCrowns<=2 && (!StaveTemple || Storeys==1 && !Basement);
+            Material>=0 && Material<=4 && Opening>=0 && Opening<=2 && Crest>=0 && Crest<=3 && Storeys>=1 && Storeys<=3 && StaveHeight>=4 && StaveHeight<=8 && StaveHeight%2==0 && StaveCrowns>=1 && StaveCrowns<=2 && (!StaveTemple || Storeys==1 && !Basement) &&
+            Finite(Sink) && Sink>=0 && Sink<=2 && (!Norse || !StaveTemple && Storeys==1 && !Basement && !Porch && !Overhang);
     }
     internal static class HallDraftStore
     {

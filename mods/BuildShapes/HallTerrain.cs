@@ -12,10 +12,10 @@ namespace BuildShapes
 {
     public sealed partial class Plugin
     {
-        private sealed class GroundCell { internal Heightmap Map; internal int Index,X,Z; internal float Target,Displayed; }
+        private sealed class GroundCell { internal Heightmap Map; internal int Index,X,Z; internal float Target,Displayed; internal bool Dirt; }
         private readonly List<GroundCell> _hallGroundJob=new List<GroundCell>();
         private readonly Dictionary<Heightmap,Dictionary<int,float>> _hallTargetMaps=new Dictionary<Heightmap,Dictionary<int,float>>();
-        private static readonly FieldInfo HallLevels=AccessTools.Field(typeof(TerrainComp),"m_levelDelta"),HallSmooth=AccessTools.Field(typeof(TerrainComp),"m_smoothDelta"),HallModified=AccessTools.Field(typeof(TerrainComp),"m_modifiedHeight"),HallOps=AccessTools.Field(typeof(TerrainComp),"m_operations"),HallOpPoint=AccessTools.Field(typeof(TerrainComp),"m_lastOpPoint"),HallOpRadius=AccessTools.Field(typeof(TerrainComp),"m_lastOpRadius");
+        private static readonly FieldInfo HallLevels=AccessTools.Field(typeof(TerrainComp),"m_levelDelta"),HallSmooth=AccessTools.Field(typeof(TerrainComp),"m_smoothDelta"),HallModified=AccessTools.Field(typeof(TerrainComp),"m_modifiedHeight"),HallOps=AccessTools.Field(typeof(TerrainComp),"m_operations"),HallOpPoint=AccessTools.Field(typeof(TerrainComp),"m_lastOpPoint"),HallOpRadius=AccessTools.Field(typeof(TerrainComp),"m_lastOpRadius"),HallPaint=AccessTools.Field(typeof(TerrainComp),"m_paintMask"),HallPainted=AccessTools.Field(typeof(TerrainComp),"m_modifiedPaint");
         private static readonly MethodInfo HallSave=AccessTools.Method(typeof(TerrainComp),"Save"),HallLoad=AccessTools.Method(typeof(TerrainComp),"CheckLoad");
         private static TerrainComp _hallCapture;
         private static float[] _hallUnderlying,_hallBaseline;
@@ -30,14 +30,20 @@ namespace BuildShapes
         private sealed class GroundVertex
         {
             public int Index;public float BeforeLevel,BeforeSmooth,AfterLevel,AfterSmooth;public bool BeforeModified,AfterModified;
+            // Dug longhouse ground is painted as dirt (as the hoe and pickaxe do), so grass doesn't grow through the floor.
+            public float[] BeforePaint;public bool BeforePainted;
         }
+        private const int HallGroundLimit=6000;
         private string HallGroundFile=>Path.Combine(Paths.ConfigPath,"hallwright-ground-"+ZNet.instance.GetWorldUID()+".json");
         private void PrepareHallGround()
         {
-            _hallGroundJob.Clear();_hallTargetMaps.Clear();if(!_hallBasement || _hallDesign==null)return;
-            if(_hallFloorY-3<ZoneSystem.instance.m_waterLevel+0.75f)throw new ArgumentException("The cellar would flood. Choose higher ground (basement floor must be above the water table).");
+            _hallGroundJob.Clear();_hallTargetMaps.Clear();if(!HallDigs || _hallDesign==null)return;
+            if(_hallBasement && _hallFloorY-3<ZoneSystem.instance.m_waterLevel+0.75f)throw new ArgumentException("The cellar would flood. Choose higher ground (basement floor must be above the water table).");
+            if(_hallNorse && _hallSink>0 && _hallFloorY-0.15f<ZoneSystem.instance.m_waterLevel+0.3f)throw new ArgumentException("The sunken floor would flood. Choose higher ground or dig it in less deeply.");
             var cells=_hallDesign.Cells;
-            Vector3[] corners={HallWorld(new V3(cells.Min(c=>c.X)*2-5,0,cells.Min(c=>c.Z)*2-5)),HallWorld(new V3((cells.Max(c=>c.X)+1)*2+5,0,cells.Min(c=>c.Z)*2-5)),HallWorld(new V3(cells.Min(c=>c.X)*2-5,0,(cells.Max(c=>c.Z)+1)*2+5)),HallWorld(new V3((cells.Max(c=>c.X)+1)*2+5,0,(cells.Max(c=>c.Z)+1)*2+5))};
+            // Longhouse banks reach 6 m out and door ramps 10 m; a cellar only its pit and apron.
+            int m=_hallNorse?11:5;
+            Vector3[] corners={HallWorld(new V3(cells.Min(c=>c.X)*2-m,0,cells.Min(c=>c.Z)*2-m)),HallWorld(new V3((cells.Max(c=>c.X)+1)*2+m,0,cells.Min(c=>c.Z)*2-m)),HallWorld(new V3(cells.Min(c=>c.X)*2-m,0,(cells.Max(c=>c.Z)+1)*2+m)),HallWorld(new V3((cells.Max(c=>c.X)+1)*2+m,0,(cells.Max(c=>c.Z)+1)*2+m))};
             float x0=corners.Min(v=>v.x),x1=corners.Max(v=>v.x),z0=corners.Min(v=>v.z),z1=corners.Max(v=>v.z);
             foreach(Heightmap map in Heightmap.GetAllHeightmaps())
             {
@@ -46,27 +52,30 @@ namespace BuildShapes
                 int half=map.m_width/2;
                 int a=Math.Max(0,Mathf.CeilToInt((x0-map.transform.position.x)/scale+half)),b=Math.Min(map.m_width,Mathf.FloorToInt((x1-map.transform.position.x)/scale+half));
                 int c=Math.Max(0,Mathf.CeilToInt((z0-map.transform.position.z)/scale+half)),d=Math.Min(map.m_width,Mathf.FloorToInt((z1-map.transform.position.z)/scale+half));
-                if((long)Math.Max(0,b-a+1)*Math.Max(0,d-c+1)>8192)throw new ArgumentException("Too many terrain samples.");
+                if((long)Math.Max(0,b-a+1)*Math.Max(0,d-c+1)>16384)throw new ArgumentException("Too many terrain samples.");
                 for(int z=c;z<=d;z++)for(int x=a;x<=b;x++)
                 {
                     Vector3 point=map.transform.position+new Vector3((x-half)*scale,0,(z-half)*scale);
                     Vector3 local=Quaternion.Inverse(_hallFrame)*(point-new Vector3(_hallOrigin.x,point.y,_hallOrigin.z));
-                    double? target=HallExcavation.Target(_hallDesign,local.x,local.z);if(!target.HasValue)continue;
-                    float y=_hallFloorY+(float)target.Value,old=map.GetHeight(x,z)+map.transform.position.y;
+                    var target=HallGroundTarget(local.x,local.z);if(!target.HasValue)continue;
+                    float old=map.GetHeight(x,z)+map.transform.position.y,y=(float)HallExcavation.Settle(old,_hallFloorY+target.Value.y,target.Value.mode);
+                    // Digging-only and heaping-only ground leaves terrain alone where it's already right.
+                    if(target.Value.mode!=0 && Math.Abs(y-old)<0.02f)continue;
                     point.y=y;
-                    if(Vector3.Distance(point,Player.m_localPlayer.transform.position)>70 || !PrivateArea.CheckAccess(point,0,false,false) || Location.IsInsideNoBuildLocation(point))throw new ArgumentException("Excavation reaches inaccessible or protected ground.");
-                    if(Math.Abs(y-old)>8)throw new ArgumentException("The cellar needs more than 8 m of terrain change. Choose a flatter site.");
-                    if(_hallGroundJob.Count>=2048)throw new ArgumentException("Excavation exceeds 2,048 terrain vertices.");
-                    _hallGroundJob.Add(new GroundCell{Map=map,X=x,Z=z,Index=z*(map.m_width+1)+x,Target=y,Displayed=old});
+                    if(Vector3.Distance(point,Player.m_localPlayer.transform.position)>70 || !PrivateArea.CheckAccess(point,0,false,false) || Location.IsInsideNoBuildLocation(point))throw new ArgumentException("The ground work reaches inaccessible or protected ground.");
+                    if(Math.Abs(y-old)>8)throw new ArgumentException("The ground work needs more than 8 m of terrain change. Choose a flatter site.");
+                    if(_hallGroundJob.Count>=HallGroundLimit)throw new ArgumentException($"The ground work exceeds {HallGroundLimit:N0} terrain vertices. Reduce the footprint or turn off earth banks.");
+                    _hallGroundJob.Add(new GroundCell{Map=map,X=x,Z=z,Index=z*(map.m_width+1)+x,Target=y,Displayed=old,Dirt=_hallNorse && target.Value.mode<0});
                 }
             }
-            if(_hallGroundJob.Count==0 || _hallGroundJob.Select(c=>c.Map).Distinct().Count()>4)throw new ArgumentException("Basement terrain must be loaded in at most four tiles.");
+            if(_hallGroundJob.Count==0 && !_hallBasement)return;
+            if(_hallGroundJob.Count==0 || _hallGroundJob.Select(c=>c.Map).Distinct().Count()>4)throw new ArgumentException("The ground work must lie within at most four loaded terrain tiles.");
             // Verify continuous loaded coverage, not merely whichever heightmaps happened to be present.
             foreach(var c in _hallDesign.Cells)for(int z=0;z<=2;z++)for(int x=0;x<=2;x++)
-                if(Heightmap.FindHeightmap(HallWorld(new V3(c.X*2+x,0,c.Z*2+z)))==null)throw new ArgumentException("Move closer: basement terrain is not loaded.");
-            for(int z=cells.Min(c=>c.Z)*2-5;z<=(cells.Max(c=>c.Z)+1)*2+5;z++)
-            for(int x=cells.Min(c=>c.X)*2-5;x<=(cells.Max(c=>c.X)+1)*2+5;x++)
-                if(HallExcavation.Target(_hallDesign,x,z).HasValue && Heightmap.FindHeightmap(HallWorld(new V3(x,0,z)))==null)throw new ArgumentException("Move closer: excavation or entrance apron is not fully loaded.");
+                if(Heightmap.FindHeightmap(HallWorld(new V3(c.X*2+x,0,c.Z*2+z)))==null)throw new ArgumentException("Move closer: the terrain under the hall is not loaded.");
+            for(int z=cells.Min(c=>c.Z)*2-m;z<=(cells.Max(c=>c.Z)+1)*2+m;z++)
+            for(int x=cells.Min(c=>c.X)*2-m;x<=(cells.Max(c=>c.X)+1)*2+m;x++)
+                if(HallGroundTarget(x,z).HasValue && Heightmap.FindHeightmap(HallWorld(new V3(x,0,z)))==null)throw new ArgumentException("Move closer: the ground work is not fully loaded.");
             foreach(var group in _hallGroundJob.GroupBy(c=>c.Map))_hallTargetMaps[group.Key]=group.ToDictionary(c=>c.Index,c=>c.Target);
             CheckHallGroundClear(_hallGroundJob);
         }
@@ -89,6 +98,15 @@ namespace BuildShapes
         }
         private static void GroundArrays(TerrainComp comp,out float[] level,out float[] smooth,out bool[] modified)
         {level=(float[])HallLevels.GetValue(comp);smooth=(float[])HallSmooth.GetValue(comp);modified=(bool[])HallModified.GetValue(comp);if(level==null || smooth==null || modified==null || level.Length!=smooth.Length || level.Length!=modified.Length)throw new ArgumentException("Terrain compiler is not ready.");}
+        private static void GroundPaint(TerrainComp comp,out Color[] paint,out bool[] painted)
+        {paint=(Color[])HallPaint.GetValue(comp);painted=(bool[])HallPainted.GetValue(comp);if(paint==null || painted==null || paint.Length!=painted.Length)throw new ArgumentException("Terrain paint is not ready.");}
+        private static void RestorePaint(TerrainComp comp,GroundTile tile)
+        {
+            if(!tile.Vertices.Any(v=>v.BeforePaint!=null))return;
+            GroundPaint(comp,out var paint,out var painted);
+            foreach(var v in tile.Vertices.Where(v=>v.BeforePaint!=null && v.BeforePaint.Length==4 && v.Index>=0 && v.Index<paint.Length))
+            {paint[v.Index]=new Color(v.BeforePaint[0],v.BeforePaint[1],v.BeforePaint[2],v.BeforePaint[3]);painted[v.Index]=v.BeforePainted;}
+        }
         private void WriteHallGround(GroundRecord record)
         {
             string path=HallGroundFile,temp=path+".tmp";File.WriteAllText(temp,JsonConvert.SerializeObject(record));
@@ -96,9 +114,10 @@ namespace BuildShapes
         }
         private GroundRecord ApplyHallGround()
         {
-            if(!_hallBasement)return null;
-            if(File.Exists(HallGroundFile))throw new ArgumentException("A previous basement ground record is still available. Restore it or keep it before excavating another cellar.");
+            if(!HallDigs)return null;
+            if(File.Exists(HallGroundFile))throw new ArgumentException("A previous ground record is still available. Restore it or keep it in Hallwright options before digging again.");
             PrepareHallGround();
+            if(_hallGroundJob.Count==0)return null;
             var terrain=new Dictionary<Heightmap,TerrainComp>();
             foreach(var map in _hallGroundJob.Select(c=>c.Map).Distinct())
             {var comp=map.GetAndCreateTerrainCompiler();HallOwner(comp,true);terrain.Add(map,comp);}
@@ -115,8 +134,10 @@ namespace BuildShapes
                 var tile=new GroundTile{X=map.transform.position.x,Y=map.transform.position.y,Z=map.transform.position.z,Width=map.m_width,Scale=map.m_scale};
                 foreach(var c in group)
                 {
-                    if(!HallExcavation.Delta(_hallUnderlying[c.Index]+map.transform.position.y,_hallBaseline[c.Index]+map.transform.position.y,c.Target,out float delta))throw new ArgumentException("The basement exceeds the game's native 8 m digging limit on this terrain.");
-                    tile.Vertices.Add(new GroundVertex{Index=c.Index,BeforeLevel=levels[c.Index],BeforeSmooth=smooth[c.Index],BeforeModified=modified[c.Index],AfterLevel=delta,AfterSmooth=0,AfterModified=true});
+                    if(!HallExcavation.Delta(_hallUnderlying[c.Index]+map.transform.position.y,_hallBaseline[c.Index]+map.transform.position.y,c.Target,out float delta))throw new ArgumentException("The ground work exceeds the game's native 8 m digging limit on this terrain.");
+                    var vertex=new GroundVertex{Index=c.Index,BeforeLevel=levels[c.Index],BeforeSmooth=smooth[c.Index],BeforeModified=modified[c.Index],AfterLevel=delta,AfterSmooth=0,AfterModified=true};
+                    if(c.Dirt){GroundPaint(comp,out var paint,out var painted);Color was=paint[c.Index];vertex.BeforePaint=new[]{was.r,was.g,was.b,was.a};vertex.BeforePainted=painted[c.Index];}
+                    tile.Vertices.Add(vertex);
                 }
                 record.Tiles.Add(tile);comps[tile]=comp;
             }
@@ -127,6 +148,7 @@ namespace BuildShapes
                 {
                     TerrainComp comp=comps[tile];HallOwner(comp);GroundArrays(comp,out var levels,out var smooth,out var modified);
                     foreach(var v in tile.Vertices){levels[v.Index]=v.AfterLevel;smooth[v.Index]=0;modified[v.Index]=true;}
+                    if(tile.Vertices.Any(v=>v.BeforePaint!=null)){GroundPaint(comp,out var paint,out var painted);foreach(var v in tile.Vertices.Where(v=>v.BeforePaint!=null)){paint[v.Index]=Heightmap.m_paintMaskDirt;painted[v.Index]=true;}}
                     applied.Add(tile);SaveHallTile(comp,tile);
                     Heightmap map=Heightmap.FindHeightmap(new Vector3(tile.X,tile.Y,tile.Z));
                     foreach(var c in _hallGroundJob.Where(c=>c.Map==map))if(Math.Abs(map.GetHeight(c.X,c.Z)+map.transform.position.y-c.Target)>0.02f)throw new ArgumentException("Excavation did not reach its requested plane.");
@@ -135,7 +157,7 @@ namespace BuildShapes
             }
             catch
             {
-                foreach(var tile in applied){TerrainComp comp=comps[tile];HallOwner(comp);GroundArrays(comp,out var levels,out var smooth,out var modified);foreach(var v in tile.Vertices){levels[v.Index]=v.BeforeLevel;smooth[v.Index]=v.BeforeSmooth;modified[v.Index]=v.BeforeModified;}SaveHallTile(comp,tile);}
+                foreach(var tile in applied){TerrainComp comp=comps[tile];HallOwner(comp);GroundArrays(comp,out var levels,out var smooth,out var modified);foreach(var v in tile.Vertices){levels[v.Index]=v.BeforeLevel;smooth[v.Index]=v.BeforeSmooth;modified[v.Index]=v.BeforeModified;}RestorePaint(comp,tile);SaveHallTile(comp,tile);}
                 File.Delete(HallGroundFile);throw;
             }
         }
@@ -152,11 +174,11 @@ namespace BuildShapes
             level==v.AfterLevel && smooth==v.AfterSmooth && modified==v.AfterModified || level==v.BeforeLevel && smooth==v.BeforeSmooth && modified==v.BeforeModified;
         private void RestoreHallGround(bool keep=false)
         {
-            string path=HallGroundFile;if(!File.Exists(path))throw new ArgumentException("No basement ground record in this world.");
+            string path=HallGroundFile;if(!File.Exists(path))throw new ArgumentException("No Hallwright ground record in this world.");
             if(keep){File.Delete(path);return;}
-            if(new FileInfo(path).Length>1000000)throw new ArgumentException("Ground record is too large.");
+            if(new FileInfo(path).Length>2000000)throw new ArgumentException("Ground record is too large.");
             var record=JsonConvert.DeserializeObject<GroundRecord>(File.ReadAllText(path));
-            if(record==null || record.World!=ZNet.instance.GetWorldUID() || record.Tiles==null || record.Tiles.Any(t=>t==null || t.Vertices==null || t.Vertices.Count<1 || t.Vertices.Any(v=>v==null) || t.Vertices.Select(v=>v.Index).Distinct().Count()!=t.Vertices.Count || t.Vertices.Any(v=>float.IsNaN(v.BeforeLevel) || float.IsInfinity(v.BeforeLevel) || float.IsNaN(v.BeforeSmooth) || float.IsInfinity(v.BeforeSmooth))) || record.Tiles.Count<1 || record.Tiles.Count>4 || record.Tiles.Sum(t=>t.Vertices.Count)>2048)throw new ArgumentException("Invalid basement ground record.");
+            if(record==null || record.World!=ZNet.instance.GetWorldUID() || record.Tiles==null || record.Tiles.Any(t=>t==null || t.Vertices==null || t.Vertices.Count<1 || t.Vertices.Any(v=>v==null) || t.Vertices.Select(v=>v.Index).Distinct().Count()!=t.Vertices.Count || t.Vertices.Any(v=>float.IsNaN(v.BeforeLevel) || float.IsInfinity(v.BeforeLevel) || float.IsNaN(v.BeforeSmooth) || float.IsInfinity(v.BeforeSmooth) || v.BeforePaint!=null && (v.BeforePaint.Length!=4 || v.BeforePaint.Any(f=>float.IsNaN(f) || float.IsInfinity(f))))) || record.Tiles.Count<1 || record.Tiles.Count>4 || record.Tiles.Sum(t=>t.Vertices.Count)>HallGroundLimit)throw new ArgumentException("Invalid ground record.");
             var ready=new List<(GroundTile tile,TerrainComp comp)>();var occupied=new List<GroundCell>();
             foreach(var tile in record.Tiles)
             {
@@ -180,7 +202,7 @@ namespace BuildShapes
                 HallOwner(entry.comp,true);GroundArrays(entry.comp,out var levels,out var smooth,out var modified);
                 if(entry.tile.Vertices.Any(v=>!HallGroundMatches(v,levels[v.Index],smooth[v.Index],modified[v.Index])))throw new ArgumentException("Ground changed during ownership acquisition. Recovery retained; retry after the area settles.");
             }
-            foreach(var entry in ready){HallOwner(entry.comp);GroundArrays(entry.comp,out var levels,out var smooth,out var modified);foreach(var v in entry.tile.Vertices){levels[v.Index]=v.BeforeLevel;smooth[v.Index]=v.BeforeSmooth;modified[v.Index]=v.BeforeModified;}SaveHallTile(entry.comp,entry.tile);
+            foreach(var entry in ready){HallOwner(entry.comp);GroundArrays(entry.comp,out var levels,out var smooth,out var modified);foreach(var v in entry.tile.Vertices){levels[v.Index]=v.BeforeLevel;smooth[v.Index]=v.BeforeSmooth;modified[v.Index]=v.BeforeModified;}RestorePaint(entry.comp,entry.tile);SaveHallTile(entry.comp,entry.tile);
                 GroundArrays(entry.comp,out levels,out smooth,out modified);
                 if(entry.tile.Vertices.Any(v=>levels[v.Index]!=v.BeforeLevel || smooth[v.Index]!=v.BeforeSmooth || modified[v.Index]!=v.BeforeModified))throw new ArgumentException("Terrain restoration could not be verified; recovery record retained.");
             }

@@ -9,6 +9,25 @@ namespace BuildShapes
     public sealed partial class Plugin
     {
         private bool _staveTemple,_staveGallery=true;
+        private bool _hallNorse,_hallBank=true,_hallBenches=true,_hallHearth=true;
+        private float _hallSink=1f;
+        private int HallStyle=>_staveTemple?2:_hallNorse?1:0;
+        // Ground changes when the shell is planned: a basement's cellar pit, or a longhouse dug in with its banks.
+        private bool HallDigs=>!_staveTemple && (_hallBasement || _hallNorse && (_hallSink>0 || _hallBank));
+        // 0 timber hall, 1 Norse longhouse, 2 stave temple; switching sets each style's defaults.
+        private void SetHallStyle(int style)
+        {
+            if(style==HallStyle)return;
+            _staveTemple=style==2;_hallNorse=style==1;
+            if(style==2){_hallStoreys=1;_hallBasement=false;_hallDetail=2;_hallOverhang=true;_hallSweep=true;_hallPorch=true;_hallRoof45=true;_hallHeight=3;}
+            if(style==1)
+            {
+                _hallStoreys=1;_hallBasement=false;_hallOverhang=false;_hallPorch=false;_hallRoof45=true;_hallHeight=2;_hallShutters=false;
+                // The door goes near one end of the longest wall.
+                if(_hallDoorPoints.Count==0 && _markers.Count>=3)
+                    _hallEntrance=Enumerable.Range(0,_markers.Count).OrderByDescending(i=>Vector3.Distance(_markers[i],_markers[(i+1)%_markers.Count])).First();
+            }
+        }
         private int _staveHeight=6,_staveCrowns=1;
         private bool _hallMenu, _hallRoof45=true, _hallSolid=true, _hallShowRoof=true, _hallTiered, _hallOverhang, _hallPorch, _hallSweep, _hallBasement, _hallShutters=true;
         private int _hallHeight=3, _hallDetail=1, _hallEntrance, _hallMaterialMode, _hallEntranceMode, _hallCrestMode, _hallStoreys=1;
@@ -74,6 +93,7 @@ namespace BuildShapes
             }
             if((_hallStoreys>1 || _staveTemple) && _hallMaterialMode==0 && HallKnown("woodiron_pole"))kit.LoadPost="woodiron_pole";
             if(HallKnown("wood_window"))kit.Window="wood_window";
+            if(HallKnown("wood_floor_1x1"))kit.SmallFloor="wood_floor_1x1";
             else if(_hallShutters)_hallNote=(_hallNote==null?"":_hallNote+" ")+"Window shutters aren't unlocked yet (they need bronze nails); walls stay closed, with open daylight windows from Ornate.";
             bool steep=_hallRoof45;
             string roof=steep?"wood_roof_45":"wood_roof",ridge=steep?"wood_roof_top_45":"wood_roof_top",wedge=steep?"wood_wall_roof_45":"wood_wall_roof_a";
@@ -97,7 +117,14 @@ namespace BuildShapes
             if(carving!=null && !HallKnown(carving))throw new ArgumentException("Unlock the "+(_hallCrestMode==2?"dragon":"raven")+" carving before planning.");
             if(_hallBasement)foreach(string name in new[]{"stone_floor_2x2","stone_wall_2x1"})if(!HallKnown(name))throw new ArgumentException("Unlock stone floors and walls for a retaining-wall basement.");
             if((_hallBasement || _hallStoreys>1) && !HallKnown("wood_stair"))throw new ArgumentException("Unlock wooden stairs for interior storeys.");
-            return new HallLayout.Details{Storeys=_hallStoreys,Basement=_hallBasement,Overhang=_hallOverhang,Porch=_hallPorch,Sweep=_hallSweep,Shutters=_hallShutters,Finial=carving,DoorPoints=_hallDoorPoints,ChimneyPoints=_staveTemple?null:_hallChimneyPoints};
+            string hearth=null;
+            if(_hallNorse && _hallHearth)
+            {
+                if(HallKnown("hearth"))hearth="hearth";
+                else _hallNote=(_hallNote==null?"":_hallNote+" ")+"The hearth isn't unlocked yet (it needs stone); the longhouse is planned without its long-fire.";
+            }
+            if(_hallNorse && (_hallStoreys>1 || _hallBasement || _hallPorch || _hallOverhang))throw new ArgumentException("A longhouse is one sunken storey: turn off storeys, basement, porch and overhangs, or choose Timber hall.");
+            return new HallLayout.Details{Norse=_hallNorse && !_staveTemple,Benches=_hallBenches,Hearth=hearth,Storeys=_hallStoreys,Basement=_hallBasement,Overhang=_hallOverhang,Porch=_hallPorch,Sweep=_hallSweep,Shutters=_hallShutters,Finial=carving,DoorPoints=_hallDoorPoints,ChimneyPoints=_staveTemple?null:_hallChimneyPoints};
         }
         private static Vector3[] HallSnaps(GameObject prefab)
         {
@@ -155,11 +182,24 @@ namespace BuildShapes
         }
         private void HallColumn(V3 at,double top,string post,string role)
         {
-            double? predicted=_hallBasement?HallExcavation.Target(_hallDesign,at.X,at.Z):null;
-            float ground=predicted.HasValue?_hallFloorY+(float)predicted.Value:HallGround(HallWorld(at));double depth=_hallFloorY+top-ground;
+            float ground=HallGroundAfter(at);double depth=_hallFloorY+top-ground;
             if(depth>(role=="support"?24:12))throw new ArgumentException("The foundation or structural column is too tall here. Reduce the footprint or use a flatter site.");
             int count=Math.Max(1,(int)Math.Ceiling((depth+0.15)/2));
             for(int n=0;n<count;n++)AddHallPart(new HallLayout.Part{Prefab=post,At=new V3(at.X,top-2*(n+1),at.Z),Kind=HallLayout.Anchor.Bottom,Role=role});
+        }
+        // Where a planned ground change leaves the terrain at this footprint point (the current ground elsewhere).
+        private (double y,int mode)? HallGroundTarget(double x,double z)
+        {
+            if(_hallDesign==null || _staveTemple)return null;
+            if(_hallBasement){double? pit=HallExcavation.Target(_hallDesign,x,z);return pit.HasValue?(pit.Value,0):((double,int)?)null;}
+            return _hallNorse?HallExcavation.Norse(_hallDesign,x,z,_hallSink,_hallBank,_hallHeight):null;
+        }
+        private float HallGroundAfter(V3 at)
+        {
+            var target=HallGroundTarget(at.X,at.Z);
+            if(target.HasValue && target.Value.mode==0)return _hallFloorY+(float)target.Value.y;
+            float now=HallGround(HallWorld(at));
+            return target.HasValue?(float)HallExcavation.Settle(now,_hallFloorY+target.Value.y,target.Value.mode):now;
         }
         private void BuildHallPreview(bool announceProblem=true)
         {
@@ -175,15 +215,17 @@ namespace BuildShapes
                 var details=HallDetailsKit();
                 _hallDesign=_staveTemple?StaveLayout.Plan(corners,_hallKit,_hallHeight,_hallDetail,_hallEntrance,details,new StaveLayout.Options{Height=_staveHeight,Crowns=_staveCrowns,Gallery=_staveGallery}):HallLayout.Plan(corners,_hallKit,_hallHeight,_hallDetail,_hallEntrance,_hallTiered,details);
                 _hallFloorY=_hallOrigin.y;
-                float highest=float.MinValue;
-                foreach(V3 v in _hallDesign.Vertices)highest=Mathf.Max(highest,HallGround(HallWorld(v)));
-                foreach(var c in _hallDesign.Cells)highest=Mathf.Max(highest,HallGround(HallWorld(new V3(c.X*2+1,0,c.Z*2+1))));
+                float highest=float.MinValue,lowest=float.MaxValue;
+                foreach(V3 v in _hallDesign.Vertices){float y=HallGround(HallWorld(v));highest=Mathf.Max(highest,y);lowest=Mathf.Min(lowest,y);}
+                foreach(var c in _hallDesign.Cells){float y=HallGround(HallWorld(new V3(c.X*2+1,0,c.Z*2+1)));highest=Mathf.Max(highest,y);lowest=Mathf.Min(lowest,y);}
                 foreach(V3 at in _hallDesign.PorchFloors)highest=Mathf.Max(highest,HallGround(HallWorld(at)));
-                _hallFloorY=_hallBasement?HallGround(HallWorld(_hallDesign.EntryLanding))+_hallRaise:highest+_hallRaise;
+                // A longhouse floor is dug in below the lowest ground under it, so every wall stands in its ditch.
+                bool sunken=_hallNorse && !_staveTemple && _hallSink>0;
+                _hallFloorY=_hallBasement?HallGround(HallWorld(_hallDesign.EntryLanding))+_hallRaise:sunken?lowest-_hallSink:highest+_hallRaise;
                 _hallGuideHasFloor=true;
                 PrepareHallGround();
                 bool stone=(_hallMaterialMode==0 || _hallMaterialMode==3) && HallKnown("stone_floor_2x2");
-                if(stone && !_hallBasement)
+                if(stone && !_hallBasement && !_hallNorse)
                 {
                     foreach(V3 at in _hallDesign.Cells.Select(c=>new V3(c.X*2+1,0,c.Z*2+1)).Concat(_hallDesign.PorchFloors))
                     {
@@ -198,7 +240,7 @@ namespace BuildShapes
                 else foreach(V3 v in _hallDesign.Vertices)if(!HallStairs.Blocks(_hallDesign,v))HallColumn(v,_hallBasement && HallExcavation.Pit(_hallDesign,v.X,v.Z)?-3:0,_hallKit.Post,"foundation");
                 foreach(var part in _hallDesign.Parts)AddHallPart(part);
                 // Each entrance receives its own route to the unedited terrain.
-                if(!_hallBasement)foreach(var entry in _hallDesign.Entrances)
+                if(!_hallBasement && !sunken)foreach(var entry in _hallDesign.Entrances)
                 {
                     V3 outward=V(Quaternion.Euler(0,(float)entry.Yaw,0)*Vector3.back);
                     for(int stair=0;stair<6;stair++)
@@ -348,7 +390,7 @@ namespace BuildShapes
             if(_hallProblem!=null || _output.Count==0){Say(_hallProblem??"No hall preview.");return;}
             try
             {
-                string key=SubmitHall(player);int count=_output.Count;_lastPlan=key;Stop();Say($"{(_staveTemple?"Temple":"Hall")} planned: {count} shared ghosts. E builds; U removes unbuilt pieces."+(_staveTemple?"":" Basement ground restoration is in Hallwright options."));
+                string key=SubmitHall(player);int count=_output.Count;_lastPlan=key;Stop();Say($"{(_staveTemple?"Temple":"Hall")} planned: {count} shared ghosts. E builds; U removes unbuilt pieces."+(HallDigs?" Ground restoration is in Hallwright options.":""));
             }
             catch(Exception ex){Say(ex.GetBaseException().Message);}
         }

@@ -12,15 +12,15 @@ namespace BuildShapes
         private void HallContents(int id)
         {
             GUILayout.BeginArea(new Rect(20,14,_hallRect.width-40,_hallRect.height-28));
-            GUILayout.BeginHorizontal();GUILayout.Label(_staveTemple?"Stave temple":"Hallwright",_menuTitle,GUILayout.Height(32));GUILayout.FlexibleSpace();
+            GUILayout.BeginHorizontal();GUILayout.Label(_staveTemple?"Stave temple":_hallNorse?"Longhouse":"Hallwright",_menuTitle,GUILayout.Height(32));GUILayout.FlexibleSpace();
             if(GUILayout.Button("×",_menuClose,GUILayout.Width(38),GUILayout.Height(34)))CloseHallMenu();GUILayout.EndHorizontal();
-            GUILayout.Label(_staveTemple?"A tall chamber beneath stacked Viking roofs":"A timber hall fitted to your floor plan",_menuHint);
+            GUILayout.Label(_staveTemple?"A tall chamber beneath stacked Viking roofs":_hallNorse?"A Norse longhouse dug into the ground around a long hearth":"A timber hall fitted to your floor plan",_menuHint);
             _hallScroll=GUILayout.BeginScrollView(_hallScroll);
             GUILayout.Space(12);
             if(_hallDesign!=null)GUILayout.Label($"{_hallDesign.Cells.Count*4} / {HallLayout.MaximumCells*4:N0} m² · {_hallDesign.Wings.Count} roof wings · {_output.Count} / {HallLayout.MaximumParts:N0} pieces",_menuText);
             bool changed=false;
-            int style=GUILayout.SelectionGrid(_staveTemple?1:0,new[]{"Longhouse","Stave temple"},2,_menuButton,GUILayout.Height(34));
-            if((style==1)!=_staveTemple){_staveTemple=style==1;if(_staveTemple){_hallStoreys=1;_hallBasement=false;}changed=true;}
+            int style=GUILayout.SelectionGrid(HallStyle,new[]{"Timber hall","Longhouse","Stave temple"},3,_menuButton,GUILayout.Height(34));
+            if(style!=HallStyle){SetHallStyle(style);changed=true;}
             if(_staveTemple)
             {
                 GUILayout.Space(12);GUILayout.Label("Open chamber height",_menuText);
@@ -42,7 +42,16 @@ namespace BuildShapes
             int height=Mathf.RoundToInt(GUILayout.HorizontalSlider(_hallHeight,2,4));
             if(height!=_hallHeight){_hallHeight=height;changed=true;}
             GUILayout.BeginHorizontal();foreach(int h in new[]{2,3,4})if(GUILayout.Button(h+" m",_menuButton)){_hallHeight=h;changed=true;}GUILayout.EndHorizontal();
+            if(_hallNorse)
+            {
+                GUILayout.Space(12);GUILayout.Label(_hallSink>0?$"Dug in {_hallSink:0.#} m below the lowest ground":"Not dug in · floor on posts",_menuText);
+                float sink=Mathf.Round(GUILayout.HorizontalSlider(_hallSink,0,2)*2)/2;
+                if(sink!=_hallSink){_hallSink=sink;changed=true;}
+                GUILayout.Label("The floor is sunk into the ground, with a drip ditch along the walls and a ramp down to each door. Ground changes only when you Plan shell, and can be restored.",_menuHint);
+            }
             if(!_staveTemple)
+            {
+            if(!_hallNorse)
             {
             GUILayout.Space(12);GUILayout.Label("Storeys",_menuText);
             int storeys=GUILayout.SelectionGrid(_hallStoreys-1,new[]{"One","Two","Three"},3,_menuButton,GUILayout.Height(34))+1;
@@ -50,6 +59,7 @@ namespace BuildShapes
             bool basement=GUILayout.Toggle(_hallBasement," Basement · 3 m stone cellar");
             if(basement!=_hallBasement){_hallBasement=basement;changed=true;}
             GUILayout.Label("Stairs are placed inside the footprint with landings and open headroom. A basement needs unlocked stone, dry terrain and a clear site. Ground changes only when you Plan shell.",_menuHint);
+            }
             GUILayout.Space(12);GUILayout.Label("Roof silhouette",_menuText);
             int roof=GUILayout.SelectionGrid(_hallTiered?1:0,new[]{"Gabled","Tiered longhouse"},2,_menuButton,GUILayout.Height(34));
             if((roof==1)!=_hallTiered){_hallTiered=roof==1;changed=true;}
@@ -64,11 +74,20 @@ namespace BuildShapes
                 if(!GUILayout.Button((value?"On · ":"Off · ")+label,value?_menuSelected:_menuButton))return value;
                 changed=true;return !value;
             }
-            _hallOverhang=DetailSwitch(_hallOverhang,"Deep roof overhangs · 2 m");
-            _hallPorch=DetailSwitch(_hallPorch,"Covered entrance porch · 4 × 2 m");
+            if(_hallNorse)
+            {
+                _hallBank=DetailSwitch(_hallBank,"Earth banks against the walls");
+                _hallBenches=DetailSwitch(_hallBenches,"Raised platforms along the long walls");
+                _hallHearth=DetailSwitch(_hallHearth,"Long hearth · smoke vents in the ridge");
+            }
+            else
+            {
+                _hallOverhang=DetailSwitch(_hallOverhang,"Deep roof overhangs · 2 m");
+                _hallPorch=DetailSwitch(_hallPorch,"Covered entrance porch · 4 × 2 m");
+            }
             _hallSweep=DetailSwitch(_hallSweep,"Sweeping gable timberwork");
             _hallShutters=DetailSwitch(_hallShutters,"Shuttered windows · 2 × 1 m");
-            GUILayout.Label(_staveTemple?"Layered eaves extend above lower roofs where they clear. A porch needs a 4 m edge and clear space outside. All pieces use normal materials and support.":"Overhangs fit around other wings and the porch. A porch needs a 4 m edge and clear ground outside. All pieces use normal materials and support.",_menuHint);
+            GUILayout.Label(_staveTemple?"Layered eaves extend above lower roofs where they clear. A porch needs a 4 m edge and clear space outside. All pieces use normal materials and support.":_hallNorse?"Banks heap earth to just under the eaves, beyond the ditch. Platforms are 2 m deep in halls 10 m wide or more, 1 m at 8 m. Hearths run down the middle of wings at least 6 × 8 m, with vents beside them, never above, and rows of aisle posts carry the roof.":"Overhangs fit around other wings and the porch. A porch needs a 4 m edge and clear ground outside. All pieces use normal materials and support.",_menuHint);
             if(!_staveTemple)
             {
                 GUILayout.Label("Chimneys",_menuText);
@@ -108,14 +127,17 @@ namespace BuildShapes
                 if(remove){_hallDoorPoints.RemoveAt(i);changed=true;break;}
             }
             if(_hallDoorPoints.Count>0 && GUILayout.Button("Clear entrance markers · use edge selector",_menuButton)){_hallDoorPoints.Clear();changed=true;}
+            if(!(_hallNorse && _hallSink>0))
+            {
             GUILayout.Space(12);GUILayout.Label(_hallBasement?"Ground floor lift above entrance terrain":"Foundation lift above highest ground",_menuText);
             float raise=_hallRaise;changed|=NumberControlRow("Floor raise","m",0,2,0.05f,ref raise);_hallRaise=raise;
             GUILayout.Label(_hallBasement?"The cellar pit follows the footprint. A level entrance apron meets its deck; courtyards remain outside the pit.":"Posts or a stone plinth bring the floor to one level.",_menuHint);
+            }
             if(System.IO.File.Exists(HallGroundFile))
             {
-                GUILayout.Label("Saved basement ground recovery (survives F6)",_menuHint);
+                GUILayout.Label("Saved ground recovery from the last basement or longhouse (survives F6)",_menuHint);
                 if(GUILayout.Button("Restore ground · clear built cellar first",_menuButton))try{RestoreHallGround();changed=true;Say("Original terrain restored.");}catch(System.Exception ex){Say(ex.GetBaseException().Message);}
-                if(GUILayout.Button("Keep excavation · discard recovery",_menuButton))try{RestoreHallGround(true);Say("Excavation kept; another basement can now be planned.");}catch(System.Exception ex){Say(ex.GetBaseException().Message);}
+                if(GUILayout.Button("Keep excavation · discard recovery",_menuButton))try{RestoreHallGround(true);Say("Ground kept; another basement or longhouse can now be planned.");}catch(System.Exception ex){Say(ex.GetBaseException().Message);}
             }
             GUILayout.Space(10);
             GUILayout.Label("Sharing",_menuText);

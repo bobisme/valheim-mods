@@ -7,7 +7,7 @@ namespace BuildShapes
         private static ZNetView HallGroundView(TerrainComp comp)
         {
             var view=comp?.GetComponent<ZNetView>();
-            if(view==null || !view.IsValid())throw new ArgumentException("Basement terrain is not network-ready. Move closer and retry.");
+            if(view==null || !view.IsValid())throw new ArgumentException("Terrain is not network-ready. Move closer and retry.");
             return view;
         }
         private static void LoadHallGround(TerrainComp comp)

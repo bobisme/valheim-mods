@@ -399,3 +399,86 @@ Reject(()=>HallLayout.Plan(Rect(16,16),new HallLayout.Kit(),3,2,0,false,new Hall
 var chimneyPlan=HallLayout.Plan(Rect(8,12),new HallLayout.Kit(),3,2,0,false,new HallLayout.Details{ChimneyPoints=new[]{new V3(3,0,5)}});
 Check(HallLayout.ChimneyBlocks(chimneyPlan,new V3(3,0,5)) && HallLayout.ChimneyBlocks(chimneyPlan,new V3(4,0,5)) && !HallLayout.ChimneyBlocks(chimneyPlan,new V3(2,0,4)) && !HallLayout.ChimneyBlocks(chimneyPlan,new V3(7,0,5)),"Support columns avoid the flue but may share its corners");
 Console.WriteLine($"Shutters and chimneys: {checks:N0} checks passed.");
+
+// Norse longhouse: hearths down the middle aisle with ridge vents beside them, platforms along the long walls, aisle posts, no low ties.
+var norseKit=new HallLayout.Kit{SmallFloor="wood_floor_1x1",SpanCells=5};
+HallLayout.Details Norse(bool benches=true,bool hearth=true)=>new HallLayout.Details{Norse=true,Benches=benches,Hearth=hearth?"hearth":null};
+var hearthSnaps=fixture.GetProperty("hearth").GetProperty("snaps").EnumerateObject().Select(s=>Vector(s.Value)).Where(v=>v.Y==0).ToArray();
+(double x0,double x1,double z0,double z1) Bed(HallLayout.Part p){var c=hearthSnaps.Select(s=>p.At+Turn(s,p.Yaw)).ToArray();return (c.Min(v=>v.X),c.Max(v=>v.X),c.Min(v=>v.Z),c.Max(v=>v.Z));}
+bool Hits((double x0,double x1,double z0,double z1) a,(double x0,double x1,double z0,double z1) b)=>a.x1>b.x0+0.001 && b.x1>a.x0+0.001 && a.z1>b.z0+0.001 && b.z1>a.z0+0.001;
+void VerifyNorse(V3[] outline,int entrance,int depth,int hearths,string label)
+{
+ var plan=HallLayout.Plan(outline,norseKit,2,2,entrance,false,Norse());
+ var wing=plan.Wings.Single();double width=wing.Width*2,length=wing.Length*2;
+ // Positions across (u) and along (v) the wing.
+ double U(V3 p)=>wing.Across?wing.Z*2+wing.D*2-p.Z:p.X-wing.X*2;
+ double Along(V3 p)=>wing.Across?p.X-wing.X*2:p.Z-wing.Z*2;
+ Check(plan.Norse && plan.Hearths==hearths && plan.Parts.Count(p=>p.Role=="hearth")==hearths,label+": hearth count");
+ foreach(var h in plan.Parts.Where(p=>p.Role=="hearth"))
+ {
+  var bed=Bed(h);
+  Check(Math.Abs((wing.Across?bed.x1-bed.x0:bed.z1-bed.z0)-4)<1e-6,label+": the hearth's 4 m runs along the hall");
+  Check(Math.Abs(U(h.At)-width/2)<1e-6 && Math.Abs(h.At.Y)<1e-9,label+": hearth on the floor in the middle aisle");
+  Check(!plan.Chimneys.Any(c=>Hits(bed,(c.X*2,c.X*2+2,c.Z*2,c.Z*2+2))),label+": no vent opens above a hearth");
+  Check(plan.Chimneys.Count(c=>Math.Abs(Along(new V3(c.X*2+1,0,c.Z*2+1))-Along(h.At))<3.01)==2,label+": a vent beside each end of the hearth");
+  Check(Math.Min(U(new V3(bed.x0,0,bed.z0)),U(new V3(bed.x1,0,bed.z1)))-depth>=1.5-1e-6,label+": 1.5 m to walk between hearth and platform");
+ }
+ var floors=plan.Parts.Where(p=>p.Role=="platform").ToList();
+ if(depth==0){Check(floors.Count==0,label+": no platforms");}
+ else
+ {
+  Check(floors.All(p=>Math.Abs(p.At.Y-0.5)<1e-9 && (U(p.At)<depth || U(p.At)>width-depth)),label+": platforms 0.5 m up along the long walls");
+  Check(floors.All(p=>p.Prefab==(depth==2?"wood_floor":"wood_floor_1x1")),label+": platform boards fit the depth");
+  foreach(var d in plan.Entrances)Check(!floors.Any(p=>(new V3(p.At.X,0,p.At.Z)-d.At).Length<1.5),label+": the door opens onto the aisle, not a platform");
+  Check(plan.Parts.Where(p=>p.Role=="platform front").All(p=>Math.Abs(p.At.Y+0.5)<1e-9),label+": platform fronts reach below the floor");
+  double perSide=floors.Count/(depth==2?1.0:2.0);
+  Check(perSide>=2*wing.Length-plan.Entrances.Count-plan.Chimneys.Count*2,label+": platforms run the length of both walls");
+ }
+ Check(plan.Entrances.Count==1 && Math.Abs(Along(plan.Entrances[0].At)-(wing.Across?length-3:3))<1e-6 || Math.Abs(Along(plan.Entrances[0].At)-3)<1e-6,label+": the door is near one end of the long wall");
+ // Headroom: no level beam crosses the aisle below 3 m (no tie beams at the wall plate); rafters rise from the walls.
+ foreach(var p in plan.Parts.Where(p=>p.Kind==HallLayout.Anchor.Segment && Math.Abs(p.End.Y-p.At.Y)<0.01))
+  for(int i=0;i<=8;i++){V3 q=p.At+(p.End-p.At)*(i/8.0);double u=U(q);Check(!(u>depth+0.3 && u<width-depth-0.3 && q.Y<3 && Along(q)>0.3 && Along(q)<length-0.3),label+": open headroom over the aisle");}
+ if(wing.Width>=4)Check(plan.Parts.Count(p=>p.Role=="aisle post")>=4 && plan.Parts.Where(p=>p.Role=="aisle post").All(p=>Math.Abs(U(p.At)-(depth>0?depth:2))<1e-6 || Math.Abs(U(p.At)-width+(depth>0?depth:2))<1e-6),label+": two rows of aisle posts");
+ Check(!plan.Parts.Any(p=>p.Role=="window frame"),label+": no open daylight windows");
+ Check(plan.Parts.All(p=>fixture.TryGetProperty(p.Prefab,out _)),label+": native pieces");
+ Check(plan.Parts.Count<=HallLayout.MaximumParts && plan.Parts.All(p=>p.At.Finite && p.End.Finite),label+": bounded and finite");
+}
+VerifyNorse(Rect(10,20),1,2,2,"10 m longhouse");
+VerifyNorse(Rect(8,16),1,1,1,"8 m longhouse");
+VerifyNorse(Rect(8,24),1,1,3,"Long 8 m longhouse");
+VerifyNorse(Rect(6,16),1,0,1,"6 m longhouse");
+VerifyNorse(Rect(20,10),0,2,2,"Across longhouse");
+Check(HallLayout.Plan(Rect(6,16),norseKit,2,2,1,false,Norse(hearth:false)).Parts.Count(p=>p.Role=="platform")>0,"Without a hearth a 6 m hall still gets platforms");
+Check(!HallLayout.Plan(Rect(8,16),new HallLayout.Kit(),2,2,1,false,Norse()).Parts.Any(p=>p.Role=="platform"),"1 m platforms wait for the 1×1 floor");
+Check(!HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,Norse(benches:false)).Parts.Any(p=>p.Role.StartsWith("platform")),"Platforms can be switched off");
+Check(HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,Norse(hearth:false)).Chimneys.Count==0,"No hearth, no vents");
+Check(HallLayout.Plan(Rect(10,20),norseKit,2,4,1,false,new HallLayout.Details{Norse=true,Hearth="hearth",ChimneyPoints=new[]{new V3(5,0,5)}}).Hearths==1,"A hearth never sits under a marked chimney");
+Check(HallLayout.Plan(Rect(10,20),norseKit,3,4,1,false,Norse()).Parts.Count(p=>p.Role=="window frame")==0,"Ornate longhouses stay dark inside");
+Check(HallLayout.Plan(Rect(10,20),norseKit,2,2,1,true,Norse()).TieredWings==1,"A longhouse can still have a tiered roof");
+Reject(()=>HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,new HallLayout.Details{Norse=true,Storeys=2}),"two-storey longhouse");
+Reject(()=>HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,new HallLayout.Details{Norse=true,Porch=true}),"longhouse porch");
+Reject(()=>HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,new HallLayout.Details{Norse=true,Basement=true}),"longhouse basement");
+// Its ground: dug floor and ditch, ramps to each door, banks beyond, nothing far away.
+var dug=HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,Norse());
+var dugDoor=dug.Entrances[0];V3 Out(double along,double out_)=>dugDoor.At+Turn(new V3(along,0,-out_),dugDoor.Yaw);
+Check(HallExcavation.Norse(dug,5,10,1,true,2)==(-0.15,-1),"The floor is dug just below its boards");
+Check(HallExcavation.Norse(dug,-1,10,1,true,2)==(-0.15,-1) && HallExcavation.Norse(dug,5,21.4,1,true,2)==(-0.15,-1),"A drip ditch runs along the walls");
+var bankTop=HallExcavation.Norse(dug,-2,10,1,true,2);Check(bankTop.HasValue && bankTop.Value.mode==1 && Math.Abs(bankTop.Value.y-1.7)<1e-9,"The bank heaps earth to just under the eaves");
+var bankFoot=HallExcavation.Norse(dug,-5.5,10,1,true,2);Check(bankFoot.HasValue && bankFoot.Value.y<bankTop.Value.y,"The bank slopes away");
+Check(HallExcavation.Norse(dug,-7,10,1,true,2)==null,"Ground beyond the bank is untouched");
+Check(HallExcavation.Norse(dug,-2,10,1,false,2)==null,"Banks can be switched off");
+Check(HallExcavation.Norse(dug,5,10,0,true,2)==null,"An undug longhouse leaves its floor's ground alone");
+var r1=HallExcavation.Norse(dug,Out(0,1).X,Out(0,1).Z,1,true,2);var r2=HallExcavation.Norse(dug,Out(0,4).X,Out(0,4).Z,1,true,2);var r3=HallExcavation.Norse(dug,Out(0,8).X,Out(0,8).Z,1,true,2);
+Check(r1==(-0.15,-1) && r2.HasValue && r3.HasValue && r2.Value.mode<0 && r2.Value.y>r1.Value.y && r3.Value.y>r2.Value.y,"A ramp climbs from each door to the old ground");
+Check(HallExcavation.Norse(dug,Out(2.5,3).X,Out(2.5,3).Z,1,true,2)==null,"No bank piles up beside a door's ramp");
+Check(HallExcavation.Settle(3,1,-1)==1 && HallExcavation.Settle(0,1,-1)==0 && HallExcavation.Settle(0,1,1)==1 && HallExcavation.Settle(3,1,1)==3 && HallExcavation.Settle(3,1,0)==1,"Digging only digs, heaping only heaps");
+// Doorways stay clear to the top of the opening plus a beam's half-thickness, for walls as tall as the door.
+bool Blocked(HallLayout.Design plan,double door)=>plan.Parts.Where(p=>p.Kind==HallLayout.Anchor.Segment).Any(p=>Enumerable.Range(0,9).Select(i=>p.At+(p.End-p.At)*(i/8.0)).Any(q=>plan.Entrances.Any(d=>{V3 l=Turn(q-d.At,-d.Yaw);return Math.Abs(l.X)<0.99 && Math.Abs(l.Z)<0.35 && q.Y>-0.01 && q.Y<door+0.35;})));
+foreach(int doorEdge in new[]{0,1})foreach(int intricacy in new[]{0,2,4})
+{
+ Check(!Blocked(HallLayout.Plan(Rect(8,12),new HallLayout.Kit(),2,intricacy,doorEdge),2),"No beam crosses the top of a door in a 2 m wall");
+ Check(!Blocked(HallLayout.Plan(Rect(8,12),new HallLayout.Kit{Door="wood_gate",DoorHeight=3},3,intricacy,doorEdge),3),"No beam crosses the top of a gate in a 3 m wall");
+ Check(!Blocked(HallLayout.Plan(Rect(10,20),norseKit,2,intricacy,doorEdge,false,Norse()),2),"No beam crosses a longhouse door");
+ Check(!Blocked(HallLayout.Plan(Rect(8,16),new HallLayout.Kit(),2,intricacy,doorEdge,false,new HallLayout.Details{Storeys=2}),2),"No joist crosses a door under an upper floor");
+}
+Console.WriteLine($"Norse longhouse: {checks:N0} checks passed.");
