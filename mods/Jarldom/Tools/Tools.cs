@@ -266,7 +266,7 @@ namespace Jarldom
                 output(new JObject { ["relic"] = lines[1] });
                 return;
             }
-            if (c == null && cmd != "place" && cmd != "put" && cmd != "claims" && cmd != "find" && cmd != "profile" && cmd != "versions" && cmd != "env" && cmd != "overlay" && cmd != "icon" && cmd != "compat" && cmd != "status") { error("no colony near (jarldom place pillars makes one)"); return; }
+            if (c == null && cmd != "place" && cmd != "put" && cmd != "claims" && cmd != "find" && cmd != "profile" && cmd != "versions" && cmd != "env" && cmd != "overlay" && cmd != "icon" && cmd != "layers" && cmd != "compat" && cmd != "status") { error("no colony near (jarldom place pillars makes one)"); return; }
             Player me = Player.m_localPlayer;
             switch (cmd)
             {
@@ -926,6 +926,30 @@ namespace Jarldom
                         System.IO.File.WriteAllBytes(file, ImageConversion.EncodeToPNG(sp.texture));
                         output(new JObject { ["icon"] = file, ["fog"] = RenderSettings.fog, ["ambient"] = RenderSettings.ambientLight.ToString(), ["mode"] = RenderSettings.ambientMode.ToString() });
                         break;
+                    }
+                case "zonescan":
+                    {
+                        // Test: what each work zone's scan sees (as Work.Scan looks), and why each thing is or isn't work.
+                        var res = new JArray();
+                        foreach (Zone z in c.R.Zones)
+                        {
+                            Vector3 centre = Zones.Centre(z); float reach = Zones.Reach(z) + 2, scan = reach + Zones.FuzzReach(z);
+                            var things = Work.Things(centre, scan, beasts: z.Type == ZoneType.Hunting).ToList();
+                            var beasts = things.Select(go => go.GetComponent<Character>()).Where(ch => ch != null).Select(ch => $"{Utils.GetPrefabName(ch.gameObject)} {ch.GetFaction()} works={Zones.Works(z, ch.transform.position, false, Mathf.FloorToInt(ch.transform.position.x * 4) * 73856093 ^ Mathf.FloorToInt(ch.transform.position.z * 4) * 19349663)} dead={ch.IsDead()} tame={ch.IsTamed()} at {ch.transform.position.x:0},{ch.transform.position.z:0}").ToList();
+                            res.Add(new JObject { ["zone"] = z.Type.ToString(), ["centre"] = V(centre), ["reach"] = reach, ["scan"] = scan, ["things"] = things.Count, ["beasts"] = new JArray(beasts) });
+                        }
+                        output(new JObject { ["zones"] = res }); break;
+                    }
+                case "layers":
+                    {
+                        // Test: the physics layers of prefabs' colliders (what a zone's scan sees).
+                        var res = new JObject();
+                        foreach (string name in a.Skip(2))
+                        {
+                            GameObject pf = ZNetScene.instance.GetPrefab(name);
+                            res[name] = pf == null ? "no such prefab" : string.Join(",", pf.GetComponentsInChildren<Collider>(true).Select(col => LayerMask.LayerToName(col.gameObject.layer) + (col.isTrigger ? "(trigger)" : "")).Distinct());
+                        }
+                        output(res); break;
                     }
                 case "overlay":
                     {

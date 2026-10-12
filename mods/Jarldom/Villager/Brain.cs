@@ -15,7 +15,7 @@ namespace Jarldom
         public Task Task; public Activity Activity = Activity.Idle; public string Doing = "";
         public string LastAttacker = ""; public Character Foe; private float _foeUntil;
         public bool KeepDoorsOpen; public float Stamina = 1f;
-        public bool Fighting, Combat_Bow, Fled; public int Swings, SwingsStarted; public string CombatNote = ""; public float BlockUntil, NoBlockUntil; public Character FightTarget; public float FleeUntil;
+        public bool Fighting, Combat_Bow, Fled; public int Swings, SwingsStarted; public string CombatNote = ""; public float BlockUntil, NoBlockUntil; public Character FightTarget; public float FleeUntil; public float BlindSince = -1, UnseenUntil; public Character Unseen;
         private bool _dirty; private float _nextSave, _nextNeeds, _nextGear, _nextFoes, _nextMoodSync, _nextWork, _born;
         private double _lastNeeds;
         private readonly List<Meal> _meals = new List<Meal>();

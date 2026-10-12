@@ -29,12 +29,19 @@ namespace Jarldom
         public static void Tick()
         {
             if (_leakUntil > 0 && Time.time > _leakUntil && Corners.Count == 0) { _leakUntil = 0; Draw(); } // (the red post where a found room leaked, gone after a while)
-            if (!Active) { if (Corners.Count > 0 && !Ui.RoomPicker.IsOpen) Clear(); return; }
+            if (!Active) { if (Corners.Count > 0 && !Ui.RoomPicker.IsOpen) Clear(); Ui.ChestPicker.Hint(null); return; }
+            // A chest under the crosshair: what it's for, and Shift+E to choose.
+            Container looked = Corners.Count == 0 && !Ui.Windows.AnyOpen && Player.m_localPlayer is Player lp ? Ui.ChestPicker.Looked(lp) : null;
+            Ui.ChestPicker.Hint(looked);
+            if (looked != null)
+            {
+                if (!GameUi.Typing && ZInput.GetButtonDown("Use") && (ZInput.GetButton("AltPlace") || Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))) Ui.ChestPicker.Open(looked);
+                return; // (E on a chest isn't E on the room it stands in)
+            }
             if (Input.GetKeyDown(KeyCode.Backspace) && Corners.Count > 0 && !GameUi.Typing) { Corners.RemoveAt(Corners.Count - 1); Draw(); }
             // E on a marked room or zone (no outline being drawn): what it is, and change or remove it.
             if (Corners.Count == 0 && !GameUi.Typing && !Ui.Windows.AnyOpen && ZInput.GetButtonDown("Use") && Player.m_localPlayer is Player p && Ghost(p) is GameObject g)
             {
-                if (p.GetHoverObject() is GameObject hover && hover.GetComponentInParent<Container>() != null) return; // (a chest's own: opened, or Shift+E chooses what it's for)
                 Vector3 at = g.transform.position;
                 Colony c = Colony.Nearest(at, Renown.ZoneReach + 20);
                 if (c == null) return;
@@ -246,7 +253,7 @@ namespace Jarldom
             _mat = new Material(s) { hideFlags = HideFlags.HideAndDontSave };
             return _mat;
         }
-        private static GameObject Label(Vector3 at, string text, Color color)
+        internal static GameObject Label(Vector3 at, string text, Color color, float size = 4f)
         {
             var go = new GameObject("JarldomRoomLabel");
             go.SetActive(false); // (the font given before the text wakes: it looks for a default font otherwise, and warns there's none)
@@ -255,7 +262,7 @@ namespace Jarldom
             var t = go.AddComponent<TMPro.TextMeshPro>();
             TMPro.TMP_FontAsset font = GameUi.Norse ?? WorldFont();
             if (font != null) t.font = font;
-            t.text = text; t.fontSize = 4; t.color = color; t.alignment = TMPro.TextAlignmentOptions.Center;
+            t.text = text; t.fontSize = size; t.color = color; t.alignment = TMPro.TextAlignmentOptions.Center;
             go.AddComponent<Billboard>();
             go.SetActive(true);
             return go;

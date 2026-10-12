@@ -1,3 +1,5 @@
+0.1.9: Hunters hunt boars, necks and hares (the game counts them with the forest's monsters, so only deer were game), and a hunting ground by a big base sees its animals (the walls and floors near it filled the search). Work zones near big bases no longer miss their trees, rocks and forage the same way. A bow wants a clear shot: a wall between, and the archer goes round for one, or lets it be (no more arrows into a house's wall). Shift+E on a chest with the room marker out works (the game sees nothing in build mode: the chest is found by Jarldom, with a label saying what it's for). New test commands: jarldom zonescan, jarldom layers.
+
 0.1.8: Smoother still near a big colony: what it has built (stations, beds, doors, fires) is looked up once a second and kept, not sorted out of every piece again for each question a work scan asks (about 33,000 times a scan).
 
 0.1.7: Choose what a chest is for at the chest: with the hammer's "Mark rooms and zones" out, a colony chest's hover says what it's for, and Shift+E on it picks the treasury, a kind of stores, or nothing (no more standing by a chest at the pillars, which picked whichever was nearest).

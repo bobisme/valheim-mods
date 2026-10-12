@@ -39,7 +39,7 @@ namespace Jarldom
                 // Fighters meet what comes within 25 m; in a raid they go out to the raiders anywhere in the colony (raiders first).
                 bool raid = fighter && !out_ && home != null && home.RaidOn;
                 float reach = fighter ? 25f : 8f;
-                foe = Character.GetAllCharacters().Where(c => c != null && !c.IsDead() && c != b.Body && !Friendly(c) && !Tribute.IsHerald(c) && BaseAI.IsEnemy(b.Body, c)
+                foe = Character.GetAllCharacters().Where(c => c != null && !c.IsDead() && c != b.Body && !Friendly(c) && !Tribute.IsHerald(c) && BaseAI.IsEnemy(b.Body, c) && !(c == b.Unseen && Time.time < b.UnseenUntil)
                         && (fighter || Hunting(c) || Vector3.Distance(c.transform.position, me) < 4f)
                         && (c.GetFaction() != Character.Faction.AnimalsVeg || b.Task is WorkTask w && w.Kind == "hunt" && w.Target == c)
                         && (Vector3.Distance(c.transform.position, me) < reach || raid && Raider(c, home)) && Follow.Near(b, c.transform.position, 25))
@@ -83,6 +83,8 @@ namespace Jarldom
             b.SetDoing("running from " + Localization.instance.Localize(from.m_name));
         }
 
+        private static int _sight = -1;
+        private static int Sight => _sight != -1 ? _sight : _sight = LayerMask.GetMask("Default", "static_solid", "Default_small", "piece", "terrain", "vehicle");
         public static void Fixed(Brain b, float dt)
         {
             Humanoid h = b.Body;
@@ -94,9 +96,18 @@ namespace Jarldom
             float dist = Vector3.Distance(t.transform.position, b.Pos) - t.GetRadius();
             float reach = ranged ? 25f : Mathf.Max(1.2f, (weapon?.m_shared.m_attack.m_attackRange ?? 1.5f) * 0.9f);
             if (dist > reach) { if (!b.Move.Moving || Vector3.Distance(b.Move.Goal, t.transform.position) > 1.5f) b.Move.To(t.transform.position, reach * 0.8f, dist > 6f); return; }
-            b.Move.Stop();
             Vector3 aim = t.GetCenterPoint();
             Vector3 from = b.Pos + Vector3.up * (weapon?.m_shared.m_attack.m_attackHeight ?? 1f);
+            // A bow wants a clear shot: a wall between them, and the arrows only feed the wall. Go round for one; none in a while, let it be.
+            if (ranged && Physics.Linecast(from, aim, Sight, QueryTriggerInteraction.Ignore))
+            {
+                if (b.BlindSince < 0) b.BlindSince = Time.time;
+                if (Time.time - b.BlindSince > 8f) { b.Unseen = t; b.UnseenUntil = Time.time + 30f; b.BlindSince = -1; b.Fighting = false; b.FightTarget = null; b.Move.Stop(); return; }
+                if (!b.Move.Moving || Vector3.Distance(b.Move.Goal, t.transform.position) > 1.5f) b.Move.To(t.transform.position, 3f, dist > 6f);
+                b.CombatNote = "no clear shot"; return;
+            }
+            b.BlindSince = -1;
+            b.Move.Stop();
             h.SetLookDir((aim - from).normalized, 0f);
             b.Ai.LookTowards((aim - b.Pos).normalized);
             // Block when it swings and we hold a shield.

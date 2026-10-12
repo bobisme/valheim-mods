@@ -40,7 +40,7 @@ namespace Jarldom
     // The colony's work: scanners (zones, the ground, fires and stations) post orders on the board; villagers take them as WorkTasks.
     internal static class Work
     {
-        private static readonly Collider[] Hits = new Collider[2048];
+        private static readonly Collider[] Hits = new Collider[2048]; private static float _fullWarned;
         private static readonly Dictionary<ZDOID, float> FirstSeen = new Dictionary<ZDOID, float>();
         public static readonly HashSet<string> Crops = new HashSet<string>(); // grown crop prefabs (from the cultivator's saplings)
 
@@ -85,7 +85,7 @@ namespace Jarldom
                     case ZoneType.Pasture: Pasture(c, z, centre, reach, now); continue;
                 }
                 int posted = 0;
-                foreach (GameObject go in Things(centre, scan))
+                foreach (GameObject go in Things(centre, scan, beasts: z.Type == ZoneType.Hunting))
                 {
                     if (posted >= 12) break;
                     Vector3 p = go.transform.position;
@@ -115,7 +115,7 @@ namespace Jarldom
                             break;
                         case ZoneType.Hunting:
                             Character beast = go.GetComponent<Character>();
-                            if (beast != null && !beast.IsDead() && !beast.IsTamed() && beast.GetFaction() == Character.Faction.AnimalsVeg) kind = "hunt";
+                            if (Prey(beast)) kind = "hunt";
                             break;
                     }
                     if (kind == null) continue;
@@ -234,9 +234,18 @@ namespace Jarldom
             return n.Contains("rock") || IsOre(go);
         }
         // Everything networked near a point (trees, rocks, plants, beasts), each once.
-        public static IEnumerable<GameObject> Things(Vector3 at, float radius)
+        // Game for a hunter: the game's own animals (deer), and boars, necks and hares, which it counts with the forest's monsters.
+        private static readonly HashSet<string> Game = new HashSet<string> { "Boar", "Neck", "Hare", "Deer" };
+        public static bool Prey(Character c) => c != null && !c.IsDead() && !c.IsTamed() && !c.IsBoss() && !VillagerPrefab.Is(c) && !c.IsPlayer()
+            && (c.GetFaction() == Character.Faction.AnimalsVeg || Game.Contains(Utils.GetPrefabName(c.gameObject)));
+        // What stands in a zone: not the buildings (wild pickables lie on the item layer: kept) (a zone by a big base found its 2048 places all taken by walls and floors, and
+        // the boar in the hunting grounds never); a hunting ground looks only for creatures.
+        private static int _things = -1, _beasts = -1;
+        public static IEnumerable<GameObject> Things(Vector3 at, float radius, bool beasts = false)
         {
-            int n = Physics.OverlapSphereNonAlloc(at, radius, Hits, ~0, QueryTriggerInteraction.Collide);
+            if (_things == -1) { _things = ~LayerMask.GetMask("piece", "terrain", "character", "character_net", "character_ghost", "character_noenv", "viewblock", "vehicle", "ui", "effect"); _beasts = LayerMask.GetMask("character", "character_net", "character_noenv"); }
+            int n = Physics.OverlapSphereNonAlloc(at, radius, Hits, beasts ? _beasts : _things, QueryTriggerInteraction.Collide);
+            if (n == Hits.Length && Time.time > _fullWarned) { _fullWarned = Time.time + 300; Plugin.Warn($"Jarldom: a work zone at {at.x:0},{at.z:0} has more than {Hits.Length} things in reach: some of its work isn't seen"); }
             var seen = new HashSet<GameObject>();
             for (int i = 0; i < n; i++)
             {

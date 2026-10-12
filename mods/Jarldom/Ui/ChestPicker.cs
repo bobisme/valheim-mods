@@ -5,8 +5,9 @@ using Object = UnityEngine.Object;
 
 namespace Jarldom.Ui
 {
-    // What a chest holds, chosen at the chest: with the hammer's "Mark rooms and zones" chosen, a colony chest's hover says what it's
-    // for, and Shift+E (instead of opening it) asks: the treasury, a kind of stores, or nothing of the colony's.
+    // What a chest holds, chosen at the chest: with the hammer's "Mark rooms and zones" chosen, the colony chest under the crosshair
+    // gets a label saying what it's for, and Shift+E asks: the treasury, a kind of stores, or nothing of the colony's. (In build mode
+    // the game looks at nothing, no hover and no E: the chest is found here.)
     internal static class ChestPicker
     {
         private static RectTransform _window; private static Colony _c; private static Container _chest;
@@ -16,6 +17,33 @@ namespace Jarldom.Ui
         {
             if (_window == null) return;
             if (Player.m_localPlayer == null || global::Menu.IsVisible() || _c == null || !_c.Valid || _chest == null) Close();
+        }
+
+        // The chest under the crosshair, within reach (what the game's own look would find out of build mode).
+        private static int _mask = -1;
+        public static Container Looked(Player p)
+        {
+            if (GameCamera.instance == null) return null;
+            if (_mask == -1) _mask = LayerMask.GetMask("piece", "piece_nonsolid", "Default", "static_solid", "terrain", "vehicle");
+            Transform cam = GameCamera.instance.transform;
+            if (!Physics.Raycast(cam.position, cam.forward, out RaycastHit hit, 50f, _mask, QueryTriggerInteraction.Ignore)) return null;
+            if (Vector3.Distance(p.m_eye.position, hit.point) > 6f) return null;
+            return hit.collider.GetComponentInParent<Container>();
+        }
+        private static GameObject _label; private static Container _labelled; private static string _labelText = "";
+        // The label over the chest looked at, kept up while it's looked at (and changed when what it's for changes).
+        public static void Hint(Container chest)
+        {
+            string text = "";
+            if (chest != null && Of(chest, out _, out _, out string cat)) text = $"{Name(cat)}\n<size=70%>Shift+E: choose what it's for</size>";
+            else if (chest != null) text = "not one of the colony's chests";
+            if (chest == _labelled && text == _labelText && (_label != null) == (text != "")) return;
+            if (_label != null) Object.Destroy(_label);
+            _label = null; _labelled = chest; _labelText = text;
+            if (text == "") return;
+            Vector3 top = chest.transform.position + Vector3.up * 1.4f;
+            foreach (Collider col in chest.GetComponentsInChildren<Collider>()) if (!col.isTrigger) top.y = Mathf.Max(top.y, col.bounds.max.y + 0.5f);
+            _label = Overlay_.Label(top, text, new Color(1f, 0.85f, 0.45f, 1f), 2.4f);
         }
         // The colony this chest is a store of (and its id and what it holds now), or why not.
         public static bool Of(Container chest, out Colony c, out string id, out string category)
@@ -60,26 +88,6 @@ namespace Jarldom.Ui
             }
             Choice("nothing", "Not the colony's stores: villagers leave it alone unless it stands in a stockpile room.", now == "" || now == "any" && !_c.R.Stockpiles.ContainsKey(chestId), () => Net.Act(_c, "stockpile", chestId + "|"));
             GameUi.Button(_window, "Cancel", new Vector2(w - 180, -h + 64), new Vector2(150, 42), Close, true, 16);
-        }
-    }
-
-    [HarmonyPatch(typeof(Container), nameof(Container.Interact))]
-    internal static class Container_Interact_Designate
-    {
-        private static bool Prefix(Container __instance, Humanoid character, bool hold, bool alt, ref bool __result)
-        {
-            if (hold || !alt || character != Player.m_localPlayer || !Designate.Active) return true;
-            ChestPicker.Open(__instance); __result = true; return false;
-        }
-    }
-
-    [HarmonyPatch(typeof(Container), nameof(Container.GetHoverText))]
-    internal static class Container_GetHoverText_Designate
-    {
-        private static void Postfix(Container __instance, ref string __result)
-        {
-            if (!Designate.Active || !ChestPicker.Of(__instance, out _, out _, out string cat)) return;
-            __result += Localization.instance.Localize($"\n<color=#ffd27a>Colony: {ChestPicker.Name(cat)}</color>\n[<color=yellow><b>$KEY_AltPlace + $KEY_Use</b></color>] Choose what it's for");
         }
     }
 }
