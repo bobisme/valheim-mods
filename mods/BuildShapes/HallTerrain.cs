@@ -172,28 +172,34 @@ namespace BuildShapes
         }
         private static bool HallGroundMatches(GroundVertex v,float level,float smooth,bool modified)=>
             level==v.AfterLevel && smooth==v.AfterSmooth && modified==v.AfterModified || level==v.BeforeLevel && smooth==v.BeforeSmooth && modified==v.BeforeModified;
-        private void RestoreHallGround(bool keep=false)
+        // Returns how many ground points were left alone because something else (levelling for a workbench, a hoe, a pickaxe) changed them since.
+        private int RestoreHallGround(bool keep=false)
         {
             string path=HallGroundFile;if(!File.Exists(path))throw new ArgumentException("No Hallwright ground record in this world.");
-            if(keep){File.Delete(path);return;}
+            if(keep){File.Delete(path);return 0;}
             if(new FileInfo(path).Length>2000000)throw new ArgumentException("Ground record is too large.");
             var record=JsonConvert.DeserializeObject<GroundRecord>(File.ReadAllText(path));
             if(record==null || record.World!=ZNet.instance.GetWorldUID() || record.Tiles==null || record.Tiles.Any(t=>t==null || t.Vertices==null || t.Vertices.Count<1 || t.Vertices.Any(v=>v==null) || t.Vertices.Select(v=>v.Index).Distinct().Count()!=t.Vertices.Count || t.Vertices.Any(v=>float.IsNaN(v.BeforeLevel) || float.IsInfinity(v.BeforeLevel) || float.IsNaN(v.BeforeSmooth) || float.IsInfinity(v.BeforeSmooth) || v.BeforePaint!=null && (v.BeforePaint.Length!=4 || v.BeforePaint.Any(f=>float.IsNaN(f) || float.IsInfinity(f))))) || record.Tiles.Count<1 || record.Tiles.Count>4 || record.Tiles.Sum(t=>t.Vertices.Count)>HallGroundLimit)throw new ArgumentException("Invalid ground record.");
-            var ready=new List<(GroundTile tile,TerrainComp comp)>();var occupied=new List<GroundCell>();
-            foreach(var tile in record.Tiles)
+            var ready=new List<(GroundTile tile,TerrainComp comp)>();var occupied=new List<GroundCell>();int skipped=0;
+            foreach(var saved in record.Tiles)
             {
+                var tile=new GroundTile{X=saved.X,Y=saved.Y,Z=saved.Z,Width=saved.Width,Scale=saved.Scale};
                 var map=Heightmap.FindHeightmap(new Vector3(tile.X,tile.Y,tile.Z));
                 if(map==null || map.transform.position!=new Vector3(tile.X,tile.Y,tile.Z) || map.m_width!=tile.Width || map.m_scale!=tile.Scale)throw new ArgumentException("Move closer: saved terrain tile is not loaded.");
                 TerrainComp comp=map.GetAndCreateTerrainCompiler();LoadHallGround(comp);GroundArrays(comp,out var levels,out var smooth,out var modified);
-                foreach(var v in tile.Vertices)
+                foreach(var v in saved.Vertices)
                 {
-                    if(v.Index<0 || v.Index>=levels.Length || !HallGroundMatches(v,levels[v.Index],smooth[v.Index],modified[v.Index]))throw new ArgumentException("Ground has changed since excavation. Restoration would overwrite another edit; keep the record or accept the current ground.");
+                    if(v.Index<0 || v.Index>=levels.Length)throw new ArgumentException("Invalid ground record.");
+                    // Leave a point alone if something else has changed it since; restoring it would undo that edit.
+                    if(!HallGroundMatches(v,levels[v.Index],smooth[v.Index],modified[v.Index])){skipped++;continue;}
                     int x=v.Index%(tile.Width+1),z=v.Index/(tile.Width+1);float now=map.GetHeight(x,z)+tile.Y;
                     var c=new GroundCell{Map=map,Index=v.Index,X=x,Z=z,Displayed=now,Target=now+v.BeforeLevel-v.AfterLevel+v.BeforeSmooth-v.AfterSmooth};occupied.Add(c);
-                    Vector3 pos=map.transform.position+new Vector3((x-tile.Width/2)*tile.Scale,0,(z-tile.Width/2)*tile.Scale);
-                    if(Vector3.Distance(pos,Player.m_localPlayer.transform.position)>70 || !PrivateArea.CheckAccess(pos,0,false,false) || Location.IsInsideNoBuildLocation(pos))throw new ArgumentException("Ground restoration is out of reach or protected.");
+                    Vector3 pos=map.transform.position+new Vector3((x-tile.Width/2)*tile.Scale,0,(z-tile.Width/2)*tile.Scale);pos.y=now;
+                    if(Vector3.Distance(pos,Player.m_localPlayer.transform.position)>70)throw new ArgumentException("Move closer: some of the ground to restore is more than 70 m away.");
+                    if(!PrivateArea.CheckAccess(pos,0,false,false) || Location.IsInsideNoBuildLocation(pos))throw new ArgumentException("Some of the ground to restore is protected by a ward or a location.");
+                    tile.Vertices.Add(v);
                 }
-                ready.Add((tile,comp));
+                if(tile.Vertices.Count>0)ready.Add((tile,comp));
             }
             CheckHallGroundClear(occupied);
             // Validate access, conflicts and buildings across every tile before claiming ownership.
@@ -207,6 +213,7 @@ namespace BuildShapes
                 if(entry.tile.Vertices.Any(v=>levels[v.Index]!=v.BeforeLevel || smooth[v.Index]!=v.BeforeSmooth || modified[v.Index]!=v.BeforeModified))throw new ArgumentException("Terrain restoration could not be verified; recovery record retained.");
             }
             File.Delete(path);
+            return skipped;
         }
         private bool HallPredictedGround(Obb reach)
         {

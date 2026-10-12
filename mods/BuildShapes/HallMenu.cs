@@ -137,7 +137,7 @@ namespace BuildShapes
             if(System.IO.File.Exists(HallGroundFile))
             {
                 GUILayout.Label("Saved ground recovery from the last basement or longhouse (survives F6)",_menuHint);
-                if(GUILayout.Button("Restore ground · clear built cellar first",_menuButton))try{RestoreHallGround();changed=true;Say("Original terrain restored.");}catch(System.Exception ex){Say(ex.GetBaseException().Message);}
+                if(GUILayout.Button("Restore ground · take down the hall first",_menuButton))try{int skipped=RestoreHallGround();changed=true;Say(skipped==0?"Original terrain restored.":$"Original terrain restored, except {skipped} ground points changed since (levelled or dug by something else), which were left as they are.");}catch(System.Exception ex){Say(ex.GetBaseException().Message);}
                 if(GUILayout.Button("Keep excavation · discard recovery",_menuButton))try{RestoreHallGround(true);Say("Ground kept; another basement or longhouse can now be planned.");}catch(System.Exception ex){Say(ex.GetBaseException().Message);}
             }
             GUILayout.Space(10);

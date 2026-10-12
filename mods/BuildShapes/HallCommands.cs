@@ -126,7 +126,7 @@ namespace BuildShapes
                 if(action=="clear"){if(_tool==Tool.Hall)Stop();output(new JObject{["cleared"]=true});return null;}
                 if(action=="reload")return ReloadHallScripts(output,error);
                 if(action=="restoreground" || action=="keepground")
-                {RestoreHallGround(action=="keepground");output(new JObject{["ground"]=action=="keepground"?"kept":"restored"});return null;}
+                {int skipped=RestoreHallGround(action=="keepground");output(new JObject{["ground"]=action=="keepground"?"kept":"restored",["leftAlone"]=skipped});return null;}
                 if(!Ready(player) || !_planner.Available(player))throw new ArgumentException("Equip the hammer, close other menus, and finish any bridge/blueprint placement first.");
                 if(action=="resume"){if(!ResumeHallDraft())throw new ArgumentException("Saved draft could not be reopened. Check the log and the current character/world.");output(HallReadout());return null;}
                 if(action=="undo")
