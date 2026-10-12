@@ -11,7 +11,7 @@ using Object=UnityEngine.Object;
 namespace BuildShapes
 {
     // The Hallwright stake: a little flagged stake in the hammer's build menu. Pick it and Hallwright is on; click the ground to set a
-    // corner (Ctrl+click an entrance, Ctrl+Shift+click a smoke hole or chimney), press E inside the outline for the settings. The stake
+    // corner (Shift+click an entrance, Ctrl+click a smoke hole or chimney), press E inside the outline for the settings. The stake
     // itself is never built: its placement ghost stands where the next corner will go.
     public sealed partial class Plugin
     {
@@ -68,7 +68,7 @@ namespace BuildShapes
             if(cloth!=null)flag.GetComponent<MeshRenderer>().sharedMaterial=cloth;
             var piece=stake.GetComponent<Piece>();
             piece.m_name="Hallwright stake";
-            piece.m_description="Stake out a hall. Click the ground for each corner, Ctrl+click for an entrance, Ctrl+Shift+click for a smoke hole or chimney, and press E inside the outline for its settings. The stake isn't built: Plan shell turns the outline into ghosts to build.";
+            piece.m_description="Stake out a hall. Click the ground for each corner, Shift+click for an entrance, Ctrl+click for a smoke hole or chimney, and press E inside the outline for its settings. The stake isn't built: Plan shell turns the outline into ghosts to build.";
             piece.m_resources=new Piece.Requirement[0];
             piece.m_craftingStation=null;
             piece.m_category=Piece.PieceCategory.Misc;
@@ -126,9 +126,8 @@ namespace BuildShapes
         private void StakeClick(Player player)
         {
             if(_tool!=Tool.Hall || _hallMenu || _modeMenu)return;
-            bool ctrl=Input.GetKey(KeyCode.LeftControl);
-            if(ctrl && Input.GetKey(_modifier.Value))MarkHallChimney(player);
-            else if(ctrl)MarkHallDoor(player);
+            if(Input.GetKey(KeyCode.LeftControl))MarkHallChimney(player);
+            else if(Input.GetKey(_modifier.Value))MarkHallDoor(player);
             else MarkHall(player);
         }
         // E inside the outline (looking at nothing else to use) opens the settings.

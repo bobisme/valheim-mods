@@ -103,7 +103,7 @@ namespace BuildShapes
             if(!_staveTemple)
             {
                 Gap();Head(_hallNorse?"Smoke holes":"Chimneys");
-                Hint(_hallNorse?"Ctrl+Shift+click a floor tile to leave the roof above it open, as the Norse let their smoke out. Up to four, besides the ones beside the hearths. Under a 45° roof each gets a lower 26° piece that keeps the rain off and leaves a slit for the smoke.":"Ctrl+Shift+click a floor tile to open the roof above it and raise a timber flue past the ridge; set your fire under it. Up to four. Upper floors leave a shaft for it.");
+                Hint(_hallNorse?(StakeMode?"Ctrl":"Ctrl+Shift")+"+click a floor tile to leave the roof above it open, as the Norse let their smoke out. Up to four, besides the ones beside the hearths. Under a 45° roof each gets a lower 26° piece that keeps the rain off and leaves a slit for the smoke.":(StakeMode?"Ctrl":"Ctrl+Shift")+"+click a floor tile to open the roof above it and raise a timber flue past the ridge; set your fire under it. Up to four. Upper floors leave a shaft for it.");
                 for(int i=0;i<_hallChimneyPoints.Count;i++){int index=i;Buttons(($"Remove {(_hallNorse?"smoke hole":"chimney")} {i+1}",true,(Action)(()=>{_hallChimneyPoints.RemoveAt(index);HallChanged();})));}
             }
             Gap();Head("Ridge ends");
@@ -117,7 +117,7 @@ namespace BuildShapes
             Hint("Auto chooses an unlocked gate at 3 m or taller, otherwise a door.");
             if(_markers.Count>0 && _hallDoorPoints.Count==0)
                 Buttons(("<",true,(Action)(()=>{_hallEntrance=(_hallEntrance+_markers.Count-1)%_markers.Count;HallChanged();})),($"Door on edge {_hallEntrance%_markers.Count+1} of {_markers.Count}",false,(Action)(()=>{})),(">",true,(Action)(()=>{_hallEntrance=(_hallEntrance+1)%_markers.Count;HallChanged();})));
-            Hint("Ctrl+click near exterior walls to mark up to eight entrances; click a marker again to remove it. The first marker gets the covered porch.");
+            Hint((StakeMode?"Shift":"Ctrl")+"+click near exterior walls to mark up to eight entrances; click a marker again to remove it. The first marker gets the covered porch.");
             for(int i=0;i<_hallDoorPoints.Count;i++){int index=i;Buttons(($"Remove entrance {i+1}"+(i==0?" · main":""),true,(Action)(()=>{_hallDoorPoints.RemoveAt(index);HallChanged();})));}
             if(_hallDoorPoints.Count>0)Buttons(("Clear entrance markers · use the edge selector",true,(Action)(()=>{_hallDoorPoints.Clear();HallChanged();})));
             if(!(_hallNorse && _hallSink>0))
