@@ -299,6 +299,9 @@ namespace Wayfinder
         private ZNetView _view;
         private Transform _glow;
         private Light _far;
+        internal static readonly HashSet<BeaconView> Live=new HashSet<BeaconView>(); // (kept as they come and go: searching the scene for them cost ~10 ms)
+        private void OnEnable()=>Live.Add(this);
+        private void OnDisable()=>Live.Remove(this);
         private void Awake()
         {
             _fire=GetComponent<Fireplace>();_view=GetComponent<ZNetView>();
@@ -380,6 +383,9 @@ namespace Wayfinder
         private Renderer _glow;
         private ZNetView _view;
         private float _seed;
+        internal static readonly HashSet<MarkView> Live=new HashSet<MarkView>();
+        private void OnEnable()=>Live.Add(this);
+        private void OnDisable()=>Live.Remove(this);
         private void Awake()
         {
             _view=GetComponent<ZNetView>();
@@ -439,9 +445,9 @@ namespace Wayfinder
             if(_for!=key+me.GetPlayerID()){Clear();_for=key+me.GetPlayerID();Load(me,key);}
             bool changed=false;
             Vector3 here=me.transform.position;
-            foreach(BeaconView b in Object.FindObjectsByType<BeaconView>(FindObjectsSortMode.None))
+            foreach(BeaconView b in BeaconView.Live)
                 changed|=Note(b.transform.position,b.Name,true,here);
-            foreach(MarkView m in Object.FindObjectsByType<MarkView>(FindObjectsSortMode.None))
+            foreach(MarkView m in MarkView.Live)
                 if(m.Name!="")changed|=Note(m.transform.position,m.Name,false,here);
             // one taken off the map by hand is forgotten; one gone from where it stood, too
             Minimap map=Minimap.instance;
@@ -464,8 +470,8 @@ namespace Wayfinder
         }
         private static bool Standing(Seen s)
         {
-            foreach(BeaconView b in Object.FindObjectsByType<BeaconView>(FindObjectsSortMode.None))if((b.transform.position-s.At).sqrMagnitude<9)return true;
-            foreach(MarkView m in Object.FindObjectsByType<MarkView>(FindObjectsSortMode.None))if((m.transform.position-s.At).sqrMagnitude<9)return true;
+            foreach(BeaconView b in BeaconView.Live)if((b.transform.position-s.At).sqrMagnitude<9)return true;
+            foreach(MarkView m in MarkView.Live)if((m.transform.position-s.At).sqrMagnitude<9)return true;
             return false;
         }
         private static bool Note(Vector3 at,string name,bool beacon,Vector3 here)

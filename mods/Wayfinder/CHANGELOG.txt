@@ -1,3 +1,5 @@
+0.1.8: No more stutter every two seconds in a big base: beacons and sea-marks are kept in a list as they come and go, instead of the whole scene being searched for them (20–25 ms).
+
 0.1.7: Test tool only: `wayfinder remove` can be given ship or piece names, to take away only those test objects.
 
 0.1.6: Sight from the masthead scales with the ship: MastheadSight is now the bonus from the tallest seat, a drakkar's (16 m over the sea), and lower seats get less as the horizon draws in (a karve's about 2.3x, a longship's about 2.5x, of the default 3x). On a ship rolling at sea you sit on the lookout's seat, not a foot above it: the mast is measured in the ship's own frame. Tried on the longship and the drakkar.
