@@ -448,6 +448,15 @@ VerifyNorse(Rect(8,16),1,1,1,"8 m longhouse");
 VerifyNorse(Rect(8,24),1,1,3,"Long 8 m longhouse");
 VerifyNorse(Rect(6,16),1,0,1,"6 m longhouse");
 VerifyNorse(Rect(20,10),0,2,2,"Across longhouse");
+// Plain wood spans 8 m in a hall, but a longhouse keeps one roof over its full 10 m, with the hearths down the middle.
+foreach(var outline in new[]{Rect(10,20),Rect(20,10),Rect(10,30)})
+{
+ var plainPlan=HallLayout.Plan(outline,new HallLayout.Kit{SmallFloor="wood_floor_1x1"},2,2,1,false,Norse());
+ var plainWing=plainPlan.Wings.Single();
+ Check(plainWing.Width==5 && plainPlan.Hearths>=2,"Plain-wood 10 m longhouse: one roof wing");
+ foreach(var h in plainPlan.Parts.Where(p=>p.Role=="hearth"))Check(Math.Abs((plainWing.Across?h.At.Z-plainWing.Z*2:h.At.X-plainWing.X*2)-5)<1e-6,"Plain-wood 10 m longhouse: hearths on the centre line");
+}
+Check(HallLayout.Plan(Rect(10,20),new HallLayout.Kit(),3,2,1).Wings.Count==2,"A plain-wood 10 m hall still splits its roof at 8 m");
 Check(HallLayout.Plan(Rect(6,16),norseKit,2,2,1,false,Norse(hearth:false)).Parts.Count(p=>p.Role=="platform")>0,"Without a hearth a 6 m hall still gets platforms");
 Check(!HallLayout.Plan(Rect(8,16),new HallLayout.Kit(),2,2,1,false,Norse()).Parts.Any(p=>p.Role=="platform"),"1 m platforms wait for the 1×1 floor");
 Check(!HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,Norse(benches:false)).Parts.Any(p=>p.Role.StartsWith("platform")),"Platforms can be switched off");

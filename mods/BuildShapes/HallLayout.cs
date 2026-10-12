@@ -189,9 +189,10 @@ namespace BuildShapes
         {
             if(kit==null || kit.DoorHeight<2 || kit.DoorHeight>height || kit.DoorHeight!=Math.Round(kit.DoorHeight) || height<2 || height>(details?.TallWalls==true?8:4) || detail<0 || detail>4 || kit.Slope!=1 && kit.Slope!=0.5)
                 throw new ArgumentException("Choose walls 2–4 m high, a native roof pitch, and intricacy 0–4.");
-            var plan=new Design();plan.Cells.AddRange(Footprint(corners));plan.Wings.AddRange(SolveWings(plan.Cells,kit.SpanCells));
-            var set=new HashSet<Cell>(plan.Cells);
             details=details??new Details{Finial=detail>=3?kit.Raven:null};
+            // A longhouse is one roof over its full width up to 10 m, whatever the timber: its aisle posts carry the middle.
+            var plan=new Design();plan.Cells.AddRange(Footprint(corners));plan.Wings.AddRange(SolveWings(plan.Cells,details.Norse?Math.Max(kit.SpanCells,5):kit.SpanCells));
+            var set=new HashSet<Cell>(plan.Cells);
             if(details.Storeys<1 || details.Storeys>3)throw new ArgumentException("Choose one to three storeys.");
             if(details.Norse && (details.Storeys>1 || details.Basement || details.Porch || details.Overhang))throw new ArgumentException("A Norse longhouse is a single sunken storey, without a basement, porch or overhangs.");
             plan.Storeys=details.Storeys;plan.StoreyHeight=height;plan.Basement=details.Basement;plan.Norse=details.Norse;

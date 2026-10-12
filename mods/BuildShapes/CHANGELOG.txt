@@ -1,3 +1,5 @@
+0.8.8: A 10 m wide longhouse gets one roof with one ridge and its hearths on the centre line, in plain wood too (it was split into two roofs at 8 m, the plain-wood limit for a timber hall, which put two peaks on it and the hearths off centre). The aisle posts carry the wider roof; timber halls keep the 8 m limit.
+
 0.8.7: Hallwright settings window has a Clear draft button (beside Plan shell, Edit outline and Cancel): clears the outline, entrances and chimneys and deletes the saved draft, as Delete does, and closes the window.
 
 0.8.6: The Hallwright stake now really is a thin, tall pole standing on the ground (0.8.5 stretched the game's rotated pole model sideways into a floating slab), and its flag is orange instead of blue.
