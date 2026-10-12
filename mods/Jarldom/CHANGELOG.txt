@@ -1,3 +1,5 @@
+0.1.7: Choose what a chest is for at the chest: with the hammer's "Mark rooms and zones" out, a colony chest's hover says what it's for, and Shift+E on it picks the treasury, a kind of stores, or nothing (no more standing by a chest at the pillars, which picked whichever was nearest).
+
 0.1.6: No more stutter every 8 seconds near a colony with many chests: the work scan read every chest in the colony over again for each thing it checked (166 times a scan, about 55 ms); it now counts the stores once and asks the count.
 
 0.1.5: Jarldom's build-menu and item icons no longer come out lurid green and yellow (or blank white): drawn while a world loads, before the game's shaders are set up, they're now drawn again once you stand in the world, with the scene's fog and ambient light kept out. New test command: jarldom icon <prefab> [0|1|current].

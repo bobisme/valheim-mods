@@ -8,7 +8,7 @@ namespace Jarldom
 {
     // Marking rooms and zones: with the hammer's "Mark rooms and zones" chosen, a click marks a corner where the building ghost stands;
     // clicking the first corner again closes the outline and asks what it is. Backspace takes back the last corner. Ctrl+Shift+click on
-    // a room's floor finds the room from its walls at once.
+    // a room's floor finds the room from its walls at once. Shift+E on a chest chooses what it's for (Ui.ChestPicker).
     internal static class Designate
     {
         private static readonly AccessTools.FieldRef<Player, GameObject> Ghost = AccessTools.FieldRefAccess<Player, GameObject>("m_placementGhost");
@@ -34,6 +34,7 @@ namespace Jarldom
             // E on a marked room or zone (no outline being drawn): what it is, and change or remove it.
             if (Corners.Count == 0 && !GameUi.Typing && !Ui.Windows.AnyOpen && ZInput.GetButtonDown("Use") && Player.m_localPlayer is Player p && Ghost(p) is GameObject g)
             {
+                if (p.GetHoverObject() is GameObject hover && hover.GetComponentInParent<Container>() != null) return; // (a chest's own: opened, or Shift+E chooses what it's for)
                 Vector3 at = g.transform.position;
                 Colony c = Colony.Nearest(at, Renown.ZoneReach + 20);
                 if (c == null) return;

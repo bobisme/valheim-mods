@@ -11,15 +11,15 @@ namespace Jarldom.Ui
     // Every window of the mod, ticked and closed together.
     internal static class Windows
     {
-        public static bool AnyOpen => ColonyWindow.IsOpen || VillagerPanel.IsOpen || RoomPicker.IsOpen || RoomEditor.IsOpen || JarlView.Active || ThingPanel.IsOpen;
+        public static bool AnyOpen => ColonyWindow.IsOpen || VillagerPanel.IsOpen || RoomPicker.IsOpen || RoomEditor.IsOpen || ChestPicker.IsOpen || JarlView.Active || ThingPanel.IsOpen;
         public static void Tick()
         {
             GameUi.IsOpen = () => AnyOpen;
             GameUi_EscapeCloses.Close = Escape;
-            ColonyWindow.Tick(); VillagerPanel.Tick(); RoomPicker.Tick(); RoomEditor.Tick(); JarlView.Tick(); ThingPanel.Tick();
+            ColonyWindow.Tick(); VillagerPanel.Tick(); RoomPicker.Tick(); RoomEditor.Tick(); ChestPicker.Tick(); JarlView.Tick(); ThingPanel.Tick();
         }
         private static void Escape() { if (ThingPanel.IsOpen) ThingPanel.Dismiss(); else CloseAll(); } // (Esc puts off the ruling first)
-        public static void CloseAll() { ThingPanel.Close(); if (ColonyWindow.IsOpen || VillagerPanel.IsOpen || RoomPicker.IsOpen || RoomEditor.IsOpen) { ColonyWindow.Close(); VillagerPanel.Close(); RoomPicker.Close(); RoomEditor.Close(); } else JarlView.End(); } // (Esc closes a window first, then the seat's view)
+        public static void CloseAll() { ThingPanel.Close(); if (ColonyWindow.IsOpen || VillagerPanel.IsOpen || RoomPicker.IsOpen || RoomEditor.IsOpen || ChestPicker.IsOpen) { ColonyWindow.Close(); VillagerPanel.Close(); RoomPicker.Close(); RoomEditor.Close(); ChestPicker.Close(); } else JarlView.End(); } // (Esc closes a window first, then the seat's view)
         public static string Pct(float f) => Mathf.RoundToInt(f * 100) + "%";
         public static string Signed(int v) => v > 0 ? "+" + v : v.ToString();
     }
@@ -168,8 +168,8 @@ namespace Jarldom.Ui
                 (r.Arrivals > 0 && c.Population > 0, "Take in who the Valkyrie sets down at the pillars at dusk (the New tab)."),
                 (r.Zones.Count > 0, "Mark work: a woodlot, a quarry, fields, foraging or hunting grounds. Villagers work what's marked and haul it to the chests."),
                 (r.Roster.Any(x => x.State == SoulState.Active && x.Prof != Prof.Hauler), "Give each a trade: People tab → Details → choose their work (they say what they'd like)."),
-                (Stock.Treasury(c) != null, $"Choose a treasury chest and put coins in it: wages are paid from it every {Payroll.EveryDays} days."),
-                (Stock.Chests(c).Any(x => x.category != "" && x.category != "treasury") || Room(RoomType.Stockpile), "Sort the stores: mark a stockpile room, or stand by a chest and choose what it holds (Rooms tab)."),
+                (Stock.Treasury(c) != null, $"Choose a treasury chest (the hammer's \"Mark rooms and zones\": look at a chest, Shift+E) and put coins in it: wages are paid from it every {Payroll.EveryDays} days."),
+                (Stock.Chests(c).Any(x => x.category != "" && x.category != "treasury") || Room(RoomType.Stockpile), "Sort the stores: mark a stockpile room, or with the hammer's \"Mark rooms and zones\" look at a chest and press Shift+E."),
                 (Room(RoomType.GreatHall), "Raise a great hall with a fire, tables and seats: villagers gather there at dusk to eat and talk."),
             };
         }
@@ -232,7 +232,7 @@ namespace Jarldom.Ui
             if (r.Rank < Rank.Hold) { Rank next = r.Rank + 1; string miss = Ranks.Missing(next, _c.Population, _c.WorkingRooms()); y = Text(list, $"To become a {Tables.Of(next).Name.ToLower()}: {(miss == "" ? "ready at the next check" : miss)}.", y, 16, GameUi.Dim); }
             y = Heading(list, "The colony", y);
             Container treasury = Stock.Treasury(_c);
-            y = Text(list, $"Treasury: {(treasury == null ? "<color=#ff8c59>none chosen</color> (mark a chest from the hammer's room tool, or below)" : Stock.Coins(treasury) + " coins")}. Wages due every {Payroll.EveryDays} days: {Payroll.Due(Villagers.All.Where(b => b.S.Colony == _c.Id).Select(b => b.S), Payroll.EveryDays, _c.GuardExtra) * Plugin.Instance.WageScale.Value / 100} coins.{(r.MissedPaydays > 0 ? $" <color=#ff8c59>{r.MissedPaydays} missed paydays.</color>" : "")}", y);
+            y = Text(list, $"Treasury: {(treasury == null ? "<color=#ff8c59>none chosen</color> (the hammer's \"Mark rooms and zones\": look at a chest, Shift+E)" : Stock.Coins(treasury) + " coins")}. Wages due every {Payroll.EveryDays} days: {Payroll.Due(Villagers.All.Where(b => b.S.Colony == _c.Id).Select(b => b.S), Payroll.EveryDays, _c.GuardExtra) * Plugin.Instance.WageScale.Value / 100} coins.{(r.MissedPaydays > 0 ? $" <color=#ff8c59>{r.MissedPaydays} missed paydays.</color>" : "")}", y);
             int tribute = Tribute.Due(_c);
             if (tribute > 0 || Tribute.Raiding(_c))
             {
@@ -258,8 +258,7 @@ namespace Jarldom.Ui
             Tip(Btn(list, "Hold a feast", ref bx, y, () => Net.Act(_c, "feast", ""), feast == ""), "A feast", "Tonight in the great hall: food from the hall's chests (three kinds or more) and mead if there is some. Everyone's mood rises for days, and it's a deed for renown.");
             Tip(Btn(list, "Give out free beds", ref bx, y, () => Net.Act(_c, "autobeds", "")), "Free beds", "Everyone sleeping by the hall fire takes the nearest bed no one has. (It happens by itself at dusk too.)");
             y += 50; bx = 8;
-            Container near = NearestChest();
-            Tip(Btn(list, near == null ? "Treasury: stand by a chest" : "Make the chest by me the treasury", ref bx, y, () => { Container ch = NearestChest(); if (ch != null) Net.Act(_c, "treasury", Colony.IdOf(ch.GetComponent<ZNetView>())); }, near != null), "The treasury", "Wages are paid from the treasury every five days, and feasts, ransoms, tribute and hired swords are paid from it. Its coins count to renown.");
+            Tip(Btn(list, _c.R.Treasury == "" ? "Treasury: none yet" : "Treasury: chosen", ref bx, y, () => Player.m_localPlayer?.Message(MessageHud.MessageType.Center, "Take the hammer's \"Mark rooms and zones\", look at a chest and press Shift+E to make it the treasury."), true), "The treasury", "Wages are paid from the treasury every five days, and feasts, ransoms, tribute and hired swords are paid from it. Its coins count to renown. To choose it: the hammer's \"Mark rooms and zones\", look at a chest, Shift+E.");
             Tip(Btn(list, _c.HornUntil > Time.time ? "Sound the all-clear" : "Blow the war horn", ref bx, y, () => Net.Act(_c, "horn", _c.HornUntil > Time.time ? "off" : "on")), "The war horn", "Fighters arm themselves and go out to the foe; everyone else runs for the great hall. It sounds by itself when a raid comes.");
             y += 52;
             y = Heading(list, "Mods it works with", y);
@@ -307,11 +306,6 @@ namespace Jarldom.Ui
         }
         private static string _confirm = "", _rename; private static Colony _renameFor;
         private static void Confirm(string what) { _confirm = _confirm == what ? "" : what; Build(); }
-        private static Container NearestChest()
-        {
-            Player p = Player.m_localPlayer;
-            return Stock.Chests(_c, p.transform.position).Select(x => x.chest).FirstOrDefault(ch => Vector3.Distance(ch.transform.position, p.transform.position) < 15);
-        }
         private static Button Btn(RectTransform list, string text, ref float x, float y, Action click, bool enabled = true)
         {
             float w = Mathf.Max(150, text.Length * 9.5f + 30);
@@ -405,15 +399,8 @@ namespace Jarldom.Ui
             y = Heading(list, "Stockpiles", y);
             var chests = Stock.Chests(_c);
             y = Text(list, chests.Count == 0 ? "No chests in the colony." : $"{chests.Count} chests: " + string.Join(", ", chests.GroupBy(c => c.category == "" ? "unsorted" : c.category).Select(g => $"{g.Count()} {g.Key}")), y, 15, GameUi.Dim);
-            y = Text(list, "Stand by a chest and choose what it holds:", y, 15, GameUi.Dim);
-            float bx = 8;
-            foreach (string cat in Stock.Categories)
-            {
-                string k = cat;
-                if (bx > W - 120) { bx = 8; y += 40; }
-                GameUi.Button(list, cat, new Vector2(bx, -y), new Vector2(104, 34), () => { Container ch = NearestChest(); if (ch != null) Net.Act(_c, "stockpile", Colony.IdOf(ch.GetComponent<ZNetView>()) + "|" + k); }, true, 15);
-                bx += 110;
-            }
+            y = Text(list, "To choose what a chest holds (or make it the treasury): take the hammer's \"Mark rooms and zones\", look at the chest and press Shift+E. Chests in a stockpile room hold anything unless chosen.", y, 15, GameUi.Dim);
+            y -= 46;
             return y + 46;
         }
 
