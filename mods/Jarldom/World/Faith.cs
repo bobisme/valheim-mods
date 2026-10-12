@@ -282,7 +282,7 @@ namespace Jarldom
             Inventory bag = b.Body.GetInventory();
             if (_phase == 0)
             {
-                if (Vector3.Distance(b.Pos, _from.transform.position) > 2.4f) { if (!b.Move.Moving) b.Move.To(_from.transform.position, 1.8f); if (b.Move.Failed) { Done = true; b.NoOfferUntil = Time.time + 120; } return; }
+                if (Stock.OutOfReach(b.Pos, _from.transform.position, 2.4f)) { if (!b.Move.Moving) b.Move.To(_from.transform.position, 1.8f); if (b.Move.Failed) { Done = true; b.NoOfferUntil = Time.time + 120; } return; }
                 ItemDrop.ItemData stack = _from.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == _gift);
                 if (stack == null || Stock.Take(_from, bag, stack, 1) == 0) { Done = true; b.NoOfferUntil = Time.time + 60; return; }
                 _phase = 1; Doing = "going to the altar of " + Tables.God(_god)?.Name;

@@ -130,7 +130,7 @@ namespace Jarldom
         {
             if (Done) return;
             if (_chest == null || b.Move.Failed) { Done = true; return; }
-            if (!b.Move.Arrived && Vector3.Distance(b.Pos, _chest.transform.position) > 2.4f) { if (!b.Move.Moving) b.Move.To(_chest.transform.position, 1.8f); return; }
+            if (!b.Move.Arrived && Stock.OutOfReach(b.Pos, _chest.transform.position, 2.4f)) { if (!b.Move.Moving) b.Move.To(_chest.transform.position, 1.8f); return; }
             int took = Stock.Take(_chest, b.Body.GetInventory(), _item, 2);
             if (took > 0) Food.EatFromBag(b); else b.NoFoodUntil = Time.time + 30;
             Done = true;
@@ -297,7 +297,7 @@ namespace Jarldom
                 var (want, count) = missing[0];
                 Container from = chests.Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want));
                 if (from == null) { Done = true; b.NoBuildUntil = Time.time + 20; return; }
-                if (Vector3.Distance(b.Pos, from.transform.position) > 2.4f) { if (!b.Move.Moving) b.Move.To(from.transform.position, 1.8f); if (b.Move.Failed) Done = true; return; }
+                if (Stock.OutOfReach(b.Pos, from.transform.position, 2.4f)) { if (!b.Move.Moving) b.Move.To(from.transform.position, 1.8f); if (b.Move.Failed) Done = true; return; }
                 ItemDrop.ItemData stack = from.GetInventory().GetAllItems().First(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want);
                 if (Stock.Take(from, b.Body.GetInventory(), stack, count - Have(b, want)) == 0) { Done = true; b.NoBuildUntil = Time.time + 30; return; }
                 return;

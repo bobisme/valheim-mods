@@ -144,7 +144,7 @@ namespace Jarldom
                 var (want, count) = missing[0];
                 Container from = chests.Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want));
                 if (from == null) { Release(b); b.NoCraftUntil = Time.time + 20; return; }
-                if (Vector3.Distance(b.Pos, from.transform.position) > 2.4f) { if (!b.Move.Moving) b.Move.To(from.transform.position, 1.8f); if (b.Move.Failed) { Release(b); b.NoCraftUntil = Time.time + 30; } return; }
+                if (Stock.OutOfReach(b.Pos, from.transform.position, 2.4f)) { if (!b.Move.Moving) b.Move.To(from.transform.position, 1.8f); if (b.Move.Failed) { Release(b); b.NoCraftUntil = Time.time + 30; } return; }
                 ItemDrop.ItemData stack = from.GetInventory().GetAllItems().First(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want);
                 if (Stock.Take(from, b.Body.GetInventory(), stack, count - Have(b, want)) == 0) { Release(b); b.NoCraftUntil = Time.time + 30; }
                 return;
@@ -190,7 +190,7 @@ namespace Jarldom
             }
             // Phase 2: to the stores.
             if (_to == null || _made == null || b.Move.Failed) { Done = true; return; }
-            if (Vector3.Distance(b.Pos, _to.transform.position) > 2.5f) { if (!b.Move.Moving) b.Move.To(_to.transform.position, 1.8f); return; }
+            if (Stock.OutOfReach(b.Pos, _to.transform.position, 2.5f)) { if (!b.Move.Moving) b.Move.To(_to.transform.position, 1.8f); return; }
             if (b.Body.GetInventory().ContainsItem(_made)) Stock.Put(b.Body.GetInventory(), _to, _made);
             Done = true;
         }

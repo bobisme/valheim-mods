@@ -30,7 +30,7 @@ namespace Jarldom
                 {
                     bool noBow = !Gear.Items(b).Any(i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Bow && Gear.Usable(i));
                     string make = noBow ? "Bow" : MakeOwn.Can(c, "ArrowFlint", b.Pos) ? "ArrowFlint" : "ArrowWood";
-                    if (MakeOwn.Can(c, make, b.Pos)) return new MakeOwn(make);
+                    if (!MakeOwn.Resting(b) && MakeOwn.Can(c, make, b.Pos)) return new MakeOwn(make);
                 }
             }
             b.NoGearUntil = Time.time + 90;
@@ -72,7 +72,7 @@ namespace Jarldom
         public override void Tick(Brain b)
         {
             if (_chest == null) { Done = true; return; }
-            if (Vector3.Distance(b.Pos, _chest.transform.position) > 2.4f) { if (!b.Move.Moving) b.Move.To(_chest.transform.position, 1.8f); if (b.Move.Failed) { Done = true; b.NoGearUntil = Time.time + 120; } return; }
+            if (Stock.OutOfReach(b.Pos, _chest.transform.position, 2.4f)) { if (!b.Move.Moving) b.Move.To(_chest.transform.position, 1.8f); if (b.Move.Failed) { Done = true; b.NoGearUntil = Time.time + 120; } return; }
             ItemDrop.ItemData item = _chest.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == _prefab);
             int got = item == null ? 0 : Stock.Take(_chest, b.Body.GetInventory(), item, Math.Min(_count, item.m_stack));
             if (got > 0) { b.Say($"I'll take {(got > 1 ? got + " " : "the ")}{Localization.instance.Localize(item.m_shared.m_name).ToLower()} for the work.", 4); b.Dirty(); }

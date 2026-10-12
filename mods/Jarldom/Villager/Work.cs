@@ -548,7 +548,7 @@ namespace Jarldom
         {
             if (Done) return;
             if (_to == null || b.Move.Failed) { Done = true; b.NoStoreUntil = Time.time + 30; return; }
-            if (!b.Move.Arrived && Vector3.Distance(b.Pos, _to.transform.position) > 2.5f) { if (!b.Move.Moving) b.Move.To(_to.transform.position, 1.8f); return; }
+            if (!b.Move.Arrived && Stock.OutOfReach(b.Pos, _to.transform.position, 2.5f)) { if (!b.Move.Moving) b.Move.To(_to.transform.position, 1.8f); return; }
             Inventory bag = b.Body.GetInventory();
             int moved = 0;
             foreach (ItemDrop.ItemData item in bag.GetAllItems().Where(i => Work.Stores(b, i)).ToList())
@@ -827,7 +827,7 @@ namespace Jarldom
                 if (_seedsFetched) { b.Say("No seeds to replant with.", 4); _plantFail = "no seeds in the stores"; return false; }
                 if (_seedChest == null) _seedChest = Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury").Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == plant.seed));
                 if (_seedChest == null) { _seedsFetched = true; return true; }
-                if (Vector3.Distance(b.Pos, _seedChest.transform.position) > 2.4f) { if (!b.Move.Moving) b.Move.To(_seedChest.transform.position, 1.8f); if (b.Move.Failed) _seedsFetched = true; return true; }
+                if (Stock.OutOfReach(b.Pos, _seedChest.transform.position, 2.4f)) { if (!b.Move.Moving) b.Move.To(_seedChest.transform.position, 1.8f); if (b.Move.Failed) _seedsFetched = true; return true; }
                 ItemDrop.ItemData seeds = _seedChest.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == plant.seed);
                 Stock.Take(_seedChest, bag, seeds, Mathf.Max(plant.amount, 5));
                 _seedsFetched = true; return true;
@@ -902,7 +902,7 @@ namespace Jarldom
                 if (_source == null) _source = Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).Select(x => x.chest)
                     .FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && wants.Contains(i.m_dropPrefab.name)));
                 if (_source == null) { Block(b, "nothing in the stores it eats"); return; }
-                if (Vector3.Distance(b.Pos, _source.transform.position) > 2.4f)
+                if (Stock.OutOfReach(b.Pos, _source.transform.position, 2.4f))
                 {
                     // (to the chest: a walk left over from before, to the fire, is walked no more)
                     if (!b.Move.Moving || Vector3.Distance(b.Move.Goal, _source.transform.position) > 3f) { b.Move.To(_source.transform.position, 1.8f); _walkSince = 0; }
@@ -1074,7 +1074,7 @@ namespace Jarldom
             }
             if (_phase == 1)
             {
-                if (Vector3.Distance(b.Pos, _source.transform.position) > 2.4f)
+                if (Stock.OutOfReach(b.Pos, _source.transform.position, 2.4f))
                 {
                     // (to the chest: a walk left over from before, to the fire, is walked no more)
                     if (!b.Move.Moving || Vector3.Distance(b.Move.Goal, _source.transform.position) > 3f) { b.Move.To(_source.transform.position, 1.8f); _walkSince = 0; }

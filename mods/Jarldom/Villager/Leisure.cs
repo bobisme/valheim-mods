@@ -28,7 +28,7 @@ namespace Jarldom
             var rng = new System.Random(b.S.Vid.GetHashCode() ^ (int)(Time.time / 30f));
             var kinds = new List<(string kind, int weight)>();
             // No tankard of their own: carve one at the workbench, from the stores (fine wood and resin).
-            if (Gear.Tool(b, "tankard") == null && MakeOwn.Can(c, "Tankard", b.Pos)) return new MakeOwn("Tankard");
+            if (Gear.Tool(b, "tankard") == null && !MakeOwn.Resting(b) && MakeOwn.Can(c, "Tankard", b.Pos)) return new MakeOwn("Tankard");
             if (indoors)
             {
                 // (out of the storm: a game at a table, or the hall and its talk)
@@ -321,6 +321,14 @@ namespace Jarldom
     {
         private readonly string _prefab; private Recipe _r; private List<(string item, int amount)> _needs; private CraftingStation _bench; private int _phase, _beats; private float _next;
         public MakeOwn(string prefab) { _prefab = prefab; }
+        // Stood where the walk ends and still not in reach (a chest on the floor below a balcony, a bench behind a rail): a chest like
+        // that is passed over for another, and with nowhere left, it's given up for a while (or they're straight back to it).
+        private readonly HashSet<Container> _skip = new HashSet<Container>(); private int _stalls; private Container _at;
+        private static readonly Dictionary<string, float> GaveUp = new Dictionary<string, float>();
+        public static bool Resting(Brain b) => GaveUp.TryGetValue(b.S.Vid, out float until) && Time.time < until;
+        private void GiveUp(Brain b) { GaveUp[b.S.Vid] = Time.time + 300f; Done = true; }
+        private bool Stalled(Brain b) { if (b.Move.Moving) return false; return ++_stalls > 3; }
+        public override string Debug(Brain b) => $"{_prefab} phase {_phase} chest {(_at != null ? _at.transform.position.ToString("F1") : "none")} bench {(_bench != null ? _bench.transform.position.ToString("F1") : "none")} stalls {_stalls} skipped {_skip.Count}";
         public static bool Can(Colony c, string prefab, Vector3 near)
         {
             Recipe r = Crafts.RecipeFor(prefab);
@@ -342,16 +350,27 @@ namespace Jarldom
             if (_phase == 0)
             {
                 var missing = _needs.Where(n => Have(b, n.item) < n.amount).ToList();
-                if (missing.Count == 0) { _phase = 1; b.Move.To(_bench.transform.position, 2f); return; }
+                if (missing.Count == 0) { _phase = 1; _stalls = 0; b.Move.To(_bench.transform.position, 2f); return; }
                 var (want, count) = missing[0];
-                Container from = Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => Classes.Prefab(i) == want));
-                if (from == null) { Done = true; return; }
-                if (Vector3.Distance(b.Pos, from.transform.position) > 2.4f) { if (!b.Move.Moving) b.Move.To(from.transform.position, 1.8f); if (b.Move.Failed) Done = true; return; }
+                Container from = Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest) && !_skip.Contains(x.chest)).Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => Classes.Prefab(i) == want));
+                if (from == null) { if (_skip.Count > 0) GiveUp(b); else Done = true; return; }
+                if (from != _at) { _at = from; _stalls = 0; }
+                if (Stock.OutOfReach(b.Pos, from.transform.position, 2.4f))
+                {
+                    if (b.Move.Failed || Stalled(b)) { _skip.Add(from); _stalls = 0; return; }
+                    if (!b.Move.Moving) b.Move.To(from.transform.position, 1.8f);
+                    return;
+                }
                 ItemDrop.ItemData stack = from.GetInventory().GetAllItems().First(i => Classes.Prefab(i) == want);
                 if (Stock.Take(from, b.Body.GetInventory(), stack, count - Have(b, want)) == 0) Done = true;
                 return;
             }
-            if (Vector3.Distance(b.Pos, _bench.transform.position) > 3f) { if (!b.Move.Moving) b.Move.To(_bench.transform.position, 2f); if (b.Move.Failed) Done = true; return; }
+            if (Stock.OutOfReach(b.Pos, _bench.transform.position, 3f))
+            {
+                if (b.Move.Failed || Stalled(b)) { GiveUp(b); return; }
+                if (!b.Move.Moving) b.Move.To(_bench.transform.position, 2f);
+                return;
+            }
             b.Move.Stop();
             Vector3 d = _bench.transform.position - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized);
             if (Time.time < _next) return;

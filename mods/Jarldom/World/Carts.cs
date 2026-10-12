@@ -108,7 +108,7 @@ namespace Jarldom
                     _from = Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(Carts.IsCargo));
                     if (_from == null) { _phase = Loaded(b) > 0 ? 1 : 9; if (_phase == 9) Done = true; return; }
                 }
-                if (Vector3.Distance(b.Pos, _from.transform.position) > 2.4f) { if (!b.Move.Moving) b.Move.To(_from.transform.position, 1.8f); if (b.Move.Failed) { Done = true; b.NoCartUntil = Time.time + 120; } return; }
+                if (Stock.OutOfReach(b.Pos, _from.transform.position, 2.4f)) { if (!b.Move.Moving) b.Move.To(_from.transform.position, 1.8f); if (b.Move.Failed) { Done = true; b.NoCartUntil = Time.time + 120; } return; }
                 ItemDrop.ItemData item = _from.GetInventory().GetAllItems().FirstOrDefault(Carts.IsCargo);
                 if (item == null || Stock.Take(_from, bag, item, item.m_stack) == 0) _from = null;
                 return;

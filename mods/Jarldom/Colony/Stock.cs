@@ -50,6 +50,9 @@ namespace Jarldom
         // The colony's storage chests, loaded here, nearest first; with their category (from the record) and our id.
         // The list of chests is kept a few seconds (finding them walks every loaded piece); categories are read fresh.
         private static readonly Dictionary<string, (float at, List<Container> chests)> Cache = new Dictionary<string, (float, List<Container>)>();
+        // Near enough to reach into a chest: across the floor, and up to a stack's height above (chests stacked three high stand 3 m up;
+        // counted straight, its top one was never near, and whoever went to it stood under it for good).
+        public static bool OutOfReach(Vector3 me, Vector3 at, float reach) => Utils.DistanceXZ(me, at) > reach || at.y - me.y > 3.5f || me.y - at.y > 1.5f;
         public static void Forget() { Cache.Clear(); Listed.Clear(); Counted.Clear(); }
         private static List<Container> Boxes(Colony c)
         {
