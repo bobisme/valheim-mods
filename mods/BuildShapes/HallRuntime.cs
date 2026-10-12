@@ -10,12 +10,12 @@ namespace BuildShapes
     {
         private bool _staveTemple,_staveGallery=true;
         private int _staveHeight=6,_staveCrowns=1;
-        private bool _hallMenu, _hallRoof45=true, _hallSolid=true, _hallShowRoof=true, _hallTiered, _hallOverhang, _hallPorch, _hallSweep, _hallBasement;
+        private bool _hallMenu, _hallRoof45=true, _hallSolid=true, _hallShowRoof=true, _hallTiered, _hallOverhang, _hallPorch, _hallSweep, _hallBasement, _hallShutters=true;
         private int _hallHeight=3, _hallDetail=1, _hallEntrance, _hallMaterialMode, _hallEntranceMode, _hallCrestMode, _hallStoreys=1;
         private float _hallRaise=0.15f, _hallDue, _hallNextCatalog;
         private Vector3 _hallOrigin;
         private Quaternion _hallFrame=Quaternion.identity;
-        private readonly List<V3> _hallDoorPoints=new List<V3>();
+        private readonly List<V3> _hallDoorPoints=new List<V3>(), _hallChimneyPoints=new List<V3>();
         private HallLayout.Design _hallDesign;
         private HallLayout.Kit _hallKit;
         private float _hallFloorY;
@@ -73,6 +73,8 @@ namespace BuildShapes
                 if(HallKnown("darkwood_decowall"))kit.Lattice="darkwood_decowall";
             }
             if((_hallStoreys>1 || _staveTemple) && _hallMaterialMode==0 && HallKnown("woodiron_pole"))kit.LoadPost="woodiron_pole";
+            if(HallKnown("wood_window"))kit.Window="wood_window";
+            else if(_hallShutters)_hallNote=(_hallNote==null?"":_hallNote+" ")+"Window shutters aren't unlocked yet (they need bronze nails); walls stay closed, with open daylight windows from Ornate.";
             bool steep=_hallRoof45;
             string roof=steep?"wood_roof_45":"wood_roof",ridge=steep?"wood_roof_top_45":"wood_roof_top",wedge=steep?"wood_wall_roof_45":"wood_wall_roof_a";
             foreach(string name in new[]{roof,ridge,wedge})if(!HallKnown(name))throw new ArgumentException("The selected roof pitch needs "+name+" unlocked.");
@@ -95,7 +97,7 @@ namespace BuildShapes
             if(carving!=null && !HallKnown(carving))throw new ArgumentException("Unlock the "+(_hallCrestMode==2?"dragon":"raven")+" carving before planning.");
             if(_hallBasement)foreach(string name in new[]{"stone_floor_2x2","stone_wall_2x1"})if(!HallKnown(name))throw new ArgumentException("Unlock stone floors and walls for a retaining-wall basement.");
             if((_hallBasement || _hallStoreys>1) && !HallKnown("wood_stair"))throw new ArgumentException("Unlock wooden stairs for interior storeys.");
-            return new HallLayout.Details{Storeys=_hallStoreys,Basement=_hallBasement,Overhang=_hallOverhang,Porch=_hallPorch,Sweep=_hallSweep,Finial=carving,DoorPoints=_hallDoorPoints};
+            return new HallLayout.Details{Storeys=_hallStoreys,Basement=_hallBasement,Overhang=_hallOverhang,Porch=_hallPorch,Sweep=_hallSweep,Shutters=_hallShutters,Finial=carving,DoorPoints=_hallDoorPoints,ChimneyPoints=_staveTemple?null:_hallChimneyPoints};
         }
         private static Vector3[] HallSnaps(GameObject prefab)
         {
@@ -225,9 +227,9 @@ namespace BuildShapes
                         for(double v=length<=2?1:2;v<length;v+=4)
                         {
                             V3 at=wing.At(wing.Width,0,v);
-                            if(HallStairs.Blocks(_hallDesign,at) || HallDoors.Blocks(_hallDesign,at))
+                            if(HallStairs.Blocks(_hallDesign,at) || HallDoors.Blocks(_hallDesign,at) || HallLayout.ChimneyBlocks(_hallDesign,at))
                             {
-                                var alternatives=_hallDesign.Vertices.Where(p=>!HallStairs.Blocks(_hallDesign,p) && !HallDoors.Blocks(_hallDesign,p)).OrderBy(p=>(p-at).Length).ToArray();
+                                var alternatives=_hallDesign.Vertices.Where(p=>!HallStairs.Blocks(_hallDesign,p) && !HallDoors.Blocks(_hallDesign,p) && !HallLayout.ChimneyBlocks(_hallDesign,p)).OrderBy(p=>(p-at).Length).ToArray();
                                 if(alternatives.Length==0)continue;at=alternatives[0];
                             }
                             HallColumn(at,peak,post,"support");_hallAddedPosts++;
@@ -301,6 +303,20 @@ namespace BuildShapes
             else{Say("Mark at most eight entrances. Ctrl+click a marker to remove it.");return;}
             BuildHallPreview(false);Say(_hallProblem??$"{_hallDoorPoints.Count} entrance markers; Ctrl+click again to remove, Ctrl+Backspace removes the last.");
         }
+        private void MarkHallChimney(Player player)
+        {
+            if(_staveTemple){Say("Chimneys are for longhouses. Switch the style to Longhouse to mark one.");return;}
+            if(_markers.Count<3){Say("Draw the floor plan first, then Ctrl+Shift+click a floor tile to put a chimney above it.");return;}
+            if(!CameraRay(out Ray ray) || !Physics.Raycast(ray,out RaycastHit hit,80,BuildLayers,QueryTriggerInteraction.Ignore))return;
+            if(Vector3.Distance(hit.point,player.transform.position)>40){Say("Move within 40 metres of the chimney spot.");return;}
+            Vector3 local=Quaternion.Inverse(_hallFrame)*(hit.point-_hallOrigin);
+            V3 tile=new V3(Math.Floor(local.x/2)*2+1,0,Math.Floor(local.z/2)*2+1);
+            int remove=_hallChimneyPoints.FindIndex(p=>(p-tile).Length<0.5);
+            if(remove>=0)_hallChimneyPoints.RemoveAt(remove);
+            else if(_hallChimneyPoints.Count<HallLayout.MaximumChimneys)_hallChimneyPoints.Add(tile);
+            else{Say("Mark at most four chimneys. Ctrl+Shift+click one to remove it.");return;}
+            BuildHallPreview(false);Say(_hallProblem??$"{_hallChimneyPoints.Count} chimney"+(_hallChimneyPoints.Count==1?"":"s")+"; Ctrl+Shift+click the tile again to remove, Ctrl+Shift+Backspace removes the last.");
+        }
         private void MarkHall(Player player)
         {
             if(_markers.Count>=HallLayout.MaximumCorners){Say("Use at most 24 corners.");return;}
@@ -361,7 +377,7 @@ namespace BuildShapes
         }
         private void ClearHall()
         {
-            CloseHallMenu();_hallProblemUntil=0;_hallAnnouncedProblem=null;_hallAnnouncedCorners=-1;_hallGuideHasFloor=false;_hallDoorPoints.Clear();_hallGroundJob.Clear();_hallTargetMaps.Clear();_hallDesign=null;_hallDue=0;_hallProblem=_hallNote=_hallFingerprint=null;
+            CloseHallMenu();_hallProblemUntil=0;_hallAnnouncedProblem=null;_hallAnnouncedCorners=-1;_hallGuideHasFloor=false;_hallDoorPoints.Clear();_hallChimneyPoints.Clear();_hallGroundJob.Clear();_hallTargetMaps.Clear();_hallDesign=null;_hallDue=0;_hallProblem=_hallNote=_hallFingerprint=null;
             _hallRoles.Clear();_hallBill.Clear();_hallStations.Clear();_hallSupport.Clear();
         }
         private void DestroyHall()

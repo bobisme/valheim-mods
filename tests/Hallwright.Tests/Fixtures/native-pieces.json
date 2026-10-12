@@ -801,5 +801,101 @@
     ],
     "station": "piece_workbench",
     "health": 400.0
+  },
+  "wood_window": {
+    "p": "wood_window",
+    "title": "$piece_woodwindowshutter",
+    "tool": "Hammer",
+    "category": "BuildingWorkbench",
+    "material": "Wood",
+    "supports": true,
+    "groundOnly": false,
+    "min": [
+      -1.0,
+      -0.525,
+      -0.18
+    ],
+    "max": [
+      0.15,
+      0.525,
+      0.18
+    ],
+    "snaps": {
+      "top edge ": [
+        0.0,
+        0.5,
+        0.0
+      ],
+      "bottom edge ": [
+        0.0,
+        -0.5,
+        0.0
+      ],
+      "bottom inner": [
+        -1.0,
+        -0.5,
+        0.0
+      ],
+      "top inner": [
+        -1.0,
+        0.5,
+        0.0
+      ]
+    },
+    "boxes": [
+      {
+        "c": [
+          0.07,
+          0.0,
+          0.0
+        ],
+        "s": [
+          0.36,
+          0.16,
+          1.05
+        ],
+        "r": [
+          0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      {
+        "c": [
+          -0.504,
+          0.0,
+          0.0
+        ],
+        "s": [
+          0.992,
+          1.0,
+          0.15
+        ],
+        "r": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      }
+    ],
+    "ascend": [
+      0.0,
+      1.0,
+      0.0
+    ],
+    "cost": [
+      [
+        "Wood",
+        4
+      ],
+      [
+        "BronzeNails",
+        2
+      ]
+    ],
+    "station": "piece_workbench",
+    "health": 400.0
   }
 }

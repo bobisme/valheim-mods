@@ -93,6 +93,15 @@ namespace BuildShapes
                 HallMarkerLine(new[]{ground,top},0.05f);
                 HallMarkerLine(new[]{top-Vector3.right*0.25f,top+Vector3.right*0.25f},0.05f);
             }
+            // Chimney markers: a square on the floor tile and a post up through the roof.
+            foreach(var chimney in _hallChimneyPoints)
+            {
+                var square=new[]{new V3(-1,0,-1),new V3(1,0,-1),new V3(1,0,1),new V3(-1,0,1),new V3(-1,0,-1)}.Select(d=>At(HallWorld(chimney+d),floor+0.08f)).ToArray();
+                HallMarkerLine(square,0.05f);
+                Vector3 centre=At(HallWorld(chimney),floor+0.08f);
+                float roof=closed && _hallDesign.RoofHeight>0?floor+(float)_hallDesign.RoofHeight+1.5f:wallTop+4;
+                HallMarkerLine(new[]{centre,At(centre,roof)},0.05f);
+            }
             if(closed)foreach(var door in _hallDesign.Entrances.Concat(_hallDesign.InnerEntrances))
             {
                 Vector3 a=HallWorld(door.At+HallLayout.Turn(new V3(-1,0,0),door.Yaw)),b=HallWorld(door.At+HallLayout.Turn(new V3(1,0,0),door.Yaw));

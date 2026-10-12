@@ -39,7 +39,7 @@ namespace BuildShapes
             if(options==null||options.Height<4||options.Height>8||options.Height%2!=0||options.Crowns<1||options.Crowns>2)throw new ArgumentException("Choose chamber height 4, 6 or 8 m and one or two tower crowns.");
             if(options.Height<sideHeight+2)throw new ArgumentException("Keep the chamber at least 2 m taller than the gallery / side wings.");
             if(details==null||details.Storeys!=1||details.Basement)throw new ArgumentException("Stave temples use one open chamber. Switch to Longhouse for storeys or a basement.");
-            var plan=HallLayout.Plan(corners,kit,sideHeight,detail,entrance,false,new HallLayout.Details{SuppressRoof=true,OpenGallery=options.Gallery,Porch=details.Porch,DoorPoints=details.DoorPoints});
+            var plan=HallLayout.Plan(corners,kit,sideHeight,detail,entrance,false,new HallLayout.Details{SuppressRoof=true,OpenGallery=options.Gallery,Porch=details.Porch,Shutters=details.Shutters,DoorPoints=details.DoorPoints});
             HallLayout.Cell Beside(HallDoors.Entrance d,double x,double z)
             {V3 p=d.At+HallLayout.Turn(new V3(x,0,z),d.Yaw);return new HallLayout.Cell((int)Math.Floor(p.X/2),(int)Math.Floor(p.Z/2));}
             bool FitsDoors(HallLayout.Wing w)

@@ -783,6 +783,8 @@ Intricacy, roof pitch, layered eaves, swept gable beams, porch and native dragon
 
 **Hallwright** designs a complete Viking timber shell from your floor plan. Equip a hammer, press **F4 → Hallwright**, and **Shift+click** each corner in boundary order. The first edge sets a **2 m grid**, turned to the nearest of the game's **22.5° build steps** so the hall lines up with hand-placed pieces (set `FreeAngle` under `[Hallwright]` for any angle); later edges follow its square directions. **L** opens the live settings. Concave L/U shapes work.
 
+**Windows and chimneys:** **Shuttered windows** (on by default) put a pair of the game's wooden window shutters in every other wall panel (they need bronze nails). **Ctrl+Shift+click** a floor tile to put a **chimney** above it: the roof tile there opens and a timber flue rises past the ridge, with a shaft up through any upper storeys. Light your fire underneath. Up to four chimneys; Ctrl+Shift+click again or Ctrl+Shift+Backspace removes one.
+
 Choose wall height (2–4 m), native roof pitch (26°/45°), entrance type and edge, foundation lift, and **Simple → Crafted → Ornate → Grand → King’s hall** intricacy. Floors, walls, entrance, joined roof wings, gable infill, trusses and terrain-reaching foundations update together. On raised sites, steps descend from the entrance. Ornate styles add patterned timberwork, curved darkwood braces and raven crest ornaments as they unlock. Roof visibility and materials/ghost preview buttons make the framing easy to inspect. Small odd-width gable peaks are intentional vents.
 
 **Entrances:** Auto chooses an unlocked native **gate** at wall heights of 3 m or taller; choose Door/Gate explicitly in the panel. The header clears the full opening. Gates need 3 m walls.

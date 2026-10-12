@@ -67,7 +67,19 @@ namespace BuildShapes
             _hallOverhang=DetailSwitch(_hallOverhang,"Deep roof overhangs · 2 m");
             _hallPorch=DetailSwitch(_hallPorch,"Covered entrance porch · 4 × 2 m");
             _hallSweep=DetailSwitch(_hallSweep,"Sweeping gable timberwork");
+            _hallShutters=DetailSwitch(_hallShutters,"Shuttered windows · 2 × 1 m");
             GUILayout.Label(_staveTemple?"Layered eaves extend above lower roofs where they clear. A porch needs a 4 m edge and clear space outside. All pieces use normal materials and support.":"Overhangs fit around other wings and the porch. A porch needs a 4 m edge and clear ground outside. All pieces use normal materials and support.",_menuHint);
+            if(!_staveTemple)
+            {
+                GUILayout.Label("Chimneys",_menuText);
+                GUILayout.Label("Ctrl+Shift+click a floor tile to open the roof above it and raise a timber flue past the ridge; set your fire under it. Up to four. Upper floors leave a shaft for it.",_menuHint);
+                for(int i=0;i<_hallChimneyPoints.Count;i++)
+                {
+                    GUILayout.BeginHorizontal();GUILayout.Label($"Chimney {i+1}",_menuText);
+                    bool remove=GUILayout.Button("Remove",_menuButton,GUILayout.Width(90));GUILayout.EndHorizontal();
+                    if(remove){_hallChimneyPoints.RemoveAt(i);changed=true;break;}
+                }
+            }
             GUILayout.Label("Ridge ends",_menuText);
             int crest=GUILayout.SelectionGrid(_hallCrestMode,new[]{"Auto","None","Dragon","Raven"},2,_menuButton,GUILayout.Height(70));
             if(crest!=_hallCrestMode){_hallCrestMode=crest;changed=true;}

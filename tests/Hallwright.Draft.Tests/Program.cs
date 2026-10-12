@@ -29,6 +29,13 @@ try
  HallDraftStore.Write(path,record);var temple=HallDraftStore.Read(path,17,99);Check(temple.StaveTemple&&temple.StaveHeight==8&&temple.StaveCrowns==2&&!temple.StaveGallery,"Temple style and all options survive reloads");
  var old=Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(path));foreach(string name in new[]{"StaveTemple","StaveHeight","StaveCrowns","StaveGallery"})old.Remove(name);File.WriteAllText(path,old.ToString());var legacy=HallDraftStore.Read(path,17,99);Check(!legacy.StaveTemple&&legacy.StaveHeight==6&&legacy.StaveCrowns==1&&legacy.StaveGallery,"Legacy hall drafts retain safe defaults");
  record.StaveHeight=5;Reject(()=>HallDraftStore.Write(path,record),"Invalid temple height accepted");record.StaveHeight=8;record.StaveCrowns=3;Reject(()=>HallDraftStore.Write(path,record),"Unbounded crowns accepted");record.StaveCrowns=2;record.Storeys=2;Reject(()=>HallDraftStore.Write(path,record),"Temple storeys accepted");record.Storeys=1;record.Version=2;Reject(()=>HallDraftStore.Write(path,record),"Unknown schema accepted");
+ record.Version=1;record.Storeys=1;
+ record.Chimneys=new[]{new[]{3f,0f,5f},new[]{7f,0f,9f}};record.Shutters=false;HallDraftStore.Write(path,record);var marked=HallDraftStore.Read(path,17,99);
+ Check(marked.Chimneys.Length==2&&marked.Chimneys[1].SequenceEqual(new[]{7f,0f,9f})&&!marked.Shutters,"Chimney markers and the shutter switch survive reloads");
+ old=Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(path));old.Remove("Chimneys");old.Remove("Shutters");File.WriteAllText(path,old.ToString());var before=HallDraftStore.Read(path,17,99);
+ Check(before.Chimneys==null&&before.Shutters,"Drafts saved before chimneys load with none, and shutters on");
+ record.Chimneys=Enumerable.Range(0,5).Select(i=>new[]{i*2+1f,0f,1f}).ToArray();Reject(()=>HallDraftStore.Write(path,record),"Five chimneys accepted");
+ record.Chimneys=new[]{new[]{float.NaN,0f,1f}};Reject(()=>HallDraftStore.Write(path,record),"Non-finite chimney accepted");
  Console.WriteLine($"Passed {checks} production Hallwright draft persistence checks.");
 }
 finally{File.Delete(path);File.Delete(path+".tmp");}

@@ -15,7 +15,7 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.6.7";
+        public const string Version = "0.6.8";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
@@ -130,7 +130,7 @@ namespace BuildShapes
                 {_lastAction=Time.unscaledTime;UndoShape(player);}
                 return; // Menu mouse/keyboard input must never select pieces or mark the world.
             }
-            if (_tool == Tool.Hall && Input.GetKeyDown(KeyCode.Delete)) { DiscardHallDraft(); _markers.Clear(); _hallDoorPoints.Clear(); BuildHallPreview(); return; }
+            if (_tool == Tool.Hall && Input.GetKeyDown(KeyCode.Delete)) { DiscardHallDraft(); _markers.Clear(); _hallDoorPoints.Clear(); _hallChimneyPoints.Clear(); BuildHallPreview(); return; }
             if (_tool == Tool.Repeat)
             {
                 bool changed = _previewSpacing != SafeSpacing() || _previewFollow != _follow.Value;
@@ -143,12 +143,14 @@ namespace BuildShapes
             }
             if (Input.GetKeyDown(_back.Value))
             {
-                if (_tool == Tool.Hall && Input.GetKey(KeyCode.LeftControl)) { if(_hallDoorPoints.Count>0)_hallDoorPoints.RemoveAt(_hallDoorPoints.Count-1); }
+                if (_tool == Tool.Hall && Input.GetKey(KeyCode.LeftControl) && Input.GetKey(_modifier.Value)) { if(_hallChimneyPoints.Count>0)_hallChimneyPoints.RemoveAt(_hallChimneyPoints.Count-1); }
+                else if (_tool == Tool.Hall && Input.GetKey(KeyCode.LeftControl)) { if(_hallDoorPoints.Count>0)_hallDoorPoints.RemoveAt(_hallDoorPoints.Count-1); }
                 else if (_tool == Tool.Mirror && Input.GetKey(KeyCode.LeftControl) && _sources.Count > 0) _sources.RemoveAt(_sources.Count - 1);
                 else if (_markers.Count > 0) _markers.RemoveAt(_markers.Count - 1);
                 if(_tool==Tool.Hall && _markers.Count==0)DiscardHallDraft();
                 Preview();
             }
+            else if (_tool == Tool.Hall && Input.GetKey(KeyCode.LeftControl) && Input.GetKey(_modifier.Value) && Input.GetKeyDown(_mark.Value)) MarkHallChimney(player);
             else if (_tool == Tool.Hall && Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(_mark.Value)) MarkHallDoor(player);
             else if ((_tool == Tool.Mirror || _tool == Tool.Repeat) && Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(_mark.Value)) SelectSource(player);
             else if (Input.GetKey(_modifier.Value) && Input.GetKeyDown(_mark.Value)) Mark(player);
@@ -171,7 +173,7 @@ namespace BuildShapes
         private void Begin(Player player, Tool requested)
         {
             Stop();
-            if (requested == Tool.Hall) { _tool=Tool.Hall; StartHallDraft(); if(System.IO.File.Exists(HallGroundFile))OpenHallMenu(); Say("Hallwright: Shift+click square corners; the first edge sets the grid. Ctrl+click entrances; L opens settings; Backspace edits; Delete clears."); return; }
+            if (requested == Tool.Hall) { _tool=Tool.Hall; StartHallDraft(); if(System.IO.File.Exists(HallGroundFile))OpenHallMenu(); Say("Hallwright: Shift+click square corners; the first edge sets the grid. Ctrl+click entrances; Ctrl+Shift+click a floor tile for a chimney; L opens settings; Backspace edits; Delete clears."); return; }
             if ((requested == Tool.Mirror || requested == Tool.Repeat) && !_planner.Extended)
             { Say("Update BuildOrders with the ghost-selection API for Mirror/Repeat."); return; }
             Piece piece = player.GetSelectedPiece();
@@ -427,7 +429,7 @@ namespace BuildShapes
                 Matrix4x4 savedHall=GUI.matrix;
                 try { Theme(); float hs=Mathf.Max(0.6f,Screen.height/1080f); GUI.matrix=Matrix4x4.Scale(new Vector3(hs,hs,1));
                     DrawHallDrawingProblem(hs);
-                    string hint="Hallwright: Shift+click corners · Ctrl+click entrances · Ctrl+Backspace: last entrance · L: settings · Delete: clear · F4: modes · Esc: exit\n"+(_hallProblem??$"{_markers.Count} corners · {_output.Count} pieces · support estimate passed");
+                    string hint="Hallwright: Shift+click corners · Ctrl+click entrances"+(_staveTemple?"":" · Ctrl+Shift+click: chimney")+" · L: settings · Delete: clear · F4: modes · Esc: exit\n"+(_hallProblem??$"{_markers.Count} corners · {_output.Count} pieces · support estimate passed");
                     GUI.Box(new Rect(20,Screen.height/hs-160,Mathf.Min(1000,Screen.width/hs-40),95),hint,_hud);
                 } finally { GUI.matrix=savedHall; } return;
             }

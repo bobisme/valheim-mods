@@ -7,7 +7,7 @@ namespace BuildShapes
     // Pure, bounded geometry. Coordinates are metres in the footprint's first-edge frame.
     internal static class HallLayout
     {
-        internal const int MaximumCells = 256, MaximumParts = 2048, MaximumCorners = 24, MaximumExtent = 64;
+        internal const int MaximumCells = 256, MaximumParts = 2048, MaximumCorners = 24, MaximumExtent = 64, MaximumChimneys = 4;
         internal enum Anchor { Floor, Bottom, RoofLow, Point, Segment }
         internal readonly struct Cell : IEquatable<Cell>
         {
@@ -40,7 +40,7 @@ namespace BuildShapes
             internal string Floor="wood_floor", Wall="woodwall", Half="wood_wall_half", Quarter="wood_wall_quarter", Door="wood_door";
             internal string Post="wood_pole2", Beam="wood_beam", ShortBeam="wood_beam_1";
             internal string Roof="wood_roof_45", Ridge="wood_roof_top_45", Wedge="wood_wall_roof_45";
-            internal string Arch=null, Raven=null, Lattice=null, LoadPost=null;
+            internal string Arch=null, Raven=null, Lattice=null, LoadPost=null, Window=null;
             internal double Slope=1, BeamLength=2, ShortLength=1, DoorHeight=2, JoistDrop=0.2;
             internal int SpanCells=4;
         }
@@ -70,13 +70,14 @@ namespace BuildShapes
             internal Cell StairStart;
             internal bool StairAcross;
             internal int StairRise;
+            internal readonly HashSet<Cell> Chimneys=new HashSet<Cell>();
         }
         internal sealed class Details
         {
-            internal bool Overhang, Porch, Sweep, Basement,SuppressRoof,TallWalls,OpenGallery;
+            internal bool Overhang, Porch, Sweep, Basement,SuppressRoof,TallWalls,OpenGallery,Shutters;
             internal int Storeys=1;
             internal string Finial;
-            internal IReadOnlyList<V3> DoorPoints;
+            internal IReadOnlyList<V3> DoorPoints,ChimneyPoints;
             internal Func<IReadOnlyList<HallDoors.Entrance>,bool> EntranceAcceptance;
         }
 
@@ -171,6 +172,13 @@ namespace BuildShapes
             return best;
         }
 
+        // A chimney tile's edges and inside, but not its corners (where its own posts stand).
+        internal static bool ChimneyBlocks(Design plan,V3 p)=>plan.Chimneys.Any(c=>
+        {
+            double x=p.X-c.X*2,z=p.Z-c.Z*2;
+            bool inX=x>-0.01 && x<2.01,inZ=z>-0.01 && z<2.01,cornerX=Math.Abs(x)<0.01 || Math.Abs(x-2)<0.01,cornerZ=Math.Abs(z)<0.01 || Math.Abs(z-2)<0.01;
+            return inX && inZ && !(cornerX && cornerZ);
+        });
         internal static V3 Turn(V3 v,double yaw)
         {double angle=yaw*Math.PI/180;return new V3(v.X*Math.Cos(angle)+v.Z*Math.Sin(angle),v.Y,-v.X*Math.Sin(angle)+v.Z*Math.Cos(angle));}
 
@@ -239,11 +247,22 @@ namespace BuildShapes
             plan.Door=primary.At;plan.DoorYaw=primary.Yaw;
             if(details.Storeys>1 || details.Basement)HallStairs.Solve(plan,details.Basement?Math.Max(3,height):height);
             if(details.Storeys>1 || details.Basement)plan.StairFlight.AddRange(HallStairs.Flight(plan,height));
+            if(details.ChimneyPoints!=null)
+            {
+                if(details.ChimneyPoints.Count>MaximumChimneys)throw new ArgumentException("Mark at most four chimneys.");
+                foreach(V3 point in details.ChimneyPoints)
+                {
+                    var cell=new Cell((int)Math.Floor(point.X/2),(int)Math.Floor(point.Z/2));
+                    if(!set.Contains(cell))throw new ArgumentException("A chimney marker is outside the floor plan. Ctrl+Shift+click a floor tile inside it.");
+                    if(plan.StairHoles.Contains(cell) || plan.StairZone.Contains(cell))throw new ArgumentException("A chimney marker sits over the stairs. Move it to another tile.");
+                    plan.Chimneys.Add(cell);
+                }
+            }
             foreach(Cell c in plan.Cells)
             {
                 if(!details.Basement || !plan.StairHoles.Contains(c))Add(kit.Floor,new V3(c.X*2+1,0,c.Z*2+1),Anchor.Floor,0,"floor");
                 for(int storey=1;storey<details.Storeys;storey++)
-                    if(!plan.StairHoles.Contains(c))Add(kit.Floor,new V3(c.X*2+1,height*storey,c.Z*2+1),Anchor.Floor,0,"upper floor");
+                    if(!plan.StairHoles.Contains(c) && !plan.Chimneys.Contains(c))Add(kit.Floor,new V3(c.X*2+1,height*storey,c.Z*2+1),Anchor.Floor,0,"upper floor");
                 if(details.Basement)Add("stone_floor_2x2",new V3(c.X*2+1,-4,c.Z*2+1),Anchor.Bottom,0,"cellar floor");
             }
             double doorAngle=plan.DoorYaw*Math.PI/180;
@@ -299,9 +318,17 @@ namespace BuildShapes
                         Rod(kit.Beam,edge.a+new V3(0,height,0),edge.b+new V3(0,height,0),kit.BeamLength,"gallery frame");
                         continue;
                     }
-                    bool window=detail>=2 && height>=3 && !door && ((int)(Math.Abs(at.X)+Math.Abs(at.Z))/2)%2==0;
+                    bool shutters=details.Shutters && kit.Window!=null;
+                    bool window=(shutters || detail>=2 && height>=3) && !door && ((int)(Math.Abs(at.X)+Math.Abs(at.Z))/2)%2==0;
                     for(int h=storey==0 && door?(int)kit.DoorHeight:0;h<height;)
                     {
+                        if(window && h==1 && shutters)
+                        {
+                            // A pair of native shutters fills the 2 × 1 m opening, hinged at the panel's ends.
+                            Add(kit.Window,at+new V3(0,1+storey*height,0)+Turn(new V3(0.5,0,0),edge.yaw),Anchor.Bottom,edge.yaw,"window shutter");
+                            Add(kit.Window,at+new V3(0,1+storey*height,0)+Turn(new V3(-0.5,0,0),edge.yaw),Anchor.Bottom,edge.yaw+180,"window shutter");
+                            h++;continue;
+                        }
                         if(window && h==1)
                         {
                             // One metre of daylight above a solid sill, framed with native pieces.
@@ -389,10 +416,15 @@ namespace BuildShapes
                 }
                 for(int level=1;level<details.Storeys;level++)foreach(Cell c in plan.Cells)
                 {
-                    if(plan.StairHoles.Contains(c))continue;
+                    if(plan.StairHoles.Contains(c) || plan.Chimneys.Contains(c))continue;
                     Rod(kit.Beam,new V3(c.X*2,level*height-kit.JoistDrop,c.Z*2),new V3(c.X*2+2,level*height-kit.JoistDrop,c.Z*2),kit.BeamLength,"floor joist");
                 }
             }
+            // A flue shaft through the upper storeys, so smoke from the ground floor reaches the roof.
+            if(details.Storeys>1)foreach(Cell c in plan.Chimneys)
+                foreach(var side in new[]{(n:new Cell(c.X,c.Z-1),a:new V3(c.X*2+1,0,c.Z*2),yaw:0.0),(n:new Cell(c.X,c.Z+1),a:new V3(c.X*2+1,0,c.Z*2+2),yaw:180.0),(n:new Cell(c.X-1,c.Z),a:new V3(c.X*2,0,c.Z*2+1),yaw:90.0),(n:new Cell(c.X+1,c.Z),a:new V3(c.X*2+2,0,c.Z*2+1),yaw:270.0)})
+                    if(set.Contains(side.n) && !plan.Chimneys.Contains(side.n))
+                        for(int h=height;h<roofBase;h++)Add(kit.Half,side.a+new V3(0,h,0),Anchor.Bottom,side.yaw,"chimney");
             if(details.SuppressRoof){plan.Wings.Clear();return plan;}
             foreach(Wing wing in plan.Wings)
             {
@@ -418,8 +450,16 @@ namespace BuildShapes
                     }
                 }
                 plan.RoofHeight=Math.Max(plan.RoofHeight,peak);
+                // Chimney tiles in this wing, as (col,row) in its roof frame.
+                var flues=new HashSet<(int col,int row)>();
+                foreach(Cell c in plan.Chimneys)
+                {
+                    if(c.X<wing.X || c.X>=wing.X+wing.W || c.Z<wing.Z || c.Z>=wing.Z+wing.D)continue;
+                    flues.Add(wing.Across?(wing.Z+wing.D-1-c.Z,c.X-wing.X):(c.X-wing.X,c.Z-wing.Z));
+                }
                 for(int row=0;row<wing.Length;row++)for(int col=0;col<wing.Width;col++)
                 {
+                    if(flues.Contains((col,row)))continue;
                     bool center=wing.Width%2==1 && col==wing.Width/2;
                     bool left=col<wing.Width/2;
                     double low=roofBase+Math.Min(col,wing.Width-1-col)*2*kit.Slope+Lift(col);
@@ -446,6 +486,8 @@ namespace BuildShapes
                         for(int h=0;h<low-0.001;h+=2)
                             Add(h+2<=low?kit.Wall:kit.Half,wing.At(col*2+1,roofBase+h,v),Anchor.Bottom,yaw,"gable");
                         bool center=wing.Width%2==1 && col==wing.Width/2;
+                        // The chimney's own wall closes the gable triangle under a flue at the wing's end.
+                        if(flues.Contains((col,end==0?0:wing.Length-1)))continue;
                         if(!center)Add(kit.Wedge,wing.At(col*2+1,roofBase+low,v),Anchor.Bottom,yaw+(col<wing.Width/2?0:180),"gable");
                         // Odd-width peak is an intentional small triangular gable vent.
                         else if(detail>0)
@@ -479,7 +521,7 @@ namespace BuildShapes
                         }
                     }
                     string finial=details.Finial;
-                    if(finial!=null && Outside(Rect(wing.At(width/2-0.3,0,v),wing.At(width/2+0.3,0,v+sign*3.4))))
+                    if(finial!=null && !flues.Contains((wing.Width/2,end==0?0:wing.Length-1)) && Outside(Rect(wing.At(width/2-0.3,0,v),wing.At(width/2+0.3,0,v+sign*3.4))))
                         Add(finial,wing.At(width/2,peak,v),Anchor.Point,yaw+(end==0?180:0),"ridge carving");
                 }
                 if(details.Overhang)
@@ -534,7 +576,34 @@ namespace BuildShapes
                         Rod(kit.ShortBeam,wing.At(width,roofBase-1,v),wing.At(width-1,roofBase,v),kit.ShortLength,"ornament");
                     }
                 }
-                Rod(kit.Beam,wing.At(width/2,peak,0),wing.At(width/2,peak,length),kit.BeamLength);
+                // The ridge beam runs through an odd-width wing's middle tiles; it stops at a flue there.
+                var openRows=wing.Width%2==1?flues.Where(f=>f.col==wing.Width/2).Select(f=>f.row).OrderBy(r=>r).ToList():new List<int>();
+                double ridgeFrom=0;
+                foreach(int row in openRows){Rod(kit.Beam,wing.At(width/2,peak,ridgeFrom),wing.At(width/2,peak,row*2),kit.BeamLength);ridgeFrom=row*2+2;}
+                Rod(kit.Beam,wing.At(width/2,peak,ridgeFrom),wing.At(width/2,peak,length),kit.BeamLength);
+                foreach(var (col,row) in flues)
+                {
+                    // Roof surface heights at the tile's two eave-parallel edges; a tier step counts on its higher side.
+                    double Low(int c)=>roofBase+Math.Min(c,wing.Width-1-c)*2*kit.Slope+Lift(c);
+                    double Edge(int c,bool right)=>wing.Width%2==1 && c==wing.Width/2?Low(c):(c<wing.Width/2)==right?Low(c)+2*kit.Slope:Low(c);
+                    double low=Low(col);
+                    double u0=col*2,u1=u0+2,v0=row*2,v1=v0+2;
+                    double left=col==0?Edge(col,false):Math.Max(Edge(col-1,true),Edge(col,false));
+                    double right=col==wing.Width-1?Edge(col,true):Math.Max(Edge(col,true),Edge(col+1,false));
+                    // Above upper storeys the shaft continues from the wall plate; gable ends start at the roof line.
+                    bool shaft=details.Storeys>1;
+                    double top=low+Math.Ceiling(peak+0.8-low-1e-9);
+                    var sides=new[]{(a:wing.At(u0,0,v0+1),start:shaft?roofBase:left,yaw:yaw+90),(a:wing.At(u1,0,v0+1),start:shaft?roofBase:right,yaw:yaw+270),
+                        (a:wing.At(u0+1,0,v0),start:shaft && row>0?roofBase:low,yaw:yaw),(a:wing.At(u0+1,0,v1),start:shaft && row<wing.Length-1?roofBase:low,yaw:yaw+180)};
+                    foreach(var side in sides)for(double h=side.start;h<top-0.001;h++)Add(kit.Half,side.a+new V3(0,h,0),Anchor.Bottom,side.yaw,"chimney");
+                    double bottom=shaft?height:sides.Min(s=>s.start);
+                    foreach(var (u,v) in new[]{(u0,v0),(u1,v0),(u0,v1),(u1,v1)})
+                    {
+                        for(double h=bottom;h<top-0.001;h+=2)Add(kit.Post,wing.At(u,Math.Min(h,top-2),v),Anchor.Bottom,0,"chimney");
+                    }
+                    var rim=new[]{wing.At(u0,top,v0),wing.At(u1,top,v0),wing.At(u1,top,v1),wing.At(u0,top,v1)};
+                    for(int i=0;i<4;i++)Rod(kit.Beam,rim[i],rim[(i+1)%4],kit.BeamLength,"chimney");
+                }
                 if(detail>=3)
                 {
                     for(int row=0;row<wing.Length;row++)

@@ -331,3 +331,71 @@ Verify(signedLong,3,0,true,false,true);
 var signedWings=HallLayout.SolveWings(HallLayout.Footprint(signedLong),4);
 Check(signedWings.Count==1&&signedWings[0].Length==64,"Negative and positive extent bounds support a continuous ridge across the full signed span");
 Console.WriteLine($"Signed extent and grand courtyard roofs: {checks:N0} checks passed.");
+
+// Shuttered windows: native shutter pairs fill each 2 × 1 m opening exactly, at every intricacy, and only when unlocked.
+var shutterKit=new HallLayout.Kit{Window="wood_window"};
+var shutterSnaps=fixture.GetProperty("wood_window").GetProperty("snaps").EnumerateObject().Select(s=>Vector(s.Value)).ToArray();
+V3 shutterAnchor=shutterSnaps.Where(v=>Math.Abs(v.Y-shutterSnaps.Min(w=>w.Y))<1e-6).Aggregate(new V3(0,0,0),(a,b)=>a+b)*0.5;
+foreach(int intricacy in new[]{0,2,4})foreach(int wallHeight in new[]{2,3,4})
+{
+ var shuttered=HallLayout.Plan(Rect(8,12),shutterKit,wallHeight,intricacy,0,false,new HallLayout.Details{Shutters=true});
+ var shutters=shuttered.Parts.Where(p=>p.Role=="window shutter").ToList();
+ Check(shutters.Count>0 && shutters.Count%2==0,"Shuttered windows come in pairs at every intricacy and wall height");
+ Check(!shuttered.Parts.Any(p=>p.Role=="window frame"),"Shutters replace the open daylight frames");
+ foreach(var pair in shutters.GroupBy(p=>Math.Round(p.At.Y,3)+":"+Math.Round(p.At.X+p.At.Z-(p.At.X+p.At.Z)%2,3)))
+ {
+  var spans=shutters.Where(p=>Math.Abs(p.At.Y-pair.First().At.Y)<1e-6).Select(p=>shutterSnaps.Select(s=>p.At+Turn(s-shutterAnchor,p.Yaw)).ToArray()).ToList();
+  Check(spans.All(s=>Math.Abs(s.Min(v=>v.Y)-pair.First().At.Y)<1e-6 && Math.Abs(s.Max(v=>v.Y)-pair.First().At.Y-1)<1e-6),"Each shutter fills one metre of height above the sill");
+ }
+ foreach(var p in shutters)
+ {
+  var s=shutterSnaps.Select(v=>p.At+Turn(v-shutterAnchor,p.Yaw)).ToArray();
+  double span=Math.Max(s.Max(v=>v.X)-s.Min(v=>v.X),s.Max(v=>v.Z)-s.Min(v=>v.Z));
+  Check(Math.Abs(span-1)<1e-6,"A native shutter spans one metre of its opening");
+  Check(shutters.Count(q=>q!=p && (q.At-p.At).Length<1.0001 && Math.Abs(q.At.Y-p.At.Y)<1e-6 && Math.Abs(Math.Abs(q.Yaw-p.Yaw)-180)<1e-6)==1,"Each shutter has a mirrored partner across the opening");
+ }
+}
+Check(!HallLayout.Plan(Rect(8,12),new HallLayout.Kit(),3,2,0,false,new HallLayout.Details{Shutters=true}).Parts.Any(p=>p.Role=="window shutter"),"Locked shutters leave the walls as before");
+Check(!HallLayout.Plan(Rect(8,12),shutterKit,3,2,0,false,new HallLayout.Details{Shutters=false}).Parts.Any(p=>p.Role=="window shutter"),"Shutters can be switched off");
+
+// Chimneys: the roof tile above the marked floor tile opens, a timber flue rises past the ridge, and nothing crosses the flue.
+void VerifyChimney(V3[] outline,V3 at,bool steep,bool tiered,int storeys,string label)
+{
+ var kit=new HallLayout.Kit{Slope=steep?1:0.5,Roof=steep?"wood_roof_45":"wood_roof",Ridge=steep?"wood_roof_top_45":"wood_roof_top",Wedge=steep?"wood_wall_roof_45":"wood_wall_roof_a"};
+ var plain=HallLayout.Plan(outline,kit,3,2,0,tiered,new HallLayout.Details{Storeys=storeys});
+ var plan=HallLayout.Plan(outline,kit,3,2,0,tiered,new HallLayout.Details{Storeys=storeys,ChimneyPoints=new[]{at}});
+ var cell=new HallLayout.Cell((int)Math.Floor(at.X/2),(int)Math.Floor(at.Z/2));
+ Check(plan.Chimneys.Count==1 && plan.Chimneys.Contains(cell),label+": chimney sits on its marked tile");
+ Check(plan.Parts.Count(p=>p.Role=="roof")==plain.Parts.Count(p=>p.Role=="roof")-1,label+": exactly one roof tile opens");
+ bool InTile(V3 p,double margin)=>p.X>cell.X*2+margin && p.X<cell.X*2+2-margin && p.Z>cell.Z*2+margin && p.Z<cell.Z*2+2-margin;
+ var kept=plan.Parts.Where(p=>p.Role=="roof").Select(Key).ToHashSet();var removed=plain.Parts.Where(p=>p.Role=="roof" && !kept.Contains(Key(p))).ToList();
+ Check(removed.Count==1 && removed[0].At.X>=cell.X*2-1e-6 && removed[0].At.X<=cell.X*2+2+1e-6 && removed[0].At.Z>=cell.Z*2-1e-6 && removed[0].At.Z<=cell.Z*2+2+1e-6,label+": the opened roof tile is the one above the chimney");
+ Check(!plan.Parts.Any(p=>p.Role=="upper floor" && InTile(p.At,0.1)),label+": no upper floor covers the flue");
+ var flue=plan.Parts.Where(p=>p.Role=="chimney").ToList();
+ Check(flue.Max(p=>p.At.Y)>=plan.RoofHeight+0.8,label+": the flue rises past the ridge");
+ Check(flue.All(p=>fixture.TryGetProperty(p.Prefab,out _)),label+": flue uses native pieces");
+ foreach(var p in plan.Parts.Where(p=>p.Kind==HallLayout.Anchor.Segment && p.Role!="chimney"))
+  for(int i=0;i<=10;i++){V3 q=p.At+(p.End-p.At)*(i/10.0);Check(!(InTile(q,0.25) && q.Y>=3-0.001),label+": no beam crosses the open flue");}
+ var walls=flue.Where(p=>p.Prefab=="wood_wall_half").ToList();
+ foreach(var side in new[]{0,1,2,3})Check(walls.Any(w=>side switch{0=>Math.Abs(w.At.X-cell.X*2)<1e-6,1=>Math.Abs(w.At.X-cell.X*2-2)<1e-6,2=>Math.Abs(w.At.Z-cell.Z*2)<1e-6,_=>Math.Abs(w.At.Z-cell.Z*2-2)<1e-6}),label+": all four flue sides are walled");
+ if(storeys>1)Check(flue.Any(p=>p.At.Y<3*storeys-0.001),label+": a shaft carries the flue through the upper floors");
+ Check(plan.Parts.Count<=HallLayout.MaximumParts,label+": part budget");
+}
+VerifyChimney(Rect(8,12),new V3(3,0,5),true,false,1,"Even wing beside the ridge");
+VerifyChimney(Rect(8,12),new V3(1,0,5),true,false,1,"Even wing at the eave");
+VerifyChimney(Rect(10,12),new V3(5,0,5),true,false,1,"Odd wing on the ridge");
+VerifyChimney(Rect(10,12),new V3(5,0,5),false,false,1,"Low pitch on the ridge");
+VerifyChimney(Rect(8,12),new V3(3,0,1),true,false,1,"Gable end");
+VerifyChimney(Rect(10,12),new V3(3,0,7),true,true,1,"Tiered wing");
+VerifyChimney(Rect(12,8),new V3(5,0,3),true,false,1,"Across wing");
+VerifyChimney(l,new V3(1,0,7),true,false,1,"Concave wing");
+var storeyPlan=HallLayout.Plan(Rect(8,16),new HallLayout.Kit(),3,2,0,false,new HallLayout.Details{Storeys=2});
+var freeCell=storeyPlan.Cells.First(c=>!storeyPlan.StairZone.Contains(c) && !storeyPlan.StairHoles.Contains(c) && c.X>0 && c.Z>0);
+VerifyChimney(Rect(8,16),new V3(freeCell.X*2+1,0,freeCell.Z*2+1),true,false,2,"Two storeys");
+var stairCell=storeyPlan.StairHoles.First();
+Reject(()=>HallLayout.Plan(Rect(8,16),new HallLayout.Kit(),3,2,0,false,new HallLayout.Details{Storeys=2,ChimneyPoints=new[]{new V3(stairCell.X*2+1,0,stairCell.Z*2+1)}}),"chimney over the stairs");
+Reject(()=>HallLayout.Plan(Rect(8,12),new HallLayout.Kit(),3,2,0,false,new HallLayout.Details{ChimneyPoints=new[]{new V3(9,0,5)}}),"chimney outside the floor plan");
+Reject(()=>HallLayout.Plan(Rect(16,16),new HallLayout.Kit(),3,2,0,false,new HallLayout.Details{ChimneyPoints=Enumerable.Range(0,5).Select(i=>new V3(i*2+1,0,5)).ToArray()}),"five chimneys");
+var chimneyPlan=HallLayout.Plan(Rect(8,12),new HallLayout.Kit(),3,2,0,false,new HallLayout.Details{ChimneyPoints=new[]{new V3(3,0,5)}});
+Check(HallLayout.ChimneyBlocks(chimneyPlan,new V3(3,0,5)) && HallLayout.ChimneyBlocks(chimneyPlan,new V3(4,0,5)) && !HallLayout.ChimneyBlocks(chimneyPlan,new V3(2,0,4)) && !HallLayout.ChimneyBlocks(chimneyPlan,new V3(7,0,5)),"Support columns avoid the flue but may share its corners");
+Console.WriteLine($"Shutters and chimneys: {checks:N0} checks passed.");
