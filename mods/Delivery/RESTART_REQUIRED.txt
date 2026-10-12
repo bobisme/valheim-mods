@@ -1,0 +1,1 @@
+Adds the Errand Horn, a saved item with a workbench recipe. Install Delivery on every player who wants a courier, then restart Valheim before loading the world.

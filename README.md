@@ -670,6 +670,34 @@ First playtest:
 3. Fight with a blood-drinking or elemental weapon. Take fire or poison with a ward on.
 4. Find an Heirloom (purple) and, with luck, a Saga item.
 
+## Delivery
+
+Hot food, brought to you, a little goofy. An **Errand Horn** (workbench: 4 wood, 2 leather scraps, 1 resin) opens a menu of
+the cooked meals you know (made in a cauldron or oven, or cooked on a cooking station), each with what it fills, its price and
+its **call**: three to five notes from the horn's overtones (a horn without finger-holes plays only those), drawn as notes
+beside it. Blow a meal's call once per portion (up to ten), then the end call. The calls are synthesised in code (overtones,
+a scoop into each note, breath, echo), and other players within earshot hear yours.
+
+A horn answers from the distance; the courier sets out after a wait (60 s at middling regard, 90 s sullen, 30 s devoted), runs
+in from 90 m (along the navmesh, round obstacles, swimming, straight through when stuck), hands the food over (on the ground
+if your bags are full) and takes the coins: a coin per six points of health, stamina and eitr (at least 2), plus a run fee of
+5 in the Meadows up to 45 in the Ashlands and Deep North, half again at night. No coins, no food, and he thinks less of you.
+Then he waits for a tip (about a tenth, a fifth or half of the order): tips raise his regard (Sullen, Grudging, Steady,
+Eager, Devoted), so he comes sooner and runs faster; no tip lowers it a little. Devoted couriers sometimes throw in an extra.
+
+The courier is the game's player model in a bright orange tunic (Hildir's plain tunic, its texture dyed), dressed from a seed
+kept with your character (same name and face every time), shown on the map while he's out, moved
+by the mod and animated through the player's own animator. He is local: no ZDO, nothing saved, nothing to lose, no fights.
+He won't go into dungeons. Checks cover the calls (unique, stable, reserved calls kept free), prices, fees, waits, regard
+and its saving. Claude Tools gets a `delivery` command (`info`, `meals`, `menu`, `blow`, `send`, `order`, `now`, `tip`,
+`regard`, `cancel`, `horn`, `free`).
+
+First playtest:
+
+1. Make the horn, use it, listen to a few calls, and order something with the end call.
+2. Watch him run in; tip him (or don't) and order again.
+3. Order from a house, from across a river, at night, and with a friend nearby to hear the horn.
+
 ## ChestSearch
 
 Press **Ctrl+F** to open your inventory and a nearby-chest search window. Type part of an item's name; multiple words all need to match.

@@ -289,6 +289,25 @@ Method("ItemDrop","Start","System.Void");
 Method("ZoneSystem","SetGlobalKey","System.Void","System.String");
 Method("ZoneSystem","GetGlobalKey","System.Boolean","System.String");
 
+// Delivery: the horn's menu from UseItem, calls sent to everyone, the courier's body (the player model with no network) and his run.
+Method("Game","Start","System.Void");
+Field("ZNetView","m_forceDisableInit","System.Boolean");
+Method("VisEquipment","SetModel","System.Void","System.Int32");
+Method("VisEquipment","SetSkinColor","System.Void","UnityEngine.Vector3");
+Method("VisEquipment","SetHairColor","System.Void","UnityEngine.Vector3");
+Method("VisEquipment","SetHairItem","System.Void","System.Int32");
+Method("VisEquipment","SetBeardItem","System.Void","System.Int32");
+Method("VisEquipment","SetChestItem","System.Void","System.Int32");
+Method("VisEquipment","SetLegItem","System.Void","System.Int32");
+Method("VisEquipment","SetShoulderItem","System.Void","System.Int32","System.Int32","System.Int32");
+Method("Pathfinding","GetPath","System.Boolean","UnityEngine.Vector3","UnityEngine.Vector3","System.Collections.Generic.List`1<UnityEngine.Vector3>","Pathfinding/AgentType","System.Boolean","System.Boolean","System.Boolean");
+Method("Chat","SetNpcText","System.Void","UnityEngine.GameObject","UnityEngine.Vector3","System.Single","System.Single","System.String","System.String","System.Boolean");
+Method("Player","IsRecipeKnown","System.Boolean","System.String");
+Method("Player","IsKnownMaterial","System.Boolean","System.String");
+Method("Character","InInterior","System.Boolean");
+Method("ZoneSystem","GetGroundHeight","System.Single","UnityEngine.Vector3");
+Field("CookingStation","m_conversion","System.Collections.Generic.List`1<CookingStation/ItemConversion>");
+
 // Omens: a networked sign the host creates as a raw ZDO, the game's own raid events, and night timing.
 Method("ZNet","Shutdown","System.Void","System.Boolean");
 Method("ZNet","GetWorldUID","System.Int64");
