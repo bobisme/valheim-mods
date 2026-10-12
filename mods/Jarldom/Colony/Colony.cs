@@ -525,7 +525,7 @@ namespace Jarldom
             if (now == was) return;
             R.Rank = now;
             _dirty = true;
-            if (now > was) Log("rank", "", Tables.Of(now).Name);
+            if (now > was) { Log("rank", "", Tables.Of(now).Name); string rk = Tables.Of(now).Name.ToLower(); Tell($"The pillars of {R.Name} are raised anew.\n<size=70%>{("aeiou".IndexOf(rk[0]) >= 0 ? "An" : "A")} {rk} now: {Tables.Of(now).Unlocks}.</size>", true); }
             else Log("text", "", "", $"The colony fell back to a {Tables.Of(now).Name.ToLower()}.");
         }
         public int Cap => Math.Min(Plugin.Instance.MaxVillagers.Value, Ranks.Cap(R.Rank, Beds));

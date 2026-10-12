@@ -61,10 +61,46 @@ namespace Jarldom
         }
         private void Update()
         {
-            if (Colony != null && Colony.Valid) return;
             if (Time.time < _retry) return;
-            _retry = Time.time + 2;
-            TryAttach();
+            _retry = Time.time + (Colony != null && Colony.Valid ? 1 : 2);
+            if (Colony == null || !Colony.Valid) TryAttach();
+            if (GetComponent<ZNetView>()?.IsValid() == true) Show(Colony != null && Colony.Valid && Colony.R != null ? Mathf.Clamp((int)Colony.R.Rank, 0, Pieces.Tiers - 1) : 0);
+        }
+        // The look of the colony's rank (one of the prefab's tiers); raised a rank, the change is seen.
+        private int _tier = -1; public static int TestTier = -1; // (test: jarldom tier <n>; -1 the colony's own)
+        private void Show(int tier)
+        {
+            if (TestTier >= 0) tier = Mathf.Clamp(TestTier, 0, Pieces.Tiers - 1);
+            if (tier == _tier) return;
+            Transform look = Refit();
+            if (look == null) return;
+            for (int i = 0; i < Pieces.Tiers; i++) look.Find("tier" + i)?.gameObject.SetActive(i == tier);
+            if (_tier >= 0 && tier > _tier && Vector3.Distance(GameCamera.instance?.transform.position ?? Vector3.zero, transform.position) < 80)
+            {
+                // (as if built again where they stand: dust up the shafts, a stone's thud at the feet, the hammer)
+                foreach (float x in new[] { -1.3f, 1.3f })
+                {
+                    foreach (float y in new[] { 0.3f, 1.6f, 2.9f }) Assets.Effect("vfx_Place_wood_pole", transform.TransformPoint(new Vector3(x, y, 0)));
+                    Assets.Effect("vfx_Place_stone_wall_2x1", transform.TransformPoint(new Vector3(x, 0, 0)));
+                }
+                Assets.Effect("sfx_build_hammer_wood", transform.position + Vector3.up);
+            }
+            _tier = tier;
+        }
+        // Pillars raised before the looks by rank: their old look swapped for the prefab's (the colliders stay; the way between is added).
+        private Transform Refit()
+        {
+            Transform look = transform.Find("new");
+            if (look != null && look.Find(Pieces.LookStamp) != null) return look;
+            GameObject prefab = Pieces.Get(Pieces.PillarsName);
+            Transform fresh = prefab != null ? prefab.transform.Find("new") : null;
+            if (fresh == null) return null;
+            if (look != null) Destroy(look.gameObject);
+            GameObject made = Instantiate(fresh.gameObject, transform, false); made.name = "new";
+            if (transform.Find("use_between") == null && prefab.transform.Find("use_between") is Transform gap) Instantiate(gap.gameObject, transform, false).name = "use_between";
+            WearNTear w = GetComponent<WearNTear>();
+            if (w != null) { w.m_new = made; w.m_worn = made; w.m_broken = made; }
+            return made.transform;
         }
         private void OnDestroy() { Colony?.Detach(); Colony = null; }
         public static void AttachAll() => PieceScripts.AttachAll();

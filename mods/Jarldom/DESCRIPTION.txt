@@ -1,7 +1,7 @@
 A colony of the reborn, built on Valheim's own systems. Raise the high-seat pillars, take in the fallen Odin sends, give them beds, work and gear, keep them fed and happy, defend them, hold the Thing, and send the worthy to Valhalla on a funeral pyre.
 
 Getting started:
-1. Build the High-seat pillars (hammer, Misc: 2 fine wood, 4 wood, 1 resin, near a workbench) in open ground. They found a colony; E on them opens the colony window. Name your hall there.
+1. Build the High-seat pillars (hammer, Misc: 6 wood, 2 resin, near a workbench) in open ground, runes to the front. They found a colony; E on them (or between them) opens the colony window. Name your hall there. They start as two lashed logs and are raised anew at each rank, up to gilded carvings lit by fire at a hold.
 2. Build a bed. Odin sends the first villager once the colony's renown reaches 20 and a bed is free: Hugin tells you at dawn, and a Valkyrie sets them down at the pillars at dusk. Take them in from the colony window.
 3. Mark rooms and work zones with the hammer's "Mark rooms and zones" piece: Ctrl+Shift+click on a room's floor and it's found from its walls; click a spot twice for a round work zone (woodlot, quarry, fields, foraging or hunting ground, fishing dock). Give each villager a trade from their panel (E on them).
 4. Put chests in a marked stockpile room. To choose what one holds, or make it the treasury for wages, look at it with the room marker out and press Shift+E.
