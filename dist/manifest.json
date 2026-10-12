@@ -46,7 +46,7 @@
       "description": "Take down a whole building in one go. Pick the Demolition stake from the hammer's Misc tab, click the ground for each corner of the area, click the first corner again (or press E) to close it, and everything inside that the hammer could remove turns red. Press E: \"Demolish N structures?\" Yes removes them top first, a few each frame, by the hammer's own rules: materials drop on the ground, wards, no-build zones and chests with items are left standing, and pieces needing a crafting station need it near you (as with the hammer). Only pieces built by players are touched, never ships or carts.\n\nBackspace removes the last corner (or reopens a closed outline), Shift+Backspace clears it. The stake itself is never built. Only the player demolishing needs the mod; removals go through the game's own network calls. Native Linux and Windows.",
       "notes": "0.1.0: First version. Demolition stake (hammer \u2192 Misc): click corners to outline an area, close it on the first corner or with E; what the hammer could remove inside turns red; E asks \"Demolish N structures?\" and Yes removes them top first by the hammer's own path, materials dropped. Skips wards, no-build zones, chests with items, pieces not built by players, ships and carts, and pieces whose crafting station isn't near. Backspace / Shift+Backspace undo a corner / clear.",
       "restart": "",
-      "cover": "",
+      "cover": "Demolisher.cover.jpg",
       "files": [
         "Demolisher.dll",
         "Demolisher.pdb"
