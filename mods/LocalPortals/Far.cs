@@ -25,16 +25,16 @@ namespace LocalPortals
         // The world's portals of this kind, found a slice at a time (the game's own search, a few hundred sectors a frame), so
         // the cost does not grow with the link distance; the loaded ones are always in it at once.
         private static readonly List<ZDO> Sweep=new List<ZDO>(),Swept=new List<ZDO>();
-        private static int _sweepAt;
+        private static int _sweepAt; private static float _sweepRest;
         private static bool _sweepWild;
         internal static void Scan(bool now=false)
         {
             if(ZDOMan.instance==null)return;
-            if(ZDOMan.instance.GetAllZDOsWithPrefabIterative(_sweepWild?PortalPrefab.WildName:PortalPrefab.Name,Sweep,ref _sweepAt))
+            if(Time.time>=_sweepRest&&ZDOMan.instance.GetAllZDOsWithPrefabIterative(_sweepWild?PortalPrefab.WildName:PortalPrefab.Name,Sweep,ref _sweepAt))
             {
                 _sweepAt=0;
                 if(!_sweepWild)_sweepWild=true; // the built ones done: now the wild ones, into the same list
-                else{_sweepWild=false;Swept.Clear();Swept.AddRange(Sweep);Sweep.Clear();now=true;}
+                else{_sweepWild=false;Swept.Clear();Swept.AddRange(Sweep);Sweep.Clear();now=true;_sweepRest=Time.time+3f;} // (a rest between sweeps: ~1 ms a frame otherwise, always)
             }
             if(!now&&Time.time<_nextScan)return;
             _nextScan=Time.time+0.5f;
@@ -236,6 +236,8 @@ namespace LocalPortals
         private static readonly AccessTools.FieldRef<ZNetScene,List<ZDO>> DistantObjects=AccessTools.FieldRefAccess<ZNetScene,List<ZDO>>("m_tempCurrentDistantObjects");
         private static readonly Action<ZNetScene,List<ZDO>,List<ZDO>> Create=AccessTools.MethodDelegate<Action<ZNetScene,List<ZDO>,List<ZDO>>>(AccessTools.Method(typeof(ZNetScene),"CreateObjects"));
         private static readonly Action<ZNetScene,List<ZDO>,List<ZDO>> Remove=AccessTools.MethodDelegate<Action<ZNetScene,List<ZDO>,List<ZDO>>>(AccessTools.Method(typeof(ZNetScene),"RemoveObjects"));
+        private static readonly Func<ZNetScene,ZDO,GameObject> CreateOne=AccessTools.MethodDelegate<Func<ZNetScene,ZDO,GameObject>>(AccessTools.Method(typeof(ZNetScene),"CreateObject",new[]{typeof(ZDO)}));
+        private const int FarPerFrame=6;
         private static readonly HashSet<ZDO> Have=new HashSet<ZDO>();
         private static readonly List<ZDO> Extra=new List<ZDO>();
         internal static bool CreateDestroy(ZNetScene scene)
@@ -249,14 +251,23 @@ namespace LocalPortals
             int n=ZNet.instance.GetSyncedSimulationDistance().NearSimulationDistance;
             foreach(Vector2s zone in Zones)
                 if(!ZoneSystem.instance.ZonesWithinRadius(mine,zone,n))ZDOMan.instance.FindSectorObjects(zone,new SimulationDistance(0,0),Extra); // (the rest are in the game's own list)
+            Create(scene,near,distant); // (the game's own, at its own pace)
             if(Extra.Count>0)
             {
+                // The far side made a few a frame: in the game's list it raised how many the game makes a frame (1% of the list) and
+                // made the far side all at once, up to 30 ms. Then counted as near, so the game doesn't take it away again.
+                int made=0;
+                foreach(ZDO z in Extra)
+                {
+                    if(made>=FarPerFrame)break;
+                    if(z.Created||!ZoneSystem.instance.IsZoneReadyForType(z.GetSector(),z.Type))continue;
+                    if(CreateOne(scene,z)!=null)made++;
+                }
                 Have.Clear();
                 foreach(ZDO z in near)Have.Add(z);
                 foreach(ZDO z in Extra)if(Have.Add(z))near.Add(z);
                 Have.Clear();Extra.Clear();
             }
-            Create(scene,near,distant);
             Remove(scene,near,distant);
             return false;
         }

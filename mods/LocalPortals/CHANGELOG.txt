@@ -1,3 +1,5 @@
+0.3.4: Smoother near a mirror whose partner is far away: what stands on the far side is made a few things a frame, instead of raising how much the game makes every frame (up to 30 ms). The world's mirrors are looked for every few seconds, not all the time (about 1 ms every frame).
+
 0.3.3: Less network traffic near mirrors in multiplayer. When a mirror's far side lay just past the area the host keeps alive, the game let go of everything out there every two seconds and the mod took it straight back, resending every object in those zones to every player each time; now it simply isn't let go.
 
 0.3.2: The board behind the glass no longer shows streaks fanning out from one point (it is made of strips across now). Built mirrors take the fix on their own.
