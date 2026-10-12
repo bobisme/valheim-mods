@@ -130,8 +130,9 @@ def carve(src, mat_name, scale, yaw, word, out, panel=False, facet=False):
     gzip.open('/home/bob/.cache/jarldom-carve/'+out+'.gz','wt').write(json.dumps({'v':[round(x,5) for x in verts],'n':[round(x,4) for x in norms],'uv':[round(x,5) for x in uvs],'t':tris}, separators=(',',':')))
     print(out, 'verts', len(verts)//3, 'tris', [len(t)//3 for t in tris])
 
+# (scales: each shaft as tall as the pillars' fixed height needs: 4.2 m to the top of everything at every rank)
 for word in ['odin','thor']:
-    carve('log.json','logwall',(1.15,1.15,0.76),0,word,f'log_{word}.json',facet=True)
-    carve('pole.json','woodpole2',(1.25,1.25,1.65),0,word,f'pole_{word}.json')
-    carve('log.json','logwall',(1.2,1.2,0.74),0,word,f'log2_{word}.json',facet=True)
-    carve('dark.json','DarkWood_mat',(1,1,0.82),0 if word=='odin' else 180,word,f'dark_{word}.json',panel=True)
+    carve('log.json','logwall',(1.15,1.15,0.947),0,word,f'log_{word}.json',facet=True)
+    carve('pole.json','woodpole2',(1.25,1.25,2.1),0,word,f'pole_{word}.json')
+    carve('log.json','logwall',(1.2,1.2,0.82),0,word,f'log2_{word}.json',facet=True)
+    carve('dark.json','DarkWood_mat',(1,1,0.757),0 if word=='odin' else 180,word,f'dark_{word}.json',panel=True)

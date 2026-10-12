@@ -50,6 +50,9 @@ namespace Jarldom
         public const int Tiers = 6;
         public static readonly string LookStamp = "stamp_" + DateTime.UtcNow.Ticks;
         private const float Apart = 1.3f; // each pillar's centre from the middle
+        // The space they take, the same at every rank (so a hall built round a camp's logs still fits a hold's): each pillar a box this
+        // wide and deep and this tall, the colliders exactly that. Every look is made to stand inside it (flames aside).
+        public const float Width = 0.8f, Height = 4.2f;
         private static void Pillars()
         {
             GameObject shaftSrc = Assets.Find("darkwood_pole4"), stone = Assets.Find("stone_pillar"), raven = Assets.Find("darkwood_raven"), wolf = Assets.Find("darkwood_wolf"),
@@ -63,7 +66,6 @@ namespace Jarldom
             if (glowGold != null && glowGold.HasProperty("_EmissionColor")) { glowGold.EnableKeyword("_EMISSION"); glowGold.SetColor("_EmissionColor", new Color(0.55f, 0.38f, 0.08f)); }
             var look = new GameObject("new"); look.transform.SetParent(go.transform, false);
             new GameObject(LookStamp).transform.SetParent(look.transform, false); // (which build of the looks: standing pillars of an older one are refitted)
-            var full = new List<GameObject>(); // (a jarldom's pillars: the colliders are theirs)
             for (int t = 0; t < Tiers; t++)
             {
                 var tier = new GameObject("tier" + t); tier.transform.SetParent(look.transform, false);
@@ -79,34 +81,33 @@ namespace Jarldom
                     {
                         case 0: top = Logs(body.transform, log, rope, word, paint); break;               // camp: two logs, bark on, lashed with rope
                         case 1: top = Poles(body.transform, pole ?? log, iron, word, paint); break;      // homestead: squared poles, a beam and a hide between
-                        case 2: top = Footed(body.transform, col.transform, log, stone, iron, dragon, s, word, paint); break; // hamlet: on stone, banded, a dragon's head atop
-                        default: top = Carved(body.transform, col.transform, shaftSrc, stone, t >= 4 ? wolf : null, t >= 4 ? raven : null, t >= 5 ? gold : iron, t >= 5, s, word, paint); break; // village, jarldom, hold
+                        case 2: top = Footed(body.transform, col.transform, log, stone, iron, dragon, s, word, paint); break; // hamlet: on stone, banded, a beam across
+                        default: top = Carved(body.transform, col.transform, shaftSrc, stone, t >= 4 ? wolf : null, raven, t >= 5 ? gold : iron, t >= 5, s, word, paint); break; // village (Huginn and Muninn), jarldom (Geri and Freki), hold
                     }
-                    if (t == 4) full.Add(body);
-                    if (t == 5 && brazier != null) Fire(col.transform, brazier, new Vector3(s * 1.05f, 0, -0.35f)); // hold: a fire bowl beside each
+                    if (t == 5 && brazier != null) Fire(col.transform, brazier, top); // hold: fire burning in each capital
                 }
                 if ((t == 1 || t == 2) && beam != null) Crossbeam(tier.transform, beam, t == 1 ? hide : null, top);
                 if (t > 0) tier.SetActive(false);
+                Bounds tb = Assets.MeshBounds(look.transform, tier);
+                if (tb.max.y > Height + 0.02f || Mathf.Abs(tb.max.z) > Width / 2 + 0.02f || Mathf.Abs(tb.min.z) > Width / 2 + 0.02f || tb.max.x > Apart + Width / 2 + 0.02f)
+                    Plugin.Warn($"Jarldom: the pillars' look {t} goes outside their space: {tb.min} to {tb.max}");
             }
             Finish(go, look, "High-seat pillars",
                 "Raise them to found a hall, as the settlers of old threw their high-seat pillars ashore and built where they landed. Odin sends the fallen to a hall worth noticing. " +
                 "Use them (E) to hold council: the colony's rank, its renown, its people, and the newcomers who wait for your word. They start as two lashed logs and are raised anew as the colony ranks up.", Piece.PieceCategory.Misc, false,
                 ("Wood", 6), ("Resin", 2));
-            // One box per pillar (plinth, shaft and capital; the carvings up top stay out of it), so the way between them is open.
+            // One box per pillar, their whole space, so the way between them is open.
             int layer = LayerMask.NameToLayer("piece");
-            foreach (GameObject body in full)
+            foreach (float side in new[] { -1f, 1f })
             {
-                Bounds b = Assets.MeshBounds(go.transform, body);
-                var box = new GameObject("collider_" + body.transform.parent.name) { layer = layer }; box.transform.SetParent(go.transform, false);
-                BoxCollider c = box.AddComponent<BoxCollider>(); c.center = b.center + Vector3.down * 0.025f; c.size = b.size + Vector3.up * 0.05f;
+                var box = new GameObject("collider_" + (side < 0 ? "pillar_left" : "pillar_right")) { layer = layer }; box.transform.SetParent(go.transform, false);
+                BoxCollider c = box.AddComponent<BoxCollider>(); c.center = new Vector3(side * Apart, Height / 2f - 0.025f, 0); c.size = new Vector3(Width, Height + 0.05f, Width);
             }
             // The way between them: where anyone looks to use them. A trigger, so it's hovered (and E works) but walked through.
-            if (full.Count == 2)
             {
-                Bounds l = Assets.MeshBounds(go.transform, full[0]), r = Assets.MeshBounds(go.transform, full[1]);
                 var gap = new GameObject("use_between") { layer = LayerMask.NameToLayer("piece_nonsolid") }; gap.transform.SetParent(go.transform, false);
                 BoxCollider g = gap.AddComponent<BoxCollider>(); g.isTrigger = true;
-                g.center = new Vector3((l.max.x + r.min.x) / 2f, 1.4f, 0); g.size = new Vector3(Mathf.Max(0.5f, r.min.x - l.max.x), 2.4f, 0.4f);
+                g.center = new Vector3(0, 1.4f, 0); g.size = new Vector3(2 * Apart - Width, 2.4f, 0.4f);
             }
             go.AddComponent<HighSeat>();
         }
@@ -161,7 +162,7 @@ namespace Jarldom
         private static float Logs(Transform body, GameObject log, Material rope, string word, Material paint)
         {
             GameObject l = Cut(body, log, "log_" + word, paint);
-            if (l == null) { l = Assets.Model(log, body, Vector3.zero, Quaternion.identity, 1f); l.transform.localScale = new Vector3(1.15f, 0.76f, 1.15f); }
+            if (l == null) { l = Assets.Model(log, body, Vector3.zero, Quaternion.identity, 1f); l.transform.localScale = new Vector3(1.15f, 0.947f, 1.15f); }
             Bounds b = Stand(body, l);
             float w = Mathf.Max(b.size.x, b.size.z) + 0.05f, h = b.size.y;
             foreach (float at in new[] { 0.1f, 0.14f, 0.8f, 0.84f }) Block(body, rope, new Vector3(0, h * at, 0), new Vector3(w, 0.06f, w), true);
@@ -170,7 +171,7 @@ namespace Jarldom
         private static float Poles(Transform body, GameObject pole, Material iron, string word, Material paint)
         {
             GameObject p = Cut(body, pole, "pole_" + word, paint);
-            if (p == null) { p = Assets.Model(pole, body, Vector3.zero, Quaternion.identity, 1f); p.transform.localScale = new Vector3(1.25f, 1.65f, 1.25f); }
+            if (p == null) { p = Assets.Model(pole, body, Vector3.zero, Quaternion.identity, 1f); p.transform.localScale = new Vector3(1.25f, 2.1f, 1.25f); }
             Bounds b = Stand(body, p);
             float w = Mathf.Max(b.size.x, b.size.z) + 0.04f;
             Block(body, iron, new Vector3(0, 0.15f, 0), new Vector3(w, 0.08f, w));
@@ -186,11 +187,10 @@ namespace Jarldom
                 foot = Stand(body, plinth).size.y;
             }
             GameObject l = Cut(body, log, "log2_" + word, paint);
-            if (l == null) { l = Assets.Model(log, body, Vector3.zero, Quaternion.identity, 1f); l.transform.localScale = new Vector3(1.2f, 0.74f, 1.2f); }
+            if (l == null) { l = Assets.Model(log, body, Vector3.zero, Quaternion.identity, 1f); l.transform.localScale = new Vector3(1.2f, 0.82f, 1.2f); }
             Bounds b = Stand(body, l, foot);
-            float w = Mathf.Max(b.size.x, b.size.z) + 0.06f, head = b.max.y;
+            float w = Mathf.Max(b.size.x, b.size.z) + 0.02f, head = b.max.y;
             foreach (float at in new[] { 0.08f, 0.9f }) Block(body, iron, new Vector3(0, Mathf.Lerp(foot, head, at), 0), new Vector3(w, 0.1f, w), true);
-            if (dragon != null) { GameObject d = Assets.Model(dragon, col, Vector3.zero, Quaternion.Euler(0, 180, 0), 0.45f); Stand(col, d, head - 0.05f); }
             return head;
         }
         private static float Carved(Transform body, Transform col, GameObject shaftSrc, GameObject stone, GameObject wolf, GameObject raven, Material bands, bool gild, float s, string word, Material paint)
@@ -205,7 +205,7 @@ namespace Jarldom
             }
             // The carved darkwood shaft.
             GameObject shaft = Cut(body, shaftSrc, "dark_" + word, paint); // (baked turned and scaled as below)
-            if (shaft == null) { shaft = Assets.Model(shaftSrc, body, Vector3.zero, Turn(s < 0 ? 0 : 180), 1f); shaft.transform.localScale = new Vector3(1f, 0.82f, 1f); }
+            if (shaft == null) { shaft = Assets.Model(shaftSrc, body, Vector3.zero, Turn(s < 0 ? 0 : 180), 1f); shaft.transform.localScale = new Vector3(1f, 0.757f, 1f); }
             Bounds sb = Stand(body, shaft, top);
             float foot = top, head = sb.max.y, width = Mathf.Max(sb.size.x, sb.size.z);
             // Bands: at the foot, one above it and one below the head (the runes between), and a broad one under the head.
@@ -220,8 +220,9 @@ namespace Jarldom
             // Geri and Freki: a carved wolf's head on each pillar's face under the capital, looking out to the front and a little away from the middle.
             if (wolf != null)
             {
-                GameObject w = Assets.Model(wolf, col, Vector3.zero, Turn(195), 0.32f);
-                Stand(col, w, head - 0.88f);
+                GameObject w = Assets.Model(wolf, col, Vector3.zero, Turn(185), 0.24f);
+                Stand(col, w, head - 0.7f);
+                Bounds wb = Assets.MeshBounds(col, w); if (wb.min.z < -Width / 2 + 0.02f) w.transform.localPosition += Vector3.forward * (-Width / 2 + 0.02f - wb.min.z); // (inside the pillar's space)
                 if (gild) Assets.Tint(w, new Color(1.25f, 1.05f, 0.55f), new Color(0.18f, 0.12f, 0.02f));
             }
             // Huginn and Muninn: each raven's branch reaches in from its pillar's top, the two birds facing each other over the way between.
@@ -239,24 +240,33 @@ namespace Jarldom
             GameObject b = Assets.Model(beam, tier, Vector3.zero, Quaternion.identity, 1f);
             Bounds bb = Assets.MeshBounds(tier, b);
             b.transform.localScale = new Vector3((2 * Apart + 0.5f) / Mathf.Max(0.1f, bb.size.x), 1f, 1f);
-            bb = Stand(tier, b, top - 0.3f);
+            bb = Stand(tier, b, top - 0.4f); // (its top flush with the poles')
             b.transform.localPosition += new Vector3(-bb.center.x, 0, -bb.center.z);
             if (hide == null) return;
             GameObject h = Assets.Model(hide, tier, Vector3.zero, Quaternion.Euler(90, 0, 0), 0.36f);
             Bounds hb = Assets.MeshBounds(tier, h);
             h.transform.localPosition += new Vector3(-hb.center.x, (top - 0.35f) - hb.max.y, -0.3f - hb.center.z);
         }
-        // A fire bowl: the brazier's look, and its flames (without their burning or their scripts).
-        private static void Fire(Transform col, GameObject brazier, Vector3 at)
+        // Fire burning in the capital: the brazier's coals and flames (without their burning or their scripts), on the pillar's head.
+        private static void Fire(Transform col, GameObject brazier, float head)
         {
-            GameObject bowl = Assets.Model(brazier, col, at, Quaternion.identity, 0.85f);
-            Stand(col, bowl);
+            var bowl = new GameObject("fire"); bowl.transform.SetParent(col, false); bowl.transform.localPosition = new Vector3(0, head, 0); bowl.transform.localScale = Vector3.one * 1.1f;
+            Vector3 seat = Vector3.zero; // (the coals' height in the brazier: they're set on the head)
             Fireplace fp = brazier.GetComponent<Fireplace>();
             foreach (GameObject flames in new[] { fp?.m_enabledObject, fp?.m_enabledObjectHigh }) // (the coals, and the flames over them)
             {
                 if (flames == null) continue;
                 GameObject f = Object.Instantiate(flames, bowl.transform, false);
-                f.transform.localPosition = brazier.transform.InverseTransformPoint(flames.transform.position);
+                Vector3 at = brazier.transform.InverseTransformPoint(flames.transform.position);
+                if (flames == fp.m_enabledObject) seat = at;
+                bool coals = flames == fp.m_enabledObject;
+                f.transform.localPosition = new Vector3(0, coals ? -0.05f : at.y - seat.y, 0);
+                if (coals) f.transform.localScale = Vector3.one * 0.62f; // (the coals within the capital's width; the flames over them made bigger)
+                else
+                {
+                    f.transform.localScale = Vector3.one * 1.6f;
+                    foreach (ParticleSystem ps in f.GetComponentsInChildren<ParticleSystem>(true)) { var main = ps.main; main.scalingMode = ParticleSystemScalingMode.Hierarchy; }
+                }
                 f.transform.localRotation = Quaternion.Inverse(brazier.transform.rotation) * flames.transform.rotation;
                 f.SetActive(true);
                 foreach (Collider c in f.GetComponentsInChildren<Collider>(true)) Object.DestroyImmediate(c);
