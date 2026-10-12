@@ -15,7 +15,7 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.8.8";
+        public const string Version = "0.8.9";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
@@ -99,7 +99,7 @@ namespace BuildShapes
             long world = ZNet.World?.m_uid ?? 0;
             if (_player != player || _session != ZNet.instance || _world != world)
             { Stop(); DestroyHall(); _lastPlan = null; _bounds.Clear(); _player = player; _session = ZNet.instance; _world = world; }
-            UpdateHallCommands();UpdateSharedPreviews();EnsureStake();
+            UpdateHallCommands();UpdateSharedPreviews();EnsureStake();HookPlanRemoval();FollowHallGround(player);
             if (!_enabled.Value || !HoldingHammer(player) || player.IsDead())
             { if (ShapeActive) Stop(); if (player != null && player.IsDead()) _lastPlan = null; return; }
             if (!_planner.Ready() || ((_tool == Tool.Mirror || _tool == Tool.Repeat) && !_planner.Extended) || !_planner.Available(player))
@@ -182,7 +182,7 @@ namespace BuildShapes
         {
             if (_lastPlan == null) Say("No shape to undo in this session.");
             else if (_planner.Remove(player,_lastPlan,out int removed,out string error))
-            {_lastPlan=null;Say($"Removed {removed} unbuilt shape pieces. Built pieces stay.");}
+            {HallPlanRemoved(_lastPlan);_lastPlan=null;Say($"Removed {removed} unbuilt shape pieces. Built pieces stay.");}
             else Say(error);
         }
 

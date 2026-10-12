@@ -140,7 +140,7 @@ namespace BuildShapes
                 {
                     if(_lastPlan==null)throw new ArgumentException("No shape to undo in this session.");
                     if(!_planner.Remove(player,_lastPlan,out int removed,out string problem))throw new ArgumentException(problem);
-                    _lastPlan=null;output(new JObject{["removed"]=removed});return null;
+                    HallPlanRemoved(_lastPlan);_lastPlan=null;output(new JObject{["removed"]=removed});return null;
                 }
                 if(action=="rectangle" || action=="outline")
                 {

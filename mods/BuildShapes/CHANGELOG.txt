@@ -1,3 +1,5 @@
+0.8.9: Removing a Hallwright plan that dug the ground (BuildOrders' Plans window, its blueprint commands, or U) puts the ground back by itself, as Restore ground does: once it's loaded near you, and only if nothing of the hall is built on it (then it says so and the ground stays dug for Restore ground later). The ground record now remembers its plan; halls planned before this aren't followed.
+
 0.8.8: A 10 m wide longhouse gets one roof with one ridge and its hearths on the centre line, in plain wood too (it was split into two roofs at 8 m, the plain-wood limit for a timber hall, which put two peaks on it and the hearths off centre). The aisle posts carry the wider roof; timber halls keep the 8 m limit.
 
 0.8.7: Hallwright settings window has a Clear draft button (beside Plan shell, Edit outline and Cancel): clears the outline, entrances and chimneys and deletes the saved draft, as Delete does, and closes the window.

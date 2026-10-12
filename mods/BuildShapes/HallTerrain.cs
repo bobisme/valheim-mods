@@ -22,6 +22,8 @@ namespace BuildShapes
         private sealed class GroundRecord
         {
             public long World;public List<GroundTile> Tiles=new List<GroundTile>();
+            // The BuildOrders plan the ground was dug for, and whether that plan has been removed (its ground then goes back by itself).
+            public string Plan;public bool Removed;
         }
         private sealed class GroundTile
         {

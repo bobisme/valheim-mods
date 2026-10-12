@@ -415,6 +415,7 @@ namespace BuildShapes
             try
             {
                 if(!_planner.CreateShell(player,_staveTemple?"Stave Temple":"Hallwright",_output.Select(p=>p.Prefab).ToArray(),_output.Select(p=>p.Position).ToArray(),_output.Select(p=>p.Rotation).ToArray(),out string key,out string error))throw new ArgumentException(error);
+                if(ground!=null){ground.Plan=key;WriteHallGround(ground);}
                 _hallDraftSubmitted=true;DiscardHallDraft();return key;
             }
             catch

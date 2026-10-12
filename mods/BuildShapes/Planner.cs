@@ -13,6 +13,7 @@ namespace BuildShapes
         private BaseUnityPlugin _instance;
         private MethodInfo _create, _shell, _remove, _ray, _available;
         internal bool WholeShell => Ready() && _shell!=null;
+        internal Type PluginType => Ready() ? _instance.GetType() : null;   // (for following its plan removals: HallGroundFollow)
         internal bool Extended => Ready() && _ray != null && _available != null;
         internal string Status { get; private set; } = "Update BuildOrders to a version with add-on support.";
         internal bool Ready()
