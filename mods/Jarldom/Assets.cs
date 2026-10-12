@@ -160,6 +160,25 @@ namespace Jarldom
         }
 
         // An icon: the model drawn by a temporary camera far below the world on an unused layer.
+        // An icon now, and again once the player stands in the world: drawn while a world loads, the game's shaders aren't set up yet
+        // (their moss, wet and light values) and icons come out lurid green and yellow, or blank white.
+        internal static void Icon(GameObject item, string name, Quaternion turn, Action<Sprite> set)
+        {
+            Sprite now = Icon(item, name, turn); if (now != null) set(now);
+            Redraws.Add(() => { Sprite later = Icon(item, name, turn); if (later != null) set(later); });
+        }
+        private static readonly List<Action> Redraws = new List<Action>(); private static float _redrawAt = -1;
+        internal static void Tick()
+        {
+            if (Redraws.Count == 0) return;
+            if (Player.m_localPlayer == null || EnvMan.instance == null) { _redrawAt = -1; return; }
+            if (_redrawAt < 0) { _redrawAt = Time.time + 3f; return; }
+            if (Time.time < _redrawAt) return;
+            Action[] all = Redraws.ToArray(); Redraws.Clear(); _redrawAt = -1;
+            foreach (Action a in all) { try { a(); } catch (Exception e) { Plugin.Warn("Jarldom: an icon: " + e.Message); } }
+            Plugin.Log($"Jarldom: {all.Length} icons drawn again in the world's light");
+        }
+        internal static bool IconLightKept = true; // (test: jarldom icon compares)
         internal static Sprite Icon(GameObject item, string name, Quaternion turn)
         {
             try
@@ -187,8 +206,12 @@ namespace Jarldom
                     const int size = 256;
                     RenderTexture target = RenderTexture.GetTemporary(size, size, 24, RenderTextureFormat.ARGB32);
                     RenderTexture previous = RenderTexture.active;
+                    // The scene's light kept out: fog and the world's ambient (whatever the loading screen or the hour left them at) tint an
+                    // icon wildly otherwise; a flat grey ambient, as Claude Tools' renders use.
+                    bool fog = RenderSettings.fog; Color ambient = RenderSettings.ambientLight; var ambientMode = RenderSettings.ambientMode; float reflect = RenderSettings.reflectionIntensity;
                     try
                     {
+                        if (IconLightKept) { RenderSettings.fog = false; RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat; RenderSettings.ambientLight = new Color(0.6f, 0.61f, 0.64f); RenderSettings.reflectionIntensity = 0.3f; }
                         camera.targetTexture = target; camera.Render();
                         RenderTexture.active = target;
                         var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
@@ -198,7 +221,11 @@ namespace Jarldom
                         sprite.name = name; sprite.hideFlags = HideFlags.HideAndDontSave; Owned.Add(sprite);
                         return sprite;
                     }
-                    finally { RenderTexture.active = previous; camera.targetTexture = null; RenderTexture.ReleaseTemporary(target); }
+                    finally
+                    {
+                        RenderSettings.fog = fog; RenderSettings.ambientMode = ambientMode; RenderSettings.ambientLight = ambient; RenderSettings.reflectionIntensity = reflect;
+                        RenderTexture.active = previous; camera.targetTexture = null; RenderTexture.ReleaseTemporary(target);
+                    }
                 }
                 finally { Object.DestroyImmediate(stage); }
             }

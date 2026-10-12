@@ -1,3 +1,5 @@
+0.1.5: Jarldom's build-menu and item icons no longer come out lurid green and yellow (or blank white): drawn while a world loads, before the game's shaders are set up, they're now drawn again once you stand in the world, with the scene's fog and ambient light kept out. New test command: jarldom icon <prefab> [0|1|current].
+
 0.1.4: The rooms and zones drawn with the hammer out go away when it's put away (they stayed up, and with the hammer out they were redrawn every second). New test command: jarldom overlay.
 
 0.1.3: Less log spam and less work with the hammer out: the rooms and zones drawn on the ground are redrawn only when a room or zone changes (they were redrawn with every save of the colony, a few times a minute, each time logging a font warning per label). New test commands: jarldom env <weather|off> and jarldom fuel.

@@ -246,8 +246,7 @@ namespace Jarldom
             if (comfort > 0) piece.m_comfort = Math.Max(piece.m_comfort, 3);
             piece.m_resources = Assets.Needs(cost);
             piece.m_category = Piece.PieceCategory.Furniture;
-            Sprite icon = Assets.Icon(go, name, Quaternion.Euler(0, -30, 0));
-            if (icon != null) piece.m_icon = icon;
+            Assets.Icon(go, name, Quaternion.Euler(0, -30, 0), icon => piece.m_icon = icon);
             Made[name] = go;
         }
 
@@ -342,8 +341,7 @@ namespace Jarldom
             piece.m_resources = Assets.Needs(cost.Where(c => c.Item2 > 0).ToArray());
             piece.m_craftingStation = Assets.Find("piece_workbench")?.GetComponent<CraftingStation>();
             piece.m_comfort = 0;
-            Sprite icon = Assets.Icon(look, go.name, Quaternion.Euler(0, -30, 0));
-            if (icon != null) piece.m_icon = icon;
+            Assets.Icon(look, go.name, Quaternion.Euler(0, -30, 0), icon => piece.m_icon = icon);
             Made[go.name] = go;
         }
 

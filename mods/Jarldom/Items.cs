@@ -36,8 +36,8 @@ namespace Jarldom
             shared.m_description = "All that's left of fallen high-seat pillars, and all a colony was: its people, rooms, saga and the gods' favour. " +
                 "Carry it and raise new High-seat pillars (anywhere colonies may stand) to bring the colony back there.";
             shared.m_itemType = ItemDrop.ItemData.ItemType.Misc; shared.m_maxStackSize = 1; shared.m_weight = 2f; shared.m_value = 0; shared.m_teleportable = true;
-            Sprite icon = Assets.Icon(go, RelicName, Quaternion.Euler(20, 30, 0));
-            if (icon != null) shared.m_icons = new[] { icon };
+            shared.m_icons = new[] { shared.m_icons?.FirstOrDefault() }; // (its own: the clone shares the source item's)
+            Assets.Icon(go, RelicName, Quaternion.Euler(20, 30, 0), icon => shared.m_icons[0] = icon); // (in place: items already made share the array)
             ItemDrop drop = go.GetComponent<ItemDrop>();
             drop.m_itemData.m_shared = shared; drop.m_itemData.m_stack = 1; drop.m_itemData.m_quality = 1; drop.m_itemData.m_dropPrefab = go;
             drop.m_autoDestroy = false; // (a colony's whole record: never tidied away)
@@ -81,8 +81,8 @@ namespace Jarldom
             shared.m_description = "Deer hide stretched over a hoop of wood. Give it to a skald: at dusk they play it in the great hall, and everyone who hears it is the merrier.";
             shared.m_itemType = ItemDrop.ItemData.ItemType.Misc; shared.m_maxStackSize = 1; shared.m_weight = 2f; shared.m_value = 0; shared.m_teleportable = true;
             shared.m_consumeStatusEffect = null; shared.m_food = 0; shared.m_foodStamina = 0; shared.m_foodEitr = 0;
-            Sprite icon = Assets.Icon(go, DrumName, Quaternion.Euler(40, 20, 0));
-            if (icon != null) shared.m_icons = new[] { icon };
+            shared.m_icons = new[] { shared.m_icons?.FirstOrDefault() }; // (its own: the clone shares the source item's)
+            Assets.Icon(go, DrumName, Quaternion.Euler(40, 20, 0), icon => shared.m_icons[0] = icon); // (in place: items already made share the array)
             ItemDrop drop = go.GetComponent<ItemDrop>();
             drop.m_itemData.m_shared = shared; drop.m_itemData.m_stack = 1; drop.m_itemData.m_quality = 1; drop.m_itemData.m_dropPrefab = go;
             Prefabs[DrumName] = go;
@@ -113,8 +113,8 @@ namespace Jarldom
             shared.m_description = "A ring of twisted gold, given by a jarl to the loyal. Give it to a villager from their panel (best at a feast): they'll remember it, " +
                 "and a guard with a ring never runs early. A gift, not a treasure: no trader will buy it.";
             shared.m_itemType = ItemDrop.ItemData.ItemType.Misc; shared.m_maxStackSize = 10; shared.m_weight = 0.2f; shared.m_value = 0; shared.m_teleportable = true;
-            Sprite icon = Assets.Icon(go, RingName, Quaternion.Euler(30, 20, 0));
-            if (icon != null) shared.m_icons = new[] { icon };
+            shared.m_icons = new[] { shared.m_icons?.FirstOrDefault() }; // (its own: the clone shares the source item's)
+            Assets.Icon(go, RingName, Quaternion.Euler(30, 20, 0), icon => shared.m_icons[0] = icon); // (in place: items already made share the array)
             ItemDrop drop = go.GetComponent<ItemDrop>();
             drop.m_itemData.m_shared = shared; drop.m_itemData.m_stack = 1; drop.m_itemData.m_quality = 1; drop.m_itemData.m_dropPrefab = go;
             Prefabs[RingName] = go;
