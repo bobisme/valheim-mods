@@ -59,7 +59,7 @@ namespace Jarldom
             if (go == null) return;
             Material wood = shaftSrc.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null && m.HasProperty("_Color"));
             Material iron = Plain(wood, new Color(0.16f, 0.155f, 0.15f)), rope = Plain(wood, new Color(0.45f, 0.36f, 0.22f)), gold = Plain(wood, new Color(1f, 0.76f, 0.26f));
-            Material ochre = Plain(wood, new Color(0.6f, 0.13f, 0.08f)), panel = Plain(wood, new Color(0.42f, 0.31f, 0.2f)), glowGold = Plain(wood, new Color(1f, 0.8f, 0.3f));
+            Material ochre = Plain(wood, new Color(0.55f, 0.1f, 0.06f)), glowGold = Plain(wood, new Color(1f, 0.8f, 0.3f));
             if (glowGold != null && glowGold.HasProperty("_EmissionColor")) { glowGold.EnableKeyword("_EMISSION"); glowGold.SetColor("_EmissionColor", new Color(0.55f, 0.38f, 0.08f)); }
             var look = new GameObject("new"); look.transform.SetParent(go.transform, false);
             new GameObject(LookStamp).transform.SetParent(look.transform, false); // (which build of the looks: standing pillars of an older one are refitted)
@@ -73,14 +73,15 @@ namespace Jarldom
                 {
                     var col = new GameObject(s < 0 ? "pillar_left" : "pillar_right"); col.transform.SetParent(tier.transform, false); col.transform.localPosition = new Vector3(s * Apart, 0, 0);
                     var body = new GameObject("body"); body.transform.SetParent(col.transform, false);
+                    // (each shaft has its god's runes cut into its front: the left Óðinn, the right Þórr; painted red ochre, gilded at a hold)
+                    string word = s < 0 ? "odin" : "thor"; Material paint = t >= 5 ? glowGold : ochre;
                     switch (t)
                     {
-                        case 0: top = Logs(body.transform, log, rope); break;                     // camp: two logs, bark on, lashed with rope
-                        case 1: top = Poles(body.transform, pole ?? log, iron); break;            // homestead: squared poles, a beam and a hide between
-                        case 2: top = Footed(body.transform, col.transform, log, stone, iron, dragon, s); break; // hamlet: on stone, banded, a dragon's head atop
-                        default: top = Carved(body.transform, col.transform, shaftSrc, stone, t >= 4 ? wolf : null, t >= 4 ? raven : null, t >= 5 ? gold : iron, t >= 5, s); break; // village, jarldom, hold
+                        case 0: top = Logs(body.transform, log, rope, word, paint); break;               // camp: two logs, bark on, lashed with rope
+                        case 1: top = Poles(body.transform, pole ?? log, iron, word, paint); break;      // homestead: squared poles, a beam and a hide between
+                        case 2: top = Footed(body.transform, col.transform, log, stone, iron, dragon, s, word, paint); break; // hamlet: on stone, banded, a dragon's head atop
+                        default: top = Carved(body.transform, col.transform, shaftSrc, stone, t >= 4 ? wolf : null, t >= 4 ? raven : null, t >= 5 ? gold : iron, t >= 5, s, word, paint); break; // village, jarldom, hold
                     }
-                    Runes(body.transform, s < 0 ? Odin : Thor, t >= 5 ? glowGold : ochre, t >= 3 ? panel : null);
                     if (t == 4) full.Add(body);
                     if (t == 5 && brazier != null) Fire(col.transform, brazier, new Vector3(s * 1.05f, 0, -0.35f)); // hold: a fire bowl beside each
                 }
@@ -109,36 +110,47 @@ namespace Jarldom
             }
             go.AddComponent<HighSeat>();
         }
-        // The front: runes painted up each pillar's face (the left Óðinn, the right Þórr, in the younger futhark), red ochre as on the
-        // runestones; on a carved panel from a village up, gilded at a hold. Each rune's strokes in a unit box, (x1, y1, x2, y2).
-        private static readonly float[][] Ur = { new[] { .2f, 0, .2f, 1 }, new[] { .2f, 1, .8f, .72f }, new[] { .8f, .72f, .8f, 0 } };
-        private static readonly float[][] Thurs = { new[] { .25f, 0, .25f, 1 }, new[] { .25f, .78f, .78f, .5f }, new[] { .78f, .5f, .25f, .22f } };
-        private static readonly float[][] Isa = { new[] { .5f, 0, .5f, 1 } };
-        private static readonly float[][] Naud = { new[] { .5f, 0, .5f, 1 }, new[] { .18f, .68f, .82f, .32f } };
-        private static readonly float[][] Reid = { new[] { .22f, 0, .22f, 1 }, new[] { .22f, 1, .78f, .78f }, new[] { .78f, .78f, .22f, .52f }, new[] { .22f, .52f, .8f, 0 } };
-        private static readonly float[][][] Odin = { Ur, Thurs, Isa, Naud }, Thor = { Thurs, Ur, Reid };
-        private static void Runes(Transform body, float[][][] word, Material paint, Material panel)
+        // A shaft with runes cut into its front (made in Blender from the game's own mesh: Models/carve): the source's material on the
+        // wood, the paint in the grooves; null when the mesh isn't there (the plain shaft is used).
+        private static GameObject Cut(Transform parent, GameObject source, string name, Material paint)
         {
-            if (paint == null) return;
-            Bounds b = Assets.MeshBounds(body, body.gameObject);
-            const float h = 0.24f, w = 0.15f, gap = 0.1f, stroke = 0.028f;
-            float len = word.Length * h + (word.Length - 1) * gap, top = Mathf.Min(b.max.y - 0.5f, 1.2f + len), face = b.min.z;
-            if (panel != null) { Block(body, panel, new Vector3(0, top - len / 2f, face - 0.005f), new Vector3(w + 0.12f, len + 0.16f, 0.02f)); face -= 0.015f; }
-            for (int i = 0; i < word.Length; i++)
+            Mesh mesh = CarvedMesh(name);
+            Material wood = source?.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null && m.shader != null && m.shader.name == "Custom/Piece");
+            if (mesh == null || wood == null) return null;
+            var go = new GameObject(name); go.transform.SetParent(parent, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterials = new[] { wood, paint ?? wood, wood };
+            return go;
+        }
+        private static readonly Dictionary<string, Mesh> Carvings = new Dictionary<string, Mesh>();
+        private static Mesh CarvedMesh(string name)
+        {
+            if (Carvings.TryGetValue(name, out Mesh had) && had != null) return had;
+            try
             {
-                float y0 = top - i * (h + gap) - h;
-                foreach (float[] st in word[i])
+                using (var raw = typeof(Pieces).Assembly.GetManifestResourceStream("Jarldom.carve." + name + ".json.gz"))
                 {
-                    Vector3 a = new Vector3((st[0] - 0.5f) * w, y0 + st[1] * h, face - 0.008f), z = new Vector3((st[2] - 0.5f) * w, y0 + st[3] * h, face - 0.008f);
-                    var c = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    Object.DestroyImmediate(c.GetComponent<Collider>());
-                    c.name = "rune"; c.transform.SetParent(body, false);
-                    c.transform.localPosition = (a + z) / 2f;
-                    c.transform.localRotation = Quaternion.Euler(0, 0, Mathf.Atan2(z.y - a.y, z.x - a.x) * Mathf.Rad2Deg);
-                    c.transform.localScale = new Vector3((z - a).magnitude + stroke, stroke, 0.012f);
-                    c.GetComponent<MeshRenderer>().sharedMaterial = paint;
+                    if (raw == null) return null;
+                    using (var gz = new System.IO.Compression.GZipStream(raw, System.IO.Compression.CompressionMode.Decompress))
+                    using (var text = new System.IO.StreamReader(gz))
+                    {
+                        var d = Newtonsoft.Json.Linq.JObject.Parse(text.ReadToEnd());
+                        float[] v = d["v"].ToObject<float[]>(), n = d["n"].ToObject<float[]>(), uv = d["uv"].ToObject<float[]>();
+                        int[][] t = d["t"].ToObject<int[][]>();
+                        var mesh = new Mesh { name = "Jarldom_" + name };
+                        if (v.Length / 3 > 65000) mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+                        var verts = new Vector3[v.Length / 3]; var norms = new Vector3[v.Length / 3]; var uvs = new Vector2[v.Length / 3];
+                        for (int i = 0; i < verts.Length; i++) { verts[i] = new Vector3(v[3 * i], v[3 * i + 1], v[3 * i + 2]); norms[i] = new Vector3(n[3 * i], n[3 * i + 1], n[3 * i + 2]); uvs[i] = new Vector2(uv[2 * i], uv[2 * i + 1]); }
+                        mesh.vertices = verts; mesh.normals = norms; mesh.uv = uvs; mesh.colors = Enumerable.Repeat(Color.white, verts.Length).ToArray(); // (the game's piece shader reads the vertex colour)
+                        mesh.subMeshCount = t.Length;
+                        for (int k = 0; k < t.Length; k++) mesh.SetTriangles(t[k], k);
+                        mesh.RecalculateBounds(); mesh.RecalculateTangents();
+                        Carvings[name] = mesh;
+                        return mesh;
+                    }
                 }
             }
+            catch (Exception e) { Plugin.Warn("Jarldom: carved shaft " + name + ": " + e.Message); return null; }
         }
         // A model stood on the floor of its parent (its lowest point at y = from).
         private static Bounds Stand(Transform parent, GameObject m, float from = 0)
@@ -146,25 +158,25 @@ namespace Jarldom
             Bounds b = Assets.MeshBounds(parent, m); m.transform.localPosition += Vector3.up * (from - b.min.y);
             return Assets.MeshBounds(parent, m);
         }
-        private static float Logs(Transform body, GameObject log, Material rope)
+        private static float Logs(Transform body, GameObject log, Material rope, string word, Material paint)
         {
-            GameObject l = Assets.Model(log, body, Vector3.zero, Quaternion.identity, 1f);
-            l.transform.localScale = new Vector3(1.15f, 0.76f, 1.15f);
+            GameObject l = Cut(body, log, "log_" + word, paint);
+            if (l == null) { l = Assets.Model(log, body, Vector3.zero, Quaternion.identity, 1f); l.transform.localScale = new Vector3(1.15f, 0.76f, 1.15f); }
             Bounds b = Stand(body, l);
             float w = Mathf.Max(b.size.x, b.size.z) + 0.05f, h = b.size.y;
             foreach (float at in new[] { 0.1f, 0.14f, 0.8f, 0.84f }) Block(body, rope, new Vector3(0, h * at, 0), new Vector3(w, 0.06f, w), true);
             return h;
         }
-        private static float Poles(Transform body, GameObject pole, Material iron)
+        private static float Poles(Transform body, GameObject pole, Material iron, string word, Material paint)
         {
-            GameObject p = Assets.Model(pole, body, Vector3.zero, Quaternion.identity, 1f);
-            p.transform.localScale = new Vector3(1.25f, 1.65f, 1.25f);
+            GameObject p = Cut(body, pole, "pole_" + word, paint);
+            if (p == null) { p = Assets.Model(pole, body, Vector3.zero, Quaternion.identity, 1f); p.transform.localScale = new Vector3(1.25f, 1.65f, 1.25f); }
             Bounds b = Stand(body, p);
             float w = Mathf.Max(b.size.x, b.size.z) + 0.04f;
             Block(body, iron, new Vector3(0, 0.15f, 0), new Vector3(w, 0.08f, w));
             return b.size.y;
         }
-        private static float Footed(Transform body, Transform col, GameObject log, GameObject stone, Material iron, GameObject dragon, float s)
+        private static float Footed(Transform body, Transform col, GameObject log, GameObject stone, Material iron, GameObject dragon, float s, string word, Material paint)
         {
             float foot = 0;
             if (stone != null)
@@ -173,15 +185,15 @@ namespace Jarldom
                 plinth.transform.localScale = new Vector3(0.72f, 0.28f, 0.72f);
                 foot = Stand(body, plinth).size.y;
             }
-            GameObject l = Assets.Model(log, body, Vector3.zero, Quaternion.identity, 1f);
-            l.transform.localScale = new Vector3(1.2f, 0.74f, 1.2f);
+            GameObject l = Cut(body, log, "log2_" + word, paint);
+            if (l == null) { l = Assets.Model(log, body, Vector3.zero, Quaternion.identity, 1f); l.transform.localScale = new Vector3(1.2f, 0.74f, 1.2f); }
             Bounds b = Stand(body, l, foot);
             float w = Mathf.Max(b.size.x, b.size.z) + 0.06f, head = b.max.y;
             foreach (float at in new[] { 0.08f, 0.9f }) Block(body, iron, new Vector3(0, Mathf.Lerp(foot, head, at), 0), new Vector3(w, 0.1f, w), true);
             if (dragon != null) { GameObject d = Assets.Model(dragon, col, Vector3.zero, Quaternion.Euler(0, 180, 0), 0.45f); Stand(col, d, head - 0.05f); }
             return head;
         }
-        private static float Carved(Transform body, Transform col, GameObject shaftSrc, GameObject stone, GameObject wolf, GameObject raven, Material bands, bool gild, float s)
+        private static float Carved(Transform body, Transform col, GameObject shaftSrc, GameObject stone, GameObject wolf, GameObject raven, Material bands, bool gild, float s, string word, Material paint)
         {
             Quaternion Turn(float yaw) => Quaternion.Euler(0, -s * yaw, 0); // yaw for the left pillar (0 = facing the front, -z), mirrored for the right
             float top = 0;
@@ -192,12 +204,12 @@ namespace Jarldom
                 top = Stand(body, plinth).size.y;
             }
             // The carved darkwood shaft.
-            GameObject shaft = Assets.Model(shaftSrc, body, Vector3.zero, Turn(s < 0 ? 0 : 180), 1f);
-            shaft.transform.localScale = new Vector3(1f, 0.82f, 1f);
+            GameObject shaft = Cut(body, shaftSrc, "dark_" + word, paint); // (baked turned and scaled as below)
+            if (shaft == null) { shaft = Assets.Model(shaftSrc, body, Vector3.zero, Turn(s < 0 ? 0 : 180), 1f); shaft.transform.localScale = new Vector3(1f, 0.82f, 1f); }
             Bounds sb = Stand(body, shaft, top);
             float foot = top, head = sb.max.y, width = Mathf.Max(sb.size.x, sb.size.z);
-            // Bands: at the foot, two along the shaft, and a broad one under the head.
-            foreach ((float at, float h) in new[] { (0.06f, 0.1f), (0.36f, 0.06f), (0.64f, 0.06f), (0.93f, 0.12f) })
+            // Bands: at the foot, one above it and one below the head (the runes between), and a broad one under the head.
+            foreach ((float at, float h) in new[] { (0.06f, 0.1f), (0.16f, 0.06f), (0.8f, 0.06f), (0.93f, 0.12f) }) // (clear of the runes, cut 0.9 to 2.25 m up the shaft)
                 Block(body, bands, new Vector3(0, Mathf.Lerp(foot, head, at), 0), new Vector3(width + 0.06f, h, width + 0.06f));
             // A darkwood capital: a squat, wider block of the same carving.
             GameObject cap = Assets.Model(shaftSrc, body, Vector3.zero, Turn(s < 0 ? 0 : 180), 1f);

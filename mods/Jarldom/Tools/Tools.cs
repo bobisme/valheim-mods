@@ -770,6 +770,31 @@ namespace Jarldom
                     break;
                 case "traderun": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } TradeWay? way = a.Length > 3 ? Parse<TradeWay>(a[3]) : (TradeWay?)null; b.Task?.Stop(b); b.Task = new TradeTask(way); b.Task.Start(b); output(new JObject { ["doing"] = b.Task.Doing, ["done"] = b.Task.Done, ["karve"] = Trade.Ship(c, false) != null ? V(Trade.Ship(c, false).transform.position) : null, ["longship"] = Trade.Ship(c, true) != null ? V(Trade.Ship(c, true).transform.position) : null, ["plan"] = new JArray(Trade.Plan(c)) }); } break; // (test: traderun <who> [Foot|Cart|Karve|Longship])
                 case "fx": { Vector3 at = me.transform.position + me.transform.forward * 4; Assets.Effect(a[2], at + Vector3.up * (a.Length > 3 ? F(a[3]) : 0)); output(new JObject { ["fx"] = a[2], ["found"] = Assets.Find(a[2]) != null }); } break; // (test: an effect 4 m ahead)
+                case "dumpmesh":
+                    {
+                        // Test: a prefab's meshes (most detailed LOD), in its own frame, to a JSON file (for carving in Blender): dumpmesh <prefab> <file>
+                        GameObject src = Assets.Find(a[2]); if (src == null) { error("no prefab " + a[2]); return; }
+                        var lod0 = new HashSet<Renderer>(src.GetComponentsInChildren<LODGroup>(true).SelectMany(g => g.GetLODs().Take(1)).SelectMany(l => l.renderers).Where(r => r != null));
+                        var lodded = new HashSet<Renderer>(src.GetComponentsInChildren<LODGroup>(true).SelectMany(g => g.GetLODs()).SelectMany(l => l.renderers).Where(r => r != null));
+                        var parts = new JArray(); var info = new JArray();
+                        foreach (MeshRenderer r in src.GetComponentsInChildren<MeshRenderer>(true))
+                        {
+                            MeshFilter f = r.GetComponent<MeshFilter>(); Mesh m = f?.sharedMesh;
+                            if (m == null || lodded.Contains(r) && !lod0.Contains(r)) continue;
+                            info.Add($"{r.name} mesh {m.name} readable {m.isReadable} verts {m.vertexCount} subs {m.subMeshCount} mats {string.Join(",", r.sharedMaterials.Select(x => x?.name + "/" + x?.shader?.name))} active {r.gameObject.activeInHierarchy}");
+                            if (!m.isReadable) continue;
+                            Matrix4x4 toRoot = src.transform.worldToLocalMatrix * r.transform.localToWorldMatrix;
+                            var v = new JArray(); foreach (Vector3 p3 in m.vertices) { Vector3 q = toRoot.MultiplyPoint3x4(p3); v.Add(q.x); v.Add(q.y); v.Add(q.z); }
+                            var n = new JArray(); foreach (Vector3 p3 in m.normals) { Vector3 q = toRoot.MultiplyVector(p3).normalized; n.Add(q.x); n.Add(q.y); n.Add(q.z); }
+                            var uv = new JArray(); foreach (Vector2 p2 in m.uv) { uv.Add(p2.x); uv.Add(p2.y); }
+                            var subs = new JArray(); for (int k = 0; k < m.subMeshCount; k++) subs.Add(new JArray(m.GetTriangles(k)));
+                            parts.Add(new JObject { ["name"] = r.name, ["v"] = v, ["n"] = n, ["uv"] = uv, ["subs"] = subs, ["mats"] = new JArray(r.sharedMaterials.Select(x => x?.name)) });
+                        }
+                        if (a.Length > 3) System.IO.File.WriteAllText(a[3], new JObject { ["prefab"] = a[2], ["parts"] = parts }.ToString(Newtonsoft.Json.Formatting.None));
+                        output(new JObject { ["parts"] = info, ["written"] = parts.Count });
+                    }
+                    break;
+                case "carvedebug": { var res = new JArray(); foreach (MeshFilter f in Object.FindObjectsByType<MeshFilter>(FindObjectsInactive.Include, FindObjectsSortMode.None).Where(f => f.name.EndsWith("_odin") || f.name.EndsWith("_thor")).Where(f => f.gameObject.activeInHierarchy).Take(6)) { var r = f.GetComponent<MeshRenderer>(); res.Add($"{f.name} idx {(f.sharedMesh != null ? string.Join("/", Enumerable.Range(0, f.sharedMesh.subMeshCount).Select(k => f.sharedMesh.GetIndexCount(k))) : "")} enabled {r?.enabled} visible {r?.isVisible} readable {f.sharedMesh?.isReadable} active {f.gameObject.activeInHierarchy} pos {V(f.transform.position)} scale {f.transform.lossyScale} verts {f.sharedMesh?.vertexCount} subs {f.sharedMesh?.subMeshCount} bounds {f.sharedMesh?.bounds} rb {r?.bounds} mats {string.Join(",", r?.sharedMaterials.Select(m => m?.name + "/" + m?.shader?.name))} layer {f.gameObject.layer}"); } output(new JObject { ["carved"] = res }); } break;
                 case "tier": HighSeat.TestTier = int.Parse(a[2]); output(new JObject { ["tier"] = HighSeat.TestTier }); break; // (test: the pillars' look of a rank; -1 back to the colony's)
                 case "unlog": { int day = a.Length > 2 && System.Text.RegularExpressions.Regex.IsMatch(a[2], "^d\\d+$") ? int.Parse(a[2].Substring(1)) : -1; string start = string.Join(" ", a.Skip(day >= 0 ? 3 : 2)); int n = c.R.Log.RemoveAll(e => (day < 0 || e.Day == day) && e.Text.StartsWith(start) && start.Length > 8); if (n > 0) { c.R.LogChanges++; c.MarkDirty(); c.Flush(); } output(new JObject { ["removed"] = n }); } break; // (test entries out of the saga: unlog [dN] <text start>)
                 case "relog": { int day = int.Parse(a[2].Substring(1)); LogEntry after = c.R.Log.LastOrDefault(e => e.Day == day && e.Kind == a[3]); if (after == null) { error("no " + a[3] + " on day " + day); return; } c.R.Log.Insert(c.R.Log.IndexOf(after) + 1, new LogEntry(after.Time + 0.001, day, "text", "", "", string.Join(" ", a.Skip(4)))); c.R.LogChanges++; c.MarkDirty(); c.Flush(); output(new JObject { ["put"] = true }); } break; // (an entry put back: relog dN <after kind> <text>)
