@@ -28,7 +28,10 @@ namespace Jarldom
         }
 
         // (every piece in the loaded world is looked at to find these, and much asks: the answer is kept a second; don't change the list)
+        // Each radius asked, and each kind of piece (stations, beds, doors), is kept as long as the look itself: a work scan asks a hundred times.
         private float _piecesAt = -1, _piecesRadius; private List<Piece> _pieces;
+        private readonly Dictionary<float, List<Piece>> _within = new Dictionary<float, List<Piece>>();
+        private readonly Dictionary<(System.Type, float), System.Collections.IList> _kinds = new Dictionary<(System.Type, float), System.Collections.IList>();
         public List<Piece> PiecesIn(float radius)
         {
             if (_pieces == null || Time.time - _piecesAt >= 1f || radius > _piecesRadius)
@@ -36,15 +39,24 @@ namespace Jarldom
                 PieceBuffer.Clear();
                 _piecesRadius = Mathf.Max(radius, Radius + 40f); // (one wide look serves every nearer ask)
                 Piece.GetAllPiecesInRadius(Position, _piecesRadius, PieceBuffer);
-                _pieces = PieceBuffer.ToList(); _piecesAt = Time.time;
+                _pieces = PieceBuffer.ToList(); _piecesAt = Time.time; _within.Clear(); _kinds.Clear();
             }
+            if (_within.TryGetValue(radius, out var kept)) { if (kept.All(p => p != null)) return kept; _within.Remove(radius); }
             Vector3 at = Position;
-            return _pieces.Where(p => p != null && Vector3.Distance(p.transform.position, at) < radius).ToList();
+            return _within[radius] = _pieces.Where(p => p != null && Vector3.Distance(p.transform.position, at) < radius).ToList();
+        }
+        // The pieces of one kind (their component) within the radius.
+        public List<T> PiecesIn<T>(float radius) where T : Component
+        {
+            List<Piece> all = PiecesIn(radius);
+            if (_kinds.TryGetValue((typeof(T), radius), out var kept)) { var l = (List<T>)kept; if (l.All(x => x != null)) return l; }
+            var found = new List<T>(); foreach (Piece p in all) { T t = p.GetComponent<T>(); if (t != null) found.Add(t); }
+            _kinds[(typeof(T), radius)] = found; return found;
         }
 
         // ---- beds ----
         // The colony's beds: in one of its rooms, or by the pillars. (A bed elsewhere in the radius is someone's own base: never taken.)
-        public List<Bed> AllBeds() => PiecesIn(Radius).Select(p => p.GetComponent<Bed>()).Where(b => b != null && Ours(b.transform.position)).ToList();
+        public List<Bed> AllBeds() => PiecesIn<Bed>(Radius).Where(b => b != null && Ours(b.transform.position)).ToList();
         public const float NearPillars = 15f;
         public bool Ours(Vector3 p) => Utils.DistanceXZ(p, Position) <= NearPillars || RoomAt(p) != null;
         // Where the colony's people pick up what lies about: its rooms and zones, and by the pillars.

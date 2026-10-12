@@ -22,7 +22,7 @@ namespace Jarldom
         public static CraftingStation StationFor(Colony c, Recipe r, Vector3 near)
         {
             if (r == null || r.m_craftingStation == null) return null;
-            return c.PiecesIn(c.Radius).Select(p => p.GetComponent<CraftingStation>())
+            return c.PiecesIn<CraftingStation>(c.Radius)
                 .Where(st => st != null && st.m_name == r.m_craftingStation.m_name && st.GetLevel() >= r.m_minStationLevel)
                 .OrderBy(st => Unusable(st) == null ? 0 : 1).ThenBy(st => Vector3.Distance(st.transform.position, near)).FirstOrDefault(); // (one that works first)
         }
@@ -47,7 +47,7 @@ namespace Jarldom
         public static string Name(string prefab) { GameObject p = Assets.Find(prefab); string n = p?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name; return n == null ? prefab : Localization.instance.Localize(n); }
 
         // Why each fermenter isn't being kept going (for the jarldom craft command).
-        public static List<string> BrewWhy(Colony c) => c.PiecesIn(c.Radius).Select(x => x.GetComponent<Fermenter>()).Where(f => f != null).Select(f =>
+        public static List<string> BrewWhy(Colony c) => c.PiecesIn<Fermenter>(c.Radius).Select(f =>
         {
             string head = $"fermenter at {f.transform.position.x:0},{f.transform.position.z:0}: {Work.FermentStatus(f)}, roofed {Work.Roofed(f.transform.position)}";
             var bases = f.m_conversion.Where(cv => cv.m_from != null).Select(cv => cv.m_from.name).ToList();
@@ -62,7 +62,7 @@ namespace Jarldom
         public static List<Recipe> Offered(Colony c, Player p)
         {
             if (ObjectDB.instance == null || p == null) return new List<Recipe>();
-            var stations = c.PiecesIn(c.Radius).Select(x => x.GetComponent<CraftingStation>()).Where(s => s != null).ToList();
+            var stations = c.PiecesIn<CraftingStation>(c.Radius);
             return ObjectDB.instance.m_recipes.Where(r => r != null && r.m_enabled && r.m_item != null && r.m_craftingStation != null && r.m_resources.Length > 0 && !r.m_requireOnlyOneIngredient && !r.m_noCraftOnlyUpgrade
                     && p.IsRecipeKnown(r.m_item.m_itemData.m_shared.m_name)
                     && stations.Any(s => s.m_name == r.m_craftingStation.m_name && s.GetLevel() >= r.m_minStationLevel))
@@ -83,7 +83,7 @@ namespace Jarldom
                 c.Board.Post("craft", Prefix + kv.Key, Maker(r), 3, p.x, p.y, p.z, now, "", "commission");
             }
             // An empty fermenter and no mead base in the stores: a cook brews one at the cauldron, if the stores have what it takes.
-            foreach (Fermenter f in c.PiecesIn(c.Radius).Select(x => x.GetComponent<Fermenter>()).Where(f => f != null))
+            foreach (Fermenter f in c.PiecesIn<Fermenter>(c.Radius))
             {
                 if (Work.FermentStatus(f) != "Empty" || !Work.Roofed(f.transform.position)) continue;
                 if (f.m_conversion.Any(cv => cv.m_from != null && InStock(c, cv.m_from.name) > 0)) continue;

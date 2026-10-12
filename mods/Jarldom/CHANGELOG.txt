@@ -1,3 +1,5 @@
+0.1.8: Smoother still near a big colony: what it has built (stations, beds, doors, fires) is looked up once a second and kept, not sorted out of every piece again for each question a work scan asks (about 33,000 times a scan).
+
 0.1.7: Choose what a chest is for at the chest: with the hammer's "Mark rooms and zones" out, a colony chest's hover says what it's for, and Shift+E on it picks the treasury, a kind of stores, or nothing (no more standing by a chest at the pillars, which picked whichever was nearest).
 
 0.1.6: No more stutter every 8 seconds near a colony with many chests: the work scan read every chest in the colony over again for each thing it checked (166 times a scan, about 55 ms); it now counts the stores once and asks the count.

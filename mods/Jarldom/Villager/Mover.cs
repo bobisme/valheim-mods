@@ -215,7 +215,7 @@ namespace Jarldom
                 // Doors a villager opened before the last load, still open: back on the list (a little while ago, so they shut soon).
                 _nextLook = Time.time + 10f;
                 foreach (Colony c in Colony.All.Where(c => c.Valid && c.IsOwner))
-                    foreach (Door d in c.PiecesIn(c.Radius).Select(p => p.GetComponent<Door>()).Where(d => d != null && !Open.ContainsKey(d)))
+                    foreach (Door d in c.PiecesIn<Door>(c.Radius).Where(d => !Open.ContainsKey(d)))
                     {
                         ZNetView dv = d.GetComponent<ZNetView>();
                         if (dv == null || !dv.IsValid() || !dv.GetZDO().GetBool(MarkKey)) continue;

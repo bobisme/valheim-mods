@@ -152,7 +152,7 @@ namespace Jarldom
         {
             Colony c = Colony.At(at);
             if (c == null) return new List<WatchPost>();
-            return c.PiecesIn(c.Radius + 10).Select(p => p.GetComponent<WatchPost>()).Where(w => w != null).OrderBy(w => w.Order).ToList();
+            return c.PiecesIn<WatchPost>(c.Radius + 10).OrderBy(w => w.Order).ToList();
         }
         public string GetHoverName() => "Watch post";
         public string GetHoverText()

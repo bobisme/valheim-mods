@@ -136,7 +136,7 @@ namespace Jarldom.Ui
                 list.Add(treasury == null ? "No treasury chest: wages can't be paid." : $"The treasury holds {Stock.Coins(treasury)} coins and {due} are due on day {payday}.");
             }
             // (fires and torches gone out that no one can feed: their fuel isn't in the stores)
-            var dark = c.PiecesIn(c.Radius).Select(p => p.GetComponent<Fireplace>()).Where(f => f != null && !f.m_infiniteFuel && f.m_fuelItem != null && !Classes.Lit(f) && c.Feeds(f.GetComponent<Piece>()) && !Work.HaveInStock(c, f.m_fuelItem.name))
+            var dark = c.PiecesIn<Fireplace>(c.Radius).Where(f => !f.m_infiniteFuel && f.m_fuelItem != null && !Classes.Lit(f) && c.Feeds(f.GetComponent<Piece>()) && !Work.HaveInStock(c, f.m_fuelItem.name))
                 .GroupBy(f => f.m_fuelItem.name).ToList();
             foreach (var g in dark.Take(2))
             {
