@@ -1,3 +1,5 @@
+0.6.7: Hallwright and Stave temple outlines now turn in the game's own 22.5° build steps, the same steps as rotating a piece by hand, so a hall can't end up a few degrees off by accident. The first edge picks the nearest step. To draw at any angle, turn on FreeAngle under [Hallwright] in the config. Saved drafts keep their angle.
+
 0.6.6: Less network traffic when sharing drafts. An unchanged draft was resent whole to every other player every four seconds (tens of KB for a big hall); now only a tiny "still here" goes out, and a player who missed it asks for it again. Big drafts being edited go out no faster than about 40 KB/s in all. Everyone needs 0.6.6 to see each other's drafts stay up.
 
 0.6.5: Works with BuildOrders under its new id (com.quad.buildorders, from 1.12.1) and Claude Tools under its (com.quad.claudetools), and still with older copies.

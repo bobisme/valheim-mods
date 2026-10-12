@@ -15,14 +15,14 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.6.6";
+        public const string Version = "0.6.7";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
         private static readonly MethodInfo TakeInput = AccessTools.Method(typeof(Player), "TakeInput");
         private enum Tool { None, Curve, Mirror, Repeat, Arch, Hall }
         private Tool _tool;
-        private ConfigEntry<bool> _enabled, _follow;
+        private ConfigEntry<bool> _enabled, _follow, _hallFreeAngle;
         private ConfigEntry<float> _spacing;
         private ConfigEntry<KeyCode> _toggle, _modifier, _mark, _plan, _undo, _back;
         private Harmony _harmony;
@@ -77,6 +77,7 @@ namespace BuildShapes
             _back = Config.Bind("Controls", "RemoveMarker", KeyCode.Backspace, "Remove last marker; Left Ctrl also removes the last Mirror selection.");
             _spacing = Config.Bind("Repeat", "Spacing", 2f, new ConfigDescription("Maximum repeat spacing in metres; adjusted evenly to meet both ends. [ and ] adjust by 0.25 m.", new AcceptableValueRange<float>(0.25f, 16f)));
             _follow = Config.Bind("Repeat", "FollowCurve", true, "Turn pieces around world up to follow the curve, keeping their original tilt. Home toggles this.");
+            _hallFreeAngle = Config.Bind("Hallwright", "FreeAngle", false, "Let the first edge of a Hallwright or Stave temple outline set any angle. Off: the outline turns in the game's own 22.5° build steps, so it lines up with pieces placed by hand.");
             _harmony = new Harmony(Guid); _harmony.PatchAll(typeof(Plugin).Assembly);
             Logger.LogInfo($"{Name} {Version} loaded; hammer + {_toggle.Value}: choose Hallwright, Stave temple, Curve, Arch, Mirror, or Repeat from the mode picker.");
         }

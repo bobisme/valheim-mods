@@ -150,7 +150,7 @@ namespace BuildShapes
                     HallLayout.Footprint(local); // Validate before replacing the player's existing local preview.
                     float distance=action=="rectangle" && args.Length>4?HallFloat(args[4]):10;
                     if(distance<2 || distance>24)throw new ArgumentException("Preview distance must be 2–24 metres.");
-                    Stop();_tool=Tool.Hall;_hallFrame=Quaternion.Euler(0,player.transform.eulerAngles.y,0);
+                    Stop();_tool=Tool.Hall;_hallFrame=HallYaw(player.transform.eulerAngles.y);
                     _hallOrigin=player.transform.position+_hallFrame*new Vector3(-4,0,distance);
                     foreach(V3 v in local)_markers.Add(HallMarkerGround(_hallOrigin+_hallFrame*V(v)));
                     BuildHallPreview();output(HallReadout());return null;

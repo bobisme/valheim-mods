@@ -314,18 +314,25 @@ namespace BuildShapes
                 {
                     Vector3 right=point-_hallOrigin;right.y=0;
                     if(right.magnitude<1){Say("Make the first edge at least 2 metres long.");return;}
-                    right.Normalize();_hallFrame=Quaternion.LookRotation(Vector3.Cross(right,Vector3.up),Vector3.up);
+                    right.Normalize();_hallFrame=HallYaw(Quaternion.LookRotation(Vector3.Cross(right,Vector3.up),Vector3.up).eulerAngles.y);
                 }
                 Vector3 local=Quaternion.Inverse(_hallFrame)*(point-_hallOrigin),last=Quaternion.Inverse(_hallFrame)*(_markers[_markers.Count-1]-_hallOrigin);
                 last.y=0;
                 local=new Vector3(Mathf.Round(local.x/2)*2,0,Mathf.Round(local.z/2)*2);
                 if(_markers.Count>=3 && local.sqrMagnitude<0.1f){BuildHallPreview();OpenHallMenu();return;}
-                if(_markers.Count>1 && Mathf.Abs(local.x-last.x)>0.01 && Mathf.Abs(local.z-last.z)>0.01)
+                if(Mathf.Abs(local.x-last.x)>0.01 && Mathf.Abs(local.z-last.z)>0.01)
                 {if(Mathf.Abs(local.x-last.x)>=Mathf.Abs(local.z-last.z))local.z=last.z;else local.x=last.x;}
                 if((local-last).sqrMagnitude<1){Say("Place a distinct corner on the grid.");return;}
                 _markers.Add(HallMarkerGround(_hallOrigin+_hallFrame*local));
             }
             BuildHallPreview();
+        }
+        // The outline turns in the steps Valheim turns placed pieces by (Player.m_placeRotationDegrees, 22.5°) unless FreeAngle is on.
+        private static readonly System.Reflection.FieldInfo PlaceRotationStep=HarmonyLib.AccessTools.Field(typeof(Player),"m_placeRotationDegrees");
+        private Quaternion HallYaw(float yaw)
+        {
+            float step=Player.m_localPlayer!=null && PlaceRotationStep?.GetValue(Player.m_localPlayer) is float f && f>0?f:22.5f;
+            return Quaternion.Euler(0,_hallFreeAngle.Value?yaw:Mathf.Round(yaw/step)*step,0);
         }
         private void OpenHallMenu(){_hallMenu=true;_menuOpenedFrame=Time.frameCount;Cursor.lockState=CursorLockMode.None;Cursor.visible=true;}
         private void CloseHallMenu(){_hallMenu=false;_editingNumber=false;_numberEdits.Clear();_numberError=null;}
