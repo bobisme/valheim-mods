@@ -140,7 +140,7 @@ namespace Jarldom
             // The days' dawns and dusks are done with: no flood of Things and arrivals at once.
             c.R.LastDawn = Math.Max(c.R.LastDawn, c.Day - 1);
             string span = days >= 1 ? $"{days} day{(days == 1 ? "" : "s")}" : $"{Math.Round(hours)} hours";
-            c.Log("text", "", "", $"While you were away ({span}): " + string.Join("; ", lines) + ".");
+            c.Log("text", "", "", $"While you were away ({span}): " + string.Join("; ", lines) + ".", quiet: true); // (the long tally is the saga's; the screen says to look there)
             c.Tell($"While you were away ({span}), {c.R.Name} carried on: see the saga.", true);
             c.R.Flags[LiveKey] = (int)c.Now;
             c.MarkDirty(); c.Flush(); // (at once: an owner change right after mustn't see the old time and make it up again)

@@ -225,21 +225,29 @@ namespace Jarldom
             LoadBoard();
         }
 
-        public void Log(string kind, string a, string b, string text = "")
+        public void Log(string kind, string a, string b, string text = "", bool quiet = false)
         {
             if (R == null) return;
             if (!IsOwner) { Net.Act(this, "log", string.Join("\u001e", kind, a ?? "", b ?? "", text ?? "")); return; } // the owner keeps the saga
             R.Add(new LogEntry(Now, Day, kind, a, b, text));
             _dirty = true;
             string line = Stories.Line(R.Log[R.Log.Count - 1]);
-            if (line != null && kind != "kill") Tell(line);
+            if (line != null && kind != "kill" && !quiet) Tell(line);
+        }
+        // The corner's news holds a line or two: a long entry is cut at a word, the rest left to the saga.
+        public const int CornerChars = 120;
+        public static string Short(string line)
+        {
+            if (line.Length <= CornerChars) return line;
+            int cut = line.LastIndexOf(' ', CornerChars - 1);
+            return line.Substring(0, cut > 60 ? cut : CornerChars).TrimEnd(',', ';', ':', ' ') + "… (the rest is in the saga)";
         }
         // News for the players in and near the colony.
         public void Tell(string text, bool big = false)
         {
             foreach (Player p in Player.GetAllPlayers())
                 if (p != null && Utils.DistanceXZ(p.transform.position, Position) <= Radius + 60)
-                    p.Message(big ? MessageHud.MessageType.Center : MessageHud.MessageType.TopLeft, text);
+                    p.Message(big ? MessageHud.MessageType.Center : MessageHud.MessageType.TopLeft, big ? text : Short(text));
         }
 
         // ---- the tick ----

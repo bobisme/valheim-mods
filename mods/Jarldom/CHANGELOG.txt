@@ -1,3 +1,5 @@
+0.1.14: news in the top-left corner is cut at a word with '… (the rest is in the saga)' instead of running off the screen; the long 'While you were away' tally isn't flashed there at all (the centre message points to the saga); test commands unlog/relog
+
 0.1.13: hunters' arrows hit small game (the shot is aimed from the bow at the beast's middle, not from the feet: arrows flew over boars and necks); a hunt whose beast runs out of the colony's reach, or isn't down in 3 minutes, is let go a while instead of standing there for good; a hunter no longer runs from a deer
 
 0.1.12: Villagers reach chests stacked up high (three high stands 3 m up: counted straight, the top one was never near, and they stood under it for good). One making a tankard, a bow or arrows passes over a chest it can't get at (on the floor below a balcony) for another, and with none left gives the making up a while, not standing there.
