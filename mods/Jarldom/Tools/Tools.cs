@@ -266,7 +266,7 @@ namespace Jarldom
                 output(new JObject { ["relic"] = lines[1] });
                 return;
             }
-            if (c == null && cmd != "place" && cmd != "put" && cmd != "claims" && cmd != "find" && cmd != "profile" && cmd != "versions" && cmd != "compat" && cmd != "status") { error("no colony near (jarldom place pillars makes one)"); return; }
+            if (c == null && cmd != "place" && cmd != "put" && cmd != "claims" && cmd != "find" && cmd != "profile" && cmd != "versions" && cmd != "env" && cmd != "compat" && cmd != "status") { error("no colony near (jarldom place pillars makes one)"); return; }
             Player me = Player.m_localPlayer;
             switch (cmd)
             {
@@ -903,6 +903,23 @@ namespace Jarldom
                         var f = RoomFind.Find(new Vector3(F(a[2]), F(a[3]), F(a[4])));
                         output(new JObject { ["found"] = f.Xz != null, ["why"] = f.Why, ["doors"] = f.Doors, ["area"] = f.Xz != null ? Math.Round(Geometry.Area(f.Xz), 1) : 0, ["corners"] = f.Xz != null ? f.Xz.Count / 2 : 0,
                             ["outline"] = f.Xz != null ? string.Join(" ", Enumerable.Range(0, f.Xz.Count / 2).Select(k => $"{f.Xz[2 * k]:0.#},{f.Xz[2 * k + 1]:0.#}")) : "", ["leak"] = f.Leak != null ? V(f.Leak.Value) : null });
+                        break;
+                    }
+                case "env":
+                    {
+                        // Test: hold the weather (a name like ThunderStorm, Rain, Clear) or let it go (off).
+                        string e = a.Length > 2 ? a[2] : "off";
+                        EnvMan.instance.m_debugEnv = e == "off" ? "" : e;
+                        output(new JObject { ["env"] = EnvMan.instance.m_debugEnv, ["now"] = EnvMan.instance.GetCurrentEnvironment()?.m_name });
+                        break;
+                    }
+                case "fuel":
+                    {
+                        // Test: the fires within r of x z set to n fuel (0: out).
+                        Vector3 at = new Vector3(F(a[2]), 0, F(a[3])); float r = F(a[4]); float n = F(a[5]); int done = 0;
+                        foreach (Fireplace f in c.PiecesIn(c.Radius + 20).Select(pc => pc.GetComponent<Fireplace>()).Where(f => f != null && Utils.DistanceXZ(f.transform.position, at) <= r))
+                        { ZNetView fv = f.GetComponent<ZNetView>(); if (!fv.IsOwner()) fv.ClaimOwnership(); fv.GetZDO().Set(ZDOVars.s_fuel, n); done++; }
+                        output(new JObject { ["fires"] = done });
                         break;
                     }
                 case "fallen": output(new JObject { ["now"] = c.Now, ["respawn"] = Plugin.Instance.RespawnSeconds.Value, ["fallen"] = new JArray(c.R.Fallen.Select(f => $"{c.R.Row(f.Vid)?.Name ?? f.Vid}: {f.Killer}, back in {f.At + Plugin.Instance.RespawnSeconds.Value - c.Now:0} s")) }); break;
