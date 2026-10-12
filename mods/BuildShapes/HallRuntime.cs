@@ -289,6 +289,7 @@ namespace BuildShapes
                 _hallFingerprint=fingerprint;
             }
             DrawHallMeshes();
+            UpdateHallLive(Player.m_localPlayer);
         }
         private void MarkHallDoor(Player player)
         {
@@ -322,24 +323,12 @@ namespace BuildShapes
             if(_markers.Count>=HallLayout.MaximumCorners){Say("Use at most 24 corners.");return;}
             if(!CameraRay(out Ray ray) || !Physics.Raycast(ray,out RaycastHit hit,80,BuildLayers,QueryTriggerInteraction.Ignore))return;
             if(Vector3.Distance(hit.point,player.transform.position)>40){Say("Move within 40 metres of the corner.");return;}
-            Vector3 point=HallMarkerGround(hit.point);
-            if(_markers.Count==0){_hallOrigin=point;_hallFrame=Quaternion.identity;_markers.Add(point);}
+            if(_markers.Count==0){Vector3 point=HallMarkerGround(hit.point);_hallOrigin=point;_hallFrame=Quaternion.identity;_markers.Add(point);}
             else
             {
-                if(_markers.Count==1)
-                {
-                    Vector3 right=point-_hallOrigin;right.y=0;
-                    if(right.magnitude<1){Say("Make the first edge at least 2 metres long.");return;}
-                    right.Normalize();_hallFrame=HallYaw(Quaternion.LookRotation(Vector3.Cross(right,Vector3.up),Vector3.up).eulerAngles.y);
-                }
-                Vector3 local=Quaternion.Inverse(_hallFrame)*(point-_hallOrigin),last=Quaternion.Inverse(_hallFrame)*(_markers[_markers.Count-1]-_hallOrigin);
-                last.y=0;
-                local=new Vector3(Mathf.Round(local.x/2)*2,0,Mathf.Round(local.z/2)*2);
-                if(_markers.Count>=3 && local.sqrMagnitude<0.1f){BuildHallPreview();OpenHallMenu();return;}
-                if(Mathf.Abs(local.x-last.x)>0.01 && Mathf.Abs(local.z-last.z)>0.01)
-                {if(Mathf.Abs(local.x-last.x)>=Mathf.Abs(local.z-last.z))local.z=last.z;else local.x=last.x;}
-                if((local-last).sqrMagnitude<1){Say("Place a distinct corner on the grid.");return;}
-                _markers.Add(HallMarkerGround(_hallOrigin+_hallFrame*local));
+                if(!HallSnap(hit.point,out Vector3 point,out Quaternion frame,out bool closes,out string problem)){Say(problem);return;}
+                if(closes){BuildHallPreview();OpenHallMenu();return;}
+                _hallFrame=frame;_markers.Add(point);
             }
             BuildHallPreview();
         }

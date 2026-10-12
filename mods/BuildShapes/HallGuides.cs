@@ -37,6 +37,7 @@ namespace BuildShapes
         }
         private void DrawHallGuides()
         {
+            DrawHallEdges();
             if(_markers.Count==0)return;
             float floor=_hallGuideHasFloor?_hallFloorY:_markers.Max(p=>p.y)+_hallRaise;
             float wallTop=floor+_hallHeight*_hallStoreys;

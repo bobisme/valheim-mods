@@ -108,3 +108,16 @@
 1791766640993597	claude-buildshapes	itc:AQ		item.move	bn-1vn	{"state":"done"}	blake3:JCdi4qsr--2Es4aDI8d5HhOyaJdxurckAHEhVuCMMII
 1791766641008570	claude-buildshapes	itc:AQ		item.comment	bn-172	{"body":"BuildShapes 0.6.8. Built in the Creative world: flue on the ridge, open to the sky from inside. Two-storey shaft solved live (support estimate passes); not built. Ctrl+Shift+click itself not pressed by hand (tested via hall chimneys)."}	blake3:JsIyIKrhhOIg7s5_71AcSHYRFzwjVzpkUV1cRD1SSB0
 1791766641021408	claude-buildshapes	itc:AQ		item.move	bn-172	{"state":"done"}	blake3:wuh_vE1LO1svgZhGO_R4CKs9t0ZLKzBZhrJ8YihRhO0
+1791766666301860	claude-buildshapes	itc:AQ		item.move	bn-9ct	{"state":"doing"}	blake3:sbqWqBGdLt_A2jqmNW0d5ekAxvPFSKuZphyuyYRrIYc
+1791766666314800	claude-buildshapes	itc:AQ		item.assign	bn-9ct	{"action":"assign","agent":"claude-buildshapes"}	blake3:6TKknNOFVtlTFu6EFDu1duiHDNQ2Szr9m_Y8sFY3AiI
+1791766666326277	claude-buildshapes	itc:AQ		item.move	bn-2nh	{"state":"doing"}	blake3:2Q_5xwy6sg_k7Gtt1GSsib0AtWAFQTRd07C2TVVULE0
+1791766666329379	claude-buildshapes	itc:AQ		item.assign	bn-2nh	{"action":"assign","agent":"claude-buildshapes"}	blake3:vhdEryKxl68Mj9bbTNkdGEskhhLRrkFHkNVg9PtCmq0
+1791766666339391	claude-buildshapes	itc:AQ		item.move	bn-g37	{"state":"doing"}	blake3:NvM-Q3DGm8et2hZPaoSodNPEH8bTbAgWgwdqn_Qf4BA
+1791766666342906	claude-buildshapes	itc:AQ		item.assign	bn-g37	{"action":"assign","agent":"claude-buildshapes"}	blake3:wESGV2uBjq7jo4z3FtwXmj2qaaQ3sPYqSTNXK6CqaqY
+1791767055376320	claude-buildshapes	itc:AQ		item.comment	bn-9ct	{"body":"BuildShapes 0.6.9; seen in the Creative world (terrain-following dashes, live line + way back, amber/white length labels). Not tried with a mouse by hand: corners came from hall outline, the cursor from the camera."}	blake3:b8K5df-EMKmZIZ5HM8jylU_C7c3RUsSN9zj89XOsHpg
+1791767055390409	claude-buildshapes	itc:AQ		item.move	bn-9ct	{"state":"done"}	blake3:mgk-thw--IEp__zQHzgzBZWgH3PKmVCaXqMrEIrGmD0
+1791767055406409	claude-buildshapes	itc:AQ		item.comment	bn-2nh	{"body":"BuildShapes 0.6.9; seen in the Creative world (terrain-following dashes, live line + way back, amber/white length labels). Not tried with a mouse by hand: corners came from hall outline, the cursor from the camera."}	blake3:3_Usgpp5oqQmVVDcRlO3a1_j-JXXN86gD8PYnFPYFXw
+1791767055421193	claude-buildshapes	itc:AQ		item.move	bn-2nh	{"state":"done"}	blake3:_PWDf2a6WVoOmCzSOVkomGj_Y_73xSTFQnRGX0G1vVA
+1791767055434003	claude-buildshapes	itc:AQ		item.comment	bn-g37	{"body":"BuildShapes 0.6.9; seen in the Creative world (terrain-following dashes, live line + way back, amber/white length labels). Not tried with a mouse by hand: corners came from hall outline, the cursor from the camera."}	blake3:2hdalFF3ay-lprj50nbVlsMkJ9HCjR68syiZAf56SdU
+1791767055445577	claude-buildshapes	itc:AQ		item.move	bn-g37	{"state":"done"}	blake3:gIX9St8ZCYQOkazv9lN7sWhveOp-gGWdv55kn304WY0
+1791767055451031	claude-buildshapes	itc:AQ		item.move	bn-2um	{"reason":"auto-completed: all children of bn-2um are done","state":"done"}	blake3:CIEpihvMMyTiw1OzhAjE_Lhcp87AXWb6EOtoLJcjrmU

@@ -15,7 +15,7 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.6.8";
+        public const string Version = "0.6.9";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
@@ -426,6 +426,7 @@ namespace BuildShapes
             if (_hallMenu) { DrawHallMenu(); return; }
             if (_tool==Tool.Hall)
             {
+                DrawHallLabels();
                 Matrix4x4 savedHall=GUI.matrix;
                 try { Theme(); float hs=Mathf.Max(0.6f,Screen.height/1080f); GUI.matrix=Matrix4x4.Scale(new Vector3(hs,hs,1));
                     DrawHallDrawingProblem(hs);
@@ -456,7 +457,7 @@ namespace BuildShapes
         {
             DestroySharedPreviews();Stop(); _harmony?.UnpatchSelf(); if (_material != null) Destroy(_material);
             if(_anchorMaterial!=null)Destroy(_anchorMaterial);
-            DestroyHall(); UnregisterHallCommands(); DestroyTheme();
+            DestroyHall(); DestroyHallDrawing(); UnregisterHallCommands(); DestroyTheme();
             if (Instance == this) Instance = null;
         }
     }
