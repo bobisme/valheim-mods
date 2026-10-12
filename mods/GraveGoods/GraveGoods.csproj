@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>GraveGoods</AssemblyName><RootNamespace>GraveGoods</RootNamespace></PropertyGroup>
+</Project>

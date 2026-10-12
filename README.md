@@ -625,6 +625,51 @@ First playtest:
 5. Let a raven go at sea. Name your ship, walk inland, and find her on the map. Climb the masthead.
 6. Build a vane, a beacon (feed it, name it, sail away at night) and a sea-mark on the water.
 
+## Grave Goods
+
+Loot worth crawling for: the weapons and war-gear the dead were buried with. Treasure chests (`TreasureChest_*` in crypts,
+caves, barrows, towers and camps, buried treasure, and the shipwreck chest) sometimes hold a real weapon, armour piece or
+shield from the chest's depth of the world (the biome: Meadows 1 to Ashlands 7; 70% that tier, 20% one shallower, 10% one
+deeper), with powers by rarity:
+
+| Rarity | Colour | Powers | Per chest (defaults) |
+|---|---|---|---|
+| Plain | white | none: just the thing, buried, quality 1–2 | 14% |
+| Fine | green | one, named from it ("Burning Iron sword") | 12% |
+| Runed | blue | two ("Keen Iron sword of the Raven"), quality 2–3 | 6% |
+| Heirloom | purple | three, and a kenning for a name (Wound-wand, Battle-moon), quality 3–4 | 2.3% |
+| Saga | orange | a saga item (Gram, Tyrfing, Skofnung, Hrunting, Kvernbítr, Rimmugýgr, Gunnar's Atgeir, Gusisnautar, Svalinn, Ægishjálmur, the Golden Byrnie, Valshamr...) with its lore and own powers, plus two more; quality 4 | 0.6% |
+
+Each saga item turns up once per world (a world key) until all of its kind are found. Kinds no saga sings of get the best
+heirloom instead.
+
+**Powers.** Weapons: damage, part of the damage as fire, frost, lightning, poison or spirit, less stamina to swing, stagger,
+sneak-attack damage, blood-drinking (a share of each blow heals you), their own skill. Armour and shields: armour, block
+power, health, stamina, eitr (tier 5+), health or stamina regeneration, movement speed, carry weight, a skill, wards against
+fire, frost, poison, lightning or spirit (at most 80% together). Any: more durability, less weight. Flat amounts (health,
+stamina, eitr) grow with the tier.
+
+An item's own numbers (damage, armour, block, durability, weight) change wherever the game reads them, so its tooltip lines,
+repairs and blows all agree. What worn and wielded things give the wearer is added up through the game's status-effect
+hooks (`SEMan.Modify*`, `GetTotalFoodValue`), and wards cut damage as it arrives. The tooltip puts the rarity, tier, lore and
+powers at the top in the rarity's colour; slots are tinted; runed and rarer finds glow on the ground; opening a chest on a
+find names it (Heirloom and Saga in the centre of the screen).
+
+The pool is built from the game's own recipes: every weapon, armour piece and shield with a recipe, its tier the deepest of
+its ingredients (bronze 2, iron 3, silver 4, black metal 5, carapace 6, flametal 7...). Tankards, feast gear, farm tools and
+the training sword are left out. Every chest is rolled once (a ZDO flag), by whoever owns it, the first time it loads, chests
+found before the mod too. A find is an ordinary item with a record in `m_customData`: without the mod it is a plain item.
+Chance and rarity weights are in F7. Checks cover rarity and tier rolls, powers by kind and depth, names, the record, saga
+uniqueness and recipe tiers, plus the native hooks. Claude Tools gets a `gravegoods` command (`info`, `pool`, `give`,
+`bless`, `take`, `sim`, `chests`, `chest`, `drop`, `remove`, `hover`).
+
+First playtest:
+
+1. Run a crypt or a troll cave and open its chests. Hover a find; equip it and watch the numbers.
+2. Wear Fine and Runed armour and check health, stamina, carry weight and speed.
+3. Fight with a blood-drinking or elemental weapon. Take fire or poison with a ward on.
+4. Find an Heirloom (purple) and, with luck, a Saga item.
+
 ## ChestSearch
 
 Press **Ctrl+F** to open your inventory and a nearby-chest search window. Type part of an item's name; multiple words all need to match.

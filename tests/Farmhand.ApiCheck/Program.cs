@@ -257,6 +257,38 @@ Method("Floating","GetLiquidLevel","System.Single","UnityEngine.Vector3","System
 Field("RandomFlyingBird","m_randomNoise","EffectList");
 Field("Player","m_customData","System.Collections.Generic.Dictionary`2<System.String,System.String>");
 
+// Grave Goods: treasure chests seeded once, item numbers raised by their powers, worn powers added up, tooltips and slots.
+Method("Container","CheckForChanges","System.Void");
+Method("Container","Load","System.Boolean");
+Field("Container","m_nview","ZNetView");
+Method("ItemDrop/ItemData","GetDamage","HitData/DamageTypes","System.Int32","System.Single");
+Method("ItemDrop/ItemData","GetArmor","System.Single","System.Int32","System.Single");
+Method("ItemDrop/ItemData","GetMaxDurability","System.Single","System.Int32");
+Method("ItemDrop/ItemData","GetBaseBlockPower","System.Single","System.Int32");
+Method("ItemDrop/ItemData","GetWeight","System.Single","System.Int32");
+Method("ItemDrop/ItemData","GetTooltip","System.String","ItemDrop/ItemData","System.Int32","System.Boolean","System.Single","System.Int32","System.Boolean");
+Method("Player","GetTotalFoodValue","System.Void","System.Single&","System.Single&","System.Single&");
+Method("SEMan","ModifyHealthRegen","System.Void","System.Single&");
+Method("SEMan","ModifyStaminaRegen","System.Void","System.Single&");
+Method("SEMan","ModifyMaxCarryWeight","System.Void","System.Single","System.Single&");
+Method("SEMan","ModifySkillLevel","System.Void","Skills/SkillType","System.Single&");
+Method("SEMan","ApplyStatusEffectSpeedMods","System.Void","System.Single&","UnityEngine.Vector3");
+Method("SEMan","ModifyAttackStaminaUsage","System.Void","System.Single","System.Single&","System.Boolean");
+Method("SEMan","ModifyAttack","System.Void","Skills/SkillType","HitData&");
+Field("SEMan","m_character","Character");
+Method("Character","Damage","System.Void","HitData");
+Method("Character","RPC_Damage","System.Void","System.Int64","HitData");
+Method("InventoryGrid","CreateItemTooltip","System.Void","ItemDrop/ItemData","UITooltip");
+Method("InventoryGrid","UpdateGui","System.Void","Player","ItemDrop/ItemData");
+Field("InventoryGrid","m_elements","System.Collections.Generic.List`1<InventoryElement>");
+Field("InventoryGrid","m_inventory","Inventory");
+Field("InventoryGui","m_containerGrid","InventoryGrid");
+Method("InventoryGui","Show","System.Void","Container","System.Int32");
+Method("ItemDrop","GetHoverText","System.String");
+Method("ItemDrop","Start","System.Void");
+Method("ZoneSystem","SetGlobalKey","System.Void","System.String");
+Method("ZoneSystem","GetGlobalKey","System.Boolean","System.String");
+
 // Omens: a networked sign the host creates as a raw ZDO, the game's own raid events, and night timing.
 Method("ZNet","Shutdown","System.Void","System.Boolean");
 Method("ZNet","GetWorldUID","System.Int64");
