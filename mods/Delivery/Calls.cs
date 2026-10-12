@@ -111,8 +111,8 @@ namespace Delivery
         }
 
         // The sound itself: a small horn's, with a few finger-holes (five notes a little apart, not a war horn's leaps). Each note swells
-        // quickly, scoops up into pitch from a little flat, wavers slowly when held, brightens as the breath builds, and has a soft
-        // overblown edge and a breath of noise.
+        // quickly, scoops up into pitch from a little flat, wavers slowly when held, brightens a little as the breath builds, and has
+        // a rasp and breath coming through it; the high end is rolled off.
         private static readonly float[] Holes={1f,1.125f,1.26f,1.5f,1.682f}; // (the root, a second, a third, a fifth and a sixth)
         private const float Root=262f; // (middle C)
         internal static float[] Synth(Note[] tune,bool far)
@@ -128,7 +128,7 @@ namespace Delivery
                 int count=(int)(len*Rate);
                 float f=Root*Holes[Mathf.Clamp(n.Partial-Policy.LowPartial,0,Holes.Length-1)];
                 double phase=0;
-                float noise=0;
+                float noise=0,rasp=0;
                 for(int i=0;i<count+(int)(0.07f*Rate)&&at+i<total;i++)
                 {
                     float t=i/(float)Rate;
@@ -137,16 +137,19 @@ namespace Delivery
                     float held=Mathf.Clamp01((t-0.12f)/0.2f);
                     float bend=-0.035f*Mathf.Exp(-t/0.035f)+0.005f*held*Mathf.Sin(2*Mathf.PI*5.2f*t)-0.008f*held;
                     phase+=2*System.Math.PI*f*(1+bend)/Rate;
-                    float bright=0.45f+0.55f*env;
+                    float bright=0.3f+0.4f*env; // (a duller horn than a trumpet: the upper overtones held back)
                     float s=0;
                     for(int k=1;k<=10;k++)
                     {
-                        if(f*k>9000)break;
+                        if(f*k>5000)break;
                         float amp=Mathf.Pow(k,-(2.1f-1.1f*bright));
                         s+=amp*(float)System.Math.Sin(phase*k);
                     }
                     noise=noise*0.85f+0.15f*(float)(rng.NextDouble()*2-1);
-                    s=(float)System.Math.Tanh(1.7f*s)*0.8f+noise*0.26f*env;
+                    rasp=rasp*0.92f+0.08f*(float)(rng.NextDouble()*2-1);
+                    s=(float)System.Math.Tanh(1.7f*s)*0.8f*(1f+0.6f*rasp);
+                    // breath coming through: air on its own, and air riding the tone
+                    s+=noise*env*(0.32f+0.9f*Mathf.Abs(s));
                     dry[at+i]+=s*env*(0.85f+0.15f*(n.Partial-2)/4f);
                 }
                 at+=(int)((len+Policy.Gap)*Rate);
@@ -159,7 +162,9 @@ namespace Delivery
                 int d=(int)(delay*Rate);
                 for(int i=0;i+d<total;i++)wet[i+d]+=dry[i]*gain;
             }
-            if(far){float y=0;for(int i=0;i<total;i++){y+=0.18f*(wet[i]-y);wet[i]=y;}}
+            // the high end rolled off (twice over from afar)
+            float cut=far?0.18f:0.4f;
+            for(int pass=0;pass<2;pass++){float y=0;for(int i=0;i<total;i++){y+=cut*(wet[i]-y);wet[i]=y;}}
             float peak=0.0001f;foreach(float v in wet)peak=Mathf.Max(peak,Mathf.Abs(v));
             for(int i=0;i<total;i++)wet[i]*=0.85f/peak;
             return wet;
