@@ -1,3 +1,5 @@
+0.8.6: The Hallwright stake now really is a thin, tall pole standing on the ground (0.8.5 stretched the game's rotated pole model sideways into a floating slab), and its flag is orange instead of blue.
+
 0.8.5: The Hallwright stake looks like a surveyor's stake: a thin pole 1.8 m tall standing on the ground, with a bright orange flag at the top (was a short, thick post with a small grey flag). Its build-menu icon shows the same.
 
 0.8.4: With the Hallwright stake in hand, the hint box at the bottom left is gone (the stake's build-menu entry says the same); drawing problems still show, and the "need more corners" message says to click rather than Shift+click.

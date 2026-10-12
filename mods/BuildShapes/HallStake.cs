@@ -56,20 +56,20 @@ namespace BuildShapes
             // No snapping: the ghost goes where the next corner goes.
             foreach(Transform child in stake.transform.Cast<Transform>().ToList())if(child.name.StartsWith("$hud_snappoint",StringComparison.Ordinal))DestroyImmediate(child.gameObject);
             // A surveyor's stake: the pole made thin and tall, standing on the ground.
+            // Scaled through one parent: the pole's model is rotated inside the prefab, so scaling its parts would stretch the wrong way.
             const float Thin=0.35f,Tall=1.8f;
-            foreach(Transform child in stake.transform.Cast<Transform>())
-            {
-                Vector3 at=child.localPosition;child.localPosition=new Vector3(at.x*Thin,(at.y-bottom)*Tall,at.z*Thin);
-                child.localScale=Vector3.Scale(child.localScale,new Vector3(Thin,Tall,Thin));
-            }
+            var model=new GameObject("Model").transform;model.SetParent(stake.transform,false);
+            foreach(Transform child in stake.transform.Cast<Transform>().Where(t=>t!=model).ToList())child.SetParent(model,false);
+            model.localPosition=new Vector3(0,-bottom*Tall,0);model.localScale=new Vector3(Thin,Tall,Thin);
             top=(top-bottom)*Tall;
-            // A bright flag at the top: the pole's own material, untextured and coloured, so it shows from afar.
+            // A bright flag at the top: the pole's own material with a plain orange texture, so it shows from afar.
             Material wood=stake.GetComponentsInChildren<Renderer>(true).Select(r=>r.sharedMaterial).FirstOrDefault(m=>m!=null);
             Material cloth=null;
             if(wood!=null)
             {
-                cloth=new Material(wood){name="BuildShapes stake flag",mainTexture=null,color=new Color(1f,0.32f,0.08f)};
-                if(cloth.HasProperty("_BumpMap"))cloth.SetTexture("_BumpMap",null);
+                var orange=new Texture2D(2,2,TextureFormat.RGBA32,false){name="BuildShapes stake flag"};
+                orange.SetPixels(Enumerable.Repeat(new Color(1f,0.32f,0.08f),4).ToArray());orange.Apply();_stakeOwned.Add(orange);
+                cloth=new Material(wood){name="BuildShapes stake flag",mainTexture=orange,color=Color.white};
                 if(cloth.HasProperty("_EmissionColor")){cloth.EnableKeyword("_EMISSION");cloth.SetColor("_EmissionColor",new Color(0.45f,0.12f,0.02f));}
                 _stakeOwned.Add(cloth);
             }
