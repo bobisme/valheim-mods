@@ -43,6 +43,13 @@ namespace Jarldom
                 else p.Message(MessageHud.MessageType.Center, "No room or zone marked here.");
             }
         }
+        private static string Sig(Colony c)
+        {
+            var sb = new System.Text.StringBuilder(c.Id);
+            foreach (Room r in c.R.Rooms) sb.Append('|').Append(r.Id).Append(r.Type).Append(r.Ok).Append(r.Grade).Append(r.OpenEdges).Append(r.Floor).Append(string.Join(",", r.Xz));
+            foreach (Zone z in c.R.Zones) sb.Append('|').Append(z.Id).Append(z.Type).Append(string.Join(",", z.Xz));
+            return sb.ToString();
+        }
         public static void Clear() { Corners.Clear(); Draw(); }
         public const float RoundRadius = 15f;
         public static List<float> Circle(Vector3 at, float r)
@@ -142,7 +149,7 @@ namespace Jarldom
             Player p = Player.m_localPlayer;
             bool show = p != null && p.InPlaceMode() && Plugin.Instance.Overlay.Value;
             Colony c = show ? Colony.Nearest(p.transform.position, Renown.ZoneReach + 40) : null;
-            string sig = c == null ? "" : c.Id + c.Z.DataRevision;
+            string sig = c == null ? "" : Sig(c); // (what's drawn, not the colony's every save: villagers' doings change that by the second)
             if (sig == _shown) return;
             _shown = sig;
             Clear();
@@ -182,6 +189,13 @@ namespace Jarldom
                 Vector3 centre = Zones.Centre(z); centre.y = ZoneSystem.instance.GetGroundHeight(centre) + 2f;
                 Drawn.Add(Label(centre, Tables.Of(z.Type).Name, new Color(0.55f, 0.75f, 1f, 0.9f)));
             }
+        }
+        private static string Sig(Colony c)
+        {
+            var sb = new System.Text.StringBuilder(c.Id);
+            foreach (Room r in c.R.Rooms) sb.Append('|').Append(r.Id).Append(r.Type).Append(r.Ok).Append(r.Grade).Append(r.OpenEdges).Append(r.Floor).Append(string.Join(",", r.Xz));
+            foreach (Zone z in c.R.Zones) sb.Append('|').Append(z.Id).Append(z.Type).Append(string.Join(",", z.Xz));
+            return sb.ToString();
         }
         public static void Clear() { foreach (GameObject g in Drawn) if (g != null) Object.Destroy(g); Drawn.Clear(); _shown = ""; }
         public static void Stop() { Clear(); if (_root != null) Object.Destroy(_root); _root = null; }
@@ -223,13 +237,15 @@ namespace Jarldom
         private static GameObject Label(Vector3 at, string text, Color color)
         {
             var go = new GameObject("JarldomRoomLabel");
+            go.SetActive(false); // (the font given before the text wakes: it looks for a default font otherwise, and warns there's none)
             go.transform.SetParent(Root, false);
             go.transform.position = at;
             var t = go.AddComponent<TMPro.TextMeshPro>();
-            t.text = text; t.fontSize = 4; t.color = color; t.alignment = TMPro.TextAlignmentOptions.Center;
             TMPro.TMP_FontAsset font = GameUi.Norse ?? WorldFont();
             if (font != null) t.font = font;
+            t.text = text; t.fontSize = 4; t.color = color; t.alignment = TMPro.TextAlignmentOptions.Center;
             go.AddComponent<Billboard>();
+            go.SetActive(true);
             return go;
         }
         private static TMPro.TMP_FontAsset _font;
