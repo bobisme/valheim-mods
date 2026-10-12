@@ -674,8 +674,7 @@ First playtest:
 
 Hot food, brought to you, a little goofy. An **Errand Horn** (workbench: 4 wood, 2 leather scraps, 1 resin) opens a menu of
 the cooked meals you know (made in a cauldron or oven, or cooked on a cooking station), each with what it fills, its price and
-its **call**: three to five notes from the horn's overtones (a horn without finger-holes plays only those), drawn as notes
-beside it. Blow a meal's call once per portion (up to ten), then the end call. The calls are synthesised in code (overtones,
+its own **call**: three to five of the horn's five finger-hole notes, short or held. Blow a meal's call once per portion (up to ten), then the end call. The calls are synthesised in code (overtones,
 a scoop into each note, breath, echo), and other players within earshot hear yours.
 
 A horn answers from the distance; the courier sets out after a wait (60 s at middling regard, 90 s sullen, 30 s devoted), runs

@@ -6,8 +6,8 @@ using UnityEngine.UI;
 
 namespace Delivery
 {
-    // The horn's menu: every meal you can order, with what it fills, its price and its call drawn as notes (high notes higher, held notes
-    // longer). "Blow" sounds that meal's call (one portion each time); "That's all!" blows the end call and the order goes out.
+    // The horn's menu: every meal you can order, with what it fills and its price. "Blow" sounds that meal's call (one portion each
+    // time); "That's all!" blows the end call and the order goes out.
     internal static class OrderMenu
     {
         private static RectTransform _window,_list;
@@ -107,9 +107,8 @@ namespace Delivery
                 RectTransform r=GameUi.Rect(_list,"Meal",new Vector2(0,1),new Vector2(0,1),new Vector2(0,y),new Vector2(w,row));
                 if(i%2==0)GameUi.Plain(GameUi.Stretch(r,"Shade",-2,-2,-2,-2),new Color(0,0,0,0.12f));
                 GameUi.Icon(r,new Vector2(8,-7),new Vector2(48,48),m.Data.GetIcon());
-                GameUi.Label(r,m.Name,new Vector2(64,-8),new Vector2(200,24),18,GameUi.Text);
-                GameUi.Label(r,m.Stats,new Vector2(64,-33),new Vector2(210,22),14,GameUi.Dim);
-                Score(r,m.Tune,new Vector2(272,-12),new Vector2(118,38));
+                GameUi.Label(r,m.Name,new Vector2(64,-8),new Vector2(320,24),18,GameUi.Text);
+                GameUi.Label(r,m.Stats,new Vector2(64,-33),new Vector2(320,22),14,GameUi.Dim);
                 bool afford=food+m.Price+fee<=coins||Run.Free;
                 GameUi.Label(r,$"{m.Price}",new Vector2(394,-18),new Vector2(36,26),18,afford?GameUi.Gold:GameUi.Warn,null,TextAlignmentOptions.TopRight);
                 GameUi.Chip(r,new Vector2(432,-16),ObjectDB.instance.GetItemPrefab("Coins")?.GetComponent<ItemDrop>()?.m_itemData,"",24,14);
@@ -153,22 +152,6 @@ namespace Delivery
                     Run.Now==Run.Stage.Coming?$"{c.Name} is running your way.":$"{c.Name} is here.";
                 Line(state,16,GameUi.Text);
                 Line("One order at a time: he has only two hands.",14,GameUi.Dim);
-            }
-        }
-
-        // A meal's call as notes: one bar per note, higher for higher notes, longer for held ones.
-        private static void Score(RectTransform parent,Note[] tune,Vector2 pos,Vector2 size)
-        {
-            RectTransform s=GameUi.Rect(parent,"Score",new Vector2(0,1),new Vector2(0,1),pos,size);
-            for(int line=0;line<5;line++)
-                GameUi.Plain(GameUi.At(s,"Line",0,line*size.y/4f,size.x,1),new Color(1,1,1,0.07f));
-            float total=(float)Policy.Length(tune),x=0;
-            foreach(Note n in tune)
-            {
-                float len=(float)((n.Long?Policy.LongBeat:Policy.ShortBeat)/total)*size.x;
-                float y=(Policy.HighPartial-n.Partial)*size.y/4f;
-                GameUi.Plain(GameUi.At(s,"Note",x,y-3,Mathf.Max(5,len-1),6),GameUi.Gold);
-                x+=(float)(((n.Long?Policy.LongBeat:Policy.ShortBeat)+Policy.Gap)/total)*size.x;
             }
         }
     }
