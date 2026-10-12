@@ -139,7 +139,7 @@ namespace Delivery
                 Line($"Total: <color=#ffd27a>{food+fee}</color> · you have {coins}",17,food+fee<=coins?GameUi.Text:GameUi.Warn);
                 sy-=4;
                 Line($"Paid when he gets here. {c.Name} sets out in about {Mathf.RoundToInt(Policy.Wait(Plugin.WaitSeconds.Value,c.Regard))} s; tips make him quicker.",14,GameUi.Dim);
-                GameUi.Button(side,"That's all! (end call)",new Vector2(14,-418),new Vector2(248,44),()=>_send=true,Calling.Count>0&&!Calls.Busy&&(food+fee<=coins||Run.Free),17);
+                GameUi.Button(side,"That's all! (end call)",new Vector2(14,-418),new Vector2(248,44),()=>_send=true,Calling.Count>0&&(food+fee<=coins||Run.Free),17);
                 GameUi.Button(side,"Start over",new Vector2(14,-466),new Vector2(248,40),()=>_clear=true,Calling.Count>0,16);
             }
             else

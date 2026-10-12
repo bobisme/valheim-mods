@@ -13,7 +13,7 @@ namespace Delivery
     {
         public const string Guid="com.bobisme.delivery";
         public const string Name="Delivery";
-        public const string Version="0.1.2";
+        public const string Version="0.1.3";
         internal static Plugin Instance;
         internal static ConfigEntry<float> WaitSeconds,CourierDistance,Earshot,Volume,TipWait,GiveUpSeconds;
         internal static ConfigEntry<bool> OnlyKnown,ShowOnMap;

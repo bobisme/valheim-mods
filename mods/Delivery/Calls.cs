@@ -16,9 +16,6 @@ namespace Delivery
         private static AudioMixerGroup _mixer;
         private static ZRoutedRpc _registered;
 
-        internal static bool Busy=>Time.time<_busyUntil||Waiting.Count>0;
-        internal static float FreeIn=>Mathf.Max(0,_busyUntil-Time.time)+Sum();
-        private static float Sum(){float s=0;foreach(var w in Waiting)s+=(float)Policy.Length(w.tune)+0.35f;return s;}
 
         // Your own call: you hear it, and so does everyone within earshot.
         internal static void Blow(Note[] tune)
