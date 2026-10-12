@@ -151,8 +151,9 @@ namespace Jarldom
             Colony c = show ? Colony.Nearest(p.transform.position, Renown.ZoneReach + 40) : null;
             string sig = c == null ? "" : Sig(c); // (what's drawn, not the colony's every save: villagers' doings change that by the second)
             if (sig == _shown) return;
-            _shown = sig;
             Clear();
+            _shown = sig; // (after Clear, which forgets what was shown)
+            if (c == null) Strays(); // (put away: whatever another copy of the mod left drawn goes too)
             if (c == null) return;
             foreach (Room r in c.R.Rooms)
             {
@@ -206,11 +207,21 @@ namespace Jarldom
         public static Transform Root { get { if (_root == null) _root = new GameObject(RootName); return _root.transform; } }
         public static void SweepOld()
         {
-            GameObject old = GameObject.Find(RootName); if (old != null && old != _root) Object.Destroy(old);
+            Strays();
             // (once, at load: copies before 0.1.0's overlay root drew loose lines and labels)
             foreach (LineRenderer l in Object.FindObjectsOfType<LineRenderer>()) if (l != null && l.name.StartsWith("Jarldom") && l.transform.parent == null) Object.Destroy(l.gameObject);
             foreach (TMPro.TextMeshPro t in Object.FindObjectsOfType<TMPro.TextMeshPro>()) if (t != null && t.name == "JarldomRoomLabel" && t.transform.parent == null) Object.Destroy(t.gameObject);
         }
+        // Every overlay root but this copy's (a reloaded copy's, each one: GameObject.Find only ever finds the first).
+        public static int Strays(bool remove = true)
+        {
+            int n = 0;
+            for (int k = 0; k < UnityEngine.SceneManagement.SceneManager.sceneCount; k++)
+                foreach (GameObject g in UnityEngine.SceneManagement.SceneManager.GetSceneAt(k).GetRootGameObjects())
+                    if (g != null && g.name == RootName && g != _root) { n++; if (remove) Object.Destroy(g); }
+            return n;
+        }
+        public static string State() => $"shown {(_shown == "" ? "nothing" : "a colony")}, {Drawn.Count} drawn, own root {(_root == null ? "none" : _root.transform.childCount + " children")}, strays {Strays(false)}";
         public static LineRenderer NewLine(string name, Color color, float width)
         {
             var go = new GameObject(name);

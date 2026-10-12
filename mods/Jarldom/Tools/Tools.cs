@@ -266,7 +266,7 @@ namespace Jarldom
                 output(new JObject { ["relic"] = lines[1] });
                 return;
             }
-            if (c == null && cmd != "place" && cmd != "put" && cmd != "claims" && cmd != "find" && cmd != "profile" && cmd != "versions" && cmd != "env" && cmd != "compat" && cmd != "status") { error("no colony near (jarldom place pillars makes one)"); return; }
+            if (c == null && cmd != "place" && cmd != "put" && cmd != "claims" && cmd != "find" && cmd != "profile" && cmd != "versions" && cmd != "env" && cmd != "overlay" && cmd != "compat" && cmd != "status") { error("no colony near (jarldom place pillars makes one)"); return; }
             Player me = Player.m_localPlayer;
             switch (cmd)
             {
@@ -903,6 +903,12 @@ namespace Jarldom
                         var f = RoomFind.Find(new Vector3(F(a[2]), F(a[3]), F(a[4])));
                         output(new JObject { ["found"] = f.Xz != null, ["why"] = f.Why, ["doors"] = f.Doors, ["area"] = f.Xz != null ? Math.Round(Geometry.Area(f.Xz), 1) : 0, ["corners"] = f.Xz != null ? f.Xz.Count / 2 : 0,
                             ["outline"] = f.Xz != null ? string.Join(" ", Enumerable.Range(0, f.Xz.Count / 2).Select(k => $"{f.Xz[2 * k]:0.#},{f.Xz[2 * k + 1]:0.#}")) : "", ["leak"] = f.Leak != null ? V(f.Leak.Value) : null });
+                        break;
+                    }
+                case "overlay":
+                    {
+                        // Test: what's drawn for the hammer, and leftover overlays of other copies.
+                        output(new JObject { ["overlay"] = Overlay_.State() });
                         break;
                     }
                 case "env":
