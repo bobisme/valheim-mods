@@ -42,7 +42,8 @@ namespace Jarldom
     ///       }
     ///       internal static void Close()                // public static: Claude Tools' "shoot close" calls it before a screenshot
     ///       {
-    ///           if (_window != null) Object.Destroy(_window.gameObject);
+    ///           if (_window == null) return;            // (closed already: HideTooltip would hide the inventory's tooltips too)
+    ///           Object.Destroy(_window.gameObject);
     ///           _window = null; _closedAt = Time.unscaledTime; UITooltip.HideTooltip();
     ///       }
     ///       internal static void Tick()                 // from your plugin's Update

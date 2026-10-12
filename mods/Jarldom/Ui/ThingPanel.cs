@@ -34,7 +34,7 @@ namespace Jarldom.Ui
         // E on the one who spoke: back again.
         public static void Recall() { _dismissed = ""; _next = 0; }
         public static void Dismiss() { _dismissed = _shown; Close(); }
-        public static void Close() { if (_window != null) Object.Destroy(_window.gameObject); _window = null; UITooltip.HideTooltip(); }
+        public static void Close() { if (_window == null) return; Object.Destroy(_window.gameObject); _window = null; UITooltip.HideTooltip(); } // (only when it was open: Tick closes it three times a second, and every tooltip in the game went with it)
 
         private static void Build(string key)
         {

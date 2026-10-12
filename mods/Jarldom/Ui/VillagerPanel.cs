@@ -28,7 +28,8 @@ namespace Jarldom.Ui
         }
         public static void Close()
         {
-            if (_window != null) Object.Destroy(_window.gameObject);
+            if (_window == null) return; // (closed already: other tooltips, the inventory's, are left alone)
+            Object.Destroy(_window.gameObject);
             _window = null; _closedAt = Time.unscaledTime; UITooltip.HideTooltip();
         }
         public static void Tick()
