@@ -40,6 +40,7 @@ namespace Jarldom
                     if (door >= 0) { doorsMet.Add(door); continue; }
                     if (Blocked(p, q)) continue;
                     if (!Floor(q, at.y)) continue; // (a hole, a stair down, the edge of a raised floor)
+                    if (!Roofed(q)) continue; // (out from under the roof: a room's edge, even through a gap in a wall)
                     seen.Add(n); queue.Enqueue(n);
                 }
             }
@@ -55,6 +56,7 @@ namespace Jarldom
             return Physics.Linecast(a + Vector3.up * 0.6f, b + Vector3.up * 0.6f, Mask, QueryTriggerInteraction.Ignore)
                 && Physics.Linecast(a + Vector3.up * 1.6f, b + Vector3.up * 1.6f, Mask, QueryTriggerInteraction.Ignore);
         }
+        private static bool Roofed(Vector3 q) => Physics.Raycast(q + Vector3.up * 0.5f, Vector3.up, 10f, LayerMask.GetMask("piece", "piece_nonsolid"), QueryTriggerInteraction.Ignore);
         private static bool Floor(Vector3 q, float y)
         {
             if (!Physics.Raycast(new Vector3(q.x, y + 1.0f, q.z), Vector3.down, out RaycastHit hit, 2.0f, Mask, QueryTriggerInteraction.Ignore)) return false;
@@ -95,6 +97,11 @@ namespace Jarldom
             pts = Simplify(pts, 0.3f);
             for (float tol = 0.6f; pts.Count > 24 && tol < 4f; tol += 0.3f) pts = Simplify(pts, tol);
             if (pts.Count < 3) return null;
+            // (nearly the whole of its bounding box: the box, four clean corners, not the notches posts and door frames leave)
+            float minX = pts.Min(v => v.x), maxX = pts.Max(v => v.x), minZ = pts.Min(v => v.y), maxZ = pts.Max(v => v.y);
+            var flat = new List<float>(); foreach (Vector2 v in pts) { flat.Add(v.x); flat.Add(v.y); }
+            if (pts.Count > 4 && Geometry.Area(flat) >= 0.85f * (maxX - minX) * (maxZ - minZ))
+                pts = new List<Vector2> { new Vector2(minX, minZ), new Vector2(maxX, minZ), new Vector2(maxX, maxZ), new Vector2(minX, maxZ) };
             var xz = new List<float>(); foreach (Vector2 v in pts) { xz.Add((float)System.Math.Round(v.x, 2)); xz.Add((float)System.Math.Round(v.y, 2)); }
             return xz;
         }
