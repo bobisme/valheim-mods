@@ -15,7 +15,7 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.8.3";
+        public const string Version = "0.8.4";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
@@ -448,7 +448,8 @@ namespace BuildShapes
                 try { Theme(); float hs=Mathf.Max(0.6f,Screen.height/1080f); GUI.matrix=Matrix4x4.Scale(new Vector3(hs,hs,1));
                     DrawHallDrawingProblem(hs);
                     string hint=(StakeMode?"Hallwright stake: click corners · Shift+click entrances"+(_staveTemple?"":" · Ctrl+click: "+(_hallNorse?"smoke hole":"chimney"))+" · E inside the outline: settings · Backspace (Shift/Ctrl+): undo · Delete: clear\n":"Hallwright: Shift+click corners · Ctrl+click entrances"+(_staveTemple?"":" · Ctrl+Shift+click: chimney")+" · L: settings · Delete: clear · F4: modes · Esc: exit\n")+(_hallProblem??$"{_markers.Count} corners · {_output.Count} pieces · support estimate passed");
-                    GUI.Box(new Rect(20,Screen.height/hs-160,Mathf.Min(1000,Screen.width/hs-40),95),hint,_hud);
+                    // With the stake its build-menu entry says all this; the box is for F4 mode.
+                    if(!StakeMode)GUI.Box(new Rect(20,Screen.height/hs-160,Mathf.Min(1000,Screen.width/hs-40),95),hint,_hud);
                 } finally { GUI.matrix=savedHall; } return;
             }
             string detail = _tool == Tool.Mirror ? $"{_sources.Count} selected; Ctrl+click toggles pieces/ghosts; Ctrl+Backspace removes last selection." :

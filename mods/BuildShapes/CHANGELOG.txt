@@ -1,3 +1,5 @@
+0.8.4: With the Hallwright stake in hand, the hint box at the bottom left is gone (the stake's build-menu entry says the same); drawing problems still show, and the "need more corners" message says to click rather than Shift+click.
+
 0.8.3: With the Hallwright stake, Shift+Backspace removes the last entrance and Ctrl+Backspace the last smoke hole or chimney, matching Shift+click and Ctrl+click; the messages after marking one say so. F4 → Hallwright keeps Ctrl+Backspace and Ctrl+Shift+Backspace.
 
 0.8.2: With the Hallwright stake, Shift+click marks an entrance and Ctrl+click a smoke hole or chimney (were Ctrl+click and Ctrl+Shift+click); a plain click is still a corner. The hints, the stake's description and the settings window say so. F4 → Hallwright keeps its keys (Shift+click corners, Ctrl+click entrances, Ctrl+Shift+click chimneys).

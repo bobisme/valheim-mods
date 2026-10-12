@@ -212,7 +212,7 @@ namespace BuildShapes
             _hallProblem=null;_hallNote=null;_hallFalls=0;_hallAddedPosts=0;_hallDesign=null;_hallGroundJob.Clear();_hallTargetMaps.Clear();
             try
             {
-                if(_markers.Count<3)throw new ArgumentException("Draw the boundary with Shift+click, then L opens the hall settings.");
+                if(_markers.Count<3)throw new ArgumentException(StakeMode?"Click the ground for each corner, then press E inside the outline for the hall settings.":"Draw the boundary with Shift+click, then L opens the hall settings.");
                 _hallKit=HallKit(Player.m_localPlayer);
                 var corners=_markers.Select(p=>{Vector3 v=Quaternion.Inverse(_hallFrame)*(p-_hallOrigin);return new V3(Math.Round(v.x/2)*2,0,Math.Round(v.z/2)*2);}).ToArray();
                 var details=HallDetailsKit();
