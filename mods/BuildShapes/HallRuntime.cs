@@ -358,7 +358,7 @@ namespace BuildShapes
             if(remove>=0 && remove<_hallDoorPoints.Count)_hallDoorPoints.RemoveAt(remove);
             else if(_hallDoorPoints.Count<HallDoors.Maximum)_hallDoorPoints.Add(point);
             else{Say("Mark at most eight entrances. Ctrl+click a marker to remove it.");return;}
-            BuildHallPreview(false);Say(_hallProblem??$"{_hallDoorPoints.Count} entrance markers; Ctrl+click again to remove, Ctrl+Backspace removes the last.");
+            BuildHallPreview(false);Say(_hallProblem??$"{_hallDoorPoints.Count} entrance markers; "+(StakeMode?"Shift":"Ctrl")+"+click again to remove, "+(StakeMode?"Shift":"Ctrl")+"+Backspace removes the last.");
         }
         private void MarkHallChimney(Player player)
         {
@@ -372,7 +372,7 @@ namespace BuildShapes
             if(remove>=0)_hallChimneyPoints.RemoveAt(remove);
             else if(_hallChimneyPoints.Count<HallLayout.MaximumChimneys)_hallChimneyPoints.Add(tile);
             else{Say("Mark at most four chimneys. Ctrl+Shift+click one to remove it.");return;}
-            BuildHallPreview(false);Say(_hallProblem??$"{_hallChimneyPoints.Count} chimney"+(_hallChimneyPoints.Count==1?"":"s")+"; Ctrl+Shift+click the tile again to remove, Ctrl+Shift+Backspace removes the last.");
+            BuildHallPreview(false);Say(_hallProblem??$"{_hallChimneyPoints.Count} chimney"+(_hallChimneyPoints.Count==1?"":"s")+"; "+(StakeMode?"Ctrl":"Ctrl+Shift")+"+click the tile again to remove, "+(StakeMode?"Ctrl":"Ctrl+Shift")+"+Backspace removes the last.");
         }
         private void MarkHall(Player player)
         {

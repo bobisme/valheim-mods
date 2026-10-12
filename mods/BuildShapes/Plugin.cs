@@ -15,7 +15,7 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.8.2";
+        public const string Version = "0.8.3";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
@@ -153,7 +153,10 @@ namespace BuildShapes
             }
             if (Input.GetKeyDown(_back.Value))
             {
-                if (_tool == Tool.Hall && Input.GetKey(KeyCode.LeftControl) && Input.GetKey(_modifier.Value)) { if(_hallChimneyPoints.Count>0)_hallChimneyPoints.RemoveAt(_hallChimneyPoints.Count-1); }
+                // With the stake: Shift+Backspace removes the last entrance, Ctrl+Backspace the last chimney, as Shift/Ctrl+click mark them.
+                if (stake && Input.GetKey(KeyCode.LeftControl)) { if(_hallChimneyPoints.Count>0)_hallChimneyPoints.RemoveAt(_hallChimneyPoints.Count-1); }
+                else if (stake && Input.GetKey(_modifier.Value)) { if(_hallDoorPoints.Count>0)_hallDoorPoints.RemoveAt(_hallDoorPoints.Count-1); }
+                else if (_tool == Tool.Hall && Input.GetKey(KeyCode.LeftControl) && Input.GetKey(_modifier.Value)) { if(_hallChimneyPoints.Count>0)_hallChimneyPoints.RemoveAt(_hallChimneyPoints.Count-1); }
                 else if (_tool == Tool.Hall && Input.GetKey(KeyCode.LeftControl)) { if(_hallDoorPoints.Count>0)_hallDoorPoints.RemoveAt(_hallDoorPoints.Count-1); }
                 else if (_tool == Tool.Mirror && Input.GetKey(KeyCode.LeftControl) && _sources.Count > 0) _sources.RemoveAt(_sources.Count - 1);
                 else if (_markers.Count > 0) _markers.RemoveAt(_markers.Count - 1);
@@ -186,7 +189,7 @@ namespace BuildShapes
         private void Begin(Player player, Tool requested)
         {
             Stop();
-            if (requested == Tool.Hall && _hallViaStake) { _tool=Tool.Hall; StartHallDraft(); Say("Hallwright stake: click the ground for each corner; the first edge sets the grid. Shift+click entrances, Ctrl+click smoke holes or chimneys, E inside the outline for settings. Backspace undoes a corner; Delete clears."); return; }
+            if (requested == Tool.Hall && _hallViaStake) { _tool=Tool.Hall; StartHallDraft(); Say("Hallwright stake: click the ground for each corner; the first edge sets the grid. Shift+click entrances, Ctrl+click smoke holes or chimneys, E inside the outline for settings. Backspace undoes a corner (Shift+ the last entrance, Ctrl+ the last chimney); Delete clears."); return; }
             if (requested == Tool.Hall) { _hallViaStake=false; _tool=Tool.Hall; StartHallDraft(); if(System.IO.File.Exists(HallGroundFile))OpenHallMenu(); Say("Hallwright: Shift+click square corners; the first edge sets the grid. Ctrl+click entrances; Ctrl+Shift+click a floor tile for a chimney; L opens settings; Backspace edits; Delete clears."); return; }
             if ((requested == Tool.Mirror || requested == Tool.Repeat) && !_planner.Extended)
             { Say("Update BuildOrders with the ghost-selection API for Mirror/Repeat."); return; }
@@ -444,7 +447,7 @@ namespace BuildShapes
                 Matrix4x4 savedHall=GUI.matrix;
                 try { Theme(); float hs=Mathf.Max(0.6f,Screen.height/1080f); GUI.matrix=Matrix4x4.Scale(new Vector3(hs,hs,1));
                     DrawHallDrawingProblem(hs);
-                    string hint=(StakeMode?"Hallwright stake: click corners · Shift+click entrances"+(_staveTemple?"":" · Ctrl+click: "+(_hallNorse?"smoke hole":"chimney"))+" · E inside the outline: settings · Backspace: undo · Delete: clear\n":"Hallwright: Shift+click corners · Ctrl+click entrances"+(_staveTemple?"":" · Ctrl+Shift+click: chimney")+" · L: settings · Delete: clear · F4: modes · Esc: exit\n")+(_hallProblem??$"{_markers.Count} corners · {_output.Count} pieces · support estimate passed");
+                    string hint=(StakeMode?"Hallwright stake: click corners · Shift+click entrances"+(_staveTemple?"":" · Ctrl+click: "+(_hallNorse?"smoke hole":"chimney"))+" · E inside the outline: settings · Backspace (Shift/Ctrl+): undo · Delete: clear\n":"Hallwright: Shift+click corners · Ctrl+click entrances"+(_staveTemple?"":" · Ctrl+Shift+click: chimney")+" · L: settings · Delete: clear · F4: modes · Esc: exit\n")+(_hallProblem??$"{_markers.Count} corners · {_output.Count} pieces · support estimate passed");
                     GUI.Box(new Rect(20,Screen.height/hs-160,Mathf.Min(1000,Screen.width/hs-40),95),hint,_hud);
                 } finally { GUI.matrix=savedHall; } return;
             }

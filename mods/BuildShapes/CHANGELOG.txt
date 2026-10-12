@@ -1,3 +1,5 @@
+0.8.3: With the Hallwright stake, Shift+Backspace removes the last entrance and Ctrl+Backspace the last smoke hole or chimney, matching Shift+click and Ctrl+click; the messages after marking one say so. F4 → Hallwright keeps Ctrl+Backspace and Ctrl+Shift+Backspace.
+
 0.8.2: With the Hallwright stake, Shift+click marks an entrance and Ctrl+click a smoke hole or chimney (were Ctrl+click and Ctrl+Shift+click); a plain click is still a corner. The hints, the stake's description and the settings window say so. F4 → Hallwright keeps its keys (Shift+click corners, Ctrl+click entrances, Ctrl+Shift+click chimneys).
 
 0.8.1: The Hallwright settings are a window in the game's own look: the crafting panel's wood and braid, the game's tabs, buttons and on/off switches, its fonts and scrollbar, at the right of the screen so the preview stays in view. Choices are tabs (wall height, dig depth, storeys, materials, intricacy and the rest), the floor lift steps by 0.05 or 0.25 m, and Plan shell, Edit outline and Cancel sit under the list with the support estimate. Esc or E closes it. If the game's interface can't be found (a game update moved it), the old panel is used instead.
