@@ -1,3 +1,5 @@
+0.8.5: The Hallwright stake looks like a surveyor's stake: a thin pole 1.8 m tall standing on the ground, with a bright orange flag at the top (was a short, thick post with a small grey flag). Its build-menu icon shows the same.
+
 0.8.4: With the Hallwright stake in hand, the hint box at the bottom left is gone (the stake's build-menu entry says the same); drawing problems still show, and the "need more corners" message says to click rather than Shift+click.
 
 0.8.3: With the Hallwright stake, Shift+Backspace removes the last entrance and Ctrl+Backspace the last smoke hole or chimney, matching Shift+click and Ctrl+click; the messages after marking one say so. F4 → Hallwright keeps Ctrl+Backspace and Ctrl+Shift+Backspace.

@@ -51,20 +51,32 @@ namespace BuildShapes
             if(pole==null)return null;
             if(_stakeHolder==null){_stakeHolder=new GameObject("BuildShapes stake");_stakeHolder.SetActive(false);DontDestroyOnLoad(_stakeHolder);}
             GameObject stake=Instantiate(pole,_stakeHolder.transform,false);stake.name=StakeName;
-            float top=stake.GetComponentsInChildren<Transform>(true).Where(t=>t.name.StartsWith("$hud_snappoint",StringComparison.Ordinal)).Select(t=>t.localPosition.y).DefaultIfEmpty(1f).Max();
+            var snaps=stake.GetComponentsInChildren<Transform>(true).Where(t=>t.name.StartsWith("$hud_snappoint",StringComparison.Ordinal)).Select(t=>t.localPosition.y).ToList();
+            float bottom=snaps.DefaultIfEmpty(0f).Min(),top=snaps.DefaultIfEmpty(1f).Max();
             // No snapping: the ghost goes where the next corner goes.
             foreach(Transform child in stake.transform.Cast<Transform>().ToList())if(child.name.StartsWith("$hud_snappoint",StringComparison.Ordinal))DestroyImmediate(child.gameObject);
-            // A little cloth flag at the top, from the game's own banner cloth where there is one.
-            Material cloth=scene.GetPrefab("piece_banner01")?.GetComponentsInChildren<Renderer>(true).Select(r=>r.sharedMaterial).FirstOrDefault(m=>m!=null);
-            if(cloth==null)
+            // A surveyor's stake: the pole made thin and tall, standing on the ground.
+            const float Thin=0.35f,Tall=1.8f;
+            foreach(Transform child in stake.transform.Cast<Transform>())
             {
-                Shader shader=Shader.Find("Standard");
-                if(shader!=null){cloth=new Material(shader){color=new Color(0.75f,0.2f,0.12f)};_stakeOwned.Add(cloth);}
+                Vector3 at=child.localPosition;child.localPosition=new Vector3(at.x*Thin,(at.y-bottom)*Tall,at.z*Thin);
+                child.localScale=Vector3.Scale(child.localScale,new Vector3(Thin,Tall,Thin));
+            }
+            top=(top-bottom)*Tall;
+            // A bright flag at the top: the pole's own material, untextured and coloured, so it shows from afar.
+            Material wood=stake.GetComponentsInChildren<Renderer>(true).Select(r=>r.sharedMaterial).FirstOrDefault(m=>m!=null);
+            Material cloth=null;
+            if(wood!=null)
+            {
+                cloth=new Material(wood){name="BuildShapes stake flag",mainTexture=null,color=new Color(1f,0.32f,0.08f)};
+                if(cloth.HasProperty("_BumpMap"))cloth.SetTexture("_BumpMap",null);
+                if(cloth.HasProperty("_EmissionColor")){cloth.EnableKeyword("_EMISSION");cloth.SetColor("_EmissionColor",new Color(0.45f,0.12f,0.02f));}
+                _stakeOwned.Add(cloth);
             }
             var flag=GameObject.CreatePrimitive(PrimitiveType.Cube);flag.name="Flag";
             DestroyImmediate(flag.GetComponent<Collider>());
             flag.transform.SetParent(stake.transform,false);
-            flag.transform.localPosition=new Vector3(0.22f,top-0.17f,0);flag.transform.localScale=new Vector3(0.4f,0.26f,0.015f);
+            flag.transform.localPosition=new Vector3(0.3f,top-0.22f,0);flag.transform.localScale=new Vector3(0.56f,0.36f,0.02f);
             if(cloth!=null)flag.GetComponent<MeshRenderer>().sharedMaterial=cloth;
             var piece=stake.GetComponent<Piece>();
             piece.m_name="Hallwright stake";
