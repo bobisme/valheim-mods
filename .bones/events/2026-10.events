@@ -143,3 +143,5 @@
 1791777960906026	claude-buildshapes	itc:AQ		item.move	bn-1tx	{"state":"doing"}	blake3:PMiQQv0HU7tB8v5HIIBWRO-4q2niu-nMXUIdbTY8RXQ
 1791777960909668	claude-buildshapes	itc:AQ		item.assign	bn-1tx	{"action":"assign","agent":"claude-buildshapes"}	blake3:scevUkbos66eXKqHAM-sx0DAP0vGLWVTBuObJLqPkss
 1791778088945077	claude-buildshapes	itc:AQ		item.move	bn-1tx	{"state":"done"}	blake3:zvYXkjcCiI4rp8oMgMlSrF21pFsrfffj_qT_WrLg1Y8
+1791778438836775	claude-buildshapes	itc:AQ		item.comment	bn-1tx	{"body":"Reopened in effect: 0.7.7 (LOD) wasn't the cause Bob saw. 0.7.8: guides over pieces were (posts drawn through everything, outlines lying on walls/roof). Awaiting Bob's look."}	blake3:nNCr8zpE0yJ3mZ8GFuH7kDqlvTArkPBu1oUsy14GTRY
+1791778730024065	claude-buildshapes	itc:AQ		item.comment	bn-1tx	{"body":"Real cause: Graphics.DrawMesh with Custom/Piece rendered smeared/speckled. 0.7.9 uses real MeshRenderer copies; verified in daylight. Shared drafts for other viewers (SharedPreviewRuntime) still use DrawMesh."}	blake3:f4Ribwjv9i0hjkay-ftu-sqqXnWdxVs-ex_M5GkXEQQ

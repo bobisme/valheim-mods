@@ -31,7 +31,7 @@ namespace BuildShapes
             try{HallDraftStore.Write(HallDraftPath(_hallDraftWorld,_hallDraftPlayer),draft);_hallDraftLast=text;}
             catch(Exception ex){Logger.LogWarning("Could not save Hallwright draft: "+ex.GetBaseException().Message);}
         }
-        private bool ResumeHallDraft()
+        private bool ResumeHallDraft(bool openMenu=true)
         {
             try
             {
@@ -43,7 +43,7 @@ namespace BuildShapes
                 _hallEntranceMode=draft.Opening;_hallCrestMode=draft.Crest;_hallStoreys=draft.Storeys;_hallRoof45=draft.Roof45;_hallSolid=draft.Solid;
                 _hallShowRoof=draft.ShowRoof;_hallTiered=draft.Tiered;_hallOverhang=draft.Overhang;_hallPorch=draft.Porch;_hallSweep=draft.Sweep;_hallBasement=draft.Basement;_hallGuideOnly=draft.GuideOnly;_hallShutters=draft.Shutters;
                 _hallNorse=draft.Norse;_hallSink=draft.Sink;_hallBenches=draft.Benches;_hallHearth=draft.Hearth;_hallFooting=draft.StoneFooting;
-                BuildHallPreview();OpenHallMenu();Say("Saved Hallwright draft reopened. Preview only; no ground or shared plans changed.");return true;
+                BuildHallPreview();if(openMenu)OpenHallMenu();Say("Saved Hallwright draft reopened. Preview only; no ground or shared plans changed.");return true;
             }
             catch(Exception ex){Say(ex.GetBaseException().Message);return false;}
         }

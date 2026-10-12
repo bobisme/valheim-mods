@@ -15,7 +15,7 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.7.9";
+        public const string Version = "0.8.0";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
@@ -55,8 +55,9 @@ namespace BuildShapes
             { Id = id; Prefab = prefab; Position = position; Rotation = rotation; }
         }
         private bool ShapeActive => _tool != Tool.None || _modeMenu;
+        // With the Hallwright stake the game places as usual (its ghost, the build menu); only the stake's own click is taken.
         internal bool ReservesHammer => ShapeActive && _enabled.Value && HoldingHammer(Player.m_localPlayer) && _planner.Available(Player.m_localPlayer) &&
-            ((_tool!=Tool.Mirror && _tool!=Tool.Repeat) || _planner.Extended);
+            ((_tool!=Tool.Mirror && _tool!=Tool.Repeat) || _planner.Extended) && !(StakeMode && !_hallMenu && !_modeMenu);
         internal static bool OptionsMenuOpen => Instance != null && (Instance._modeMenu || Instance._repeatMenu || Instance._archMenu || Instance._hallMenu) && Instance.ReservesHammer;
         private int RequiredMarkers => _tool == Tool.Mirror || _tool == Tool.Arch ? 2 : 3;
         internal static bool ProbingInput => Instance?._probingInput == true;
@@ -98,12 +99,21 @@ namespace BuildShapes
             long world = ZNet.World?.m_uid ?? 0;
             if (_player != player || _session != ZNet.instance || _world != world)
             { Stop(); DestroyHall(); _lastPlan = null; _bounds.Clear(); _player = player; _session = ZNet.instance; _world = world; }
-            UpdateHallCommands();UpdateSharedPreviews();
+            UpdateHallCommands();UpdateSharedPreviews();EnsureStake();
             if (!_enabled.Value || !HoldingHammer(player) || player.IsDead())
             { if (ShapeActive) Stop(); if (player != null && player.IsDead()) _lastPlan = null; return; }
             if (!_planner.Ready() || ((_tool == Tool.Mirror || _tool == Tool.Repeat) && !_planner.Extended) || !_planner.Available(player))
             { CloseModeMenu(); CloseRepeatMenu(); CloseArchMenu(); CloseHallMenu(); return; }
             if (!Ready(player)) { CloseModeMenu(); CloseRepeatMenu(); CloseArchMenu(); CloseHallMenu(); return; }
+            // Picking the stake turns Hallwright on; picking another piece turns it off again (the draft is saved).
+            bool stake = StakeSelected(player);
+            if (stake && _tool != Tool.Hall && !_modeMenu)
+            {
+                _hallViaStake = true; Begin(player, Tool.Hall);
+                // Carry on with the saved draft, if there is one for this character and world.
+                if (System.IO.File.Exists(CurrentHallDraftPath)) ResumeHallDraft(false);
+            }
+            else if (!stake && _tool == Tool.Hall && _hallViaStake) { _hallViaStake = false; Stop(); return; }
             if (_tool == Tool.Hall) UpdateHall();
             if (Input.GetKeyDown(_toggle.Value))
             {
@@ -116,7 +126,7 @@ namespace BuildShapes
                 return; // Picker clicks and keys must never mark, select, or submit a shape.
             }
             if (_tool == Tool.None) return;
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (Input.GetKeyDown(KeyCode.Escape) && !(stake && !_hallMenu))
             { _escapeFrame = Time.frameCount; if (_repeatMenu) CloseRepeatMenu(); else if (_archMenu) CloseArchMenu(); else if (_hallMenu) CloseHallMenu(); else Stop(); return; }
             Piece selected = player.GetSelectedPiece();
             if (_tool != Tool.Hall && (selected == null || Utils.GetPrefabName(selected.gameObject) != _selected))
@@ -150,6 +160,9 @@ namespace BuildShapes
                 if(_tool==Tool.Hall && _markers.Count==0)DiscardHallDraft();
                 Preview();
             }
+            // With the stake, clicks reach Hallwright through the game's own placing (StakeClick); E inside the outline opens the settings.
+            else if (stake && ZInput.GetButtonDown("Use") && StakeLooksInside(player)) { BuildHallPreview(); OpenHallMenu(); }
+            else if (stake && Input.GetKeyDown(_mark.Value)) { }
             else if (_tool == Tool.Hall && Input.GetKey(KeyCode.LeftControl) && Input.GetKey(_modifier.Value) && Input.GetKeyDown(_mark.Value)) MarkHallChimney(player);
             else if (_tool == Tool.Hall && Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(_mark.Value)) MarkHallDoor(player);
             else if ((_tool == Tool.Mirror || _tool == Tool.Repeat) && Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(_mark.Value)) SelectSource(player);
@@ -173,7 +186,8 @@ namespace BuildShapes
         private void Begin(Player player, Tool requested)
         {
             Stop();
-            if (requested == Tool.Hall) { _tool=Tool.Hall; StartHallDraft(); if(System.IO.File.Exists(HallGroundFile))OpenHallMenu(); Say("Hallwright: Shift+click square corners; the first edge sets the grid. Ctrl+click entrances; Ctrl+Shift+click a floor tile for a chimney; L opens settings; Backspace edits; Delete clears."); return; }
+            if (requested == Tool.Hall && _hallViaStake) { _tool=Tool.Hall; StartHallDraft(); Say("Hallwright stake: click the ground for each corner; the first edge sets the grid. Ctrl+click entrances, Ctrl+Shift+click smoke holes or chimneys, E inside the outline for settings. Backspace undoes a corner; Delete clears."); return; }
+            if (requested == Tool.Hall) { _hallViaStake=false; _tool=Tool.Hall; StartHallDraft(); if(System.IO.File.Exists(HallGroundFile))OpenHallMenu(); Say("Hallwright: Shift+click square corners; the first edge sets the grid. Ctrl+click entrances; Ctrl+Shift+click a floor tile for a chimney; L opens settings; Backspace edits; Delete clears."); return; }
             if ((requested == Tool.Mirror || requested == Tool.Repeat) && !_planner.Extended)
             { Say("Update BuildOrders with the ghost-selection API for Mirror/Repeat."); return; }
             Piece piece = player.GetSelectedPiece();
@@ -430,7 +444,7 @@ namespace BuildShapes
                 Matrix4x4 savedHall=GUI.matrix;
                 try { Theme(); float hs=Mathf.Max(0.6f,Screen.height/1080f); GUI.matrix=Matrix4x4.Scale(new Vector3(hs,hs,1));
                     DrawHallDrawingProblem(hs);
-                    string hint="Hallwright: Shift+click corners · Ctrl+click entrances"+(_staveTemple?"":" · Ctrl+Shift+click: chimney")+" · L: settings · Delete: clear · F4: modes · Esc: exit\n"+(_hallProblem??$"{_markers.Count} corners · {_output.Count} pieces · support estimate passed");
+                    string hint=(StakeMode?"Hallwright stake: click corners · Ctrl+click entrances"+(_staveTemple?"":" · Ctrl+Shift+click: "+(_hallNorse?"smoke hole":"chimney"))+" · E inside the outline: settings · Backspace: undo · Delete: clear\n":"Hallwright: Shift+click corners · Ctrl+click entrances"+(_staveTemple?"":" · Ctrl+Shift+click: chimney")+" · L: settings · Delete: clear · F4: modes · Esc: exit\n")+(_hallProblem??$"{_markers.Count} corners · {_output.Count} pieces · support estimate passed");
                     GUI.Box(new Rect(20,Screen.height/hs-160,Mathf.Min(1000,Screen.width/hs-40),95),hint,_hud);
                 } finally { GUI.matrix=savedHall; } return;
             }
@@ -457,7 +471,7 @@ namespace BuildShapes
         {
             DestroySharedPreviews();Stop(); _harmony?.UnpatchSelf(); if (_material != null) Destroy(_material);
             if(_anchorMaterial!=null)Destroy(_anchorMaterial);
-            DestroyHall(); DestroyHallDrawing(); UnregisterHallCommands(); DestroyTheme();
+            DestroyHall(); DestroyHallDrawing(); DestroyStake(); UnregisterHallCommands(); DestroyTheme();
             if (Instance == this) Instance = null;
         }
     }

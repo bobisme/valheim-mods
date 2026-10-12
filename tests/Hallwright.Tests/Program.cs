@@ -503,9 +503,8 @@ foreach(int wallHeight in new[]{2,3})
  var footed=HallLayout.Plan(Rect(10,20),footingKit,wallHeight,2,1,false,new HallLayout.Details{Norse=true,Benches=true,Hearth="hearth",StoneFooting=true});
  var stones=footed.Parts.Where(p=>p.Role=="stone footing").ToList();
  Check(stones.Count==2*(footed.BoundaryPanels-1) && stones.All(p=>p.Prefab=="stone_fence"),"Two stone fence courses under every wall panel except the door's");
- // Each fence's 1 m depth runs from just inside the wall line outwards, never into the room or the platforms.
- foreach(var s in stones){var inside=footed.Cells.Any(c=>{V3 q=s.At+Turn(new V3(0,0,HallLayout.FenceOut+0.5-0.01),s.Yaw);return q.X>c.X*2 && q.X<c.X*2+2 && q.Z>c.Z*2 && q.Z<c.Z*2+2;});
-  var outside=!footed.Cells.Any(c=>{V3 q=s.At;return q.X>c.X*2 && q.X<c.X*2+2 && q.Z>c.Z*2 && q.Z<c.Z*2+2;});Check(inside && outside,"The fence stands outside the wall line, its inner face just inside");}
+ // Each fence is centred on the wall line it carries.
+ foreach(var s in stones)Check(footed.Parts.Any(w=>w.Role=="wall" && Math.Abs(w.At.X-s.At.X)<1e-9 && Math.Abs(w.At.Z-s.At.Z)<1e-9 && Math.Abs(w.Yaw-s.Yaw)<1e-9),"The fence is centred under its timber wall");
  Check(stones.Count(p=>p.At.Y==-1)==stones.Count(p=>p.At.Y==0),"One course in the ground, one above the floor");
  Check(footed.Parts.Where(p=>p.Role=="wall").All(p=>p.At.Y>=1-1e-9 || footed.Entrances.Any(d=>(new V3(p.At.X,0,p.At.Z)-d.At).Length<1.01)),"Timber walls start on the stone, except beside the door");
  Check(footed.Parts.Count(p=>p.Role=="wall" && p.At.Y>=1-1e-9)>0,"Half-height timber walls above the footing");
