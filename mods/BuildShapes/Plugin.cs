@@ -15,7 +15,7 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.8.0";
+        public const string Version = "0.8.1";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
@@ -114,7 +114,7 @@ namespace BuildShapes
                 if (System.IO.File.Exists(CurrentHallDraftPath)) ResumeHallDraft(false);
             }
             else if (!stake && _tool == Tool.Hall && _hallViaStake) { _hallViaStake = false; Stop(); return; }
-            if (_tool == Tool.Hall) UpdateHall();
+            if (_tool == Tool.Hall) { UpdateHall(); TickHallWindow(player); }
             if (Input.GetKeyDown(_toggle.Value))
             {
                 if (_modeMenu) CloseModeMenu(); else OpenModeMenu();
@@ -437,7 +437,7 @@ namespace BuildShapes
             if (_modeMenu) { DrawModeMenu(); return; }
             if (_repeatMenu) { DrawRepeatMenu(); return; }
             if (_archMenu) { DrawArchMenu(); return; }
-            if (_hallMenu) { DrawHallMenu(); return; }
+            if (_hallMenu) { if (_hallWindowFallback) DrawHallMenu(); return; }
             if (_tool==Tool.Hall)
             {
                 DrawHallLabels();
@@ -471,7 +471,7 @@ namespace BuildShapes
         {
             DestroySharedPreviews();Stop(); _harmony?.UnpatchSelf(); if (_material != null) Destroy(_material);
             if(_anchorMaterial!=null)Destroy(_anchorMaterial);
-            DestroyHall(); DestroyHallDrawing(); DestroyStake(); UnregisterHallCommands(); DestroyTheme();
+            CloseHallWindow(); GameUi.Destroy(); DestroyHall(); DestroyHallDrawing(); DestroyStake(); UnregisterHallCommands(); DestroyTheme();
             if (Instance == this) Instance = null;
         }
     }

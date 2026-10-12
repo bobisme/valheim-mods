@@ -396,7 +396,7 @@ namespace BuildShapes
             return Quaternion.Euler(0,_hallFreeAngle.Value?yaw:Mathf.Round(yaw/step)*step,0);
         }
         private void OpenHallMenu(){_hallMenu=true;_menuOpenedFrame=Time.frameCount;Cursor.lockState=CursorLockMode.None;Cursor.visible=true;}
-        private void CloseHallMenu(){_hallMenu=false;_editingNumber=false;_numberEdits.Clear();_numberError=null;}
+        private void CloseHallMenu(){_hallMenu=false;CloseHallWindow();_editingNumber=false;_numberEdits.Clear();_numberError=null;}
         private void ConfirmHall(Player player)
         {
             float raise=_hallRaise;if(!ReadNumber("Floor raise",0,2,ref raise))return;
