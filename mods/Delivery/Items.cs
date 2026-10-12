@@ -24,7 +24,7 @@ namespace Delivery
     internal static class Items
     {
         internal static readonly ItemDef Horn=new ItemDef{Prefab="BobErrandHorn",Name="Errand Horn",Base="Wood",Station="piece_workbench",Weight=1f,
-            Cost=new[]{("Wood",4),("LeatherScraps",2),("Resin",1)},Model=Models.Horn,IconTurn=new Vector3(0,90,-20),
+            Cost=new[]{("Wood",4),("LeatherScraps",2),("Resin",1)},Model=Models.Horn,IconTurn=new Vector3(0,0,15),
             Description="A wooden horn, bound in birch bark and leather, with a call carved beside every meal it knows. Use it to choose a meal: each has its own call, and somewhere a courier hears it, takes the food off the hearth and runs it to you. He wants coin for the food and the run, and remembers who tips."};
         internal static readonly ItemDef[] All={Horn};
 
@@ -220,7 +220,13 @@ namespace Delivery
                 case "Stone":m=Tint(_stone,new Color(0.75f,0.73f,0.7f),true);break;
                 case "Crystal":m=Tint(_crystal,new Color(0.95f,0.98f,1f),true);break;
                 case "Leather":m=Tint(_leather,new Color(0.55f,0.38f,0.24f),true);break;
-                case "Horn":m=Tint(_wood,new Color(0.62f,0.45f,0.28f),true);break;
+                case "Horn0":case "Horn1":case "Horn2":case "Horn3":case "Horn4":
+                {
+                    // horn: near black at the tip, through brown, to pale cream at the bell
+                    float k=(look[4]-'0')/4f;
+                    m=Tint(_wood,Color.Lerp(new Color(0.22f,0.15f,0.1f),new Color(1f,0.9f,0.72f),Mathf.Pow(k,0.8f)),true);
+                    break;
+                }
                 case "Wicker":m=Tint(_wood,new Color(0.8f,0.65f,0.4f),true);break;
                 case "Glow":
                     m=Tint(_wood,Color.white,false);

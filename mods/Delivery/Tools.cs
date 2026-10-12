@@ -27,7 +27,7 @@ namespace Delivery
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name,"delivery",
-                    "delivery info | meals [all] | menu | close | blow <prefab> | send | order <prefab> [count] [<prefab> [count]...] | now | tip <coins> | regard <0-1> | cancel | horn | free [off]: check Delivery. menu opens the horn's menu and blow/send press its buttons; order sends an order straight away (its calls blown); now makes the courier set out at once; tip answers the tip window; regard sets how he thinks of the player; cancel sends him away (no charge); horn puts an Errand Horn in the inventory; free makes orders cost nothing (for a full inventory).",
+                    "delivery info | meals [all] | menu | close | blow <prefab> | send | order <prefab> [count] [<prefab> [count]...] | now | tip <coins> | regard <0-1> | cancel | horn | free [off] | icon [x y z]: check Delivery. menu opens the horn's menu and blow/send press its buttons; order sends an order straight away (its calls blown); now makes the courier set out at once; tip answers the tip window; regard sets how he thinks of the player; cancel sends him away (no charge); horn puts an Errand Horn in the inventory; free makes orders cost nothing (for a full inventory); icon saves the horn's icon to claude/shots/delivery-icon.png (drawn at that turn, when given).",
                     (Func<string[],Action<JObject>,Action<string>,IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: delivery command added");
             }
@@ -97,6 +97,23 @@ namespace Delivery
                     foreach(var kv in order)for(int i=0;i<kv.Value;i++)Calls.Blow(kv.Key.Tune);
                     if(!Delivery.Run.Send(me,order)){error("delivery order: an order is already out");break;}
                     output(new JObject{["sent"]=Policy.Order(order.Select(kv=>new KeyValuePair<string,int>(kv.Key.Prefab,kv.Value))),["total"]=Delivery.Run.Total,["setsOutIn"]=Math.Round(Delivery.Run.SetsOutIn,1)});
+                    break;
+                }
+                case "icon":
+                {
+                    // icon [x y z]: save the horn's icon as a picture (drawn again at that turn, when given) to look at
+                    if(Items.Horn.Built==null){error("delivery icon: no horn");break;}
+                    Texture2D t;
+                    if(args.Length>=5)
+                    {
+                        var turn=new Vector3(float.Parse(args[2],System.Globalization.CultureInfo.InvariantCulture),float.Parse(args[3],System.Globalization.CultureInfo.InvariantCulture),float.Parse(args[4],System.Globalization.CultureInfo.InvariantCulture));
+                        t=Icons.Render(Items.Horn.Built.transform.Find("Model"),turn);
+                        if(t==null){error("delivery icon: nothing drew");break;}
+                    }
+                    else t=Items.Horn.Built.GetComponent<ItemDrop>().m_itemData.GetIcon().texture;
+                    string path=System.IO.Path.Combine(BepInEx.Paths.BepInExRootPath,"claude","shots","delivery-icon.png");
+                    System.IO.File.WriteAllBytes(path,t.EncodeToPNG());
+                    output(new JObject{["saved"]=path});
                     break;
                 }
                 case "free":Delivery.Run.Free=!(args.Length>2&&args[2]=="off");output(new JObject{["free"]=Delivery.Run.Free});break;

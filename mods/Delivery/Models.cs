@@ -46,23 +46,24 @@ namespace Delivery
             var c=new Vector3(0,0.3f,0);
             const float r=0.3f;
             Vector3 At(float t){float a=Mathf.Lerp(-100f,-15f,t)*Mathf.Deg2Rad;return c+new Vector3(Mathf.Cos(a)*r,Mathf.Sin(a)*r,0);}
-            float Thick(float t)=>Mathf.Lerp(0.011f,0.042f,Mathf.Pow(t,1.6f));
+            float Thick(float t)=>Mathf.Lerp(0.014f,0.05f,Mathf.Pow(t,1.4f));
             for(int i=0;i<steps;i++)
             {
                 float t0=i/(float)steps,t1=(i+1)/(float)steps;
-                Rod(root,"horn",l.Get("Horn"),At(t0),At(t1),Thick((t0+t1)/2));
-                Part(root,"joint",PrimitiveType.Sphere,l.Get("Horn"),At(t1),Vector3.zero,Vector3.one*Thick(t1)*2);
+                string shade="Horn"+Mathf.Min(4,i*5/steps); // (dark at the tip, pale towards the bell, as a horn is)
+                Rod(root,"horn",l.Get(shade),At(t0),At(t1),Thick((t0+t1)/2));
+                Part(root,"joint",PrimitiveType.Sphere,l.Get(shade),At(t1),Vector3.zero,Vector3.one*Thick(t1)*2);
             }
             Vector3 end=At(1),dir=(At(1)-At(0.95f)).normalized;
-            for(int k=0;k<4;k++)Rod(root,"bell",l.Get("Horn"),end+dir*(0.012f*k),end+dir*(0.012f*(k+1)),Mathf.Lerp(0.044f,0.058f,k/3f)); // (flaring out)
-            Rod(root,"throat",l.Get("Burnt"),end+dir*0.04f,end+dir*0.0485f,0.05f);
-            Rod(root,"rim",l.Get("Bronze"),end+dir*0.042f,end+dir*0.052f,0.061f);
+            for(int k=0;k<4;k++)Rod(root,"bell",l.Get("Horn4"),end+dir*(0.012f*k),end+dir*(0.012f*(k+1)),Mathf.Lerp(0.052f,0.066f,k/3f)); // (flaring out)
+            Rod(root,"throat",l.Get("Burnt"),end+dir*0.04f,end+dir*0.0485f,0.058f);
+            Rod(root,"rim",l.Get("Bronze"),end+dir*0.042f,end+dir*0.052f,0.069f);
             Vector3 mouth=At(0),mdir=(At(0.05f)-At(0)).normalized;
-            Rod(root,"mouthpiece",l.Get("Bronze"),mouth-mdir*0.025f,mouth+mdir*0.02f,0.014f);
+            Rod(root,"mouthpiece",l.Get("Bronze"),mouth-mdir*0.025f,mouth+mdir*0.02f,0.017f);
             foreach(float t in new[]{0.5f,0.8f})Rod(root,"band",l.Get("Bronze"),At(t)-(At(t+0.02f)-At(t)).normalized*0.008f,At(t)+(At(t+0.02f)-At(t)).normalized*0.008f,Thick(t)+0.004f);
             Vector3 s0=At(0.12f)+new Vector3(0,0,0.012f),s1=At(0.86f)+new Vector3(0,0,0.03f),sag=(s0+s1)/2+new Vector3(0,0.09f,0.02f);
-            Rod(root,"strap",l.Get("Leather"),s0,sag,0.006f);
-            Rod(root,"strap",l.Get("Leather"),sag,s1,0.006f);
+            Rod(root,"strap",l.Get("Leather"),s0,sag,0.011f);
+            Rod(root,"strap",l.Get("Leather"),sag,s1,0.011f);
         }
     }
 }
