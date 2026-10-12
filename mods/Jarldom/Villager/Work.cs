@@ -974,10 +974,14 @@ namespace Jarldom
         private void Hunt(Brain b)
         {
             if (Target == null || Target.IsDead()) { if (Collect(b)) return; Finish(b, true); return; }
+            // (run off out of the colony's reach, or not brought down in three minutes: let it go a while)
+            if (!Follow.Near(b, Target.transform.position, 25)) { b.Foe = null; Block(b, "it ran off out of reach"); return; }
+            if (_huntUntil == 0) _huntUntil = Time.time + 180f;
+            if (Time.time > _huntUntil) { b.Foe = null; Block(b, "it got away"); return; }
             b.Foe = Target;
             b.SetFoeFor(30);
         }
-        private float _guardUntil;
+        private float _guardUntil, _huntUntil;
         // A patrol: the route's waypoints in turn (from the nearest, so two guards go apart), a pause at each to look about.
         private int _wp = -1; private bool _looking;
         private void Guard(Brain b)

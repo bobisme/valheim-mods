@@ -7,6 +7,8 @@ namespace Jarldom
     // Fighting and running away. Guards (and anyone armed who is attacked) fight what comes into the colony; the rest run for the hall.
     internal static class Combat
     {
+        // (the game aims an AI's arrow from where it leaves the bow at its target's middle: a villager's AI has a target only for that)
+        private static readonly AccessTools.FieldRef<MonsterAI, Character> AimAt = AccessTools.FieldRefAccess<MonsterAI, Character>("m_targetCreature");
         private static readonly AccessTools.FieldRef<Character, HitData> LastHit = AccessTools.FieldRefAccess<Character, HitData>("m_lastHit");
         // Never a foe: players, villagers, players' companions (on the players' side), tame beasts, and pieces (a training dummy).
         public static bool Friendly(Character c) => c == null || c.IsPlayer() || VillagerPrefab.Is(c) || c.IsTamed() || c.GetFaction() == Character.Faction.Players || c.GetComponent<Piece>() != null;
@@ -30,7 +32,7 @@ namespace Jarldom
             if (b.HasFoe && !Follow.Near(b, b.Foe.transform.position, 25))
             {
                 b.Fighting = false;
-                if (Vector3.Distance(b.Foe.transform.position, me) < 12f) Flee(b, b.Foe);
+                if (Vector3.Distance(b.Foe.transform.position, me) < 12f && b.Foe.GetFaction() != Character.Faction.AnimalsVeg) Flee(b, b.Foe); // (not from a deer)
                 return;
             }
             Character foe = b.HasFoe ? b.Foe : null;
@@ -88,7 +90,7 @@ namespace Jarldom
         public static void Fixed(Brain b, float dt)
         {
             Humanoid h = b.Body;
-            if (!b.Fighting || b.FightTarget == null || b.FightTarget.IsDead()) { if (b.Fighting) { b.Fighting = false; b.Move.Stop(); } Body_.Blocking(h) = false; return; }
+            if (!b.Fighting || b.FightTarget == null || b.FightTarget.IsDead()) { if (b.Fighting) { b.Fighting = false; b.Move.Stop(); } Body_.Blocking(h) = false; AimAt(b.Ai) = null; return; }
             Character t = b.FightTarget;
             if (!Follow.Near(b, t.transform.position, 25)) { b.Fighting = false; b.FightTarget = null; b.Move.Stop(); return; } // (it ran off: not chased out of the colony)
             ItemDrop.ItemData weapon = h.GetCurrentWeapon();
@@ -109,7 +111,7 @@ namespace Jarldom
             b.BlindSince = -1;
             b.Move.Stop();
             h.SetLookDir((aim - from).normalized, 0f);
-            b.Ai.LookTowards((aim - b.Pos).normalized);
+            b.Ai.LookTowards((aim - from).normalized); // (from the bow, not the feet: the AI's look is where the arrow goes, and from the feet it flies over a boar)
             // Block when it swings and we hold a shield.
             bool shield = h.LeftItem != null && h.LeftItem.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Shield;
             // The shield goes up for the blow, then down to strike back (blocking holds you still: you can't turn or swing).
@@ -119,7 +121,7 @@ namespace Jarldom
             if (h.InAttack()) { b.CombatNote = "swinging"; return; }
             if (!b.Ai.IsLookingAt(aim, 25f)) { b.CombatNote = "turning"; return; }
             if (h.GetTimeSinceLastAttack() < 0.4f) return;
-            if (ranged) Body_.DrawTime(h) = 10f; // the AI can't hold a draw: a bow shot undrawn does nothing
+            if (ranged) { Body_.DrawTime(h) = 10f; AimAt(b.Ai) = t; } // the AI can't hold a draw: a bow shot undrawn does nothing
             bool started = h.StartAttack(t, false);
             if (ranged) Body_.DrawTime(h) = 0f;
             b.Swings++; if (started) b.SwingsStarted++;
