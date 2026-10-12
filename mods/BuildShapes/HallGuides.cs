@@ -27,6 +27,8 @@ namespace BuildShapes
                 if(_hallMarkerMaterial.HasProperty("_DstBlend"))_hallMarkerMaterial.SetInt("_DstBlend",(int)BlendMode.OneMinusSrcAlpha);
                 if(_hallMarkerMaterial.HasProperty("_Cull"))_hallMarkerMaterial.SetInt("_Cull",(int)CullMode.Off);
             }
+            // Through everything only in Layout preview; over piece models they'd glow through the walls and roof.
+            if(_hallMarkerMaterial.HasProperty("_ZTest"))_hallMarkerMaterial.SetInt("_ZTest",(int)(HallPiecesShown?CompareFunction.LessEqual:CompareFunction.Always));
             int before=_visuals.Count;Line(points,width,true);
             if(_visuals.Count>before)
             {
@@ -35,6 +37,8 @@ namespace BuildShapes
                 line.shadowCastingMode=ShadowCastingMode.Off;line.receiveShadows=false;
             }
         }
+        // The preview draws the pieces themselves; outline guides along walls, beams and roofs would then lie on them and flicker.
+        private bool HallPiecesShown=>!_hallGuideOnly && _output.Count>0;
         private void DrawHallGuides()
         {
             DrawHallEdges();
@@ -53,18 +57,18 @@ namespace BuildShapes
                     HallMarkerLine(new[]{point-Vector3.right*0.25f,point+Vector3.right*0.25f},0.05f);
                     HallMarkerLine(new[]{point-Vector3.forward*0.25f,point+Vector3.forward*0.25f},0.05f);
                 }
-                if(_hallGuideHasFloor)Line(new[]{At(marker,floor),At(marker,wallTop)},0.04f);
+                if(_hallGuideHasFloor && !HallPiecesShown)Line(new[]{At(marker,floor),At(marker,wallTop)},0.04f);
             }
             // Until the outline solves, these are provisional open edges at a common height.
             bool closed=_hallGuideHasFloor && _hallDesign!=null;
-            for(int level=0;level<=_hallStoreys;level++)
+            for(int level=0;level<=(HallPiecesShown?-1:_hallStoreys);level++)
             {
                 var ring=_markers.Select(p=>At(p,floor+level*_hallHeight+0.06f)).ToList();
                 if(closed)ring.Add(ring[0]);
                 if(ring.Count>1)Line(ring.ToArray(),level==0?0.07f:0.04f,level==0);
             }
-            if(closed && _hallBasement)Line(_markers.Concat(new[]{_markers[0]}).Select(p=>At(p,floor-3+0.06f)).ToArray(),0.045f);
-            if(closed && _hallShowRoof)foreach(var wing in _hallDesign.Wings)
+            if(closed && _hallBasement && !HallPiecesShown)Line(_markers.Concat(new[]{_markers[0]}).Select(p=>At(p,floor-3+0.06f)).ToArray(),0.045f);
+            if(closed && _hallShowRoof && !HallPiecesShown)foreach(var wing in _hallDesign.Wings)
             {
                 double width=wing.Width*2,length=wing.Length*2,peak=wing.RoofBase+width*0.5*_hallKit.Slope+wing.TierLift;
                 Vector3 W(double u,double y,double v)=>HallWorld(wing.At(u,y,v));

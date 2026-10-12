@@ -127,7 +127,8 @@ namespace BuildShapes
                 {
                     if(args.Length<3)throw new ArgumentException("hall meshes <prefab>");
                     GameObject prefab=ZNetScene.instance?.GetPrefab(args[2]);if(prefab==null)throw new ArgumentException("No such prefab: "+args[2]);
-                    output(new JObject{["prefab"]=args[2],["drawn"]=new JArray(ReadHallMeshes(prefab).Select(m=>m.Path))});return null;
+                    output(new JObject{["prefab"]=args[2],["drawn"]=new JArray(ReadHallMeshes(prefab).Select(m=>new JObject{["path"]=m.Path,["materials"]=new JArray(m.Materials.Where(x=>x!=null).Select(x=>new JObject{["name"]=x.name,["shader"]=x.shader.name,["keywords"]=new JArray(x.shaderKeywords),["queue"]=x.renderQueue,
+                        ["floats"]=new JObject(Enumerable.Range(0,x.shader.GetPropertyCount()).Where(i=>x.shader.GetPropertyType(i)==UnityEngine.Rendering.ShaderPropertyType.Float || x.shader.GetPropertyType(i)==UnityEngine.Rendering.ShaderPropertyType.Range).Select(i=>new JProperty(x.shader.GetPropertyName(i),x.GetFloat(x.shader.GetPropertyName(i)))))}))}))});return null;
                 }
                 if(action=="clear"){if(_tool==Tool.Hall)Stop();output(new JObject{["cleared"]=true});return null;}
                 if(action=="reload")return ReloadHallScripts(output,error);
