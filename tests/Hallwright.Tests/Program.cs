@@ -458,19 +458,18 @@ Check(HallLayout.Plan(Rect(10,20),norseKit,2,2,1,true,Norse()).TieredWings==1,"A
 Reject(()=>HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,new HallLayout.Details{Norse=true,Storeys=2}),"two-storey longhouse");
 Reject(()=>HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,new HallLayout.Details{Norse=true,Porch=true}),"longhouse porch");
 Reject(()=>HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,new HallLayout.Details{Norse=true,Basement=true}),"longhouse basement");
-// Its ground: dug floor and ditch, ramps to each door, banks beyond, nothing far away.
+// Its ground: dug floor and ditch sloping back up, ramps to each door, only ever dug, nothing far away.
 var dug=HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,Norse());
 var dugDoor=dug.Entrances[0];V3 Out(double along,double out_)=>dugDoor.At+Turn(new V3(along,0,-out_),dugDoor.Yaw);
-Check(HallExcavation.Norse(dug,5,10,1,true,2)==(-0.15,-1),"The floor is dug just below its boards");
-Check(HallExcavation.Norse(dug,-1,10,1,true,2)==(-0.15,-1) && HallExcavation.Norse(dug,5,21.4,1,true,2)==(-0.15,-1),"A drip ditch runs along the walls");
-var bankTop=HallExcavation.Norse(dug,-2,10,1,true,2);Check(bankTop.HasValue && bankTop.Value.mode==1 && Math.Abs(bankTop.Value.y-1.7)<1e-9,"The bank heaps earth to just under the eaves");
-var bankFoot=HallExcavation.Norse(dug,-5.5,10,1,true,2);Check(bankFoot.HasValue && bankFoot.Value.y<bankTop.Value.y,"The bank slopes away");
-Check(HallExcavation.Norse(dug,-7,10,1,true,2)==null,"Ground beyond the bank is untouched");
-Check(HallExcavation.Norse(dug,-2,10,1,false,2)==null,"Banks can be switched off");
-Check(HallExcavation.Norse(dug,5,10,0,true,2)==null,"An undug longhouse leaves its floor's ground alone");
-var r1=HallExcavation.Norse(dug,Out(0,1).X,Out(0,1).Z,1,true,2);var r2=HallExcavation.Norse(dug,Out(0,4).X,Out(0,4).Z,1,true,2);var r3=HallExcavation.Norse(dug,Out(0,8).X,Out(0,8).Z,1,true,2);
+Check(HallExcavation.Norse(dug,5,10,1)==(-0.15,-1),"The floor is dug just below its boards");
+Check(HallExcavation.Norse(dug,-1,10,1)==(-0.15,-1) && HallExcavation.Norse(dug,5,21.4,1)==(-0.15,-1),"The soil stays below the floor just outside the walls");
+var slope1=HallExcavation.Norse(dug,-2.5,10,1);var slope2=HallExcavation.Norse(dug,-4.5,10,1);
+Check(slope1.HasValue && slope2.HasValue && slope2.Value.y>slope1.Value.y && slope1.Value.y>-0.15,"Beyond that the ground slopes gently back up");
+Check(HallExcavation.Norse(dug,-7,10,1)==null,"Ground further out is untouched");
+Check(HallExcavation.Norse(dug,5,10,0)==null && HallExcavation.Norse(dug,-2,10,0)==null,"An undug longhouse leaves the ground alone");
+for(double x=-8;x<=18;x+=0.5)for(double z=-8;z<=28;z+=0.5){var g=HallExcavation.Norse(dug,x,z,1);Check(g==null || g.Value.mode<0,"A longhouse only ever digs, never heaps earth up");}
+var r1=HallExcavation.Norse(dug,Out(0,1).X,Out(0,1).Z,1);var r2=HallExcavation.Norse(dug,Out(0,4).X,Out(0,4).Z,1);var r3=HallExcavation.Norse(dug,Out(0,8).X,Out(0,8).Z,1);
 Check(r1==(-0.15,-1) && r2.HasValue && r3.HasValue && r2.Value.mode<0 && r2.Value.y>r1.Value.y && r3.Value.y>r2.Value.y,"A ramp climbs from each door to the old ground");
-Check(HallExcavation.Norse(dug,Out(2.5,3).X,Out(2.5,3).Z,1,true,2)==null,"No bank piles up beside a door's ramp");
 Check(HallExcavation.Settle(3,1,-1)==1 && HallExcavation.Settle(0,1,-1)==0 && HallExcavation.Settle(0,1,1)==1 && HallExcavation.Settle(3,1,1)==3 && HallExcavation.Settle(3,1,0)==1,"Digging only digs, heaping only heaps");
 // Doorways stay clear to the top of the opening plus a beam's half-thickness, for walls as tall as the door.
 bool Blocked(HallLayout.Design plan,double door)=>plan.Parts.Where(p=>p.Kind==HallLayout.Anchor.Segment).Any(p=>Enumerable.Range(0,9).Select(i=>p.At+(p.End-p.At)*(i/8.0)).Any(q=>plan.Entrances.Any(d=>{V3 l=Turn(q-d.At,-d.Yaw);return Math.Abs(l.X)<0.99 && Math.Abs(l.Z)<0.35 && q.Y>-0.01 && q.Y<door+0.35;})));

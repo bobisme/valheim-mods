@@ -72,7 +72,7 @@ namespace BuildShapes
             if(GUILayout.Button("Hallwright · timber hall"+(current==0?" · active":""),current==0?_menuSelected:_menuButton,GUILayout.Height(36)))hallStyle=0;
             GUILayout.Label("Draw a floor plan; solve a complete timber hall with live roofs, storeys and intricacy.",_menuHint);GUILayout.Space(10);
             if(GUILayout.Button("Longhouse"+(current==1?" · active":""),current==1?_menuSelected:_menuButton,GUILayout.Height(36)))hallStyle=1;
-            GUILayout.Label("A Norse longhouse dug into the ground: earth banks, a long hearth down the middle and raised platforms along the walls.",_menuHint);GUILayout.Space(10);
+            GUILayout.Label("A Norse longhouse dug into the ground: a stone footing, a long hearth down the middle and raised platforms along the walls.",_menuHint);GUILayout.Space(10);
             if(GUILayout.Button("Stave temple"+(current==2?" · active":""),current==2?_menuSelected:_menuButton,GUILayout.Height(36)))hallStyle=2;
             GUI.enabled=enabled;GUILayout.Label("A tall open chamber, surrounding galleries and narrowing tower roofs, fitted to your floor plan.",_menuHint);GUILayout.Space(10);
             if(System.IO.File.Exists(CurrentHallDraftPath) && GUILayout.Button("Resume saved Hallwright draft",_menuButton,GUILayout.Height(36)))ResumeHallDraft();

@@ -9,11 +9,11 @@ namespace BuildShapes
     public sealed partial class Plugin
     {
         private bool _staveTemple,_staveGallery=true;
-        private bool _hallNorse,_hallBank=true,_hallBenches=true,_hallHearth=true,_hallFooting=true;
+        private bool _hallNorse,_hallBenches=true,_hallHearth=true,_hallFooting=true;
         private float _hallSink=0.5f;
         private int HallStyle=>_staveTemple?2:_hallNorse?1:0;
-        // Ground changes when the shell is planned: a basement's cellar pit, or a longhouse dug in with its banks.
-        private bool HallDigs=>!_staveTemple && (_hallBasement || _hallNorse && (_hallSink>0 || _hallBank));
+        // Ground changes when the shell is planned: a basement's cellar pit, or a dug-in longhouse.
+        private bool HallDigs=>!_staveTemple && (_hallBasement || _hallNorse && _hallSink>0);
         // 0 timber hall, 1 Norse longhouse, 2 stave temple; switching sets each style's defaults.
         private void SetHallStyle(int style)
         {
@@ -194,7 +194,7 @@ namespace BuildShapes
         {
             if(_hallDesign==null || _staveTemple)return null;
             if(_hallBasement){double? pit=HallExcavation.Target(_hallDesign,x,z);return pit.HasValue?(pit.Value,0):((double,int)?)null;}
-            return _hallNorse?HallExcavation.Norse(_hallDesign,x,z,_hallSink,_hallBank,_hallHeight):null;
+            return _hallNorse?HallExcavation.Norse(_hallDesign,x,z,_hallSink):null;
         }
         private float HallGroundAfter(V3 at)
         {

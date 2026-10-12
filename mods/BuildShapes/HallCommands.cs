@@ -21,7 +21,7 @@ namespace BuildShapes
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Static|BindingFlags.Public)?.Invoke(null,new object[]{Name,"hall",
-                    "hall testsite find <size> | testsite make <x> <z> <height> <size> <worldID> | testsite clear <x> <z> <size> <worldID> | catalog | rectangle <width> <length> [distance=10] | outline <x,z>... | options style=hall|longhouse|temple sink=0..2 bank=on|off benches=on|off hearth=on|off footing=on|off chamber=4|6|8 crowns=1|2 gallery=on|off height=2|3|4 detail=0..4 storeys=1|2|3 basement=on|off pitch=26|45 material=auto|timber|core|stone|dark raise=0..2 roof=gabled|tiered entrance=auto|door|gate overhang=on|off porch=on|off shutters=on|off trim=on|off crest=auto|none|dragon|raven | doors clear | doors <x,z>... | chimneys clear | chimneys <x,z>... | status | resume | stairs | entrances | pieces | ui | clear | confirm | undo | restoreground | keepground | reload: local Hallwright previews; only confirm creates shared ghosts; undo removes the last shape's unbuilt ghosts",
+                    "hall testsite find <size> | testsite make <x> <z> <height> <size> <worldID> | testsite clear <x> <z> <size> <worldID> | catalog | rectangle <width> <length> [distance=10] | outline <x,z>... | options style=hall|longhouse|temple sink=0..2 benches=on|off hearth=on|off footing=on|off chamber=4|6|8 crowns=1|2 gallery=on|off height=2|3|4 detail=0..4 storeys=1|2|3 basement=on|off pitch=26|45 material=auto|timber|core|stone|dark raise=0..2 roof=gabled|tiered entrance=auto|door|gate overhang=on|off porch=on|off shutters=on|off trim=on|off crest=auto|none|dragon|raven | doors clear | doors <x,z>... | chimneys clear | chimneys <x,z>... | status | resume | stairs | entrances | pieces | ui | clear | confirm | undo | restoreground | keepground | reload: local Hallwright previews; only confirm creates shared ghosts; undo removes the last shape's unbuilt ghosts",
                     new Func<string[],Action<JObject>,Action<string>,IEnumerator>(HallCommand)});
                 found.GetType().GetMethod("RegisterFrame",BindingFlags.Static|BindingFlags.Public)?.Invoke(null,new object[]{Name,new Func<string,float[]>(HallFrame)});
             }
@@ -37,7 +37,7 @@ namespace BuildShapes
         }
         private JObject HallReadout()=>new JObject
         {
-            ["style"]=new[]{"Timber hall","Longhouse","Stave temple"}[HallStyle],["sink"]=_hallNorse?_hallSink:(float?)null,["bank"]=_hallNorse?_hallBank:(bool?)null,
+            ["style"]=new[]{"Timber hall","Longhouse","Stave temple"}[HallStyle],["sink"]=_hallNorse?_hallSink:(float?)null,
             ["platforms"]=_hallDesign?.Parts.Count(p=>p.Role=="platform")??0,["hearths"]=_hallDesign?.Hearths??0,["aislePosts"]=_hallDesign?.Parts.Count(p=>p.Role=="aisle post")??0,["footing"]=_hallNorse?_hallFooting:(bool?)null,["footingStones"]=_hallRoles.Count(r=>r=="stone footing"),
             ["dug"]=_hallGroundJob.Count(c=>c.Target<c.Displayed-0.01f),["heaped"]=_hallGroundJob.Count(c=>c.Target>c.Displayed+0.01f),["innerEntrances"]=_hallDesign?.InnerEntrances.Count,["chamberHeight"]=_staveHeight,["crowns"]=_staveCrowns,["gallery"]=_staveGallery,["roofHeight"]=_hallDesign?.RoofHeight,
             ["chamber"]=_hallDesign?.Sanctum==null?null:new JArray(_hallDesign.Sanctum.Width*2,_hallDesign.Sanctum.Length*2),
@@ -193,7 +193,7 @@ namespace BuildShapes
                         if(chosen<0)throw new ArgumentException("Style is hall, longhouse or temple.");
                         SetHallStyle(chosen);
                     }
-                    bool bank=_hallBank,benches=_hallBenches,hearth=_hallHearth,footing=_hallFooting;float sink=_hallSink;
+                    bool benches=_hallBenches,hearth=_hallHearth,footing=_hallFooting;float sink=_hallSink;
                     int chamber=_staveHeight,crowns=_staveCrowns;bool temple=_staveTemple,gallery=_staveGallery;
                     int height=_hallHeight,detail=_hallDetail,material=_hallMaterialMode,entrance=_hallEntranceMode,crest=_hallCrestMode,storeys=_hallStoreys;bool basement=_hallBasement,steep=_hallRoof45,tiered=_hallTiered,overhang=_hallOverhang,porch=_hallPorch,sweep=_hallSweep,shutters=_hallShutters;float raise=_hallRaise;
                     foreach(string option in args.Skip(2))
@@ -203,7 +203,6 @@ namespace BuildShapes
                         {
                             case "style": break;
                             case "sink": sink=HallFloat(kv[1]);if(sink<0 || sink>2 || sink*2!=Math.Round(sink*2))throw new ArgumentException("Sink is 0–2 m in half metres.");break;
-                            case "bank": bank=HallBool(kv[1]);break;
                             case "benches": benches=HallBool(kv[1]);break;
                             case "hearth": hearth=HallBool(kv[1]);break;
                             case "footing": footing=HallBool(kv[1]);break;
@@ -230,7 +229,7 @@ namespace BuildShapes
                     if(temple&&(storeys!=1||basement))throw new ArgumentException("Stave temples use a single open chamber. Switch to hall for storeys or a basement.");
                     _staveTemple=temple;_staveHeight=chamber;_staveCrowns=crowns;_staveGallery=gallery;
                     _hallStoreys=storeys;_hallBasement=basement;_hallHeight=height;_hallDetail=detail;_hallMaterialMode=material;_hallRoof45=steep;_hallRaise=raise;_hallTiered=tiered;_hallEntranceMode=entrance;_hallCrestMode=crest;_hallOverhang=overhang;_hallPorch=porch;_hallSweep=sweep;_hallShutters=shutters;
-                    _hallSink=sink;_hallBank=bank;_hallBenches=benches;_hallHearth=hearth;_hallFooting=footing;BuildHallPreview();output(HallReadout());return null;
+                    _hallSink=sink;_hallBenches=benches;_hallHearth=hearth;_hallFooting=footing;BuildHallPreview();output(HallReadout());return null;
                 }
                 if(action=="ui"){if(_markers.Count<3 && !System.IO.File.Exists(HallGroundFile))throw new ArgumentException("Draw a footprint first.");OpenHallMenu();output(HallReadout());return null;}
                 if(action=="confirm")

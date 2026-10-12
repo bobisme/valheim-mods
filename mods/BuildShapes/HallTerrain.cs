@@ -41,7 +41,7 @@ namespace BuildShapes
             if(_hallBasement && _hallFloorY-3<ZoneSystem.instance.m_waterLevel+0.75f)throw new ArgumentException("The cellar would flood. Choose higher ground (basement floor must be above the water table).");
             if(_hallNorse && _hallSink>0 && _hallFloorY-0.15f<ZoneSystem.instance.m_waterLevel+0.3f)throw new ArgumentException("The sunken floor would flood. Choose higher ground or dig it in less deeply.");
             var cells=_hallDesign.Cells;
-            // Longhouse banks reach 6 m out and door ramps 10 m; a cellar only its pit and apron.
+            // A longhouse slopes the ground back up within 6 m and ramps 10 m from its doors; a cellar digs only its pit and apron.
             int m=_hallNorse?11:5;
             Vector3[] corners={HallWorld(new V3(cells.Min(c=>c.X)*2-m,0,cells.Min(c=>c.Z)*2-m)),HallWorld(new V3((cells.Max(c=>c.X)+1)*2+m,0,cells.Min(c=>c.Z)*2-m)),HallWorld(new V3(cells.Min(c=>c.X)*2-m,0,(cells.Max(c=>c.Z)+1)*2+m)),HallWorld(new V3((cells.Max(c=>c.X)+1)*2+m,0,(cells.Max(c=>c.Z)+1)*2+m))};
             float x0=corners.Min(v=>v.x),x1=corners.Max(v=>v.x),z0=corners.Min(v=>v.z),z1=corners.Max(v=>v.z);
@@ -64,7 +64,7 @@ namespace BuildShapes
                     point.y=y;
                     if(Vector3.Distance(point,Player.m_localPlayer.transform.position)>70 || !PrivateArea.CheckAccess(point,0,false,false) || Location.IsInsideNoBuildLocation(point))throw new ArgumentException("The ground work reaches inaccessible or protected ground.");
                     if(Math.Abs(y-old)>8)throw new ArgumentException("The ground work needs more than 8 m of terrain change. Choose a flatter site.");
-                    if(_hallGroundJob.Count>=HallGroundLimit)throw new ArgumentException($"The ground work exceeds {HallGroundLimit:N0} terrain vertices. Reduce the footprint or turn off earth banks.");
+                    if(_hallGroundJob.Count>=HallGroundLimit)throw new ArgumentException($"The ground work exceeds {HallGroundLimit:N0} terrain vertices. Reduce the footprint or dig it in less deeply.");
                     _hallGroundJob.Add(new GroundCell{Map=map,X=x,Z=z,Index=z*(map.m_width+1)+x,Target=y,Displayed=old,Dirt=_hallNorse && target.Value.mode<0});
                 }
             }

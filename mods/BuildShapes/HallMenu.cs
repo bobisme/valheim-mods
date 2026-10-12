@@ -47,7 +47,7 @@ namespace BuildShapes
                 GUILayout.Space(12);GUILayout.Label(_hallSink>0?$"Dug in {_hallSink:0.#} m below the average ground":"Not dug in · floor on posts",_menuText);
                 float sink=Mathf.Round(GUILayout.HorizontalSlider(_hallSink,0,2)*2)/2;
                 if(sink!=_hallSink){_hallSink=sink;changed=true;}
-                GUILayout.Label("The floor is sunk into the ground, with a drip ditch along the walls and a ramp down to each door. Ground changes only when you Plan shell, and can be restored.",_menuHint);
+                GUILayout.Label("The floor is sunk into the ground; the ground outside slopes gently back up from the walls, with a ramp down to each door. Nothing is heaped up. Ground changes only when you Plan shell, and can be restored.",_menuHint);
             }
             if(!_staveTemple)
             {
@@ -76,7 +76,6 @@ namespace BuildShapes
             }
             if(_hallNorse)
             {
-                _hallBank=DetailSwitch(_hallBank,"Earth banks against the walls");
                 _hallBenches=DetailSwitch(_hallBenches,"Raised platforms along the long walls");
                 _hallHearth=DetailSwitch(_hallHearth,"Long hearth · smoke holes in the roof");
                 _hallFooting=DetailSwitch(_hallFooting,"Stone footing · half-height timber walls");
@@ -88,7 +87,7 @@ namespace BuildShapes
             }
             _hallSweep=DetailSwitch(_hallSweep,"Sweeping gable timberwork");
             _hallShutters=DetailSwitch(_hallShutters,"Shuttered windows · 2 × 1 m");
-            GUILayout.Label(_staveTemple?"Layered eaves extend above lower roofs where they clear. A porch needs a 4 m edge and clear space outside. All pieces use normal materials and support.":_hallNorse?"Banks heap earth to just under the eaves, beyond the ditch. Platforms are 2 m deep in halls 10 m wide or more, 1 m at 8 m. Hearths run down the middle of wings at least 6 × 8 m, with smoke holes beside them, never above, and rows of aisle posts carry the roof. The stone footing needs a stonecutter nearby to build.":"Overhangs fit around other wings and the porch. A porch needs a 4 m edge and clear ground outside. All pieces use normal materials and support.",_menuHint);
+            GUILayout.Label(_staveTemple?"Layered eaves extend above lower roofs where they clear. A porch needs a 4 m edge and clear space outside. All pieces use normal materials and support.":_hallNorse?"Platforms are 2 m deep in halls 10 m wide or more, 1 m at 8 m. Hearths run down the middle of wings at least 6 × 8 m, with smoke holes beside them, never above, and rows of aisle posts carry the roof. The stone footing needs a stonecutter nearby to build.":"Overhangs fit around other wings and the porch. A porch needs a 4 m edge and clear ground outside. All pieces use normal materials and support.",_menuHint);
             if(!_staveTemple)
             {
                 GUILayout.Label(_hallNorse?"Smoke holes":"Chimneys",_menuText);
