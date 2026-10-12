@@ -42,8 +42,7 @@ namespace Jarldom
         }
         public static List<(string item, int amount)> Needs(Recipe r) =>
             r.m_resources.Where(q => q.m_resItem != null && !q.m_upgraderResource && q.GetAmount(1) > 0).Select(q => (q.m_resItem.name, q.GetAmount(1))).ToList();
-        public static int InStock(Colony c, string item) =>
-            Stock.Chests(c).Where(x => x.category != "treasury").Sum(x => x.chest.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == item).Sum(i => i.m_stack));
+        public static int InStock(Colony c, string item) => Stock.Count(c, item);
         public static bool CanAfford(Colony c, Recipe r) => Needs(r).All(n => InStock(c, n.item) >= n.amount);
         public static string Name(string prefab) { GameObject p = Assets.Find(prefab); string n = p?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name; return n == null ? prefab : Localization.instance.Localize(n); }
 

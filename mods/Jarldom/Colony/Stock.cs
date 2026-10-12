@@ -50,7 +50,7 @@ namespace Jarldom
         // The colony's storage chests, loaded here, nearest first; with their category (from the record) and our id.
         // The list of chests is kept a few seconds (finding them walks every loaded piece); categories are read fresh.
         private static readonly Dictionary<string, (float at, List<Container> chests)> Cache = new Dictionary<string, (float, List<Container>)>();
-        public static void Forget() => Cache.Clear();
+        public static void Forget() { Cache.Clear(); Listed.Clear(); Counted.Clear(); }
         private static List<Container> Boxes(Colony c)
         {
             if (Cache.TryGetValue(c.Id, out var hit) && Time.time - hit.at < 3f) return hit.chests;
@@ -66,7 +66,40 @@ namespace Jarldom
             Cache[c.Id] = (Time.time, boxes);
             return boxes;
         }
+        // The chests with their categories, worked out once a frame (a work scan asks a hundred times over); each caller gets its own list.
+        private static readonly Dictionary<string, (int frame, List<(Container, string, string)> list)> Listed = new Dictionary<string, (int, List<(Container, string, string)>)>();
         public static List<(Container chest, string id, string category)> Chests(Colony c, Vector3? near = null)
+        {
+            if (!Listed.TryGetValue(c.Id, out var hit) || hit.frame != Time.frameCount) Listed[c.Id] = hit = (Time.frameCount, Categorised(c));
+            var list = new List<(Container chest, string id, string category)>(hit.list.Count);
+            foreach (var x in hit.list) if (x.Item1 != null) list.Add(x);
+            Vector3 from = near ?? c.Position;
+            return list.OrderBy(x => Utils.DistanceXZ(x.Item1.transform.position, from) + Mathf.Abs(x.Item1.transform.position.y - from.y) * (near.HasValue && near.Value.y == 0 ? 0 : 1)).ToList();
+        }
+        // How many of an item the stores hold (not the treasury; with free, only chests no one has open), from a count made once a frame.
+        private static readonly Dictionary<string, (int frame, Dictionary<string, int> all, Dictionary<string, int> free)> Counted = new Dictionary<string, (int, Dictionary<string, int>, Dictionary<string, int>)>();
+        public static int Count(Colony c, string prefab, bool free = false)
+        {
+            if (!Counted.TryGetValue(c.Id, out var hit) || hit.frame != Time.frameCount)
+            {
+                var all = new Dictionary<string, int>(); var open = new Dictionary<string, int>();
+                foreach (var x in Chests(c))
+                {
+                    if (x.category == "treasury") continue;
+                    bool inUse = ContainerAccess.InUse(x.chest);
+                    foreach (ItemDrop.ItemData i in x.chest.GetInventory().GetAllItems())
+                    {
+                        if (i.m_dropPrefab == null) continue;
+                        string n = i.m_dropPrefab.name;
+                        all[n] = (all.TryGetValue(n, out int a) ? a : 0) + i.m_stack;
+                        if (!inUse) open[n] = (open.TryGetValue(n, out int b) ? b : 0) + i.m_stack;
+                    }
+                }
+                Counted[c.Id] = hit = (Time.frameCount, all, open);
+            }
+            return (free ? hit.free : hit.all).TryGetValue(prefab, out int k) ? k : 0;
+        }
+        private static List<(Container, string, string)> Categorised(Colony c)
         {
             var list = new List<(Container, string, string)>();
             foreach (Container box in Boxes(c))
@@ -80,8 +113,7 @@ namespace Jarldom
                 if (cat.Length == 0 && InStockpileRoom(c, p.transform.position)) cat = "any";
                 list.Add((box, id, cat));
             }
-            Vector3 from = near ?? c.Position;
-            return list.OrderBy(x => Utils.DistanceXZ(x.Item1.transform.position, from) + Mathf.Abs(x.Item1.transform.position.y - from.y) * (near.HasValue && near.Value.y == 0 ? 0 : 1)).ToList();
+            return list;
         }
         private static bool InStockpileRoom(Colony c, Vector3 p) => c.R.Rooms.Any(r => r.Ok && r.Type == RoomType.Stockpile && Geometry.Inside(r.Xz, p.x, p.z));
 

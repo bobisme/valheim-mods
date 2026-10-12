@@ -201,7 +201,7 @@ namespace Jarldom
         public static bool CookFree(CookingStation s) { try { return (int)AccessTools.Method(typeof(CookingStation), "GetFreeSlot").Invoke(s, null) >= 0; } catch { return false; } }
         private static readonly System.Reflection.MethodInfo QueueMethod = AccessTools.Method(typeof(Smelter), "GetQueueSize");
         public static int QueueSize(Smelter s) { try { return (int)QueueMethod.Invoke(s, null); } catch { return 99; } }
-        public static bool HaveInStock(Colony c, string prefab) => Stock.Chests(c).Any(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest) && x.chest.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == prefab));
+        public static bool HaveInStock(Colony c, string prefab) => Stock.Count(c, prefab, free: true) > 0;
         private static bool Forage(Pickable p)
         {
             // (anything wild that's food, a seed or a crop: berries, mushrooms, wild barley and flax, fiddleheads, vineberries, seed
@@ -286,7 +286,7 @@ namespace Jarldom
                     taken.Add(p); open++;
                 }
         }
-        private static int InStockCount(Colony c, string item) => Stock.Chests(c).Where(x => x.category != "treasury").Sum(x => x.chest.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == item).Sum(i => i.m_stack));
+        private static int InStockCount(Colony c, string item) => Stock.Count(c, item);
 
         public static bool IsStump(GameObject go) { string n = Utils.GetPrefabName(go).ToLowerInvariant(); return n.Contains("stub") || n.Contains("stump"); }
 
