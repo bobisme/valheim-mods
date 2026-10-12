@@ -478,6 +478,18 @@ foreach(int doorEdge in new[]{0,1})foreach(int intricacy in new[]{0,2,4})
  Check(!Blocked(HallLayout.Plan(Rect(10,20),norseKit,2,intricacy,doorEdge,false,Norse()),2),"No beam crosses a longhouse door");
  Check(!Blocked(HallLayout.Plan(Rect(8,16),new HallLayout.Kit(),2,intricacy,doorEdge,false,new HallLayout.Details{Storeys=2}),2),"No joist crosses a door under an upper floor");
 }
+// Smoke holes under a steep roof get a lower 26° piece: rain coverage with a slit for the smoke.
+var ventKit=new HallLayout.Kit{SmallFloor="wood_floor_1x1",SpanCells=5,LowRoof="wood_roof",LowRidge="wood_roof_top"};
+foreach(var width in new[]{10,8})
+{
+ var vented=HallLayout.Plan(Rect(width,20),ventKit,2,2,1,false,Norse());
+ var lids=vented.Parts.Where(p=>p.Role=="smoke hole roof").ToList();
+ Check(vented.Chimneys.Count>0 && lids.Count==vented.Chimneys.Count,"Every smoke hole has a 26° piece");
+ Check(lids.All(p=>p.Prefab==(width==10?"wood_roof_top":"wood_roof")),"A ridge hole gets the 26° ridge, a side hole the 26° roof");
+ // A piece's anchor is its tile's centre (ridge) or the middle of its low edge (side): within 1 m of the hole's centre either way.
+ Check(lids.All(p=>vented.Chimneys.Any(c=>Math.Abs(p.At.X-c.X*2-1)<=1.001 && Math.Abs(p.At.Z-c.Z*2-1)<=1.001)) && lids.Select(p=>(p.At.X,p.At.Z)).Distinct().Count()==lids.Count,"Each 26° piece covers its own smoke hole");
+ Check(!HallLayout.Plan(Rect(width,20),new HallLayout.Kit{SmallFloor="wood_floor_1x1",SpanCells=5,Slope=0.5,Roof="wood_roof",Ridge="wood_roof_top",Wedge="wood_wall_roof_a",LowRoof="wood_roof",LowRidge="wood_roof_top"},2,2,1,false,Norse()).Parts.Any(p=>p.Role=="smoke hole roof"),"Under a 26° roof the holes stay open");
+}
 // Smoke holes, not chimneys: the roof tile is simply open.
 foreach(var plan in new[]{HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,Norse()),HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,new HallLayout.Details{Norse=true,Hearth="hearth",ChimneyPoints=new[]{new V3(1,0,13)}})})
 {

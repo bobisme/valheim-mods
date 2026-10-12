@@ -91,7 +91,7 @@ namespace BuildShapes
             if(!_staveTemple)
             {
                 GUILayout.Label(_hallNorse?"Smoke holes":"Chimneys",_menuText);
-                GUILayout.Label(_hallNorse?"Ctrl+Shift+click a floor tile to leave the roof above it open, as the Norse let their smoke out. Up to four, besides the ones beside the hearths. Rain comes in: keep fires and beds out from under them.":"Ctrl+Shift+click a floor tile to open the roof above it and raise a timber flue past the ridge; set your fire under it. Up to four. Upper floors leave a shaft for it.",_menuHint);
+                GUILayout.Label(_hallNorse?"Ctrl+Shift+click a floor tile to leave the roof above it open, as the Norse let their smoke out. Up to four, besides the ones beside the hearths. Under a 45° roof each gets a lower 26° piece that keeps the rain off and leaves a slit for the smoke.":"Ctrl+Shift+click a floor tile to open the roof above it and raise a timber flue past the ridge; set your fire under it. Up to four. Upper floors leave a shaft for it.",_menuHint);
                 for(int i=0;i<_hallChimneyPoints.Count;i++)
                 {
                     GUILayout.BeginHorizontal();GUILayout.Label($"Chimney {i+1}",_menuText);

@@ -95,6 +95,7 @@ namespace BuildShapes
             if(HallKnown("wood_window"))kit.Window="wood_window";
             if(HallKnown("wood_floor_1x1"))kit.SmallFloor="wood_floor_1x1";
             if(HallKnown("stone_fence"))kit.StoneFence="stone_fence";
+            if(HallKnown("wood_roof") && HallKnown("wood_roof_top")){kit.LowRoof="wood_roof";kit.LowRidge="wood_roof_top";}
             else if(_hallNorse && _hallFooting)_hallNote=(_hallNote==null?"":_hallNote+" ")+"The stone fence isn't unlocked yet (carry some stone); the walls are timber to the ground.";
             else if(_hallShutters)_hallNote=(_hallNote==null?"":_hallNote+" ")+"Window shutters aren't unlocked yet (they need bronze nails); walls stay closed, with open daylight windows from Ornate.";
             bool steep=_hallRoof45;
