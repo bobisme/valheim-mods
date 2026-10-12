@@ -149,6 +149,14 @@ board.Release(c, "v3"); Check(board.Available("ch1", "Wood", 15) == 15, "Releasi
 board.Expire(300); board.Block(b, "No axe"); Check(board.Get(b).State == OrderState.Blocked && board.Get(b).Blocked == "No axe" && !board.Claim(b, "v1", 300, out _), "Blocked orders say why and can't be claimed");
 board.Expire(300 + JobBoard.BlockSeconds - 1); Check(board.Get(b).State == OrderState.Blocked, "A block holds a while");
 board.Expire(300 + JobBoard.BlockSeconds + 1); Check(board.Get(b).State == OrderState.Open, "and then the job is tried again");
+{
+    var reach = new JobBoard();
+    int t1 = reach.Post("fuel", "torch1", Prof.Hauler, 3, 0, 0, 0, 0), t2 = reach.Post("fuel", "torch2", Prof.Hauler, 3, 5, 0, 0, 0), t3 = reach.Post("fuel", "torch3", Prof.Hauler, 3, 30, 0, 0, 0);
+    reach.Expire(10); reach.Block(t1, "can't reach it");
+    Check(reach.Get(t2).State == OrderState.Blocked && reach.Get(t3).State == OrderState.Open, "Out of reach: the same work right by it is too, not what's farther off");
+    reach.Expire(10 + JobBoard.BlockSeconds + 1); Check(reach.Get(t1).State == OrderState.Open, "An unreachable job is tried again after a while");
+    reach.Block(t1, "can't reach it"); reach.Expire(10 + JobBoard.BlockSeconds * 2.5); Check(reach.Get(t1).State == OrderState.Blocked, "and out of reach again, it waits twice as long");
+}
 var hi = board.Post("chop", "tree9", Prof.Woodcutter, 5, 100, 0, 100, 300);
 var near = board.Post("chop", "tree8", Prof.Woodcutter, 3, 1, 0, 1, 300);
 Check(board.Best("v9", p => p == Prof.Woodcutter, 0, 0, null, 300).Id == hi, "Highest priority first");
