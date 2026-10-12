@@ -332,7 +332,8 @@ namespace Jarldom
     // A trade run: the colony's surplus valuables to the traders, coins back at the traders' own prices (never better), a day later.
     internal sealed class TradeTask : Task
     {
-        private Vector3 _edge; private bool _packed; private TradeWay _way;
+        private Vector3 _edge; private bool _packed; private TradeWay _way; private readonly TradeWay? _test;
+        public TradeTask(TradeWay? test = null) { _test = test; } // (a test: this way, whatever the rank)
         public override bool Interruptible => false;
         public override void Start(Brain b)
         {
@@ -340,7 +341,7 @@ namespace Jarldom
             var stores = Stock.Chests(c, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).ToList();
             int lots = stores.Sum(x => x.chest.GetInventory().GetAllItems().Count(Trade.Sellable));
             Component cart = Carts.CartNear(c), karve = Trade.Ship(c, false), longship = Trade.Ship(c, true);
-            _way = Trading.Choose(c.R.Rank, cart != null, karve != null, longship != null, lots);
+            _way = _test ?? Trading.Choose(c.R.Rank, cart != null, karve != null, longship != null, lots);
             Doing = "packing for a trade run " + Trading.Names[(int)_way];
             Inventory bag = b.Body.GetInventory();
             int room = Trading.Lots(_way);
@@ -352,7 +353,7 @@ namespace Jarldom
             // player's own ground stands still, so a walk to the far edge could stall)
             Component by = _way == TradeWay.Cart ? cart : _way == TradeWay.Karve ? karve ?? longship : _way == TradeWay.Longship ? longship : null;
             Vector3 dir = (b.Pos - c.Position); dir.y = 0; if (dir.sqrMagnitude < 1) dir = Vector3.forward;
-            _edge = by != null ? Colony.Spot(by.transform.position, Trading.AtSea(_way) ? 8f : 3f) ?? b.Pos : c.Position + dir.normalized * Mathf.Min(c.Radius + 10, 35f);
+            _edge = by != null ? (Trading.AtSea(_way) ? Trade.Shore(by.transform.position, c.Position) : Colony.Spot(by.transform.position, 3f)) ?? b.Pos : c.Position + dir.normalized * Mathf.Min(c.Radius + 10, 35f);
             if (by == null) _edge = Colony.Spot(_edge, 4f) ?? _edge;
             b.Move.To(_edge, 3f);
             _packed = true;
@@ -373,6 +374,23 @@ namespace Jarldom
         // A ship of the colony's lying at its shore, no one aboard: a karve, or a longship (the drakkar too).
         public static Ship Ship(Colony c, bool longship) => c.PiecesIn(c.Radius + 40).Select(p => p.GetComponent<Ship>()).FirstOrDefault(s => s != null && !s.HasPlayerOnboard()
             && (longship ? Utils.GetPrefabName(s.gameObject).StartsWith("VikingShip") : Utils.GetPrefabName(s.gameObject) == "Karve"));
+        // Where to go aboard a ship moored off the shore: the first dry ground walking back from it towards the colony (the ship may lie
+        // well out; a spot beside it is water).
+        public static Vector3? Shore(Vector3 ship, Vector3 home)
+        {
+            Vector3 dir = home - ship; dir.y = 0; float len = dir.magnitude;
+            if (len < 1f) return Colony.Spot(ship, 8f);
+            dir /= len;
+            float sea = ZoneSystem.instance.m_waterLevel;
+            for (float d = 2f; d < Mathf.Min(len, 80f); d += 1.5f)
+            {
+                Vector3 p = ship + dir * d;
+                if (!ZoneSystem.instance.GetSolidHeight(p, out float h) || h < sea - 0.2f) continue; // (still water)
+                p.y = h;
+                if (Nav.Valid(out Vector3 v, p, 2.5f) && v.y > sea - 0.2f) return v;
+            }
+            return Colony.Spot(ship, 8f);
+        }
         // For the Work tab: how a trader would go now, and what the next way needs.
         public static List<string> Plan(Colony c)
         {

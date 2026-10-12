@@ -1,3 +1,5 @@
+0.1.15: a trader going by ship walks down to the shore opposite where it's moored (a ship lying well out had no dry spot beside it, so they set off from wherever they stood); test command traderun
+
 0.1.14: news in the top-left corner is cut at a word with '… (the rest is in the saga)' instead of running off the screen; the long 'While you were away' tally isn't flashed there at all (the centre message points to the saga); test commands unlog/relog
 
 0.1.13: hunters' arrows hit small game (the shot is aimed from the bow at the beast's middle, not from the feet: arrows flew over boars and necks); a hunt whose beast runs out of the colony's reach, or isn't down in 3 minutes, is let go a while instead of standing there for good; a hunter no longer runs from a deer
