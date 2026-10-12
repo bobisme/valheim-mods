@@ -488,6 +488,25 @@ namespace Jarldom
             _dirty = true;
         }
 
+        // What's owed for the paydays missed: a payday's wages for each (as they are now), paid at once from the treasury, or not at all.
+        public int Owed() => R.MissedPaydays <= 0 ? 0 : R.MissedPaydays * (IsOwner ? Payroll.Due(Villagers.All.Where(b => b.S.Colony == R.Id).Select(b => b.S), Payroll.EveryDays, GuardExtra)
+            : R.Living.Sum(p => (Tables.Wage(p.Prof, false) + (p.Prof == Prof.Guard ? GuardExtra : 0)) * Payroll.EveryDays)) * Plugin.Instance.WageScale.Value / 100; // (another game runs the people: from the roster)
+        public void BackPay(string who)
+        {
+            int owed = Owed();
+            if (owed <= 0) return;
+            Container treasury = Stock.Treasury(this);
+            int coins = treasury != null ? Stock.Coins(treasury) : 0;
+            if (treasury == null || coins < owed || !Stock.TakeCoins(treasury, owed)) { Tell($"{owed} coins are owed and the treasury holds {coins}."); return; }
+            foreach (Brain b in Villagers.All.Where(x => x.S.Colony == R.Id))
+            {
+                int wage = (Tables.Wage(b.S.Prof, b.S.Has("greedy")) + (b.S.Prof == Prof.Guard ? GuardExtra : 0)) * Payroll.EveryDays * Plugin.Instance.WageScale.Value / 100 * R.MissedPaydays;
+                b.S.Hoard += Payroll.Hoarded(wage); b.S.Unpaid = 0; Mood.Remove(b.S, "unpaid"); b.Dirty();
+            }
+            Log("payday", who ?? "", owed.ToString(), $"What was owed ({owed} coins, {R.MissedPaydays} payday{(R.MissedPaydays == 1 ? "" : "s")}) was paid.");
+            R.MissedPaydays = 0; _dirty = true;
+        }
+
         // ---- rank ----
         public IEnumerable<(RoomType type, char grade)> WorkingRooms() => R.Rooms.Where(r => r.Ok).Select(r => (r.Type, r.Grade));
         public void Rerank()

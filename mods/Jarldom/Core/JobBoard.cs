@@ -81,7 +81,7 @@ namespace Jarldom
             if (!_orders.TryGetValue(id, out Order o)) return false;
             if (o.State == OrderState.Claimed && o.Vid != vid) return false;
             if (o.State == OrderState.Cancelled || o.State == OrderState.Blocked) return false;
-            o.State = OrderState.Done; o.Vid = vid; o.LeaseUntil = 0;
+            o.State = OrderState.Done; o.Vid = vid; o.LeaseUntil = 0; _unreachable.Remove(o.Key);
             _completed.Add(id); CompletedCount++;
             Unreserve(id);
             _byKey.Remove(o.Key);
@@ -90,11 +90,21 @@ namespace Jarldom
 
         public const double BlockSeconds = 300;
         private double _now;
+        // Out of reach (a torch out on a dock no one can walk onto): each time again it waits twice as long, up to a quarter day;
+        // and the same work right by it (the next torches along) is taken as out of reach too, not walked to one by one.
+        private readonly Dictionary<string, int> _unreachable = new Dictionary<string, int>();
+        public const double MostBlocked = 21600;
         public void Block(int id, string reason)
         {
             if (!_orders.TryGetValue(id, out Order o) || o.State == OrderState.Done) return;
-            o.State = OrderState.Blocked; o.Blocked = reason ?? ""; o.Vid = ""; o.LeaseUntil = 0; o.BlockedUntil = _now + BlockSeconds;
+            double wait = BlockSeconds;
+            bool reach = (reason ?? "").StartsWith("can't reach");
+            if (reach) { int n = _unreachable.TryGetValue(o.Key, out int k) ? k + 1 : 1; _unreachable[o.Key] = n; wait = Math.Min(MostBlocked, BlockSeconds * Math.Pow(2, n - 1)); }
+            o.State = OrderState.Blocked; o.Blocked = reason ?? ""; o.Vid = ""; o.LeaseUntil = 0; o.BlockedUntil = _now + wait;
             Unreserve(id);
+            if (!reach) return;
+            foreach (Order near in _orders.Values.Where(x => x.Id != id && x.State == OrderState.Open && x.Kind == o.Kind && (x.X - o.X) * (x.X - o.X) + (x.Z - o.Z) * (x.Z - o.Z) < 64 && Math.Abs(x.Y - o.Y) < 3).ToList())
+            { near.State = OrderState.Blocked; near.Blocked = reason; near.BlockedUntil = _now + wait; Unreserve(near.Id); }
         }
         public void Unblock(int id) { if (_orders.TryGetValue(id, out Order o) && o.State == OrderState.Blocked) { o.State = OrderState.Open; o.Blocked = ""; } }
         public void Cancel(int id)

@@ -135,6 +135,7 @@ namespace Jarldom.Ui
                 int payday = (c.Day / Payroll.EveryDays + 1) * Payroll.EveryDays;
                 list.Add(treasury == null ? "No treasury chest: wages can't be paid." : $"The treasury holds {Stock.Coins(treasury)} coins and {due} are due on day {payday}.");
             }
+            if (c.Owed() > 0) list.Add($"Wages are owed for {c.R.MissedPaydays} missed payday{(c.R.MissedPaydays == 1 ? "" : "s")}: {c.Owed()} coins (the hall tab pays them).");
             // (fires and torches gone out that no one can feed: their fuel isn't in the stores)
             var dark = c.PiecesIn<Fireplace>(c.Radius).Where(f => !f.m_infiniteFuel && f.m_fuelItem != null && !Classes.Lit(f) && c.Feeds(f.GetComponent<Piece>()) && !Work.HaveInStock(c, f.m_fuelItem.name))
                 .GroupBy(f => f.m_fuelItem.name).ToList();
@@ -233,6 +234,15 @@ namespace Jarldom.Ui
             y = Heading(list, "The colony", y);
             Container treasury = Stock.Treasury(_c);
             y = Text(list, $"Treasury: {(treasury == null ? "<color=#ff8c59>none chosen</color> (the hammer's \"Mark rooms and zones\": look at a chest, Shift+E)" : Stock.Coins(treasury) + " coins")}. Wages due every {Payroll.EveryDays} days: {Payroll.Due(Villagers.All.Where(b => b.S.Colony == _c.Id).Select(b => b.S), Payroll.EveryDays, _c.GuardExtra) * Plugin.Instance.WageScale.Value / 100} coins.{(r.MissedPaydays > 0 ? $" <color=#ff8c59>{r.MissedPaydays} missed paydays.</color>" : "")}", y);
+            int owed = _c.Owed();
+            if (owed > 0)
+            {
+                int held = treasury != null ? Stock.Coins(treasury) : 0;
+                y = Text(list, $"<color=#ff8c59>Wages owed: {owed} coins ({_c.R.MissedPaydays} missed payday{(_c.R.MissedPaydays == 1 ? "" : "s")}).</color>" + (held < owed ? $" The treasury holds {held}." : ""), y);
+                float px = 8;
+                Tip(Btn(list, "Pay what's owed", ref px, y, () => Net.Act(_c, "backpay", ""), held >= owed), "Back pay", "Everything owed for the missed paydays, from the treasury at once: the unpaid are paid and stop grumbling. The next payday comes as it would.");
+                y += 50;
+            }
             int tribute = Tribute.Due(_c);
             if (tribute > 0 || Tribute.Raiding(_c))
             {

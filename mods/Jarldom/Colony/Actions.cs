@@ -25,6 +25,7 @@ namespace Jarldom
                 case "prof": Villagers.Command(a[0], "prof", Get(a, 1)); break;
                 case "bed": Villagers.Command(a[0], "bed", Get(a, 1)); break;
                 case "autobeds": AutoBeds(); break;
+                case "backpay": BackPay(who); break;
                 case "ruin": Upkeep.Add(this, string.Join("|", a)); break;
                 case "unruin": Upkeep.Remove(this, string.Join("|", a)); break;
                 case "reshape": { Zone z = R.Zones.FirstOrDefault(x => x.Id == Get(a, 0)); var xz = Get(a, 1).Split(',').Select(Flt).ToList(); if (z != null && xz.Count >= 6 && xz.Count == z.Xz.Count && Geometry.Simple(xz)) z.Xz = xz; } break;
@@ -76,7 +77,7 @@ namespace Jarldom
                 case "away": break; // (logged by the trader; the record follows from SoulAway)
                 case "bogpaid": R.BogPaid += Int(a, 0); break;
                 case "gone": { ReleaseBed(a[0]); RosterRow row = R.Row(a[0]); if (row != null) row.State = Get(a, 1) == "deserted" ? SoulState.Deserted : Get(a, 1) == "ascended" ? SoulState.Ascended : SoulState.Dismissed; Rerank(); } break;
-                default: Plugin.Warn("Jarldom: unknown colony action " + action); return;
+                default: Plugin.Warn("Jarldom: unknown colony action " + action); TellPlayer(who, $"{R.Name} is run by a game with Jarldom {Plugin.Version}, which can't do that yet: it needs a newer Jarldom."); return;
             }
             _dirty = true; Flush(); // (a player's choice shows at once)
             SurveySoon(); // beds, chests and rooms may have changed

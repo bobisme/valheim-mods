@@ -683,10 +683,18 @@ namespace Jarldom
 
         private float _closeIn;
         private float _walkSince;
+        // No nearer in 45 s (round and round a house it can't get into): it can't be reached.
+        private float _bestDist = float.MaxValue, _bestAt; private Vector3 _bestTo;
+        private bool NoHeadway(Brain b, Vector3 to)
+        {
+            float d = Utils.DistanceXZ(b.Pos, to);
+            if (d < _bestDist - 2f || _bestAt == 0 || Utils.DistanceXZ(to, _bestTo) > 2f) { _bestDist = d; _bestAt = Time.time; _bestTo = to; return false; } // (somewhere new: counted afresh)
+            return Time.time - _bestAt > 45f;
+        }
         private bool Walking(Brain b, float near)
         {
-            if (Near(b, near)) { b.Move.Stop(); _closeIn = 0; _walkSince = 0; return false; }
-            if (b.Move.Failed) { Block(b, "can't reach it"); return true; }
+            if (Near(b, near)) { b.Move.Stop(); _closeIn = 0; _walkSince = 0; _bestAt = 0; _bestDist = float.MaxValue; return false; }
+            if (b.Move.Failed || NoHeadway(b, _target != null ? _target.transform.position : _at)) { Block(b, "can't reach it"); return true; }
             // (pacing at the foot of a wall for something on top of it: after a while, not reachable)
             if (_walkSince == 0) _walkSince = Time.time;
             else if (Time.time - _walkSince > 60f && Utils.DistanceXZ(b.Pos, _target != null ? _target.transform.position : _at) < 6f) { Block(b, "can't reach it"); return true; }
@@ -894,7 +902,13 @@ namespace Jarldom
                 if (_source == null) _source = Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).Select(x => x.chest)
                     .FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && wants.Contains(i.m_dropPrefab.name)));
                 if (_source == null) { Block(b, "nothing in the stores it eats"); return; }
-                if (Vector3.Distance(b.Pos, _source.transform.position) > 2.4f) { if (!b.Move.Moving) b.Move.To(_source.transform.position, 1.8f); if (b.Move.Failed) Block(b, "can't reach the stores"); return; }
+                if (Vector3.Distance(b.Pos, _source.transform.position) > 2.4f)
+                {
+                    // (to the chest: a walk left over from before, to the fire, is walked no more)
+                    if (!b.Move.Moving || Vector3.Distance(b.Move.Goal, _source.transform.position) > 3f) { b.Move.To(_source.transform.position, 1.8f); _walkSince = 0; }
+                    if (b.Move.Failed || NoHeadway(b, _source.transform.position)) Block(b, "can't reach the stores");
+                    return;
+                }
                 ItemDrop.ItemData have = _source.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && wants.Contains(i.m_dropPrefab.name));
                 if (have == null || Stock.Take(_source, bag, have, 3) == 0) { Finish(b, false); return; }
                 _carrying = true;
@@ -1060,7 +1074,13 @@ namespace Jarldom
             }
             if (_phase == 1)
             {
-                if (Vector3.Distance(b.Pos, _source.transform.position) > 2.4f) { if (!b.Move.Moving) b.Move.To(_source.transform.position, 1.8f); if (b.Move.Failed) Block(b, "can't reach the stores"); return; }
+                if (Vector3.Distance(b.Pos, _source.transform.position) > 2.4f)
+                {
+                    // (to the chest: a walk left over from before, to the fire, is walked no more)
+                    if (!b.Move.Moving || Vector3.Distance(b.Move.Goal, _source.transform.position) > 3f) { b.Move.To(_source.transform.position, 1.8f); _walkSince = 0; }
+                    if (b.Move.Failed || NoHeadway(b, _source.transform.position)) Block(b, "can't reach the stores");
+                    return;
+                }
                 ItemDrop.ItemData have = _source.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == _carry);
                 int room = 5;
                 ZNetView tv = _target.GetComponent<ZNetView>();
