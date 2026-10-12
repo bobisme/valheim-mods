@@ -53,7 +53,7 @@ namespace BuildShapes
         private readonly Dictionary<string,List<HallMesh>> _hallMeshes=new Dictionary<string,List<HallMesh>>();
         private readonly Dictionary<Material,Material> _hallGhostMaterials=new Dictionary<Material,Material>();
         private readonly MaterialPropertyBlock _hallTint=new MaterialPropertyBlock();
-        private sealed class HallMesh { internal Mesh Mesh; internal Matrix4x4 Local; internal Material[] Materials; }
+        private sealed class HallMesh { internal Mesh Mesh; internal Matrix4x4 Local; internal Material[] Materials; internal string Path; }
 
         private bool HallKnown(string name) => name!=null && _hallCatalog.ContainsKey(name);
         private void RefreshHallCatalog(Player player)
@@ -436,13 +436,21 @@ namespace BuildShapes
         private static List<HallMesh> ReadHallMeshes(GameObject prefab)
         {
             var list=new List<HallMesh>();
+            // A piece keeps its distant, simpler models (flat planes) beside the close one in a level-of-detail group;
+            // drawing them all at once made overlapping planes flicker. Under a group, draw only its closest level.
+            var nearest=new Dictionary<LODGroup,HashSet<Renderer>>();
+            foreach(LODGroup group in prefab.GetComponentsInChildren<LODGroup>(true))
+            {LOD[] levels=group.GetLODs();nearest[group]=new HashSet<Renderer>(levels.Length>0?levels[0].renderers.Where(r=>r!=null):Enumerable.Empty<Renderer>());}
             foreach(MeshFilter filter in prefab.GetComponentsInChildren<MeshFilter>(true))
             {
                 MeshRenderer renderer=filter.GetComponent<MeshRenderer>();
                 if(filter.sharedMesh==null || renderer==null || !renderer.enabled)continue;
                 bool hidden=false;for(Transform t=filter.transform;t!=prefab.transform;t=t.parent)if(!t.gameObject.activeSelf || t.name=="_GhostOnly")hidden=true;
                 if(hidden)continue;
-                list.Add(new HallMesh{Mesh=filter.sharedMesh,Local=prefab.transform.worldToLocalMatrix*filter.transform.localToWorldMatrix,Materials=renderer.sharedMaterials});
+                LODGroup owner=filter.GetComponentInParent<LODGroup>(true);
+                if(owner!=null && nearest.TryGetValue(owner,out var close) && close.Count>0 && !close.Contains(renderer))continue;
+                string path=filter.name;for(Transform t=filter.transform.parent;t!=null && t!=prefab.transform;t=t.parent)path=t.name+"/"+path;
+                list.Add(new HallMesh{Path=path,Mesh=filter.sharedMesh,Local=prefab.transform.worldToLocalMatrix*filter.transform.localToWorldMatrix,Materials=renderer.sharedMaterials});
             }
             return list;
         }

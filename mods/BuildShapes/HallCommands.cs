@@ -21,7 +21,7 @@ namespace BuildShapes
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Static|BindingFlags.Public)?.Invoke(null,new object[]{Name,"hall",
-                    "hall testsite find <size> | testsite make <x> <z> <height> <size> <worldID> | testsite clear <x> <z> <size> <worldID> | catalog | rectangle <width> <length> [distance=10] | outline <x,z>... | options style=hall|longhouse|temple sink=0..2 benches=on|off hearth=on|off footing=on|off chamber=4|6|8 crowns=1|2 gallery=on|off height=2|3|4 detail=0..4 storeys=1|2|3 basement=on|off pitch=26|45 material=auto|timber|core|stone|dark raise=0..2 roof=gabled|tiered entrance=auto|door|gate overhang=on|off porch=on|off shutters=on|off trim=on|off crest=auto|none|dragon|raven | doors clear | doors <x,z>... | chimneys clear | chimneys <x,z>... | status | resume | stairs | entrances | pieces | ui | clear | confirm | undo | restoreground | keepground | reload: local Hallwright previews; only confirm creates shared ghosts; undo removes the last shape's unbuilt ghosts",
+                    "hall testsite find <size> | testsite make <x> <z> <height> <size> <worldID> | testsite clear <x> <z> <size> <worldID> | catalog | rectangle <width> <length> [distance=10] | outline <x,z>... | options style=hall|longhouse|temple sink=0..2 benches=on|off hearth=on|off footing=on|off chamber=4|6|8 crowns=1|2 gallery=on|off height=2|3|4 detail=0..4 storeys=1|2|3 basement=on|off pitch=26|45 material=auto|timber|core|stone|dark raise=0..2 roof=gabled|tiered entrance=auto|door|gate overhang=on|off porch=on|off shutters=on|off trim=on|off crest=auto|none|dragon|raven | doors clear | doors <x,z>... | chimneys clear | chimneys <x,z>... | status | resume | meshes <prefab> | stairs | entrances | pieces | ui | clear | confirm | undo | restoreground | keepground | reload: local Hallwright previews; only confirm creates shared ghosts; undo removes the last shape's unbuilt ghosts",
                     new Func<string[],Action<JObject>,Action<string>,IEnumerator>(HallCommand)});
                 found.GetType().GetMethod("RegisterFrame",BindingFlags.Static|BindingFlags.Public)?.Invoke(null,new object[]{Name,new Func<string,float[]>(HallFrame)});
             }
@@ -122,6 +122,12 @@ namespace BuildShapes
                         checks.Add(new JObject{["position"]=new JArray(piece.transform.position.x,piece.transform.position.y,piece.transform.position.z),["clear"]=blockers.Count==0,["blockers"]=new JArray(blockers)});
                     }
                     output(new JObject{["stairs"]=checks,["checked"]=checks.Count,["blocked"]=checks.Count(c=>(bool)c["clear"]==false)});return null;
+                }
+                if(action=="meshes")
+                {
+                    if(args.Length<3)throw new ArgumentException("hall meshes <prefab>");
+                    GameObject prefab=ZNetScene.instance?.GetPrefab(args[2]);if(prefab==null)throw new ArgumentException("No such prefab: "+args[2]);
+                    output(new JObject{["prefab"]=args[2],["drawn"]=new JArray(ReadHallMeshes(prefab).Select(m=>m.Path))});return null;
                 }
                 if(action=="clear"){if(_tool==Tool.Hall)Stop();output(new JObject{["cleared"]=true});return null;}
                 if(action=="reload")return ReloadHallScripts(output,error);
