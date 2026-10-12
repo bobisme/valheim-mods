@@ -1,3 +1,4 @@
+0.1.5: The horn's notes swell in slowly (breath building, not a tongued attack), with a gentler scoop up into pitch.
 0.1.4: The horn sounds raspier and darker: breath comes through the tone, a little rasp in it, and the high end rolled off.
 0.1.3: The end call ("That's all!") can be pressed as soon as there's an order. It used to stay greyed out after the first call, because it waited for the calls to finish sounding and the menu never looked again. The end call still sounds after the others.
 0.1.2: The Errand Horn looks like a horn in menus and on the ground: drawn side-on and slanting across its slot (it was seen end-on, a stub), dark at the tip shading to pale at the bell, thicker, with a thicker strap.

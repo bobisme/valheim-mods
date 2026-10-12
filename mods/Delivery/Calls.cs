@@ -111,7 +111,7 @@ namespace Delivery
         }
 
         // The sound itself: a small horn's, with a few finger-holes (five notes a little apart, not a war horn's leaps). Each note swells
-        // quickly, scoops up into pitch from a little flat, wavers slowly when held, brightens a little as the breath builds, and has
+        // in slowly, scoops up into pitch from a little flat, wavers slowly when held, brightens a little as the breath builds, and has
         // a rasp and breath coming through it; the high end is rolled off.
         private static readonly float[] Holes={1f,1.125f,1.26f,1.5f,1.682f}; // (the root, a second, a third, a fifth and a sixth)
         private const float Root=262f; // (middle C)
@@ -132,10 +132,10 @@ namespace Delivery
                 for(int i=0;i<count+(int)(0.07f*Rate)&&at+i<total;i++)
                 {
                     float t=i/(float)Rate;
-                    float env=t<0.03f?t/0.03f:t<len?1f:Mathf.Max(0,1-(t-len)/0.07f);
+                    float env=t<0.08f?t/0.08f:t<len?1f:Mathf.Max(0,1-(t-len)/0.07f); // (a slow swell in: breath building, not a tongued attack)
                     env*=env;
                     float held=Mathf.Clamp01((t-0.12f)/0.2f);
-                    float bend=-0.035f*Mathf.Exp(-t/0.035f)+0.005f*held*Mathf.Sin(2*Mathf.PI*5.2f*t)-0.008f*held;
+                    float bend=-0.035f*Mathf.Exp(-t/0.06f)+0.005f*held*Mathf.Sin(2*Mathf.PI*5.2f*t)-0.008f*held;
                     phase+=2*System.Math.PI*f*(1+bend)/Rate;
                     float bright=0.3f+0.4f*env; // (a duller horn than a trumpet: the upper overtones held back)
                     float s=0;
