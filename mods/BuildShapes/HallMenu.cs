@@ -44,7 +44,7 @@ namespace BuildShapes
             GUILayout.BeginHorizontal();foreach(int h in new[]{2,3,4})if(GUILayout.Button(h+" m",_menuButton)){_hallHeight=h;changed=true;}GUILayout.EndHorizontal();
             if(_hallNorse)
             {
-                GUILayout.Space(12);GUILayout.Label(_hallSink>0?$"Dug in {_hallSink:0.#} m below the lowest ground":"Not dug in · floor on posts",_menuText);
+                GUILayout.Space(12);GUILayout.Label(_hallSink>0?$"Dug in {_hallSink:0.#} m below the average ground":"Not dug in · floor on posts",_menuText);
                 float sink=Mathf.Round(GUILayout.HorizontalSlider(_hallSink,0,2)*2)/2;
                 if(sink!=_hallSink){_hallSink=sink;changed=true;}
                 GUILayout.Label("The floor is sunk into the ground, with a drip ditch along the walls and a ramp down to each door. Ground changes only when you Plan shell, and can be restored.",_menuHint);
@@ -78,7 +78,8 @@ namespace BuildShapes
             {
                 _hallBank=DetailSwitch(_hallBank,"Earth banks against the walls");
                 _hallBenches=DetailSwitch(_hallBenches,"Raised platforms along the long walls");
-                _hallHearth=DetailSwitch(_hallHearth,"Long hearth · smoke vents in the ridge");
+                _hallHearth=DetailSwitch(_hallHearth,"Long hearth · smoke holes in the roof");
+                _hallFooting=DetailSwitch(_hallFooting,"Stone footing · half-height timber walls");
             }
             else
             {
@@ -87,11 +88,11 @@ namespace BuildShapes
             }
             _hallSweep=DetailSwitch(_hallSweep,"Sweeping gable timberwork");
             _hallShutters=DetailSwitch(_hallShutters,"Shuttered windows · 2 × 1 m");
-            GUILayout.Label(_staveTemple?"Layered eaves extend above lower roofs where they clear. A porch needs a 4 m edge and clear space outside. All pieces use normal materials and support.":_hallNorse?"Banks heap earth to just under the eaves, beyond the ditch. Platforms are 2 m deep in halls 10 m wide or more, 1 m at 8 m. Hearths run down the middle of wings at least 6 × 8 m, with vents beside them, never above, and rows of aisle posts carry the roof.":"Overhangs fit around other wings and the porch. A porch needs a 4 m edge and clear ground outside. All pieces use normal materials and support.",_menuHint);
+            GUILayout.Label(_staveTemple?"Layered eaves extend above lower roofs where they clear. A porch needs a 4 m edge and clear space outside. All pieces use normal materials and support.":_hallNorse?"Banks heap earth to just under the eaves, beyond the ditch. Platforms are 2 m deep in halls 10 m wide or more, 1 m at 8 m. Hearths run down the middle of wings at least 6 × 8 m, with smoke holes beside them, never above, and rows of aisle posts carry the roof. The stone footing needs a stonecutter nearby to build.":"Overhangs fit around other wings and the porch. A porch needs a 4 m edge and clear ground outside. All pieces use normal materials and support.",_menuHint);
             if(!_staveTemple)
             {
-                GUILayout.Label("Chimneys",_menuText);
-                GUILayout.Label("Ctrl+Shift+click a floor tile to open the roof above it and raise a timber flue past the ridge; set your fire under it. Up to four. Upper floors leave a shaft for it.",_menuHint);
+                GUILayout.Label(_hallNorse?"Smoke holes":"Chimneys",_menuText);
+                GUILayout.Label(_hallNorse?"Ctrl+Shift+click a floor tile to leave the roof above it open, as the Norse let their smoke out. Up to four, besides the ones beside the hearths. Rain comes in: keep fires and beds out from under them.":"Ctrl+Shift+click a floor tile to open the roof above it and raise a timber flue past the ridge; set your fire under it. Up to four. Upper floors leave a shaft for it.",_menuHint);
                 for(int i=0;i<_hallChimneyPoints.Count;i++)
                 {
                     GUILayout.BeginHorizontal();GUILayout.Label($"Chimney {i+1}",_menuText);

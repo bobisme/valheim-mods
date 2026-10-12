@@ -16,8 +16,8 @@ namespace BuildShapes
         public int StaveHeight=6,StaveCrowns=1;
         public int Height,Detail,Entrance,Material,Opening,Crest,Storeys;
         public bool Roof45,Solid,ShowRoof,Tiered,Overhang,Porch,Sweep,Basement,GuideOnly,Shutters=true;
-        public bool Norse,Bank=true,Benches=true,Hearth=true;
-        public float Sink=1;
+        public bool Norse,Bank=true,Benches=true,Hearth=true,StoneFooting=true;
+        public float Sink=0.5f;
         private static bool Finite(float x)=>!float.IsNaN(x) && !float.IsInfinity(x);
         private static bool Point(float[] p)=>p!=null && p.Length==3 && p.All(x=>Finite(x) && Math.Abs(x)<1000000);
         internal bool Valid(long world,long player)=>Version==1 && World==world && Player==player &&

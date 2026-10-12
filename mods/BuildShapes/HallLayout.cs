@@ -40,7 +40,7 @@ namespace BuildShapes
             internal string Floor="wood_floor", Wall="woodwall", Half="wood_wall_half", Quarter="wood_wall_quarter", Door="wood_door";
             internal string Post="wood_pole2", Beam="wood_beam", ShortBeam="wood_beam_1";
             internal string Roof="wood_roof_45", Ridge="wood_roof_top_45", Wedge="wood_wall_roof_45";
-            internal string Arch=null, Raven=null, Lattice=null, LoadPost=null, Window=null, SmallFloor=null;
+            internal string Arch=null, Raven=null, Lattice=null, LoadPost=null, Window=null, SmallFloor=null, StoneWall=null;
             internal double Slope=1, BeamLength=2, ShortLength=1, DoorHeight=2, JoistDrop=0.2;
             internal int SpanCells=4;
         }
@@ -76,7 +76,7 @@ namespace BuildShapes
         }
         internal sealed class Details
         {
-            internal bool Overhang, Porch, Sweep, Basement,SuppressRoof,TallWalls,OpenGallery,Shutters,Norse,Benches;
+            internal bool Overhang, Porch, Sweep, Basement,SuppressRoof,TallWalls,OpenGallery,Shutters,Norse,Benches,StoneFooting;
             internal string Hearth;
             internal int Storeys=1;
             internal string Finial;
@@ -351,7 +351,10 @@ namespace BuildShapes
                     }
                     bool shutters=details.Shutters && kit.Window!=null;
                     bool window=(shutters || !details.Norse && detail>=2 && height>=3) && !door && ((int)(Math.Abs(at.X)+Math.Abs(at.Z))/2)%2==0;
-                    for(int h=storey==0 && door?(int)kit.DoorHeight:0;h<height;)
+                    // A stone footing: a course in the ground and one above the floor, under a half-height timber wall.
+                    bool footing=storey==0 && !door && details.StoneFooting && kit.StoneWall!=null && height>=2;
+                    if(footing)foreach(int h in new[]{-1,0})Add(kit.StoneWall,at+new V3(0,h,0),Anchor.Bottom,edge.yaw,"stone footing");
+                    for(int h=storey==0 && door?(int)kit.DoorHeight:footing?1:0;h<height;)
                     {
                         if(window && h==1 && shutters)
                         {
@@ -371,7 +374,7 @@ namespace BuildShapes
                         Add(rise==2?kit.Wall:kit.Half,at+new V3(0,h+storey*height,0),Anchor.Bottom,edge.yaw,"wall");h+=rise;
                     }
                     Rod(kit.Beam,edge.a+new V3(0,(storey+1)*height,0),edge.b+new V3(0,(storey+1)*height,0),kit.BeamLength);
-                    if(detail>=3 && (!door || storey>0))Rod(kit.Beam,edge.a+new V3(0,storey*height+0.25,0),edge.b+new V3(0,storey*height+0.25,0),kit.BeamLength,"carved belt");
+                    if(detail>=3 && (!door || storey>0) && !(footing || storey==0 && details.StoneFooting))Rod(kit.Beam,edge.a+new V3(0,storey*height+0.25,0),edge.b+new V3(0,storey*height+0.25,0),kit.BeamLength,"carved belt");
                     if(detail>=4 && !door)
                     {
                         V3 front=Turn(new V3(0,0,-0.18),edge.yaw);
@@ -659,7 +662,8 @@ namespace BuildShapes
                 double ridgeFrom=0;
                 foreach(int row in openRows){Rod(kit.Beam,wing.At(width/2,peak,ridgeFrom),wing.At(width/2,peak,row*2),kit.BeamLength);ridgeFrom=row*2+2;}
                 Rod(kit.Beam,wing.At(width/2,peak,ridgeFrom),wing.At(width/2,peak,length),kit.BeamLength);
-                foreach(var (col,row) in flues)
+                // A Norse smoke hole is just the open roof tile: no flue above the ridge.
+                foreach(var (col,row) in details.Norse?new HashSet<(int,int)>():flues)
                 {
                     // Roof surface heights at the tile's two eave-parallel edges; a tier step counts on its higher side.
                     double Low(int c)=>roofBase+Math.Min(c,wing.Width-1-c)*2*kit.Slope+Lift(c);

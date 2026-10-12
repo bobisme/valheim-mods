@@ -481,4 +481,23 @@ foreach(int doorEdge in new[]{0,1})foreach(int intricacy in new[]{0,2,4})
  Check(!Blocked(HallLayout.Plan(Rect(10,20),norseKit,2,intricacy,doorEdge,false,Norse()),2),"No beam crosses a longhouse door");
  Check(!Blocked(HallLayout.Plan(Rect(8,16),new HallLayout.Kit(),2,intricacy,doorEdge,false,new HallLayout.Details{Storeys=2}),2),"No joist crosses a door under an upper floor");
 }
+// Smoke holes, not chimneys: the roof tile is simply open.
+foreach(var plan in new[]{HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,Norse()),HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,new HallLayout.Details{Norse=true,Hearth="hearth",ChimneyPoints=new[]{new V3(1,0,13)}})})
+{
+ Check(plan.Chimneys.Count>0 && !plan.Parts.Any(p=>p.Role=="chimney"),"A longhouse lets its smoke out through open holes, with no flue");
+ Check(plan.Parts.Count(p=>p.Role=="roof")==plan.Cells.Count-plan.Chimneys.Count,"Each smoke hole is one open roof tile");
+}
+// A stone footing: two courses under every wall panel but the doors', then timber from 1 m.
+var footingKit=new HallLayout.Kit{SmallFloor="wood_floor_1x1",SpanCells=5,StoneWall="stone_wall_2x1"};
+foreach(int wallHeight in new[]{2,3})
+{
+ var footed=HallLayout.Plan(Rect(10,20),footingKit,wallHeight,2,1,false,new HallLayout.Details{Norse=true,Benches=true,Hearth="hearth",StoneFooting=true});
+ var stones=footed.Parts.Where(p=>p.Role=="stone footing").ToList();
+ Check(stones.Count==2*(footed.BoundaryPanels-1) && stones.All(p=>p.Prefab=="stone_wall_2x1"),"Two stone courses under every wall panel except the door's");
+ Check(stones.Count(p=>p.At.Y==-1)==stones.Count(p=>p.At.Y==0),"One course in the ground, one above the floor");
+ Check(footed.Parts.Where(p=>p.Role=="wall").All(p=>p.At.Y>=1-1e-9 || footed.Entrances.Any(d=>(new V3(p.At.X,0,p.At.Z)-d.At).Length<1.01)),"Timber walls start on the stone, except beside the door");
+ Check(footed.Parts.Count(p=>p.Role=="wall" && p.At.Y>=1-1e-9)>0,"Half-height timber walls above the footing");
+ Check(footed.Parts.All(p=>fixture.TryGetProperty(p.Prefab,out _)),"Footing uses native pieces");
+}
+Check(!HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,new HallLayout.Details{Norse=true,StoneFooting=true}).Parts.Any(p=>p.Role=="stone footing"),"No footing until stone walls are unlocked");
 Console.WriteLine($"Norse longhouse: {checks:N0} checks passed.");
