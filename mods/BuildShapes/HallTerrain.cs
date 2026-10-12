@@ -41,7 +41,7 @@ namespace BuildShapes
             if(_hallBasement && _hallFloorY-3<ZoneSystem.instance.m_waterLevel+0.75f)throw new ArgumentException("The cellar would flood. Choose higher ground (basement floor must be above the water table).");
             if(_hallNorse && _hallSink>0 && _hallFloorY-0.15f<ZoneSystem.instance.m_waterLevel+0.3f)throw new ArgumentException("The sunken floor would flood. Choose higher ground or dig it in less deeply.");
             var cells=_hallDesign.Cells;
-            // A longhouse slopes the ground back up within 6 m and ramps 10 m from its doors; a cellar digs only its pit and apron.
+            // A longhouse digs 1.5 m outside its walls and ramps 10 m from its doors; a cellar digs only its pit and apron.
             int m=_hallNorse?11:5;
             Vector3[] corners={HallWorld(new V3(cells.Min(c=>c.X)*2-m,0,cells.Min(c=>c.Z)*2-m)),HallWorld(new V3((cells.Max(c=>c.X)+1)*2+m,0,cells.Min(c=>c.Z)*2-m)),HallWorld(new V3(cells.Min(c=>c.X)*2-m,0,(cells.Max(c=>c.Z)+1)*2+m)),HallWorld(new V3((cells.Max(c=>c.X)+1)*2+m,0,(cells.Max(c=>c.Z)+1)*2+m))};
             float x0=corners.Min(v=>v.x),x1=corners.Max(v=>v.x),z0=corners.Min(v=>v.z),z1=corners.Max(v=>v.z);

@@ -458,14 +458,12 @@ Check(HallLayout.Plan(Rect(10,20),norseKit,2,2,1,true,Norse()).TieredWings==1,"A
 Reject(()=>HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,new HallLayout.Details{Norse=true,Storeys=2}),"two-storey longhouse");
 Reject(()=>HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,new HallLayout.Details{Norse=true,Porch=true}),"longhouse porch");
 Reject(()=>HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,new HallLayout.Details{Norse=true,Basement=true}),"longhouse basement");
-// Its ground: dug floor and ditch sloping back up, ramps to each door, only ever dug, nothing far away.
+// Its ground: dug floor and the strip just outside the walls, ramps to each door, only ever dug, nothing beyond.
 var dug=HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,Norse());
 var dugDoor=dug.Entrances[0];V3 Out(double along,double out_)=>dugDoor.At+Turn(new V3(along,0,-out_),dugDoor.Yaw);
 Check(HallExcavation.Norse(dug,5,10,1)==(-0.15,-1),"The floor is dug just below its boards");
 Check(HallExcavation.Norse(dug,-1,10,1)==(-0.15,-1) && HallExcavation.Norse(dug,5,21.4,1)==(-0.15,-1),"The soil stays below the floor just outside the walls");
-var slope1=HallExcavation.Norse(dug,-2.5,10,1);var slope2=HallExcavation.Norse(dug,-4.5,10,1);
-Check(slope1.HasValue && slope2.HasValue && slope2.Value.y>slope1.Value.y && slope1.Value.y>-0.15,"Beyond that the ground slopes gently back up");
-Check(HallExcavation.Norse(dug,-7,10,1)==null,"Ground further out is untouched");
+Check(HallExcavation.Norse(dug,-2,10,1)==null && HallExcavation.Norse(dug,-7,10,1)==null,"Ground beyond the strip is untouched");
 Check(HallExcavation.Norse(dug,5,10,0)==null && HallExcavation.Norse(dug,-2,10,0)==null,"An undug longhouse leaves the ground alone");
 for(double x=-8;x<=18;x+=0.5)for(double z=-8;z<=28;z+=0.5){var g=HallExcavation.Norse(dug,x,z,1);Check(g==null || g.Value.mode<0,"A longhouse only ever digs, never heaps earth up");}
 var r1=HallExcavation.Norse(dug,Out(0,1).X,Out(0,1).Z,1);var r2=HallExcavation.Norse(dug,Out(0,4).X,Out(0,4).Z,1);var r3=HallExcavation.Norse(dug,Out(0,8).X,Out(0,8).Z,1);

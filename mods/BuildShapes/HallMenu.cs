@@ -47,7 +47,7 @@ namespace BuildShapes
                 GUILayout.Space(12);GUILayout.Label(_hallSink>0?$"Dug in {_hallSink:0.#} m below the average ground":"Not dug in · floor on posts",_menuText);
                 float sink=Mathf.Round(GUILayout.HorizontalSlider(_hallSink,0,2)*2)/2;
                 if(sink!=_hallSink){_hallSink=sink;changed=true;}
-                GUILayout.Label("The floor is sunk into the ground; the ground outside slopes gently back up from the walls, with a ramp down to each door. Nothing is heaped up. Ground changes only when you Plan shell, and can be restored.",_menuHint);
+                GUILayout.Label("The floor is sunk into the ground, with a strip 1.5 m wide dug along the outside of the walls and a ramp down to each door. Nothing is heaped up. Ground changes only when you Plan shell, and can be restored.",_menuHint);
             }
             if(!_staveTemple)
             {

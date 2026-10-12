@@ -1,3 +1,5 @@
+0.7.4: A longhouse digs only under its floor and a strip 1.5 m wide along the outside of its walls (to keep the soil out of the floor), plus the ramps to its doors; the gentle slope back up to the natural ground from 0.7.3 is gone and the ground beyond the strip is left alone.
+
 0.7.3: Longhouses no longer heap up earth banks around themselves: with the floor dug only 0.5 m in, the banks stood well above the natural ground, a berm around a hollow. A longhouse now only digs: the ground stays below the floor for 1.5 m outside the walls, then slopes gently back up to the natural ground, with the ramps down to the doors as before. The Earth banks switch (and the hall option bank=) is gone.
 
 0.7.2: Restoring the ground after a longhouse or basement works again. It measured the distance to each ground point as if the point were at height 0, so anywhere more than about 70 m above sea level it refused with "out of reach or protected". Points that something else has changed since (levelling for a workbench, a hoe or a pickaxe) are now left as they are instead of stopping the whole restore, and the message says how many.
