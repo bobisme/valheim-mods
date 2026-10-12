@@ -113,6 +113,14 @@ namespace Jarldom
                 var box = new GameObject("collider_" + body.transform.parent.name) { layer = layer }; box.transform.SetParent(go.transform, false);
                 BoxCollider c = box.AddComponent<BoxCollider>(); c.center = b.center + Vector3.down * 0.025f; c.size = b.size + Vector3.up * 0.05f;
             }
+            // The way between them: where anyone looks to use them. A trigger, so it's hovered (and E works) but walked through.
+            if (bodies.Count == 2)
+            {
+                Bounds l = Assets.MeshBounds(go.transform, bodies[0]), r = Assets.MeshBounds(go.transform, bodies[1]);
+                var gap = new GameObject("use_between") { layer = LayerMask.NameToLayer("piece_nonsolid") }; gap.transform.SetParent(go.transform, false);
+                BoxCollider g = gap.AddComponent<BoxCollider>(); g.isTrigger = true;
+                g.center = new Vector3((l.max.x + r.min.x) / 2f, 1.4f, 0); g.size = new Vector3(Mathf.Max(0.5f, r.min.x - l.max.x), 2.4f, 0.4f);
+            }
             go.AddComponent<HighSeat>();
         }
         // A plain block (a Unity cube without its collider) for bands and fittings.

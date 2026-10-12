@@ -1,3 +1,5 @@
+0.1.16: first hour: the way between the high-seat pillars can be looked at and used (only the pillars could be, and that's where anyone aims); founding says what to do next ('Use the pillars (E) to hold council'); the pillars read 'A camp: 0 souls, renown 0'; the hall tab's first steps say where Rename is, that the New tab opens when newcomers land, and how to mark work; the rank line says plainly how many may live there
+
 0.1.15: a trader going by ship walks down to the shore opposite where it's moored (a ship lying well out had no dry spot beside it, so they set off from wherever they stood); test command traderun
 
 0.1.14: news in the top-left corner is cut at a word with '… (the rest is in the saga)' instead of running off the screen; the long 'While you were away' tally isn't flashed there at all (the centre message points to the saga); test commands unlog/relog

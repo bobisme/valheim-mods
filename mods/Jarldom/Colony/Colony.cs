@@ -99,7 +99,8 @@ namespace Jarldom
             R.Name = DefaultName(founder, R.Id);
             if (creator == 0 && Player.m_localPlayer != null && Vector3.Distance(Player.m_localPlayer.transform.position, Position) < 30) R.FounderName = Player.m_localPlayer.GetPlayerName();
             R.LastDawn = Day; R.LastDusk = Hour >= 18 ? Day : Day - 1; R.LastPayday = Day;
-            Log("found", founder, "");
+            Log("found", founder, "", quiet: true);
+            Tell($"{R.Name} is founded.\n<size=70%>Use the pillars (E) to hold council: the hall tab lists the first steps.</size>", true);
             _dirty = true; Flush();
             Plugin.Log($"Jarldom: {founder} founded colony {R.Id} at {Position}");
         }

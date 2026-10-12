@@ -164,11 +164,11 @@ namespace Jarldom.Ui
             bool Room(RoomType t) => r.Rooms.Any(x => x.Ok && x.Type == t);
             return new List<(bool, string)>
             {
-                (r.Flag("named") == 1, $"Name your hall: it's \"{r.Name}\" until you do (the box at the bottom of this tab)."),
+                (r.Flag("named") == 1, $"Name your hall: it's \"{r.Name}\" until you do (Rename, beside the name above)."),
                 (c.Beds > 0, "Build a bed for a newcomer: by the pillars, or better in a house you mark as a longhouse (hammer → Misc → Mark rooms and zones)."),
                 (r.Arrivals > 0, $"Draw Odin's eye: renown {Renown.Threshold(0)} brings the first of the fallen. Build, make beds comfortable, keep coins and valuables in chests."),
-                (r.Arrivals > 0 && c.Population > 0, "Take in who the Valkyrie sets down at the pillars at dusk (the New tab)."),
-                (r.Zones.Count > 0, "Mark work: a woodlot, a quarry, fields, foraging or hunting grounds. Villagers work what's marked and haul it to the chests."),
+                (r.Arrivals > 0 && c.Population > 0, "Take in who the Valkyrie sets down at the pillars at dusk (a New tab opens here when they land)."),
+                (r.Zones.Count > 0, "Mark work: with the hammer's \"Mark rooms and zones\", click a spot twice for a woodlot, quarry, fields, foraging or hunting ground. Villagers work what's marked and haul it to the chests."),
                 (r.Roster.Any(x => x.State == SoulState.Active && x.Prof != Prof.Hauler), "Give each a trade: People tab → Details → choose their work (they say what they'd like)."),
                 (Stock.Treasury(c) != null, $"Choose a treasury chest (the hammer's \"Mark rooms and zones\": look at a chest, Shift+E) and put coins in it: wages are paid from it every {Payroll.EveryDays} days."),
                 (Stock.Chests(c).Any(x => x.category != "" && x.category != "treasury") || Room(RoomType.Stockpile), "Sort the stores: mark a stockpile room, or with the hammer's \"Mark rooms and zones\" look at a chest and press Shift+E."),
@@ -230,7 +230,7 @@ namespace Jarldom.Ui
             y = Text(list, why == "" ? $"Odin may send someone at dawn (renown {Renown.Threshold(r.Arrivals)} reached)." : "No one will come yet: " + why + ".", y, 16, GameUi.Dim);
             if (r.Coming.Count > 0 && !r.ComingLanded) y = Text(list, $"{r.Coming.Count} on their way: they arrive at dusk.", y, 16, GameUi.Good);
             y = Heading(list, "Rank", y);
-            y = Text(list, $"A {Tables.Of(r.Rank).Name.ToLower()} of {_c.Population} (room for {_c.Cap}: {Tables.Of(r.Rank).Cap} for the rank, {_c.Beds} beds). Unlocked: {Tables.Of(r.Rank).Unlocks}.", y);
+            y = Text(list, $"A {Tables.Of(r.Rank).Name.ToLower()} of {_c.Population} {(_c.Population == 1 ? "soul" : "souls")}. Room for {_c.Cap} in all: as many as there are beds ({_c.Beds}), up to {Tables.Of(r.Rank).Cap} at this rank. Unlocked: {Tables.Of(r.Rank).Unlocks}.", y);
             if (r.Rank < Rank.Hold) { Rank next = r.Rank + 1; string miss = Ranks.Missing(next, _c.Population, _c.WorkingRooms()); y = Text(list, $"To become a {Tables.Of(next).Name.ToLower()}: {(miss == "" ? "ready at the next check" : miss)}.", y, 16, GameUi.Dim); }
             y = Heading(list, "The colony", y);
             Container treasury = Stock.Treasury(_c);
