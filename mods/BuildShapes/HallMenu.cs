@@ -169,6 +169,7 @@ namespace BuildShapes
             if(GUILayout.Button("Plan shell",_menuButton,GUILayout.Height(36)))ConfirmHall(Player.m_localPlayer);
             GUI.enabled=enabled;
             if(GUILayout.Button("Edit outline",_menuButton,GUILayout.Height(36)))CloseHallMenu();
+            if(GUILayout.Button("Clear draft",_menuButton,GUILayout.Height(36))){ClearHallDraft();Say("Hallwright draft cleared.");}
             if(GUILayout.Button("Cancel",_menuButton,GUILayout.Height(36)))Stop();
             GUILayout.EndHorizontal();GUILayout.Label("Esc: close options · L: reopen · F4: modes",_menuHint);
             GUILayout.EndArea();GUI.DragWindow(new Rect(0,0,_hallRect.width-60,50));

@@ -230,10 +230,11 @@ namespace BuildShapes
             bool problem=_hallDue==0 && (_numberError??_hallProblem)!=null;
             TMP_Text status=GameUi.Label(_hallWindow,HallStatus,new Vector2(30,-(height-bottom+10)),new Vector2(w-60,52),16,problem?GameUi.Warn:GameUi.Text);
             status.overflowMode=TextOverflowModes.Ellipsis;
-            float third=(w-60-12)/3;
-            GameUi.Button(_hallWindow,"Plan shell",new Vector2(30,-(height-82)),new Vector2(third,44),()=>HallLater(()=>ConfirmHall(Player.m_localPlayer)),HallCanPlan,18);
-            GameUi.Button(_hallWindow,"Edit outline",new Vector2(30+third+6,-(height-82)),new Vector2(third,44),()=>HallLater(CloseHallMenu),true,18);
-            GameUi.Button(_hallWindow,"Cancel",new Vector2(30+2*(third+6),-(height-82)),new Vector2(third,44),()=>HallLater(Stop),true,18);
+            float quarter=(w-60-18)/4;
+            GameUi.Button(_hallWindow,"Plan shell",new Vector2(30,-(height-82)),new Vector2(quarter,44),()=>HallLater(()=>ConfirmHall(Player.m_localPlayer)),HallCanPlan,18);
+            GameUi.Button(_hallWindow,"Edit outline",new Vector2(30+quarter+6,-(height-82)),new Vector2(quarter,44),()=>HallLater(CloseHallMenu),true,18);
+            GameUi.Button(_hallWindow,"Clear draft",new Vector2(30+2*(quarter+6),-(height-82)),new Vector2(quarter,44),()=>HallLater(()=>{ClearHallDraft();Say("Hallwright draft cleared.");}),true,18);
+            GameUi.Button(_hallWindow,"Cancel",new Vector2(30+3*(quarter+6),-(height-82)),new Vector2(quarter,44),()=>HallLater(Stop),true,18);
             GameUi.Line(_hallWindow,"Esc or E: close"+(StakeMode?" · E inside the outline: open again":" · L: open again · F4: modes"),new Vector2(30,-(height-34)),w-60,14,GameUi.Dim);
         }
         private void CloseHallWindow()

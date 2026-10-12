@@ -15,7 +15,7 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.8.6";
+        public const string Version = "0.8.7";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
@@ -140,7 +140,7 @@ namespace BuildShapes
                 {_lastAction=Time.unscaledTime;UndoShape(player);}
                 return; // Menu mouse/keyboard input must never select pieces or mark the world.
             }
-            if (_tool == Tool.Hall && Input.GetKeyDown(KeyCode.Delete)) { DiscardHallDraft(); _markers.Clear(); _hallDoorPoints.Clear(); _hallChimneyPoints.Clear(); BuildHallPreview(); return; }
+            if (_tool == Tool.Hall && Input.GetKeyDown(KeyCode.Delete)) { ClearHallDraft(); return; }
             if (_tool == Tool.Repeat)
             {
                 bool changed = _previewSpacing != SafeSpacing() || _previewFollow != _follow.Value;

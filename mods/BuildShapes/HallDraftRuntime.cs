@@ -47,6 +47,12 @@ namespace BuildShapes
             }
             catch(Exception ex){Say(ex.GetBaseException().Message);return false;}
         }
+        // The Clear draft button and Delete: the outline, entrances and chimneys gone, the saved draft deleted; still in Hallwright.
+        private void ClearHallDraft()
+        {
+            if(_hallMenu)CloseHallMenu();
+            DiscardHallDraft();_markers.Clear();_hallDoorPoints.Clear();_hallChimneyPoints.Clear();BuildHallPreview();
+        }
         private void DiscardHallDraft()
         {
             if(_hallDraftWorld!=0)try{File.Delete(HallDraftPath(_hallDraftWorld,_hallDraftPlayer));}catch(Exception ex){Logger.LogWarning(ex.Message);}
