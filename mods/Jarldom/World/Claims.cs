@@ -67,7 +67,18 @@ namespace Jarldom
         public static IEnumerable<Claim> Of(Colony c) => All().Where(x => x.Colony == c.Id.ToLowerInvariant());
         public static Claim Get(string id) => All().FirstOrDefault(x => x.Id == id);
         public static void Save(Claim c) { if (c.Id != "") Set(KeyHead + c.Id, c.Encode()); }
-        public static void Took(string claim, Dictionary<string, int> got) { if (got.Count > 0) Set(TakeHead + claim + "_" + Colony.NewId().Substring(0, 6), string.Join(";", got.Select(kv => kv.Key + ":" + kv.Value))); }
+        // (a claim nobody visits never takes its loads in: past a few, they're folded into one key, so the world's keys don't grow
+        // with every trip; only the colony's game writes loads, and a stake taking them in at that very moment counts some twice at worst)
+        public static void Took(string claim, Dictionary<string, int> got)
+        {
+            if (got.Count == 0) return;
+            var all = new Dictionary<string, int>(got);
+            var waiting = Takes().Where(t => t.claim == claim).ToList();
+            if (waiting.Count >= MaxLoads) foreach (var t in waiting) { foreach (var kv in t.got) all[kv.Key] = (all.TryGetValue(kv.Key, out int n) ? n : 0) + kv.Value; }
+            Set(TakeHead + claim + "_" + Colony.NewId().Substring(0, 6), string.Join(";", all.Select(kv => kv.Key + ":" + kv.Value)));
+            if (waiting.Count >= MaxLoads) foreach (var t in waiting) Unset(t.key);
+        }
+        private const int MaxLoads = 3;
         public static void Remove(string id) { Unset(KeyHead + id); foreach (var t in Takes().Where(t => t.claim == id)) Unset(t.key); }
         // The claim as the stake last wrote it, without loads not yet taken in: for the stake's own survey.
         internal static Claim Stored(string id) => Keys(KeyHead).TryGetValue(KeyHead + id, out string v) ? Claim.Decode(id, v) : null;

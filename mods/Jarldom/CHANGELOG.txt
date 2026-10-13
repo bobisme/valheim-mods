@@ -1,3 +1,5 @@
+0.1.50: a raid or siege called off before any foe reaches the colony comes to nothing (no renown, no raid-held cheer); only killing a raider counts as fighting in a raid (a disgraced soul's way back), not a neck by the river; loads miners bring home from a claim nobody visits are folded together past three, so the world's keys no longer grow with every trip.
+
 0.1.49: a crowd in the hall no longer all gossips about the same thing at once (the hall remembers what was told lately); the messages when you take on a villager's request are short enough to fit on screen.
 
 0.1.48: The ore claim has its own model (made in Blender) instead of a log pole with a pennant and a block for a pick's head: a stout log driven into a heap of rubble and copper-bright ore, a pick and a sledge crossed and lashed on its front, an iron lantern with glowing panes hung from a bracket at its head, and a hooped bucket of ore beside it.

@@ -383,17 +383,21 @@ namespace Jarldom
                 if (restless) RestlessSince[c.Id] = Time.time;
                 string name = restless ? Restless : band ? "the warband of " + Warband.JarlName(c) : ev == null ? "a siege at the Warstone" : Localization.instance.Localize(ev.GetHudText()) is string t && t.Length > 0 ? t : ev.m_name;
                 Running[c.Id] = (name, c.R.Log.Count(e => e.Kind == "death" || e.Kind == "lost"));
+                Fought.Remove(c.Id);
                 c.Log("raid", "", name);
                 c.HornUntil = Time.time + 600;
                 Assets.Effect("sfx_fader_bell", c.Position);
             }
-            else if (!near && c.RaidOn)
+            if (c.RaidOn && !Fought.Contains(c.Id) && Foes(c, reach + 30)) Fought.Add(c.Id);
+            if (!near && c.RaidOn) // (just begun is near: never both)
             {
                 c.RaidOn = false; c.HornUntil = 0;
                 int deaths = c.R.Log.Count(e => e.Kind == "death" || e.Kind == "lost");
                 bool bought = c.R.Flags.Remove("tribute:bought"); // (paid off: nothing held, no deed)
                 string ended = Running.TryGetValue(c.Id, out var r) ? r.name : "the raid"; // (a reload mid-raid forgets which)
-                if (c.Population > 0 && !bought && ended != Restless) // (our own dead walking aren't a raid held off)
+                bool came = Fought.Remove(c.Id) || !Running.ContainsKey(c.Id); // (called off before a foe showed: nothing held; a reload mid-raid gets the benefit of the doubt)
+                if (!came && !bought) c.Log("text", "", "", $"{char.ToUpper(ended[0])}{ended.Substring(1)} came to nothing: no foe reached the colony.");
+                if (c.Population > 0 && !bought && came && ended != Restless) // (our own dead walking aren't a raid held off)
                 {
                     string name = ended;
                     c.R.Deeds += Renown.Deed("raidheld");
@@ -428,7 +432,11 @@ namespace Jarldom
                 __result = list;
             }
         }
-        public static void Forget() { Running.Clear(); RestlessSince.Clear(); }
+        public static void Forget() { Running.Clear(); RestlessSince.Clear(); Fought.Clear(); }
+        // Raids a foe has come to (an alerted monster near the colony): one called off before any came isn't a raid held off.
+        private static readonly HashSet<string> Fought = new HashSet<string>();
+        private static bool Foes(Colony c, float reach) => Character.GetAllCharacters().Any(ch => ch != null && !ch.IsDead() && !ch.IsPlayer() && !ch.IsTamed()
+            && ch.GetBaseAI() is MonsterAI m && m.IsAlerted() && Villagers.Brain(ch) == null && Utils.DistanceXZ(ch.transform.position, c.Position) < reach);
         private const string Restless = "the restless dead";
         private static readonly Dictionary<string, float> RestlessSince = new Dictionary<string, float>();
     }

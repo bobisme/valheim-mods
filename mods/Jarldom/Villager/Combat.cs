@@ -132,6 +132,13 @@ namespace Jarldom
         [HarmonyPatch(typeof(Character), nameof(Character.OnDeath))]
         private static class Kills
         {
+            // One of the raiders, not a neck by the river: the game's raid spawns, a Warstone siege's, a warband's, the Fulings'.
+            private static bool Raider(Character ch)
+            {
+                if (ch.GetBaseAI() is MonsterAI m && m.IsEventCreature()) return true;
+                ZDO z = ch.GetComponent<ZNetView>()?.GetZDO();
+                return z != null && (z.GetLong("bob_sw_siege", 0L) != 0L || z.GetString(Warband.BandKey, "") != "" || z.GetString(Tribute.BandKey, "") != "");
+            }
             private static void Prefix(Character __instance)
             {
                 if (__instance == null || __instance.IsPlayer() || VillagerPrefab.Is(__instance)) return;
@@ -144,7 +151,7 @@ namespace Jarldom
                     bool star = __instance.GetLevel() > 1, boss = __instance.IsBoss();
                     Worth.Gain(b.S, boss ? "bosskill" : star ? "starkill" : "kill", Faith.OdinWorthBonus(b.Colony));
                     b.S.Bump("kills");
-                    if (b.Colony != null && b.Colony.RaidOn) b.S.Counts["raidkill"] = Clock.Day(b.Now); // (fought in a raid: a disgraced soul's way back)
+                    if (b.Colony != null && b.Colony.RaidOn && Raider(__instance)) b.S.Counts["raidkill"] = Clock.Day(b.Now); // (fought in a raid: a disgraced soul's way back)
                     string what = Localization.instance.Localize(__instance.m_name);
                     if (star || boss)
                     {
