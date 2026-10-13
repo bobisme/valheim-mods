@@ -205,7 +205,7 @@ namespace Jarldom
                 // (the ship and its hold go with them: every game near sees it go out burning)
                 Vector3 at = pyre.transform.position; Quaternion rot = pyre.transform.rotation;
                 Brain archer = Funeral.Archer(c, at);
-                if (archer != null) archer.Say(new[] { $"To Valhalla, {s.Name}!", $"Odin, take {s.Name}!", $"Fly true. For {s.Name}.", $"Skål, {s.Name}. Burn bright." }[UnityEngine.Random.Range(0, 4)], 6);
+                Funeral.ArcherVid = archer?.S.Vid ?? ""; // (they call out as they loose, once the ship is well out)
                 Net.ShipBurial_(at, rot, ShipBurial.Out(at, c.Position), archer != null ? archer.Pos + Vector3.up * 1.5f : Vector3.zero);
                 ZNetView sv = pyre.GetComponent<ZNetView>();
                 if (sv != null && sv.IsValid()) { if (!sv.IsOwner()) sv.ClaimOwnership(); ZNetScene.instance.Destroy(pyre.gameObject); }

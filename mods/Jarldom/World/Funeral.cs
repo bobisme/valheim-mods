@@ -7,7 +7,7 @@ namespace Jarldom
     // and they call after the one going (World/ShipBurial.cs draws the voyage on every game).
     internal static class Funeral
     {
-        public static float LaunchedAt = -1f; public static string Going = "";
+        public static float LaunchedAt = -1f; public static string Going = "", ArcherVid = "";
         // On the colony's owner, when the soul is aboard: everyone free to the shore.
         public static void Gather(Colony c, Vector3 ship, Brain soul)
         {
@@ -44,8 +44,19 @@ namespace Jarldom
             if (b.Move.Moving && !b.Move.Failed) return;
             Vector3 d = _ship - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized);
             if (Funeral.LaunchedAt < 0) return;
-            if (_speakAt == 0) { _speakAt = Funeral.LaunchedAt + Random.Range(14f, 40f); _until = Mathf.Min(_until, Funeral.LaunchedAt + 75f); }
-            if (!_said && Time.time >= _speakAt) { _said = true; Greet.Say(b, Greeting.Farewell, null, urgent: true, about: _who); }
+            bool archer = b.S.Vid == Funeral.ArcherVid;
+            if (_speakAt == 0)
+            {
+                // (the archer calls out as they loose; the rest after the ship has caught, each in turn)
+                _speakAt = archer ? Funeral.LaunchedAt + ShipBurial.Voyage.Loose - 1.5f : Funeral.LaunchedAt + ShipBurial.Voyage.Loose + Random.Range(4f, 28f);
+                _until = Mathf.Min(_until, Funeral.LaunchedAt + 80f);
+            }
+            if (!_said && Time.time >= _speakAt)
+            {
+                _said = true;
+                if (archer) b.Say(new[] { $"To Valhalla, {_who}!", $"Odin, take {_who}!", $"Fly true. For {_who}.", $"Skål, {_who}. Burn bright." }[Random.Range(0, 4)], 6);
+                else Greet.Say(b, Greeting.Farewell, null, urgent: true, about: _who);
+            }
         }
     }
 }

@@ -47,9 +47,10 @@ namespace Jarldom
             go.AddComponent<Voyage>().Begin(at, rot, dir, archer, fire);
         }
         public const string Music = "intro";
-        private sealed class Voyage : MonoBehaviour
+        internal sealed class Voyage : MonoBehaviour
         {
-            private const float Slide = 8f, Loose = 10f, Flight = 1.8f, Drift = 52f, Sink = 14f, Out = 120f;
+            private const float Slide = 8f, Drift = 52f, Sink = 14f, Out = 120f;
+            public const float Loose = 28f; // (well out from the shore by then: forty-odd metres)
             private Vector3 _from, _sea, _dir, _archer; private Quaternion _rot; private float _t, _water; private GameObject _fire, _arrow;
             public void Begin(Vector3 at, Quaternion rot, Vector3 dir, Vector3 archer, GameObject fire)
             {
@@ -97,8 +98,10 @@ namespace Jarldom
                     Light l = _arrow.AddComponent<Light>(); l.color = new Color(1f, 0.6f, 0.25f); l.range = 6f; l.intensity = 2f;
                     Assets.Effect("sfx_bow_fire", _archer);
                 }
-                float k = Mathf.Clamp01((_t - Loose) / Flight);
-                Vector3 target = transform.position + Vector3.up * 1.2f, p = Vector3.Lerp(_archer, target, k) + Vector3.up * Mathf.Sin(k * Mathf.PI) * (Vector3.Distance(_archer, target) * 0.25f);
+                Vector3 target = transform.position + Vector3.up * 1.2f;
+                float flight = 1.2f + Vector3.Distance(_archer, target) / 30f; // (a long shot takes its time)
+                float k = Mathf.Clamp01((_t - Loose) / flight);
+                Vector3 p = Vector3.Lerp(_archer, target, k) + Vector3.up * Mathf.Sin(k * Mathf.PI) * (Vector3.Distance(_archer, target) * 0.25f);
                 Vector3 ahead = Vector3.Lerp(_archer, target, Mathf.Min(1f, k + 0.02f)) + Vector3.up * Mathf.Sin(Mathf.Min(1f, k + 0.02f) * Mathf.PI) * (Vector3.Distance(_archer, target) * 0.25f);
                 _arrow.transform.position = p; if ((ahead - p).sqrMagnitude > 0.0001f) _arrow.transform.rotation = Quaternion.LookRotation(ahead - p);
                 if (k >= 1f) { Destroy(_arrow); _arrow = null; _fire.SetActive(true); Assets.Effect("sfx_FireAddFuel", target); Assets.Effect("vfx_bonfire_AddFuel", target); }
