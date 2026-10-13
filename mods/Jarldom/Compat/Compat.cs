@@ -38,54 +38,55 @@ namespace Jarldom
         public static IEnumerable<(string name, bool present, string version, string use)> Report() =>
             Known.Select(k => { BaseUnityPlugin p = Find(k.guids); return (k.name, p != null, p?.Info?.Metadata?.Version?.ToString() ?? "", k.use); });
 
-        // ---- Omens: one gods' favour per world ----
-        private static Type _omensApi; private static BaseUnityPlugin _omens;
-        private static Type OmensApi()
-        {
-            BaseUnityPlugin o = Find("com.bobisme.omens");
-            if (o != _omens) { _omens = o; _omensApi = o?.GetType().Assembly.GetType("Omens.Api"); }
-            return _omensApi;
-        }
+        // ---- Omens: one gods' favour per world; the great stag ----
+        private static readonly ApiRef Omens = new ApiRef("Omens.Api", "com.bobisme.omens");
         public static bool OmensFate(out int fate)
         {
             fate = 0;
-            try
-            {
-                MethodInfo get = OmensApi()?.GetMethod("GetFate", BindingFlags.Public | BindingFlags.Static);
-                if (get == null) return false;
-                fate = (int)get.Invoke(null, null);
-                return fate != int.MinValue; // (not the host: Omens' ledger lives there)
-            }
-            catch { return false; }
+            Func<int> get = Omens.Bind<Func<int>>("GetFate");
+            if (get == null) return false;
+            try { fate = get(); } catch { return false; }
+            return fate != int.MinValue; // (not the host: Omens' ledger lives there)
         }
         // Points of our favour (-100..100) become Omens' fate steps (-5..5) as they add up.
         public static bool OmensAddFate(Colony c, int points, string why)
         {
+            Func<int, string, bool> add = Omens.Bind<Func<int, string, bool>>("AddFate");
+            if (add == null) return false;
             try
             {
-                MethodInfo add = OmensApi()?.GetMethod("AddFate", BindingFlags.Public | BindingFlags.Static);
-                if (add == null) return false;
                 int pool = c.R.Flag("omenspool") + points;
                 int steps = pool / 20;
                 c.R.Flags["omenspool"] = pool - steps * 20;
-                if (steps != 0 && !(bool)add.Invoke(null, new object[] { steps, why })) { c.R.Flags["omenspool"] = pool; return false; }
+                if (steps != 0 && !add(steps, why)) { c.R.Flags["omenspool"] = pool; return false; }
                 return true;
             }
             catch { return false; }
         }
+        // The great stag an omen set loose (Omens 0.6.3 and later, Api version 1): is this it, and where do they run now.
+        public static bool IsGreatStag(Character ch)
+        {
+            Func<Character, bool> f = ch == null ? null : Omens.Bind<Func<Character, bool>>("IsGreatStag", 1);
+            return f != null && Safe(() => f(ch));
+        }
+        public static Vector3[] GreatStags()
+        {
+            Func<Vector3[]> f = Omens.Bind<Func<Vector3[]>>("GreatStags", 1);
+            return f == null ? new Vector3[0] : Safe(f) ?? new Vector3[0];
+        }
 
         // ---- Shieldwall: a siege at the colony's Warstone is a raid ----
-        private static MethodInfo _siegeAt, _stoneAt, _callOff; private static BaseUnityPlugin _shieldwall;
+        private static readonly ApiRef Shieldwall = new ApiRef("Shieldwall.Api", "com.bobisme.shieldwall");
         public static bool Siege(Vector3 at, float radius, out Vector3 stone)
         {
             stone = Vector3.zero;
-            BaseUnityPlugin sw = Find("com.bobisme.shieldwall");
-            if (sw != _shieldwall) { _shieldwall = sw; Type api = sw?.GetType().Assembly.GetType("Shieldwall.Api"); _siegeAt = api?.GetMethod("IsSiegeAt"); _stoneAt = api?.GetMethod("StoneAt"); _callOff = api?.GetMethod("CallOff"); }
-            if (_siegeAt == null) return false;
+            Func<Vector3, float, bool> siegeAt = Shieldwall.Bind<Func<Vector3, float, bool>>("IsSiegeAt");
+            if (siegeAt == null) return false;
             try
             {
-                if (!(bool)_siegeAt.Invoke(null, new object[] { at, radius })) return false;
-                if (_stoneAt != null) stone = (Vector3)_stoneAt.Invoke(null, new object[] { at, radius });
+                if (!siegeAt(at, radius)) return false;
+                Func<Vector3, float, Vector3> stoneAt = Shieldwall.Bind<Func<Vector3, float, Vector3>>("StoneAt");
+                if (stoneAt != null) stone = stoneAt(at, radius);
                 return true;
             }
             catch { return false; }
@@ -94,8 +95,8 @@ namespace Jarldom
         // Paid off: the siege ends (on the stone's owner's game; Shieldwall 0.4.12 and later). How many ended.
         public static int CallOffSiege(Vector3 at, float radius)
         {
-            Siege(at, radius, out _); // (finds the methods)
-            try { return _callOff != null ? (int)_callOff.Invoke(null, new object[] { at, radius }) : 0; } catch { return 0; }
+            Func<Vector3, float, int> callOff = Shieldwall.Bind<Func<Vector3, float, int>>("CallOff");
+            return callOff == null ? 0 : Safe(() => callOff(at, radius));
         }
 
         // ---- BuildOrders: the helper hooks it publishes (AppDomain data, no types shared) ----

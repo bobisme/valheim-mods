@@ -33,11 +33,13 @@ namespace Jarldom
         public Func<string, bool> Exists = _ => true;       // the prefab is in this game (a table name a game update dropped is never asked)
         public List<Place> Places = new List<Place>();      // reachable landmarks (nearest first)
         public List<(string friend, string killer)> Avenge = new List<(string, string)>(); // a friend of theirs who fell lately, to what
+        public List<(float x, float z)> Stags = new List<(float, float)>(); // great stags an omen set loose, within reach (Omens)
     }
 
     public static class Requests
     {
         public const int Days = 10;
+        public const string GreatStag = "GreatStag"; // (no prefab: a deer Omens marked; the kill is told by Omens' Api)
         public static readonly string[] Biomes = { "the Meadows", "the Black Forest", "the Swamp", "the Mountains", "the Plains", "the Mistlands", "the Ashlands" };
         // The bosses in order: the world's stage is how many of them have fallen.
         public static readonly string[] BossKeys = { "defeated_eikthyr", "defeated_gdking", "defeated_bonemass", "defeated_dragon", "defeated_goblinking", "defeated_queen" };
@@ -166,6 +168,12 @@ namespace Jarldom
                     var a = avenge[rng.Next(avenge.Count)];
                     return new Request { Kind = Ask.Kill, Target = a.foe.prefab, Label = a.foe.label, Stars = 0, Coins = Coins(a.foe.stage, false) + 10, Why = $"{Cap(A(a.foe.label))} took {a.friend} from us. Kill one for {a.friend}'s sake." };
                 }));
+                // A great stag an omen set loose: a hunt worth a song, while one runs.
+                if (w.Stags.Count > 0) options.Add((T("brave") || T("keeneye") ? 3 : 1.2, () =>
+                {
+                    var at = w.Stags[rng.Next(w.Stags.Count)];
+                    return new Request { Kind = Ask.Kill, Target = GreatStag, Label = "the great stag", X = at.x, Z = at.z, Coins = 40, Why = Pick(rng, StagWhy) };
+                }));
                 if (foes.Count > 0) options.Add((T("brave") ? 3 : 0.8, () =>
                 {
                     var f = Pick(rng, foes, x => x.stage == top ? 2 : 1);
@@ -220,7 +228,7 @@ namespace Jarldom
             }
             return "";
         }
-        public static string A(string noun) => ("aeiou".IndexOf(char.ToLowerInvariant(noun.FirstOrDefault())) >= 0 ? "an " : "a ") + noun;
+        public static string A(string noun) => noun.StartsWith("the ") ? noun : ("aeiou".IndexOf(char.ToLowerInvariant(noun.FirstOrDefault())) >= 0 ? "an " : "a ") + noun;
         private static string Cap(string s) => s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);
         private static string Num(int n) => Stories.Count(n).ToLowerInvariant();
         private static string Plural(string label) // "a wolf trophy" → "wolf trophies"
@@ -262,6 +270,13 @@ namespace Jarldom
         {
             "One of those came near the colony and looked at me. I won't forget it.", "Prove to me the jarl is the strongest of us.", "The skald needs a better tale than the last.",
             "It's a deed worth a song. I'd like to hear it sung.", "Do it, and I'll drink to you at the next feast.",
+        };
+        private static readonly string[] StagWhy =
+        {
+            "The ravens set a great stag loose. Bring it down, and the hall will sing of it for a generation.",
+            "A stag that size is the gods' own quarry. Hunt it, jarl, before it's gone.",
+            "My grandfather saw a stag like that once, and never caught it. Do what he couldn't.",
+            "They say the great stag's antlers touch the branches. I want to hear how it fell.",
         };
         private static readonly string[] DeedWhy =
         {

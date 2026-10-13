@@ -16,7 +16,7 @@ namespace Jarldom
     internal static class Tools
     {
         private static BaseUnityPlugin _tools; private static float _next;
-        private const string Usage = "jarldom status | roster | villager <name|vid> | needs <name> | renown | rooms | room check <n> | board | log [n] | saga | compat | " +
+        private const string Usage = "jarldom status | roster | smite <prefab|stag> | villager <name|vid> | needs <name> | renown | rooms | room check <n> | board | log [n] | saga | compat | " +
             "[cheats:] place pillars [metres] | spawn [profession] [traits..] | migrate [now|dusk] | accept [i|all] | room <type> <x1> <z1> <x2> <z2> [god] | zone <type> <x1> <z1> <x2> <z2> | " +
             "prof <name> <profession> | mood <name> <moodlet> | worth <name> <n> | need <name> <need>=<n> | give <name> <prefab> [n] | bed <name> | goto <name> <x> <z> | time <hours> | pay | " +
             "favour <god> <n> | feast | thing now | ascend <name> | kill <name> | raid <event> | horn | treasury [x z] | stockpile <category> [x z] | tp <name> | remove | " +
@@ -66,7 +66,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or for a server admin with devcommands on"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -459,6 +459,20 @@ namespace Jarldom
                             ["places"] = new JArray((wf?.Places ?? new List<Place>()).Select(p => $"{p.Label} ({p.Key}, stage {p.Stage}) {Mathf.RoundToInt(Utils.DistanceXZ(new Vector3(p.X, 0, p.Z), c.Position))} m at {p.X:0},{p.Z:0}")),
                             ["avenge"] = new JArray((wf?.Avenge ?? new List<(string, string)>()).Select(x => $"{x.Item1} by {x.Item2}")),
                         });
+                    }
+                    break;
+                case "smite":
+                    {
+                        // A killing blow from the player to the nearest creature of that prefab (or "stag": a great stag), as their own hit
+                        // would land: the kill hooks see the player as the killer.
+                        Player p = Player.m_localPlayer; string want = a.Length > 2 ? a[2] : "";
+                        Character ch = Character.GetAllCharacters().Where(x => x != null && !x.IsDead() && !x.IsPlayer() && Villagers.Brain(x) == null && Vector3.Distance(x.transform.position, p.transform.position) < 80
+                            && (want == "stag" ? Compat.IsGreatStag(x) : Utils.GetPrefabName(x.gameObject) == want)).OrderBy(x => Vector3.Distance(x.transform.position, p.transform.position)).FirstOrDefault();
+                        if (ch == null) { error("smite <prefab|stag>: none within 80 m"); return; }
+                        var hit = new HitData { m_point = ch.GetCenterPoint(), m_dir = (ch.transform.position - p.transform.position).normalized };
+                        hit.m_damage.m_pierce = ch.GetMaxHealth() * 10f; hit.SetAttacker(p);
+                        string name = ch.GetHoverName(); ch.Damage(hit);
+                        output(new JObject { ["smote"] = name, ["prefab"] = Utils.GetPrefabName(ch.gameObject), ["level"] = ch.GetLevel() });
                     }
                     break;
                 case "ask":

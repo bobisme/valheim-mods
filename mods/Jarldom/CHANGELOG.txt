@@ -1,3 +1,5 @@
+0.1.52: while an omen's great stag runs (Omens 0.6.3), a villager may ask the jarl to hunt it: pinned where it was seen, and only the stag's own kill counts. Under the hood: other mods' APIs are found through their live plugin and bound once, with versions (an older Omens or Shieldwall just leaves the new parts off).
+
 0.1.51: handing a villager what they asked for counts and takes only what's in your own bag: with CraftFromChests or BuildFromChests the chests nearby were counted (and emptied) too.
 
 0.1.50: a raid or siege called off before any foe reaches the colony comes to nothing (no renown, no raid-held cheer); only killing a raider counts as fighting in a raid (a disgraced soul's way back), not a neck by the river; loads miners bring home from a claim nobody visits are folded together past three, so the world's keys no longer grow with every trip.

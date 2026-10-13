@@ -388,6 +388,13 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(worded, "Every request is dated, worded, explained and rewarded");
     Check(deedEasy, "A disgraced soul's deed is never the hardest thing in the world");
     Check(kinds.Count == 5, "All five kinds of request come up");
+    // The great stag (Omens): asked for only while one runs, never of a coward, and only its kill counts.
+    var stagged = new WorldFacts { Stage = 0 }; stagged.Stags.Add((120f, -40f));
+    var stagAsks = Enumerable.Range(0, 300).Select(i => Requests.Generate(new VillagerState { Traits = new List<string> { "brave" } }, stagged, 1, new Random(i))).Where(q => q != null && q.Target == Requests.GreatStag).ToList();
+    Check(stagAsks.Count > 30 && stagAsks.All(q => q.Kind == Ask.Kill && q.X == 120f && q.Z == -40f && Requests.Describe(q) == "Kill the great stag." && Requests.Short(q) == "the great stag killed"), "A brave soul asks for the great stag while one runs, pinned where it was: " + stagAsks.Count);
+    Check(Enumerable.Range(0, 300).All(i => Requests.Generate(new VillagerState { Traits = new List<string> { "brave" } }, new WorldFacts { Stage = 0 }, 1, new Random(i))?.Target != Requests.GreatStag), "No great stag running: never asked for");
+    Check(Enumerable.Range(0, 300).All(i => Requests.Generate(new VillagerState { Traits = new List<string> { "coward" } }, stagged, 1, new Random(i))?.Target != Requests.GreatStag), "A coward doesn't ask for the stag");
+    Check(Requests.KillCounts(stagAsks[0], Requests.GreatStag, 3) && !Requests.KillCounts(stagAsks[0], "Deer", 3), "Only the great stag's own kill counts, not any deer");
     var meadows = new WorldFacts { Stage = 0 };
     bool onlyMeadows = Enumerable.Range(0, 300).Select(i => Requests.Generate(new VillagerState { Traits = new List<string> { "brave" } }, meadows, 1, new Random(i))).All(q => q != null && (q.Kind == Ask.Visit || StageOfTarget(q) == 0));
     Check(onlyMeadows, "A Meadows-stage colony never asks for Mistlands things");
@@ -411,6 +418,23 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(VillagerState.Load(new VillagerState { Vid = "v" }.Save()).Asked == null, "No request saved, none loaded");
     byte[] old = new VillagerState { Vid = "v" }.Save(); old = old.Take(old.Length - 1).ToArray(); // (as saved before requests: no flag byte at the end)
     Check(VillagerState.Load(old).Vid == "v" && VillagerState.Load(old).Asked == null, "A soul saved before requests still loads");
+}
+
+{
+    // Other mods' Apis: bound once, gated by version, never a throw.
+    var warned = new List<string>();
+    var api = new ApiBinder(typeof(Dummy.NewApi), w => warned.Add(w));
+    Check(api.Present && api.Version == 2, "An Api's Version is read");
+    Check(api.Bind<Func<int, int>>("Twice")?.Invoke(21) == 42 && api.Bind<Func<string, string>>("Hello")?.Invoke("Bob") == "hi Bob", "Its methods bind to typed delegates");
+    Check(ReferenceEquals(api.Bind<Func<int, int>>("Twice"), api.Bind<Func<int, int>>("Twice")), "A method is bound once and kept");
+    Check(api.Bind<Func<int, int>>("Twice", 3) == null && warned.Count == 0, "A method from a later version than the mod has: off, quietly");
+    Check(api.Bind<Func<int>>("Missing") == null && api.Bind<Func<int>>("Missing") == null && warned.Count == 1, "A missing method is off, and told once");
+    Check(api.Bind<Func<string, int>>("Twice") == null && warned.Count == 2, "A method with another shape is off, not miscalled");
+    var oldApi = new ApiBinder(typeof(Dummy.OldApi), w => warned.Add(w));
+    Check(oldApi.Version == 0 && oldApi.Bind<Func<bool>>("Ping")?.Invoke() == true && oldApi.Bind<Func<bool>>("Ping", 1) == null, "An Api from before Version is version 0");
+    var absent = new ApiBinder(null, w => warned.Add(w));
+    Check(!absent.Present && absent.Bind<Func<int>>("Anything") == null && warned.Count == 2, "A mod that isn't installed: nothing, and nothing in the log");
+    Check(ApiBinder.Usable(1, 1) && !ApiBinder.Usable(0, 1), "Version gating");
 }
 
 Console.WriteLine($"Jarldom: {checks} checks passed");

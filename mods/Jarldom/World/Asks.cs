@@ -127,6 +127,7 @@ namespace Jarldom
                 Stage = Requests.StageOf(k => ZoneSystem.instance != null && ZoneSystem.instance.GetGlobalKey(k)),
                 Exists = n => ZNetScene.instance != null && ZNetScene.instance.GetPrefab(n) != null,
                 Places = Places(c),
+                Stags = Compat.GreatStags().Where(v => Utils.DistanceXZ(v, c.Position) < 3000).Select(v => (v.x, v.z)).ToList(),
             };
             int day = c.Day;
             foreach (LogEntry e in c.R.Log.Where(e => (e.Kind == "death" || e.Kind == "lost") && e.Day >= day - 20 && e.B != ""))
@@ -214,8 +215,9 @@ namespace Jarldom
             var list = All(p).Where(t => t.Vid != s.Vid).ToList();
             var t = new Taken { Colony = c.Id, Vid = s.Vid, Id = q.Id, Name = s.Name, Label = q.Label, Target = q.Target, Kind = q.Kind, Stars = q.Stars, X = q.X, Z = q.Z, Day = q.Day };
             list.Add(t); Save(p, list);
-            if (q.Kind == Ask.Visit) Net.PinHere(t.PinKey, new Vector3(q.X, 0, q.Z), $"{s.Name}: {q.Label}", true);
+            if (Pinned(q.Kind, q.Target)) Net.PinHere(t.PinKey, new Vector3(q.X, 0, q.Z), $"{s.Name}: {q.Label}", true);
             p.Message(MessageHud.MessageType.Center, q.Kind == Ask.Visit ? $"Pinned on your map: {q.Label}. See it, then tell {s.Name}."
+                : q.Target == Requests.GreatStag ? $"Pinned on your map: where the great stag was seen. Hunt it, then tell {s.Name}."
                 : q.Kind == Ask.Kill ? $"Kill {Requests.A(q.Label)}{(q.Stars > 0 ? $" ({q.Stars}★+)" : "")} yourself, then tell {s.Name}."
                 : $"Bring {Requests.Short(q)} to {s.Name}.");
         }
@@ -252,7 +254,7 @@ namespace Jarldom
                     ZDO body = Villagers.Body(t.Vid)?.GetComponent<ZNetView>()?.GetZDO();
                     if (body != null && SoulStore.Of(body) != null && ShownId(body) != t.Id) { Drop(p, t.Vid); list.Remove(t); }
                 }
-                foreach (Taken t in list.Where(t => t.Kind == Ask.Visit)) Net.PinHere(t.PinKey, new Vector3(t.X, 0, t.Z), $"{t.Name}: {t.Label}{(t.Done ? " (seen)" : "")}", true);
+                foreach (Taken t in list.Where(t => Pinned(t.Kind, t.Target))) Net.PinHere(t.PinKey, new Vector3(t.X, 0, t.Z), $"{t.Name}: {t.Label}{(t.Done ? t.Kind == Ask.Visit ? " (seen)" : " (done)" : "")}", true);
             }
             if (!p.m_customData.ContainsKey(TakenKey)) { Hunted.Clear(); Struck.Clear(); return; }
             list = list ?? All(p);
@@ -279,6 +281,10 @@ namespace Jarldom
             }
         }
         private static readonly HashSet<string> Hunted = new HashSet<string>(); // (the targets this player took on: a cheap test on every hit)
+        // A place to go: on the map (a great stag's where it was last seen).
+        private static bool Pinned(Ask kind, string target) => kind == Ask.Visit || target == Requests.GreatStag;
+        // What a kill counts as: its prefab, or the great stag Omens set loose.
+        private static string Quarry(Character ch) => Hunted.Contains(Requests.GreatStag) && Compat.IsGreatStag(ch) ? Requests.GreatStag : Utils.GetPrefabName(ch.gameObject);
         private static readonly Dictionary<Character, (string prefab, int level, float at)> Struck = new Dictionary<Character, (string, int, float)>();
         [HarmonyPatch(typeof(Character), nameof(Character.OnDeath))]
         private static class Kills
@@ -291,7 +297,7 @@ namespace Jarldom
                 {
                     if (Combat.LastHit(__instance)?.GetAttacker() != p) return;
                     Struck.Remove(__instance);
-                    Killed(p, Utils.GetPrefabName(__instance.gameObject), __instance.GetLevel());
+                    Killed(p, Quarry(__instance), __instance.GetLevel());
                 });
             }
         }
@@ -305,7 +311,7 @@ namespace Jarldom
                 try
                 {
                     if (hit.GetAttacker() != p) return;
-                    string prefab = Utils.GetPrefabName(__instance.gameObject);
+                    string prefab = Quarry(__instance);
                     if (Hunted.Contains(prefab)) Struck[__instance] = (prefab, __instance.GetLevel(), Time.time);
                 }
                 catch { } // (never in the way of a hit)
