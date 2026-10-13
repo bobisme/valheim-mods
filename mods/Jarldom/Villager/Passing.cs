@@ -35,7 +35,7 @@ namespace Jarldom
                 Rigidbody body = h.GetComponent<Rigidbody>();
                 if (b == null && body != null && body.isKinematic) continue; // another game holds it seated (its kinematic body says so)
                 Animator an = h.GetComponentInChildren<Animator>();
-                if (an != null && (an.GetBool("wakeup") || b != null && (an.GetBool("attach_bed") || an.GetBool("attach_chair")))) Clear(h);
+                if (an != null && (an.GetBool("wakeup") || b != null && Sticky.Any(p => p != "wakeup" && an.parameters.Any(q => q.name == p) && an.GetBool(p)))) Clear(h); // (a throne's or a bench's pose too, not only a chair's or a bed's)
             }
         }
     }
