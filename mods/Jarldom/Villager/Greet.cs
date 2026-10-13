@@ -12,7 +12,7 @@ namespace Jarldom
         private const float Reach = 6f, PairWait = 1200f, VillagerWait = 45f, PlayerWait = 15f;
         private static readonly Dictionary<string, float> ByVillager = new Dictionary<string, float>(), ByPair = new Dictionary<string, float>(), ByPlayer = new Dictionary<string, float>();
         private static readonly System.Random Rng = new System.Random();
-        private static string _lastLine = ""; private static float _lastAt;
+        private static readonly List<(string line, float at)> Said = new List<(string, float)>();
         public static readonly List<string> Recent = new List<string>(); // (the last few said, for the jarldom greetings tool)
 
         // Says it if the cooldowns allow; pairWait: how long before this villager says this to that player again.
@@ -28,9 +28,11 @@ namespace Jarldom
             ByVillager[b.S.Vid] = now + VillagerWait;
             if (p != null) { ByPair[pair] = now + pairWait; ByPlayer[heard] = now + PlayerWait; }
             if (ByPair.Count > 2000) ByPair.Clear();
-            var line = Greetings.Pick(kind, Rng, name);
-            for (int i = 0; i < 4 && line.english == _lastLine && Time.time - _lastAt < 20f; i++) line = Greetings.Pick(kind, Rng, name); // (not the line just said by someone else)
-            _lastLine = line.english; _lastAt = Time.time;
+            bool evening = b.Colony != null && (b.Colony.Hour >= 17 || b.Colony.Hour < 5);
+            var line = Greetings.Pick(kind, Rng, name, evening);
+            Said.RemoveAll(x => Time.time - x.at > 20f);
+            for (int i = 0; i < 6 && Said.Any(x => x.line == line.english); i++) line = Greetings.Pick(kind, Rng, name, evening); // (not a line someone just said)
+            Said.Add((line.english, Time.time));
             b.Say(Greetings.Show(line), 5f);
             Recent.Add($"{System.DateTime.Now:HH:mm:ss} {b.S.Name} ({kind}{(name != "" ? " to " + name : "")}): {line.norse} / {line.english}");
             if (Recent.Count > 20) Recent.RemoveAt(0);

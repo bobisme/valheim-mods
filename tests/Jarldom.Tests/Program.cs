@@ -450,6 +450,7 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     bool named = Enumerable.Range(0, 200).Select(i => Greetings.Pick(Greeting.Hello, new Random(i), "Bob")).All(l => !l.norse.Contains("{") && !l.english.Contains("{")) && Enumerable.Range(0, 200).Any(i => Greetings.Pick(Greeting.Hello, new Random(i), "Bob").english.Contains("Bob"));
     Check(named, "The player's name goes into the line");
     Check(Greetings.Pick(Greeting.Night, new Random(4), "").english.Contains("{") == false, "No player: no stray placeholder");
+    Check(Enumerable.Range(0, 300).Select(i => Greetings.Pick(Greeting.Hello, new Random(i), "Bob", true)).All(l => !l.english.Contains("Good day")) && Enumerable.Range(0, 300).Any(i => Greetings.Pick(Greeting.Hello, new Random(i), "Bob", true).english == "Good evening, jarl."), "Of an evening it's good evening, not good day");
     Check(Greetings.Show(("Heill, jarl!", "Hail, jarl!")) == "<size=75%><i>Heill, jarl!</i></size>\nHail, jarl!", "Old Norse small, English beneath");
 }
 

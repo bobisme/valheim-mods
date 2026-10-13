@@ -128,7 +128,7 @@ namespace Jarldom
             if (Time.time >= _nextGear) { _nextGear = Time.time + 1f; Gear.Maintain(this); }
             if (Time.time >= _nextFoes) { _nextFoes = Time.time + 0.3f; Combat.Think(this); }
             if (Time.time >= _nextMoodSync) { _nextMoodSync = Time.time + 2f; SyncHover(); }
-            if (Time.time >= _nextGreet) { _nextGreet = Time.time + 1.5f; Plugin.Guard(() => Greet.Near(this)); }
+            if (Time.time >= _nextGreet) { _nextGreet = Time.time + 1.5f; Plugin.Guard(() => Greet.Near(this)); Plugin.Guard(() => Sky.Look(this)); }
             if (Time.time >= _nextStep) { _nextStep = Time.time + 2f; Upkeep.Step(this); } // (where feet wear a path)
             if (_dirty && Time.time >= _nextSave) { _nextSave = Time.time + 30f; Save(); } // (the soul is sent to everyone when written: twice a minute is plenty; deaths and commands save at once)
             if (Combat.Busy(this)) return;

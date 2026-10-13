@@ -69,6 +69,9 @@ namespace Jarldom
             Func<Character, bool> f = ch == null ? null : Omens.Bind<Func<Character, bool>>("IsGreatStag", 1);
             return f != null && Safe(() => f(ch));
         }
+        // The sky tonight (Omens 0.6.4 and later, Api version 2).
+        public static bool Aurora() { Func<bool> f = Omens.Bind<Func<bool>>("IsAurora", 2); return f != null && Safe(f); }
+        public static bool BloodMoon() { Func<bool> f = Omens.Bind<Func<bool>>("IsBloodMoon", 2); return f != null && Safe(f); }
         public static Vector3[] GreatStags()
         {
             Func<Vector3[]> f = Omens.Bind<Func<Vector3[]>>("GreatStags", 1);
