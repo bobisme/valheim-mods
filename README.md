@@ -71,6 +71,10 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
   dresses and caps; once Hildir is known traders buy her clothes. **Time off**: hnefatafl, glíma, the training dummy, the archery
   target, stone lifting, walks, the hall; each keeps a tankard they carved at the workbench. **Follow me** (a villager's panel) takes
   them along, through portals; **Go home** sends them back.
+- **Seated, they move** (with [Bob's Animations](#bobs-animations) installed; nothing changes without it): at a tafl table they move
+  pieces and think, in the hall they drink, toast and talk, beside a seated neighbour they talk or point toward them, alone they think,
+  fold their arms or lean on their knees, and when a seated villager says something their hands talk toward whoever sits nearest
+  ("Skål!" raises the tankard).
 - **Moving the pillars**: taken down (or broken) they leave the *heart of the high seat*; raise new pillars carrying it and the colony
   is back, people, rooms and saga and all.
 - **Running it together**: the founder lets other players run the colony from the hall tab (a button for each player near it; only
@@ -1097,7 +1101,8 @@ character's network object (`bob_anim_clip`, `bob_anim_at`, `bob_anim_end`), so 
 clips are made in Blender over a skeleton captured from the game (`mods/BobsAnimations/Authoring/README.txt`).
 
 - For modders: `Anim.Play(character, "sit_drink")` (the game that runs the character), `Anim.Stop`, `Anim.Playing`; `Clip.Register(json)`
-  adds your own clips (every game that shows them registers them too).
+  adds your own clips (every game that shows them registers them too). Without a reference: `BobsAnimations.Api` (Version 1: `Play`, `Stop`,
+  `Playing`, `Has`, `Length`), found by reflection the way Jarldom finds its neighbours (`mods/Jarldom/Compat/API-CONVENTION.md`).
 - Clips (all seated, each blending out by itself when the character gets up): `sit_drink`, `sit_toast_left`/`_right`, `sit_talk_left`/`_right`,
   `sit_point_left`/`_right`, `sit_laugh`, `sit_think`, `sit_cheer`, `sit_board_move`, and the loops `sit_fold_arms` and `sit_elbows`.
 - Claude Tools: `anim chars | clips | rig [who] | hold [who] [item] | play <clip> [who] [loop|once] | stop [who] | near [who] | params [who] | shot [who] [yaw] [pitch] [dist]`.
