@@ -448,22 +448,19 @@ namespace Jarldom
             GameObject go = Base("wood_pole", DesignateName);
             if (go == null) return;
             var look = new GameObject("new"); look.transform.SetParent(go.transform, false);
-            // A marking stake (made in Blender: Models/marker): a hewn stake in a little cairn, the othala rune on its face, a pennant and
-            // a knotted measuring cord with a plumb bob. The banner it was before, if the model can't be had.
+            // A marking staff (made in Blender: Models/marker): a slim shaft shod with iron, a leather grip, a pennant with the othala rune,
+            // and a knotted measuring cord with a plumb bob. The banner it was before, if the model can't be had.
             Mesh stake = CarvedMesh("stake", "marker");
             Material wood = Assets.Find("wood_pole")?.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null && m.shader != null && m.shader.name == "Custom/Piece");
-            Material rock = Assets.Find("rock4_forest")?.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null);
             if (stake != null && wood != null)
             {
                 Material grain = new Material(wood) { name = "JarldomStakeWood", hideFlags = HideFlags.HideAndDontSave }; grain.mainTextureScale = Vector2.one * StakeGrain; Assets.Owned.Add(grain);
-                Material stone = rock != null ? new Material(rock) { name = "JarldomStakeStone", hideFlags = HideFlags.HideAndDontSave } : Plain(wood, new Color(0.42f, 0.42f, 0.4f));
-                if (rock != null) { stone.mainTextureScale = Vector2.one * 0.35f; stone.color *= new Color(0.75f, 0.75f, 0.78f); Assets.Owned.Add(stone); }
-                var m = new GameObject("stake"); m.transform.SetParent(look.transform, false);
-                m.AddComponent<MeshFilter>().sharedMesh = stake;
-                // (wood, rope, iron, cloth, paint, stone: as the model's materials are numbered)
                 Material cloth = Plain(wood, new Color(0.56f, 0.1f, 0.06f)), stripe = Plain(wood, new Color(0.86f, 0.64f, 0.24f));
                 foreach (Material c in new[] { cloth, stripe }) foreach (string k in new[] { "_Glossiness", "_Metallic", "_Smoothness" }) if (c != null && c.HasProperty(k)) c.SetFloat(k, 0); // wool, not lacquer
-                m.AddComponent<MeshRenderer>().sharedMaterials = new[] { grain, Plain(wood, new Color(0.62f, 0.52f, 0.34f)), Plain(wood, new Color(0.16f, 0.155f, 0.15f)), cloth, stripe, stone };
+                var m = new GameObject("stake"); m.transform.SetParent(look.transform, false);
+                m.AddComponent<MeshFilter>().sharedMesh = stake;
+                // (wood, rope, iron, cloth, paint, leather: as the model's materials are numbered)
+                m.AddComponent<MeshRenderer>().sharedMaterials = new[] { grain, Plain(wood, new Color(0.62f, 0.52f, 0.34f)), Plain(wood, new Color(0.16f, 0.155f, 0.15f)), cloth, stripe, Plain(wood, new Color(0.26f, 0.15f, 0.09f)) };
             }
             else
             {

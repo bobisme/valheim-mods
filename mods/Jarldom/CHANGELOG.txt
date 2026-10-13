@@ -1,3 +1,5 @@
+0.1.32: The hammer's "Mark rooms and zones" is now a marking staff you'd hold: a tall slim shaft shod with iron, a leather grip, a carved head and finial over an iron band, a red pennant with the othala rune in gold on a lashed crossbar, and the knotted measuring cord with its plumb bob.
+
 0.1.31: Jarldom's test commands that change the world (placing pillars and pieces, setting colony flags) now need what the game's own cheats need: single player, the host, or a server admin with devcommands on. Typing devcommands on someone else's server is no longer enough
 
 0.1.30: The hammer's "Mark rooms and zones" has a look of its own instead of a banner: a marking stake, hewn and wedged in a little cairn, the othala rune (home, land held) cut and painted on its face, a red pennant with a gold stripe on a lashed crossbar, and a knotted measuring cord wound round it with a plumb bob on its end. It shows as the ghost where you mark and as its icon.
