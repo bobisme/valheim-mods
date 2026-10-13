@@ -133,7 +133,8 @@ class Clip:
         arm, sc = self.arm, bpy.context.scene
         if add is None: add = sorted(self.turned)
         if sets is None:
-            sets = [s + b for s in self.hand_keys for b in ('Arm', 'ForeArm', 'Hand')]
+            # (the shoulder too, unless turned: walking swings the shoulders, and an arm set from a swung shoulder points wherever it swung)
+            sets = [s + b for s in self.hand_keys for b in ('Shoulder', 'Arm', 'ForeArm', 'Hand') if s + b not in self.turned]
             if self.pinned: sets += [s + b for s in ('Left', 'Right') for b in ('UpLeg', 'Leg', 'Foot')]
             sets += sorted(b.name for h in self.curled for b in arm.pose.bones if b.name.startswith(h) and b.name != h)
         names = list(add) + [n for n in sets if n not in add]

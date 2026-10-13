@@ -66,7 +66,7 @@ def carry(c):
         c.pose(f, 'Left', (-0.16, 0.30, 1.08 + dz), (0, 1, 0), (0, 0, 1))
     for h in ('RightHand', 'LeftHand'): c.curl(1, h, 0.5, Thumb=0.2); c.curl(30, h, 0.5, Thumb=0.2)
     for f in (1, 30): c.turn(f, {'Spine1': [(X, 2)], 'Spine2': [(X, 3)], 'Head': [(X, -2)]})
-    c.prop('Wood', 'RightHand_Attach', at=(0, 0, -0.5), swap=True, scale=0.8)
+    c.prop('Wood', 'RightHand_Attach', at=(0, 0, -0.2), swap=True, scale=0.8)  # (moved over to sit between the hands)
 
 def sow(c):
     """Crouching to sow: down, a seed pressed into the soil, another, and up."""

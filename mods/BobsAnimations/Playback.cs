@@ -54,7 +54,7 @@ namespace BobsAnimations
         {
             public Character Body;public ZNetView View;public Clip Clip;public string Key;public long At;public bool Loop;
             public Animator Animator;public string[] Seats;public float NextSeatCheck;public long Stood; // (seated or still clips: when it was seen getting up or walking off)
-            public string Item;public Vector3[] LastPos,BasePos;public bool[] Moved;
+            public string Item;public Vector3[] LastPos,BasePos;public bool[] Moved;public float Weight; // (test: the weight last applied)
             public Dictionary<Transform,Quaternion> From;public Dictionary<Transform,Vector3> FromPos; // (the pose the clip before left: blended in from there)
             public Transform[] Bones;public Quaternion[] LastOut,LastBase;public bool[] Wrote;
             public readonly Dictionary<Clip.Prop,GameObject> Props=new Dictionary<Clip.Prop,GameObject>();
@@ -174,6 +174,7 @@ namespace BobsAnimations
                     Vector3 place=t<clip.BlendIn&&st.FromPos!=null&&st.FromPos.TryGetValue(b,out Vector3 was)?Vector3.Lerp(was,basis+clip.Shift(shift,at),weight):basis+clip.Shift(shift,at)*weight;
                     b.localPosition=place;st.LastPos[i]=place;st.BasePos[i]=basis;st.Moved[i]=true;
                 }
+                st.Weight=weight;
                 Props(st,at,weight);
             }
         }
@@ -187,13 +188,28 @@ namespace BobsAnimations
                 if(show&&go==null)
                 {
                     Transform bone=Bones(st.Body).TryGetValue(p.Bone,out Transform found)?found:null;
+                    // A hand's attach point is animated by the game (walking turns it in the hand): the prop goes on the hand itself, where
+                    // the attach point is at rest, so it stays put in the hand whatever the legs are doing.
+                    Matrix4x4 rest=Matrix4x4.identity;
+                    if(bone!=null&&bone.parent!=null&&RestOf(p.Bone,out Matrix4x4 r)){rest=r;bone=bone.parent;}
                     go=bone!=null?Model(p.Swap&&!string.IsNullOrEmpty(st.Item)?st.Item:p.Item,bone):null;
                     if(go==null){st.Props[p]=null;continue;}
-                    go.transform.localPosition=p.Position;go.transform.localRotation=p.Rotation;go.transform.localScale=Vector3.one*p.Scale;
+                    Matrix4x4 m=rest*Matrix4x4.TRS(p.Position,p.Rotation,Vector3.one*p.Scale);
+                    go.transform.localPosition=m.GetColumn(3);go.transform.localRotation=m.rotation;go.transform.localScale=m.lossyScale;
                     st.Props[p]=go;
                 }
                 if(go!=null&&go.activeSelf!=show)go.SetActive(show);
             }
+        }
+        // An attach point's place in its hand at rest, from the game's own player (as built, before any animation turns it).
+        private static readonly Dictionary<string,Matrix4x4> Rests=new Dictionary<string,Matrix4x4>();
+        private static bool RestOf(string bone,out Matrix4x4 rest)
+        {
+            if(Rests.TryGetValue(bone,out rest))return rest!=Matrix4x4.zero;
+            Transform t=ZNetScene.instance?.GetPrefab("Player")?.GetComponentsInChildren<Transform>(true).FirstOrDefault(x=>x.name==bone);
+            rest=t!=null&&bone.EndsWith("_Attach",StringComparison.Ordinal)?Matrix4x4.TRS(t.localPosition,t.localRotation,t.localScale):Matrix4x4.zero;
+            Rests[bone]=rest;
+            return rest!=Matrix4x4.zero;
         }
         // An item's look as it is held (its "attach" part, as the game puts it in a hand), its meshes only.
         private static GameObject Model(string item,Transform bone)
@@ -252,6 +268,29 @@ namespace BobsAnimations
             Transform first=st.Bones.FirstOrDefault(b=>b!=null);string path="";
             for(Transform t=first;t!=null&&t!=st.Body.transform;t=t.parent)path=t.name+(path==""?"":"/"+path);
             return $"{st.Bones.Count(b=>b!=null&&used.Contains(b))}/{st.Bones.Count(b=>b!=null)} ({path})";
+        }
+        // Test, at the end of a frame: for each playing clip its weight, and the bone whose pose drifted most from what was written this
+        // frame (something after this mod moved it: another LateUpdate, an animator updated late).
+        internal static Newtonsoft.Json.Linq.JArray Drift()
+        {
+            var list=new Newtonsoft.Json.Linq.JArray();
+            foreach(State st in Playing.Values)
+            {
+                float worst=0;string bone="";
+                for(int i=0;i<st.Bones.Length;i++)
+                {
+                    if(st.Bones[i]==null||!st.Wrote[i])continue;
+                    float a=Quaternion.Angle(st.Bones[i].localRotation,st.LastOut[i]);
+                    if(a>worst){worst=a;bone=st.Bones[i].name;}
+                }
+                Animator an=st.Body!=null?st.Body.GetComponentInChildren<Animator>():null;
+                Transform hand=st.Bones.FirstOrDefault(x=>x!=null&&x.name=="RightHand");Transform root=st.Body.transform;
+                string h=hand==null?"":$" right hand at {root.InverseTransformPoint(hand.position):F2}, its x {root.InverseTransformDirection(hand.right):F2}, z {root.InverseTransformDirection(hand.forward):F2};";
+                Renderer prop=st.Props.Values.Where(g=>g!=null).Select(g=>g.GetComponentInChildren<Renderer>()).FirstOrDefault(r=>r!=null);
+                if(prop!=null)h+=$" prop centre {root.InverseTransformPoint(prop.bounds.center):F2}, its x {root.InverseTransformDirection(prop.transform.right):F2}, its y {root.InverseTransformDirection(prop.transform.up):F2};";
+                list.Add($"{st.Body?.m_name}: {st.Clip.Name} weight {st.Weight:0.00}, drift {worst:0.0} deg ({bone});{h} animator {(an==null?"none":$"enabled {an.enabled}, culling {an.cullingMode}, update {an.updateMode}")}");
+            }
+            return list;
         }
         // Test: what plays where, with each prop's place.
         internal static Newtonsoft.Json.Linq.JArray Describe()

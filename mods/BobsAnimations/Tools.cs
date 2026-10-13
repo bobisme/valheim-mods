@@ -30,7 +30,7 @@ namespace BobsAnimations
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name,"anim",
-                    "anim chars [radius=100] | clips | rig [who] | hold [who] [item=Tankard] [bone=RightHand_Attach] | play <clip> [who] [loop|once] [item=<prefab>] | stop [who] | near [who] | params [who] | shot [who] [yaw=0] [pitch=10] [dist=1.6] [up=0]: "+
+                    "anim chars [radius=100] | clips | rig [who] | hold [who] [item=Tankard] [bone=RightHand_Attach] | play <clip> [who] [loop|once] [item=<prefab>] | stop [who] | near [who] | params [who] | drift | shot [who] [yaw=0] [pitch=10] [dist=1.6] [up=0]: "+
                     "Bob's Animations. who: me, seated (the nearest sitting character), still (the nearest one standing still), nearest (the nearest other character, the default) a number from chars (its default radius) or a name. "+
                     "rig saves the skeleton and skin, posed as now, to claude/shots/anim-rig.json for Authoring/rig.py; play and stop need the game that runs the character; "+
                     "shot pictures it alone (nothing else drawn), yaw 0 at its face",
@@ -99,6 +99,7 @@ namespace BobsAnimations
                     break;
                 }
                 case "stop":output(new JObject{["stopped"]=Anim.Stop(who),["on"]=who.m_name});break;
+                case "drift":return DriftAtEnd(output);
                 case "params":
                 {
                     // The animator's switches that are on (bools, and ints and floats that aren't 0), for finding how a character is posed.
@@ -140,8 +141,15 @@ namespace BobsAnimations
             return null;
         }
 
+        // (A character out of the player's view keeps the skin it last had in view: Unity skins only what a camera sees. `anim drift` gives
+        // the real pose in numbers.)
         // At the end of the frame, as the game draws it: after the clips have posed the bones (a shot during Update has props where the
         // game's own animation left them, while the skin shows the last frame's pose).
+        private static IEnumerator DriftAtEnd(Action<JObject> output)
+        {
+            yield return new WaitForEndOfFrame();
+            output(new JObject{["drift"]=Playback.Drift()});
+        }
         private static IEnumerator ShotAtEnd(Character c,float yaw,float pitch,float dist,float up,Action<JObject> output)
         {
             yield return new WaitForEndOfFrame();
