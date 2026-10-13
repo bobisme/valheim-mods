@@ -100,6 +100,14 @@ namespace Jarldom.Ui
                 Small(right, "Come to the pillars", ref bx, ry, () => Net.Act(c, "summon", vid), "They stop what they're doing and come to the high-seat pillars.");
                 ry += 44; bx = 10;
                 Small(right, _confirm ? "Yes, send them away" : "Dismiss", ref bx, ry, () => { if (_confirm) { Net.Act(c, "dismiss", vid); Close(); } else { _confirm = true; Build(); } });
+                // (the cleansing rite: only once the colony has a gothi and Odin an altar; why not, on the button's tip, when it can't be asked)
+                if (c.R.Living.Any(r => r.Prof == Prof.Gothi) && Saboteur.OdinAltar(c) != null && c.AllowedName(Player.m_localPlayer.GetPlayerName()))
+                {
+                    string why = Saboteur.CleanseWhy(c, vid);
+                    ry += 44; bx = 10;
+                    Small(right, why == "" ? $"Cleansing rite ({Saboteur.CleansePrice} coins)" : "Cleansing rite", ref bx, ry, () => { if (Saboteur.CleanseWhy(c, vid) == "") { Net.Act(c, "cleanse", vid); Close(); } else Player.m_localPlayer.Message(MessageHud.MessageType.Center, "Not now: " + Saboteur.CleanseWhy(c, vid) + "."); },
+                        why == "" ? $"The gothi takes {Saboteur.CleansePrice} coins from the treasury to Odin and holds a rite at his altar. If the Forsaken's mark is on them, Odin may burn it out (more likely the more he favours the colony); if not, they're found clean and the suspicion on them lifts. The coins are spent either way." : "Not now: " + why + ".");
+                }
                 ItemDrop.ItemData ring = Player.m_localPlayer.GetInventory().GetAllItems().FirstOrDefault(Items.IsRing);
                 if (ring != null && c.AllowedName(Player.m_localPlayer.GetPlayerName())) { ry += 44; bx = 10; Small(right, "Give an arm ring", ref bx, ry, () => { Player me = Player.m_localPlayer; ItemDrop.ItemData r = me.GetInventory().GetAllItems().FirstOrDefault(Items.IsRing); if (r == null) return; me.GetInventory().RemoveItem(r, 1); Net.Act(c, "ring", vid); }); }
                 ry += 48;

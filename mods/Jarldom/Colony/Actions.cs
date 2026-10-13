@@ -27,6 +27,7 @@ namespace Jarldom
                 case "autobeds": AutoBeds(); break;
                 case "backpay": BackPay(who); break;
                 case "tryreach": TryReachAgain(); break;
+                case "cleanse": Saboteur.AskCleanse(this, Get(a, 0), who); break;
                 case "ruin": Upkeep.Add(this, string.Join("|", a)); break;
                 case "unruin": Upkeep.Remove(this, string.Join("|", a)); break;
                 case "reshape": { Zone z = R.Zones.FirstOrDefault(x => x.Id == Get(a, 0)); var xz = Get(a, 1).Split(',').Select(Flt).ToList(); if (z != null && xz.Count >= 6 && xz.Count == z.Xz.Count && Geometry.Simple(xz)) z.Xz = xz; } break;
@@ -42,7 +43,7 @@ namespace Jarldom
                 case "horn": HornUntil = a[0] == "on" ? Time.time + 300 : 0; if (a[0] == "on") { Assets.Effect("sfx_fader_bell", Position); Tell("The war horn sounds!", true); } else Tell("The all-clear."); break;
                 case "offer": Faith.Received(this, Get(a, 0), Int(a, 1), Get(a, 2), who); break;
                 case "ascend": Ascension.Begin(this, a[0], who); break;
-                case "rule": Thing.Rule(this, Int(a, 0), Get(a, 1) == "yes", who, a.Length > 2 ? string.Join("|", a.Skip(2)) : null); break;
+                case "rule": if (Get(a, 1) == "rite") Thing.RuleRite(this, Int(a, 0), who, a.Length > 2 ? string.Join("|", a.Skip(2)) : null); else Thing.Rule(this, Int(a, 0), Get(a, 1) == "yes", who, a.Length > 2 ? string.Join("|", a.Skip(2)) : null); break;
                 case "thingcall": Thing.Call(this, who); break;
                 case "thingspoke": Thing.Speak(this, arg == "" ? null : arg); break;
                 case "thingend": if (Thing.Held(this)) Thing.Close(this, "adjourned by " + who); break;

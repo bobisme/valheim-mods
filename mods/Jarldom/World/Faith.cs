@@ -235,6 +235,51 @@ namespace Jarldom
 {
     // The gothi keeps the colony's temples: once a day at each, an offering from the stores of what its god wants (the cheapest such
     // thing, one of it), laid on the altar as a player would; otherwise they mind a temple.
+    // The cleansing rite: the gothi goes to Odin's altar and calls the one it's for to kneel before it; a few moments, and Odin answers.
+    internal sealed class CleanseTask : Task
+    {
+        private readonly Brain _them; private Piece _altar; private float _until, _riteAt; private bool _called;
+        public CleanseTask(Brain them) { _them = them; }
+        public override bool Interruptible => _riteAt == 0;
+        public override void Start(Brain b)
+        {
+            _altar = Saboteur.OdinAltar(b.Colony);
+            Doing = "going to Odin's altar for a cleansing rite"; _until = Time.time + 120f;
+            if (_altar != null) b.Move.To(_altar.transform.position + _altar.transform.forward * 1.2f, 1.2f);
+        }
+        public override void Tick(Brain b)
+        {
+            if (_altar == null || _them == null || !_them.Alive) { Done = true; return; }
+            Vector3 front = _altar.transform.position + _altar.transform.forward * 1.2f, kneel = _altar.transform.position + _altar.transform.forward * 2.4f;
+            if (Time.time > _until && _riteAt == 0) { Done = true; b.NoRiteUntil = Time.time + 300; b.Say("They didn't come. The rite must wait.", 4); return; } // (put off, not lost)
+            if (Utils.DistanceXZ(b.Pos, front) > 2f) { if (!b.Move.Moving) b.Move.To(front, 1.2f); return; }
+            if (!_called) { _called = true; _them.Task?.Stop(_them); _them.Task = new GoTask(kneel, "called to Odin's altar", 1.0f); _them.Task.Start(_them); b.Say($"{_them.S.Name}, come and kneel before Odin.", 4); }
+            if (_riteAt == 0)
+            {
+                if (Utils.DistanceXZ(_them.Pos, kneel) > 2.5f) { if (!(_them.Task is GoTask)) { _them.Task?.Stop(_them); _them.Task = new GoTask(kneel, "called to Odin's altar", 1.0f); _them.Task.Start(_them); } return; }
+                _riteAt = Time.time + 8f; Doing = "holding a cleansing rite";
+                _them.Task?.Stop(_them); _them.Task = new KneelTask(_riteAt + 1f); _them.Task.Start(_them);
+                Body_.Anim(_them.Body)?.SetTrigger("emote_kneel"); Body_.Anim(b.Body)?.SetTrigger("emote_point");
+                b.Ai.LookTowards((_them.Pos - b.Pos).normalized);
+                b.Say(new[] { "Allfather, see this one and burn the ash away.", "Odin, hear us: take the Forsaken's mark from them.", "By the ravens and the ring: be clean." }[UnityEngine.Random.Range(0, 3)], 6);
+                return;
+            }
+            if (Time.time < _riteAt) return;
+            Saboteur.Rite(b.Colony, b, _them);
+            Done = true;
+        }
+    }
+
+    // Kneeling at the altar until the rite is over (not back to work halfway through it).
+    internal sealed class KneelTask : Task
+    {
+        private readonly float _until;
+        public KneelTask(float until) { _until = until; Doing = "kneeling at Odin's altar"; }
+        public override bool Interruptible => false;
+        public override void Start(Brain b) { b.Move.Stop(); b.Stand(); }
+        public override void Tick(Brain b) { b.Move.Stop(); if (Time.time > _until) Done = true; }
+    }
+
     internal sealed class GothiTask : Task
     {
         private readonly Room _temple; private Piece _altar; private string _god; private Container _from; private string _gift; private int _phase;
@@ -244,6 +289,8 @@ namespace Jarldom
         {
             Colony c = b.Colony;
             if (c == null || !c.IsOwner) return null;
+            string rite = Saboteur.NextRite(c);
+            if (rite != null && Time.time > b.NoRiteUntil && Saboteur.OdinAltar(c) != null && Villagers.ByVid(rite) is Brain them && them.Alive) return new CleanseTask(them);
             var temples = c.R.Rooms.Where(r => r.Ok && (r.Type == RoomType.Temple || r.Type == RoomType.OdinShrine)).ToList();
             if (temples.Count == 0) return null;
             Room due = Time.time > b.NoOfferUntil ? temples.FirstOrDefault(r => c.R.Flag("offered:" + r.Id) != c.Day) : null;

@@ -50,9 +50,19 @@ namespace Jarldom.Ui
             GameUi.Line(_window, left > 0 ? $"{left} more after this" : "the last matter", new Vector2(440, -18), 296, 15, GameUi.Dim, null, TextAlignmentOptions.TopRight);
             TMP_Text said = GameUi.Line(_window, $"<color=#ffd27a>{who}:</color> “{p.Text}”", new Vector2(24, -52), Size.x - 48, 19, GameUi.Text);
             float y = 52 + said.GetPreferredValues(said.text, Size.x - 48, 0).y + 14;
-            float w = (Size.x - 48 - 200 - 24) / 2f;
+            // (an accusation has a third word: the gothi's rite, once the colony has a gothi and Odin an altar)
+            bool rite = p.Id == "accuse" && c.R.Living.Any(r => r.Prof == Prof.Gothi) && Saboteur.OdinAltar(c) != null;
+            int n = rite ? 3 : 2;
+            float w = (Size.x - 48 - 200 - 12 * n) / n;
             GameUi.Button(_window, p.Yes, new Vector2(24, -y), new Vector2(w, 40), () => { Net.Act(c, "rule", idx + "|yes|" + p.Key); Dismiss(); });
-            GameUi.Button(_window, p.No, new Vector2(24 + w + 12, -y), new Vector2(w, 40), () => { Net.Act(c, "rule", idx + "|no|" + p.Key); Dismiss(); });
+            if (rite)
+            {
+                RosterRow row = c.R.Roster.FirstOrDefault(r => r.Name == p.About && r.State == SoulState.Active);
+                string why = row == null ? "they're not here" : Saboteur.CleanseWhy(c, row.Vid);
+                var rb = GameUi.Button(_window, why == "" ? $"The gothi's rite ({Saboteur.CleansePrice} coins)" : "The gothi's rite", new Vector2(24 + (w + 12), -y), new Vector2(w, 40), () => { Net.Act(c, "rule", idx + "|rite|" + p.Key); Dismiss(); }, why == "");
+                GameUi.Tip(rb, "The gothi's rite", why == "" ? $"Neither cast out nor let be: the gothi takes {Saboteur.CleansePriceText()} to Odin and tries them at his altar. If the Forsaken's mark is on them it may be burned out, and they stay; if not, they're found clean. The coins are spent either way." : "Not now: " + why + ".");
+            }
+            GameUi.Button(_window, p.No, new Vector2(24 + (w + 12) * (n - 1), -y), new Vector2(w, 40), () => { Net.Act(c, "rule", idx + "|no|" + p.Key); Dismiss(); });
             GameUi.Button(_window, "Adjourn", new Vector2(Size.x - 24 - 200, -y), new Vector2(200, 40), () => { Net.Act(c, "thingend", ""); Dismiss(); }, true, 15);
             GameUi.Line(_window, $"Esc: decide later (E on {(p.ByName != "" ? p.ByName : "the petitioner")} brings this back)", new Vector2(24, -y - 48), Size.x - 48, 13, GameUi.Dim);
             _window.sizeDelta = new Vector2(Size.x, y + 48 + 26); // (as tall as what's in it)

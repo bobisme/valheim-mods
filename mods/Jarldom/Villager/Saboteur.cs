@@ -85,6 +85,60 @@ namespace Jarldom
             if (touched.Count > 0 && Random.value < 0.3f) c.Tell("Hugin croaks from the pillars: “One of yours smells of ash.”", true);
         }
 
+        // ---- the cleansing rite ----
+        // The jarl may ask the gothi to burn the ash out of one of theirs instead: a precious offering from the treasury, spent whatever
+        // comes of it; at Odin's altar, the gothi tries. The touched are cleansed if Odin is willing (more often the more he favours the
+        // colony); one never touched is found clean, and the suspicion on them lifted.
+        public const int CleansePrice = 100; public const string Pending = "cleanse:";
+        public static string CleansePriceText() => CleansePrice + " coins from the treasury";
+        // Why it can't be asked now ("" when it can).
+        public static string CleanseWhy(Colony c, string vid)
+        {
+            if (!c.R.Living.Any(r => r.Prof == Prof.Gothi)) return "the colony has no gothi (give someone that trade)";
+            if (OdinAltar(c) == null) return "there's no altar to Odin (an Odin's shrine or a temple to Odin, with its altar)";
+            if (c.R.Flags.ContainsKey(Pending + vid)) return "the gothi is already to hold the rite for them";
+            Container t = Stock.Treasury(c);
+            if (t == null || Stock.Coins(t) < CleansePrice) return $"the treasury hasn't the {CleansePrice} coins the offering costs";
+            return "";
+        }
+        public static Piece OdinAltar(Colony c)
+        {
+            var rooms = c.R.Rooms.Where(r => r.Ok && (r.Type == RoomType.OdinShrine || r.Type == RoomType.Temple && r.God == "odin")).ToList();
+            return c.PiecesIn(c.Radius).Where(p => p != null && Utils.GetPrefabName(p.gameObject) == Pieces.AltarPrefix + "odin" && rooms.Any(r => c.RoomAt(p.transform.position + Vector3.up * 0.3f) == r)).FirstOrDefault();
+        }
+        // On the owner (an action): the offering taken, the rite set for the gothi.
+        public static void AskCleanse(Colony c, string vid, string who)
+        {
+            string why = CleanseWhy(c, vid);
+            RosterRow row = c.R.Row(vid);
+            if (why != "" || row == null) { c.Tell("No cleansing rite: " + (why != "" ? why : "who?") + "."); return; }
+            if (!Stock.TakeCoins(Stock.Treasury(c), CleansePrice)) { c.Tell("No cleansing rite: the treasury couldn't pay."); return; }
+            c.R.Flags[Pending + vid] = c.Day; c.MarkDirty();
+            c.Log("text", row.Name, who, $"{who} gave {CleansePrice} coins to Odin, and asked the gothi to burn the ash out of {row.Name}.");
+        }
+        public static string NextRite(Colony c) => c.R.Flags.Keys.Where(k => k.StartsWith(Pending)).Select(k => k.Substring(Pending.Length)).FirstOrDefault();
+        public static void Rite(Colony c, Brain gothi, Brain them)
+        {
+            c.R.Flags.Remove(Pending + them.S.Vid); c.MarkDirty();
+            string name = them.S.Name;
+            bool clean = !Touched(them.S);
+            Thing.Pending(c).RemoveAll(p => p.Id == "accuse" && p.About == name); // (asked about at the rite: not to be named at the Thing as well)
+            if (clean)
+            {
+                them.S.Counts.Remove("seen"); them.Dirty();
+                c.Log("text", gothi.S.Name, name, $"{gothi.S.Name} the gothi found no ash on {them.S.FullName} at Odin's altar: they were never touched. The suspicion on them is lifted.");
+                return;
+            }
+            float chance = Mathf.Clamp(0.55f + c.FavourOf("odin") * 0.02f, 0.35f, 0.85f);
+            if (Random.value < chance)
+            {
+                them.S.Counts.Remove(Mark); them.S.Counts.Remove("seen"); Mood.Remove(them.S, "ashdreams"); them.Dirty();
+                c.R.Deeds += Renown.Deed("exiled");
+                c.Log("text", gothi.S.Name, name, $"At Odin's altar {gothi.S.Name} the gothi burned the ash out of {them.S.FullName}: the Forsaken's mark is gone, and the mischief with it.");
+            }
+            else c.Log("text", gothi.S.Name, name, $"{gothi.S.Name} the gothi held the rite for {them.S.FullName}, but Odin would not hear it: the ash clings to them still.");
+        }
+
         // The Thing has spoken: cast out. Touched or not, they go.
         public static void CastOut(Colony c, string name, string who)
         {

@@ -60,7 +60,7 @@ namespace Jarldom
             "Fill the horns, the night is young!", "Who here can still stand straight?", "I've had three, and the fourth is mine.", "Dance with me, you great oaf!",
             "The sea is lonely without us. Drink up!", "My cousin drank a whole barrel once and lived.", "Pass the horn, and pass it quick!",
             "Did you hear the one about the jarl's goat?", "Skål to the hall, and the roof that keeps us!", "Drink to the ones who went to Valhalla first.",
-            "Where's the skald? Someone fetch the skald!", "I'll wrestle any man here, if he's sober.", "Mead tastes better when it isn't ours to pay for.",
+            "Where's the skald? Someone fetch the skald!", "I'll wrestle anyone here, if they're sober.", "Mead tastes better when it isn't ours to pay for.",
             "Ale for the hall, and no one drinks alone!", "Good mead, good company, bad knees.", "Another round before the fire goes out!", "One more song, then bed. Probably." };
     }
 

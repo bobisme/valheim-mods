@@ -897,7 +897,8 @@ namespace Jarldom
                     }
                     break;
                 case "ground": { Vector3 at = new Vector3(F(a[2]), 0, F(a[3])); output(new JObject { ["ground"] = Ground(at) }); } break;
-                case "touch": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } b.S.Bump(Saboteur.Mark); b.Dirty(); output(new JObject { ["touched"] = b.S.Name }); } break;
+                case "touch": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } if (a.Length > 3 && a[3] == "-") b.S.Counts.Remove(Saboteur.Mark); else b.S.Bump(Saboteur.Mark); b.Dirty(); output(new JObject { ["touched"] = b.S.Name, ["is"] = Saboteur.Touched(b.S) }); } break; // (test: touch <name> [-])
+                case "touchedwho": output(new JObject { ["count"] = Villagers.All.Count(x => x.S.Colony == c.Id && Saboteur.Touched(x.S)), ["vids"] = new JArray(Villagers.All.Where(x => x.S.Colony == c.Id && Saboteur.Touched(x.S)).Select(x => x.S.Vid)) }); break; // (test: vids only, not names)
                 case "mischief": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } b.NextMischief = 1; Saboteur.Tick(b); output(new JObject { ["mischief"] = b.S.Count("mischief"), ["seen"] = new JObject(Villagers.All.Where(x => x.S.Count("seen") > 0).Select(x => new JProperty(x.S.Name, x.S.Count("seen")))) }); } break;
                 case "away": { double h = a.Length > 2 ? F(a[2]) : 24; CatchUp.Run(c, h * Clock.Hour); output(new JObject { ["log"] = c.R.Log.Last().Text }); } break;
                 case "find":

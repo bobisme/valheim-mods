@@ -264,6 +264,28 @@ namespace Jarldom
         }
 
         public const int RuledRest = 3; // days before a matter ruled on may be raised again
+        // The third word on an accusation: neither cast out nor let be, but the gothi's rite at Odin's altar (paid from the treasury).
+        public static void RuleRite(Colony c, int index, string who, string key = null)
+        {
+            var list = Pending(c);
+            if (!Held(c) || index != c.R.Flag(Cur) - 1 || index < 0 || index >= list.Count || c.R.Flag(Spoken) != 1) return;
+            Petition p = list[index];
+            if (key != null && key != p.Key || p.Id != "accuse") return;
+            RosterRow row = c.R.Roster.FirstOrDefault(r => r.Name == p.About && r.State == SoulState.Active);
+            string why = row == null ? "they're not here" : Saboteur.CleanseWhy(c, row.Vid);
+            if (why != "") { c.Tell("No rite: " + why + ".", true); return; }
+            c.R.Flags["ruled:" + p.Key] = c.Day;
+            list.RemoveAt(index);
+            foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) { Mood.Add(b.S, "thingheard", b.Now); b.Dirty(); }
+            c.Log("text", who, "", $"At the Thing, {who} gave {p.About} to the gothi's rite: \"{p.Text}\"");
+            Saboteur.AskCleanse(c, row.Vid, who);
+            c.Tell($"{who}: “Let the gothi try them before Odin.” The Thing murmurs.", true);
+            React(c, p, 0);
+            c.R.Flags[Ruled] = c.R.Flag(Ruled) + 1;
+            c.R.Flags[Spoken] = 0; c.R.Flags[Since] = (int)c.Now;
+            if (list.Count == 0) Close(c, "");
+            c.MarkDirty();
+        }
         public static void Rule(Colony c, int index, bool yes, string who, string key = null)
         {
             var list = Pending(c);
@@ -297,7 +319,7 @@ namespace Jarldom
         private static readonly string[] Cheers = { "Hail!", "Well judged!", "Hear, hear!", "The jarl is wise.", "So it shall be!",
             "Aye, that's the way!", "A good ruling, jarl.", "The hall agrees!", "Odin would be pleased.", "Now there's a jarl!" };
         private static readonly string[] Grumbles = { "Hmph.", "That's no answer.", "We'll remember this.", "Unfair!", "Shame...",
-            "Hard words for a hard winter.", "I'll not forget this.", "Bah.", "Not what we came for.", "The jarl forgets his folk." };
+            "Hard words for a hard winter.", "I'll not forget this.", "Bah.", "Not what we came for.", "The jarl forgets their folk." };
         private static void React(Colony c, Petition p, int mood)
         {
             var rng = new System.Random();
