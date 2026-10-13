@@ -1,3 +1,5 @@
+0.1.57: test tools: 'jarldom spawn <trade>' keeps the trade (it waited for the newcomer's body); 'jarldom dogs' shows what is around the village dog. Dogs don't bark at training dummies.
+
 0.1.56: village dogs: a tamed wolf in the colony can be taken in as the village dog from the colony window (it gets a name if it has none). By day it trots after the villagers at their work, at night it lies by the hall's hearth, and when something hostile comes within 40 m it barks and the colony hears where from. A player can still take it along.
 
 0.1.55: work songs: three or more villagers at the same work within 15 m keep a rhythm (10% quicker) and one leads a chant in Old Norse now and then. A miserable colony (mood under -40) goes quiet: no greetings, no gossip, no songs, and the great hall says so.

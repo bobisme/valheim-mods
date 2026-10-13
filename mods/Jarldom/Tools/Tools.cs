@@ -420,7 +420,7 @@ namespace Jarldom
                         Migration.Accept(c, c.R.Coming.Count - 1, me?.GetPlayerName() ?? "");
                         Brain b = null;
                         string vid = c.R.Roster.Last().Vid;
-                        if (a.Length > 2 && Enum.TryParse(a[2], true, out Prof p)) Villagers.Command(vid, "prof", p.ToString());
+                        if (a.Length > 2 && Enum.TryParse(a[2], true, out Prof p)) Plugin.Instance.StartCoroutine(WhenUp(vid, "prof", p.ToString())); // (their body isn't up yet)
                         if (a.Contains("test")) Villagers.Command(vid, "mood", "arrived"); // (marks below)
                         if (a.Contains("test")) { Humanoid hb = Villagers.Body(vid); Brain tb = hb != null ? Villagers.BrainFor(hb) : null; if (tb != null) { tb.S.Bump("testspawn"); tb.Dirty(); } }
                         output(new JObject { ["spawned"] = n.Name, ["vid"] = vid, ["traits"] = n.Traits, ["story"] = n.Story });
@@ -1191,6 +1191,16 @@ namespace Jarldom
             ["raid"] = c.RaidOn, ["horn"] = c.HornUntil > Time.time, ["rooms"] = c.R.Rooms.Count, ["zones"] = c.R.Zones.Count, ["orders"] = c.Board.All.Count(o => o.State == OrderState.Open || o.State == OrderState.Claimed),
             ["treasury"] = c.R.Treasury, ["deeds"] = c.R.Deeds, ["fallen"] = c.R.Fallen.Count, ["recordBytes"] = c.Z.GetByteArray(Colony.RecordKey)?.Length ?? 0,
         };
+        // A command for a villager who has only just been made: sent once their body (and brain) is up, within ten seconds.
+        private static System.Collections.IEnumerator WhenUp(string vid, string action, string arg)
+        {
+            for (float until = Time.time + 10f; Time.time < until; )
+            {
+                Humanoid h = Villagers.Body(vid);
+                if (h != null && Villagers.BrainFor(h) != null) { Villagers.Command(vid, action, arg); yield break; }
+                yield return new WaitForSeconds(0.5f);
+            }
+        }
         private static JObject Villager(Brain b) => new JObject
         {
             ["vid"] = b.S.Vid, ["name"] = b.S.FullName, ["prof"] = b.S.Prof.ToString(), ["traits"] = new JArray(b.S.Traits), ["doing"] = b.Doing, ["activity"] = b.Activity.ToString(), ["task"] = b.Task?.GetType().Name ?? "",
