@@ -66,7 +66,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing", "corner" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or for a server admin with devcommands on"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -489,6 +489,18 @@ namespace Jarldom
                         output(new JObject { ["dock"] = dock != null ? V(Zones.Centre(dock)) : null, ["onShip"] = Ship.GetLocalShip() != null });
                     }
                     break;
+                case "corner":
+                    {
+                        // A villager's corner: their bed, the item stands within 4 m of it (and what hangs there, and whose), their keepsakes.
+                        // "stand": a test item stand put 2 m from their bed.
+                        Brain b = a.Length > 2 ? Who(a[2]) : null; if (b == null) { error("corner <name> [stand]"); return; }
+                        Bed bed = c.BedById(b.S.Bed); if (bed == null) { error("they have no bed"); return; }
+                        if (a.Length > 3 && a[3] == "stand") { Vector3 at = bed.transform.position + bed.transform.right * 2f; Put(Assets.Find("itemstandh"), new Vector3(at.x, bed.transform.position.y, at.z), bed.transform.eulerAngles.y); } // (a standing one: a wall one needs a wall)
+                        var stands = c.PiecesIn(c.Radius).Where(p => p != null && p.GetComponent<ItemStand>() != null && Vector3.Distance(p.transform.position, bed.transform.position) < 4f).Select(p => p.GetComponent<ItemStand>());
+                        output(new JObject { ["bed"] = V(bed.transform.position), ["stands"] = new JArray(stands.Select(s => $"{Utils.GetPrefabName(s.gameObject)} at {V(s.transform.position)} holds {(s.HaveAttachment() ? s.GetAttachedItem() : "-")} by {s.GetComponent<ZNetView>().GetZDO().GetString(CornerTask.StandKey, "-")}")),
+                            ["keepsakes"] = new JArray(b.Body.GetInventory().GetAllItems().Where(CornerTask.Keepsake).Select(Prefab)), ["doing"] = b.Doing });
+                    }
+                    break;
                 case "greetings": output(new JObject { ["recent"] = new JArray(Greet.Recent) }); break;
                 case "feed":
                     {
@@ -550,6 +562,7 @@ namespace Jarldom
                         GameObject prefab = Assets.Find(a[3]); if (prefab == null) { error("no prefab " + a[3]); return; }
                         int n = a.Length > 4 ? int.Parse(a[4]) : 1;
                         for (int i = 0; i < n;) { int stack = Math.Min(n - i, prefab.GetComponent<ItemDrop>().m_itemData.m_shared.m_maxStackSize); if (!b.Body.GetInventory().AddItem(prefab, stack)) break; i += stack; }
+                        if (a.Contains("keep")) foreach (ItemDrop.ItemData k in b.Body.GetInventory().GetAllItems().Where(x => Prefab(x) == a[3])) CornerTask.Mark(k, "test"); // (a keepsake, for their corner)
                         output(new JObject { ["bag"] = new JArray(b.Body.GetInventory().GetAllItems().Select(i => $"{Prefab(i)} x{i.m_stack}{(i.m_equipped ? " (worn)" : "")}")) });
                     }
                     break;

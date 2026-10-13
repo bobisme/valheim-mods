@@ -126,6 +126,7 @@ namespace Jarldom
             M("asked", "The jarl did as they asked", 12, 96),
             M("washed", "Their shame washed out", 15, 120),
             M("aurora", "Saw the northern lights", 8, 24),
+            M("corner", "Their own things about them", 5, 72),
             M("unpaid", "Unpaid", -15, 0, Stack.Add, 3),
             M("gary", "Petted Gary", 3, 6),
             M("festival", "A festival", 12, 48),

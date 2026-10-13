@@ -462,6 +462,7 @@ namespace Jarldom
             if (Time.time > b.NoRepairUntil && RepairTask.Worn(b).Count > 0) return new RepairTask();
             Task grave = GraveTask.Next(b); if (grave != null) return grave;
             Task outfit = OutfitTask.Next(b); if (outfit != null) return outfit;
+            Task corner = CornerTask.Next(b); if (corner != null) return corner;
             Prof prof = b.S.Prof;
             if (prof == Prof.Skald) return null; // skalds rest by day and play at dusk
             if (prof == Prof.Healer) { Task heal = HealTask.Next(b); if (heal != null) return heal; }
@@ -514,7 +515,7 @@ namespace Jarldom
         public static int Carrying(Brain b) => b.Body.GetInventory().GetAllItems().Count(i => Stores(b, i));
         // What goes to the stores from this villager's bag: loot, and gear they picked up off the ground for the colony (not theirs).
         // (a weaver keeps their spun thread by them)
-        public static bool Stores(Brain b, ItemDrop.ItemData i) => !(b.S.Prof == Prof.Weaver && Classes.Prefab(i) == Weaving.Thread && i.m_stack <= 20) && Loot(i) || !i.m_equipped && i.m_dropPrefab != null && (b.Hauled.Contains(i.m_dropPrefab.name) || Surplus(b, i));
+        public static bool Stores(Brain b, ItemDrop.ItemData i) => !CornerTask.Keepsake(i) && !(b.S.Prof == Prof.Weaver && Classes.Prefab(i) == Weaving.Thread && i.m_stack <= 20) && Loot(i) || !i.m_equipped && i.m_dropPrefab != null && (b.Hauled.Contains(i.m_dropPrefab.name) || Surplus(b, i));
         // Food beyond what a villager keeps for themselves (a small stack of their best, five or fewer; a bigger one goes in whole and they
         // fetch a meal back when hungry): the colony's.
         private const int KeepFood = 5;
@@ -537,7 +538,7 @@ namespace Jarldom
         }
         public static bool Loot(ItemDrop.ItemData i)
         {
-            if (i.m_equipped) return false;
+            if (i.m_equipped || CornerTask.Keepsake(i)) return false; // (theirs to keep: for their corner)
             var t = i.m_shared.m_itemType;
             if (t == ItemDrop.ItemData.ItemType.Helmet || t == ItemDrop.ItemData.ItemType.Chest || t == ItemDrop.ItemData.ItemType.Legs || t == ItemDrop.ItemData.ItemType.Shoulder || t == ItemDrop.ItemData.ItemType.Utility) return false;
             if (t == ItemDrop.ItemData.ItemType.OneHandedWeapon || t == ItemDrop.ItemData.ItemType.TwoHandedWeapon || t == ItemDrop.ItemData.ItemType.Bow || t == ItemDrop.ItemData.ItemType.Shield || t == ItemDrop.ItemData.ItemType.Tool || t == ItemDrop.ItemData.ItemType.Ammo || t == ItemDrop.ItemData.ItemType.TwoHandedWeaponLeft || t == ItemDrop.ItemData.ItemType.Torch) return false;

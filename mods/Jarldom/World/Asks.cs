@@ -71,6 +71,19 @@ namespace Jarldom
             if (q == null || q.Id != id) { Net.AskReply(from, s.Vid, id, false); b.Say(new[] { "That's been seen to already.", "That was answered already, jarl.", "I've had that already. My thanks all the same." }[UnityEngine.Random.Range(0, 3)], 4); return; }
             s.Asked = null;
             Net.AskReply(from, s.Vid, id, true); // (the player hands the things over now, and only now)
+            // What was handed over is theirs now: a trophy or a precious thing to keep (hung in their corner), goods for the hall.
+            if (Requests.HandIn(q) && ZNetScene.instance?.GetPrefab(q.Target) is GameObject given && given.GetComponent<ItemDrop>() != null)
+            {
+                Inventory bag = b.Body.GetInventory(); bool keep = q.Kind == Ask.Trophy || q.Kind == Ask.Relic;
+                for (int n = keep ? Math.Min(q.Count, 2) : q.Count; n > 0; )
+                {
+                    ItemDrop.ItemData item = given.GetComponent<ItemDrop>().m_itemData.Clone(); item.m_dropPrefab = given; item.m_stack = Math.Min(n, item.m_shared.m_maxStackSize);
+                    if (keep) CornerTask.Mark(item, "ask");
+                    if (!bag.CanAddItem(item, item.m_stack) || !bag.AddItem(item)) break;
+                    n -= item.m_stack;
+                }
+                b.NoCornerUntil = 0;
+            }
             double now = b.Now;
             if (who != "") s.Opinions[who] = Mathf.Clamp((s.Opinions.TryGetValue(who, out int o) ? o : 0) + Requests.Opinion, -100, 100);
             Worth.Gain(s, "asked", Faith.OdinWorthBonus(b.Colony));

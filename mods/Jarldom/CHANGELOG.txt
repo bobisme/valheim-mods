@@ -1,3 +1,5 @@
+0.1.60: personal corners: what you hand a villager for a request is theirs now. A trophy or a precious thing becomes a keepsake they hang on an item stand you've built within 4 m of their bed (two at most; a mood while they have their things about them), and goods go to the stores instead of vanishing.
+
 0.1.59: builders' hammers are heard as they mend and build (wood, stone, metal or ice, as the piece is), like the axes, pickaxes and crafting stations already were.
 
 0.1.58: coming home by sea: sail up to the colony's fishing dock after five minutes or more away, and up to six villagers with nothing pressing walk down to the water's edge to meet you, each calling out a welcome in turn (night or day).
