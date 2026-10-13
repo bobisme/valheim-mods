@@ -1,3 +1,5 @@
+0.1.59: builders' hammers are heard as they mend and build (wood, stone, metal or ice, as the piece is), like the axes, pickaxes and crafting stations already were.
+
 0.1.58: coming home by sea: sail up to the colony's fishing dock after five minutes or more away, and up to six villagers with nothing pressing walk down to the water's edge to meet you, each calling out a welcome in turn (night or day).
 
 0.1.57: test tools: 'jarldom spawn <trade>' keeps the trade (it waited for the newcomer's body); 'jarldom dogs' shows what is around the village dog. Dogs don't bark at training dummies.

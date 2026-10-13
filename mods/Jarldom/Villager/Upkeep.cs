@@ -169,6 +169,8 @@ namespace Jarldom
 
     internal sealed class UpkeepTask : Task
     {
+        private static string HammerSound(WearNTear.MaterialType m) => m == WearNTear.MaterialType.Stone || m == WearNTear.MaterialType.Marble || m == WearNTear.MaterialType.Ashstone ? "sfx_build_hammer_stone"
+            : m == WearNTear.MaterialType.Iron ? "sfx_build_hammer_metal" : m == WearNTear.MaterialType.Ice ? "sfx_build_hammer_ice" : "sfx_build_hammer_wood";
         public readonly string Kind; public readonly Vector3 At; public WearNTear Wnt; public Upkeep.Ruin Ruin; public Piece Prefab; public List<(string item, int amount)> Needs = new List<(string, int)>();
         private int _phase, _beats; private float _next;
         private static readonly Dictionary<Vector3, float> Held = new Dictionary<Vector3, float>(); // (a spot one builder is on)
@@ -211,6 +213,7 @@ namespace Jarldom
             if (hammer == null) { Done = true; return; }
             if (!b.Body.IsItemEquiped(hammer)) b.Body.EquipItem(hammer, false);
             Body_.Anim(b.Body)?.SetTrigger("swing_hammer");
+            Assets.Effect(HammerSound(Wnt != null ? Wnt.m_materialType : Prefab?.GetComponent<WearNTear>()?.m_materialType ?? WearNTear.MaterialType.Wood), At); // (the hammer heard, as a player's is)
             if (++_beats < 3) return;
             Colony c = b.Colony;
             switch (Kind)
