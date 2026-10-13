@@ -274,7 +274,7 @@ namespace Jarldom
             if (Replant.Count == 0) return;
             int open = c.Board.All.Count(o => o.Kind == "sow" && o.Zone == z.Id && (o.State == OrderState.Open || o.State == OrderState.Claimed));
             if (open >= 3) return;
-            var seeds = Replant.Values.GroupBy(r => r.seed).Select(g => g.First()).Where(r => HaveInStock(c, r.seed)).ToList();
+            var seeds = Replant.Where(kv => !SeedsPlenty(c, kv.Key)).Select(kv => kv.Value).GroupBy(r => r.seed).Select(g => g.First()).Where(r => HaveInStock(c, r.seed)).ToList();
             bool flaxWanted = Villagers.All.Any(v => v.S.Colony == c.Id && v.S.Prof == Prof.Weaver) && InStockCount(c, Weaving.Flax) < 30;
             if (seeds.Count == 0) return;
             var taken = Things(centre, reach).Where(go => go.GetComponent<Plant>() != null || go.GetComponent<Pickable>() != null).Select(go => go.transform.position).ToList();
@@ -296,6 +296,11 @@ namespace Jarldom
                 }
         }
         private static int InStockCount(Colony c, string item) => Stock.Count(c, item);
+        // A seed crop (a seed carrot, turnip, onion: grown from the food, for its seeds) isn't worth a carrot while the stores hold plenty
+        // of the seeds it makes: the food crop instead. (Replanted as it was, a seed patch went on eating every carrot it was given.)
+        public const int PlentySeeds = 50;
+        public static bool SeedsPlenty(Colony c, string crop) => FoodCrop(crop) is string food && Replant.TryGetValue(food, out var f) && InStockCount(c, f.seed) >= PlentySeeds;
+        public static string FoodCrop(string crop) => crop != null && crop.StartsWith("Pickable_Seed") ? "Pickable_" + crop.Substring("Pickable_Seed".Length) : null;
 
         public static bool IsStump(GameObject go) { string n = Utils.GetPrefabName(go).ToLowerInvariant(); return n.Contains("stub") || n.Contains("stump"); }
 
@@ -830,6 +835,7 @@ namespace Jarldom
             if (_phase == 4 && Kind == "harvest")
             {
                 if (!Work.Replant.TryGetValue(_crop ?? "", out var plant)) { Finish(b, true); return; }
+                if (Work.SeedsPlenty(b.Colony, _crop) && Work.Replant.TryGetValue(Work.FoodCrop(_crop), out var food)) plant = food; // (seeds enough: food in its place)
                 if (!Replanting(b, plant)) Finish(b, true);
                 return;
             }

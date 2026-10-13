@@ -244,7 +244,8 @@ namespace Jarldom
         private readonly List<Brain> _watchers = new List<Brain>();
         public CleanseTask(Brain them) { _them = them; }
         public override bool Interruptible => _start == 0;
-        private Vector3 Front => _altar.transform.position + _altar.transform.forward * 1.2f;
+        private Vector3 Front => _front;
+        private Vector3 _front;
         private Vector3 _kneel; private Room _room;
         private Vector3 Kneel => _kneel;
         // Where they kneel: before the altar, inside its shrine (closer in, in a small one), never out past its wall or door.
@@ -257,6 +258,12 @@ namespace Jarldom
                 Vector3 p = _altar.transform.position + _altar.transform.forward * d;
                 if (InShrine(p, 0.5f)) { _kneel = p; break; }
             }
+            // (the gothi between them and the altar; in a small shrine, where there's no room for both, beside the altar)
+            Transform t = _altar.transform;
+            _front = t.position + t.forward * 1.2f;
+            if (Utils.DistanceXZ(_kneel, t.position) < 2.4f)
+                foreach (Vector3 side in new[] { t.right * 1.1f, -t.right * 1.1f, t.right * 0.8f, -t.right * 0.8f })
+                    if (InShrine(t.position + side + t.forward * 0.4f, 0.25f)) { _front = t.position + side + t.forward * 0.4f; break; }
         }
         private bool InShrine(Vector3 p, float margin) => _room == null || new[] { Vector2.zero, Vector2.left, Vector2.right, Vector2.up, Vector2.down }.All(o => Geometry.Inside(_room.Xz, p.x + o.x * margin, p.z + o.y * margin));
         private bool Knelt => Utils.DistanceXZ(_them.Pos, Kneel) < 1f || Utils.DistanceXZ(_them.Pos, Kneel) < 2f && InShrine(_them.Pos, 0f);

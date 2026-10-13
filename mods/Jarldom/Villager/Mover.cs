@@ -173,6 +173,9 @@ namespace Jarldom
             v.InvokeRPC("UseDoor", forward);
             Doors.Opened(d, _b);
         }
+        private static readonly List<Vector3> JoinPath = new List<Vector3>();
+        // Whether there's a way on foot between the two (the end of the found way near the second).
+        private static bool Joined(Vector3 from, Vector3 to) => Pathfinding.instance != null && Pathfinding.instance.GetPath(from, to, JoinPath, Pathfinding.AgentType.Humanoid) && JoinPath.Count > 0 && Vector3.Distance(JoinPath[JoinPath.Count - 1], to) < 2.5f;
         private void Unstick(Vector3 me, Vector3 dir)
         {
             if (Utils.DistanceXZ(me, _lastProgressPos) > 0.75f) { _lastProgressPos = me; _lastProgressAt = Time.time; _stuckStage = 0; return; }
@@ -184,15 +187,17 @@ namespace Jarldom
                 // Still stuck: step to the next waypoint, as if the feet had found the way (only a waypoint: the navmesh's own, reachable
                 // ground; the goal itself may be behind a wall or up on a roof).
                 _stuckStage = 3;
-                if (_path.Count > 0 && Vector3.Distance(me, _path[0]) < 12f && Steer.SafeSpot(_path[0])) _b.Place(_path[0] + Vector3.up * 0.2f);
-                else if (_path.Count == 0 && _b.Colony != null)
+                bool noWay = _path.All(q => Vector3.Distance(q, me) < 1.5f); // (none, or one that never leaves them: a pocket)
+                if (!noWay && Vector3.Distance(me, _path[0]) < 12f && Steer.SafeSpot(_path[0])) _b.Place(_path[0] + Vector3.up * 0.2f);
+                else if (noWay && _b.Colony != null)
                 {
-                    // (no way at all from here: a pocket behind the pillars or a table, cut off from the rest; out to the middle of the
-                    // room they're in, or by the pillars, where the ways join up again)
+                    // (no way at all from here: a pocket behind the pillars or a table, or an upper floor the stairs don't reach, cut off
+                    // from the rest; out to the middle of the room they're in if the ways join up there, else by the pillars)
+                    Vector3 pillars = _b.Colony.Position + _b.Colony.Seat.transform.forward * 3f;
                     Room room = _b.Colony.RoomAt(me);
-                    Vector3 centre = room != null ? _b.Colony.Centre(room) : _b.Colony.Position + _b.Colony.Seat.transform.forward * 3f;
-                    Vector3? free = Colony.Spot(centre, 1.5f);
-                    if (free != null && Utils.DistanceXZ(free.Value, me) > 1.5f) _b.Place(free.Value + Vector3.up * 0.2f);
+                    Vector3? free = room != null ? Colony.Spot(_b.Colony.Centre(room), 1.5f) : null;
+                    if (free == null || !Joined(free.Value, pillars)) free = Colony.Spot(pillars, 2f);
+                    if (free != null && Vector3.Distance(free.Value, me) > 1.5f) _b.Place(free.Value + Vector3.up * 0.2f);
                 }
                 _lastProgressAt = Time.time; _lastProgressPos = _b.Body.transform.position; _stuckStage = 0; _nextPath = 0;
                 if (++_unsticks >= 3) { _failed = true; _failedAt = Time.time; _active = false; _b.Ai.StopMoving(); } // it isn't getting anywhere: give up the goal
