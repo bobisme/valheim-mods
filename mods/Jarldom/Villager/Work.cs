@@ -258,7 +258,7 @@ namespace Jarldom
         {
             int n = Physics.OverlapSphereNonAlloc(at, radius, Hits, LayerMask.GetMask("item"), QueryTriggerInteraction.Collide);
             var seen = new HashSet<ItemDrop>();
-            for (int i = 0; i < n; i++) { ItemDrop d = Hits[i].GetComponentInParent<ItemDrop>(); if (d != null && seen.Add(d)) yield return d; }
+            for (int i = 0; i < n; i++) { ItemDrop d = Hits[i].GetComponentInParent<ItemDrop>(); if (d != null && !Lost.IsRemains(d.m_itemData) && seen.Add(d)) yield return d; } // (someone's remains are for the jarl to bring home)
         }
         private static bool _learned;
         // Which grown prefabs are crops, and the sapling and seeds to replant each: from the cultivator's own pieces.

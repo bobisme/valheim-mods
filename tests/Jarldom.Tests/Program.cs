@@ -476,4 +476,13 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     var dv = new VillagerState { Worth = 10 }; float before = dv.Worth; Worth.Gain(dv, "rite"); Check(dv.Worth > before, "The gothi's rite counts as worth");
 }
 
+{
+    // An ascension's rewards, once: a second burn or a reload mid-way finds it claimed; an ordered one is pending until then.
+    var fl = new Dictionary<string, int>();
+    Ascensions.Ordered(fl, "v1", 40);
+    Check(Ascensions.Pending(fl, "v1") && !Ascensions.Pending(fl, "v2"), "An ordered ascension waits to be finished");
+    Check(Ascensions.Claim(fl, "v1") && !Ascensions.Claim(fl, "v1") && !Ascensions.Pending(fl, "v1"), "Rewards once: the second claim finds it taken, nothing pending");
+    var reloaded = new Dictionary<string, int>(fl); Check(!Ascensions.Claim(reloaded, "v1"), "After a reload (the same record) still taken");
+}
+
 Console.WriteLine($"Jarldom: {checks} checks passed");

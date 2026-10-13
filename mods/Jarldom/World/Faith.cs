@@ -153,6 +153,7 @@ namespace Jarldom
             string why = Why(c, s);
             if (why != "") { c.Tell("Not now: " + why + "."); return; }
             c.Log("text", s.Name, "", $"{who} sends {s.FullName} to Valhalla.");
+            if (c.IsOwner) { Ascensions.Ordered(c.R.Flags, vid, c.Day); c.MarkDirty(); } // (remembered: an interrupted ceremony goes on)
             Villagers.Command(vid, "ascend", c.Id);
         }
         // On the pyre's owner: the fire burns a minute after it's lit.
@@ -170,8 +171,7 @@ namespace Jarldom
         public static void Burn(Colony c, global::Jarldom.Pyre pyre, Brain b)
         {
             VillagerState s = b.S;
-            if (c.R.Flag("ascended:" + s.Vid) != 0) return;
-            c.R.Flags["ascended:" + s.Vid] = 1;
+            if (!Ascensions.Claim(c.R.Flags, s.Vid)) return;
             Container goods = pyre.GetComponent<Container>();
             int value = s.Hoard;
             if (goods != null)

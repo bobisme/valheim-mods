@@ -301,6 +301,20 @@ namespace Jarldom
     }
 
     // A villager's worth on the road to Valhalla.
+    // An ascension, once: the first claim on a soul's ascension wins (the rewards), every later one (a second burn, a reload mid-way)
+    // finds it taken. Ordered ascensions are remembered too, so one interrupted resumes.
+    public static class Ascensions
+    {
+        public static bool Claim(Dictionary<string, int> flags, string vid)
+        {
+            if (flags.TryGetValue("ascended:" + vid, out int done) && done != 0) return false;
+            flags["ascended:" + vid] = 1; flags.Remove("ascending:" + vid);
+            return true;
+        }
+        public static void Ordered(Dictionary<string, int> flags, string vid, int day) => flags["ascending:" + vid] = Math.Max(1, day);
+        public static bool Pending(Dictionary<string, int> flags, string vid) => flags.TryGetValue("ascending:" + vid, out int d) && d != 0 && !(flags.TryGetValue("ascended:" + vid, out int a) && a != 0);
+    }
+
     public static class Worth
     {
         public const float Full = 100;

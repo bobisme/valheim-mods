@@ -226,6 +226,8 @@ namespace Jarldom
             Saboteur.Tick(this);
             Mood.Expire(S, now);
             Plugin.Guard(() => Dim(now));
+            // An ascension ordered and interrupted (a reload, the owner away): on again at dusk.
+            if (Colony != null && S.Worthy && !(Task is AscendTask) && Ascensions.Pending(Colony.R.Flags, S.Vid) && Ascension.Why(Colony, S) == "") { Task?.Stop(this); Task = new AscendTask(Colony.Id); Task.Start(this); }
             // Shelter: dry and warm (under a roof, or by a fire).
             Cover.GetCoverForPoint(Body.GetCenterPoint(), out float cover, out bool roof);
             bool sheltered = cover >= 0.8f && roof, warm = EffectArea.IsPointInsideArea(Pos, EffectArea.Type.Heat) != null;
