@@ -1,3 +1,5 @@
+0.1.46: a colony can grow into the next rank. Each rank now holds as many souls as the next one needs (hamlet 12, village 20, jarldom 30): before, a hamlet held 10 and a village needed 12, so a colony stopped at hamlet for good
+
 0.1.45: a fire (or smelter, oven, cask) job with nothing to bring in the stores is set aside for a while, instead of handed back for the next villager to take up at once: the whole colony no longer stands round a cold hearth "tending the fire" with no wood
 
 0.1.44: the hall tab's Needs you names anyone whose trade has nowhere marked to do it (a fisherman with no fishing dock, a woodcutter with no woodlot), even while they keep busy with other chores

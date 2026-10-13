@@ -9,6 +9,7 @@ Check(Tables.Rooms.Select((r, i) => (int)r.Id == i).All(x => x) && Tables.Rooms.
 Check(Tables.Zones.Select((z, i) => (int)z.Id == i).All(x => x), "Zones in enum order");
 Check(Tables.Ranks.Select((r, i) => (int)r.Id == i).All(x => x), "Ranks in order");
 Check(Tables.Ranks.Zip(Tables.Ranks.Skip(1)).All(p => p.First.Population < p.Second.Population && p.First.Cap < p.Second.Cap), "Ranks grow");
+Check(Tables.Ranks.Zip(Tables.Ranks.Skip(1)).All(p => p.First.Cap >= p.Second.Population), "Each rank holds enough souls to reach the next");
 Check(Tables.Wage(Prof.Smith, false) == 8 && Tables.Wage(Prof.Guard, true) == 8 && Tables.Wage(Prof.Hauler, true) == 2, "Wages, greedy half again");
 Check(Tables.Grade(0) == 'D' && Tables.Grade(10) == 'C' && Tables.Grade(20) == 'B' && Tables.Grade(35) == 'A' && Tables.Grade(55) == 'S', "Grade bands");
 Check(Tables.Moodlets.Select(m => m.Id).Distinct().Count() == Tables.Moodlets.Length, "Moodlet ids unique");
