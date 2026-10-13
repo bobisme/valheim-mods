@@ -32,7 +32,7 @@ namespace Jarldom
                     LogEntry rest = log.LastOrDefault(e => e.Kind == "rest" && e.A == r.Name), lost = log.LastOrDefault(e => e.Kind == "lost" && (e.A ?? "").StartsWith(r.Name));
                     all.Add(rests
                         ? new Remembered { Name = r.Name, Hel = true, Day = rd, Deed = $"Lost to Hel{(lost != null && lost.B != "" ? " (" + lost.B + ")" : "")}; laid to rest{(rest != null && rest.B != "" ? " by " + rest.B : "")}. Rests with Hel." }
-                        : new Remembered { Name = r.Name, Hel = true, Unburied = true, Day = lost?.Day ?? 0, Deed = $"Lost to Hel{(lost != null && lost.B != "" ? " (" + lost.B + ")" : "")}. Walks still, unburied." });
+                        : new Remembered { Name = r.Name, Hel = true, Unburied = true, Day = lost?.Day ?? 0, Deed = $"Lost to Hel{(lost != null && lost.B != "" ? " (" + lost.B + ")" : "")}. Walks still, unburied: they come back by night. Strike them down, and lay their remains in the burial ground." });
                 }
             }
             return all.OrderBy(x => x.Day).ThenBy(x => x.Name).ToList();
@@ -43,5 +43,20 @@ namespace Jarldom
             page = Math.Max(0, Math.Min(page, Pages(all.Count) - 1));
             return all.Skip(page * PerPage).Take(PerPage).ToList();
         }
+    }
+
+    // The unburied walk again: a night now and then, one of the lost whose draugr isn't about comes back to the colony's edge, so the
+    // jarl can bring them home. One a night, half the nights, each soul at most every other night (the one away longest first).
+    public static class Unburied
+    {
+        public const int Every = 2;
+        public static string Walker(IEnumerable<RosterRow> roster, Dictionary<string, int> flags, int day, ICollection<string> about, double roll)
+        {
+            if (roll >= 0.5) return null;
+            return roster.Where(r => r.State == SoulState.Lost && !(flags.TryGetValue("rested:" + r.Vid, out int rd) && rd != 0) && !about.Contains(r.Vid)
+                    && day - (flags.TryGetValue("walked:" + r.Vid, out int w) ? w : -100) >= Every)
+                .OrderBy(r => flags.TryGetValue("walked:" + r.Vid, out int w) ? w : -100).ThenBy(r => r.Vid, StringComparer.Ordinal).Select(r => r.Vid).FirstOrDefault();
+        }
+        public static void Walked(Dictionary<string, int> flags, string vid, int day) => flags["walked:" + vid] = day;
     }
 }

@@ -381,6 +381,7 @@ namespace Jarldom
             Feast.Dusk(this, day);
             Tribute.Dusk(this, day);
             Warband.Dusk(this, day);
+            Plugin.Guard(() => Lost.Dusk(this, day));
         }
 
         // ---- souls falling and rising ----

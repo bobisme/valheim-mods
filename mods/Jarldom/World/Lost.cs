@@ -41,6 +41,23 @@ namespace Jarldom
         }
         public static void Forget() { Pinned.Clear(); }
 
+        // At dusk on the colony's owner: one of the unburied, if none of theirs is about, walks back in at the colony's edge (Unburied).
+        public static void Dusk(Colony c, int day)
+        {
+            var about = new HashSet<string>(Character.GetAllCharacters().Where(ch => ch != null && !ch.IsDead()).Select(ch => ch.GetComponent<ZNetView>()?.GetZDO()).Where(z => z != null && Who(z) != "").Select(z => z.GetString(VidKey, "")));
+            string vid = Unburied.Walker(c.R.Roster, c.R.Flags, day, about, Random.value);
+            RosterRow row = vid != null ? c.R.Row(vid) : null;
+            if (row == null) return;
+            Walk(c, row, day);
+        }
+        public static void Walk(Colony c, RosterRow row, int day)
+        {
+            Unburied.Walked(c.R.Flags, row.Vid, day); c.MarkDirty();
+            Vector2 dir = Random.insideUnitCircle.normalized;
+            Draugr.Raise(c, new VillagerState { Vid = row.Vid, Name = row.Name, Colony = c.Id, Worth = row.Worth }, c.Position + new Vector3(dir.x, 0, dir.y) * c.Radius);
+            c.Tell($"{Called(row.Name)} walks again tonight, out at the colony's edge. Strike them down and lay their remains in the burial ground.", true);
+        }
+
         // On the draugr's death (its owner's game): their remains, with their name and their colony's.
         public static void Remains(Character ch)
         {

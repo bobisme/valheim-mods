@@ -520,4 +520,21 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(kept == "SwordIron:2,ShieldBanded:1" && Returning.Worn(kept).SequenceEqual(new[] { ("SwordIron", 2), ("ShieldBanded", 1) }) && Returning.Worn(null).Count == 0, "Their gear kept as a short list, and read back");
 }
 
+{
+    // The unburied walk again: half the nights, one at a time, the one away longest first, never one already about or laid to rest.
+    var ur = new List<RosterRow> { new RosterRow { Vid = "i", Name = "Ingrid", State = SoulState.Lost }, new RosterRow { Vid = "h", Name = "Hervor", State = SoulState.Lost }, new RosterRow { Vid = "u", Name = "Ulf", State = SoulState.Active }, new RosterRow { Vid = "r", Name = "Rested", State = SoulState.Lost } };
+    var uf = new Dictionary<string, int> { ["rested:r"] = 5 };
+    var noneAbout = new HashSet<string>();
+    Check(Unburied.Walker(ur, uf, 10, noneAbout, 0.7) == null, "Not every night");
+    string first = Unburied.Walker(ur, uf, 10, noneAbout, 0.1);
+    Check(first == "h", "One of the unburied walks (never the living or the rested)");
+    Unburied.Walked(uf, first, 10);
+    Check(Unburied.Walker(ur, uf, 11, noneAbout, 0.1) == "i", "Next night: the other one");
+    Unburied.Walked(uf, "i", 11);
+    Check(Unburied.Walker(ur, uf, 11, noneAbout, 0.1) == null, "Each at most every other night");
+    Check(Unburied.Walker(ur, uf, 12, new HashSet<string> { "h" }, 0.1) == null && Unburied.Walker(ur, uf, 12, noneAbout, 0.1) == "h", "Not one whose draugr is already about");
+    var mem2 = Memorial.From(ur, uf, new List<LogEntry>());
+    Check(mem2.Any(m => m.Unburied && m.Deed.Contains("burial ground")), "The stone says how to bring them home");
+}
+
 Console.WriteLine($"Jarldom: {checks} checks passed");

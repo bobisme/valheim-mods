@@ -33,7 +33,7 @@ namespace Jarldom.Ui
             if (_window != null) Object.Destroy(_window.gameObject);
             List<Remembered> all = Memorial.From(_c.R.Roster, _c.R.Flags, _c.R.Log);
             int pages = Memorial.Pages(all.Count); _page = Mathf.Clamp(_page, 0, pages - 1);
-            const float w = 760, h = 620;
+            float w = 760, h = all.Any(x => x.Unburied) ? 700 : 620; // (taller with the word on how to bring the unburied home)
             _window = GameUi.Window("JarldomMemorial", new Vector2(w, h));
             GameUi.Label(_window, "The Remembered", new Vector2(30, -18), new Vector2(w - 60, 44), 32, GameUi.Warm, GameUi.Norse);
             GameUi.Label(_window, $"{_c.R.Name}: {all.Count(x => !x.Hel)} gone to Valhalla, {all.Count(x => x.Hel && !x.Unburied)} resting with Hel, {all.Count(x => x.Unburied)} unburied", new Vector2(30, -60), new Vector2(w - 60, 24), 16, GameUi.Dim);
@@ -48,6 +48,8 @@ namespace Jarldom.Ui
                 y += 58;
             }
             float by = -h + 70;
+            if (all.Any(x => x.Unburied)) // (how to bring them home)
+                GameUi.Label(_window, "The unburied come back by night, marked on the map by name. Strike them down, take their remains to the colony's burial ground, and use them there to lay them to rest.", new Vector2(30, by + 56), new Vector2(w - 60, 44), 14, GameUi.Text);
             if (pages > 1)
             {
                 GameUi.Button(_window, "Earlier", new Vector2(30, by), new Vector2(130, 42), () => { _page--; Build(); }, _page > 0, 16);

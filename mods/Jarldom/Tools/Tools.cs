@@ -506,6 +506,12 @@ namespace Jarldom
                     {
                         // "raise <name>": the draugr of one of the colony's lost, 4 m in front of the player (as Hel would send it); with no
                         // name, who is lost and whether they rest.
+                        if (a.Length > 3 && a[2] == "walk") // (as at dusk: they walk back in at the colony's edge)
+                        {
+                            RosterRow row = c.R.Roster.FirstOrDefault(r => r.State == SoulState.Lost && r.Name.StartsWith(a[3], StringComparison.OrdinalIgnoreCase));
+                            if (row == null) { error("no lost soul called " + a[3]); return; }
+                            Lost.Walk(c, row, c.Day); output(new JObject { ["walking"] = row.Name }); return;
+                        }
                         if (a.Length > 3 && a[2] == "raise")
                         {
                             RosterRow row = c.R.Roster.FirstOrDefault(r => r.State == SoulState.Lost && r.Name.StartsWith(a[3], StringComparison.OrdinalIgnoreCase));
