@@ -42,7 +42,7 @@ namespace Jarldom
             try { _tools?.GetType().GetMethod("UnregisterAll", BindingFlags.Public | BindingFlags.Static)?.Invoke(null, new object[] { Plugin.Name }); } catch { }
             _tools = null;
         }
-        private static bool Cheats() => ZNet.instance != null && (ZNet.instance.IsServer() || Terminal.m_cheat);
+        private static bool Cheats() => ZNet.instance != null && (ZNet.instance.IsServer() || global::Console.instance != null && global::Console.instance.IsCheatsEnabled()); // (the game's own test: devcommands on and a server admin, not just devcommands typed on a client)
         private static Colony Here()
         {
             Player p = Player.m_localPlayer;
@@ -67,7 +67,7 @@ namespace Jarldom
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
             string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims" };
-            if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or with devcommands"); return; }
+            if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or for a server admin with devcommands on"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
             {
@@ -318,7 +318,7 @@ namespace Jarldom
                     {
                         // The colony's flags (read-only), those starting with the prefix if one is given.
                         string pre = a.Length > 2 ? a[2] : "";
-                        if (a.Length > 3 && !Cheats()) { error("jarldom flags <key> <value> changes the colony: only in single player, for the host, or with devcommands"); return; }
+                        if (a.Length > 3 && !Cheats()) { error("jarldom flags <key> <value> changes the colony: only in single player, for the host, or for a server admin with devcommands on"); return; }
                         if (a.Length > 3) { if (a[3] == "-") c.R.Flags.Remove(pre); else c.R.Flags[pre] = (int)F(a[3]); c.MarkDirty(); } // ("flags key value" sets one, "flags key -" clears it)
                         output(new JObject { ["flags"] = new JObject(c.R.Flags.Where(kv => kv.Key.StartsWith(pre)).OrderBy(kv => kv.Key).Select(kv => new JProperty(kv.Key, kv.Value))) });
                         break;

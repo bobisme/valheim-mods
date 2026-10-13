@@ -1,3 +1,5 @@
+0.1.31: Jarldom's test commands that change the world (placing pillars and pieces, setting colony flags) now need what the game's own cheats need: single player, the host, or a server admin with devcommands on. Typing devcommands on someone else's server is no longer enough
+
 0.1.30: The hammer's "Mark rooms and zones" has a look of its own instead of a banner: a marking stake, hewn and wedged in a little cairn, the othala rune (home, land held) cut and painted on its face, a red pennant with a gold stripe on a lashed crossbar, and a knotted measuring cord wound round it with a plumb bob on its end. It shows as the ghost where you mark and as its icon.
 
 0.1.29: a villager cut off from the rest (on an upper floor the stairs don't reach, or in a pocket behind the furniture) is brought out by the pillars instead of standing there for good. Farmers no longer keep a seed-carrot (or seed-turnip, seed-onion) patch going while the stores hold 50 or more of its seeds: the food crop goes in instead, so the carrots get eaten rather than planted. In a small shrine the gothi stands beside the altar, not on top of the one kneeling
