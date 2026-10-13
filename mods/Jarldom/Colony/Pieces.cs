@@ -124,12 +124,12 @@ namespace Jarldom
             return go;
         }
         private static readonly Dictionary<string, Mesh> Carvings = new Dictionary<string, Mesh>();
-        private static Mesh CarvedMesh(string name)
+        private static Mesh CarvedMesh(string name, string folder = "carve")
         {
-            if (Carvings.TryGetValue(name, out Mesh had) && had != null) return had;
+            if (Carvings.TryGetValue(folder + "." + name, out Mesh had) && had != null) return had;
             try
             {
-                using (var raw = typeof(Pieces).Assembly.GetManifestResourceStream("Jarldom.carve." + name + ".json.gz"))
+                using (var raw = typeof(Pieces).Assembly.GetManifestResourceStream("Jarldom." + folder + "." + name + ".json.gz"))
                 {
                     if (raw == null) return null;
                     using (var gz = new System.IO.Compression.GZipStream(raw, System.IO.Compression.CompressionMode.Decompress))
@@ -146,7 +146,7 @@ namespace Jarldom
                         mesh.subMeshCount = t.Length;
                         for (int k = 0; k < t.Length; k++) mesh.SetTriangles(t[k], k);
                         mesh.RecalculateBounds(); mesh.RecalculateTangents();
-                        Carvings[name] = mesh;
+                        Carvings[folder + "." + name] = mesh;
                         return mesh;
                     }
                 }
@@ -441,14 +441,35 @@ namespace Jarldom
             }
         }
 
+        internal static float StakeGrain = 0.6f; // (the stake's wood texture repeats per metre)
         // Not built: choosing it in the hammer turns clicks into room and zone corners (Designate).
         private static void Designator()
         {
             GameObject go = Base("wood_pole", DesignateName);
             if (go == null) return;
             var look = new GameObject("new"); look.transform.SetParent(go.transform, false);
-            GameObject flag = Assets.Find("piece_banner01");
-            if (flag != null) Assets.Model(flag, look.transform, Vector3.zero, Quaternion.identity, 0.6f);
+            // A marking stake (made in Blender: Models/marker): a hewn stake in a little cairn, the othala rune on its face, a pennant and
+            // a knotted measuring cord with a plumb bob. The banner it was before, if the model can't be had.
+            Mesh stake = CarvedMesh("stake", "marker");
+            Material wood = Assets.Find("wood_pole")?.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null && m.shader != null && m.shader.name == "Custom/Piece");
+            Material rock = Assets.Find("rock4_forest")?.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null);
+            if (stake != null && wood != null)
+            {
+                Material grain = new Material(wood) { name = "JarldomStakeWood", hideFlags = HideFlags.HideAndDontSave }; grain.mainTextureScale = Vector2.one * StakeGrain; Assets.Owned.Add(grain);
+                Material stone = rock != null ? new Material(rock) { name = "JarldomStakeStone", hideFlags = HideFlags.HideAndDontSave } : Plain(wood, new Color(0.42f, 0.42f, 0.4f));
+                if (rock != null) { stone.mainTextureScale = Vector2.one * 0.35f; stone.color *= new Color(0.75f, 0.75f, 0.78f); Assets.Owned.Add(stone); }
+                var m = new GameObject("stake"); m.transform.SetParent(look.transform, false);
+                m.AddComponent<MeshFilter>().sharedMesh = stake;
+                // (wood, rope, iron, cloth, paint, stone: as the model's materials are numbered)
+                Material cloth = Plain(wood, new Color(0.56f, 0.1f, 0.06f)), stripe = Plain(wood, new Color(0.86f, 0.64f, 0.24f));
+                foreach (Material c in new[] { cloth, stripe }) foreach (string k in new[] { "_Glossiness", "_Metallic", "_Smoothness" }) if (c != null && c.HasProperty(k)) c.SetFloat(k, 0); // wool, not lacquer
+                m.AddComponent<MeshRenderer>().sharedMaterials = new[] { grain, Plain(wood, new Color(0.62f, 0.52f, 0.34f)), Plain(wood, new Color(0.16f, 0.155f, 0.15f)), cloth, stripe, stone };
+            }
+            else
+            {
+                GameObject flag = Assets.Find("piece_banner01");
+                if (flag != null) Assets.Model(flag, look.transform, Vector3.zero, Quaternion.identity, 0.6f);
+            }
             Finish(go, look, "Mark rooms and zones", "Not built. With this chosen, Ctrl+Shift+click on a room's floor and the room is found from its walls in one go. Or click the corners of a room or a work zone on the ground (click the first corner again to close it), then choose what it is; click one spot twice for a round work zone. Backspace takes back the last corner. E on a marked room or zone checks, changes, widens or removes it. With the hammer out, marked rooms and zones show on the ground (green when they work, red gaps in walls).",
                 Piece.PieceCategory.Misc, ("Wood", 1));
             Piece marker = go.GetComponent<Piece>();
