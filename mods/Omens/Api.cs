@@ -9,7 +9,7 @@ namespace Omens
     // Rules for this class: bump Version when a method is added; never change a method's signature (add a new one).
     public static class Api
     {
-        public const int Version = 1;
+        public const int Version = 2;
         // The gods' favour (-5..5), or int.MinValue on a game that isn't the host.
         public static int GetFate() => Director.ApiFate();
         // Move the gods' favour by delta steps, for a reason told in the log; false on a game that isn't the host.
@@ -29,5 +29,11 @@ namespace Omens
             }
             return Character.GetAllCharacters().Where(c => c != null && !c.IsDead() && Stag.Is(c)).Select(c => c.transform.position).ToArray();
         }
+
+        // Version 2 ----
+        // The northern lights are in the sky now (an aurora omen's night; a blood moon outshines it). On every game: the host tells all.
+        public static bool IsAurora() => Aurora.Night;
+        // A blood moon is up now. On every game.
+        public static bool IsBloodMoon() => BloodMoon.Night;
     }
 }
