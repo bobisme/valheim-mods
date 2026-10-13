@@ -66,7 +66,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing", "corner", "dim", "lost" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing", "corner", "dim", "lost", "valkyrie" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or for a server admin with devcommands on"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -518,6 +518,7 @@ namespace Jarldom
                         else output(new JObject { ["lost"] = new JArray(c.R.Roster.Where(r => r.State == SoulState.Lost).Select(r => $"{r.Name} {r.Vid}{(Lost.Rests(c, r.Vid) ? " (rests)" : "")}")), ["hel"] = c.FavourOf("hel") });
                     }
                     break;
+                case "valkyrie": { Vector3 at = a.Length > 3 ? new Vector3(F(a[2]), 0, F(a[3])) : me.transform.position + me.transform.forward * 10f; at.y = Ground(at); Net.ValkyrieCircle(at); output(new JObject { ["circling"] = V(at) }); } break; // (the ascension's flight, without one)
                 case "dim":
                     {
                         // As if their worth last rose that many days ago (0: today).
@@ -946,7 +947,8 @@ namespace Jarldom
                         output(new JObject { ["tier"] = HighSeat.TestTier, ["bounds"] = sizes });
                     }
                     break; // (test: the pillars' look of a rank; -1 back to the colony's)
-                case "unlog": { int day = a.Length > 2 && System.Text.RegularExpressions.Regex.IsMatch(a[2], "^d\\d+$") ? int.Parse(a[2].Substring(1)) : -1; string start = string.Join(" ", a.Skip(day >= 0 ? 3 : 2)); int n = c.R.Log.RemoveAll(e => (day < 0 || e.Day == day) && e.Text.StartsWith(start) && start.Length > 8); if (n > 0) { c.R.LogChanges++; c.MarkDirty(); c.Flush(); } output(new JObject { ["removed"] = n }); } break; // (test entries out of the saga: unlog [dN] <text start>)
+                case "unlog": { int day = a.Length > 2 && System.Text.RegularExpressions.Regex.IsMatch(a[2], "^d\\d+$") ? int.Parse(a[2].Substring(1)) : -1; string start = string.Join(" ", a.Skip(day >= 0 ? 3 : 2)); string[] kw = start.Split(':'); bool byWho = kw.Length == 2 && !start.Contains(" ") && kw[1].Length > 1; // ("kind:Name": an entry with no text, by its kind and who)
+                    int n = c.R.Log.RemoveAll(e => (day < 0 || e.Day == day) && (byWho ? e.Kind == kw[0] && e.A == kw[1] : e.Text.StartsWith(start) && start.Length > 8)); if (n > 0) { c.R.LogChanges++; c.MarkDirty(); c.Flush(); } output(new JObject { ["removed"] = n }); } break; // (test entries out of the saga: unlog [dN] <text start>)
                 case "relog": { int day = int.Parse(a[2].Substring(1)); LogEntry after = c.R.Log.LastOrDefault(e => e.Day == day && e.Kind == a[3]); if (after == null) { error("no " + a[3] + " on day " + day); return; } c.R.Log.Insert(c.R.Log.IndexOf(after) + 1, new LogEntry(after.Time + 0.001, day, "text", "", "", string.Join(" ", a.Skip(4)))); c.R.LogChanges++; c.MarkDirty(); c.Flush(); output(new JObject { ["put"] = true }); } break; // (an entry put back: relog dN <after kind> <text>)
                 case "forgetrow": { int n = c.R.Roster.RemoveAll(r => a.Skip(2).Contains(r.Vid)); c.MarkDirty(); output(new JObject { ["forgot"] = n }); } break; // (test souls off the roster)
                 case "raidwhy":

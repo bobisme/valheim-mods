@@ -190,6 +190,7 @@ namespace Jarldom
             RosterRow row = c.R.Row(s.Vid); if (row != null) row.State = SoulState.Ascended;
             c.ReleaseBed(s.Vid);
             c.Log("ascend", s.FullName, "");
+            Net.ValkyrieCircle(pyre.transform.position); // (every game near: a Valkyrie comes for them, circles once, and is gone)
             c.Log("text", "", "", $"A runestone remembers {s.FullName}: {s.Story} Worth {Mathf.RoundToInt(s.Worth)}, {s.Count("kills")} foes slain.");
             Blessing(c);
             foreach (Brain other in Villagers.All.Where(o => o != b && o.S.Colony == c.Id)) { if (other.S.Bonds.TryGetValue(s.Vid, out int op) && op > 40) Mood.Add(other.S, "festival", other.Now); other.Dirty(); }

@@ -1,3 +1,5 @@
+0.1.66: when a soul goes to Valhalla from the pyre, a Valkyrie comes for them: everyone near sees her circle once over the fire and climb away into the sky.
+
 0.1.65: the memorial stone (hammer, 20 stone): a raised runestone with a serpent band of runes and Odin's valknut. Read it (E) for the colony's dead: who went to Valhalla and the deed that took them there, who was lost to Hel and laid to rest, and who walks still, unburied.
 
 0.1.64: villagers leave a lost soul's remains where they lie, for the jarl to bring home (a hauler had put them in the stores). A send-off to Valhalla interrupted by a reload or the owner leaving goes on at the next dusk; its rewards still apply once.

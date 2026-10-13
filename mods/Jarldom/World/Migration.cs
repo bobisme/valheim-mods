@@ -113,7 +113,7 @@ namespace Jarldom
     internal static class Valkyrie
     {
         private static GameObject _flying;
-        public static void Fly(Vector3 pillars)
+        public static void Fly(Vector3 pillars, bool circle = false)
         {
             if (Player.m_localPlayer == null || Vector3.Distance(Player.m_localPlayer.transform.position, pillars) > 300) return;
             GameObject prefab = ZNetScene.instance?.GetPrefab("Valkyrie");
@@ -127,15 +127,17 @@ namespace Jarldom
             v.name = "JarldomValkyrie";
             v.transform.SetParent(null, false);
             Object.Destroy(holder);
-            v.AddComponent<Flight>().Begin(pillars);
+            v.AddComponent<Flight>().Begin(pillars, circle);
             _flying = v;
         }
         // In from far and high, down to just above the pillars, a pause, and away.
         private sealed class Flight : MonoBehaviour
         {
-            private Vector3 _from, _over, _away; private float _t; private Animator _anim;
-            public void Begin(Vector3 pillars)
+            private Vector3 _from, _over, _away, _centre; private float _t, _start; private Animator _anim; private bool _circle;
+            private const float Round = 18f, High = 22f, In = 12f, Lap = 14f, Out = 14f;
+            public void Begin(Vector3 pillars, bool circle)
             {
+                _circle = circle; _centre = pillars;
                 Vector3 dir = Quaternion.Euler(0, UnityEngine.Random.Range(0, 360f), 0) * Vector3.forward;
                 _over = pillars + Vector3.up * 9f;
                 _from = pillars - dir * 220f + Vector3.up * 90f;
@@ -148,7 +150,8 @@ namespace Jarldom
             {
                 _t += Time.deltaTime;
                 Vector3 from = transform.position, to;
-                if (_t < 14f) to = Vector3.Lerp(_from, _over, Smooth(_t / 14f));
+                if (_circle) { if (!Circle(out to)) { Destroy(gameObject); return; } }
+                else if (_t < 14f) to = Vector3.Lerp(_from, _over, Smooth(_t / 14f));
                 else if (_t < 18f) { to = _over + Vector3.up * Mathf.Sin((_t - 14f) * 2f) * 0.6f; if (_anim != null) _anim.SetBool("dropped", true); }
                 else if (_t < 30f) to = Vector3.Lerp(_over, _away, Smooth((_t - 18f) / 12f));
                 else { Destroy(gameObject); return; }
@@ -157,6 +160,20 @@ namespace Jarldom
                 transform.position = to;
             }
             private static float Smooth(float x) => x * x * (3 - 2 * x);
+            // An ascension: in to the ring over the pyre, once round it, then up and away into the sky.
+            private bool Circle(out Vector3 to)
+            {
+                Vector3 Ring(float a) => _centre + new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * Round + Vector3.up * High;
+                Vector3 entry = _from - _centre; float a0 = Mathf.Atan2(entry.z, entry.x);
+                if (_t < In) { to = Vector3.Lerp(_from, Ring(a0), Smooth(_t / In)); return true; }
+                if (_t < In + Lap) { to = Ring(a0 + 2 * Mathf.PI * (_t - In) / Lap) + Vector3.up * Mathf.Sin((_t - In) * 1.5f) * 0.5f; return true; }
+                if (_t < In + Lap + Out)
+                {
+                    Vector3 last = Ring(a0), up = _centre + (last - _centre).normalized * 60f + Vector3.up * 220f;
+                    to = Vector3.Lerp(last, up, Smooth((_t - In - Lap) / Out)); return true;
+                }
+                to = Vector3.zero; return false;
+            }
         }
         public static void Clear() { if (_flying != null) Object.Destroy(_flying); _flying = null; }
     }

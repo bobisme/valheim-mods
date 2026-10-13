@@ -12,9 +12,9 @@ namespace Jarldom
     {
         private const string VersionRpc = "Jarldom_Version";
         private static float _nextShout;
-        private const string ActRpc = "Jarldom_Act", FallenRpc = "Jarldom_Fallen", ClaimRpc = "Jarldom_Claim", ReportRpc = "Jarldom_Report", RefusedRpc = "Jarldom_Refused", ValkyrieRpc = "Jarldom_Valkyrie", VillagerRpc = "Jarldom_Villager", HelloRpc = "Jarldom_Hello", ExploreRpc = "Jarldom_Explore", EventRpc = "Jarldom_Event", PinRpc = "Jarldom_Pin", CampRpc = "Jarldom_Camp", CampAtRpc = "Jarldom_CampAt", AskRpc = "Jarldom_AskReply";
+        private const string ActRpc = "Jarldom_Act", FallenRpc = "Jarldom_Fallen", ClaimRpc = "Jarldom_Claim", ReportRpc = "Jarldom_Report", RefusedRpc = "Jarldom_Refused", ValkyrieRpc = "Jarldom_Valkyrie", VillagerRpc = "Jarldom_Villager", HelloRpc = "Jarldom_Hello", ExploreRpc = "Jarldom_Explore", EventRpc = "Jarldom_Event", PinRpc = "Jarldom_Pin", CampRpc = "Jarldom_Camp", CampAtRpc = "Jarldom_CampAt", AskRpc = "Jarldom_AskReply", CircleRpc = "Jarldom_ValkyrieCircle";
         private static ZRoutedRpc _on; private static int _delay;
-        private static readonly string[] Names = { VersionRpc, ActRpc, FallenRpc, ClaimRpc, ReportRpc, RefusedRpc, ValkyrieRpc, VillagerRpc, HelloRpc, HelloRpc + "?", ExploreRpc, EventRpc, PinRpc, CampRpc, CampAtRpc, AskRpc };
+        private static readonly string[] Names = { VersionRpc, ActRpc, FallenRpc, ClaimRpc, ReportRpc, RefusedRpc, ValkyrieRpc, VillagerRpc, HelloRpc, HelloRpc + "?", ExploreRpc, EventRpc, PinRpc, CampRpc, CampAtRpc, AskRpc, CircleRpc };
 
         // Whether the host has Jarldom too (a host without it deletes our pieces and villagers as soon as it loads them).
         public static bool HostHasJarldom => ZNet.instance == null || ZNet.instance.IsServer() || _hostAnswered;
@@ -82,6 +82,7 @@ namespace Jarldom
             rpc.Register<string, string, Vector3>(CampAtRpc, (sender, colony, vid, camp) => Plugin.Guard(() => Captives.CampFound(colony, vid, camp)));
             rpc.Register<string, string, bool>(AskRpc, (sender, vid, id, ok) => Plugin.Guard(() => Asks.Replied(vid, id, ok)));
             rpc.Register<Vector3>(ValkyrieRpc, (sender, at) => Plugin.Guard(() => Valkyrie.Fly(at)));
+            rpc.Register<Vector3>(CircleRpc, (sender, at) => Plugin.Guard(() => Valkyrie.Fly(at, true)));
         }
         // The game gives an object to whichever nearby player it likes; one without Jarldom would leave the colony or a villager frozen.
         // The host takes such objects back for itself (when it has them loaded), every few seconds.
@@ -223,6 +224,7 @@ namespace Jarldom
         }
         public static void Villager(long owner, string vid, string action, string arg) => ZRoutedRpc.instance?.InvokeRoutedRPC(owner, VillagerRpc, vid, action, arg);
         public static void Valkyrie_(Vector3 at) => ZRoutedRpc.instance?.InvokeRoutedRPC(ZRoutedRpc.Everybody, ValkyrieRpc, at);
+        public static void ValkyrieCircle(Vector3 at) => ZRoutedRpc.instance?.InvokeRoutedRPC(ZRoutedRpc.Everybody, CircleRpc, at); // (an ascension: once round the pyre, and up)
     }
 
     internal sealed partial class Colony
