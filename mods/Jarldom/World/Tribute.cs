@@ -26,6 +26,7 @@ namespace Jarldom
         public static void Dawn(Colony c, int day)
         {
             if (c.R.Flag("tribute:due") == 0) Leave(c); // (a herald left over from a save)
+            BandGone(c, false);
             if (Raiding(c) && day > c.R.Flag("tribute:raidday") + 1) { c.R.Flags.Remove("tribute:raid"); c.MarkDirty(); } // (their raid never came, or is long over)
             if (!Plugin.Instance.Raids.Value || !Plugin.Instance.Tribute.Value || c.R.Rank < Rank.Hamlet || c.Population < 3 || c.R.Flag("tribute:due") != 0) return;
             int next = c.R.Flag("tribute:next");
@@ -55,7 +56,7 @@ namespace Jarldom
             c.R.Flags["tribute:level"] = c.R.Flag("tribute:level") + 1;
             c.R.Deeds += Renown.Deed("tribute"); // (no glory in paying)
             c.R.Flags["tribute:next"] = c.Day + Random.Range(6, 11);
-            if (raid) { c.R.Flags.Remove("tribute:raid"); c.R.Flags["tribute:bought"] = 1; Net.Event("", c.Position); Compat.CallOffSiege(c.Position, c.Radius + 80); }
+            if (raid) { c.R.Flags.Remove("tribute:raid"); c.R.Flags["tribute:bought"] = 1; Net.Event("", c.Position); BandGone(c, true); Compat.CallOffSiege(c.Position, c.Radius + 80); }
             Leave(c);
             foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) { Mood.Add(b.S, "tribute", b.Now); b.Dirty(); }
             c.Log("text", who, "", raid ? $"{who} paid the Fulings {ask} coins, and their raid turned back. They'll be back, and want more."
@@ -69,8 +70,47 @@ namespace Jarldom
             c.R.Flags["tribute:raid"] = 1; c.R.Flags["tribute:raidday"] = day;
             Leave(c);
             c.Log("text", "", "", why);
-            Net.Event(Plugin.Instance.TributeEvent.Value, c.Position);
+            if (Plains()) Net.Event(Plugin.Instance.TributeEvent.Value, c.Position);
+            else Band(c);
             c.MarkDirty();
+        }
+        // The Fulings' whole horde (berserkers, shamans, the game's own raid) comes only once the world has reached the Plains (Moder
+        // fallen). Before that, a band fit for a young colony: a few plain Fulings, one more for each rank past Hamlet, and greydwarfs they
+        // drive before them. Gone back to their camp with the sun, or when paid.
+        public const string BandKey = "jarldom_fulingband";
+        public static bool Plains() => ZoneSystem.instance != null && ZoneSystem.instance.GetGlobalKey("defeated_dragon");
+        public static int BandSize(Rank r) => Mathf.Max(1, (int)r - 1);
+        private static void Band(Colony c)
+        {
+            Vector3 dir = Random.insideUnitSphere; dir.y = 0; dir = dir.sqrMagnitude < 0.01f ? Vector3.forward : dir.normalized;
+            int fulings = BandSize(c.R.Rank);
+            for (int i = 0; i < fulings + 2; i++)
+            {
+                GameObject prefab = ZNetScene.instance.GetPrefab(i < fulings ? "Goblin" : "Greydwarf");
+                if (prefab == null) continue;
+                Vector3 at = Colony.Spot(c.Position + dir * (c.Radius * 0.7f) + Random.insideUnitSphere * 5f, 5f) ?? c.Position + dir * 40;
+                GameObject go = Object.Instantiate(prefab, at, Quaternion.LookRotation(-dir));
+                go.GetComponent<ZNetView>().GetZDO().Set(BandKey, c.Id);
+                go.GetComponent<Character>()?.SetLevel(1);
+                go.GetComponent<MonsterAI>()?.SetHuntPlayer(true);
+                Assets.Effect("vfx_spawn", at);
+            }
+            c.Tell($"A Fuling band comes for the tribute: {fulings} Fuling{(fulings == 1 ? "" : "s")} and their greydwarfs!", true);
+        }
+        public static bool BandRaiding(Colony c) => Character.GetAllCharacters().Any(ch => ch != null && !ch.IsDead() && Utils.DistanceXZ(ch.transform.position, c.Position) < c.Radius + 40
+            && ch.GetComponent<ZNetView>()?.GetZDO()?.GetString(BandKey, "") == c.Id);
+        // Back to their camp: at dawn, or paid off.
+        public static void BandGone(Colony c, bool paid)
+        {
+            int n = 0;
+            foreach (Character ch in Character.GetAllCharacters().Where(ch => ch != null && !ch.IsDead() && ch.GetComponent<ZNetView>()?.GetZDO()?.GetString(BandKey, "") == c.Id).ToList())
+            {
+                ZNetView v = ch.GetComponent<ZNetView>();
+                if (!v.IsOwner()) v.ClaimOwnership();
+                Assets.Effect("vfx_spawn", ch.transform.position);
+                ZNetScene.instance.Destroy(ch.gameObject); n++;
+            }
+            if (n > 0 && !paid) c.Log("text", "", "", $"With the sun, what was left of the Fuling band ({n}) went back to their camp.");
         }
         // The colony's Defense calls this when a raid ends: their raid is over either way.
         public static void RaidOver(Colony c) { if (Raiding(c)) { c.R.Flags.Remove("tribute:raid"); c.MarkDirty(); } }

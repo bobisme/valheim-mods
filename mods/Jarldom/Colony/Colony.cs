@@ -430,6 +430,7 @@ namespace Jarldom
                 bool carter = f.Killer.StartsWith(Carts.Prefix);
                 bool miner = f.Killer.StartsWith(Mining.Prefix) || f.Killer.StartsWith(Mining.Escort);
                 bool trader = f.Killer.StartsWith("trade:") || carter || miner;
+                if (RaidOn && !trader) continue; // (no one rises while a raid is on: up at their bed in the thick of it, they only fell again, and again, until Hel kept them)
                 // (one back from the road comes walking in from the colony's edge, on the side they went; the dead rise at their bed)
                 Vector3? at = trader ? Road(f) ?? Spot(Position + Seat.transform.forward * 3, 2.5f) : Survey_BedSpot(s.Bed) ?? (Vector3?)Spot(Position, 3);
                 if (at == null) continue;

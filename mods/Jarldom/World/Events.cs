@@ -366,7 +366,7 @@ namespace Jarldom
             bool near = ev != null && Utils.DistanceXZ(ev.m_pos, c.Position) < c.Radius + 80;
             bool siege = Compat.Siege(c.Position, c.Radius, out Vector3 stone);
             if (siege && !near) { near = true; ev = null; }
-            bool band = !near && Warband.Raiding(c);
+            bool band = !near && (Warband.Raiding(c) || Tribute.BandRaiding(c));
             if (band) { near = true; ev = null; stone = c.Position; }
             // The restless dead (one of the colony's own, lost to Hel) walking in: a raid too.
             // (it starts when one comes inside, and lasts while one is near the edge, ten minutes at most: not on and off as one wanders)

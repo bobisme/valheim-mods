@@ -14,7 +14,7 @@ namespace Jarldom
     {
         public const string Guid = "com.bobisme.jarldom";
         public const string Name = "Jarldom";
-        public const string Version = "0.1.38";
+        public const string Version = "0.1.39";
         public const int DataVersion = 1; // raised whenever what's saved changes shape: games of different data versions mustn't write each other's colonies
         internal static Plugin Instance;
         internal ServerSettings Synced;
@@ -40,7 +40,7 @@ namespace Jarldom
             RespawnSeconds = Synced.Add(Config.Bind("3 - Work", "RespawnSeconds", 30f, new ConfigDescription("Seconds before a fallen villager rises at their bed. [Synced with Server]", new AcceptableValueRange<float>(5f, 600f))));
             Raids = Synced.Add(Config.Bind("4 - Defense", "ColonyRaids", true, "The game's raids find colonies, more often as renown grows. [Synced with Server]"));
             Tribute = Synced.Add(Config.Bind("4 - Defense", "FulingTribute", true, "Now and then a Fuling herald demands coins at a colony of hamlet rank or more: pay, or they raid. [Synced with Server]"));
-            TributeEvent = Synced.Add(Config.Bind("4 - Defense", "TributeRaid", "army_goblin", "The game's event the Fulings raid with when unpaid. [Synced with Server]"));
+            TributeEvent = Synced.Add(Config.Bind("4 - Defense", "TributeRaid", "army_goblin", "The game's event the Fulings raid with when unpaid, once the world has reached the Plains (Moder defeated); before that a small Fuling band comes, sized to the colony. [Synced with Server]"));
             MaxBrainsPerFrame = Config.Bind("5 - Performance", "BrainsPerFrame", 6, new ConfigDescription("How many villagers think each frame (the rest wait their turn).", new AcceptableValueRange<int>(1, 40)));
             Overlay = Config.Bind("6 - Display", "RoomOverlay", true, "With the hammer out, show the colony's rooms and zones.");
             Debug = Config.Bind("9 - Debug", "Debug", false, "Log what villagers decide.");

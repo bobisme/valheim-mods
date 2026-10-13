@@ -136,7 +136,7 @@ namespace Jarldom
         // On the owner, every few seconds: a jarl cut down while the colony was far away.
         public static void Owner(Colony c)
         {
-            if (c.Hour >= Schedule.WakeAt && c.Hour < Schedule.HallAt) Retreat(c); // (by day: any of the band that was out of reach at dawn and has loaded since)
+            if (c.Hour >= Schedule.WakeAt && c.Hour < Schedule.HallAt) { Retreat(c); Tribute.BandGone(c, false); } // (by day: any of a band that was out of reach at dawn and has loaded since)
             JarlSlain(c);
         }
         private static void JarlSlain(Colony c) { if (Stands(c) && ZoneSystem.instance != null && ZoneSystem.instance.GetGlobalKey(SlainKey(c.Id))) Broken(c); }
