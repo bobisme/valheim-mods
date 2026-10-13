@@ -122,10 +122,14 @@ class Clip:
         bpy.context.view_layer.update()
 
     def _curl(self, hand, amounts):
-        for pb in sorted([b for b in self.arm.pose.bones if b.name.startswith(hand) and b.name != hand], key=lambda pb: len(pb.parent_recursive)):
+        # From straight fingers (the skeleton's rest: a captured hand may be curled over a knee), then bent toward the palm.
+        fingers = sorted([b for b in self.arm.pose.bones if b.name.startswith(hand) and b.name != hand], key=lambda pb: len(pb.parent_recursive))
+        for pb in fingers: pb.matrix_basis = Matrix.Identity(4)
+        bpy.context.view_layer.update()
+        for pb in fingers:
             finger = next(f for f in FINGERS if f in pb.name)
             deg = amounts[finger] * (35 if finger == 'Thumb' else 75 if pb.name[-1] == '1' else 85)
-            pb.matrix = pb.matrix.copy() @ Matrix.Rotation(math.radians(deg), 4, 'X')
+            pb.matrix = pb.matrix.copy() @ Matrix.Rotation(math.radians(-deg), 4, 'X')  # (negative: on this skeleton a finger bends toward the palm about -x)
             bpy.context.view_layer.update()
 
     # ---- writing it out: the game's local rotation of each bone per frame; turned bones as turns from the captured pose ----

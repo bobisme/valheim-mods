@@ -22,3 +22,4 @@ skeleton first (the runtime and rig.first_index). Blender's previews draw the st
 captured was Rognvald (a man); the male and female bodies share bone frames, so one clip serves both.
 Standing captures sway: the game's idle stance is turned and staggered (one foot and hand forward). `anim chars` says who stands still, and
 `anim params <who>` should show only onGround (no forward_speed, no statei) when capturing.
+Fingers: on this skeleton a finger joint bends toward the palm about its own -x; clip.py's curl starts from straight (rest) fingers.

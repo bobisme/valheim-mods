@@ -15,7 +15,7 @@ namespace BobsAnimations
     {
         public const string Guid="com.bobisme.animations";
         public const string Name="Bob's Animations";
-        public const string Version="0.3.1";
+        public const string Version="0.3.2";
         internal static Plugin Instance;
 
         private void Awake()
