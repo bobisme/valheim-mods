@@ -142,6 +142,15 @@ namespace Jarldom.Ui
                 if (!stuck.TryGetValue(doing, out var who)) stuck[doing] = who = new List<string>();
                 who.Add(Villagers.DisplayName(h).Split(' ')[0]);
             }
+            // (a trade with nowhere marked to do it, even while they keep busy with other chores: a fisherman with no dock lights torches)
+            foreach (RosterRow p in people)
+            {
+                ZoneInfo zone = Tables.Zones.FirstOrDefault(z => z.Worker == p.Prof);
+                if (zone == null || p.Prof == Prof.Guard || p.Prof == Prof.Miner && Claims.Of(c).Any() || c.R.Zones.Any(z => z.Type == zone.Id)) continue; // (guards walk watch posts; miners may have claims)
+                string why = $"no {zone.Name.ToLower()} marked ({zone.Text})", name = p.Name.Split(' ')[0];
+                if (!stuck.TryGetValue(why, out var who)) stuck[why] = who = new List<string>();
+                if (!who.Contains(name)) who.Add(name);
+            }
             foreach (var kv in stuck.Take(4)) list.Add($"{string.Join(", ", kv.Value)}: {kv.Key}.");
             Container treasury = Stock.Treasury(c);
             int due = (c.IsOwner ? Payroll.Due(Villagers.All.Where(b => b.S.Colony == c.Id).Select(b => b.S), Payroll.EveryDays, c.GuardExtra) : people.Sum(p => (Tables.Wage(p.Prof, false) + (p.Prof == Prof.Guard ? c.GuardExtra : 0)) * Payroll.EveryDays)) * Plugin.Instance.WageScale.Value / 100; // (another game runs the people: from the roster)
