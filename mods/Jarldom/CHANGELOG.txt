@@ -1,3 +1,5 @@
+0.1.25: far more variety in what villagers say and who they were: about 180 more Old Norse names, three times the ways to have fallen, why, and the quirks that come with them; every saga line told five ways; the common things villagers say (work, food, beds, gear, fleeing, the Thing, the hall, toasts) each said several ways
+
 0.1.24: a walk to a crafting station, an altar, a grave, a cart, a station to mend at, a crop to replant or the fishing dock that ends within reach across the ground counts as there (it may stand a little up or down: an altar on its plinth, a dock over the water), and one that ends farther off counts as out of reach (given up as before), instead of being walked again for ever
 
 0.1.23: a chest walked to and still out of reach once there (the walk ends on the slope above it, under a balcony) is passed over by that villager for ten minutes and the same goods fetched from another, for cooking, fuelling and smelting, feeding beasts, seeds, building and mending, commissions and gear (a cook stood above the meat chest for minutes)
