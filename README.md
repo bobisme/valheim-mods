@@ -231,7 +231,7 @@ craft, and how strong they can be made.
 | Horned brazier | 14 warshards, 4 bronze, 10 coal | 4 | 8 | 44 m |
 | Rune obelisk | 22 warshards, 30 stone, 4 iron | 5 | 10 | 50 m |
 
-**War staves** are huge relics, too heavy and thick to wield (25 weight). They stand in **stave sockets**: stone pedestals (hammer → misc;
+**War staves** are huge relics, too heavy and thick to wield (25 weight). They stand in **stave sockets**: rune-cut stone cairns (hammer → misc;
 10 stone, 2 resin) built on the ground, on a wall or on top of a tower, at least **5 m apart**, within the stone's reach and no more
 than it can feed (raise its level to build more or farther). **Use** a socket to open its one slot (the
 game's own chest window, with your bag beside it) and put in the stave you want, or take it out; a stave dragged onto it from the hotbar
@@ -843,7 +843,7 @@ First-playtest checklist (automated policy checks and assembly verification do n
 
 ## Demolisher
 
-Take a building down in one go. Pick the **Demolition stake** (hammer → Misc; free, never built: a thin pole with a red flag) and
+Take a building down in one go. Pick the **Demolition stake** (hammer → Misc; free, never built: a split log with an iron wedge in its head) and
 **click the ground** for each corner of the area. A white line runs from the last corner to where the next click lands, a faint one back
 to the first. **Click the first corner** again, or press **E**, to close the outline: everything inside it the hammer could remove from
 where you stand turns red. **E** asks *Demolish N structures?* with what's left standing and why; **Yes** removes them top first, a few
@@ -1087,6 +1087,22 @@ Harvesting supports unambiguous crop and seed-crop pieces in the cultivator's cu
 Unhealthy plants nearby get labels while the cultivator is equipped, such as "Needs more space" or "Needs sunlight". Controls, sizes, and labels can be changed in F7 → Mod settings, or `BepInEx/config/com.bobisme.farmhand.cfg`.
 
 Turn off BuildOrders plan mode before batch actions. If another mod snaps the crop ghost away from its checked position, Farmhand skips that spot. No extra plugin is needed on the host or other players: planting and harvesting use normal game objects and owner RPCs. Farmhand adds no prefabs or save format, and supports ScriptEngine hot reload with F6.
+
+## Bob's Animations
+
+An animation pack for other mods: keyframed clips played over a character's own animation, a bone at a time, so a villager in a chair
+keeps sitting while their arm lifts a tankard to their lips. Spine, neck and head turn from the game's pose (the seat's posture shows
+through); arms and fingers are set. A clip blends in and out, can put an item in a hand while it plays (a tankard), and is kept on the
+character's network object (`bob_anim_clip`, `bob_anim_at`, `bob_anim_end`), so every game near it plays it in step. No asset bundles:
+clips are made in Blender over a skeleton captured from the game (`mods/BobsAnimations/Authoring/README.txt`).
+
+- For modders: `Anim.Play(character, "sit_drink")` (the game that runs the character), `Anim.Stop`, `Anim.Playing`; `Clip.Register(json)`
+  adds your own clips (every game that shows them registers them too).
+- Clips: `sit_drink` (seated, a tankard to the lips and back down, 4.2 s).
+- Claude Tools: `anim chars | clips | rig [who] | hold [who] [item] | play <clip> [who] [loop|once] | stop [who] | shot [who] [yaw] [pitch] [dist]`.
+
+A prototype. Tried in game on seated Jarldom villagers (men and women) and on a standing player in single player. Not yet tried: a
+second game watching (the sync), and characters who stand up mid-clip (the caller should stop it).
 
 ## Build with mise
 

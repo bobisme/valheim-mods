@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>BobsAnimations</AssemblyName><RootNamespace>BobsAnimations</RootNamespace></PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Clips/*.json.gz" LogicalName="BobsAnimations.clips.%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="UnityEngine.AnimationModule"><HintPath>$(ManagedDir)/UnityEngine.AnimationModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.ImageConversionModule"><HintPath>$(ManagedDir)/UnityEngine.ImageConversionModule.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>
