@@ -1128,7 +1128,9 @@ namespace Jarldom
                     _source = chests.Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want));
                     if (_source != null) { _carry = want; break; }
                 }
-                if (_source == null) { Finish(b, false); return; }
+                // (nothing to bring in any stockpile: set aside a while, not handed straight back for the next to take up and put down, round
+                // and round, everyone "tending the fire" with no wood to tend it with)
+                if (_source == null) { if (wants.Count > 0) Block(b, $"nothing to bring: no {Localization.instance.Localize(ObjectDB.instance?.GetItemPrefab(wants[0])?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name ?? wants[0]).ToLower()} in the stores"); else Finish(b, false); return; }
                 _phase = 1;
             }
             if (_phase == 1)

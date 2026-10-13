@@ -1,3 +1,5 @@
+0.1.45: a fire (or smelter, oven, cask) job with nothing to bring in the stores is set aside for a while, instead of handed back for the next villager to take up at once: the whole colony no longer stands round a cold hearth "tending the fire" with no wood
+
 0.1.44: the hall tab's Needs you names anyone whose trade has nowhere marked to do it (a fisherman with no fishing dock, a woodcutter with no woodlot), even while they keep busy with other chores
 
 0.1.43: a payday that finds the treasury chest open (someone in it, or left stuck open) waits and tries again through the day, instead of counting as missed with the coins sitting there; if it stays open all day, the log says so
