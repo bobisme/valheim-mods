@@ -173,17 +173,18 @@ namespace Jarldom
         }
         // The Dimming on their face: the skin faded toward a draugr's (their own kept on the body, to come back to). The body's skin
         // colour is what every game draws, so this is seen by all.
-        private const string Skin0 = "jarldom_skin0";
+        private const string Skin0 = "jarldom_skin0", Hair0 = "jarldom_hair0";
         public static void Tint(Brain b, int stage)
         {
             ZDO z = b.View?.GetZDO(); if (z == null || !b.View.IsOwner()) return;
-            Vector3 own = z.GetVec3(Skin0, Vector3.zero);
+            Vector3 own = z.GetVec3(Skin0, Vector3.zero), hair = z.GetVec3(Hair0, Vector3.zero);
             if (own == Vector3.zero) { if (stage <= 0) return; own = z.GetVec3(ZDOVars.s_skinColor, Vector3.one); z.Set(Skin0, own); }
-            var t = Dimming.Tint((own.x, own.y, own.z), stage);
-            Vector3 now = new Vector3(t.r, t.g, t.b);
-            z.Set(ZDOVars.s_skinColor, now);
-            b.Body.GetComponent<VisEquipment>()?.SetSkinColor(now);
-            if (stage <= 0) z.Set(Skin0, Vector3.zero);
+            if (hair == Vector3.zero) { hair = z.GetVec3(ZDOVars.s_hairColor, Vector3.one); z.Set(Hair0, hair); }
+            var t = Dimming.Tint((own.x, own.y, own.z), stage); var h = Dimming.Hair((hair.x, hair.y, hair.z), stage);
+            Vector3 now = new Vector3(t.r, t.g, t.b), hairNow = new Vector3(h.r, h.g, h.b);
+            z.Set(ZDOVars.s_skinColor, now); z.Set(ZDOVars.s_hairColor, hairNow);
+            VisEquipment vis = b.Body.GetComponent<VisEquipment>(); vis?.SetSkinColor(now); vis?.SetHairColor(hairNow);
+            if (stage <= 0) { z.Set(Skin0, Vector3.zero); z.Set(Hair0, Vector3.zero); }
         }
         private static List<string> Styles(string prefix)
         {

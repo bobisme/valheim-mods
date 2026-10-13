@@ -472,6 +472,9 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Dimming.Work(0) == 1f && Dimming.Work(1) == 0.9f && Dimming.Work(2) == 0.8f, "A tenth, then a fifth slower at work");
     var skin = (0.8f, 0.6f, 0.5f); var t1 = Dimming.Tint(skin, 1); var t2 = Dimming.Tint(skin, 2);
     Check(Dimming.Tint(skin, 0) == skin && t1 != skin && t2 != t1 && t2.Item1 + t2.Item2 + t2.Item3 < t1.Item1 + t1.Item2 + t1.Item3, "Stage 2 looks darker than stage 1, and stage 0 is their own skin");
+    Check(t1.Item1 / skin.Item1 < t1.Item2 / skin.Item2 && t2.Item1 / skin.Item1 < t2.Item3 / skin.Item3, "The warmth goes first (red drawn out most)");
+    var hair = (0.4f, 0.25f, 0.1f);
+    Check(Dimming.Hair(hair, 1) == hair && Dimming.Hair(hair, 0) == hair && Dimming.Hair(hair, 2).Item3 > hair.Item3 && Math.Abs(Dimming.Hair(hair, 2).Item1 - Dimming.Hair(hair, 2).Item3) < Math.Abs(hair.Item1 - hair.Item3), "At stage 2 the hair goes toward grey");
     Check(Dimming.Why(30, 18) == "Hasn't done anything worthy in 12 days", "The reason in their words");
     var dv = new VillagerState { Worth = 10 }; float before = dv.Worth; Worth.Gain(dv, "rite"); Check(dv.Worth > before, "The gothi's rite counts as worth");
 }

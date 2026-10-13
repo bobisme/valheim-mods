@@ -42,6 +42,17 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
   high seat, and you rule from a bar at the foot of the screen (Esc to put it off, E on the petitioner to bring it back). Matters
   unheard five days sour the colony; promises made there are kept or broken.
   **Ascension**: a worthy villager (100 worth) goes up on the funeral pyre at dusk with grave goods.
+- **Souls** (from 0.1.47): villagers ask for things now and then (a kill, a visit, a gift, a deed: shown in their panel; done, it pays
+  coins, worth and mood). A Valkyrie circles every ascension. At hold rank a **funeral ship** drawn up on a beach sends them out
+  instead: the colony gathers at the shore, the ship goes out with the soul aboard, an archer looses a burning arrow when it's well out,
+  and it burns and sinks (worth half again, and Odin takes more note). In a raid the colony is losing, a Valkyrie brings back one of
+  the **Einherjar** (the worthiest gone to Valhalla, once each) to fight for 90 s, glowing, in the gear they went up in. A soul whose
+  worth hasn't risen in 8 days **dims** (paler, slower; at 16 days grey-haired and restless): a deed, a request done or the gothi's
+  rite at Odin's shrine brings them back. The **lost** walk as draugr marked on the map by name, and come back by night now and then
+  while unburied; their remains (a pale glow where they fall) laid to rest in a **burial ground** end their friends' grief and please
+  Hel. The **memorial stone** (hammer → Misc) lists the remembered. Villagers greet the jarl in Old Norse, sing at work, watch the
+  northern lights (with Omens), keep a corner by their bed, and come down to the dock to meet a ship home; a tame wolf can be the
+  village dog.
 - **Raids** near the colony sound the war horn and grow with renown; fighters arm themselves and go out to the raiders, the rest run
   for the great hall. What's left of a draugr warband sinks back into the earth at dawn.
   **The Fulings** (hamlet and up) send a herald now and then: pay from the hall tab by dusk (more each time), or they raid; paying
@@ -129,6 +140,14 @@ first hour in a normal world, two players sharing a colony, following by ship, k
 17. Leave the colony for a day or two (go far away) and come back: "While you were away" in the saga.
 18. Make a colony 300 m or more away and, from its Hall tab, an outpost of the first. Put a cart and ore there, make someone a
     carter: the ore turns up in the first colony's stores (a long road risks an ambush).
+19. Open a villager's panel: a request with a reward; do it (a kill, a hand-in from your own bag): coins and thanks.
+20. At hold rank, build the funeral ship on a beach (water within 8 m); `jarldom worth <name> 100`: at dusk the colony gathers at
+    the shore and the ship goes out burning; F6 mid-ceremony and the rewards still come once.
+21. A raid at the hall (`jarldom einherjar foe Draugr -10`, away from a Warstone) with someone in Valhalla: a Valkyrie brings them
+    back to fight for 90 s; the saga counts their kills.
+22. `jarldom dim <name> 8` then `16`: paler, then grey-haired; their panel asks for a deed; doing it (or the gothi's rite) ends it.
+23. A villager lost (dies with no bed): their draugr is pinned by name; kill it, pick up the glowing remains, use them in a marked
+    burial ground: the memorial stone (E) shows them resting with Hel.
 
 ## Looking-Glass Portals
 

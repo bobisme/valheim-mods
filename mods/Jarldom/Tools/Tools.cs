@@ -527,6 +527,21 @@ namespace Jarldom
                 case "shipburial": { Vector3 at = new Vector3(F(a[2]), 0, F(a[3])); at.y = Ground(at); Quaternion rot = Quaternion.Euler(0, a.Length > 4 ? F(a[4]) : 0, 0); Vector3 dir = ShipBurial.Out(at, c.Position); Net.ShipBurial_(at, rot, dir, at - dir * 12f + Vector3.up * 1.5f); output(new JObject { ["from"] = V(at), ["out"] = V(dir), ["buildHere"] = Pieces.KarveWhy(at) }); } break; // (the last voyage, without an ascension; and whether a funeral ship could be built there)
                 case "music": { MusicMan mm = MusicMan.instance; if (mm == null) { error("no music"); return; } if (a.Length > 2) mm.TriggerMusic(a[2]); output(new JObject { ["tracks"] = new JArray(mm.m_music.Where(m => m != null).Select(m => $"{m.m_name} (loop {m.m_loop}, vol {m.m_volume:0.##})")) }); } break;
                 case "valkyrie": { Vector3 at = a.Length > 3 ? new Vector3(F(a[2]), 0, F(a[3])) : me.transform.position + me.transform.forward * 10f; at.y = Ground(at); Net.ValkyrieCircle(at); output(new JObject { ["circling"] = V(at) }); } break; // (the ascension's flight, without one)
+                case "matprops":
+                    {
+                        // A villager's body material: its shader's properties and values (for the look of the Dimming).
+                        Brain b = a.Length > 2 ? Who(a[2]) : null; if (b == null) { error("matprops <name>"); return; }
+                        Material m = b.Body.GetComponentsInChildren<SkinnedMeshRenderer>(true).FirstOrDefault(r => r.name == "body")?.sharedMaterial;
+                        if (m == null) { error("no body material"); return; }
+                        var props = new JArray();
+                        for (int i = 0; i < m.shader.GetPropertyCount(); i++)
+                        {
+                            string pn = m.shader.GetPropertyName(i); var pt = m.shader.GetPropertyType(i);
+                            props.Add($"{pn} {pt} = " + (pt == UnityEngine.Rendering.ShaderPropertyType.Color ? m.GetColor(pn).ToString() : pt == UnityEngine.Rendering.ShaderPropertyType.Texture ? m.GetTexture(pn)?.name ?? "-" : pt == UnityEngine.Rendering.ShaderPropertyType.Vector ? m.GetVector(pn).ToString() : m.GetFloat(pn).ToString()));
+                        }
+                        output(new JObject { ["material"] = m.name, ["shader"] = m.shader.name, ["keywords"] = string.Join(",", m.shaderKeywords), ["props"] = props });
+                    }
+                    break;
                 case "speeds":
                     {
                         // Each villager this game runs, moving: how fast (the body's own velocity), its speeds, running, on a road, its

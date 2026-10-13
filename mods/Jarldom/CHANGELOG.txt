@@ -1,3 +1,5 @@
+0.1.79: The Dimming shows. A dimming villager's face loses its warmth: a little pale at 8 days, grey and lifeless at 16, when their hair goes ash-grey too (the old tint barely showed on the game's ruddy skin). The README now covers the saga of souls (requests, the funeral ship, the Einherjar, the Dimming, the lost and the memorial) with playtest steps. Test tool: jarldom matprops <name>.
+
 0.1.78: The remains of the lost never lie inside a rock. They drop on open ground beside the rock the draugr died against, and any already inside one move out onto open ground nearby.
 
 0.1.77: The remains of the lost are hard to miss: a pale glow where they lie, a bigger bundle of bones, their name on hover ("Hervor's remains"), and a map pin until someone picks them up.
