@@ -44,7 +44,7 @@ namespace Jarldom
         public static readonly Dictionary<string, int> KeepDefault = new Dictionary<string, int> { ["wood"] = 1000, ["stone"] = 1000, ["ore"] = 300, ["coal"] = 100 }; // (ore: of each kind)
         public static int Keep(Colony c, string cat) => c.R.Flags.TryGetValue("keep:" + cat, out int v) ? v : KeepDefault.TryGetValue(cat, out int d) ? d : 0;
         public static int Held(Colony c, string cat) =>
-            Chests(c).Where(x => x.category != "treasury").Sum(x => x.chest.GetInventory().GetAllItems().Where(i => Category(i) == cat).Sum(i => i.m_stack));
+            Chests(c).Where(x => x.category != "treasury").Sum(x => x.chest.GetInventory().GetAllItems().Where(i => Category(i) == cat && !(cat == "wood" && i.m_dropPrefab != null && i.m_dropPrefab.name == "Resin")).Sum(i => i.m_stack)); // (resin is kept with the wood, but isn't wood a woodcutter brings: not counted toward the limit)
         public static bool Enough(Colony c, string cat) { int keep = Keep(c, cat); return keep > 0 && Held(c, cat) >= keep; }
 
         // The colony's storage chests, loaded here, nearest first; with their category (from the record) and our id.

@@ -1,3 +1,5 @@
+0.1.36: resin is still kept with the wood, but no longer counts toward the Work tab's wood limit, so woodcutters fell trees until the stores really hold that much wood
+
 0.1.35: smelters no longer feed every log in the stores into the charcoal kilns. A kiln is fed only while the stores hold less coal than the Work tab asks (100 unless you set it; Stores to keep) and never takes the last 50 of the wood, which builders and fires need
 
 0.1.34: The marking staff's pennant is gone: red and gold cloth ribbons are tied round it under its head instead, knotted and streaming in the wind.
