@@ -652,7 +652,21 @@ namespace Jarldom
         public static Vector3 Closest(Collider c, Vector3 from)
         {
             if (c == null) return from;
-            if (c is MeshCollider m && !m.convex) return c.ClosestPointOnBounds(from);
+            if (c is MeshCollider m && !m.convex)
+            {
+                // (the game has no closest point on a concave mesh, and its box is far wider than a log lying across it: the real surface
+                // where a line from here meets it, towards its middle or its box, whichever is nearer)
+                // (and a tree's trunk mesh carries its boughs: towards the foot of the trunk first, which is also where to strike if
+                // nothing's met)
+                Vector3 root = c.transform.root.position, foot = new Vector3(root.x, Mathf.Clamp(from.y + 1f, c.bounds.min.y, c.bounds.max.y), root.z);
+                Vector3 onBox = c.ClosestPointOnBounds(from), found = foot; float best = float.MaxValue;
+                foreach (Vector3 to in new[] { foot, c.bounds.center, onBox })
+                {
+                    Vector3 d = to - from; if (d.sqrMagnitude < 0.0001f) continue;
+                    if (c.Raycast(new Ray(from, d.normalized), out RaycastHit h, d.magnitude + 2f) && h.distance < best) { best = h.distance; found = h.point; }
+                }
+                return found;
+            }
             return c.ClosestPoint(from);
         }
         private int _approaches;
