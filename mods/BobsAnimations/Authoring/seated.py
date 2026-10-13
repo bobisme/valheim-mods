@@ -13,10 +13,12 @@ DOWN_HAND = ((0, 1, -0.3), (0, 0.2, -1))  # fingers forward and down, palm down:
 def talk(c):
     """Talking to someone on the right: the right hand's open-palmed beats toward them, the head turned to them, the jaw working."""
     c.hand(1, 'Right')
+    c.pose(7, 'Right', (0.30, 0.34, 0.86), (0, 1, 0), (-1, 0.1, 0.2))  # (palm turned in on the way up, as on the way down)
     beats = [(14, (0.30, 0.40, 0.95), (-0.2, 1, 0.25), (0.1, 0.15, 1)), (26, (0.36, 0.43, 0.99), (0.35, 1, 0.2), (0.4, 0.1, 1)),
              (36, (0.33, 0.41, 0.94), (0.2, 1, 0.1), (0.2, 0.1, 1)), (50, (0.38, 0.44, 1.01), (0.4, 1, 0.35), (0.6, 0.2, 0.8)),
              (62, (0.32, 0.41, 0.95), (0.15, 1, 0.15), (0.2, 0.1, 1)), (76, (0.35, 0.43, 0.98), (0.3, 1, 0.2), (0.3, 0.1, 1)),
-             (92, (0.31, 0.36, 0.82)) + DOWN_HAND]
+             (85, (0.32, 0.40, 0.90), (0.1, 1, -0.1), (-1, 0.1, 0.2)),   # (the palm turned in on the way down: a wrist turns over through
+             (95, (0.31, 0.36, 0.82)) + DOWN_HAND]                         #  palm-in, not the other way round)
     for f, w, fi, pa in beats: c.pose(f, 'Right', w, fi, pa)
     c.hand(108, 'Right')
     c.curl(1, 'RightHand', 0.25, Thumb=0.1); c.curl(108, 'RightHand', 0.25, Thumb=0.1)
@@ -138,19 +140,19 @@ def board_move(c):
     """A move at a board game on the table in front: reach over, pinch a piece, slide it a square or two, set it down, sit back."""
     c.hand(1, 'Right')
     over = ((-0.2, 1, -0.6), (0, 0.3, -1))  # fingers forward and down, palm down
-    # (the table top is 0.94 m up; fingers pointing down reach ~8 cm below the wrist, so a touch on the board is the wrist at ~1.06)
-    for f, w in ((14, (0.12, 0.42, 1.14)), (22, (0.10, 0.50, 1.06)), (30, (0.10, 0.50, 1.12)), (40, (0.0, 0.56, 1.12)),
-                 (48, (0.0, 0.56, 1.06)), (56, (0.0, 0.55, 1.09)), (64, (0.12, 0.42, 1.14))):
+    # (well up over the board, out across the table with a lean: game tables are big and the pieces stand up off it)
+    for f, w in ((14, (0.12, 0.48, 1.30)), (22, (0.08, 0.66, 1.22)), (30, (0.08, 0.66, 1.29)), (40, (-0.04, 0.72, 1.29)),
+                 (48, (-0.04, 0.72, 1.22)), (56, (-0.03, 0.70, 1.26)), (64, (0.12, 0.46, 1.30))):
         c.pose(f, 'Right', w, *over)
-    c.pose(72, 'Right', (0.22, 0.24, 1.06), (0, 1, -0.5), (0, 0.3, -1))  # back toward the body, clear of the table's edge
-    c.pose(82, 'Right', (0.28, 0.25, 0.8), *DOWN_HAND)
+    c.pose(72, 'Right', (0.22, 0.26, 1.22), (0, 1, -0.5), (0, 0.3, -1))  # back toward the body, over the table's edge
+    c.pose(82, 'Right', (0.28, 0.25, 0.86), *DOWN_HAND)
     c.hand(92, 'Right')
     pinch = dict(Index=0.45, Thumb=0.5)
     c.curl(1, 'RightHand', 0.1); c.curl(14, 'RightHand', 0.3, Index=0.1, Thumb=0.2); c.curl(22, 'RightHand', 0.85, **pinch)
     c.curl(48, 'RightHand', 0.85, **pinch); c.curl(56, 'RightHand', 0.3, Index=0.1, Thumb=0.2); c.curl(92, 'RightHand', 0.1)
     c.turn(1, {})
-    look = lambda h: {'Spine1': [(X, -4)], 'Spine2': [(X, -6)], 'Neck': [(X, -6)], 'Head': [(X, h)]}
-    c.turn(14, look(-8)); c.turn(30, look(-10)); c.turn(48, look(-10)); c.turn(64, look(-4))
+    lean = lambda k, h: {'Spine': [(X, -6 * k)], 'Spine1': [(X, -10 * k)], 'Spine2': [(X, -10 * k), (Z, 4 * k)], 'Neck': [(X, -2)], 'Head': [(X, h)]}
+    c.turn(14, lean(0.5, -8)); c.turn(22, lean(1, -10)); c.turn(32, lean(1.6, -8)); c.turn(44, lean(1.6, -8)); c.turn(52, lean(1, -10)); c.turn(64, lean(0.4, -4))
     c.turn(76, {'Head': [(X, 3)]})  # and up, to the other player
     c.turn(92, {})
 
