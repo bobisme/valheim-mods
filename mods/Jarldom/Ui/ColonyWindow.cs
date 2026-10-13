@@ -246,6 +246,13 @@ namespace Jarldom.Ui
                 y = Heading(list, "Needs you", y);
                 foreach (string n in needs) y = Text(list, "• " + n, y, 16, GameUi.Warn);
             }
+            var asks = r.Living.Select(row => (row, ask: Asks.Shown(Villagers.Body(row.Vid)?.GetComponent<ZNetView>()?.GetZDO()))).Where(x => x.ask != null).ToList();
+            if (asks.Count > 0)
+            {
+                y = Heading(list, "Asked of you", y);
+                foreach (var (row, ask) in asks) y = Text(list, $"• {row.Name}: {ask.Value.what} ({ask.Value.daysLeft} {(ask.Value.daysLeft == 1 ? "day" : "days")} left){(ask.Value.deed ? " <color=#ff8c59>a deed, to wash out their disgrace</color>" : "")}", y, 16);
+                y = Text(list, "Talk to them (E) to take it on, hand it over or tell of it. Answered, they think better of you, gain worth and pay from their own hoard, and the colony gains renown.", y, 14, GameUi.Dim);
+            }
             y = FirstSteps(list, y);
             y = Heading(list, "Odin's attention", y);
             y = Text(list, $"Renown <color=#ffd27a>{_c.Renown}</color> = wealth {_c.WealthPart} + comfort {_c.ComfortPart} + deeds {r.Deeds}", y);

@@ -398,7 +398,7 @@ namespace Jarldom
                     string name = ended;
                     c.R.Deeds += Renown.Deed("raidheld");
                     c.Log("raidheld", "", name);
-                    foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) { Mood.Add(b.S, "raidheld", b.Now); b.S.Bump("raids"); if (b.S.Prof == Prof.Guard && b.S.Count("raids") >= 3 && string.IsNullOrEmpty(b.S.Byname)) { b.S.Byname = Names.Byname("defender"); c.Log("byname", b.S.Name, b.S.Byname); } b.Dirty(); }
+                    foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) { Mood.Add(b.S, "raidheld", b.Now); b.S.Bump("raids"); if (b.S.Prof == Prof.Guard && b.S.Count("raids") >= 3 && string.IsNullOrEmpty(b.S.Byname)) { b.S.Byname = Names.Byname("defender"); c.Log("byname", b.S.Name, b.S.Byname); } Asks.FoughtWell(b); b.Dirty(); }
                 }
                 Running.Remove(c.Id);
                 Tribute.RaidOver(c);

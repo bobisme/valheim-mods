@@ -9,7 +9,7 @@ namespace Jarldom
     {
         // (the game aims an AI's arrow from where it leaves the bow at its target's middle: a villager's AI has a target only for that)
         private static readonly AccessTools.FieldRef<MonsterAI, Character> AimAt = AccessTools.FieldRefAccess<MonsterAI, Character>("m_targetCreature");
-        private static readonly AccessTools.FieldRef<Character, HitData> LastHit = AccessTools.FieldRefAccess<Character, HitData>("m_lastHit");
+        internal static readonly AccessTools.FieldRef<Character, HitData> LastHit = AccessTools.FieldRefAccess<Character, HitData>("m_lastHit");
         // Never a foe: players, villagers, players' companions (on the players' side), tame beasts, and pieces (a training dummy).
         public static bool Friendly(Character c) => c == null || c.IsPlayer() || VillagerPrefab.Is(c) || c.IsTamed() || c.GetFaction() == Character.Faction.Players || c.GetComponent<Piece>() != null;
         public static bool Busy(Brain b) => b.Fighting || b.FleeUntil > Time.time;
@@ -144,6 +144,7 @@ namespace Jarldom
                     bool star = __instance.GetLevel() > 1, boss = __instance.IsBoss();
                     Worth.Gain(b.S, boss ? "bosskill" : star ? "starkill" : "kill", Faith.OdinWorthBonus(b.Colony));
                     b.S.Bump("kills");
+                    if (b.Colony != null && b.Colony.RaidOn) b.S.Counts["raidkill"] = Clock.Day(b.Now); // (fought in a raid: a disgraced soul's way back)
                     string what = Localization.instance.Localize(__instance.m_name);
                     if (star || boss)
                     {

@@ -66,7 +66,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or for a server admin with devcommands on"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -444,6 +444,50 @@ namespace Jarldom
                     break;
                 case "prof": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } b.Command("prof", Parse<Prof>(a[3]).ToString()); output(new JObject { ["prof"] = b.S.Prof.ToString() }); } break;
                 case "mood": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } b.Command("mood", a[3]); output(new JObject { ["mood"] = Mood.Of(b.S, b.Now) }); } break;
+                // Test: asks (read-only): every ask here, what this player took on, what the world offers. ask <name> make [Kind] [deed] |
+                // take | done | answer | clear: make one (a kind forced: tried until it comes up), take it on as this player, mark it done
+                // (a visit seen, a kill made), answer it as the panel does (hand-in from the bag), or drop it.
+                case "asks":
+                    {
+                                                WorldFacts wf = Villagers.All.FirstOrDefault(b => b.S.Colony == c.Id) is Brain any ? Asks.Facts(c, any.S) : null;
+                        output(new JObject
+                        {
+                            ["asks"] = new JArray(Villagers.All.Where(b => b.S.Colony == c.Id && b.S.Asked != null).Select(b => $"{b.S.Name}: {Requests.Describe(b.S.Asked)} [{b.S.Asked.Kind} {b.S.Asked.Target} id {b.S.Asked.Id}, day {b.S.Asked.Day}, {Requests.DaysLeft(b.S.Asked, c.Day)} left, coins {b.S.Asked.Coins}{(b.S.Asked.Deed ? ", DEED" : "")}] “{b.S.Asked.Why}”")),
+                            ["shown"] = new JArray(c.R.Living.Select(r => (r.Name, ask: Asks.Shown(Villagers.Body(r.Vid)?.GetComponent<ZNetView>()?.GetZDO()))).Where(x => x.ask != null).Select(x => $"{x.Name}: {x.ask.Value.what} ({x.ask.Value.daysLeft} left{(x.ask.Value.deed ? ", deed" : "")})")),
+                            ["taken"] = new JArray(Asks.All(Player.m_localPlayer).Select(t => $"{t.Name}: {t.Kind} {t.Target} ({t.Label}) id {t.Id}{(t.Done ? " DONE" : "")} at {t.X:0},{t.Z:0}")),
+                            ["stage"] = wf?.Stage ?? -1,
+                            ["places"] = new JArray((wf?.Places ?? new List<Place>()).Select(p => $"{p.Label} ({p.Key}, stage {p.Stage}) {Mathf.RoundToInt(Utils.DistanceXZ(new Vector3(p.X, 0, p.Z), c.Position))} m at {p.X:0},{p.Z:0}")),
+                            ["avenge"] = new JArray((wf?.Avenge ?? new List<(string, string)>()).Select(x => $"{x.Item1} by {x.Item2}")),
+                        });
+                    }
+                    break;
+                case "ask":
+                    {
+                        Brain b = a.Length > 2 ? Who(a[2]) : null; if (b == null) { error("ask <name> make [Kind] [deed] | take | done | answer | clear | disgrace"); return; }
+                        string op = a.Length > 3 ? a[3] : "make";
+                                                if (op == "make")
+                        {
+                            Ask? kind = a.Length > 4 && Enum.TryParse(a[4], true, out Ask k) ? k : (Ask?)null;
+                            bool deed = a.Contains("deed");
+                            Request made = null; var facts = Asks.Facts(c, b.S); var rng = new System.Random();
+                            for (int i = 0; i < 400 && made == null; i++) { Request q = Requests.Generate(b.S, facts, c.Day, rng, deed); if (q != null && (kind == null || q.Kind == kind)) made = q; }
+                            if (made == null) { error($"no {(kind?.ToString() ?? "")} ask fits (stage {facts.Stage}, {facts.Places.Count} places)"); return; }
+                            b.S.Asked = made; Asks.Tag(b); b.Dirty();
+                            c.Log("ask", b.S.Name, "", Requests.Short(made));
+                        }
+                        else if (op == "take") { if (b.S.Asked == null) { error("they ask nothing"); return; } Asks.Take(c, b.S); }
+                        else if (op == "done")
+                        {
+                            var list = Asks.All(Player.m_localPlayer); foreach (var t in list.Where(t => t.Vid == b.S.Vid)) t.Done = true;
+                            Player.m_localPlayer.m_customData[Asks.TakenKey] = string.Join("\u001e", list.Select(t => t.Encode()));
+                        }
+                        else if (op == "answer") Asks.Answer(c, b.S);
+                        else if (op == "disgrace") { b.S.Disgraced = true; b.S.DisgraceSince = b.Now; b.Dirty(); Asks.Daily(b); }
+                        else if (op == "clear") { b.S.Asked = null; Asks.Tag(b); Asks.Drop(Player.m_localPlayer, b.S.Vid); b.Dirty(); }
+                        else { error("ask <name> make [Kind] [deed] | take | done | answer | clear | disgrace"); return; }
+                        output(new JObject { ["name"] = b.S.Name, ["ask"] = b.S.Asked == null ? "" : $"{Requests.Describe(b.S.Asked)} [{b.S.Asked.Kind} {b.S.Asked.Target} id {b.S.Asked.Id}{(b.S.Asked.Deed ? ", DEED" : "")}]", ["taken"] = new JArray(Asks.All(Player.m_localPlayer).Select(t => $"{t.Name}: {t.Kind} {t.Target}{(t.Done ? " DONE" : "")}")), ["disgraced"] = b.S.Disgraced, ["hoard"] = b.S.Hoard, ["worth"] = b.S.Worth });
+                    }
+                    break;
                 case "worth": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } b.Command("worth", a[3]); output(new JObject { ["worth"] = b.S.Worth, ["worthy"] = b.S.Worthy }); } break;
                 case "need": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } b.Command("need", a[3]); output(Villager(b)); } break;
                 case "give":

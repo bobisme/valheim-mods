@@ -347,4 +347,63 @@ Check(Away.Produce(40, 5, 2, 48) == 0, "Too little seen live to say: nothing mad
 Check(Away.Produce(40, 20, 0, 48) == 0 && Away.Produce(0, 20, 2, 48) == 0, "No workers or no output: nothing");
 Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky") == "the Unlucky" && Names.Creature("Greydwarf_Elite") == "Greydwarf", "Bynames");
 
+// ---- Requests ----
+{
+    var known = new HashSet<string>(Requests.Trophies.Select(x => x.prefab).Concat(Requests.Goods.Select(x => x.prefab)).Concat(Requests.Relics.Select(x => x.prefab)).Concat(Requests.Creatures.Select(x => x.prefab)));
+    int StageOfTarget(Request q) => q.Kind switch
+    {
+        Ask.Trophy => Requests.Trophies.First(x => x.prefab == q.Target).stage, Ask.Goods => Requests.Goods.First(x => x.prefab == q.Target).stage,
+        Ask.Relic => Requests.Relics.First(x => x.prefab == q.Target).stage, Ask.Kill => Requests.Creatures.First(x => x.prefab == q.Target).stage, _ => -1,
+    };
+    var kinds = new HashSet<Ask>(); bool fair = true, real = true, worded = true, deedEasy = true;
+    string[] stories = { "Fell in the snow of a mountain pass in a feud over a horse; talks to ravens.", "Fell in the marsh with a stolen sword; keeps every pretty stone she finds.", "Fell at a river ford; eats standing up." };
+    for (int stage = 0; stage <= 6; stage++)
+        for (int seed = 0; seed < 400; seed++)
+        {
+            var qr = new Random(seed * 31 + stage);
+            var qv = new VillagerState { Vid = "v", Name = "Ulf", Story = stories[seed % 3], Traits = new List<string> { Tables.Traits[seed % Tables.Traits.Length].Id, Tables.Traits[(seed / 3 + 5) % Tables.Traits.Length].Id } };
+            var wf = new WorldFacts { Stage = stage, Exists = n => n != "TrophyDeer" }; // (a prefab this game lacks is never asked for)
+            for (int p = 0; p <= 6; p++) wf.Places.Add(new Place { Key = "loc" + p, Label = "place " + p, X = p * 100, Z = 0, Stage = p });
+            if (seed % 5 == 0) wf.Avenge.Add(("Hild", "troll"));
+            bool deed = seed % 7 == 0;
+            Request q = Requests.Generate(qv, wf, 50, qr, deed);
+            if (q == null) { real = false; continue; }
+            kinds.Add(q.Kind);
+            int ts = q.Kind == Ask.Visit ? wf.Places.First(p => p.Key == q.Target).Stage : StageOfTarget(q);
+            if (ts > stage) fair = false;
+            if (deed && ts > Math.Max(0, stage - 1)) deedEasy = false;
+            if (q.Kind != Ask.Visit && (!known.Contains(q.Target) || q.Target == "TrophyDeer")) real = false;
+            if (q.Day != 50 || q.Id == "" || q.Deed != deed || Requests.Describe(q) == "" || Requests.Short(q) == "" || q.Why == "" || q.Coins <= 0 || q.Count < 1) worded = false;
+            if (q.Kind == Ask.Kill && qv.Has("coward")) fair = false;
+        }
+    Check(fair, "Every request names something reachable at the world's stage (and no coward is asked to kill)");
+    Check(real, "Every request names a thing that exists in this game, and there is always one to make");
+    Check(worded, "Every request is dated, worded, explained and rewarded");
+    Check(deedEasy, "A disgraced soul's deed is never the hardest thing in the world");
+    Check(kinds.Count == 5, "All five kinds of request come up");
+    var meadows = new WorldFacts { Stage = 0 };
+    bool onlyMeadows = Enumerable.Range(0, 300).Select(i => Requests.Generate(new VillagerState { Traits = new List<string> { "brave" } }, meadows, 1, new Random(i))).All(q => q != null && (q.Kind == Ask.Visit || StageOfTarget(q) == 0));
+    Check(onlyMeadows, "A Meadows-stage colony never asks for Mistlands things");
+    var nothing = new WorldFacts { Stage = 3, Exists = _ => false };
+    Check(Requests.Generate(new VillagerState(), nothing, 1, new Random(1)) == null, "Nothing that exists: no request");
+    var avenger = new WorldFacts { Stage = 2 }; avenger.Avenge.Add(("Hild", "Troll"));
+    int avenged = Enumerable.Range(0, 200).Count(i => Requests.Generate(new VillagerState(), avenger, 1, new Random(i)) is Request q && q.Kind == Ask.Kill && q.Target == "Troll" && q.Why.Contains("Hild"));
+    Check(avenged > 80, "A friend's killer is the likeliest ask: avenge them");
+    Check(Requests.Generate(new VillagerState { Traits = new List<string> { "coward" } }, avenger, 1, new Random(3)) is Request cq && cq.Kind != Ask.Kill, "A coward asks someone else to do the killing elsewhere");
+    var ask = new Request { Day = 10, Kind = Ask.Kill, Target = "Wolf", Stars = 1 };
+    Check(!Requests.Expired(ask, 19) && Requests.Expired(ask, 20) && Requests.DaysLeft(ask, 13) == 7 && Requests.DaysLeft(ask, 40) == 0, "A request lapses after ten days");
+    Check(Requests.KillCounts(ask, "Wolf", 2) && Requests.KillCounts(ask, "Wolf", 3) && !Requests.KillCounts(ask, "Wolf", 1) && !Requests.KillCounts(ask, "Fenring", 3), "A kill counts when it's the creature asked for, starred enough");
+    Check(Requests.CoinsFromHoard(new Request { Coins = 30 }, 12) == 12 && Requests.CoinsFromHoard(new Request { Coins = 30 }, 100) == 30, "Coins only from what their hoard holds");
+    Check(Requests.HomeStage("Fell in the snow of a mountain pass") == 3 && Requests.HomeStage("Fell in the marsh") == 2 && Requests.HomeStage("Fell at a river ford") == 0, "A home land from the backstory");
+    Check(Requests.Describe(new Request { Kind = Ask.Kill, Label = "asksvin", Stars = 2 }) == "Kill an asksvin of two stars or more." && Requests.Describe(new Request { Kind = Ask.Trophy, Label = "a wolf trophy", Count = 3 }) == "Bring me three wolf trophies.", "Requests read right");
+    Check(Requests.Landmark("Crypt3")?.label == "a burial chamber" && Requests.Landmark("SunkenCrypt4")?.label == "a sunken crypt" && Requests.Landmark("Meadows_Rock") == null, "Landmarks by the game's location names");
+    // Saved with the soul; a soul saved before requests loads with none.
+    var asker = new VillagerState { Vid = "v9", Name = "Ulf", Asked = new Request { Id = "ab", Kind = Ask.Visit, Target = "Crypt2", Label = "a burial chamber", X = 12.5f, Z = -40, Day = 7, Coins = 20, Why = "why", Deed = true } };
+    var rt = VillagerState.Load(asker.Save());
+    Check(rt.Asked != null && rt.Asked.Id == "ab" && rt.Asked.Kind == Ask.Visit && rt.Asked.X == 12.5f && rt.Asked.Z == -40 && rt.Asked.Deed && rt.Asked.Coins == 20 && rt.Asked.Day == 7, "A request is saved with the soul");
+    Check(VillagerState.Load(new VillagerState { Vid = "v" }.Save()).Asked == null, "No request saved, none loaded");
+    byte[] old = new VillagerState { Vid = "v" }.Save(); old = old.Take(old.Length - 1).ToArray(); // (as saved before requests: no flag byte at the end)
+    Check(VillagerState.Load(old).Vid == "v" && VillagerState.Load(old).Asked == null, "A soul saved before requests still loads");
+}
+
 Console.WriteLine($"Jarldom: {checks} checks passed");

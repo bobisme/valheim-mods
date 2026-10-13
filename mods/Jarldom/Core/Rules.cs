@@ -103,7 +103,7 @@ namespace Jarldom
         }
         public static readonly Dictionary<string, int> DeedPoints = new Dictionary<string, int>
         {
-            ["boss"] = 50, ["raidheld"] = 10, ["feast"] = 5, ["ascend"] = 25, ["lost"] = -15, ["festival"] = 5, ["tribute"] = -5, ["exiled"] = -5,
+            ["boss"] = 50, ["raidheld"] = 10, ["feast"] = 5, ["ascend"] = 25, ["lost"] = -15, ["festival"] = 5, ["tribute"] = -5, ["exiled"] = -5, ["asked"] = 3, ["deed"] = 5,
         };
         public static int Deed(string kind) => DeedPoints.TryGetValue(kind, out int v) ? v : 0;
 
@@ -306,7 +306,7 @@ namespace Jarldom
         public const float Full = 100;
         public static readonly Dictionary<string, float> Points = new Dictionary<string, float>
         {
-            ["kill"] = 1, ["starkill"] = 5, ["bosskill"] = 15, ["orders100"] = 1, ["feast"] = 1, ["ring"] = 3, ["festival"] = 2, ["disgrace"] = -20, ["expedition"] = 2,
+            ["kill"] = 1, ["starkill"] = 5, ["bosskill"] = 15, ["orders100"] = 1, ["feast"] = 1, ["ring"] = 3, ["festival"] = 2, ["disgrace"] = -20, ["expedition"] = 2, ["asked"] = 4,
         };
         public static float Gain(VillagerState v, string source, float odinBonus = 0)
         {

@@ -267,6 +267,7 @@ namespace Jarldom
             int mood = Jarldom.Mood.Of(S, now);
             if (mood < -60) { if (S.LowMoodSince == 0) S.LowMoodSince = now; } else S.LowMoodSince = 0;
             Society.Breakdowns(this, mood, now);
+            Plugin.Guard(() => Asks.Daily(this));
             _dirty = true;
         }
         // Far from home with the jarl (the colony isn't loaded here): only what a follower needs. Hunger, healing, fighting, keeping up.
@@ -400,6 +401,7 @@ namespace Jarldom
                 case "worth": if (float.TryParse(arg, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float w)) { S.Worth = Mathf.Clamp(w, 0, 100); S.Worthy = S.Worth >= 100; } break;
                 case "need": { string[] f = arg.Split('='); if (f.Length == 2 && Enum.TryParse(f[0], out Need n) && float.TryParse(f[1], out float v)) S.Needs[(int)n] = Mathf.Clamp(v, 0, 100); } break;
                 case "ascend": Task?.Stop(this); Task = new AscendTask(arg); Task.Start(this); break;
+                case "answer": Asks.Answered(this, arg); break;
             }
             Dirty(); Save();
         }

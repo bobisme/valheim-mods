@@ -14,7 +14,7 @@ namespace Jarldom.Ui
         private static RectTransform _window; private static Humanoid _h; private static string _shown = ""; private static bool _confirm;
         private static float _openedAt, _closedAt = -1, _next; private static bool _remote;
         public static bool IsOpen => _window != null;
-        private static readonly Vector2 Size = new Vector2(900f, 680f);
+        private static readonly Vector2 Size = new Vector2(900f, 780f);
 
         // Opened with E beside them, it closes when they walk off; from the colony window or the seat's view (remote), it stays.
         public static void Open(Humanoid h, bool remote = false)
@@ -44,7 +44,7 @@ namespace Jarldom.Ui
         }
         private static ZDO Z => _h.GetComponent<ZNetView>().GetZDO();
         // What the panel shows (not the ZDO's revision: a villager's ZDO changes all the time).
-        private static string Signature() => (SoulStore.Of(Z)?.DataRevision ?? 0) + "|" + Z.GetInt(Villagers.MoodKey) + "|" + _confirm + "|" + (Player.m_localPlayer?.GetInventory().GetAllItems().Any(Items.IsRing) ?? false) + "|" + Mathf.FloorToInt(Time.unscaledTime / 10);
+        private static string Signature() => (SoulStore.Of(Z)?.DataRevision ?? 0) + "|" + Z.GetInt(Villagers.MoodKey) + "|" + _confirm + "|" + (Player.m_localPlayer?.GetInventory().GetAllItems().Any(Items.IsRing) ?? false) + "|" + Player.m_localPlayer?.GetInventory().NrOfItems() + "|" + (Player.m_localPlayer != null && Player.m_localPlayer.m_customData.TryGetValue(Asks.TakenKey, out string taken) ? taken.Length : 0) + "|" + Mathf.FloorToInt(Time.unscaledTime / 10);
 
         private static void Build()
         {
@@ -60,7 +60,7 @@ namespace Jarldom.Ui
             GameUi.Line(_window, $"{Tables.Of(s.Prof).Name}{(s.Wants != s.Prof ? $" (would rather be a {Tables.Of(s.Wants).Name.ToLower()})" : "")}", new Vector2(560, -26), 310, 17, GameUi.Dim, null, TextAlignmentOptions.TopRight);
             GameUi.Braid(_window, new Vector2(0, -72), 840);
             // Left: who they are and how they feel.
-            RectTransform left = GameUi.Box(_window, new Vector2(24, -92), new Vector2(420, 524));
+            RectTransform left = GameUi.Box(_window, new Vector2(24, -92), new Vector2(420, 624));
             float y = 10;
             y = Text(left, string.Join(", ", s.Traits.Select(t => $"<color=#ffd27a>{Tables.Trait(t)?.Name}</color>: {Tables.Trait(t)?.Text}")), y, 15);
             y = Text(left, s.Story, y, 15, GameUi.Dim);
@@ -77,7 +77,7 @@ namespace Jarldom.Ui
                 y += 21;
             }
             // Right: worth, skills, bed and work.
-            RectTransform right = GameUi.Box(_window, new Vector2(456, -92), new Vector2(420, 524));
+            RectTransform right = GameUi.Box(_window, new Vector2(456, -92), new Vector2(420, 624));
             float ry = 10;
             GameUi.Line(right, "Worth", new Vector2(10, -ry), 80, 17, GameUi.Warm);
             GameUi.Bar(right, new Vector2(90, -ry - 2), new Vector2(310, 22), s.Worth / 100f, GameUi.Gold, s.Worthy ? "worthy of Valhalla" : $"{Mathf.RoundToInt(s.Worth)} of 100");
@@ -85,6 +85,7 @@ namespace Jarldom.Ui
             var skills = s.Skills.Where(kv => !kv.Key.EndsWith("#") && kv.Value >= 1).OrderByDescending(kv => kv.Value).Take(5).Select(kv => $"{kv.Key} {Mathf.FloorToInt(kv.Value)}");
             ry = Text(right, "Skills: " + (skills.Any() ? string.Join(", ", skills) : "none yet"), ry, 15);
             ry = Text(right, $"Kills {s.Count("kills")}, jobs done {s.Count("orders")}, deaths {s.Deaths}. Hoard {s.Hoard} coins.", ry, 15, GameUi.Dim);
+            if (c != null) { try { ry = AskBlock(right, c, s, ry); } catch (Exception e) { Plugin.Warn("Jarldom: the ask in the panel: " + e.Message); } }
             Bed bed = c?.BedById(s.Bed);
             ry = Text(right, string.IsNullOrEmpty(s.Bed) ? "<color=#ff8c59>No bed</color>: sleeps by the hall fire. If they die, they're slow to rise again (by the pillars)." : bed != null ? $"Has a bed (comfort {Colony.ComfortAt(bed.transform.position)})." : "Has a bed (not loaded here).", ry, 15);
             string vid = s.Vid;
@@ -123,6 +124,42 @@ namespace Jarldom.Ui
                 ry += 40;
                 ry = Text(right, $"{Tables.Of(s.Prof).Name}: {Tables.Of(s.Prof).Does}{(Tables.Of(s.Prof).Needs != "" ? " (needs " + Tables.Of(s.Prof).Needs + ")" : "")}. Wage {Tables.Wage(s.Prof, s.Has("greedy"))} a day.", ry, 14, GameUi.Dim);
             }
+        }
+        // What they ask of the jarl, why, how long it stands, and the one button that moves it on.
+        private static float AskBlock(RectTransform right, Colony c, VillagerState s, float ry)
+        {
+            Request q = s.Asked; Player me = Player.m_localPlayer;
+            if (Asks.All(me).Any(x => x.Vid == s.Vid && x.Id != q?.Id)) Asks.Drop(me, s.Vid); // (one answered or lapsed since it was taken on)
+            if (q == null)
+            {
+                if (s.Disgraced) ry = Text(right, "<color=#ff8c59>Disgraced</color>: miserable too long, they shamed themselves. They'll ask a deed of you soon: done, it washes the shame out (or they may desert by night).", ry, 15);
+                return ry;
+            }
+            int left = Requests.DaysLeft(q, Clock.Day(ZNet.instance.GetTimeSeconds()));
+            string head = q.Deed ? "<color=#ff8c59>Disgraced</color>. A deed in their name would wash out the shame:" : "Asks of you:";
+            ry = Text(right, $"{head} <color=#ffd27a>{Requests.Describe(q)}</color> ({left} {(left == 1 ? "day" : "days")} left{(q.Deed ? "" : ", then they let it go")})", ry, 16);
+            ry = Text(right, $"<i>“{q.Why}”</i>", ry, 14, GameUi.Dim);
+            Asks.Taken t = Asks.Of(me, s.Vid, q.Id);
+            string vid = s.Vid; float bx = 10;
+            string reward = $"Their good opinion, worth on their road to Valhalla{(s.Hoard > 0 && q.Coins > 0 ? $", up to {Requests.CoinsFromHoard(q, s.Hoard)} coins from their own hoard" : "")}, and renown for the colony{(q.Deed ? "; and their disgrace is gone" : "")}.";
+            bool ready = Asks.Ready(me, s, out string why);
+            if (Requests.HandIn(q))
+            {
+                int have = Asks.Have(me, q, out _);
+                Button hand = Small(right, $"Hand over ({have}/{q.Count})", ref bx, ry, () => { if (_remote) { me.Message(MessageHud.MessageType.Center, "Go to them to hand it over."); return; } Asks.Answer(c, s); }, "Give them what they asked for, from your bag. " + reward);
+                hand.interactable = ready && !_remote;
+            }
+            else if (t == null)
+                Small(right, q.Kind == Ask.Visit ? "I'll go (pin it)" : "I'll see to it", ref bx, ry, () => { Asks.Take(c, s); Build(); }, (q.Kind == Ask.Visit ? "The place goes on your map. Go within sight of it, then come back and tell them of it. " : "Do it with your own hands, anywhere in the world, then come back and tell them of it. ") + reward);
+            else
+            {
+                Button tell = Small(right, t.Done ? "Tell of the deed" : q.Kind == Ask.Visit ? "Not seen yet" : "Not done yet", ref bx, ry, () => { if (_remote) { me.Message(MessageHud.MessageType.Center, "Go to them to tell of it."); return; } Asks.Answer(c, s); }, t.Done ? "Tell them it's done. " + reward : (q.Kind == Ask.Visit ? "It's pinned on your map: go within sight of it." : "Do it with your own hands, then come back.") + " " + reward);
+                tell.interactable = t.Done && !_remote;
+                Small(right, "Give it up", ref bx, ry, () => { Asks.Drop(me, vid); Build(); }, "Stop tracking it (they still ask it of anyone, until it lapses).");
+            }
+            ry += 44;
+            if (!ready && why != "" && Requests.HandIn(q) && !_remote) ry = Text(right, $"Not yet: {why}.", ry, 14, GameUi.Dim);
+            return ry;
         }
         private static float Text(RectTransform box, string text, float y, float size, Color? color = null)
         {

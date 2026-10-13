@@ -179,6 +179,24 @@ namespace Jarldom
                     $"{e.A} was caught pocketing what was not theirs.",
                     $"{e.A} was caught thieving in the hall.",
                     $"{e.A} was caught with a hand in the stores.");
+                case "ask": return Telling(e,
+                    $"{e.A} asked a thing of the jarl: {e.Text}.",
+                    $"{e.A} came to the jarl with an ask: {e.Text}.",
+                    $"{e.A} asked the jarl for {e.Text}.",
+                    $"{e.A} has a thing to ask of the jarl: {e.Text}.",
+                    $"The jarl was asked by {e.A} for {e.Text}.");
+                case "asked": return Telling(e,
+                    $"{e.B} saw to what {e.A} asked: {e.Text}.",
+                    $"{e.B} did as {e.A} asked: {e.Text}.",
+                    $"{e.A} asked for {e.Text}, and {e.B} saw to it.",
+                    $"{e.B} kept faith with {e.A}: {e.Text}.",
+                    $"What {e.A} asked, {e.B} did: {e.Text}.");
+                case "deed": return Telling(e,
+                    $"{e.B} did a deed in {e.A}'s name ({e.Text}), and {e.A}'s shame was washed out.",
+                    $"{e.A} was disgraced, until {e.B} did a deed for them: {e.Text}. They hold their head up again.",
+                    $"For {e.A}'s sake {e.B} saw to {e.Text}, and the hall no longer whispers about {e.A}.",
+                    $"{e.B} stood by {e.A} when they fell low ({e.Text}); the disgrace is gone.",
+                    $"The ash is washed off {e.A}: {e.B} did the deed they asked, {e.Text}.");
                 case "ring": return Telling(e,
                     $"{e.B} gave {e.A} a gold arm ring.",
                     $"{e.B} gifted {e.A} a gold arm ring.",

@@ -208,6 +208,7 @@ namespace Jarldom
         public string Bed = "", Chest = "", Sworn = "";
         public double Arrived; public int Wage; public int Unpaid; public double InjuredUntil; public double LowMoodSince;
         public List<string> Foods = new List<string>();                            // what they ate, newest last (variety)
+        public Request Asked;                                                         // what they've asked of the jarl, if anything (Requests)
 
         public bool Has(string trait) => Traits.Contains(trait);
         public int Count(string key) => Counts.TryGetValue(key, out int v) ? v : 0;
@@ -230,6 +231,7 @@ namespace Jarldom
             w.Str(Bed); w.Str(Chest); w.Str(Sworn);
             w.Dbl(Arrived); w.Int(Wage); w.Int(Unpaid); w.Dbl(InjuredUntil); w.Dbl(LowMoodSince);
             w.Strs(Foods);
+            w.Bool(Asked != null); Asked?.Write(w); // (last, so an older game reads the soul and only drops the ask: no DataVersion change needed)
             return w.Bytes();
         }
         private static void Map(Writer w, Dictionary<string, int> m) { w.Int(m.Count); foreach (var kv in m) { w.Str(kv.Key); w.Int(kv.Value); } }
@@ -252,6 +254,7 @@ namespace Jarldom
             v.Bed = r.Str(); v.Chest = r.Str(); v.Sworn = r.Str();
             v.Arrived = r.Dbl(); v.Wage = r.Int(); v.Unpaid = r.Int(); v.InjuredUntil = r.Dbl(); v.LowMoodSince = r.Dbl();
             v.Foods = r.Strs();
+            if (r.More && r.Bool()) v.Asked = Request.Read(r); // (absent from a soul saved before requests)
             return v;
         }
     }

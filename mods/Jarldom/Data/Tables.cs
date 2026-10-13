@@ -123,6 +123,8 @@ namespace Jarldom
             M("fell", "Fell in battle", -8, 48),
             M("grief", "A friend lost to Hel", -25, 120),
             M("ringgifted", "Given an arm ring", 15, 120),
+            M("asked", "The jarl did as they asked", 12, 96),
+            M("washed", "Their shame washed out", 15, 120),
             M("unpaid", "Unpaid", -15, 0, Stack.Add, 3),
             M("gary", "Petted Gary", 3, 6),
             M("festival", "A festival", 12, 48),

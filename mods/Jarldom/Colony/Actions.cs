@@ -9,7 +9,7 @@ namespace Jarldom
     // What players ask of the colony (through the window, the hammer, the altars), carried out by the colony owner.
     internal sealed partial class Colony
     {
-        private static readonly HashSet<string> Open = new HashSet<string> { "offer", "horn", "bogpaid", "gone", "away", "log", "heraldslain", "rescue", "jarlslain", "ruin", "unruin", "thingspoke" }; // anyone may pray or blow the horn
+        private static readonly HashSet<string> Open = new HashSet<string> { "offer", "horn", "bogpaid", "gone", "away", "log", "heraldslain", "rescue", "jarlslain", "ruin", "unruin", "thingspoke", "asked" }; // anyone may pray or blow the horn (and anyone's game may own a villager who was answered)
         private bool FounderSays(string who) => string.IsNullOrEmpty(who) || R.Founder == 0 || who == R.FounderName;
         public bool AllowedName(string who) => string.IsNullOrEmpty(who) || R.Founder == 0 || who == R.FounderName || R.Allowed.Contains(who) || R.Allowed.Contains("*");
 
@@ -65,6 +65,7 @@ namespace Jarldom
                 case "swear": Society.Swear(this, Get(a, 0), Get(a, 1)); break;
                 case "ring": Villagers.Command(a[0], "ring", who); Log("ring", Villagers.ByVid(a[0])?.S.Name ?? a[0], who); break;
                 case "summon": Villagers.Command(a[0], "summon", ""); break;
+                case "asked": Asks.Logged(this, a); break;
                 case "follow": Villagers.Command(a[0], "follow", Get(a, 1) + "|" + who); break;
                 case "log": { string[] f = arg.Split('\u001e'); if (f.Length == 4) Log(f[0], f[1], f[2], f[3]); } break;
                 case "craft": { int n = Int(a, 1); string key = Crafts.Prefix + a[0]; int now = R.Flag(key) + n; if (now > 0) R.Flags[key] = Math.Min(now, 99); else R.Flags.Remove(key); } break;

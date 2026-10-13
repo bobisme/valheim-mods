@@ -255,7 +255,9 @@ namespace Jarldom
             string vid = z.GetString(VidKey, "");
             if (vid != "" && Colony.All.Any(x => x.Valid && Thing.Ready(x) && Thing.Current(x).By == vid)) // (speaking at the Thing)
                 return Localization.instance.Localize($"{DisplayName(c)}\n<size=80%>has spoken before the Thing</size>\n[<color=yellow><b>$KEY_Use</b></color>] Give your ruling");
-            return Localization.instance.Localize($"{DisplayName(c)}\n<size=80%>{doing} ({moodWord}){with}</size>\n[<color=yellow><b>$KEY_Use</b></color>] Talk   [<color=yellow><b>$KEY_AltPlace + $KEY_Use</b></color>] Bag   <size=80%>(a hotbar key hands them food)</size>");
+            var ask = Asks.Shown(z);
+            string asks = ask == null ? "" : ask.Value.deed ? $"\n<size=80%><color=#ffd27a>Asks a deed of you, to wash out their shame</color></size>" : $"\n<size=80%><color=#ffd27a>Asks: {ask.Value.what}</color></size>";
+            return Localization.instance.Localize($"{DisplayName(c)}\n<size=80%>{doing} ({moodWord}){with}</size>{asks}\n[<color=yellow><b>$KEY_Use</b></color>] Talk   [<color=yellow><b>$KEY_AltPlace + $KEY_Use</b></color>] Bag   <size=80%>(a hotbar key hands them food)</size>");
         }
         public static bool Feed(Humanoid h, Humanoid giver, ItemDrop.ItemData item)
         {
