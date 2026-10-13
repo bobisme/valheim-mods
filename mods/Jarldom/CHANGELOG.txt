@@ -1,3 +1,5 @@
+0.1.34: The marking staff's pennant is gone: red and gold cloth ribbons are tied round it under its head instead, knotted and streaming in the wind.
+
 0.1.33: The guards' watch post has a look of its own instead of a log with a red board: a hewn stake wedged in a little cairn, an iron band under its turned head, the othala rune on its face, a red pennant with a gold stripe on a lashed crossbar, and a knotted cord with a plumb bob. Posts already raised change when the game restarts.
 
 0.1.32: The hammer's "Mark rooms and zones" is now a marking staff you'd hold: a tall slim shaft shod with iron, a leather grip, a carved head and finial over an iron band, a red pennant with the othala rune in gold on a lashed crossbar, and the knotted measuring cord with its plumb bob.

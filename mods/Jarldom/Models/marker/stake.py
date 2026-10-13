@@ -1,10 +1,9 @@
-# The marking staff (the look of the hammer's "Mark rooms and zones", Jarldom 0.1.30+; a staff you'd hold since 0.1.32): a slim
-# shaft shod with iron, a leather grip at the hand, an iron band under its carved head and finial, a swallow-tailed pennant on a
-# lashed crossbar with the othala rune (home, land held) in gold on it, and a knotted measuring cord wound round the shaft with a plumb
-# bob on its end.
+# The marking staff (the look of the hammer's "Mark rooms and zones", Jarldom 0.1.30+; a staff you'd hold since 0.1.32, ribbons for its
+# pennant since 0.1.34): a slim shaft shod with iron, a leather grip at the hand, an iron band under its carved head and finial, red and
+# gold cloth ribbons tied round it under the band, and a knotted measuring cord wound round the shaft with a plumb bob on its end.
 # Run: blender -b --python ~/.cache/jarldom-stake/stake.py -- [render]   (writes ~/.cache/jarldom-stake/stake.json.gz; previews with "render")
 # Blender frame: z up, front -y. Written in the game's frame (x, z, y): per corner position/normal/uv (uvs in metres), triangles per
-# material: 0 wood, 1 rope, 2 iron, 3 cloth, 4 paint (the pennant's stripe and rune), 5 leather.
+# material: 0 wood, 1 rope, 2 iron, 3 cloth (red), 4 paint (the gold ribbons), 5 leather.
 import bpy, bmesh, json, math, random, sys, gzip
 from mathutils import Vector, Matrix
 
@@ -79,52 +78,42 @@ tube('grip', helix(0.034, GRIP0, GRIP1, 14), 0.0085, LEATHER)  # (turns edge to 
 for z in (GRIP0 - 0.006, GRIP1 + 0.006):
     tube('tie', helix(0.037, z - 0.004, z + 0.004, 2), 0.004, ROPE)
 
-# ---- the crossbar through the head, lashed, and the pennant hanging from it ----
-BAR = BAND + 0.08
-bm = bmesh.new()
-bmesh.ops.create_cone(bm, cap_ends=True, segments=6, radius1=0.011, radius2=0.01, depth=0.33)
-bmesh.ops.rotate(bm, verts=bm.verts, cent=Vector(), matrix=Matrix.Rotation(math.pi / 2, 3, 'Y'))
-bmesh.ops.translate(bm, vec=Vector((0.12, 0, BAR)), verts=bm.verts)
-link('crossbar', bm, WOOD)
-bm = bmesh.new(); bmesh.ops.create_icosphere(bm, subdivisions=1, radius=0.015)
-bmesh.ops.translate(bm, vec=Vector((0.29, 0, BAR)), verts=bm.verts)
-link('knob', bm, WOOD)
-lash = [Vector((math.cos(k / 24 * 2 * math.pi) * 0.048, math.sin(k / 24 * 2 * math.pi) * 0.048, BAR - 0.022 + 0.044 * k / 72 + 0.012 * math.sin(k / 24 * 2 * math.pi))) for k in range(73)]
-tube('lashing', lash, 0.0048, ROPE)
-# the cloth: swallow-tailed, stirring; a gold stripe under the bar and the othala rune in gold on its middle
-L, HC, NX, NZ = 0.22, 0.3, 36, 48
-X0 = 0.055
-ODAL = [(.5, 1, .12, .62), (.5, 1, .88, .62), (.12, .62, .88, .2), (.88, .62, .12, .2), (.12, .2, .02, 0), (.88, .2, .98, 0)]
-def on_rune(u, v):
-    # the rune in cloth coordinates: u along the bar (0-1), v down from it (0-1); it fills the cloth's middle
-    gx, gy = (u - 0.24) / 0.52, 1 - (v - 0.24) / 0.46     # into the glyph's unit box (y up)
-    if not (-0.1 < gx < 1.1 and -0.1 < gy < 1.1): return False
-    for (x1, y1, x2, y2) in ODAL:
-        ax, ay, bx, by = x1, y1, x2, y2
-        dx, dy = bx - ax, by - ay; t = max(0, min(1, ((gx - ax) * dx + (gy - ay) * dy) / (dx * dx + dy * dy)))
-        if math.hypot(gx - (ax + t * dx), (gy - (ay + t * dy)) * 0.46 / 0.52) < 0.085: return True
-    return False
-bm = bmesh.new(); grid = {}
-for i in range(NX + 1):
-    for j in range(NZ + 1):
-        u, v = i / NX, j / NZ
-        depth = HC * (1 - 0.1 * u)
-        notch = 0.12 * (1 - abs(u - 0.5) * 2)
-        z = BAR - 0.012 - v * (depth - notch * max(0, (v - 0.62) / 0.38))
-        y = 0.022 * math.sin(v * 3.2 + u * 1.5) * v + 0.012 * math.sin(u * 7) * v
-        grid[i, j] = bm.verts.new((X0 + u * L, y, z))
-for i in range(NX):
-    for j in range(NZ):
-        f = bm.faces.new((grid[i, j], grid[i + 1, j], grid[i + 1, j + 1], grid[i, j + 1]))
-        u, v = (i + 0.5) / NX, (j + 0.5) / NZ
-        f.material_index = 1 if (0.07 < v < 0.13) or on_rune(u, v) else 0
-cloth = link('cloth', bm, CLOTH); cloth.data.materials.append(mats[PAINT])
-m = cloth.modifiers.new('thick', 'SOLIDIFY'); m.thickness = 0.006; m.offset = 0
-bm = bmesh.new()  # the hem wrapped over the bar
-bmesh.ops.create_cone(bm, cap_ends=True, segments=8, radius1=0.015, radius2=0.015, depth=L + 0.01)
-bmesh.ops.rotate(bm, verts=bm.verts, cent=Vector(), matrix=Matrix.Rotation(math.pi / 2, 3, 'Y'))
-bmesh.ops.translate(bm, vec=Vector((X0 + L / 2, 0, BAR)), verts=bm.verts)
-link('hem', bm, CLOTH)
+# ---- ribbons tied round it under the band: a cloth knot, and streamers of red and gold hanging from it, twisting and lifting in the wind ----
+TIE = BAND - 0.045
+tube('wrap', helix(0.036, TIE - 0.012, TIE + 0.012, 2.5), 0.0075, CLOTH)
+bm = bmesh.new(); bmesh.ops.create_icosphere(bm, subdivisions=2, radius=0.017)  # the knot, on the right
+bmesh.ops.scale(bm, vec=Vector((1.1, 0.9, 1.25)), verts=bm.verts)
+bmesh.ops.translate(bm, vec=Vector((0.043, -0.004, TIE)), verts=bm.verts)
+link('knot', bm, CLOTH)
+def streamer(name, mat, angle, length, width, lift, twist, sway, phase):
+    """A cloth strip from the knot: out from the shaft at an angle (round from +x), falling, lifted a little by the wind, twisting."""
+    n = 22
+    out = Vector((math.cos(angle), math.sin(angle), 0)); wind = Vector((0.2, -1, 0)).normalized()
+    pts = []
+    for k in range(n + 1):
+        t = k / n
+        p = Vector((0.045, 0, TIE)) + out * (0.02 + 0.07 * t ** 0.6) + Vector((0, 0, -length * t)) \
+            + wind * (lift * t * t) + Vector((0, 0, lift * 0.5 * t * t)) + out.cross(Vector((0, 0, 1))) * (sway * math.sin(t * 5 + phase) * t)
+        pts.append(p)
+    bm = bmesh.new(); rows = []
+    for k, p in enumerate(pts):
+        tan = (pts[min(k + 1, n)] - pts[max(k - 1, 0)]).normalized()
+        side = tan.cross(out).normalized()
+        side = Matrix.Rotation(twist * k / n + 0.3 * math.sin(k / n * 4 + phase), 3, tan) @ side
+        w = width * (1 - 0.15 * k / n)
+        rows.append((bm.verts.new(p - side * w / 2), bm.verts.new(p + side * w / 2)))
+    for k in range(n):
+        bm.faces.new((rows[k][0], rows[k][1], rows[k + 1][1], rows[k + 1][0]))
+    # a forked end: the last row pinched in at the middle
+    a0, a1 = rows[n]; mid = bm.verts.new((a0.co + a1.co) / 2 + (pts[n] - pts[n - 1]).normalized() * -0.025)
+    bm.faces.new((a0, mid, a1))
+    ob = link(name, bm, mat)
+    m = ob.modifiers.new('thick', 'SOLIDIFY'); m.thickness = 0.004; m.offset = 0
+    return ob
+streamer('ribbon1', CLOTH, -0.35, 0.44, 0.05, 0.1, 2.2, 0.03, 0.0)
+streamer('ribbon2', PAINT, -0.05, 0.35, 0.036, 0.13, -1.8, 0.025, 1.3)
+streamer('ribbon3', CLOTH, 0.3, 0.28, 0.042, 0.08, 1.4, 0.02, 2.4)
+streamer('ribbon4', PAINT, -0.75, 0.22, 0.03, 0.06, -2.6, 0.015, 3.1)
 
 # ---- the measuring cord: a coil below the grip, its tail out over the left and hanging, knotted every span, a plumb bob on its end ----
 coil = helix(0.038, 0.78, 0.88, 4.5, a0=-0.6)
