@@ -348,17 +348,37 @@ namespace Jarldom
             GameObject go = Base("wood_pole_log", WatchPostName);
             if (go == null || pole == null) return;
             var look = new GameObject("new"); look.transform.SetParent(go.transform, false);
-            GameObject p = Assets.Model(pole, look.transform, Vector3.zero, Quaternion.identity, 1f);
-            p.transform.localScale = new Vector3(0.6f, 0.75f, 0.6f);
-            Bounds pb = Assets.MeshBounds(look.transform, p); p.transform.localPosition += Vector3.up * -pb.min.y;
             Material wood = pole.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null && m.HasProperty("_Color"));
-            Material red = Plain(wood, new Color(0.62f, 0.12f, 0.08f));
-            var flag = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            Object.DestroyImmediate(flag.GetComponent<Collider>());
-            flag.transform.SetParent(look.transform, false);
-            flag.transform.localScale = new Vector3(0.04f, 0.32f, 0.5f);
-            flag.transform.localPosition = new Vector3(0, pb.size.y * 0.86f, 0.27f);
-            flag.GetComponent<MeshRenderer>().sharedMaterial = red;
+            // A hewn stake wedged in a little cairn (made in Blender: Models/marker/post.py), an iron band under its turned head, the othala
+            // rune on its face, a red pennant on a lashed crossbar, a knotted cord with a plumb bob. The plain pole and flag, if it can't be had.
+            Mesh post = CarvedMesh("post", "marker");
+            Material hewn = Assets.Find("wood_pole")?.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null && m.shader != null && m.shader.name == "Custom/Piece");
+            Material rock = Assets.Find("rock4_forest")?.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null);
+            if (post != null && hewn != null)
+            {
+                Material grain = new Material(hewn) { name = "JarldomPostWood", hideFlags = HideFlags.HideAndDontSave }; grain.mainTextureScale = Vector2.one * StakeGrain; Assets.Owned.Add(grain);
+                Material stone = rock != null ? new Material(rock) { name = "JarldomPostStone", hideFlags = HideFlags.HideAndDontSave } : Plain(hewn, new Color(0.42f, 0.42f, 0.4f));
+                if (rock != null) { stone.mainTextureScale = Vector2.one * 0.35f; stone.color *= new Color(0.75f, 0.75f, 0.78f); Assets.Owned.Add(stone); }
+                Material cloth = Plain(hewn, new Color(0.56f, 0.1f, 0.06f)), stripe = Plain(hewn, new Color(0.86f, 0.64f, 0.24f));
+                foreach (Material c in new[] { cloth, stripe }) foreach (string k in new[] { "_Glossiness", "_Metallic", "_Smoothness" }) if (c != null && c.HasProperty(k)) c.SetFloat(k, 0); // wool, not lacquer
+                var m = new GameObject("post"); m.transform.SetParent(look.transform, false);
+                m.AddComponent<MeshFilter>().sharedMesh = post;
+                // (wood, rope, iron, cloth, paint, stone: as the model's materials are numbered)
+                m.AddComponent<MeshRenderer>().sharedMaterials = new[] { grain, Plain(hewn, new Color(0.62f, 0.52f, 0.34f)), Plain(hewn, new Color(0.16f, 0.155f, 0.15f)), cloth, stripe, stone };
+            }
+            else
+            {
+                GameObject p = Assets.Model(pole, look.transform, Vector3.zero, Quaternion.identity, 1f);
+                p.transform.localScale = new Vector3(0.6f, 0.75f, 0.6f);
+                Bounds pb = Assets.MeshBounds(look.transform, p); p.transform.localPosition += Vector3.up * -pb.min.y;
+                Material red = Plain(wood, new Color(0.62f, 0.12f, 0.08f));
+                var flag = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                Object.DestroyImmediate(flag.GetComponent<Collider>());
+                flag.transform.SetParent(look.transform, false);
+                flag.transform.localScale = new Vector3(0.04f, 0.32f, 0.5f);
+                flag.transform.localPosition = new Vector3(0, pb.size.y * 0.86f, 0.27f);
+                flag.GetComponent<MeshRenderer>().sharedMaterial = red;
+            }
             Finish(go, look, "Watch post", "A waypoint for the colony's guards: they walk its watch posts in turn, in the order they were raised, and look about at each. Raise two or more round what's to be watched.",
                 Piece.PieceCategory.Misc, ("Wood", 2), ("LeatherScraps", 1));
             go.AddComponent<WatchPost>();
