@@ -35,14 +35,18 @@ namespace Shieldwall
             {Transform t=go.transform.Find(part);if(t!=null)Object.DestroyImmediate(t.gameObject);}
             Object.DestroyImmediate(go.GetComponent<WearNTear>()); // the horde's blows go to the siege, not the piece
             int layer=LayerMask.NameToLayer("piece");
-            Transform source=look.transform.Find("Model");
-            var model=new GameObject("Model"){layer=layer};
-            model.transform.SetParent(go.transform,false);model.transform.localScale=Vector3.one*1.1f;
-            model.AddComponent<MeshFilter>().sharedMesh=source.GetComponent<MeshFilter>().sharedMesh;
-            model.AddComponent<MeshRenderer>().sharedMaterials=source.GetComponent<MeshRenderer>().sharedMaterials;
-            var solid=model.AddComponent<MeshCollider>();solid.sharedMesh=source.GetComponent<MeshCollider>()?.sharedMesh??source.GetComponent<MeshFilter>().sharedMesh;
-            // Convex: the game sets a ghost down by its nearest convex collider, and with none it puts it far off in the sky.
-            solid.convex=true;
+            // Its own model (Look.cs); the boss stone's, if that can't be had.
+            if(!Look.Dress(go))
+            {
+                Transform source=look.transform.Find("Model");
+                var model=new GameObject("Model"){layer=layer};
+                model.transform.SetParent(go.transform,false);model.transform.localScale=Vector3.one*1.1f;
+                model.AddComponent<MeshFilter>().sharedMesh=source.GetComponent<MeshFilter>().sharedMesh;
+                model.AddComponent<MeshRenderer>().sharedMaterials=source.GetComponent<MeshRenderer>().sharedMaterials;
+                var solid=model.AddComponent<MeshCollider>();solid.sharedMesh=source.GetComponent<MeshCollider>()?.sharedMesh??source.GetComponent<MeshFilter>().sharedMesh;
+                // Convex: the game sets a ghost down by its nearest convex collider, and with none it puts it far off in the sky.
+                solid.convex=true;
+            }
             // The boss stone's glow and light, lit while a siege is on.
             Transform effects=look.transform.Find("active_effects");
             if(effects!=null)
@@ -67,7 +71,7 @@ namespace Shieldwall
             if(pillar!=null&&pillar.GetComponent<Piece>() is Piece stonePiece)piece.m_placeEffect=stonePiece.m_placeEffect;
             piece.m_resources=new[]{Need("Stone",30),Need("Wood",10),Need("Flint",5),Need("Resin",5)}.Where(r=>r.m_resItem!=null).ToArray();
             piece.m_craftingStation=bench.GetComponent<CraftingStation>();
-            Sprite icon=Assets.Icon(look,PrefabName,Quaternion.Euler(0,-30,0));
+            Sprite icon=Assets.Icon(go,PrefabName,Quaternion.Euler(0,-30,0));
             if(icon!=null)piece.m_icon=icon;
 
             CraftingStation station=go.GetComponent<CraftingStation>();
@@ -81,7 +85,7 @@ namespace Shieldwall
             return go;
         }
         private static Piece.Requirement Need(string item,int amount)=>new Piece.Requirement{m_resItem=Assets.Find(item)?.GetComponent<ItemDrop>(),m_amount=amount,m_recover=true};
-        internal static void Forget(){_prefab=null;}
+        internal static void Forget(){_prefab=null;Look.Forget();}
     }
 
     internal sealed class Warstone:MonoBehaviour,IDestructible
@@ -133,7 +137,7 @@ namespace Shieldwall
         private void Update()
         {
             if(View==null||!View.IsValid())return;
-            if(_glow!=null&&_glow.activeSelf!=(Phase!=Phase.Idle))_glow.SetActive(Phase!=Phase.Idle);
+            if(_glow!=null&&_glow.activeSelf!=(Phase!=Phase.Idle)){_glow.SetActive(Phase!=Phase.Idle);Look.Glow(gameObject,Phase!=Phase.Idle);}
             // The ring shown while you look at it marks how far it feeds staves.
             if(_marker!=null&&Time.time>=_nextMarker){_nextMarker=Time.time+2;float reach=Reach;if(Mathf.Abs(_marker.m_radius-reach)>0.1f)_marker.m_radius=reach;}
             if(View.IsOwner()){Director.Run(this);Director.Footing(this);}

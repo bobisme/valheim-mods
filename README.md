@@ -205,7 +205,7 @@ Native Creative physics, scoring, sound and reload checks passed; remote multipl
 A tower-defence game inside the game. Build a **Warstone**, raise towers with **war staves** around it, and hold the line when a horde
 comes for it.
 
-**The Warstone** (hammer → misc; 30 stone, 10 wood, 5 flint, 5 resin, near a workbench) wards everyone within **40 m** (4 m farther for each mark, 80 m at ten): faster health
+**The Warstone** (hammer → misc; 30 stone, 10 wood, 5 flint, 5 resin, near a workbench), a split, iron-bound menhir cut with war runes and ringed with shields, wards everyone within **40 m** (4 m farther for each mark, 80 m at ten): faster health
 and stamina regeneration, then carry weight, eitr regeneration and armor as it gains **marks** (one for each siege it holds). Under a roof
 with a fire burning within 10 m it stands at a **hearth**: the ward doubles and adds comfort. One stone to a home (none within 80 m of
 another). **E** opens its stave crafting; **Shift+E** opens the **war council**, where you sound the **war horn**.

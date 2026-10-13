@@ -1,3 +1,5 @@
+0.4.14: The Warstone has a look of its own instead of Eikthyr's altar stone: a broad menhir with its head sheared off, two spiked iron bands, war runes cut front and back that glow like embers and flare while a siege is on, on a rough plinth ringed rim to rim with the game's own shields, with swords, an axe, an atgeir and a skull of the fallen. Stones already built change when the game restarts. Claude Tools: siege look tries other rock and iron for it.
+
 0.4.13: Much less network traffic in a siege. The Warstone kept its whole siege plan (1-7 KB) and the last saga on its record, and every blow rewrote that record, so it was resent to every player several times a second; it now keeps a few dozen bytes that every game rebuilds the plan from, takes blows at most twice a second (at once when it cracks further or falls), and drops the old saga when a new siege is called. The horde shares one earthwork a second (each one resends the zone's whole terrain), and the rock-hit puff shows at most a few times a second.
 
 0.4.12: For other mods: Api.CallOff ends a siege as if the horde had been paid to go, with nothing won or lost (Jarldom's Fuling tribute uses it).
