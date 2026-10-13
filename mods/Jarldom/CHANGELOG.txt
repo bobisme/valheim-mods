@@ -1,3 +1,5 @@
+0.1.40: a day's grace from Hel. A villager who falls again within a day of rising isn't lost, even if their bed was lost in the same fight: they rise again as usual
+
 0.1.39: the Fulings' tribute raid fits the colony. Until the world has reached the Plains (Moder defeated), an unpaid tribute brings a small band (plain Fulings, one more for each rank past Hamlet, and two greydwarfs they drive before them), gone back to their camp at dawn or when paid; the game's whole Fuling horde comes only after that (TributeRaid setting). And no one rises while a raid is on: the fallen wait until it's over, instead of getting up at their bed in the thick of it to fall again until Hel keeps them
 
 0.1.38: woodcutters (and miners) walk right up to what they're striking. Trees and rocks are measured to their real surface, not their bounding box: a tree's trunk with its boughs spans several metres, and a woodcutter would stop and swing at it from far off

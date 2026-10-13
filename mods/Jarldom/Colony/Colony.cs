@@ -435,6 +435,7 @@ namespace Jarldom
                 Vector3? at = trader ? Road(f) ?? Spot(Position + Seat.transform.forward * 3, 2.5f) : Survey_BedSpot(s.Bed) ?? (Vector3?)Spot(Position, 3);
                 if (at == null) continue;
                 if (!ZNetScene.instance.IsAreaReady(at.Value)) continue;
+                if (!trader) Villagers.Rose(s, Now); // (the day's grace from Hel starts)
                 Humanoid h = Villagers.Spawn(this, s, at.Value, f.Gear);
                 if (h == null) continue;
                 R.Fallen.Remove(f);

@@ -16,6 +16,9 @@ namespace Jarldom
         public const string TombKey = "jarldom_tombof", ClaimKey = "jarldom_owner";
 
         // A change to one villager, carried out by the game that owns it.
+        public const string RoseKey = "roseat"; // (in the soul's counts: the game minute they last rose)
+        public static void Rose(VillagerState s, double now) => s.Counts[RoseKey] = (int)(now / 60);
+        public static bool JustRose(VillagerState s, double now) => s.Counts.TryGetValue(RoseKey, out int m) && now / 60 - m < Clock.DayLength / 60;
         public static void Command(string vid, string action, string arg)
         {
             Brain b = ByVid(vid);
@@ -197,6 +200,8 @@ namespace Jarldom
             foreach (string k in s.Skills.Keys.ToList()) s.Skills[k] *= 0.95f;
             bool lost = string.IsNullOrEmpty(s.Bed) || s.Disgraced;
             if (lost && colony != null && colony.HelSaves()) { lost = false; colony.Log("text", s.Name, "", $"Hel let {s.Name} go."); }
+            // (a day's grace after rising: Hel doesn't take one who has only just come back, if their bed was lost in the same fight)
+            if (lost && colony != null && JustRose(s, colony.Now)) { lost = false; colony.Log("text", s.Name, "", $"{s.Name} fell again, so soon after rising that Hel would not have them yet."); }
             Inventory bag = h.GetInventory();
             // Worn gear stays on a soul that will rise; the rest (and everything, for one lost to Hel) goes to a tombstone, filled the game's way.
             byte[] gear = new byte[0];
