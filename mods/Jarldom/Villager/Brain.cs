@@ -12,6 +12,7 @@ namespace Jarldom
     {
         public readonly Humanoid Body; public readonly MonsterAI Ai; public readonly ZNetView View; public readonly Mover Move;
         public VillagerState S; public Colony Colony;
+        public float SongUntil;
         public Task Task; public Activity Activity = Activity.Idle; public string Doing = "";
         public string LastAttacker = ""; public Character Foe; private float _foeUntil;
         public bool KeepDoorsOpen; public float Stamina = 1f;
@@ -128,7 +129,7 @@ namespace Jarldom
             if (Time.time >= _nextGear) { _nextGear = Time.time + 1f; Gear.Maintain(this); }
             if (Time.time >= _nextFoes) { _nextFoes = Time.time + 0.3f; Combat.Think(this); }
             if (Time.time >= _nextMoodSync) { _nextMoodSync = Time.time + 2f; SyncHover(); }
-            if (Time.time >= _nextGreet) { _nextGreet = Time.time + 1.5f; Plugin.Guard(() => Greet.Near(this)); Plugin.Guard(() => Sky.Look(this)); }
+            if (Time.time >= _nextGreet) { _nextGreet = Time.time + 1.5f; Plugin.Guard(() => Greet.Near(this)); Plugin.Guard(() => Sky.Look(this)); Plugin.Guard(() => Songs.Tick(this)); }
             if (Time.time >= _nextStep) { _nextStep = Time.time + 2f; Upkeep.Step(this); } // (where feet wear a path)
             if (_dirty && Time.time >= _nextSave) { _nextSave = Time.time + 30f; Save(); } // (the soul is sent to everyone when written: twice a minute is plenty; deaths and commands save at once)
             if (Combat.Busy(this)) return;
@@ -342,6 +343,7 @@ namespace Jarldom
         {
             float mood = Jarldom.Mood.Multiplier(Jarldom.Mood.Of(S, Now));
             if (Jarldom.Mood.Has(S, "inspired", Now)) mood *= 1.25f; // a day of their best work
+            if (Time.time < SongUntil) mood *= WorkSongs.Pace; // (singing at the work with others)
             return mood * Plugin.Instance.WorkRate.Value;
         }
 

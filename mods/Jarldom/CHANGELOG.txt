@@ -1,3 +1,5 @@
+0.1.55: work songs: three or more villagers at the same work within 15 m keep a rhythm (10% quicker) and one leads a chant in Old Norse now and then. A miserable colony (mood under -40) goes quiet: no greetings, no gossip, no songs, and the great hall says so.
+
 0.1.54: when Omens' northern lights burn (Omens 0.6.4), villagers who aren't busy go out under the open sky to watch, each saying what they see in turn (a mood that lasts the day). Of an evening a greeting is good evening, not good day; a crowd doesn't repeat the line just said.
 
 0.1.53: villagers greet you in the world, in Old Norse with the English beneath: a hello as you come near, thanks for food you hand them, a cry when a raid comes, a grumble when the rain starts, good night at bedtime (never a chorus: one at a time, and each says hello to you at most every 20 minutes). The gothi's cleansing rite is now also a disgraced soul's atonement: if Odin hears it, the shame is washed out; the villager panel lists every way back.

@@ -454,4 +454,13 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Greetings.Show(("Heill, jarl!", "Hail, jarl!")) == "<size=75%><i>Heill, jarl!</i></size>\nHail, jarl!", "Old Norse small, English beneath");
 }
 
+{
+    // Work songs: three or more together, and not a miserable lot.
+    Check(!WorkSongs.Sing(2, 50) && WorkSongs.Sing(3, 0) && !WorkSongs.Sing(5, -60), "Three together sing; two don't; a miserable crew works in silence");
+    Check(WorkSongs.Letters().All(ch => ch < 128 || Greetings.Glyphs.IndexOf(ch) >= 0), "Songs use only letters the game's font has: " + new string(WorkSongs.Letters().Where(ch => ch >= 128 && Greetings.Glyphs.IndexOf(ch) < 0).ToArray()));
+    var chops = Enumerable.Range(0, 200).Select(i => WorkSongs.Pick("chop", new Random(i)).english).ToList();
+    Check(chops.Any(l => l.Contains("axe") || l.Contains("oak") || l.Contains("Chop")) && chops.All(l => l != ""), "Felling has its own chants");
+    Check(Enumerable.Range(0, 50).All(i => WorkSongs.Any.Contains(WorkSongs.Pick("cook", new Random(i)))), "Other work sings the common chants");
+}
+
 Console.WriteLine($"Jarldom: {checks} checks passed");

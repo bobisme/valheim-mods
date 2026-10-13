@@ -48,7 +48,7 @@ namespace Jarldom
         // In the hall: a line about something that really happened lately.
         public static void Gossip(Brain b)
         {
-            if (b.Colony == null) return;
+            if (b.Colony == null || Greet.Quiet(b.Colony)) return; // (a miserable hall keeps its talk to itself)
             var rng = new System.Random(Environment.TickCount ^ b.S.Vid.GetStableHashCode());
             if (rng.Next(3) == 0 && b.S.Has("merry")) { b.Say(Merry[rng.Next(Merry.Length)], 5); foreach (Brain o in Villagers.All.Where(o => o != b && Vector3.Distance(o.Pos, b.Pos) < 10)) Mood.Add(o.S, "merry", o.Now); return; }
             if (!Told.TryGetValue(b.S.Colony, out List<string> told)) Told[b.S.Colony] = told = new List<string>();

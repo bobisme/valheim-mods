@@ -38,12 +38,28 @@ namespace Jarldom
             if (Recent.Count > 20) Recent.RemoveAt(0);
             return true;
         }
-        public static void Forget() { ByVillager.Clear(); ByPair.Clear(); ByPlayer.Clear(); _wet.Clear(); }
+        public static void Forget() { ByVillager.Clear(); ByPair.Clear(); ByPlayer.Clear(); _wet.Clear(); Gloom.Clear(); }
+
+        // A miserable colony (mood under -40 on average): no greetings, no gossip, no songs; the hall is quiet.
+        private static readonly Dictionary<string, (bool quiet, float at)> Gloom = new Dictionary<string, (bool, float)>();
+        private static float _toldQuiet;
+        public static bool Quiet(Colony c)
+        {
+            if (c == null) return false;
+            if (Gloom.TryGetValue(c.Id, out var g) && Time.time - g.at < 10f) return g.quiet;
+            var mine = Villagers.All.Where(o => o.S.Colony == c.Id).ToList();
+            bool quiet = mine.Count > 0 && mine.Average(o => (double)Mood.Of(o.S, o.Now)) < -40;
+            Gloom[c.Id] = (quiet, Time.time);
+            Player me = Player.m_localPlayer;
+            if (quiet && me != null && Time.time - _toldQuiet > 600f && c.RoomAt(me.transform.position, RoomType.GreatHall) != null)
+            { _toldQuiet = Time.time; me.Message(MessageHud.MessageType.Center, "The hall is quiet."); }
+            return quiet;
+        }
 
         // Every second or two: a player close by, seen, and not in a fight or asleep.
         public static void Near(Brain b)
         {
-            if (b.Colony == null || Combat.Busy(b) || b.Task is SleepTask || b.Task is AscendTask || b.Colony.RaidOn) return;
+            if (b.Colony == null || Combat.Busy(b) || b.Task is SleepTask || b.Task is AscendTask || b.Colony.RaidOn || Quiet(b.Colony)) return;
             if (ByVillager.TryGetValue(b.S.Vid, out float v) && Time.time < v) return;
             Player p = Player.GetAllPlayers().Where(x => x != null && !x.IsDead() && Vector3.Distance(x.transform.position, b.Pos) < Reach && Mathf.Abs(x.transform.position.y - b.Pos.y) < 2.5f)
                 .OrderBy(x => Vector3.Distance(x.transform.position, b.Pos)).FirstOrDefault();
