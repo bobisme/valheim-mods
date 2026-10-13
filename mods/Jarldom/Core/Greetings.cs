@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace Jarldom
 {
-    public enum Greeting { Hello, Thanks, Fear, Weather, Night, Awe, Welcome, Farewell }
+    public enum Greeting { Hello, Thanks, Fear, Weather, Night, Awe, Welcome, Farewell, Return }
 
     // What villagers call out in the world: a short line in Old Norse with the English under it. {name} is the player's name;
     // "jarl" is said as is. Only letters the game's font has (þ ð æ ö and the accented vowels; never ǫ or œ).
@@ -84,6 +84,14 @@ namespace Jarldom
                 ("Lifi nafn þitt.", "May your name live."),
                 ("Valkyrjur bera þik heim.", "The Valkyries bear you home."),
                 ("Þú vart einn inn bezti.", "You were one of the best of us."),
+            },
+            [Greeting.Return] = new[] // ({name}: the one come back from Valhalla)
+            {
+                ("{name}! {name} er kominn aftr!", "{name}! {name} has come back!"),
+                ("Valhöll sendir hjálp!", "Valhalla sends help!"),
+                ("Sjáið! Þat er {name}!", "Look! It's {name}!"),
+                ("Óðinn heyrði oss!", "Odin heard us!"),
+                ("Einherjar berst með oss!", "One of the Einherjar fights with us!"),
             },
             [Greeting.Welcome] = new[]
             {

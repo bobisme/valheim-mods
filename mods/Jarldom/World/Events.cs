@@ -386,11 +386,13 @@ namespace Jarldom
                 Running[c.Id] = (name, c.R.Log.Count(e => e.Kind == "death" || e.Kind == "lost"));
                 Fought.Remove(c.Id);
                 c.Log("raid", "", name);
+                Returning.Begin(c.R.Flags);
                 Plugin.Guard(() => Greet.Raid(c));
                 c.HornUntil = Time.time + 600;
                 Assets.Effect("sfx_fader_bell", c.Position);
             }
             if (c.RaidOn && !Fought.Contains(c.Id) && Foes(c, reach + 30)) Fought.Add(c.Id);
+            if (c.RaidOn) Plugin.Guard(() => Einherjar.Watch(c));
             if (!near && c.RaidOn) // (just begun is near: never both)
             {
                 c.RaidOn = false; c.HornUntil = 0;

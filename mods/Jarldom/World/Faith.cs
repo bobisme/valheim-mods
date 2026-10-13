@@ -185,6 +185,7 @@ namespace Jarldom
             }
             Inventory bag = b.Body.GetInventory();
             foreach (ItemDrop.ItemData item in bag.GetAllItems().ToList()) value += (int)(Faith.Value(item) * item.m_stack); // they take what they carry
+            c.Z.Set(Einherjar.GearKey + s.Vid, Returning.Gear(bag.GetEquippedItems().Select(i => (i.m_dropPrefab != null ? i.m_dropPrefab.name : "", i.m_quality)))); // (what they'd come back in)
             bool sworn = !string.IsNullOrEmpty(s.Sworn) && Villagers.ByVid(s.Sworn)?.Task is AscendTask;
             c.R.Deeds += (int)(Worth.AscensionDeeds(value, sworn) * (ship ? 1.5f : 1f)); // (by ship: the greater honour)
             Faith.Add(c, "odin", ship ? 15 : 10, s.Name + " went to Valhalla" + (ship ? " by ship" : ""));

@@ -42,8 +42,9 @@ namespace Jarldom
             try
             {
                 VillagerPrefab.Ensure(scene);
+                Einherjar.Ensure();
                 Pieces.Ensure(scene);
-                foreach (GameObject go in VillagerPrefab.All.Concat(Pieces.All).Concat(new[] { SoulStore.Prefab })) Register(scene, go);
+                foreach (GameObject go in VillagerPrefab.All.Concat(Pieces.All).Concat(new[] { SoulStore.Prefab, Einherjar.Prefab }).Where(g => g != null)) Register(scene, go);
                 Items.RegisterScene(scene);
             }
             catch (Exception e) { Plugin.Warn("Jarldom: registering prefabs failed: " + e); }
@@ -82,7 +83,7 @@ namespace Jarldom
                 }
             Registered.Clear();
             Owned.Clear();
-            Pieces.Forget(); VillagerPrefab.Forget();
+            Pieces.Forget(); VillagerPrefab.Forget(); Einherjar.Forget();
             if (_holder != null) Object.Destroy(_holder);
             _holder = null;
         }

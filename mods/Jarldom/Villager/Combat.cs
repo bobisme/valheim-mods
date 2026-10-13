@@ -65,7 +65,7 @@ namespace Jarldom
         }
 
         // One of a raid: the draugr jarl's warband, an event's creature (the Fulings' army), or one hunting players or villagers.
-        private static bool Raider(Character c, Colony col)
+        internal static bool Raider(Character c, Colony col)
         {
             ZDO z = c.GetComponent<ZNetView>()?.GetZDO();
             return z != null && (z.GetString(Warband.BandKey, "") == (col?.Id ?? "-") || z.GetBool(ZDOVars.s_eventCreature) || z.GetString(Draugr.NameKey, "").StartsWith("Draugr ")) || Hunting(c);

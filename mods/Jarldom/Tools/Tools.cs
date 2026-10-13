@@ -521,6 +521,32 @@ namespace Jarldom
                 case "shipburial": { Vector3 at = new Vector3(F(a[2]), 0, F(a[3])); at.y = Ground(at); Quaternion rot = Quaternion.Euler(0, a.Length > 4 ? F(a[4]) : 0, 0); Vector3 dir = ShipBurial.Out(at, c.Position); Net.ShipBurial_(at, rot, dir, at - dir * 12f + Vector3.up * 1.5f); output(new JObject { ["from"] = V(at), ["out"] = V(dir), ["buildHere"] = Pieces.KarveWhy(at) }); } break; // (the last voyage, without an ascension; and whether a funeral ship could be built there)
                 case "music": { MusicMan mm = MusicMan.instance; if (mm == null) { error("no music"); return; } if (a.Length > 2) mm.TriggerMusic(a[2]); output(new JObject { ["tracks"] = new JArray(mm.m_music.Where(m => m != null).Select(m => $"{m.m_name} (loop {m.m_loop}, vol {m.m_volume:0.##})")) }); } break;
                 case "valkyrie": { Vector3 at = a.Length > 3 ? new Vector3(F(a[2]), 0, F(a[3])) : me.transform.position + me.transform.forward * 10f; at.y = Ground(at); Net.ValkyrieCircle(at); output(new JObject { ["circling"] = V(at) }); } break; // (the ascension's flight, without one)
+                case "einherjar":
+                    {
+                        // With no name: whether the raid is going badly enough, and who'd come. With a name (or "next"): bring them now,
+                        // as a test (not marked as come back, not in the saga's tally of returns).
+                        var (losing, why) = Einherjar.Losing(c);
+                        var souls = c.R.Roster.Where(r => r.State == SoulState.Ascended).ToList();
+                        if (a.Length < 3) { output(new JObject { ["raid"] = c.RaidOn, ["losing"] = losing, ["why"] = why, ["raidno"] = c.R.Flags.TryGetValue(Returning.RaidNo, out int rn) ? rn : 0, ["thisraid"] = c.R.Flags.TryGetValue(Returning.RaidKey, out int tr) ? tr : 0,
+                            ["here"] = new JArray(Character.GetAllCharacters().Where(ch => Einherjar.Is(ch)).Select(ch => $"{ch.GetHoverName()} at {V(ch.transform.position)} hp {Mathf.RoundToInt(ch.GetHealth())} target {(ch.GetBaseAI() as MonsterAI)?.GetTargetCreature()?.m_name ?? "-"} weapon {(ch as Humanoid)?.GetCurrentWeapon()?.m_shared.m_name ?? "-"} left {(ch.GetComponent<ZNetView>().GetZDO().GetLong(Einherjar.UntilKey, 0L) - ZNet.instance.GetTime().Ticks) / TimeSpan.TicksPerSecond}s")),
+                            ["souls"] = new JArray(souls.Select(r => $"{r.Name} worth {Mathf.RoundToInt(r.Worth)}{(Returning.Returned(c.R.Flags, r.Vid) ? " (came back)" : "")} gear [{c.Z.GetString(Einherjar.GearKey + r.Vid, "")}]")) }); return; }
+                        // "foe [prefab] [metres]": one of the warband (a raid begins) that far from the pillars; "reset": every soul may come back again.
+                        if (a[2] == "foe")
+                        {
+                            GameObject fp = ZNetScene.instance.GetPrefab(a.Length > 3 ? a[3] : "Draugr"); if (fp == null) { error("no prefab"); return; }
+                            float dist = a.Length > 4 ? F(a[4]) : 6f;
+                            Vector3 fat = Colony.Spot(c.Position + (me.transform.position - c.Position).normalized * dist, 3f) ?? c.Position + Vector3.forward * dist;
+                            GameObject fo = UnityEngine.Object.Instantiate(fp, fat, Quaternion.identity);
+                            fo.GetComponent<ZNetView>().GetZDO().Set(Warband.BandKey, c.Id);
+                            output(new JObject { ["foe"] = fp.name, ["at"] = V(fat) }); return;
+                        }
+                        if (a[2] == "reset") { foreach (string k in c.R.Flags.Keys.Where(k => k.StartsWith("einherjar:")).ToList()) c.R.Flags.Remove(k); c.MarkDirty(); output(new JObject { ["reset"] = true }); return; }
+                        RosterRow soul = a[2] == "next" ? souls.Where(r => !Returning.Returned(c.R.Flags, r.Vid)).OrderByDescending(r => r.Worth).FirstOrDefault() : souls.FirstOrDefault(r => r.Name.StartsWith(a[2], StringComparison.OrdinalIgnoreCase));
+                        if (soul == null) { error("no soul in Valhalla called " + a[2]); return; }
+                        string fail = Einherjar.Call(c, soul.Vid, false);
+                        if (fail != "") error(fail); else output(new JObject { ["coming"] = soul.Name });
+                    }
+                    break;
                 case "dim":
                     {
                         // As if their worth last rose that many days ago (0: today).

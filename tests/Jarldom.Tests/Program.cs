@@ -500,4 +500,24 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     var fl2 = new Dictionary<string, int>(); Ascensions.Claim(fl2, "z", 55); Check(fl2["ascended:z"] == 55, "The ascension's day is kept for the memorial");
 }
 
+{
+    // They answer back: a losing raid (the hall attacked, or half the fighters down) brings back the worthiest soul not yet returned.
+    Check(Returning.Losing(true, 4, 0) && Returning.Losing(false, 4, 2) && !Returning.Losing(false, 4, 1) && !Returning.Losing(false, 0, 0) && Returning.Losing(false, 1, 1), "Losing: the hall attacked, or half the fighters down");
+    var souls = new List<(string vid, float worth)> { ("a", 100), ("b", 140), ("c", 120) };
+    var ef = new Dictionary<string, int>();
+    Check(Returning.Pick(ef, true, souls) == null, "No raid begun: no one comes");
+    Returning.Begin(ef);
+    Check(Returning.Pick(ef, false, souls) == null, "Not losing: no one comes");
+    string first = Returning.Pick(ef, true, souls);
+    Check(first == "b", "The worthiest comes first");
+    Returning.Mark(ef, first, 30);
+    Check(Returning.Pick(ef, true, souls) == null, "One a raid");
+    Returning.Begin(ef);
+    Check(Returning.Pick(ef, true, souls) == "c" && Returning.Returned(ef, "b") && ef["einherjar:b"] == 30, "Next raid: the next worthiest; never the same soul twice");
+    Returning.Mark(ef, "c", 31); Returning.Begin(ef); Returning.Mark(ef, "a", 32); Returning.Begin(ef);
+    Check(Returning.Pick(ef, true, souls) == null, "All have come back once: no more");
+    string kept = Returning.Gear(new[] { ("SwordIron", 2), ("ShieldBanded", 0), ("bad,name", 1), ("", 1) });
+    Check(kept == "SwordIron:2,ShieldBanded:1" && Returning.Worn(kept).SequenceEqual(new[] { ("SwordIron", 2), ("ShieldBanded", 1) }) && Returning.Worn(null).Count == 0, "Their gear kept as a short list, and read back");
+}
+
 Console.WriteLine($"Jarldom: {checks} checks passed");
