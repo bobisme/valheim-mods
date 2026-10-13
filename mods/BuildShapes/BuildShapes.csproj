@@ -1,3 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><AssemblyName>BuildShapes</AssemblyName><RootNamespace>BuildShapes</RootNamespace></PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Models/stake/*.json.gz" LogicalName="BuildShapes.%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

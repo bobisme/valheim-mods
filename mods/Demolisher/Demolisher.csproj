@@ -1,3 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><AssemblyName>Demolisher</AssemblyName><RootNamespace>Demolisher</RootNamespace></PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Models/stake/*.json.gz" LogicalName="Demolisher.%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

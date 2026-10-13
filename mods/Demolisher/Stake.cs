@@ -10,7 +10,7 @@ using Object=UnityEngine.Object;
 
 namespace Demolisher
 {
-    // The demolition stake: a thin pole with a red flag in the hammer's Misc tab. It is never built: a click marks a corner, and its
+    // The demolition stake: a split log with an iron wedge in its head (Models/stake) in the hammer's Misc tab. It is never built: a click marks a corner, and its
     // placement ghost stands where that corner will go.
     public sealed partial class Plugin
     {
@@ -53,6 +53,36 @@ namespace Demolisher
             float bottom=snaps.DefaultIfEmpty(0f).Min(),top=snaps.DefaultIfEmpty(1f).Max();
             // No snapping: the ghost goes where the next corner goes.
             foreach(Transform child in stake.transform.Cast<Transform>().ToList())if(child.name.StartsWith("$hud_snappoint",StringComparison.Ordinal))DestroyImmediate(child.gameObject);
+            // (the pole's wood: its first material is the snow on its top)
+            Material wood=stake.GetComponentsInChildren<Renderer>(true).Select(r=>r.sharedMaterial).FirstOrDefault(m=>m!=null && m.shader!=null && m.shader.name=="Custom/Piece");
+            Mesh mesh=wood!=null?StakeMesh():null;
+            if(mesh!=null)
+            {
+                // Its own look, made in Blender (Models/stake): a split log with an iron wedge driven into its head, banded red and black,
+                // broken boards nailed across it, a chain with a hook. The pole's own model goes.
+                foreach(var lod in stake.GetComponentsInChildren<LODGroup>(true))DestroyImmediate(lod);
+                foreach(var r in stake.GetComponentsInChildren<Renderer>(true))DestroyImmediate(r);
+                var look=new GameObject("Model");look.transform.SetParent(stake.transform,false);
+                look.AddComponent<MeshFilter>().sharedMesh=mesh;
+                // (wood, weathered boards, iron, red paint, black paint: as the model's materials are numbered)
+                look.AddComponent<MeshRenderer>().sharedMaterials=new[]{Grain(wood,new Color(0.85f,0.78f,0.72f)),Grain(wood,new Color(0.72f,0.7f,0.66f)),Plain(wood,new Color(0.16f,0.155f,0.15f)),Plain(wood,new Color(0.55f,0.06f,0.04f)),Plain(wood,new Color(0.05f,0.045f,0.04f))};
+            }
+            else BuildPoleLook(stake,bottom,top,wood);
+            var piece=stake.GetComponent<Piece>();
+            piece.m_name="Demolition stake";
+            piece.m_description="Mark an area to demolish. Click the ground for each corner, click the first corner (or press E) to close it, then E: everything highlighted red inside is removed as the hammer would, materials dropped. Backspace removes the last corner, Shift+Backspace clears. The stake isn't built.";
+            piece.m_resources=new Piece.Requirement[0];
+            piece.m_craftingStation=null;
+            piece.m_category=Piece.PieceCategory.Misc;
+            piece.m_clipEverything=true;piece.m_groundPiece=false;piece.m_groundOnly=false;
+            piece.m_enabled=true;
+            try{Sprite icon=StakeIcon(stake);if(icon!=null)piece.m_icon=icon;}
+            catch(Exception ex){Logger.LogWarning("No icon for the demolition stake: "+ex.Message);}
+            return stake;
+        }
+        // The look it had before, if the model can't be had: the pole made thin and tall with a red flag.
+        private void BuildPoleLook(GameObject stake,float bottom,float top,Material wood)
+        {
             // Thin and tall, standing on the ground; scaled through one parent, as the pole's model is rotated inside the prefab.
             const float Thin=0.35f,Tall=1.8f;
             var model=new GameObject("Model").transform;model.SetParent(stake.transform,false);
@@ -60,7 +90,6 @@ namespace Demolisher
             model.localPosition=new Vector3(0,-bottom*Tall,0);model.localScale=new Vector3(Thin,Tall,Thin);
             top=(top-bottom)*Tall;
             // A red flag: the pole's own material with a plain red texture, a little emissive so it shows from afar.
-            Material wood=stake.GetComponentsInChildren<Renderer>(true).Select(r=>r.sharedMaterial).FirstOrDefault(m=>m!=null);
             Material cloth=null;
             if(wood!=null)
             {
@@ -75,17 +104,49 @@ namespace Demolisher
             flag.transform.SetParent(stake.transform,false);
             flag.transform.localPosition=new Vector3(0.3f,top-0.22f,0);flag.transform.localScale=new Vector3(0.56f,0.36f,0.02f);
             if(cloth!=null)flag.GetComponent<MeshRenderer>().sharedMaterial=cloth;
-            var piece=stake.GetComponent<Piece>();
-            piece.m_name="Demolition stake";
-            piece.m_description="Mark an area to demolish. Click the ground for each corner, click the first corner (or press E) to close it, then E: everything highlighted red inside is removed as the hammer would, materials dropped. Backspace removes the last corner, Shift+Backspace clears. The stake isn't built.";
-            piece.m_resources=new Piece.Requirement[0];
-            piece.m_craftingStation=null;
-            piece.m_category=Piece.PieceCategory.Misc;
-            piece.m_clipEverything=true;piece.m_groundPiece=false;piece.m_groundOnly=false;
-            piece.m_enabled=true;
-            try{Sprite icon=StakeIcon(stake);if(icon!=null)piece.m_icon=icon;}
-            catch(Exception ex){Logger.LogWarning("No icon for the demolition stake: "+ex.Message);}
-            return stake;
+        }
+        private const float StakeGrain=0.6f; // (the wood texture repeats per metre)
+        private Material Grain(Material wood,Color tint)
+        {
+            var m=new Material(wood){name="Demolisher stake wood",color=tint};m.mainTextureScale=Vector2.one*StakeGrain;
+            _stakeOwned.Add(m);return m;
+        }
+        // The game's material in a plain colour (its texture taken away), matte: for the paint and iron.
+        private Material Plain(Material wood,Color color)
+        {
+            var m=new Material(wood){name="Demolisher stake paint",color=color};
+            if(m.HasProperty("_MainTex"))m.SetTexture("_MainTex",null);
+            if(m.HasProperty("_BumpMap"))m.SetTexture("_BumpMap",null);
+            foreach(string k in new[]{"_Glossiness","_Metallic","_Smoothness"})if(m.HasProperty(k))m.SetFloat(k,0);
+            _stakeOwned.Add(m);return m;
+        }
+        // The model (Models/stake/demostake.json.gz): per corner position, normal and uv, triangles per material.
+        private Mesh StakeMesh()
+        {
+            try
+            {
+                using(var raw=typeof(Plugin).Assembly.GetManifestResourceStream("Demolisher.demostake.json.gz"))
+                {
+                    if(raw==null)return null;
+                    using(var gz=new System.IO.Compression.GZipStream(raw,System.IO.Compression.CompressionMode.Decompress))
+                    using(var text=new System.IO.StreamReader(gz))
+                    {
+                        var d=Newtonsoft.Json.Linq.JObject.Parse(text.ReadToEnd());
+                        float[] v=d["v"].ToObject<float[]>(),n=d["n"].ToObject<float[]>(),uv=d["uv"].ToObject<float[]>();
+                        int[][] t=d["t"].ToObject<int[][]>();
+                        var verts=new Vector3[v.Length/3];var norms=new Vector3[verts.Length];var uvs=new Vector2[verts.Length];
+                        for(int i=0;i<verts.Length;i++){verts[i]=new Vector3(v[3*i],v[3*i+1],v[3*i+2]);norms[i]=new Vector3(n[3*i],n[3*i+1],n[3*i+2]);uvs[i]=new Vector2(uv[2*i],uv[2*i+1]);}
+                        var mesh=new Mesh{name="Demolisher stake"};
+                        mesh.vertices=verts;mesh.normals=norms;mesh.uv=uvs;mesh.colors=Enumerable.Repeat(Color.white,verts.Length).ToArray(); // (the game's piece shader reads the vertex colour)
+                        mesh.subMeshCount=t.Length;
+                        for(int k=0;k<t.Length;k++)mesh.SetTriangles(t[k],k);
+                        mesh.RecalculateBounds();mesh.RecalculateTangents();
+                        _stakeOwned.Add(mesh);
+                        return mesh;
+                    }
+                }
+            }
+            catch(Exception ex){Logger.LogWarning("The demolition stake's model: "+ex.Message);return null;}
         }
         private Sprite StakeIcon(GameObject stake)
         {

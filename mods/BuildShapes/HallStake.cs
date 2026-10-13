@@ -10,7 +10,7 @@ using Object=UnityEngine.Object;
 
 namespace BuildShapes
 {
-    // The Hallwright stake: a little flagged stake in the hammer's build menu. Pick it and Hallwright is on; click the ground to set a
+    // The Hallwright stake: a builder's setting-out peg (Models/stake) in the hammer's build menu. Pick it and Hallwright is on; click the ground to set a
     // corner (Shift+click an entrance, Ctrl+click a smoke hole or chimney), press E inside the outline for the settings. The stake
     // itself is never built: its placement ghost stands where the next corner will go.
     public sealed partial class Plugin
@@ -55,6 +55,36 @@ namespace BuildShapes
             float bottom=snaps.DefaultIfEmpty(0f).Min(),top=snaps.DefaultIfEmpty(1f).Max();
             // No snapping: the ghost goes where the next corner goes.
             foreach(Transform child in stake.transform.Cast<Transform>().ToList())if(child.name.StartsWith("$hud_snappoint",StringComparison.Ordinal))DestroyImmediate(child.gameObject);
+            // (the pole's wood: its first material is the snow on its top)
+            Material wood=stake.GetComponentsInChildren<Renderer>(true).Select(r=>r.sharedMaterial).FirstOrDefault(m=>m!=null && m.shader!=null && m.shader.name=="Custom/Piece");
+            Mesh mesh=wood!=null?StakeMesh():null;
+            if(mesh!=null)
+            {
+                // Its own look, made in Blender (Models/stake): a builder's setting-out peg, square hewn and pointed, banded in ochre, a
+                // little roof truss with curled horns on its head and a carpenter's square hung on its front. The pole's own model goes.
+                foreach(var lod in stake.GetComponentsInChildren<LODGroup>(true))DestroyImmediate(lod);
+                foreach(var r in stake.GetComponentsInChildren<Renderer>(true))DestroyImmediate(r);
+                var look=new GameObject("Model");look.transform.SetParent(stake.transform,false);
+                look.AddComponent<MeshFilter>().sharedMesh=mesh;
+                // (wood, dark wood, iron, ochre paint: as the model's materials are numbered)
+                look.AddComponent<MeshRenderer>().sharedMaterials=new[]{Grain(wood,new Color(0.95f,0.9f,0.82f)),Grain(wood,new Color(0.55f,0.45f,0.38f)),Plain(wood,new Color(0.16f,0.155f,0.15f)),Plain(wood,new Color(0.82f,0.42f,0.1f))};
+            }
+            else BuildPoleLook(stake,bottom,top,wood);
+            var piece=stake.GetComponent<Piece>();
+            piece.m_name="Hallwright stake";
+            piece.m_description="Stake out a hall. Click the ground for each corner, Shift+click for an entrance, Ctrl+click for a smoke hole or chimney, and press E inside the outline for its settings. The stake isn't built: Plan shell turns the outline into ghosts to build.";
+            piece.m_resources=new Piece.Requirement[0];
+            piece.m_craftingStation=null;
+            piece.m_category=Piece.PieceCategory.Misc;
+            piece.m_clipEverything=true;piece.m_groundPiece=false;piece.m_groundOnly=false;
+            piece.m_enabled=true;
+            try{Sprite icon=StakeIcon(stake);if(icon!=null)piece.m_icon=icon;}
+            catch(Exception ex){Logger.LogWarning("No icon for the Hallwright stake: "+ex.Message);}
+            return stake;
+        }
+        // The look it had before, if the model can't be had: the pole made thin and tall with an orange flag.
+        private void BuildPoleLook(GameObject stake,float bottom,float top,Material wood)
+        {
             // A surveyor's stake: the pole made thin and tall, standing on the ground.
             // Scaled through one parent: the pole's model is rotated inside the prefab, so scaling its parts would stretch the wrong way.
             const float Thin=0.35f,Tall=1.8f;
@@ -63,7 +93,6 @@ namespace BuildShapes
             model.localPosition=new Vector3(0,-bottom*Tall,0);model.localScale=new Vector3(Thin,Tall,Thin);
             top=(top-bottom)*Tall;
             // A bright flag at the top: the pole's own material with a plain orange texture, so it shows from afar.
-            Material wood=stake.GetComponentsInChildren<Renderer>(true).Select(r=>r.sharedMaterial).FirstOrDefault(m=>m!=null);
             Material cloth=null;
             if(wood!=null)
             {
@@ -78,17 +107,49 @@ namespace BuildShapes
             flag.transform.SetParent(stake.transform,false);
             flag.transform.localPosition=new Vector3(0.3f,top-0.22f,0);flag.transform.localScale=new Vector3(0.56f,0.36f,0.02f);
             if(cloth!=null)flag.GetComponent<MeshRenderer>().sharedMaterial=cloth;
-            var piece=stake.GetComponent<Piece>();
-            piece.m_name="Hallwright stake";
-            piece.m_description="Stake out a hall. Click the ground for each corner, Shift+click for an entrance, Ctrl+click for a smoke hole or chimney, and press E inside the outline for its settings. The stake isn't built: Plan shell turns the outline into ghosts to build.";
-            piece.m_resources=new Piece.Requirement[0];
-            piece.m_craftingStation=null;
-            piece.m_category=Piece.PieceCategory.Misc;
-            piece.m_clipEverything=true;piece.m_groundPiece=false;piece.m_groundOnly=false;
-            piece.m_enabled=true;
-            try{Sprite icon=StakeIcon(stake);if(icon!=null)piece.m_icon=icon;}
-            catch(Exception ex){Logger.LogWarning("No icon for the Hallwright stake: "+ex.Message);}
-            return stake;
+        }
+        private const float StakeGrain=0.6f; // (the wood texture repeats per metre)
+        private Material Grain(Material wood,Color tint)
+        {
+            var m=new Material(wood){name="BuildShapes stake wood",color=tint};m.mainTextureScale=Vector2.one*StakeGrain;
+            _stakeOwned.Add(m);return m;
+        }
+        // The game's material in a plain colour (its texture taken away), matte: for the paint and iron.
+        private Material Plain(Material wood,Color color)
+        {
+            var m=new Material(wood){name="BuildShapes stake paint",color=color};
+            if(m.HasProperty("_MainTex"))m.SetTexture("_MainTex",null);
+            if(m.HasProperty("_BumpMap"))m.SetTexture("_BumpMap",null);
+            foreach(string k in new[]{"_Glossiness","_Metallic","_Smoothness"})if(m.HasProperty(k))m.SetFloat(k,0);
+            _stakeOwned.Add(m);return m;
+        }
+        // The model (Models/stake/hallstake.json.gz): per corner position, normal and uv, triangles per material.
+        private Mesh StakeMesh()
+        {
+            try
+            {
+                using(var raw=typeof(Plugin).Assembly.GetManifestResourceStream("BuildShapes.hallstake.json.gz"))
+                {
+                    if(raw==null)return null;
+                    using(var gz=new System.IO.Compression.GZipStream(raw,System.IO.Compression.CompressionMode.Decompress))
+                    using(var text=new System.IO.StreamReader(gz))
+                    {
+                        var d=Newtonsoft.Json.Linq.JObject.Parse(text.ReadToEnd());
+                        float[] v=d["v"].ToObject<float[]>(),n=d["n"].ToObject<float[]>(),uv=d["uv"].ToObject<float[]>();
+                        int[][] t=d["t"].ToObject<int[][]>();
+                        var verts=new Vector3[v.Length/3];var norms=new Vector3[verts.Length];var uvs=new Vector2[verts.Length];
+                        for(int i=0;i<verts.Length;i++){verts[i]=new Vector3(v[3*i],v[3*i+1],v[3*i+2]);norms[i]=new Vector3(n[3*i],n[3*i+1],n[3*i+2]);uvs[i]=new Vector2(uv[2*i],uv[2*i+1]);}
+                        var mesh=new Mesh{name="Hallwright stake"};
+                        mesh.vertices=verts;mesh.normals=norms;mesh.uv=uvs;mesh.colors=Enumerable.Repeat(Color.white,verts.Length).ToArray(); // (the game's piece shader reads the vertex colour)
+                        mesh.subMeshCount=t.Length;
+                        for(int k=0;k<t.Length;k++)mesh.SetTriangles(t[k],k);
+                        mesh.RecalculateBounds();mesh.RecalculateTangents();
+                        _stakeOwned.Add(mesh);
+                        return mesh;
+                    }
+                }
+            }
+            catch(Exception ex){Logger.LogWarning("The Hallwright stake's model: "+ex.Message);return null;}
         }
         private Sprite StakeIcon(GameObject stake)
         {
