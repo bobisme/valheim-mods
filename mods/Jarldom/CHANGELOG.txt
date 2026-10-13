@@ -1,3 +1,5 @@
+0.1.62: the lost brought home: a villager taken by Hel walks as a draugr called by name ('Ingrid, who was lost') and marked on your map. Killed, it leaves their remains; carry them to the colony's burial ground and use them there (hotbar key or right-click) to lay them to rest: Hel is pleased, their friends' grief ends, and the saga tells it.
+
 0.1.61: the Dimming: a villager whose worth hasn't risen in 8 days begins to dim (a tenth slower at work, their skin fading toward a draugr's); at 16 days they fade further (a fifth slower, darker, restless). Never further, never fatal: anything worthy lifts it at once (a kill, a feast, a request answered, the gothi's rite), and a dimming soul asks you a deed to help. The panel says why and what would help.
 
 0.1.60: personal corners: what you hand a villager for a request is theirs now. A trophy or a precious thing becomes a keepsake they hang on an item stand you've built within 4 m of their bed (two at most; a mood while they have their things about them), and goods go to the stores instead of vanishing.

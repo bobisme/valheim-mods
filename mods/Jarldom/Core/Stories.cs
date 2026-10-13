@@ -173,6 +173,12 @@ namespace Jarldom
                     $"{e.A} and {e.B} traded blows in the hall.",
                     $"{e.A} and {e.B} squared off in the hall.",
                     $"{e.A} and {e.B} brawled in the hall.");
+                case "rest": return Telling(e,
+                    $"{e.B} brought {e.A} home from Hel's road and laid them to rest in the burial ground.",
+                    $"{e.A}, who was lost, was laid to rest at last by {e.B}.",
+                    $"{e.B} laid {e.A}'s remains in the burial ground; their friends grieve no more.",
+                    $"The draugr that was {e.A} walks no more: {e.B} laid them to rest.",
+                    $"{e.A} rests with Hel now, laid in the earth by {e.B}.");
                 case "theft": return Telling(e,
                     $"{e.A} was caught stealing.",
                     $"{e.A} was caught stealing from the stores.",

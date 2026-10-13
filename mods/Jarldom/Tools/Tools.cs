@@ -16,7 +16,7 @@ namespace Jarldom
     internal static class Tools
     {
         private static BaseUnityPlugin _tools; private static float _next;
-        private const string Usage = "jarldom status | roster | smite <prefab|stag> | feed <name> | greetings | dogs | dog adopt|release | corner <name> [stand] | dim <name> <days> | villager <name|vid> | needs <name> | renown | rooms | room check <n> | board | log [n] | saga | compat | " +
+        private const string Usage = "jarldom status | roster | smite <prefab|stag> | feed <name> | greetings | dogs | dog adopt|release | corner <name> [stand] | dim <name> <days> | lost [raise <name>] | villager <name|vid> | needs <name> | renown | rooms | room check <n> | board | log [n] | saga | compat | " +
             "[cheats:] place pillars [metres] | spawn [profession] [traits..] | migrate [now|dusk] | accept [i|all] | room <type> <x1> <z1> <x2> <z2> [god] | zone <type> <x1> <z1> <x2> <z2> | " +
             "prof <name> <profession> | mood <name> <moodlet> | worth <name> <n> | need <name> <need>=<n> | give <name> <prefab> [n] | bed <name> | goto <name> <x> <z> | time <hours> | pay | " +
             "favour <god> <n> | feast | thing now | ascend <name> | kill <name> | raid <event> | horn | treasury [x z] | stockpile <category> [x z] | tp <name> | remove | " +
@@ -66,7 +66,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing", "corner", "dim" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing", "corner", "dim", "lost" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or for a server admin with devcommands on"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -499,6 +499,22 @@ namespace Jarldom
                         var stands = c.PiecesIn(c.Radius).Where(p => p != null && p.GetComponent<ItemStand>() != null && Vector3.Distance(p.transform.position, bed.transform.position) < 4f).Select(p => p.GetComponent<ItemStand>());
                         output(new JObject { ["bed"] = V(bed.transform.position), ["stands"] = new JArray(stands.Select(s => $"{Utils.GetPrefabName(s.gameObject)} at {V(s.transform.position)} holds {(s.HaveAttachment() ? s.GetAttachedItem() : "-")} by {s.GetComponent<ZNetView>().GetZDO().GetString(CornerTask.StandKey, "-")}")),
                             ["keepsakes"] = new JArray(b.Body.GetInventory().GetAllItems().Where(CornerTask.Keepsake).Select(Prefab)), ["doing"] = b.Doing });
+                    }
+                    break;
+                case "lost":
+                    {
+                        // "raise <name>": the draugr of one of the colony's lost, 4 m in front of the player (as Hel would send it); with no
+                        // name, who is lost and whether they rest.
+                        if (a.Length > 3 && a[2] == "raise")
+                        {
+                            RosterRow row = c.R.Roster.FirstOrDefault(r => r.State == SoulState.Lost && r.Name.StartsWith(a[3], StringComparison.OrdinalIgnoreCase));
+                            if (row == null) { error("no lost soul called " + a[3]); return; }
+                            Draugr.Raise(c, new VillagerState { Vid = row.Vid, Name = row.Name, Colony = c.Id }, me.transform.position + me.transform.forward * 4f);
+                            Character d = Character.GetAllCharacters().LastOrDefault(x => x != null && x.GetComponent<ZNetView>()?.GetZDO()?.GetString(Lost.VidKey, "") == row.Vid);
+                            if (d != null) { Vector3 to = me.transform.position + me.transform.forward * 4f; d.transform.position = to; d.GetComponent<ZNetView>().GetZDO().SetPosition(to); } // (not at the colony's edge: here, to test)
+                            output(new JObject { ["raised"] = row.Name });
+                        }
+                        else output(new JObject { ["lost"] = new JArray(c.R.Roster.Where(r => r.State == SoulState.Lost).Select(r => $"{r.Name} {r.Vid}{(Lost.Rests(c, r.Vid) ? " (rests)" : "")}")), ["hel"] = c.FavourOf("hel") });
                     }
                     break;
                 case "dim":

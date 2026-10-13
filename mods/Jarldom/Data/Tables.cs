@@ -128,6 +128,7 @@ namespace Jarldom
             M("aurora", "Saw the northern lights", 8, 24),
             M("corner", "Their own things about them", 5, 72),
             M("restless", "Restless: nothing worthy in many days", -8, 6),
+            M("rested", "A lost friend laid to rest", 10, 72),
             M("unpaid", "Unpaid", -15, 0, Stack.Add, 3),
             M("gary", "Petted Gary", 3, 6),
             M("festival", "A festival", 12, 48),

@@ -11,7 +11,7 @@ namespace Jarldom
     // into more coins.
     internal static class Items
     {
-        public const string RingName = "JarldomArmRing", RelicName = "JarldomRelic", DrumName = "JarldomDrum";
+        public const string RingName = "JarldomArmRing", RelicName = "JarldomRelic", DrumName = "JarldomDrum", RemainsPrefab = "JarldomRemains";
         private static Recipe _drumRecipe;
         private static readonly Dictionary<string, GameObject> Prefabs = new Dictionary<string, GameObject>();
         private static Recipe _ringRecipe;
@@ -43,6 +43,38 @@ namespace Jarldom
             drop.m_autoDestroy = false; // (a colony's whole record: never tidied away)
             Prefabs[RelicName] = go;
             return go;
+        }
+        // A lost soul's remains, left when their draugr falls (whose, in the item's own data): laid to rest in the burial ground.
+        public static GameObject Remains => EnsureRemains();
+        private static GameObject EnsureRemains()
+        {
+            if (Prefabs.TryGetValue(RemainsPrefab, out GameObject made) && made != null) return made;
+            GameObject source = Assets.Find("BoneFragments");
+            ItemDrop sourceDrop = source != null ? source.GetComponent<ItemDrop>() : null;
+            if (sourceDrop == null) return null;
+            GameObject go = Object.Instantiate(source, Assets.Holder);
+            go.name = RemainsPrefab;
+            var shared = (ItemDrop.ItemData.SharedData)CloneShared.Invoke(sourceDrop.m_itemData.m_shared, null);
+            Assets.Tint(go, new Color(0.75f, 0.8f, 0.72f), new Color(0.02f, 0.06f, 0.04f));
+            shared.m_name = "Remains of the lost";
+            shared.m_description = "What was left when one of the colony's own, taken by Hel, fell for the last time. Bring them to the colony's burial ground and use them there (a hotbar key, or right-click) to lay them to rest: their friends' grief ends, and Hel is pleased.";
+            shared.m_itemType = ItemDrop.ItemData.ItemType.Misc; shared.m_maxStackSize = 1; shared.m_weight = 1f; shared.m_value = 0; shared.m_teleportable = true;
+            shared.m_icons = new[] { shared.m_icons?.FirstOrDefault() };
+            Assets.Icon(go, RemainsPrefab, Quaternion.Euler(30, 20, 0), icon => shared.m_icons[0] = icon);
+            ItemDrop drop = go.GetComponent<ItemDrop>();
+            drop.m_itemData.m_shared = shared; drop.m_itemData.m_stack = 1; drop.m_itemData.m_quality = 1; drop.m_itemData.m_dropPrefab = go;
+            drop.m_autoDestroy = false; // (someone's remains: never tidied away)
+            Prefabs[RemainsPrefab] = go;
+            return go;
+        }
+        // Whose remains, at the top of the tooltip.
+        [HarmonyPatch(typeof(ItemDrop.ItemData), nameof(ItemDrop.ItemData.GetTooltip), typeof(ItemDrop.ItemData), typeof(int), typeof(bool), typeof(float), typeof(int), typeof(bool))]
+        private static class Whose
+        {
+            private static void Postfix(ItemDrop.ItemData item, ref string __result)
+            {
+                if (item?.m_customData != null && item.m_customData.TryGetValue(Lost.RemainsName, out string name)) __result = $"<color=#c9d6c2>{name}'s remains.</color>\n" + __result;
+            }
         }
         // The skald's drum (workbench; deer hide and wood): a skald plays it in the hall at dusk.
         public static GameObject Drum => EnsureDrum();
@@ -121,10 +153,10 @@ namespace Jarldom
             return go;
         }
 
-        public static void RegisterScene(ZNetScene scene) { GameObject ring = Ensure(); if (ring != null) Assets.Register(scene, ring); GameObject relic = EnsureRelic(); if (relic != null) Assets.Register(scene, relic); GameObject drum = EnsureDrum(); if (drum != null) Assets.Register(scene, drum); }
+        public static void RegisterScene(ZNetScene scene) { GameObject ring = Ensure(); if (ring != null) Assets.Register(scene, ring); GameObject relic = EnsureRelic(); if (relic != null) Assets.Register(scene, relic); GameObject drum = EnsureDrum(); if (drum != null) Assets.Register(scene, drum); GameObject remains = EnsureRemains(); if (remains != null) Assets.Register(scene, remains); }
         public static void BeforeRegisters(ObjectDB db)
         {
-            db.m_items.RemoveAll(i => i == null || i.name == RingName && i != Ensure() || i.name == RelicName && i != EnsureRelic() || i.name == DrumName && i != EnsureDrum());
+            db.m_items.RemoveAll(i => i == null || i.name == RingName && i != Ensure() || i.name == RelicName && i != EnsureRelic() || i.name == DrumName && i != EnsureDrum() || i.name == RemainsPrefab && i != EnsureRemains());
             db.m_recipes.RemoveAll(r => r != null && r.name == "Recipe_" + DrumName && r != _drumRecipe);
             db.m_recipes.RemoveAll(r => r == null || r.name == "Recipe_" + RingName && r != _ringRecipe);
             if (db.GetItemPrefab("Coins") == null && db.m_items.All(i => i == null || i.name != "Coins")) return; // the main menu's empty database
@@ -135,6 +167,8 @@ namespace Jarldom
             if (relic != null && !db.m_items.Contains(relic)) db.m_items.Add(relic);
             GameObject drum = EnsureDrum();
             if (drum != null && !db.m_items.Contains(drum)) db.m_items.Add(drum);
+            GameObject remains = EnsureRemains();
+            if (remains != null && !db.m_items.Contains(remains)) db.m_items.Add(remains);
             CraftingStation bench = Assets.Find("piece_workbench")?.GetComponent<CraftingStation>();
             ItemDrop hide = db.m_items.FirstOrDefault(i => i != null && i.name == "DeerHide")?.GetComponent<ItemDrop>(), wood = db.m_items.FirstOrDefault(i => i != null && i.name == "Wood")?.GetComponent<ItemDrop>();
             if (drum != null && bench != null && hide != null && wood != null)

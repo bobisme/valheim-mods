@@ -458,6 +458,7 @@ namespace Jarldom
             GameObject d = Object.Instantiate(prefab, spot, Quaternion.identity);
             ZDO z = d.GetComponent<ZNetView>().GetZDO();
             z.Set(NameKey, "Draugr " + s.Name);
+            z.Set(Lost.VidKey, s.Vid); z.Set(Lost.ColonyKey, c.Id);
             z.Set(HoardKey, s.Hoard);
             Assets.Effect("vfx_ghost_death", spot);
         }
@@ -468,7 +469,7 @@ namespace Jarldom
             {
                 if (__instance.IsPlayer() || VillagerPrefab.Is(__instance)) return;
                 string n = __instance.GetComponent<ZNetView>()?.GetZDO()?.GetString(NameKey, "");
-                if (!string.IsNullOrEmpty(n)) __result = n;
+                if (!string.IsNullOrEmpty(n)) __result = n.StartsWith("Draugr ") ? Lost.Called(n.Substring(7)) : n;
             }
         }
         [HarmonyPatch(typeof(Character), nameof(Character.OnDeath))]
@@ -477,7 +478,9 @@ namespace Jarldom
             private static void Prefix(Character __instance)
             {
                 ZNetView v = __instance.GetComponent<ZNetView>();
+                if (v != null && v.IsValid()) Plugin.Guard(() => Lost.Unpin(v.GetZDO())); // (every game: the pin goes)
                 if (v == null || !v.IsValid() || !v.IsOwner()) return;
+                Plugin.Guard(() => Lost.Remains(__instance));
                 int hoard = v.GetZDO().GetInt(HoardKey, 0);
                 if (hoard <= 0) return;
                 GameObject coins = ZNetScene.instance.GetPrefab("Coins");
