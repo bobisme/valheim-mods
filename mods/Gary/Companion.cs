@@ -20,7 +20,7 @@ namespace Gary
             internal Character WorkFriend;
             internal ItemDrop FetchDrop;
             internal float FetchPathWait,NextStatusSync;
-            internal bool OwnerConfigured,VibeSupported,VictoryPending;
+            internal bool OwnerConfigured,VibeSupported,VictoryPending,RetreatResting;
             internal long SeenMood;
             internal float Stationary,NextForage,ForageUntil,NextRetreatSpot,NextDanger,NextWarning,NextVictory,NextCozy,NextFire,NextBuildSpot,LookUntil,LastFight,VictoryUntil;
             internal Vector3 MasterPosition,FireSpot,BuildOrigin,LookPoint;

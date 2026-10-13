@@ -19,8 +19,10 @@ namespace Gary
             master&&alive&&!retreat&&distance>=0&&distance<=5;
         internal static bool MoodDue(double seconds) => !double.IsInfinity(seconds)&&seconds>=2;
         internal static bool PlayRecentMood(double age) => age>=0&&age<=4;
-        internal static bool SafeRest(double playerDistance,double enemyDistance) =>
-            !double.IsInfinity(playerDistance)&&!double.IsInfinity(enemyDistance)&&playerDistance>=RetreatDistance&&enemyDistance>=18;
+        // Once resting he stays put until clearly crowded, so he doesn't flip alert (and yelp) every step at the edge.
+        internal static bool SafeRest(double playerDistance,double enemyDistance,bool resting=false) =>
+            !double.IsInfinity(playerDistance)&&!double.IsInfinity(enemyDistance)&&
+            (resting?playerDistance>=RetreatDistance-8&&enemyDistance>=12:playerDistance>=RetreatDistance&&enemyDistance>=18);
         internal static double RestSpotScore(double playerDistance,double enemyDistance,bool cover) =>
             double.IsNaN(playerDistance)||double.IsInfinity(playerDistance)||double.IsNaN(enemyDistance)||double.IsInfinity(enemyDistance)||
             playerDistance<RetreatDistance||enemyDistance<18?double.NegativeInfinity:

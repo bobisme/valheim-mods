@@ -189,7 +189,7 @@ namespace Gary
             }
             float fromFriend=Utils.DistanceXZ(c.transform.position,friend);
             float fromDanger=st.RetreatDanger!=null?Utils.DistanceXZ(c.transform.position,st.RetreatDanger.Value):100;
-            bool safe=Policy.SafeRest(fromFriend,fromDanger);
+            bool safe=st.RetreatResting=Policy.SafeRest(fromFriend,fromDanger,st.RetreatResting);
             if(safe){ai.StopMoving();Brain.Alert(ai,false);Brain.Status(st,"resting in a safe spot; coming back soon");}
             else
             {

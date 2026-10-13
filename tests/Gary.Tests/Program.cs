@@ -91,6 +91,7 @@ Check(!Policy.CanPet(false,1,true,false)&&!Policy.CanPet(true,1,false,false)&&!P
 Check(Policy.MoodDue(2)&&!Policy.MoodDue(1.99),"Chirps and reactions have a minimum cooldown");
 Check(Policy.PlayRecentMood(0)&&Policy.PlayRecentMood(4)&&!Policy.PlayRecentMood(4.01)&&!Policy.PlayRecentMood(-1),"Observers play only recent reactions");
 Check(Policy.SafeRest(40,18)&&!Policy.SafeRest(39.99,18)&&!Policy.SafeRest(40,17.99),"Rest requires distance from both friend and danger");
+Check(Policy.SafeRest(33,13,true)&&!Policy.SafeRest(31.99,20,true)&&!Policy.SafeRest(45,11.99,true),"A resting Gary stays resting until clearly crowded");
 Check(Policy.RestSpotScore(40,30,true)>Policy.RestSpotScore(40,30,false),"Reachable cover is preferred for a refuge");
 Check(Policy.RestSpotScore(40,50,false)>Policy.RestSpotScore(40,20,false),"Retreat routes prefer more separation from danger");
 Check(double.IsNegativeInfinity(Policy.RestSpotScore(40,17.99,true)),"Cover cannot make an unsafe enemy distance acceptable");
