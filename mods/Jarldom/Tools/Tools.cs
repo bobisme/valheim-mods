@@ -16,7 +16,7 @@ namespace Jarldom
     internal static class Tools
     {
         private static BaseUnityPlugin _tools; private static float _next;
-        private const string Usage = "jarldom status | roster | smite <prefab|stag> | feed <name> | greetings | dogs | dog adopt|release | villager <name|vid> | needs <name> | renown | rooms | room check <n> | board | log [n] | saga | compat | " +
+        private const string Usage = "jarldom status | roster | smite <prefab|stag> | feed <name> | greetings | dogs | dog adopt|release | corner <name> [stand] | dim <name> <days> | villager <name|vid> | needs <name> | renown | rooms | room check <n> | board | log [n] | saga | compat | " +
             "[cheats:] place pillars [metres] | spawn [profession] [traits..] | migrate [now|dusk] | accept [i|all] | room <type> <x1> <z1> <x2> <z2> [god] | zone <type> <x1> <z1> <x2> <z2> | " +
             "prof <name> <profession> | mood <name> <moodlet> | worth <name> <n> | need <name> <need>=<n> | give <name> <prefab> [n] | bed <name> | goto <name> <x> <z> | time <hours> | pay | " +
             "favour <god> <n> | feast | thing now | ascend <name> | kill <name> | raid <event> | horn | treasury [x z] | stockpile <category> [x z] | tp <name> | remove | " +
@@ -66,7 +66,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing", "corner" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing", "corner", "dim" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or for a server admin with devcommands on"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -499,6 +499,15 @@ namespace Jarldom
                         var stands = c.PiecesIn(c.Radius).Where(p => p != null && p.GetComponent<ItemStand>() != null && Vector3.Distance(p.transform.position, bed.transform.position) < 4f).Select(p => p.GetComponent<ItemStand>());
                         output(new JObject { ["bed"] = V(bed.transform.position), ["stands"] = new JArray(stands.Select(s => $"{Utils.GetPrefabName(s.gameObject)} at {V(s.transform.position)} holds {(s.HaveAttachment() ? s.GetAttachedItem() : "-")} by {s.GetComponent<ZNetView>().GetZDO().GetString(CornerTask.StandKey, "-")}")),
                             ["keepsakes"] = new JArray(b.Body.GetInventory().GetAllItems().Where(CornerTask.Keepsake).Select(Prefab)), ["doing"] = b.Doing });
+                    }
+                    break;
+                case "dim":
+                    {
+                        // As if their worth last rose that many days ago (0: today).
+                        Brain b = a.Length > 2 ? Who(a[2]) : null; if (b == null) { error("dim <name> [days]"); return; }
+                        int today = Clock.Day(b.Now); if (a.Length > 3) { b.S.Counts[Dimming.Key] = today - int.Parse(a[3]); b.Dirty(); }
+                        ZDO bz = b.View.GetZDO();
+                        output(new JObject { ["name"] = b.S.Name, ["stage"] = Dimming.Of(b.S, today), ["days"] = Dimming.Days(b.S, today), ["worthy"] = b.S.Worthy, ["skin"] = V(bz.GetVec3(ZDOVars.s_skinColor, Vector3.zero)), ["ownSkin"] = V(bz.GetVec3("jarldom_skin0", Vector3.zero)) });
                     }
                     break;
                 case "greetings": output(new JObject { ["recent"] = new JArray(Greet.Recent) }); break;

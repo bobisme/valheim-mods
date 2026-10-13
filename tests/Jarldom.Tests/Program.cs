@@ -463,4 +463,17 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Enumerable.Range(0, 50).All(i => WorkSongs.Any.Contains(WorkSongs.Pick("cook", new Random(i)))), "Other work sings the common chants");
 }
 
+{
+    // The Dimming: 8 and 16 days without a rise in worth; never further; a worthy soul doesn't dim; it ends with any rise.
+    Check(Dimming.Stage(20, 13, false) == 0 && Dimming.Stage(20, 12, false) == 1 && Dimming.Stage(20, 5, false) == 1 && Dimming.Stage(20, 4, false) == 2, "Dimming starts at 8 days, deepens at 16");
+    Check(Dimming.Stage(500, 0, false) == 2, "Never beyond stage 2");
+    Check(Dimming.Stage(500, 0, true) == 0, "A worthy soul doesn't dim");
+    Check(Dimming.Stage(20, 20, false) == 0, "A rise in worth today ends it");
+    Check(Dimming.Work(0) == 1f && Dimming.Work(1) == 0.9f && Dimming.Work(2) == 0.8f, "A tenth, then a fifth slower at work");
+    var skin = (0.8f, 0.6f, 0.5f); var t1 = Dimming.Tint(skin, 1); var t2 = Dimming.Tint(skin, 2);
+    Check(Dimming.Tint(skin, 0) == skin && t1 != skin && t2 != t1 && t2.Item1 + t2.Item2 + t2.Item3 < t1.Item1 + t1.Item2 + t1.Item3, "Stage 2 looks darker than stage 1, and stage 0 is their own skin");
+    Check(Dimming.Why(30, 18) == "Hasn't done anything worthy in 12 days", "The reason in their words");
+    var dv = new VillagerState { Worth = 10 }; float before = dv.Worth; Worth.Gain(dv, "rite"); Check(dv.Worth > before, "The gothi's rite counts as worth");
+}
+
 Console.WriteLine($"Jarldom: {checks} checks passed");

@@ -12,7 +12,7 @@ namespace Jarldom
     {
         public readonly Humanoid Body; public readonly MonsterAI Ai; public readonly ZNetView View; public readonly Mover Move;
         public VillagerState S; public Colony Colony;
-        public float SongUntil;
+        public float SongUntil; private float _lastWorth = -1; public int DimStage = -1;
         public Task Task; public Activity Activity = Activity.Idle; public string Doing = "";
         public string LastAttacker = ""; public Character Foe; private float _foeUntil;
         public bool KeepDoorsOpen; public float Stamina = 1f;
@@ -225,6 +225,7 @@ namespace Jarldom
             }
             Saboteur.Tick(this);
             Mood.Expire(S, now);
+            Plugin.Guard(() => Dim(now));
             // Shelter: dry and warm (under a roof, or by a fire).
             Cover.GetCoverForPoint(Body.GetCenterPoint(), out float cover, out bool roof);
             bool sheltered = cover >= 0.8f && roof, warm = EffectArea.IsPointInsideArea(Pos, EffectArea.Type.Heat) != null;
@@ -339,11 +340,32 @@ namespace Jarldom
             if (_skills == null) _skills = ZNetScene.instance?.GetPrefab("Player")?.GetComponent<Skills>();
             return _skills?.m_skills?.FirstOrDefault(d => d.m_skill == t);
         }
+        // The Dimming: the day their worth last rose (any rise, from anything), and what that makes them now.
+        private void Dim(double now)
+        {
+            int today = Clock.Day(now);
+            if (!S.Counts.ContainsKey(Dimming.Key)) S.Counts[Dimming.Key] = today; // (from when it's first kept: nobody dims for the days before)
+            if (_lastWorth >= 0 && S.Worth > _lastWorth + 0.001f) S.Counts[Dimming.Key] = today;
+            _lastWorth = S.Worth;
+            int stage = Dimming.Of(S, today);
+            if (stage != DimStage)
+            {
+                if (DimStage >= 0 && Colony != null)
+                {
+                    if (stage > DimStage) Colony.Log("text", S.Name, "", stage == 1 ? $"{S.FullName} has done nothing worthy in {Dimming.First} days, and begins to dim." : $"{S.FullName} is fading: {Dimming.Second} days with nothing worthy. They grow restless.");
+                    else if (stage == 0) Colony.Log("text", S.Name, "", $"{S.FullName} is dimming no longer.");
+                }
+                DimStage = stage; Villagers.Tint(this, stage);
+            }
+            if (stage >= 2 && !Jarldom.Mood.Has(S, "restless", now)) Jarldom.Mood.Add(S, "restless", now);
+            else if (stage < 2) Jarldom.Mood.Remove(S, "restless");
+        }
         public float Productivity()
         {
             float mood = Jarldom.Mood.Multiplier(Jarldom.Mood.Of(S, Now));
             if (Jarldom.Mood.Has(S, "inspired", Now)) mood *= 1.25f; // a day of their best work
             if (Time.time < SongUntil) mood *= WorkSongs.Pace; // (singing at the work with others)
+            if (DimStage > 0) mood *= Dimming.Work(DimStage); // (fading: a tenth, then a fifth slower)
             return mood * Plugin.Instance.WorkRate.Value;
         }
 

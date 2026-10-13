@@ -22,16 +22,17 @@ namespace Jarldom
             if (c == null || !c.Valid) return;
             int day = Clock.Day(b.Now);
             if (s.Asked != null && Requests.Expired(s.Asked, day)) s.Asked = null; // (lapsed: no harm done)
-            if (s.Asked != null && s.Disgraced && !s.Asked.Deed) s.Asked.Deed = true; // (what they asked already is the deed now)
+            bool low = s.Disgraced || Dimming.Of(s, day) >= 1; // (disgraced or dimming: a deed would lift it)
+            if (s.Asked != null && low && !s.Asked.Deed) s.Asked.Deed = true; // (what they asked already is the deed now)
             bool roll = s.Count("askday") != day;
-            if (s.Asked == null && (s.Disgraced || roll && b.Now - s.Arrived > Clock.DayLength))
+            if (s.Asked == null && (low || roll && b.Now - s.Arrived > Clock.DayLength))
             {
                 s.Counts["askday"] = day;
                 int asking = Villagers.All.Count(o => o.S.Colony == s.Colony && o.S.Asked != null), here = Villagers.All.Count(o => o.S.Colony == s.Colony);
                 var rng = new System.Random(s.Vid.GetStableHashCode() ^ day * 7919);
-                if (s.Disgraced || rng.NextDouble() < Chance && asking * 3 < Math.Max(3, here)) // (a third of them at most, so it's never a chorus)
+                if (low || rng.NextDouble() < Chance && asking * 3 < Math.Max(3, here)) // (a third of them at most, so it's never a chorus)
                 {
-                    Request q = Requests.Generate(s, Facts(c, s), day, rng, s.Disgraced);
+                    Request q = Requests.Generate(s, Facts(c, s), day, rng, low);
                     if (q != null)
                     {
                         s.Asked = q;

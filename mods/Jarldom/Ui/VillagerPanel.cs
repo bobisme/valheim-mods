@@ -66,7 +66,7 @@ namespace Jarldom.Ui
             y = Text(left, s.Story, y, 15, GameUi.Dim);
             int mood = Mood.Of(s, now);
             GameUi.Line(left, "Mood", new Vector2(10, -y), 80, 17, GameUi.Warm);
-            GameUi.Bar(left, new Vector2(90, -y - 2), new Vector2(310, 22), (mood + 100) / 200f, mood >= 0 ? GameUi.Good : GameUi.Warn, $"{Windows.Signed(mood)} (works at {Windows.Pct(Mood.Multiplier(mood))})");
+            GameUi.Bar(left, new Vector2(90, -y - 2), new Vector2(310, 22), (mood + 100) / 200f, mood >= 0 ? GameUi.Good : GameUi.Warn, $"{Windows.Signed(mood)} (works at {Windows.Pct(Mood.Multiplier(mood) * Dimming.Work(Dimming.Of(s, Clock.Day(ZNet.instance.GetTimeSeconds()))))})");
             y += 30;
             foreach (var (value, text) in Mood.Reasons(s, now).Take(9)) y = Text(left, $"<color={(value >= 0 ? "#99e08c" : "#ff8c59")}>{Windows.Signed(value)}</color>  {text}", y, 15) - 3;
             y += 4;
@@ -132,11 +132,13 @@ namespace Jarldom.Ui
             if (Asks.All(me).Any(x => x.Vid == s.Vid && x.Id != q?.Id)) Asks.Drop(me, s.Vid); // (one answered or lapsed since it was taken on)
             if (q == null)
             {
+                int dim = Dimming.Of(s, Clock.Day(ZNet.instance.GetTimeSeconds()));
+                if (dim > 0 && !s.Disgraced) ry = Text(right, $"<color=#9fb8a8>Dimming{(dim >= 2 ? ", and restless" : "")}</color>: {Dimming.Why(Clock.Day(ZNet.instance.GetTimeSeconds()), Clock.Day(ZNet.instance.GetTimeSeconds()) - Dimming.Days(s, Clock.Day(ZNet.instance.GetTimeSeconds())))}, so they fade ({(dim >= 2 ? "a fifth" : "a tenth")} slower at work). Anything worthy lifts it: a deed they ask of you, a kill, a feast, the gothi's rite at Odin's altar.", ry, 15);
                 if (s.Disgraced) ry = Text(right, "<color=#ff8c59>Disgraced</color>: miserable too long, they shamed themselves. Ways back: the deed they ask of you, the gothi's cleansing rite at Odin's altar, or killing raiders in a raid the colony holds off. Left as they are, they may desert by night.", ry, 15);
                 return ry;
             }
             int left = Requests.DaysLeft(q, Clock.Day(ZNet.instance.GetTimeSeconds()));
-            string head = q.Deed ? "<color=#ff8c59>Disgraced</color>. A deed in their name would wash out the shame:" : "Asks of you:";
+            string head = q.Deed ? s.Disgraced ? "<color=#ff8c59>Disgraced</color>. A deed in their name would wash out the shame:" : "<color=#9fb8a8>Dimming</color>. A deed in their name would lift it:" : "Asks of you:";
             ry = Text(right, $"{head} <color=#ffd27a>{Requests.Describe(q)}</color> ({left} {(left == 1 ? "day" : "days")} left{(q.Deed ? "" : ", then they let it go")})", ry, 16);
             ry = Text(right, $"<i>“{q.Why}”</i>", ry, 14, GameUi.Dim);
             Asks.Taken t = Asks.Of(me, s.Vid, q.Id);

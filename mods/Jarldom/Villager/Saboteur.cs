@@ -114,7 +114,7 @@ namespace Jarldom
             if (why != "" || row == null) { c.Tell("No cleansing rite: " + (why != "" ? why : "who?") + "."); return; }
             if (!Stock.TakeCoins(Stock.Treasury(c), CleansePrice)) { c.Tell("No cleansing rite: the treasury couldn't pay."); return; }
             c.R.Flags[Pending + vid] = c.Day; c.MarkDirty();
-            bool shamed = Villagers.ByVid(vid)?.S.Disgraced == true;
+            bool shamed = Villagers.ByVid(vid) is Brain sb && (sb.S.Disgraced || sb.DimStage >= 1);
             c.Log("text", row.Name, who, $"{who} gave {CleansePrice} coins to Odin, and asked the gothi to {(shamed ? "make atonement for" : "burn the ash out of")} {row.Name}.");
         }
         public static string NextRite(Colony c) => c.R.Flags.Keys.Where(k => k.StartsWith(Pending)).Select(k => k.Substring(Pending.Length)).FirstOrDefault();
@@ -122,10 +122,10 @@ namespace Jarldom
         {
             c.R.Flags.Remove(Pending + them.S.Vid); c.MarkDirty();
             string name = them.S.Name;
-            bool clean = !Touched(them.S), shamed = them.S.Disgraced;
+            bool clean = !Touched(them.S), shamed = them.S.Disgraced, dim = them.DimStage >= 1;
             Thing.Pending(c).RemoveAll(p => p.Id == "accuse" && p.About == name); // (asked about at the rite: not to be named at the Thing as well)
             // A disgraced soul: the rite is their atonement too, if Odin will hear it.
-            if (shamed)
+            if (shamed || dim)
             {
                 if (clean) { them.S.Counts.Remove("seen"); them.Dirty(); }
                 float atone = Mathf.Clamp(0.55f + c.FavourOf("odin") * 0.02f, 0.35f, 0.85f);
@@ -133,11 +133,12 @@ namespace Jarldom
                 if (heard)
                 {
                     if (!clean) { them.S.Counts.Remove(Mark); them.S.Counts.Remove("seen"); Mood.Remove(them.S, "ashdreams"); }
-                    Asks.Wash(them);
+                    if (shamed) Asks.Wash(them);
+                    Worth.Gain(them.S, "rite"); them.Dirty(); // (worth rises: the Dimming lifts with it)
                     them.Say(new[] { "Odin heard it. I can stand in the hall again.", "The shame's burned away. I'll not waste this.", "I'm clean of it. Thank you, jarl." }[Random.Range(0, 3)], 6);
-                    c.Log("text", gothi.S.Name, name, $"At Odin's altar {gothi.S.Name} the gothi made atonement for {them.S.FullName}: Odin heard it, and their disgrace is washed out{(clean ? "" : ", the Forsaken's ash with it")}.");
+                    c.Log("text", gothi.S.Name, name, $"At Odin's altar {gothi.S.Name} the gothi made atonement for {them.S.FullName}: Odin heard it, and {(shamed ? "their disgrace is washed out" : "they dim no longer")}{(clean ? "" : ", the Forsaken's ash with it")}.");
                 }
-                else c.Log("text", gothi.S.Name, name, $"{gothi.S.Name} the gothi made atonement for {them.S.FullName} at Odin's altar, but Odin would not hear it: the disgrace is on them still.");
+                else c.Log("text", gothi.S.Name, name, $"{gothi.S.Name} the gothi made atonement for {them.S.FullName} at Odin's altar, but Odin would not hear it: {(shamed ? "the disgrace is on them still" : "they are fading still")}.");
                 return;
             }
             if (clean)

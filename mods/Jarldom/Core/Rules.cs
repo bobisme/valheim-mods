@@ -306,7 +306,7 @@ namespace Jarldom
         public const float Full = 100;
         public static readonly Dictionary<string, float> Points = new Dictionary<string, float>
         {
-            ["kill"] = 1, ["starkill"] = 5, ["bosskill"] = 15, ["orders100"] = 1, ["feast"] = 1, ["ring"] = 3, ["festival"] = 2, ["disgrace"] = -20, ["expedition"] = 2, ["asked"] = 4,
+            ["kill"] = 1, ["starkill"] = 5, ["bosskill"] = 15, ["orders100"] = 1, ["feast"] = 1, ["ring"] = 3, ["festival"] = 2, ["disgrace"] = -20, ["expedition"] = 2, ["asked"] = 4, ["rite"] = 2,
         };
         public static float Gain(VillagerState v, string source, float odinBonus = 0)
         {
