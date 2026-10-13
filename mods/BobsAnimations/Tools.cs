@@ -79,7 +79,7 @@ namespace BobsAnimations
                 float radius=args.Length>2&&float.TryParse(args[2],NumberStyles.Float,CultureInfo.InvariantCulture,out float r)?r:100;
                 Player me=Player.m_localPlayer;
                 output(new JObject{["chars"]=new JArray(Near(radius).Select((c,i)=>$"{i}: {c.m_name} ({Utils.GetPrefabName(c.gameObject)}) {Vector3.Distance(c.transform.position,me.transform.position):0.0} m"+
-                    $"{(Seat(c) is string s?", "+s:c.GetVelocity().sqrMagnitude<0.01f?", still":", moving")}{(c.GetComponent<ZNetView>()?.IsOwner()==true?", ours":", another game's")}{(Anim.Playing(c) is string p?", playing "+p:"")}")),
+                    $"{(Seat(c) is string s?", "+s:c.GetVelocity().sqrMagnitude<0.01f?", still":", moving")}{(c.GetComponent<ZNetView>()?.IsOwner()==true?", ours":", another game's")}{(Anim.Playing(c) is string p?", playing "+p:"")} at {c.transform.position.x:0.0} {c.transform.position.y:0.0} {c.transform.position.z:0.0} facing {c.transform.eulerAngles.y:0}")),
                     ["me"]=Seat(me)!=null?"seated: "+Seat(me):"standing"});
                 return null;
             }

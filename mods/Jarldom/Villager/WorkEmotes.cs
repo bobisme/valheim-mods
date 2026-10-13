@@ -41,6 +41,10 @@ namespace Jarldom
             return true;
         }
 
+        // Glíma: the belt-hold for both (a loop, ended by Throw); the throw for the winner and the fall for the loser. False without the clips.
+        public static bool Grapple(Brain a, Brain c) => Play(a, "stand_grapple") & Play(c, "stand_grapple");
+        public static bool Throw(Brain win, Brain lose) => Play(win, "stand_throw") & Play(lose, "stand_thrown");
+
         private static Doer Get(Brain b) { if (!Doing.TryGetValue(b, out Doer d)) Doing[b] = d = new Doer(); return d; }
 
         // ---- on their own ----

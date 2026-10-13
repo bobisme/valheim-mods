@@ -151,8 +151,10 @@ def board_move(c):
     c.curl(1, 'RightHand', 0.1); c.curl(14, 'RightHand', 0.3, Index=0.1, Thumb=0.2); c.curl(22, 'RightHand', 0.85, **pinch)
     c.curl(48, 'RightHand', 0.85, **pinch); c.curl(56, 'RightHand', 0.3, Index=0.1, Thumb=0.2); c.curl(92, 'RightHand', 0.1)
     c.turn(1, {})
-    lean = lambda k, h: {'Spine': [(X, -6 * k)], 'Spine1': [(X, -10 * k)], 'Spine2': [(X, -10 * k), (Z, 4 * k)], 'Neck': [(X, -2)], 'Head': [(X, h)]}
-    c.turn(14, lean(0.5, -8)); c.turn(22, lean(1, -10)); c.turn(32, lean(1.6, -8)); c.turn(44, lean(1.6, -8)); c.turn(52, lean(1, -10)); c.turn(64, lean(0.4, -4))
+    # (the neck and head take back most of the lean, so the eyes stay on the hand out over the board, not down through the table)
+    lean = lambda k, h, z=-10: {'Spine': [(X, -6 * k)], 'Spine1': [(X, -10 * k)], 'Spine2': [(X, -10 * k), (Z, 4 * k)], 'Neck': [(X, 16 * k), (Z, 0.6 * z)], 'Head': [(X, 16 * k + h * 0.2), (Z, z)]}
+    # (the head follows the hand: out to the right to take the piece, back to the middle where it goes down)
+    c.turn(14, lean(0.5, -8, -12)); c.turn(22, lean(1, -10, -12)); c.turn(32, lean(1.6, -8, -6)); c.turn(44, lean(1.6, -8, 4)); c.turn(52, lean(1, -10, 2)); c.turn(64, lean(0.4, -4, -10))
     c.turn(76, {'Head': [(X, 3)]})  # and up, to the other player
     c.turn(92, {})
 

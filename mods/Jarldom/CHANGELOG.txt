@@ -1,3 +1,5 @@
+0.1.75: glíma looks like wrestling, with Bob's Animations installed: after squaring up the two step in to a belt-hold and grapple, swaying and shoving, until one throws the other (a hip turn and heave; the loser lurches back into a crouch), instead of standing apart and staggering. They stay put while the throw plays out. Without Bob's Animations it's as it was.
+
 0.1.74: The memorial stone is half the size (about a metre high) and rougher: a lopsided, weathered stone with rough edges and sides and a face dressed nearly flat. Its carving is black only, with no red paint: the serpent band, its head, the runes and the valknut are all cut lines. The carving uses the rock's own shader, so it no longer disappears where the face slopes away.
 
 0.1.73: Villagers no longer get faster and faster (until they ran in circles at many times a run). The road bonus took the body's speed as its base, so each time a villager's brain was made anew while on a road (a reload, or the body passing to another player's game) the bonus was added on top of the last. Speeds now always come from the villager's own prefab. Test tool: jarldom speeds [min].

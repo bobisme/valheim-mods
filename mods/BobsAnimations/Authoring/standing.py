@@ -131,11 +131,69 @@ def recite(c):
     for f in range(12, 108, 8): c.turn(f, {'Jaw': [(X, -9 if (f // 8) % 2 else -3)], 'Head': [(X, 10 if 90 <= f <= 100 else 2)], 'Spine2': [(X, 3 if 90 <= f <= 100 else 0)]})
     c.turn(118, {})
 
+# ---- glíma: two wrestlers facing 0.75 m apart, belt-hold ----
+GRIP_R, GRIP_L = (0.20, 0.50, 0.86), (-0.20, 0.50, 0.86)   # the partner's belt at their hips (they lean in too)
+GRIP = ((0, 0.6, -0.8), (0, -1, -0.2))                      # fingers down over the belt, palm in toward the body
+
+def grapple(c):
+    """The belt-hold: knees bent, leaning in, head past the partner's right shoulder, both hands on their belt; weight swayed side to
+    side, a tug, a shove. Loops; the same clip on both wrestlers fits (each holds the other)."""
+    c.pin_feet()
+    def hold(f, dx=0.0, dy=0.0, dz=0.0):
+        for side, (x, y, z) in (('Right', GRIP_R), ('Left', GRIP_L)):
+            fl = (-1 if side == 'Left' else 1)
+            c.pose(f, side, (x + dx, y + dy, z + dz), (GRIP[0][0] * fl, GRIP[0][1], GRIP[0][2]), (GRIP[1][0] * fl - 0.6 * fl, GRIP[1][1], GRIP[1][2]))
+    lean = lambda z, x=0, t=0: {'Spine': [(X, -8)], 'Spine1': [(X, -10), (Y, z)], 'Spine2': [(X, -8 + x), (Z, t)], 'Neck': [(X, 6)], 'Head': [(X, 6), (Z, -14)]}
+    keys = [(1, 0, 0, 0, (0, 0, -0.14), 0, 0), (20, 0.05, 0, 0, (0.05, 0, -0.16), 6, 0), (40, -0.05, 0.02, 0.02, (-0.05, 0.02, -0.15), -6, -3),
+            (52, 0.0, -0.05, 0.03, (0, -0.04, -0.13), 0, 5), (64, 0.0, 0.04, -0.02, (0, 0.04, -0.17), 0, -5), (90, 0, 0, 0, (0, 0, -0.14), 0, 0)]
+    for f, dx, dy, dz, hips, sway, push in keys:
+        hold(f, dx, dy, dz)
+        c.turn(f, lean(sway, x=push * 0.6, t=sway * 0.5), hips=hips)
+    for h in ('RightHand', 'LeftHand'): c.curl(1, h, 0.95, Thumb=0.6); c.curl(90, h, 0.95, Thumb=0.6)
+
+def throw(c):
+    """The winner's throw from the belt-hold: a dip, a hip turn to the left with a heave of both arms up and across, the grip let go,
+    and standing tall."""
+    c.pin_feet()
+    def both(f, r, l, fi=GRIP[0], pa=GRIP[1]):
+        c.pose(f, 'Right', r, fi, (pa[0] - 0.6, pa[1], pa[2])); c.pose(f, 'Left', l, (-fi[0], fi[1], fi[2]), (-pa[0] + 0.6, pa[1], pa[2]))
+    both(1, GRIP_R, GRIP_L)
+    both(10, (0.20, 0.48, 0.78), (-0.20, 0.48, 0.78))
+    both(20, (-0.05, 0.42, 1.25), (-0.40, 0.25, 1.15), (-0.6, 0.6, 0.3), (0, -1, 0))
+    both(28, (-0.25, 0.30, 1.10), (-0.50, 0.05, 1.0), (-0.8, 0.2, -0.3), (0, -1, 0))
+    c.hand(48, 'Right'); c.hand(48, 'Left')
+    for h in ('RightHand', 'LeftHand'): c.curl(1, h, 0.95, Thumb=0.6); c.curl(24, h, 0.95, Thumb=0.6); c.curl(30, h, 0.2); c.curl(48, h, 0.1)
+    lean = {'Spine': [(X, -8)], 'Spine1': [(X, -10)], 'Spine2': [(X, -8)], 'Neck': [(X, 6)], 'Head': [(X, 6), (Z, -14)]}
+    c.turn(1, lean, hips=(0, 0, -0.14)); c.turn(10, lean, hips=(0, 0.02, -0.22))
+    c.turn(20, {'Spine': [(Z, 20)], 'Spine1': [(Z, 15), (X, 4)], 'Spine2': [(Z, 10), (X, 6)], 'Head': [(Z, 20)]}, hips=(0, 0, -0.06))
+    c.turn(28, {'Spine': [(Z, 28)], 'Spine1': [(Z, 18), (X, -4)], 'Spine2': [(Z, 10)], 'Head': [(Z, 15), (X, -8)]}, hips=(0, 0, -0.10))
+    c.turn(48, {'Head': [(X, -4)]}, hips=(0, 0, 0))
+
+def thrown(c):
+    """The loser, thrown: the grip torn away, a lurch back and to the side, arms flung out for balance, a stumble down into a crouch,
+    and up again."""
+    c.pin_feet()
+    for s, g in (('Right', GRIP_R), ('Left', GRIP_L)):
+        fl = -1 if s == 'Left' else 1
+        c.pose(1, s, g, (GRIP[0][0] * fl, GRIP[0][1], GRIP[0][2]), (GRIP[1][0] * fl - 0.6 * fl, GRIP[1][1], GRIP[1][2]))
+    c.pose(14, 'Right', (0.55, 0.10, 1.45), (0.9, 0.2, 0.4), (0, 1, 0)); c.pose(14, 'Left', (-0.55, 0.0, 1.30), (-0.9, 0.2, 0.3), (0, 1, 0))
+    c.pose(28, 'Right', (0.40, 0.30, 0.50), (0.2, 0.5, -1), (0, 0.3, -1)); c.pose(28, 'Left', (-0.35, 0.25, 0.55), (-0.2, 0.5, -1), (0, 0.3, -1))
+    c.pose(44, 'Right', (0.38, 0.28, 0.52), (0.2, 0.5, -1), (0, 0.3, -1)); c.pose(44, 'Left', (-0.35, 0.25, 0.56), (-0.2, 0.5, -1), (0, 0.3, -1))
+    c.hand(70, 'Right'); c.hand(70, 'Left')
+    for h in ('RightHand', 'LeftHand'): c.curl(1, h, 0.9, Thumb=0.5); c.curl(8, h, 0.1); c.curl(70, h, 0.1)
+    c.turn(1, {'Spine': [(X, -8)], 'Spine1': [(X, -10)], 'Spine2': [(X, -8)], 'Head': [(X, 6), (Z, -14)]}, hips=(0, 0, -0.14))
+    c.turn(14, {'Spine': [(X, 10), (Y, -12)], 'Spine1': [(X, 12), (Y, -8)], 'Spine2': [(X, 8)], 'Head': [(X, 14)]}, hips=(0.10, -0.12, -0.10))
+    c.turn(28, {'Spine': [(X, -16)], 'Spine1': [(X, -18)], 'Spine2': [(X, -10)], 'Head': [(X, -10)]}, hips=(0.05, -0.06, -0.42))
+    c.turn(44, {'Spine': [(X, -14)], 'Spine1': [(X, -16)], 'Spine2': [(X, -8)], 'Head': [(X, 4)]}, hips=(0.05, -0.06, -0.40))
+    c.turn(70, {}, hips=(0, 0, 0))
+
 CLIPS = {'stand_fish': fish, 'stand_fish_cast': fish_cast, 'stand_fish_reel': fish_reel, 'walk_carry': carry, 'stand_sow': sow,
-         'stand_harvest': harvest, 'stand_watch': watch, 'stand_drum': drum, 'stand_recite': recite}
-LOOPS = {'stand_fish', 'walk_carry', 'stand_drum'}
+         'stand_harvest': harvest, 'stand_watch': watch, 'stand_drum': drum, 'stand_recite': recite,
+         'stand_grapple': grapple, 'stand_throw': throw, 'stand_thrown': thrown}
+LOOPS = {'stand_fish', 'walk_carry', 'stand_drum', 'stand_grapple'}
 PREVIEW = {'stand_fish': [1, 60], 'stand_fish_cast': [12, 20, 34], 'stand_fish_reel': [10, 42, 60], 'walk_carry': [1], 'stand_sow': [18, 28, 50],
-           'stand_harvest': [26, 42, 56], 'stand_watch': [18, 45, 80], 'stand_drum': [1, 8, 20], 'stand_recite': [20, 40, 70, 95]}
+           'stand_harvest': [26, 42, 56], 'stand_watch': [18, 45, 80], 'stand_drum': [1, 8, 20], 'stand_recite': [20, 40, 70, 95],
+           'stand_grapple': [1, 40, 64], 'stand_throw': [10, 20, 28], 'stand_thrown': [14, 28, 60]}
 
 argv = sys.argv[sys.argv.index('--') + 1:]
 rig_path, out, name = argv[0], argv[1], argv[2]

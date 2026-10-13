@@ -86,7 +86,7 @@ namespace Jarldom
             Doing = Kind == "tafl" ? $"playing hnefatafl with {b.S.Name}" : $"wrestling with {b.S.Name}";
             var t = new LeisureTask(Kind, why) { Partner = Owner, Host = false };
             if (Kind == "tafl" && Leisure.TaflTable(Owner.Colony, out Chair x, out Chair y)) { _seat = x; t._seat = y; Seats.Take(Owner, x); Seats.Take(b, y); }
-            else if (Kind == "glima") { _spot = Owner.Pos; t._spot = Owner.Pos + Owner.Body.transform.forward * 1.5f; }
+            else if (Kind == "glima") { _spot = Owner.Pos; t._spot = Owner.Pos + Owner.Body.transform.forward * 1.5f; } // (stepped in close for the hold: Glima)
             Owner.Move.Stop(); _there = false; _until = Time.time + 75f;
             if (_seat != null) Owner.Move.To(_seat.transform.position, 1.2f); else if (Kind == "glima") _there = true;
             return t;
@@ -206,23 +206,43 @@ namespace Jarldom
             (Random.value < 0.5f ? b : Partner).Say(talk[Random.Range(0, talk.Length)], 4);
             if (_beat >= 5) { Result(b, Partner, "hnefatafl", "tafl"); _until = 0; }
         }
+        // The belt-hold: the two set face to face, near enough to take hold of each other, and grappling (Bob's Animations).
+        private bool _gripped;
+        private bool Grip(Brain b)
+        {
+            Vector3 d = Partner.Pos - b.Pos; d.y = 0;
+            if (d.sqrMagnitude < 0.01f) d = b.Body.transform.forward;
+            d.Normalize();
+            Vector3 at = b.Pos + d * 0.75f; at.y = Partner.Pos.y;
+            Partner.Move.Stop(); b.Move.Stop();
+            Partner.Place(at); if (Partner.Task is LeisureTask pt) pt._spot = at; // (its own spot too, or it walks back to where it stood)
+            b.Body.transform.rotation = Quaternion.LookRotation(d); Partner.Body.transform.rotation = Quaternion.LookRotation(-d);
+            _gripped = WorkEmotes.Grapple(b, Partner);
+            return _gripped;
+        }
         private void Glima(Brain b)
         {
             if (!Arrive(b, _spot, 0.8f)) return;
-            Face(b, Partner.Pos);
+            if (!_gripped) Face(b, Partner.Pos); // (once in the hold, they stay where Grip set them)
             if (!Host || Time.time < _next || Vector3.Distance(b.Pos, Partner.Pos) > 3f) return;
+            if (_beat < 0) return; // (thrown: waiting for it to play out)
             _next = Time.time + 2.2f; _beat++;
             if (_beat == 1) { Body_.Anim(b.Body)?.SetTrigger("emote_challenge"); Body_.Anim(Partner.Body)?.SetTrigger("emote_challenge"); b.Say(new[] { "Glíma, then! Belt-hold.", "Belt on, then! Come here.", "Glíma! Let's see your grip.", "Hold still, then. Glíma!", "Come on, then. Belt-hold and go." }[UnityEngine.Random.Range(0, 5)], 4); return; }
-            if (_beat < 7) { Brain who = _beat % 2 == 0 ? b : Partner; Brain other = who == b ? Partner : b; other.Body.Stagger((other.Pos - who.Pos).normalized); return; } // (the shoves and holds)
-            Result(b, Partner, "glíma", "glima");
-            _until = 0;
+            if (_beat == 2 && Grip(b)) return; // (with Bob's Animations: stepped in to the belt-hold, grappling till the throw)
+            if (_beat < 7) { if (_gripped) return; Brain who = _beat % 2 == 0 ? b : Partner; Brain other = who == b ? Partner : b; other.Body.Stagger((other.Pos - who.Pos).normalized); return; } // (the shoves and holds)
+            bool held = _gripped;
+            Result(b, Partner, "glíma", "glima", held);
+            _gripped = false;
+            // (after a throw, both stay where they are while it plays out, then go: walking off would cut it short)
+            if (held) { _until = Time.time + 2.6f; if (Partner.Task is LeisureTask pt) pt._until = _until; _beat = int.MinValue / 2; }
+            else _until = 0;
         }
         // One wins (the stronger, more often), both are the merrier.
-        private static void Result(Brain a, Brain c, string game, string key)
+        private static void Result(Brain a, Brain c, string game, string key, bool gripped = false)
         {
             float pa = 1f + a.S.Skill(key == "glima" ? "Unarmed" : "Tafl") / 20f + (a.S.Has("strong") && key == "glima" ? 0.5f : 0), pc = 1f + c.S.Skill(key == "glima" ? "Unarmed" : "Tafl") / 20f + (c.S.Has("strong") && key == "glima" ? 0.5f : 0);
             Brain win = Random.value * (pa + pc) < pa ? a : c, lose = win == a ? c : a;
-            if (key == "glima") { lose.Body.Stagger((lose.Pos - win.Pos).normalized); Body_.Anim(win.Body)?.SetTrigger("emote_flex"); win.Say(new[] { $"Down you go, {lose.S.Name}!", $"Off your feet, {lose.S.Name}!", $"Down you go, {lose.S.Name}, and stay down!", $"Too slow, {lose.S.Name}!", $"{lose.S.Name} is on the grass!" }[UnityEngine.Random.Range(0, 5)], 4); lose.Say(new[] { "Again tomorrow.", "Next time, then.", "My hip will mend. Again.", "Lucky throw, that.", "I'll have you tomorrow." }[UnityEngine.Random.Range(0, 5)], 4); }
+            if (key == "glima") { if (!(gripped && WorkEmotes.Throw(win, lose))) { lose.Body.Stagger((lose.Pos - win.Pos).normalized); Body_.Anim(win.Body)?.SetTrigger("emote_flex"); } win.Say(new[] { $"Down you go, {lose.S.Name}!", $"Off your feet, {lose.S.Name}!", $"Down you go, {lose.S.Name}, and stay down!", $"Too slow, {lose.S.Name}!", $"{lose.S.Name} is on the grass!" }[UnityEngine.Random.Range(0, 5)], 4); lose.Say(new[] { "Again tomorrow.", "Next time, then.", "My hip will mend. Again.", "Lucky throw, that.", "I'll have you tomorrow." }[UnityEngine.Random.Range(0, 5)], 4); }
             else { Body_.Anim(win.Body)?.SetTrigger("emote_cheer"); win.Say(new[] { "The king is mine!", "The king is taken care of.", "Checkmate, or near enough.", "Your king is mine now.", "That king had no chance." }[UnityEngine.Random.Range(0, 5)], 4); }
             win.S.Bump(key + "wins");
             foreach (Brain x in new[] { a, c })

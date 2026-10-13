@@ -78,6 +78,7 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
 - **At work, they move** (with Bob's Animations too): a fisherman casts, holds the rod out and reels a fish in to look at it; anyone walking
   with wood, stone or ore for the stores carries it in both arms; farmers crouch to sow and to pull crops; a guard at a watch post shades
   their eyes and looks about; the skald drums under one arm, or recites without a drum.
+- **Glíma, wrestled** (with Bob's Animations): the two step in to a belt-hold and grapple, then one throws the other.
 - **Moving the pillars**: taken down (or broken) they leave the *heart of the high seat*; raise new pillars carrying it and the colony
   is back, people, rooms and saga and all.
 - **Running it together**: the founder lets other players run the colony from the hall tab (a button for each player near it; only
@@ -1140,7 +1141,8 @@ clips are made in Blender over a skeleton captured from the game (`mods/BobsAnim
 - Clips (all seated, each blending out by itself when the character gets up): `sit_drink`, `sit_toast_left`/`_right`, `sit_talk_left`/`_right`,
   `sit_point_left`/`_right`, `sit_laugh`, `sit_think`, `sit_cheer`, `sit_board_move`, and the loops `sit_fold_arms` and `sit_elbows`.
   Standing (each ending by itself when the character walks off): `stand_fish` (a loop), `stand_fish_cast`, `stand_fish_reel`, `stand_sow`,
-  `stand_harvest` (crouched, feet planted), `stand_watch`, `stand_drum` (a loop), `stand_recite`; and `walk_carry`, a loop played while
+  `stand_harvest` (crouched, feet planted), `stand_watch`, `stand_drum` (a loop), `stand_recite`, `stand_grapple` (a loop for two wrestlers
+  0.75 m apart, face to face), `stand_throw`, `stand_thrown`; and `walk_carry`, a loop played while
   walking, the armful given when played (`Api.PlayWith(character, "walk_carry", "Wood")`). One clip after another blends without a snap.
 - Claude Tools: `anim chars | clips | rig [who] | hold [who] [item] | play <clip> [who] [loop|once] | stop [who] | near [who] | params [who] | shot [who] [yaw] [pitch] [dist]`.
 
