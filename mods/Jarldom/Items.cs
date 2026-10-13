@@ -55,7 +55,11 @@ namespace Jarldom
             GameObject go = Object.Instantiate(source, Assets.Holder);
             go.name = RemainsPrefab;
             var shared = (ItemDrop.ItemData.SharedData)CloneShared.Invoke(sourceDrop.m_itemData.m_shared, null);
-            Assets.Tint(go, new Color(0.75f, 0.8f, 0.72f), new Color(0.02f, 0.06f, 0.04f));
+            Assets.Tint(go, new Color(0.75f, 0.8f, 0.72f), new Color(0.06f, 0.12f, 0.08f));
+            // (bigger than a handful of bone fragments, and a pale glow about them: found in the grass at night, not missed among the entrails)
+            Transform look = go.transform.childCount > 0 ? go.transform.GetChild(0) : null;
+            if (look != null) look.localScale *= 1.8f;
+            Glow(go.transform);
             shared.m_name = "Remains of the lost";
             shared.m_description = "What was left when one of the colony's own, taken by Hel, fell for the last time. Bring them to the colony's burial ground and use them there (a hotbar key, or right-click) to lay them to rest: their friends' grief ends, and Hel is pleased.";
             shared.m_itemType = ItemDrop.ItemData.ItemType.Misc; shared.m_maxStackSize = 1; shared.m_weight = 1f; shared.m_value = 0; shared.m_teleportable = true;
@@ -74,6 +78,20 @@ namespace Jarldom
             private static void Postfix(ItemDrop.ItemData item, ref string __result)
             {
                 if (item?.m_customData != null && item.m_customData.TryGetValue(Lost.RemainsName, out string name)) __result = $"<color=#c9d6c2>{name}'s remains.</color>\n" + __result;
+            }
+        }
+        public static void Glow(Transform remains)
+        {
+            var glow = new GameObject("remains_glow"); glow.transform.SetParent(remains, false); glow.transform.localPosition = Vector3.up * 0.3f;
+            Light l = glow.AddComponent<Light>(); l.type = LightType.Point; l.color = new Color(0.7f, 0.9f, 0.75f); l.range = 3.5f; l.intensity = 1.4f; l.shadows = LightShadows.None;
+        }
+        // On the ground too: "Hervor's remains".
+        [HarmonyPatch(typeof(ItemDrop), nameof(ItemDrop.GetHoverName))]
+        private static class WhoseOnGround
+        {
+            private static void Postfix(ItemDrop __instance, ref string __result)
+            {
+                if (__instance?.m_itemData?.m_customData != null && __instance.m_itemData.m_customData.TryGetValue(Lost.RemainsName, out string name)) __result = $"{name}'s remains";
             }
         }
         // The skald's drum (workbench; deer hide and wood): a skald plays it in the hall at dusk.

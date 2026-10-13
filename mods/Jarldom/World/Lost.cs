@@ -14,6 +14,7 @@ namespace Jarldom
         public const int HelFavour = 15;
         private static float _next;
         private static readonly HashSet<string> Pinned = new HashSet<string>();
+        private static readonly Dictionary<string, Vector3> PinAt = new Dictionary<string, Vector3>();
 
         public static string Who(ZDO z) { string n = z?.GetString(Draugr.NameKey, "") ?? ""; return n.StartsWith("Draugr ") ? n.Substring(7) : ""; }
         public static string Called(string name) => $"{name}, who was lost";
@@ -32,6 +33,19 @@ namespace Jarldom
                 Net.PinHere(key, ch.transform.position, Called(name), true);
                 Pinned.Add(key);
             }
+            // Their remains, lying where they fell: pinned until picked up (a pin whose remains are gone, seen from near, comes off).
+            var seen = new HashSet<string>();
+            foreach (ItemDrop drop in Drops())
+            {
+                if (drop == null || !IsRemains(drop.m_itemData) || !(drop.GetComponent<ZNetView>() is ZNetView v && v.IsValid())) continue;
+                string key = "remains:" + v.GetZDO().m_uid;
+                Net.PinHere(key, drop.transform.position, $"{(drop.m_itemData.m_customData.TryGetValue(RemainsName, out string n) ? n : "The lost")}'s remains", true);
+                Pinned.Add(key); seen.Add(key); PinAt[key] = drop.transform.position;
+                if (drop.transform.Find("remains_glow") == null) Items.Glow(drop.transform); // (dropped before they glowed)
+            }
+            Player me = Player.m_localPlayer;
+            foreach (string key in Pinned.Where(k => k.StartsWith("remains:") && !seen.Contains(k)).ToList())
+                if (me != null && PinAt.TryGetValue(key, out Vector3 at) && Vector3.Distance(me.transform.position, at) < 40f) { Net.PinHere(key, Vector3.zero, "", false); Pinned.Remove(key); PinAt.Remove(key); }
         }
         public static void Unpin(ZDO z)
         {
@@ -39,7 +53,10 @@ namespace Jarldom
             string key = "lost:" + (z.GetString(VidKey, "") is string v && v != "" ? v : name);
             Net.PinHere(key, Vector3.zero, "", false); Pinned.Remove(key);
         }
-        public static void Forget() { Pinned.Clear(); }
+        public static void Forget() { Pinned.Clear(); PinAt.Clear(); }
+        // (the game's own list of the items lying in the world: no search of the scene)
+        private static readonly AccessTools.FieldRef<List<ItemDrop>> DropList = AccessTools.StaticFieldRefAccess<List<ItemDrop>>(AccessTools.Field(typeof(ItemDrop), "s_instances"));
+        private static IEnumerable<ItemDrop> Drops() => DropList() ?? new List<ItemDrop>();
 
         // At dusk on the colony's owner: one of the unburied, if none of theirs is about, walks back in at the colony's edge (Unburied).
         public static void Dusk(Colony c, int day)
