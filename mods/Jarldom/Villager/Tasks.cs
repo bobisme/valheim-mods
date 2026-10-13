@@ -73,6 +73,7 @@ namespace Jarldom
         public override void Start(Brain b)
         {
             Doing = JustRest ? "resting" : "going to bed";
+            if (!JustRest) Plugin.Guard(() => Greet.Night(b));
             _bed = b.Colony.BedById(b.S.Bed);
             // The injured rest in the healer's house, if it has a bed nobody holds.
             if (JustRest && b.Colony.Best(RoomType.HealersHouse) != null)

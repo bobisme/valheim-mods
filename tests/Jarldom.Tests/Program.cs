@@ -437,4 +437,20 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(ApiBinder.Usable(1, 1) && !ApiBinder.Usable(0, 1), "Version gating");
 }
 
+{
+    // Greetings in the world: Old Norse with English under it.
+    var gl = Greetings.Lines;
+    Check(Enum.GetValues(typeof(Greeting)).Cast<Greeting>().All(k => gl.ContainsKey(k) && gl[k].Length >= 3), "Every situation has at least three lines");
+    int total = gl.Values.Sum(a => a.Length);
+    Check(total >= 36 && total <= 50, "About forty greeting lines: " + total);
+    bool placeholders = gl.Values.SelectMany(a => a).All(l => System.Text.RegularExpressions.Regex.Matches(l.norse + l.english, "\\{[^}]*\\}").Cast<System.Text.RegularExpressions.Match>().All(m => m.Value == "{name}"));
+    Check(placeholders, "Only {name} as a placeholder");
+    bool fontSafe = Greetings.Letters().All(ch => ch < 128 || Greetings.Glyphs.IndexOf(ch) >= 0);
+    Check(fontSafe, "Only letters the game's font has: " + new string(Greetings.Letters().Where(ch => ch >= 128 && Greetings.Glyphs.IndexOf(ch) < 0).ToArray()));
+    bool named = Enumerable.Range(0, 200).Select(i => Greetings.Pick(Greeting.Hello, new Random(i), "Bob")).All(l => !l.norse.Contains("{") && !l.english.Contains("{")) && Enumerable.Range(0, 200).Any(i => Greetings.Pick(Greeting.Hello, new Random(i), "Bob").english.Contains("Bob"));
+    Check(named, "The player's name goes into the line");
+    Check(Greetings.Pick(Greeting.Night, new Random(4), "").english.Contains("{") == false, "No player: no stray placeholder");
+    Check(Greetings.Show(("Heill, jarl!", "Hail, jarl!")) == "<size=75%><i>Heill, jarl!</i></size>\nHail, jarl!", "Old Norse small, English beneath");
+}
+
 Console.WriteLine($"Jarldom: {checks} checks passed");

@@ -1,3 +1,5 @@
+0.1.53: villagers greet you in the world, in Old Norse with the English beneath: a hello as you come near, thanks for food you hand them, a cry when a raid comes, a grumble when the rain starts, good night at bedtime (never a chorus: one at a time, and each says hello to you at most every 20 minutes). The gothi's cleansing rite is now also a disgraced soul's atonement: if Odin hears it, the shame is washed out; the villager panel lists every way back.
+
 0.1.52: while an omen's great stag runs (Omens 0.6.3), a villager may ask the jarl to hunt it: pinned where it was seen, and only the stag's own kill counts. Under the hood: other mods' APIs are found through their live plugin and bound once, with versions (an older Omens or Shieldwall just leaves the new parts off).
 
 0.1.51: handing a villager what they asked for counts and takes only what's in your own bag: with CraftFromChests or BuildFromChests the chests nearby were counted (and emptied) too.

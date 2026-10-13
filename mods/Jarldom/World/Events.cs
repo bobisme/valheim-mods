@@ -362,6 +362,7 @@ namespace Jarldom
         public static void Tick(Colony c)
         {
             Plugin.Guard(() => Faith.Thunder(c));
+            Plugin.Guard(() => Greet.Weather(c));
             RandomEvent ev = RandEventSystem.instance != null ? RandEventSystem.instance.GetCurrentRandomEvent() : null;
             bool near = ev != null && Utils.DistanceXZ(ev.m_pos, c.Position) < c.Radius + 80;
             bool siege = Compat.Siege(c.Position, c.Radius, out Vector3 stone);
@@ -385,6 +386,7 @@ namespace Jarldom
                 Running[c.Id] = (name, c.R.Log.Count(e => e.Kind == "death" || e.Kind == "lost"));
                 Fought.Remove(c.Id);
                 c.Log("raid", "", name);
+                Plugin.Guard(() => Greet.Raid(c));
                 c.HornUntil = Time.time + 600;
                 Assets.Effect("sfx_fader_bell", c.Position);
             }

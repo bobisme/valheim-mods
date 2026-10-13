@@ -107,7 +107,7 @@ namespace Jarldom.Ui
                     string why = Saboteur.CleanseWhy(c, vid);
                     ry += 44; bx = 10;
                     Small(right, why == "" ? $"Cleansing rite ({Saboteur.CleansePrice} coins)" : "Cleansing rite", ref bx, ry, () => { if (Saboteur.CleanseWhy(c, vid) == "") { Net.Act(c, "cleanse", vid); Close(); } else Player.m_localPlayer.Message(MessageHud.MessageType.Center, "Not now: " + Saboteur.CleanseWhy(c, vid) + "."); },
-                        why == "" ? $"The gothi takes {Saboteur.CleansePrice} coins from the treasury to Odin and holds a rite at his altar. If the Forsaken's mark is on them, Odin may burn it out (more likely the more he favours the colony); if not, they're found clean and the suspicion on them lifts. The coins are spent either way." : "Not now: " + why + ".");
+                        why == "" ? $"The gothi takes {Saboteur.CleansePrice} coins from the treasury to Odin and holds a rite at his altar. If the Forsaken's mark is on them, Odin may burn it out (more likely the more he favours the colony); if not, they're found clean and the suspicion on them lifts. For a disgraced soul it's their atonement: if Odin hears it, the shame is washed out. The coins are spent either way." : "Not now: " + why + ".");
                 }
                 ItemDrop.ItemData ring = Player.m_localPlayer.GetInventory().GetAllItems().FirstOrDefault(Items.IsRing);
                 if (ring != null && c.AllowedName(Player.m_localPlayer.GetPlayerName())) { ry += 44; bx = 10; Small(right, "Give an arm ring", ref bx, ry, () => { Player me = Player.m_localPlayer; ItemDrop.ItemData r = me.GetInventory().GetAllItems().FirstOrDefault(Items.IsRing); if (r == null) return; me.GetInventory().RemoveItem(r, 1); Net.Act(c, "ring", vid); }); }
@@ -132,7 +132,7 @@ namespace Jarldom.Ui
             if (Asks.All(me).Any(x => x.Vid == s.Vid && x.Id != q?.Id)) Asks.Drop(me, s.Vid); // (one answered or lapsed since it was taken on)
             if (q == null)
             {
-                if (s.Disgraced) ry = Text(right, "<color=#ff8c59>Disgraced</color>: miserable too long, they shamed themselves. They'll ask a deed of you soon: done, it washes the shame out (or they may desert by night).", ry, 15);
+                if (s.Disgraced) ry = Text(right, "<color=#ff8c59>Disgraced</color>: miserable too long, they shamed themselves. Ways back: the deed they ask of you, the gothi's cleansing rite at Odin's altar, or killing raiders in a raid the colony holds off. Left as they are, they may desert by night.", ry, 15);
                 return ry;
             }
             int left = Requests.DaysLeft(q, Clock.Day(ZNet.instance.GetTimeSeconds()));

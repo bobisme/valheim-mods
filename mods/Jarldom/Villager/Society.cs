@@ -40,7 +40,7 @@ namespace Jarldom
                 string[] f = z.GetString(SayKey, "").Split('\u001f');
                 float ttl = f.Length > 1 && float.TryParse(f[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float t) ? t : 5;
                 Chat.instance.SetNpcText(h.gameObject, Vector3.up * 2.2f, 20f, ttl, "", f[0], false);
-                if (Vector3.Distance(h.transform.position, me) < 20 && f[0].Length > 30) MessageHud.instance?.ShowMessage(MessageHud.MessageType.TopLeft, $"{Villagers.DisplayName(h)}: {f[0]}");
+                if (Vector3.Distance(h.transform.position, me) < 20 && f[0].Length > 30 && !f[0].StartsWith("<size=75%><i>")) MessageHud.instance?.ShowMessage(MessageHud.MessageType.TopLeft, $"{Villagers.DisplayName(h)}: {f[0]}");
             }
             if (Shown.Count > 500) Shown.Clear();
         }

@@ -16,7 +16,7 @@ namespace Jarldom
         public string LastAttacker = ""; public Character Foe; private float _foeUntil;
         public bool KeepDoorsOpen; public float Stamina = 1f;
         public bool Fighting, Combat_Bow, Fled; public int Swings, SwingsStarted; public string CombatNote = ""; public float BlockUntil, NoBlockUntil; public Character FightTarget; public float FleeUntil; public float BlindSince = -1, UnseenUntil; public Character Unseen;
-        private bool _dirty; private float _nextSave, _nextNeeds, _nextGear, _nextFoes, _nextMoodSync, _nextWork, _born;
+        private bool _dirty; private float _nextGreet, _nextSave, _nextNeeds, _nextGear, _nextFoes, _nextMoodSync, _nextWork, _born;
         private double _lastNeeds;
         private readonly List<Meal> _meals = new List<Meal>();
         private readonly Rigidbody _body;
@@ -128,6 +128,7 @@ namespace Jarldom
             if (Time.time >= _nextGear) { _nextGear = Time.time + 1f; Gear.Maintain(this); }
             if (Time.time >= _nextFoes) { _nextFoes = Time.time + 0.3f; Combat.Think(this); }
             if (Time.time >= _nextMoodSync) { _nextMoodSync = Time.time + 2f; SyncHover(); }
+            if (Time.time >= _nextGreet) { _nextGreet = Time.time + 1.5f; Plugin.Guard(() => Greet.Near(this)); }
             if (Time.time >= _nextStep) { _nextStep = Time.time + 2f; Upkeep.Step(this); } // (where feet wear a path)
             if (_dirty && Time.time >= _nextSave) { _nextSave = Time.time + 30f; Save(); } // (the soul is sent to everyone when written: twice a minute is plenty; deaths and commands save at once)
             if (Combat.Busy(this)) return;
@@ -357,6 +358,7 @@ namespace Jarldom
             if (p == null) return;
             S.Opinions[p.GetPlayerName()] = Mathf.Clamp((S.Opinions.TryGetValue(p.GetPlayerName(), out int o) ? o : 0) + 3, -100, 100);
             _dirty = true;
+            Greet.Say(this, Greeting.Thanks, p, 20f, false, true);
         }
         public void Say(string text, float ttl = 6f) => Talk.Say(this, text, ttl);
 

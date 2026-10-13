@@ -93,13 +93,20 @@ namespace Jarldom
             if (b.Colony != null) Net.Act(b.Colony, "asked", string.Join("|", s.FullName, who, Requests.Short(q), washed ? "1" : "0", q.Id));
             Tag(b); b.Dirty();
         }
+        // The shame gone (a raid fought, the gothi's rite): the deed they asked is no longer needed.
+        public static void Wash(Brain b)
+        {
+            VillagerState s = b.S;
+            s.Disgraced = false; s.DisgraceSince = 0; s.LowMoodSince = 0; Mood.Add(s, "washed", b.Now);
+            if (s.Asked != null && s.Asked.Deed) s.Asked = null;
+            Tag(b); b.Dirty();
+        }
         // A disgraced soul who killed in a raid that was held: that washes the shame out too.
         public static void FoughtWell(Brain b)
         {
             VillagerState s = b.S;
             if (!s.Disgraced || !s.Counts.TryGetValue("raidkill", out int day) || Clock.Day(b.Now) - day > 1) return;
-            s.Disgraced = false; s.DisgraceSince = 0; s.LowMoodSince = 0; Mood.Add(s, "washed", b.Now);
-            if (s.Asked != null && s.Asked.Deed) s.Asked = null; // (the deed they asked is no longer needed)
+            Wash(b);
             b.Say(new[] { "I stood with you when it counted. Let them whisper now.", "Blood on my blade for the hall. The shame is gone.", "I fought for us. My name is clean again." }[UnityEngine.Random.Range(0, 3)], 6);
             b.Colony?.Log("text", s.Name, "", $"{s.FullName} fought hard in the raid, and the hall forgets their disgrace.");
             Tag(b);

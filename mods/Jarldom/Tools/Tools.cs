@@ -16,7 +16,7 @@ namespace Jarldom
     internal static class Tools
     {
         private static BaseUnityPlugin _tools; private static float _next;
-        private const string Usage = "jarldom status | roster | smite <prefab|stag> | villager <name|vid> | needs <name> | renown | rooms | room check <n> | board | log [n] | saga | compat | " +
+        private const string Usage = "jarldom status | roster | smite <prefab|stag> | feed <name> | greetings | villager <name|vid> | needs <name> | renown | rooms | room check <n> | board | log [n] | saga | compat | " +
             "[cheats:] place pillars [metres] | spawn [profession] [traits..] | migrate [now|dusk] | accept [i|all] | room <type> <x1> <z1> <x2> <z2> [god] | zone <type> <x1> <z1> <x2> <z2> | " +
             "prof <name> <profession> | mood <name> <moodlet> | worth <name> <n> | need <name> <need>=<n> | give <name> <prefab> [n] | bed <name> | goto <name> <x> <z> | time <hours> | pay | " +
             "favour <god> <n> | feast | thing now | ascend <name> | kill <name> | raid <event> | horn | treasury [x z] | stockpile <category> [x z] | tp <name> | remove | " +
@@ -66,7 +66,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or for a server admin with devcommands on"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -459,6 +459,18 @@ namespace Jarldom
                             ["places"] = new JArray((wf?.Places ?? new List<Place>()).Select(p => $"{p.Label} ({p.Key}, stage {p.Stage}) {Mathf.RoundToInt(Utils.DistanceXZ(new Vector3(p.X, 0, p.Z), c.Position))} m at {p.X:0},{p.Z:0}")),
                             ["avenge"] = new JArray((wf?.Avenge ?? new List<(string, string)>()).Select(x => $"{x.Item1} by {x.Item2}")),
                         });
+                    }
+                    break;
+                case "greetings": output(new JObject { ["recent"] = new JArray(Greet.Recent) }); break;
+                case "feed":
+                    {
+                        // One food or potion from the player's bag into a villager's, as a hotbar key on them does.
+                        Brain b = a.Length > 2 ? Who(a[2]) : null; if (b == null) { error("feed <name>"); return; }
+                        ItemDrop.ItemData food = me.GetInventory().GetAllItems().FirstOrDefault(i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Consumable && !i.m_equipped);
+                        if (food == null) { error("nothing to eat in the bag"); return; }
+                        string what = food.m_shared.m_name;
+                        Villagers.Feed(b.Body, me, food);
+                        output(new JObject { ["fed"] = b.S.Name, ["item"] = what });
                     }
                     break;
                 case "smite":
@@ -1163,6 +1175,7 @@ namespace Jarldom
         private static JObject Villager(Brain b) => new JObject
         {
             ["vid"] = b.S.Vid, ["name"] = b.S.FullName, ["prof"] = b.S.Prof.ToString(), ["traits"] = new JArray(b.S.Traits), ["doing"] = b.Doing, ["activity"] = b.Activity.ToString(), ["task"] = b.Task?.GetType().Name ?? "",
+            ["said"] = Villagers.Tags(b.View.GetZDO()).GetString(Talk.SayKey, "").Split('\u001f')[0],
             ["at"] = V(b.Pos), ["health"] = Math.Round(b.Body.GetHealth()), ["maxHealth"] = Math.Round(b.Body.GetMaxHealth()), ["mood"] = Mood.Of(b.S, b.Now),
             ["needs"] = new JObject(Enum.GetValues(typeof(Need)).Cast<Need>().Select(n => new JProperty(n.ToString(), Math.Round(b.S.Needs[(int)n])))),
             ["reasons"] = new JArray(Mood.Reasons(b.S, b.Now).Select(r => $"{r.value:+0;-0} {r.text}")), ["meals"] = new JArray(b.Meals.Select(m => $"{m.Prefab} {m.Left:0}s")),
