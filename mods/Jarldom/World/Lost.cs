@@ -42,6 +42,7 @@ namespace Jarldom
                 Net.PinHere(key, drop.transform.position, $"{(drop.m_itemData.m_customData.TryGetValue(RemainsName, out string n) ? n : "The lost")}'s remains", true);
                 Pinned.Add(key); seen.Add(key); PinAt[key] = drop.transform.position;
                 if (drop.transform.Find("remains_glow") == null) Items.Glow(drop.transform); // (dropped before they glowed)
+                if (v.IsOwner() && Buried(drop.transform.position) && Clear(drop.transform.position) is Vector3 free) Plugin.Guard(() => MoveTo(drop, free)); // (fell into a rock: out onto open ground)
             }
             Player me = Player.m_localPlayer;
             foreach (string key in Pinned.Where(k => k.StartsWith("remains:") && !seen.Contains(k)).ToList())
@@ -86,8 +87,38 @@ namespace Jarldom
             ItemDrop.ItemData item = prefab.GetComponent<ItemDrop>().m_itemData.Clone();
             item.m_dropPrefab = prefab; item.m_stack = 1;
             item.m_customData[RemainsKey] = vid; item.m_customData[RemainsName] = name; item.m_customData[RemainsColony] = colony;
-            ItemDrop.DropItem(item, 1, ch.transform.position + Vector3.up, Quaternion.identity);
+            Vector3 at = ch.transform.position;
+            if (Buried(at + Vector3.up * 0.3f) && Clear(at) is Vector3 free) at = free; // (not into the rock it died against)
+            ItemDrop.DropItem(item, 1, at + Vector3.up, Quaternion.identity);
             Unpin(z);
+        }
+        // Inside something solid (a rock, a cliff, a wall)?
+        private static int _solid = -1;
+        private static int Solid => _solid != -1 ? _solid : _solid = LayerMask.GetMask("static_solid", "Default", "piece", "Default_small");
+        // (from above: anything solid over them; a rock's surface isn't crossed by a small sphere wholly inside it)
+        private static bool Buried(Vector3 p) => Physics.CheckSphere(p + Vector3.up * 0.15f, 0.12f, Solid, QueryTriggerInteraction.Ignore)
+            || Physics.Raycast(p + Vector3.up * 12f, Vector3.down, out RaycastHit hit, 11.7f, Solid, QueryTriggerInteraction.Ignore) && hit.point.y > p.y + 0.25f;
+        // Open ground near: the bare earth (not the top of the rock) a metre or more off, the nearest first.
+        private static Vector3? Clear(Vector3 p)
+        {
+            int ground = LayerMask.GetMask("terrain");
+            for (float r = 1f; r <= 6f; r += 1f)
+                for (int k = 0; k < 12; k++)
+                {
+                    float a = k * Mathf.PI / 6f;
+                    Vector3 top = p + new Vector3(Mathf.Cos(a) * r, 8f, Mathf.Sin(a) * r);
+                    if (!Physics.Raycast(top, Vector3.down, out RaycastHit hit, 20f, ground | Solid, QueryTriggerInteraction.Ignore)) continue;
+                    if (((1 << hit.collider.gameObject.layer) & ground) == 0 || Buried(hit.point)) continue; // (something stands over it)
+                    return hit.point + Vector3.up * 0.15f;
+                }
+            return null;
+        }
+        private static void MoveTo(ItemDrop drop, Vector3 at)
+        {
+            drop.transform.position = at;
+            Rigidbody body = drop.GetComponent<Rigidbody>(); if (body != null) { body.position = at; body.linearVelocity = Vector3.zero; }
+            drop.GetComponent<ZNetView>().GetZDO().SetPosition(at);
+            Plugin.Log($"Jarldom: remains moved out of the rock to {at}");
         }
         public static bool IsRemains(ItemDrop.ItemData i) => i?.m_customData != null && i.m_customData.ContainsKey(RemainsKey);
 
