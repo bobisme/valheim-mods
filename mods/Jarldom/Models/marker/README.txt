@@ -4,3 +4,4 @@ Remake: copy stake.py to ~/.cache/jarldom-stake (the flatpak Blender can't read 
 set in Pieces.Designator.
 post.py (post.json.gz) is the stocky stake the marker had in 0.1.30-0.1.31, the watch post's look since 0.1.33 (Pieces.WatchPost);
 remade the same way.
+claim.py (claim.json.gz) is the ore claim's look since 0.1.48 (Pieces.OreClaim; slots wood, rope, iron, stone, ore, glow); remade the same way.

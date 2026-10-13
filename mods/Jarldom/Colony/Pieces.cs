@@ -384,29 +384,51 @@ namespace Jarldom
             go.AddComponent<WatchPost>();
         }
 
-        // An ore claim: a stake with an ochre pennant and a pick's head lashed on, driven in beside a deposit found in the wilds.
+        // An ore claim: a prospector's marker, driven in beside a deposit found in the wilds.
         private static void OreClaim()
         {
             GameObject pole = Assets.Find("wood_pole_log");
             GameObject go = Base("wood_pole_log", OreClaimName);
             if (go == null || pole == null) return;
             var look = new GameObject("new"); look.transform.SetParent(go.transform, false);
-            GameObject p = Assets.Model(pole, look.transform, Vector3.zero, Quaternion.identity, 1f);
-            p.transform.localScale = new Vector3(0.6f, 0.6f, 0.6f);
-            Bounds pb = Assets.MeshBounds(look.transform, p); p.transform.localPosition += Vector3.up * -pb.min.y;
             Material wood = pole.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null && m.HasProperty("_Color"));
-            var flag = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            Object.DestroyImmediate(flag.GetComponent<Collider>());
-            flag.transform.SetParent(look.transform, false);
-            flag.transform.localScale = new Vector3(0.04f, 0.3f, 0.46f);
-            flag.transform.localPosition = new Vector3(0, pb.size.y * 0.84f, 0.25f);
-            flag.GetComponent<MeshRenderer>().sharedMaterial = Plain(wood, new Color(0.78f, 0.5f, 0.16f));
-            var head = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            Object.DestroyImmediate(head.GetComponent<Collider>());
-            head.transform.SetParent(look.transform, false);
-            head.transform.localScale = new Vector3(0.5f, 0.07f, 0.07f);
-            head.transform.localPosition = new Vector3(0, pb.size.y * 0.55f, 0f);
-            head.GetComponent<MeshRenderer>().sharedMaterial = Plain(wood, new Color(0.35f, 0.35f, 0.37f));
+            // A stout log in a heap of rubble and ore, a pick and a sledge crossed and lashed on its front, an iron lantern hung from a bracket
+            // at its head, a hooped bucket of ore beside it (made in Blender: Models/marker/claim.py). The pole, pennant and pick's head it
+            // was before, if the model can't be had.
+            Mesh claim = CarvedMesh("claim", "marker");
+            Material hewn = Assets.Find("wood_pole")?.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null && m.shader != null && m.shader.name == "Custom/Piece");
+            Material rock = Assets.Find("rock4_forest")?.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null);
+            if (claim != null && hewn != null)
+            {
+                Material grain = new Material(hewn) { name = "JarldomClaimWood", hideFlags = HideFlags.HideAndDontSave }; grain.mainTextureScale = Vector2.one * StakeGrain; Assets.Owned.Add(grain);
+                Material stone = rock != null ? new Material(rock) { name = "JarldomClaimStone", hideFlags = HideFlags.HideAndDontSave } : Plain(hewn, new Color(0.42f, 0.42f, 0.4f));
+                if (rock != null) { stone.mainTextureScale = Vector2.one * 0.35f; stone.color *= new Color(0.75f, 0.75f, 0.78f); Assets.Owned.Add(stone); }
+                Material ore = Plain(hewn, new Color(0.6f, 0.32f, 0.14f)); // (copper-bright lumps among the grey)
+                Material glow = Plain(hewn, new Color(1f, 0.78f, 0.42f)); // the lantern's panes, alight
+                if (glow.HasProperty("_EmissionColor")) { glow.EnableKeyword("_EMISSION"); glow.SetColor("_EmissionColor", new Color(1f, 0.62f, 0.25f) * 1.6f); }
+                var m = new GameObject("claim"); m.transform.SetParent(look.transform, false);
+                m.AddComponent<MeshFilter>().sharedMesh = claim;
+                // (wood, rope, iron, stone, ore, glow: as the model's materials are numbered)
+                m.AddComponent<MeshRenderer>().sharedMaterials = new[] { grain, Plain(hewn, new Color(0.62f, 0.52f, 0.34f)), Plain(hewn, new Color(0.16f, 0.155f, 0.15f)), stone, ore, glow };
+            }
+            else
+            {
+                GameObject p = Assets.Model(pole, look.transform, Vector3.zero, Quaternion.identity, 1f);
+                p.transform.localScale = new Vector3(0.6f, 0.6f, 0.6f);
+                Bounds pb = Assets.MeshBounds(look.transform, p); p.transform.localPosition += Vector3.up * -pb.min.y;
+                var flag = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                Object.DestroyImmediate(flag.GetComponent<Collider>());
+                flag.transform.SetParent(look.transform, false);
+                flag.transform.localScale = new Vector3(0.04f, 0.3f, 0.46f);
+                flag.transform.localPosition = new Vector3(0, pb.size.y * 0.84f, 0.25f);
+                flag.GetComponent<MeshRenderer>().sharedMaterial = Plain(wood, new Color(0.78f, 0.5f, 0.16f));
+                var head = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                Object.DestroyImmediate(head.GetComponent<Collider>());
+                head.transform.SetParent(look.transform, false);
+                head.transform.localScale = new Vector3(0.5f, 0.07f, 0.07f);
+                head.transform.localPosition = new Vector3(0, pb.size.y * 0.55f, 0f);
+                head.GetComponent<MeshRenderer>().sharedMaterial = Plain(wood, new Color(0.35f, 0.35f, 0.37f));
+            }
             Finish(go, look, "Ore claim", "Drive it in beside a deposit you've found (copper, tin, silver; by a sunken crypt's door for its iron): the colony's miners go out to it and bring the ore home. Build a camp round it (a bed, a chest and a fire) and they work everything near, more of them, staying longer.",
                 Piece.PieceCategory.Misc, ("Wood", 2), ("Stone", 1));
             go.GetComponent<Piece>().m_craftingStation = null; // (driven in out in the wilds: no workbench there)
