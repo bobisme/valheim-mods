@@ -15,7 +15,7 @@ namespace BobsAnimations
     {
         public readonly string Name;
         public readonly float Fps,BlendIn,BlendOut;
-        public readonly bool Loop;
+        public readonly bool Loop,Seated; // (a seated clip ends by itself when its character is no longer sitting)
         public readonly string[] Bones;
         internal readonly bool[] Add;
         internal readonly Prop[] Props;
@@ -29,7 +29,7 @@ namespace BobsAnimations
 
         private Clip(JObject d)
         {
-            Name=(string)d["name"];Fps=(float?)d["fps"]??30;Loop=(bool?)d["loop"]??false;
+            Name=(string)d["name"];Fps=(float?)d["fps"]??30;Loop=(bool?)d["loop"]??false;Seated=(bool?)d["seated"]??false;
             BlendIn=(float?)d["blendIn"]??0.4f;BlendOut=(float?)d["blendOut"]??0.5f;
             Bones=d["bones"].ToObject<string[]>();
             Add=d["add"]?.ToObject<bool[]>()??new bool[Bones.Length];

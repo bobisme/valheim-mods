@@ -1,6 +1,6 @@
 An animation pack for other mods: keyframed clips played over a character's own animation, a bone at a time, so a villager sitting in a chair keeps sitting while their arm lifts a tankard to their lips. No asset bundles: clips are made in Blender over a skeleton captured from the game and shipped as small files inside the mod.
 
-For now it has one clip, sit_drink: seated, a tankard in the right hand, lifted off the thigh, a long pull with the head going back, lowered, and set back down. More seated clips are planned (toast, talk, point, laugh, think, lean on the table, a board game move).
+Seated clips: sit_drink (a long pull from a tankard), sit_toast_left/right (raised toward someone, then a pull), sit_talk_left/right (open-handed beats toward a neighbour, head turned, jaw working), sit_point_left/right, sit_laugh (slapping the knee, doubled over), sit_think (a fist under the chin, stroking the beard), sit_cheer (both fists pumped), sit_board_move (a piece moved on the table in front), and two loops, sit_fold_arms and sit_elbows (leaning forward, elbows on the knees). A seated clip blends out by itself when its character gets up.
 
 For modders: Anim.Play(character, "sit_drink"), Anim.Stop(character), Anim.Playing(character); Clip.Register(json) adds your own clips. The game that runs a character starts and stops its clip; what plays and since when is kept on the character's network object, so everyone near sees the same, in step. A clip blends in and out over the game's pose, and can put an item (a tankard) in a hand while it plays.
 

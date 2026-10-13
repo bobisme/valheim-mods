@@ -1098,11 +1098,12 @@ clips are made in Blender over a skeleton captured from the game (`mods/BobsAnim
 
 - For modders: `Anim.Play(character, "sit_drink")` (the game that runs the character), `Anim.Stop`, `Anim.Playing`; `Clip.Register(json)`
   adds your own clips (every game that shows them registers them too).
-- Clips: `sit_drink` (seated, a tankard to the lips and back down, 4.2 s).
-- Claude Tools: `anim chars | clips | rig [who] | hold [who] [item] | play <clip> [who] [loop|once] | stop [who] | shot [who] [yaw] [pitch] [dist]`.
+- Clips (all seated, each blending out by itself when the character gets up): `sit_drink`, `sit_toast_left`/`_right`, `sit_talk_left`/`_right`,
+  `sit_point_left`/`_right`, `sit_laugh`, `sit_think`, `sit_cheer`, `sit_board_move`, and the loops `sit_fold_arms` and `sit_elbows`.
+- Claude Tools: `anim chars | clips | rig [who] | hold [who] [item] | play <clip> [who] [loop|once] | stop [who] | near [who] | params [who] | shot [who] [yaw] [pitch] [dist]`.
 
-A prototype. Tried in game on seated Jarldom villagers (men and women) and on a standing player in single player. Not yet tried: a
-second game watching (the sync), and characters who stand up mid-clip (the caller should stop it).
+Tried in game on seated Jarldom villagers (men and women), single player: every clip but `sit_board_move` (checked only in Blender against
+a measured table), and a clip fading out when its villager got up. Not yet tried: a second game watching (the sync).
 
 ## Build with mise
 

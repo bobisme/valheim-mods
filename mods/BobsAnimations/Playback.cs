@@ -28,6 +28,7 @@ namespace BobsAnimations
         {
             ZDO z=Owned(c);
             if(z==null||string.IsNullOrEmpty(z.GetString(ClipKey)))return false;
+            if(Clip.Get(z.GetString(ClipKey).Split('|')[0])==null){z.Set(ClipKey,"");return true;} // (a clip no game here knows: nothing to blend out)
             if(z.GetLong(EndKey,0)==0)z.Set(EndKey,Now);
             return true;
         }
@@ -50,10 +51,12 @@ namespace BobsAnimations
         private sealed class State
         {
             public Character Body;public ZNetView View;public Clip Clip;public string Key;public long At;public bool Loop;
+            public Animator Animator;public string[] Seats;public float NextSeatCheck;public long Stood; // (seated clips: when it was seen standing)
             public Transform[] Bones;public Quaternion[] LastOut,LastBase;public bool[] Wrote;
             public readonly Dictionary<Clip.Prop,GameObject> Props=new Dictionary<Clip.Prop,GameObject>();
         }
         private static readonly Dictionary<Character,State> Playing=new Dictionary<Character,State>();
+        private static readonly string[] SeatParams={"attach_chair","attach_throne","attach_bed","attach_dragon"};
         private static float _nextScan;
 
         // Twice a second (or at once, after Play here): who has a clip on, and whether it changed.
@@ -77,6 +80,7 @@ namespace BobsAnimations
                 var bones=Bones(c);
                 st=new State{Body=c,View=v,Clip=clip,Key=key,At=at,Loop=parts.Length>1?parts[1]=="loop":clip.Loop,
                     Bones=clip.Bones.Select(n=>bones.TryGetValue(n,out Transform t)?t:null).ToArray()};
+                if(clip.Seated){st.Animator=c.GetComponentInChildren<Animator>();st.Seats=st.Animator!=null?SeatParams.Where(n=>st.Animator.parameters.Any(q=>q.name==n&&q.type==AnimatorControllerParameterType.Bool)).ToArray():new string[0];}
                 st.LastOut=new Quaternion[st.Bones.Length];st.LastBase=new Quaternion[st.Bones.Length];st.Wrote=new bool[st.Bones.Length];
                 Playing[c]=st;
             }
@@ -105,6 +109,13 @@ namespace BobsAnimations
                 Clip clip=st.Clip;float len=Mathf.Max(0.01f,clip.Length);
                 float t=(float)((now-st.At)/(double)TimeSpan.TicksPerSecond);
                 long end=st.View.GetZDO().GetLong(Anim.EndKey,0);
+                // A seated clip on someone who got up: it blends out from then (each game sees it for itself; the owner ends it for all).
+                if(st.Clip.Seated&&st.Stood==0&&Time.time>=st.NextSeatCheck)
+                {
+                    st.NextSeatCheck=Time.time+0.25f;
+                    if(st.Animator!=null&&st.Seats.Length>0&&!st.Seats.Any(n=>st.Animator.GetBool(n))){st.Stood=now;if(st.View.IsOwner())Anim.Stop(st.Body);}
+                }
+                if(st.Stood!=0&&(end==0||st.Stood<end))end=st.Stood;
                 float weight=Mathf.Clamp01(t/Mathf.Max(0.01f,clip.BlendIn));
                 if(!st.Loop)weight*=Mathf.Clamp01((len-t)/Mathf.Max(0.01f,clip.BlendOut));
                 if(end!=0)weight*=Mathf.Clamp01(1-(float)((now-end)/(double)TimeSpan.TicksPerSecond)/Mathf.Max(0.01f,clip.BlendOut));

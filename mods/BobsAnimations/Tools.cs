@@ -30,7 +30,7 @@ namespace BobsAnimations
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name,"anim",
-                    "anim chars [radius=100] | clips | rig [who] | hold [who] [item=Tankard] [bone=RightHand_Attach] | play <clip> [who] [loop|once] | stop [who] | shot [who] [yaw=0] [pitch=10] [dist=1.6] [up=0]: "+
+                    "anim chars [radius=100] | clips | rig [who] | hold [who] [item=Tankard] [bone=RightHand_Attach] | play <clip> [who] [loop|once] | stop [who] | near [who] | params [who] | shot [who] [yaw=0] [pitch=10] [dist=1.6] [up=0]: "+
                     "Bob's Animations. who: me, seated (the nearest sitting character), nearest (the nearest other character, the default) a number from chars (its default radius) or a name. "+
                     "rig saves the skeleton and skin, posed as now, to claude/shots/anim-rig.json for Authoring/rig.py; play and stop need the game that runs the character; "+
                     "shot pictures it alone (nothing else drawn), yaw 0 at its face",
@@ -97,6 +97,30 @@ namespace BobsAnimations
                     break;
                 }
                 case "stop":output(new JObject{["stopped"]=Anim.Stop(who),["on"]=who.m_name});break;
+                case "params":
+                {
+                    // The animator's switches that are on (bools, and ints and floats that aren't 0), for finding how a character is posed.
+                    Animator an=who.GetComponentInChildren<Animator>();
+                    if(an==null){error("anim params: no animator");break;}
+                    output(new JObject{["who"]=who.m_name,["on"]=new JArray(an.parameters.Where(q=>q.type==AnimatorControllerParameterType.Bool&&an.GetBool(q.name)||q.type==AnimatorControllerParameterType.Int&&an.GetInteger(q.name)!=0||q.type==AnimatorControllerParameterType.Float&&Math.Abs(an.GetFloat(q.name))>0.01f)
+                        .Select(q=>q.type==AnimatorControllerParameterType.Bool?q.name:q.type==AnimatorControllerParameterType.Int?$"{q.name}={an.GetInteger(q.name)}":$"{q.name}={an.GetFloat(q.name):0.00}"))});
+                    break;
+                }
+                case "near":
+                {
+                    // The pieces within 2 m, measured in the character's own frame (x its right, y up, z its front): for fitting a clip to
+                    // the furniture round a seat (a table's top and how far in front it is).
+                    var list=new List<Piece>();Piece.GetAllPiecesInRadius(who.transform.position,2f,list);
+                    output(new JObject{["who"]=who.m_name,["pieces"]=new JArray(list.Select(p=>
+                    {
+                        Renderer[] rs=p.GetComponentsInChildren<Renderer>().Where(r=>r.enabled).ToArray();
+                        if(rs.Length==0)return null;
+                        Bounds b=rs[0].bounds;foreach(Renderer r in rs)b.Encapsulate(r.bounds);
+                        Vector3 c=who.transform.InverseTransformPoint(b.center),top=who.transform.InverseTransformPoint(new Vector3(b.center.x,b.max.y,b.center.z));
+                        return $"{Utils.GetPrefabName(p.gameObject)}: centre ({c.x:0.00}, {c.y:0.00}, {c.z:0.00}), top at {top.y:0.00}, size {b.size.x:0.00} x {b.size.y:0.00} x {b.size.z:0.00} (world)";
+                    }).Where(t=>t!=null))});
+                    break;
+                }
                 case "hold":
                 {
                     // Where an item would be held (as a clip's prop on <bone>, default RightHand_Attach), measured in the hand bone's own frame
