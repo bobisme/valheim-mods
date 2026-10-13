@@ -215,8 +215,8 @@ namespace Jarldom
             var t = new Taken { Colony = c.Id, Vid = s.Vid, Id = q.Id, Name = s.Name, Label = q.Label, Target = q.Target, Kind = q.Kind, Stars = q.Stars, X = q.X, Z = q.Z, Day = q.Day };
             list.Add(t); Save(p, list);
             if (q.Kind == Ask.Visit) Net.PinHere(t.PinKey, new Vector3(q.X, 0, q.Z), $"{s.Name}: {q.Label}", true);
-            p.Message(MessageHud.MessageType.Center, q.Kind == Ask.Visit ? $"{s.Name}'s ask is pinned on your map: go within sight of {q.Label}, then come back and tell of it."
-                : q.Kind == Ask.Kill ? $"Kill {Requests.A(q.Label)}{(q.Stars > 0 ? $" of {q.Stars}★ or more" : "")} yourself, then come back to {s.Name} and tell of it."
+            p.Message(MessageHud.MessageType.Center, q.Kind == Ask.Visit ? $"Pinned on your map: {q.Label}. See it, then tell {s.Name}."
+                : q.Kind == Ask.Kill ? $"Kill {Requests.A(q.Label)}{(q.Stars > 0 ? $" ({q.Stars}★+)" : "")} yourself, then tell {s.Name}."
                 : $"Bring {Requests.Short(q)} to {s.Name}.");
         }
         public static void Drop(Player p, string vid)

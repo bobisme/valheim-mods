@@ -287,6 +287,13 @@ for (int i = 0; i < 50; i++)
     Check(gossip == null || gossip.StartsWith("Astrid") && (gossip.Contains("Ulf") || gossip.Contains("Bob")), "Gossip is about logged events");
 }
 Check(Stories.Gossip(new Random(1), "Astrid", log, 999999) == null, "Old news isn't gossip");
+var hallTold = new List<string>(); var news = new List<LogEntry> { new LogEntry(100, 1, "starkill", "Ulf", "Neck", ""), new LogEntry(110, 1, "ask", "Ulf", "", "a piece of amber"), new LogEntry(120, 1, "brawl", "Bera", "Ulf", "") };
+for (int i = 0; i < 20; i++)
+{
+    var said = Enumerable.Range(0, 3).Select(k => Stories.Gossip(new Random(i * 7 + k), "Astrid", news, 200, hallTold)).Select(g => g.Contains("Neck") ? "kill" : g.Contains("amber") ? "ask" : "brawl").ToList();
+    Check(said.Distinct().Count() == 3 && said[0] != said[1] && said[1] != said[2], "A crowd doesn't all tell the same news at once: " + string.Join(",", said));
+}
+Check(Stories.Gossip(new Random(2), "Astrid", news.Skip(1).Take(1).ToList(), 200, hallTold) != null, "One bit of news can still be told again");
 var view = new ColonyView { Population = 5, Troublemakers = { ("Ulf", 2, 0) }, MissedPaydays = 1, Beds = 3 };
 var pets = Petitions.Raise(new Random(1), view);
 Check(pets.Count == 3 && pets.All(p => !string.IsNullOrEmpty(p.Text)), "The Thing raises three petitions");

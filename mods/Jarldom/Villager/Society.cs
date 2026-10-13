@@ -44,13 +44,15 @@ namespace Jarldom
             }
             if (Shown.Count > 500) Shown.Clear();
         }
+        private static readonly Dictionary<string, List<string>> Told = new Dictionary<string, List<string>>(); // (by colony)
         // In the hall: a line about something that really happened lately.
         public static void Gossip(Brain b)
         {
             if (b.Colony == null) return;
             var rng = new System.Random(Environment.TickCount ^ b.S.Vid.GetStableHashCode());
             if (rng.Next(3) == 0 && b.S.Has("merry")) { b.Say(Merry[rng.Next(Merry.Length)], 5); foreach (Brain o in Villagers.All.Where(o => o != b && Vector3.Distance(o.Pos, b.Pos) < 10)) Mood.Add(o.S, "merry", o.Now); return; }
-            string line = Stories.Gossip(rng, b.S.Name, b.Colony.R.Log, b.Now);
+            if (!Told.TryGetValue(b.S.Colony, out List<string> told)) Told[b.S.Colony] = told = new List<string>();
+            string line = Stories.Gossip(rng, b.S.Name, b.Colony.R.Log, b.Now, told);
             if (line == null) return;
             b.Say(line.Substring(b.S.Name.Length).TrimStart(), 7);
             // Talking together warms them to each other.

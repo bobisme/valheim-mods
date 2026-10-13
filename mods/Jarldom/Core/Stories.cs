@@ -312,11 +312,16 @@ namespace Jarldom
             "{0} claims", "{0} mutters that", "{0} tells anyone who will listen that", "{0} bets that", "{0} shouts that",
             "{0} has it from a friend that", "{0} is certain that", "{0} can't believe that", "{0} heard it said that", "{0} wagers that",
         };
-        public static string Gossip(Random rng, string speaker, IEnumerable<LogEntry> log, double now)
+        // told: what the hall has gossiped about lately (newest last), so a crowd doesn't all tell the same thing at once.
+        public static string Gossip(Random rng, string speaker, IEnumerable<LogEntry> log, double now, List<string> told = null)
         {
             var recent = log.Where(e => now - e.Time <= Clock.DayLength * 2 && Line(e) != null && e.A != speaker && e.Kind != "text" && e.Kind != "payday").ToList();
             if (recent.Count == 0) return null;
-            LogEntry e = recent[rng.Next(recent.Count)];
+            string Key(LogEntry x) => $"{x.Time:0.#}|{x.Kind}|{x.A}";
+            var fresh = told == null ? recent : recent.Where(x => !told.Contains(Key(x))).ToList();
+            if (fresh.Count == 0) fresh = recent;
+            LogEntry e = fresh[rng.Next(fresh.Count)];
+            if (told != null) { told.Remove(Key(e)); told.Add(Key(e)); while (told.Count > Math.Max(1, recent.Count - 1) || told.Count > 8) told.RemoveAt(0); }
             string line = Line(e);
             if (line.StartsWith("A ") || line.StartsWith("The ") || line.StartsWith("Wages") || line.StartsWith("Payday")) line = char.ToLower(line[0]) + line.Substring(1); // names keep their capital
             return string.Format(Openers[rng.Next(Openers.Length)], speaker) + " " + line;
