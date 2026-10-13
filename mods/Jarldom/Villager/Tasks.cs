@@ -189,7 +189,7 @@ namespace Jarldom
                 ContainerAccess.TakeOver(x.chest);
                 x.chest.GetInventory().RemoveItem(drink, 1);
                 Body_.Anim(b.Body)?.SetTrigger("emote_toast");
-                b.Say(UnityEngine.Random.value < 0.5f ? "Skål!" : $"Good {name}!", 4);
+                b.Say(UnityEngine.Random.value < 0.5f ? "Skål!" : new[] { $"Good {name}!", $"Ah, that's a {name}!", $"A fine {name}!", $"That {name} goes down well!", $"Good {name}, that!" }[UnityEngine.Random.Range(0, 5)], 4);
                 Mood.Add(b.S, "tavern", b.Now); Mood.Satisfy(b.S, Need.Social, 6);
                 b.S.Bump("drinks"); b.Dirty();
                 return;
@@ -198,7 +198,9 @@ namespace Jarldom
         // The skald plays: a verse, a cheer, and everyone in the hall feels it.
         private float _nextSong;
         private static readonly string[] Verses = { "Cattle die, kinsmen die, the self must also die; but glory never dies for the one who earns it.", "Hear, all you hearers, of the hall of the slain!",
-            "The wolf's food falls, the raven's feast is spread...", "Sing of the jarl who built this hall!", "Bring the horn, fill it high, and drink to those who fell!" };
+            "The wolf's food falls, the raven's feast is spread...", "Sing of the jarl who built this hall!", "Bring the horn, fill it high, and drink to those who fell!",
+            "Fall in the shield-wall with your kin; the skalds will sing it.", "Fire takes the hall, but the song stays on.",
+            "Sing for the sea-wolves who never came home.", "Ale for the living, a horn for the dead.", "Odin takes the brave, and the brave go gladly." };
         private void Sing(Brain b)
         {
             _nextSong = Time.time + UnityEngine.Random.Range(14f, 24f);
@@ -251,7 +253,7 @@ namespace Jarldom
                 item.m_durability = item.GetMaxDurability();
                 n++;
             }
-            if (n > 0) { _at.m_repairItemDoneEffects.Create(_at.transform.position, Quaternion.identity); b.Body.GetInventory().m_onChanged?.Invoke(); b.Say(n == 1 ? "Good as new." : $"All {n} mended.", 3); }
+            if (n > 0) { _at.m_repairItemDoneEffects.Create(_at.transform.position, Quaternion.identity); b.Body.GetInventory().m_onChanged?.Invoke(); b.Say(n == 1 ? new[] { "Good as new.", "Mended and sound.", "Whole again.", "That's sound now.", "Back to new." }[UnityEngine.Random.Range(0, 5)] : new[] { $"All {n} mended.", $"{n} mended and good as new.", $"Mended, all {n} of them.", $"Those {n} are whole again.", $"All {n} are sound again." }[UnityEngine.Random.Range(0, 5)], 3); }
             Done = true;
         }
     }
@@ -274,7 +276,7 @@ namespace Jarldom
         {
             // The first plan no other builder is on (each fetches the whole cost: two on one plan would waste a trip).
             string[] next = Compat.NextGhosts(b.Colony.Position, b.Colony.Radius, 8).Where(g => !Taken.Contains(g.Split('|')[0])).Take(1).ToArray();
-            if (next.Length == 0) { Done = true; b.NoBuildUntil = Time.time + 30; string[] why = Compat.GhostBlockers(b.Colony.Position, b.Colony.Radius); if (why.Length > 0) b.Say("I can't build the plans: " + why[0].Replace("|", " ").Trim(), 6); return; }
+            if (next.Length == 0) { Done = true; b.NoBuildUntil = Time.time + 30; string[] why = Compat.GhostBlockers(b.Colony.Position, b.Colony.Radius); if (why.Length > 0) b.Say(new[] { "I can't build the plans: ", "No plans can go up: ", "The plans won't go up: ", "I can't raise these plans: ", "Stuck on the plans: " }[UnityEngine.Random.Range(0, 5)] + why[0].Replace("|", " ").Trim(), 6); return; }
             string[] f = next[0].Split('|');
             _id = f[0]; _prefab = f[1]; Taken.Add(_id);
             _at = new Vector3(float.Parse(f[2], System.Globalization.CultureInfo.InvariantCulture), float.Parse(f[3], System.Globalization.CultureInfo.InvariantCulture), float.Parse(f[4], System.Globalization.CultureInfo.InvariantCulture));
@@ -295,7 +297,7 @@ namespace Jarldom
                 var chests = Stock.ChestsFor(b).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).ToList();
                 foreach (var (item, amount) in missing)
                     if (chests.Sum(x => x.chest.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == item).Sum(i => i.m_stack)) + Have(b, item) < amount)
-                    { Done = true; b.NoBuildUntil = Time.time + 60; b.Say($"The stores have too little {Localization.instance.Localize(Assets.Find(item)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name ?? item).ToLower()} to build the plans.", 6); return; }
+                    { Done = true; b.NoBuildUntil = Time.time + 60; string lacking = Localization.instance.Localize(Assets.Find(item)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name ?? item).ToLower(); b.Say(new[] { $"The stores have too little {lacking} to build the plans.", $"The stores are short of {lacking} for these plans.", $"No {lacking} in the stores for the plans.", $"The plans need more {lacking} than the stores hold.", $"We're short of {lacking} for the plans." }[UnityEngine.Random.Range(0, 5)], 6); return; }
                 var (want, count) = missing[0];
                 Container from = chests.Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want));
                 if (from == null) { Done = true; b.NoBuildUntil = Time.time + 20; return; }

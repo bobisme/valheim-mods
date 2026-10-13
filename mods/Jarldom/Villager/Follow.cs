@@ -32,7 +32,7 @@ namespace Jarldom
             if (z.GetLong(Key, 0L) == id) return;
             z.Set(Key, id); z.Set(NameKey, name ?? ""); z.Set(KillsKey, b.S.Count("kills")); z.Set(SinceKey, ZNet.instance.GetTime().Ticks);
             b.Task?.Stop(b); b.Task = null;
-            b.Say(Gear.CanFight(b) ? "I'm with you, jarl." : "I'll come, but I've nothing to fight with.", 5);
+            b.Say(Gear.CanFight(b) ? new[] { "I'm with you, jarl.", "Lead on, jarl.", "Ready when you are, jarl.", "At your side, jarl.", "Where to, jarl? I'm coming." }[UnityEngine.Random.Range(0, 5)] : new[] { "I'll come, but I've nothing to fight with.", "I'll come, but I have no weapon.", "Coming, jarl, but I've nothing to fight with.", "I'll walk with you, but I've nothing to fight with.", "I'd come, but I've no weapon to fight with." }[UnityEngine.Random.Range(0, 5)], 5);
         }
         // Home again: the saga hears of it, and a soul who went out is the prouder for it.
         public static void End(Brain b, string why)
@@ -137,7 +137,7 @@ namespace Jarldom
             if (d > Follow.Keep + 2f) { if (!b.Move.Moving || Vector3.Distance(b.Move.Goal, to) > 3f) b.Move.To(to, Follow.Keep, d > 9f); }
             else if (d < Follow.Keep && b.Move.Moving) b.Move.Stop();
             if (b.S.Needs[(int)Need.Food] < 40 && Food.CanEat(b)) Food.EatFromBag(b);
-            else if (b.S.Needs[(int)Need.Food] < 15 && Time.time > _nextHungry) { _nextHungry = Time.time + 120f; b.Say("I'm starving, jarl: have you any food? (hotbar key on me)", 6); }
+            else if (b.S.Needs[(int)Need.Food] < 15 && Time.time > _nextHungry) { _nextHungry = Time.time + 120f; b.Say(new[] { "I'm starving, jarl: have you any food? (hotbar key on me)", "Jarl, I'm near starved: any food? (hotbar key on me)", "My belly is empty, jarl. Food? (hotbar key on me)", "Any food to spare, jarl? (hotbar key on me)", "Hungry, jarl, and weak with it. Food? (hotbar key on me)" }[UnityEngine.Random.Range(0, 5)], 6); }
         }
     }
 }

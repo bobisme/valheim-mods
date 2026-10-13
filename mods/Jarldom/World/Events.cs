@@ -294,8 +294,10 @@ namespace Jarldom
             c.MarkDirty();
         }
         // The crowd's answer to a ruling: a cheer, or a grumble; the teller's word.
-        private static readonly string[] Cheers = { "Hail!", "Well judged!", "Hear, hear!", "The jarl is wise.", "So it shall be!" };
-        private static readonly string[] Grumbles = { "Hmph.", "That's no answer.", "We'll remember this.", "Unfair!", "Shame..." };
+        private static readonly string[] Cheers = { "Hail!", "Well judged!", "Hear, hear!", "The jarl is wise.", "So it shall be!",
+            "Aye, that's the way!", "A good ruling, jarl.", "The hall agrees!", "Odin would be pleased.", "Now there's a jarl!" };
+        private static readonly string[] Grumbles = { "Hmph.", "That's no answer.", "We'll remember this.", "Unfair!", "Shame...",
+            "Hard words for a hard winter.", "I'll not forget this.", "Bah.", "Not what we came for.", "The jarl forgets his folk." };
         private static void React(Colony c, Petition p, int mood)
         {
             var rng = new System.Random();
@@ -306,7 +308,7 @@ namespace Jarldom
                 Body_.Anim(b.Body)?.SetTrigger(mood >= 0 ? "emote_cheer" : "emote_nonono");
             }
             Brain teller = Villagers.ByVid(p.By);
-            teller?.Say(mood >= 0 ? "Thank you, jarl." : "...As the jarl wills.", 5);
+            teller?.Say(mood >= 0 ? new[] { "Thank you, jarl.", "My thanks, jarl.", "Well judged, jarl. Thank you.", "The hall is grateful, jarl.", "You have my thanks." }[rng.Next(5)] : new[] { "...As the jarl wills.", "Very well, jarl.", "...If the jarl says so.", "I shall do as I am told.", "Hm. As you will." }[rng.Next(5)], 5);
         }
         private static readonly Dictionary<string, float> JarlSeen = new Dictionary<string, float>();
         public static void Forget() => JarlSeen.Clear();

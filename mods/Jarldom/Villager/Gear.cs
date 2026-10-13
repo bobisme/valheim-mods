@@ -111,7 +111,7 @@ namespace Jarldom
             if (tool == null || !tool.m_shared.m_useDurability) return;
             float drain = tool.m_shared.m_useDurabilityDrain * (b.S.Has("clumsy") ? 1.5f : 1f);
             tool.m_durability = Mathf.Max(0, tool.m_durability - drain);
-            if (tool.m_durability <= 0) b.Say($"My {Localization.instance.Localize(tool.m_shared.m_name).ToLower()} broke!", 5);
+            if (tool.m_durability <= 0) { string tn = Localization.instance.Localize(tool.m_shared.m_name).ToLower(); b.Say(new[] { $"My {tn} broke!", $"My {tn} is no more!", $"The {tn} gave out under me.", $"That's the end of my {tn}.", $"My {tn} snapped in two!" }[UnityEngine.Random.Range(0, 5)], 5); }
             b.Body.GetInventory().m_onChanged?.Invoke();
         }
     }

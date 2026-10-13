@@ -64,7 +64,7 @@ namespace Jarldom
                 if (v != null && v.IsValid()) { if (!v.IsOwner()) v.ClaimOwnership(); v.Destroy(); }
                 _boar = null; _phase = 1;
                 Doing = "leading a wild boar home on a rope";
-                b.Say("Come on, you. A warm pen and all the carrots you can eat.", 4);
+                b.Say(new[] { "Come on, you. A warm pen and all the carrots you can eat.", "Come along, you. Warm straw and carrots waiting.", "Easy now. A pen, a roof and all the carrots you like.", "Come on, you great beast. Carrots at the end of it.", "This way, boy. A warm pen is waiting." }[UnityEngine.Random.Range(0, 5)], 4);
                 b.Move.To(Pen(), 2f);
                 return;
             }

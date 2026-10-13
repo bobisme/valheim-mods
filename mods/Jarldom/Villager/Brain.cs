@@ -248,14 +248,14 @@ namespace Jarldom
             {
                 Jarldom.Mood.Add(S, "gary", now);
                 Ai.LookTowards((gary.transform.position - Pos).normalized);
-                Say(new[] { "Who's a good greydwarf?", "Hello, Gary.", "Gary! Have you been eating the resin again?" }[UnityEngine.Random.Range(0, 3)], 4);
+                Say(new[] { "Who's a good greydwarf?", "Hello, Gary.", "Gary! Have you been eating the resin again?", "Good greydwarf, Gary. Very good.", "Gary, you rascal. Put that resin down.", "Gary, keep those claws to yourself." }[UnityEngine.Random.Range(0, 6)], 4);
             }
             if (Body.GetHealthPercentage() > 0.5f) _captureRolled = false;
             if (Body.GetHealthPercentage() < 0.1f && S.InjuredUntil < now && !_captureRolled) { _captureRolled = true; if (Captives.Take(this)) return; } // (dragged off by the Fulings: one roll a fall)
             if (Body.GetHealthPercentage() < 0.1f && S.InjuredUntil < now && !Combat.Busy(this)) { S.InjuredUntil = now + Clock.DayLength / (Colony.Best(RoomType.HealersHouse)?.Ok == true ? 2 : 1); Colony.Log("injured", S.Name, ""); Jarldom.Mood.Add(S, "injured", now); }
             if (S.InjuredUntil > 0 && S.InjuredUntil < now) { S.InjuredUntil = 0; Jarldom.Mood.Remove(S, "injured"); }
             // A bed that is gone (broken, taken down) is no longer theirs, once its area is loaded and it still can't be found.
-            if (!string.IsNullOrEmpty(S.Bed) && Vector3.Distance(Pos, Colony.Position) < Colony.Radius && Colony.BedById(S.Bed) == null) { if (++_bedMissing >= 3) { S.Bed = ""; _bedMissing = 0; Colony.ReleaseBed(S.Vid); Say("I need a bed of my own.", 4); } }
+            if (!string.IsNullOrEmpty(S.Bed) && Vector3.Distance(Pos, Colony.Position) < Colony.Radius && Colony.BedById(S.Bed) == null) { if (++_bedMissing >= 3) { S.Bed = ""; _bedMissing = 0; Colony.ReleaseBed(S.Vid); Say(new[] { "I need a bed of my own.", "My bed is gone. I need a bed of my own.", "Someone took my bed. I need a bed of my own.", "The bed is gone, and I need a bed of my own.", "I need a bed of my own, and soon." }[UnityEngine.Random.Range(0, 5)], 4); } }
             else _bedMissing = 0;
             // Food burns as a player's does; health follows the meals.
             Food.Burn(this, 5f);
@@ -370,7 +370,7 @@ namespace Jarldom
             switch (action)
             {
                 case "prof":
-                    if (Enum.TryParse(arg, out Prof p)) { S.Prof = p; Task?.Stop(this); Task = null; Say(p == Prof.Hauler ? "I'll carry what needs carrying." : $"A {Tables.Of(p).Name.ToLower()}? Gladly.", 4); }
+                    if (Enum.TryParse(arg, out Prof p)) { S.Prof = p; Task?.Stop(this); Task = null; Say(p == Prof.Hauler ? new[] { "I'll carry what needs carrying.", "Carrying is what I'm for.", "Give me the heavy things.", "Load me up, I'll carry it.", "Hauling it is, then." }[UnityEngine.Random.Range(0, 5)] : new[] { $"A {Tables.Of(p).Name.ToLower()}? Gladly.", $"A {Tables.Of(p).Name.ToLower()}? Very well, I'll try.", $"A {Tables.Of(p).Name.ToLower()}? I can do that.", $"A {Tables.Of(p).Name.ToLower()}? Gladly, then.", $"A {Tables.Of(p).Name.ToLower()}? Show me the work." }[UnityEngine.Random.Range(0, 5)], 4); }
                     break;
                 case "bed":
                     Bed old = Colony?.BedById(S.Bed);
@@ -380,23 +380,23 @@ namespace Jarldom
                     if (bed != null)
                     {
                         string owner = Colony.BedOwner(bed, out string kind);
-                        if (kind == "player" || kind == "companion" || kind == "villager" && owner != S.Vid && Colony.R.Row(owner)?.State == SoulState.Active) { Say("That bed is someone else's.", 4); break; }
+                        if (kind == "player" || kind == "companion" || kind == "villager" && owner != S.Vid && Colony.R.Row(owner)?.State == SoulState.Active) { Say(new[] { "That bed is someone else's.", "That bed belongs to someone else.", "That bed is taken, and not mine to have.", "Someone else sleeps in that bed.", "That bed is already spoken for." }[UnityEngine.Random.Range(0, 5)], 4); break; }
                         Claim(bed.GetComponent<ZNetView>(), true);
                         S.Bed = arg;
-                        Say("A bed of my own!", 4);
+                        Say(new[] { "A bed of my own!", "A bed at last, and it's mine!", "A bed of my own. Finally.", "Now I have a bed of my own.", "A bed that's mine, at last!" }[UnityEngine.Random.Range(0, 5)], 4);
                     }
                     break;
                 case "chest": S.Chest = arg; break;
                 case "ring":
                     Mood.Add(S, "ringgifted", Now); Worth.Gain(S, "ring");
                     S.Opinions[arg] = Mathf.Clamp((S.Opinions.TryGetValue(arg, out int o) ? o : 0) + 20, -100, 100);
-                    S.Bump("rings"); Say("I'll wear it with pride.", 5);
+                    S.Bump("rings"); Say(new[] { "I'll wear it with pride.", "A fine ring. I'll wear it always.", "This ring will be seen in the hall.", "Thank you. It's mine now, and I'm proud of it.", "A gold ring, for me! I'll wear it with pride." }[UnityEngine.Random.Range(0, 5)], 5);
                     break;
-                case "follow": if (long.TryParse(arg.Split('|')[0], out long leader) && leader != 0) Follow.Start(this, leader, arg.Contains("|") ? arg.Substring(arg.IndexOf('|') + 1) : ""); else { Follow.End(this, "Home, then."); Follow.HomeFrom(this); } break;
-                case "summon": Follow.End(this, "Coming."); if (Colony == null || !Colony.Valid) { Follow.HomeFrom(this); break; } Task?.Stop(this); Task = new GoTask(Colony.Position + Colony.Seat.transform.forward * 2.5f, "coming to the pillars", 2f, true); Task.Start(this); break;
+                case "follow": if (long.TryParse(arg.Split('|')[0], out long leader) && leader != 0) Follow.Start(this, leader, arg.Contains("|") ? arg.Substring(arg.IndexOf('|') + 1) : ""); else { Follow.End(this, new[] { "Home, then.", "Back to the hall, then.", "Home we go.", "Enough roaming. Home.", "Home, and gladly." }[UnityEngine.Random.Range(0, 5)]); Follow.HomeFrom(this); } break;
+                case "summon": Follow.End(this, new[] { "Coming.", "On my way.", "Coming, jarl.", "Right behind you.", "Coming now." }[UnityEngine.Random.Range(0, 5)]); if (Colony == null || !Colony.Valid) { Follow.HomeFrom(this); break; } Task?.Stop(this); Task = new GoTask(Colony.Position + Colony.Seat.transform.forward * 2.5f, "coming to the pillars", 2f, true); Task.Start(this); break;
                 case "dismiss": Dismiss(); return;
                 case "mood": Jarldom.Mood.Add(S, arg, Now); break;
-                case "train": { string key = arg; float now = S.Skill(key); S.Skills[key] = Mathf.Min(100, now + 10); Say($"I learned a great deal of {key.ToLower()} from the master.", 5); } break;
+                case "train": { string key = arg; float now = S.Skill(key); S.Skills[key] = Mathf.Min(100, now + 10); Say(new[] { $"I learned a great deal of {key.ToLower()} from the master.", $"The master taught me a fair bit of {key.ToLower()}.", $"A good lesson in {key.ToLower()}, that was.", $"The master made me better at {key.ToLower()}.", $"I'm more skilled at {key.ToLower()} for the lesson." }[UnityEngine.Random.Range(0, 5)], 5); } break;
                 case "worth": if (float.TryParse(arg, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float w)) { S.Worth = Mathf.Clamp(w, 0, 100); S.Worthy = S.Worth >= 100; } break;
                 case "need": { string[] f = arg.Split('='); if (f.Length == 2 && Enum.TryParse(f[0], out Need n) && float.TryParse(f[1], out float v)) S.Needs[(int)n] = Mathf.Clamp(v, 0, 100); } break;
                 case "ascend": Task?.Stop(this); Task = new AscendTask(arg); Task.Start(this); break;
@@ -452,7 +452,7 @@ namespace Jarldom
         internal static readonly AccessTools.FieldRef<Humanoid, float> DrawTime = AccessTools.FieldRefAccess<Humanoid, float>("m_attackDrawTime");
         public static void LevelUp(Brain b, Skills.SkillType skill, float level)
         {
-            if (level % 5 == 0) b.Say($"I'm getting better at {skill.ToString().ToLower()}!", 4);
+            if (level % 5 == 0) b.Say(new[] { $"I'm getting better at {skill.ToString().ToLower()}!", $"My {skill.ToString().ToLower()} is coming along!", $"Getting the hang of {skill.ToString().ToLower()}!", $"I'm getting better at {skill.ToString().ToLower()}, at last!", $"My {skill.ToString().ToLower()} is improving!" }[UnityEngine.Random.Range(0, 5)], 4);
         }
     }
 }

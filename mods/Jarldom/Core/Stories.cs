@@ -56,40 +56,199 @@ namespace Jarldom
     // The saga, gossip and petitions: built only from what the event log says happened.
     public static class Stories
     {
+        // The same entry is always told the same way: its day and its doer pick the telling.
+        private static string Telling(LogEntry e, params string[] tellings) => tellings[(e.Day + e.A.Length) % tellings.Length];
+
         // One saga line for an event, or null for events not worth a line.
         public static string Line(LogEntry e)
         {
             switch (e.Kind)
             {
-                case "found": return $"{e.A} raised the high-seat pillars, and a hall was founded.";
-                case "arrive": return $"{e.A} came to the hall on a Valkyrie's wings.";
-                case "refuse": return $"{e.A} was turned away and flew on.";
-                case "death": return $"{e.A} fell{(string.IsNullOrEmpty(e.B) ? "" : " to " + e.B)}, and rose again at their bed.";
-                case "lost": return $"{e.A} was lost to Hel{(string.IsNullOrEmpty(e.B) ? "" : " at the hands of " + e.B)}.";
-                case "ascend": return $"{e.A} went to Valhalla on a burning ship.";
+                case "found": return Telling(e,
+                    $"{e.A} raised the high-seat pillars, and a hall was founded.",
+                    $"{e.A} carved the high-seat pillars, and a hall was founded.",
+                    $"{e.A} set the first posts, and a hall was founded.",
+                    $"{e.A} drove the first stake, and the hall was founded.",
+                    $"The high-seat pillars were raised by {e.A}, and a hall was founded.");
+                case "arrive": return Telling(e,
+                    $"{e.A} came to the hall on a Valkyrie's wings.",
+                    $"{e.A} came to the hall with a Valkyrie at their back.",
+                    $"{e.A} came to the hall, sent down by the Valkyries.",
+                    $"{e.A} came to the hall, set down by a Valkyrie at dusk.",
+                    $"{e.A} came to the hall, and the hearth was glad of them.");
+                case "refuse": return Telling(e,
+                    $"{e.A} was turned away and flew on.",
+                    $"{e.A} was turned away at the door and flew on.",
+                    $"The hall had no room for {e.A}, and they flew on.",
+                    $"{e.A} was refused and flew on.",
+                    $"{e.A} was sent back to the sky, the hall being full.");
+                case "death":
+                {
+                    string to = string.IsNullOrEmpty(e.B) ? "" : " to " + e.B;
+                    return Telling(e,
+                        $"{e.A} fell{to}, and rose again at their bed.",
+                        $"{e.A} fell{to}, and woke again at their own bed.",
+                        $"{e.A} fell{to}, and got up again at their bed.",
+                        $"{e.A} fell{to}, and rose again in their own bed.",
+                        $"{e.A} fell{to}, and soon stood up again by their bed.");
+                }
+                case "lost":
+                {
+                    string by = string.IsNullOrEmpty(e.B) ? "" : " at the hands of " + e.B;
+                    return Telling(e,
+                        $"{e.A} was lost to Hel{by}.",
+                        $"{e.A} was taken by Hel{by}.",
+                        $"{e.A} went down to Hel{by}.",
+                        $"Hel took {e.A}{by}.",
+                        $"{e.A} was lost to the cold of Hel{by}.");
+                }
+                case "ascend": return Telling(e,
+                    $"{e.A} went to Valhalla on a burning ship.",
+                    $"{e.A} sailed to Valhalla on a burning ship.",
+                    $"{e.A} rode to Valhalla on a burning ship.",
+                    $"{e.A} was sent to Valhalla in a burning boat.",
+                    $"{e.A} went to Valhalla, the ship burning under them.");
                 case "kill": return null;
-                case "starkill": return $"{e.A} slew a mighty {e.B}.";
-                case "raid": return $"A raid came: {e.B}.";
-                case "raidheld": return $"The raid was held.";
-                case "feast": return $"A feast was held in the hall{(string.IsNullOrEmpty(e.A) ? "" : ", and " + e.A + " ate the most")}.";
-                case "byname": return $"{e.A} was named {e.B}.";
-                case "payday": return $"Wages were paid: {e.B} coins.";
-                case "unpaid": return $"Payday came and the treasury was short.";
-                case "rank": return $"The colony became a {e.B}.";
-                case "room": return $"A {e.B} was hallowed.";
-                case "brawl": return $"{e.A} and {e.B} came to blows in the hall.";
-                case "theft": return $"{e.A} was caught stealing.";
-                case "ring": return $"{e.B} gave {e.A} a gold arm ring.";
-                case "offering": return $"An offering was made to {e.B}.";
-                case "festival": return $"A festival was held for {e.B}.";
-                case "sworn": return $"{e.A} and {e.B} swore brotherhood.";
-                case "desert": return $"{e.A} deserted in the night.";
-                case "exile": return $"{e.A} was exiled by the Thing.";
-                case "thing": return $"The Thing was held{(string.IsNullOrEmpty(e.B) ? "" : ": " + e.B)}.";
-                case "tribute": return $"The Fulings were paid {e.B} coins to go away.";
-                case "worthy": return $"{e.A} was found worthy of Valhalla.";
-                case "injured": return $"{e.A} was wounded.";
-                case "inspired": return $"{e.A} woke inspired.";
+                case "starkill": return Telling(e,
+                    $"{e.A} slew a mighty {e.B}.",
+                    $"{e.A} felled a mighty {e.B}.",
+                    $"{e.A} struck down a mighty {e.B}.",
+                    $"The mighty {e.B} fell to {e.A}.",
+                    $"{e.A} won the day against a mighty {e.B}.");
+                case "raid": return Telling(e,
+                    $"A raid came: {e.B}.",
+                    $"A raid fell upon us: {e.B}.",
+                    $"A raiding party came: {e.B}.",
+                    $"A raid was on the way: {e.B}.",
+                    $"A raid came to the shore: {e.B}.");
+                case "raidheld": return Telling(e,
+                    "The raid was held.",
+                    "The raid was beaten back.",
+                    "The raid was held off at the wall.",
+                    "The raiders were turned back at the gate.",
+                    "The raid was turned back at the wall.");
+                case "feast":
+                {
+                    string s = string.IsNullOrEmpty(e.A) ? "" : ", and " + e.A + " ate the most";
+                    return Telling(e,
+                        $"A feast was held in the hall{s}.",
+                        $"A great feast was laid in the hall{s}.",
+                        $"The mead flowed at a feast in the hall{s}.",
+                        $"A feast was thrown in the hall{s}.",
+                        $"The hall feasted{s}.");
+                }
+                case "byname": return Telling(e,
+                    $"{e.A} was named {e.B}.",
+                    $"{e.A} was given the name {e.B}.",
+                    $"{e.A} earned the name {e.B}.",
+                    $"The name {e.B} was given to {e.A}.",
+                    $"The hall named {e.A} {e.B}.");
+                case "payday": return Telling(e,
+                    $"Wages were paid: {e.B} coins.",
+                    $"Wages were counted out: {e.B} coins.",
+                    $"Payday came, and {e.B} coins were paid out.",
+                    $"Wages went out: {e.B} coins.",
+                    $"Payday: {e.B} coins went to the hall's folk.");
+                case "unpaid": return Telling(e,
+                    "Payday came and the treasury was short.",
+                    "Payday came, and the chests came up short.",
+                    "The treasury was short on payday.",
+                    "Payday came and the coins ran short.",
+                    "The wages could not all be paid.");
+                case "rank": return Telling(e,
+                    $"The colony became a {e.B}.",
+                    $"The hall grew into a {e.B}.",
+                    $"The colony rose to be a {e.B}.",
+                    $"The colony was named a {e.B}.",
+                    $"The settlement is now a {e.B}.");
+                case "room": return Telling(e,
+                    $"A {e.B} was hallowed.",
+                    $"A {e.B} was blessed and made ready.",
+                    $"A {e.B} was raised and hallowed.",
+                    $"The {e.B} was consecrated.",
+                    $"A {e.B} was hallowed for use.");
+                case "brawl": return Telling(e,
+                    $"{e.A} and {e.B} came to blows in the hall.",
+                    $"{e.A} and {e.B} fell to fighting in the hall.",
+                    $"{e.A} and {e.B} traded blows in the hall.",
+                    $"{e.A} and {e.B} squared off in the hall.",
+                    $"{e.A} and {e.B} brawled in the hall.");
+                case "theft": return Telling(e,
+                    $"{e.A} was caught stealing.",
+                    $"{e.A} was caught stealing from the stores.",
+                    $"{e.A} was caught pocketing what was not theirs.",
+                    $"{e.A} was caught thieving in the hall.",
+                    $"{e.A} was caught with a hand in the stores.");
+                case "ring": return Telling(e,
+                    $"{e.B} gave {e.A} a gold arm ring.",
+                    $"{e.B} gifted {e.A} a gold arm ring.",
+                    $"{e.A} was given a gold arm ring by {e.B}.",
+                    $"A gold arm ring went from {e.B} to {e.A}.",
+                    $"{e.B} put a gold arm ring on {e.A}.");
+                case "offering": return Telling(e,
+                    $"A gift was laid before {e.B}.",
+                    $"A bowl of food was offered to {e.B}.",
+                    $"The hall made an offering to {e.B}.",
+                    $"A portion was set aside for {e.B}.",
+                    $"The altar of {e.B} received an offering.");
+                case "festival": return Telling(e,
+                    $"A festival was held for {e.B}.",
+                    $"The hall kept a festival for {e.B}.",
+                    $"A feast-day was kept for {e.B}.",
+                    $"The people held a festival for {e.B}.",
+                    $"A festival was kept for {e.B}.");
+                case "sworn": return Telling(e,
+                    $"{e.A} and {e.B} swore brotherhood.",
+                    $"{e.A} and {e.B} became sworn kin.",
+                    $"{e.A} and {e.B} mixed blood and swore brotherhood.",
+                    $"{e.A} and {e.B} sealed a sworn oath.",
+                    $"{e.A} and {e.B} pledged brotherhood before the hall.");
+                case "desert": return Telling(e,
+                    $"{e.A} deserted in the night.",
+                    $"{e.A} slipped away in the night.",
+                    $"{e.A} left the hall in the dark and did not come back.",
+                    $"{e.A} deserted under cover of night.",
+                    $"{e.A} was gone by morning, having deserted.");
+                case "exile": return Telling(e,
+                    $"{e.A} was exiled by the Thing.",
+                    $"The Thing exiled {e.A}.",
+                    $"{e.A} was cast out by the Thing.",
+                    $"{e.A} was outlawed by the Thing.",
+                    $"The Thing sent {e.A} out of the colony.");
+                case "thing":
+                {
+                    string s = string.IsNullOrEmpty(e.B) ? "" : ": " + e.B;
+                    return Telling(e,
+                        $"The Thing was held{s}.",
+                        $"The Thing met{s}.",
+                        $"The folk gathered at the Thing{s}.",
+                        $"Judgment was given at the Thing{s}.",
+                        $"The Thing sat{s}.");
+                }
+                case "tribute": return Telling(e,
+                    $"The Fulings were paid {e.B} coins to go away.",
+                    $"The Fulings were bought off with {e.B} coins.",
+                    $"{e.B} coins went to the Fulings to buy peace.",
+                    $"The Fulings took {e.B} coins and went away.",
+                    $"The Fulings were paid {e.B} coins to leave us be.");
+                case "worthy": return Telling(e,
+                    $"{e.A} was found worthy of Valhalla.",
+                    $"{e.A} was judged worthy of Valhalla.",
+                    $"The gods found {e.A} worthy of Valhalla.",
+                    $"{e.A} was counted worthy of Valhalla.",
+                    $"{e.A} has been marked worthy of Valhalla.");
+                case "injured": return Telling(e,
+                    $"{e.A} was wounded.",
+                    $"{e.A} took a wound.",
+                    $"{e.A} was hurt badly.",
+                    $"{e.A} was laid low by a wound.",
+                    $"{e.A} came back from the fight wounded.");
+                case "inspired": return Telling(e,
+                    $"{e.A} woke inspired.",
+                    $"{e.A} woke up inspired.",
+                    $"{e.A} woke with a song in their head.",
+                    $"{e.A} woke full of fire.",
+                    $"{e.A} woke with new ideas.");
                 case "text": return e.Text;
                 case "petition": return null;
                 default: return string.IsNullOrEmpty(e.Text) ? null : e.Text;
@@ -129,7 +288,12 @@ namespace Jarldom
         public static string Count(int n) => n < Numbers.Length ? Numbers[n] : n.ToString();
 
         // A line of gossip from the last two days, by one villager about another. Only about things that happened.
-        private static readonly string[] Openers = { "{0} says", "{0} swears", "{0} heard that", "{0} laughs that", "{0} won't stop saying" };
+        private static readonly string[] Openers =
+        {
+            "{0} says", "{0} swears", "{0} heard that", "{0} laughs that", "{0} won't stop saying", "{0} whispers that", "{0} is sure that",
+            "{0} claims", "{0} mutters that", "{0} tells anyone who will listen that", "{0} bets that", "{0} shouts that",
+            "{0} has it from a friend that", "{0} is certain that", "{0} can't believe that", "{0} heard it said that", "{0} wagers that",
+        };
         public static string Gossip(Random rng, string speaker, IEnumerable<LogEntry> log, double now)
         {
             var recent = log.Where(e => now - e.Time <= Clock.DayLength * 2 && Line(e) != null && e.A != speaker && e.Kind != "text" && e.Kind != "payday").ToList();

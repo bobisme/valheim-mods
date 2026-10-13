@@ -47,7 +47,7 @@ namespace Jarldom
             foreach (Brain b in Villagers.All.Where(b => b.Alive && !b.Fighting && Vector3.Distance(b.Pos, at) < 12f).ToList())
             {
                 Body_.Anim(b.Body)?.SetTrigger(b.Body.RightItem != null && Gear.IsTankard(b.Body.RightItem) ? "emote_drink" : "emote_cheer");
-                if (spoke++ < 2) b.Say(spoke == 1 ? $"Skål, {who}!" : "Skål!", 3);
+                if (spoke++ < 2) b.Say(spoke == 1 ? new[] { $"Skål, {who}!", $"To you, {who}!", $"Skål to {who}!", $"Here's to {who}!", $"Drink to {who}!" }[UnityEngine.Random.Range(0, 5)] : new[] { "Skål!", "Skål, all!", "Another!", "Drink up!", "To the hall!" }[UnityEngine.Random.Range(0, 5)], 3);
                 Mood.Add(b.S, "skal", b.Now); Mood.Satisfy(b.S, Need.Social, 6);
                 b.Dirty();
             }
@@ -83,7 +83,7 @@ namespace Jarldom
             int n = Today(b);
             if (n < 2 || UnityEngine.Random.value > 0.25f) return;
             b.Body.Stagger(UnityEngine.Random.insideUnitSphere);
-            if (UnityEngine.Random.value < 0.4f) b.Say(new[] { "Shkål!", "Who moved the floor?", "Another, and then I'll go.", "I love you all. Even Rognvald." }[UnityEngine.Random.Range(0, 4)], 3);
+            if (UnityEngine.Random.value < 0.4f) b.Say(new[] { "Shkål!", "Who moved the floor?", "Another, and then I'll go.", "I love you all. Even Rognvald.", "The benches are walking away from me.", "Where did the fire go?", "Who put the bench there?", "I can see two of you. Lovely.", "Sing it again, and louder.", "I'm fine. The hall is spinning, that's all." }[UnityEngine.Random.Range(0, 10)], 3);
         }
         // A toast with whoever's near: the others in the hall lift theirs too.
         public static void ToastTogether(Brain b)

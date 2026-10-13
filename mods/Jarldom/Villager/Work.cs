@@ -442,7 +442,7 @@ namespace Jarldom
             if (Time.time > b.NoStoreUntil && (Carrying(b) >= 4 || b.Body.GetInventory().GetEmptySlots() <= 2 && Carrying(b) > 0))
             {
                 if (b.Body.GetInventory().GetAllItems().Where(i => Stores(b, i)).Any(i => Stock.Destination(c, i, b.Pos) != null)) return new DepositTask();
-                b.NoStoreUntil = Time.time + 30; b.Say("Where do I put all this? (no stockpile for it)", 5);
+                b.NoStoreUntil = Time.time + 30; b.Say(new[] { "Where do I put all this? (no stockpile for it)", "My arms are full. Where does it go? (no stockpile for it)", "Nowhere to stack this. (no stockpile for it)", "The hall has no shelf for all this. (no stockpile for it)", "Too much to carry and nowhere to put it. (no stockpile for it)" }[UnityEngine.Random.Range(0, 5)], 5);
             }
             if (Time.time > b.NoRepairUntil && RepairTask.Worn(b).Count > 0) return new RepairTask();
             Task grave = GraveTask.Next(b); if (grave != null) return grave;
@@ -842,7 +842,7 @@ namespace Jarldom
             int have = bag.GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == plant.seed).Sum(i => i.m_stack);
             if (have < plant.amount)
             {
-                if (_seedsFetched) { b.Say("No seeds to replant with.", 4); _plantFail = "no seeds in the stores"; return false; }
+                if (_seedsFetched) { b.Say(new[] { "No seeds to replant with.", "I've no seeds to plant with.", "The stores have no seeds to plant.", "No seeds left to put in the ground.", "Nothing to plant with: no seeds." }[UnityEngine.Random.Range(0, 5)], 4); _plantFail = "no seeds in the stores"; return false; }
                 if (_seedChest == null) _seedChest = Stock.ChestsFor(b).Where(x => x.category != "treasury").Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == plant.seed));
                 if (_seedChest == null) { _seedsFetched = true; return true; }
                 Stock.Walk sw = Stock.WalkTo(b, _seedChest);
@@ -861,7 +861,7 @@ namespace Jarldom
                 // Hoe it first, the cultivator's own way (its piece, as a player's click makes it), if they have one.
                 ItemDrop.ItemData hoe = Gear.Tool(b, "cultivator");
                 GameObject till = Work.TillPiece();
-                if (hoe == null || till == null || _tilled) { b.Say("The ground here wants hoeing, and I've no cultivator.", 4); _plantFail = hoe == null ? "needs a cultivator" : "the ground won't take the hoe"; return false; }
+                if (hoe == null || till == null || _tilled) { b.Say(new[] { "The ground here wants hoeing, and I've no cultivator.", "This ground needs hoeing, and I've no cultivator.", "Hoe the ground first. I've no cultivator.", "No cultivator, and the ground wants hoeing.", "The soil wants turning, and I've no cultivator." }[UnityEngine.Random.Range(0, 5)], 4); _plantFail = hoe == null ? "needs a cultivator" : "the ground won't take the hoe"; return false; }
                 if (!b.Body.IsItemEquiped(hoe)) { b.Body.EquipItem(hoe, false); return true; }
                 Body_.Anim(b.Body)?.SetTrigger(hoe.m_shared.m_attack.m_attackAnimation);
                 Object.Instantiate(till, new Vector3(_cropAt.x, ZoneSystem.instance.GetGroundHeight(_cropAt), _cropAt.z), Quaternion.identity);
@@ -1046,7 +1046,7 @@ namespace Jarldom
             {
                 GameObject fish = Assets.Find("Fish1");
                 b.Body.GetInventory().RemoveItem(bait, 1);
-                if (fish != null && b.Body.GetInventory().AddItem(fish, 1)) { b.S.Bump("fish"); b.Say("A fish!", 3); }
+                if (fish != null && b.Body.GetInventory().AddItem(fish, 1)) { b.S.Bump("fish"); b.Say(new[] { "A fish!", "Got one!", "A fine fish!", "Fish on!", "A big one!" }[UnityEngine.Random.Range(0, 5)], 3); }
                 b.Body.RaiseSkill(Skills.SkillType.Fishing, 1f);
             }
         }

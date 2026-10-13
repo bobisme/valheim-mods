@@ -56,7 +56,12 @@ namespace Jarldom
             // Talking together warms them to each other.
             foreach (Brain o in Villagers.All.Where(o => o != b && o.S.Colony == b.S.Colony && Vector3.Distance(o.Pos, b.Pos) < 8)) Society.Warm(b, o, 1);
         }
-        private static readonly string[] Merry = { "Another horn of mead for the jarl!", "Did you hear the one about the troll and the fishing rod?", "Skål!", "Sing, you lot, sing!", "My grandmother could out-drink this whole hall." };
+        private static readonly string[] Merry = { "Another horn of mead for the jarl!", "Did you hear the one about the troll and the fishing rod?", "Skål!", "Sing, you lot, sing!", "My grandmother could out-drink this whole hall.",
+            "Fill the horns, the night is young!", "Who here can still stand straight?", "I've had three, and the fourth is mine.", "Dance with me, you great oaf!",
+            "The sea is lonely without us. Drink up!", "My cousin drank a whole barrel once and lived.", "Pass the horn, and pass it quick!",
+            "Did you hear the one about the jarl's goat?", "Skål to the hall, and the roof that keeps us!", "Drink to the ones who went to Valhalla first.",
+            "Where's the skald? Someone fetch the skald!", "I'll wrestle any man here, if he's sober.", "Mead tastes better when it isn't ours to pay for.",
+            "Ale for the hall, and no one drinks alone!", "Good mead, good company, bad knees.", "Another round before the fire goes out!", "One more song, then bed. Probably." };
     }
 
     // How villagers feel about each other and the jarls; breakdowns when they're miserable.
@@ -86,11 +91,11 @@ namespace Jarldom
             // A check every five seconds: about 5% an in-game hour.
             if (rng.NextDouble() > 0.05 * 5 / Clock.Hour) return;
             int kind = rng.Next(3);
-            if (kind == 0) { b.Say("Why should I lift a finger?", 5); }
+            if (kind == 0) { b.Say(new[] { "Why should I lift a finger?", "Lift it yourself. I'm done.", "I'm not carrying another thing for this hall.", "Let the others do it, I'm finished.", "Work? For what?" }[UnityEngine.Random.Range(0, 5)], 5); }
             else if (kind == 1)
             {
                 Brain other = Villagers.All.Where(o => o != b && o.S.Colony == b.S.Colony && Vector3.Distance(o.Pos, b.Pos) < 15).OrderBy(_ => rng.Next()).FirstOrDefault();
-                if (other != null) { b.S.Bump("brawls"); Mood.Add(b.S, "brawl", now); Mood.Add(other.S, "brawl", now); Warm(b, other, -20); b.Colony.Log("brawl", b.S.Name, other.S.Name); b.Say("Say that again!", 4); }
+                if (other != null) { b.S.Bump("brawls"); Mood.Add(b.S, "brawl", now); Mood.Add(other.S, "brawl", now); Warm(b, other, -20); b.Colony.Log("brawl", b.S.Name, other.S.Name); b.Say(new[] { "Say that again!", "Say it to my face!", "Who asked you?", "You want a fight? Come on, then.", "Mind your own bench!" }[UnityEngine.Random.Range(0, 5)], 4); }
             }
             else
             {
@@ -123,7 +128,8 @@ namespace Jarldom
             string key = b.S.Vid + what;
             if (Last.TryGetValue(key, out float t) && Time.time - t < 300) return;
             Last[key] = Time.time;
-            b.Say($"I can't work as a {Tables.Of(b.S.Prof).Name.ToLower()}: {what}. I'll carry things meanwhile.", 6);
+            string job = Tables.Of(b.S.Prof).Name.ToLower();
+            b.Say(new[] { $"I can't work as a {job}: {what}. I'll carry things meanwhile.", $"No work as a {job} without it: {what}. I'll carry for now.", $"A {job} with no gear: {what}. I'll carry things meanwhile.", $"I can't be a {job} yet: {what}. I'll carry in the meantime.", $"Not fit to work as a {job}: {what}. I'll carry things meanwhile." }[UnityEngine.Random.Range(0, 5)], 6);
         }
     }
 }

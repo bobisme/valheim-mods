@@ -317,7 +317,7 @@ namespace Jarldom
             if (Reported.Count > 300) foreach (string old in Reported.Where(kv => Time.time - kv.Value > 300).Select(kv => kv.Key).ToList()) Reported.Remove(old);
             Vector3 dir = foes[0].transform.position - b.Colony.Position;
             string text = $"{b.S.Name} the scout saw {what} to the {Compass(dir)}, {Mathf.RoundToInt(Utils.DistanceXZ(foes[0].transform.position, b.Colony.Position))} m out.";
-            b.Say("I see " + what + "!", 5);
+            b.Say(new[] { "I see " + what + "!", "Look out, " + what + "!", "There, " + what + "!", "Watch out, " + what + "!", "Over there: " + what + "!" }[UnityEngine.Random.Range(0, 5)], 5);
             if (Time.time >= _nextWarn) { _nextWarn = Time.time + 60; b.Colony.Log("text", b.S.Name, "", text); }
         }
         private static float _nextWarn;

@@ -25,7 +25,7 @@ namespace Jarldom
         {
             Colony c = b.Colony;
             if (c == null || !force && (!Tribute.Raiding(c) || !c.RaidOn || UnityEngine.Random.value >= 0.5f)) return false;
-            b.Say("No! Let go of me!", 4);
+            b.Say(new[] { "No! Let go of me!", "Let go! Let go of me!", "Get your hands off me!", "Unhand me, you filth!", "No! Leave me be!" }[UnityEngine.Random.Range(0, 5)], 4);
             c.Log("text", b.S.Name, "", $"The Fulings dragged {b.S.FullName} off to their camp (pinned on the map). Free them within {Days} days, or pay a ransom.");
             string vid = b.S.Vid, name = b.S.Name;
             b.Away(Prefix + "?,?," + c.Day);

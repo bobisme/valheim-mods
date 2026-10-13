@@ -113,7 +113,7 @@ namespace Jarldom
         public static void SkalToast(Colony c)
         {
             if (!Has("SkalTavern")) return;
-            foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) b.Say("Skål!", 4);
+            foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) b.Say(new[] { "Skål!", "To the feast!", "Skål to the hall!", "Drink up, all of you!", "To the jarl and the hall!" }[UnityEngine.Random.Range(0, 5)], 4);
         }
     }
 }

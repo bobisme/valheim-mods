@@ -219,12 +219,12 @@ namespace Jarldom
             _pyre = Ascension.Pyre(b.Colony);
             if (_pyre == null) { Done = true; return; }
             b.Move.To(_pyre.transform.position, 2f);
-            b.Say("I hear them. The Valkyries are singing.", 6);
+            b.Say(new[] { "I hear them. The Valkyries are singing.", "Can you hear that? The Valkyries are singing.", "The Valkyries sing for me. I can hear them.", "Listen. The Valkyries are singing.", "The Valkyries are singing, and it's for me." }[UnityEngine.Random.Range(0, 5)], 6);
         }
         public override void Tick(Brain b)
         {
             if (_pyre == null) { Done = true; return; }
-            if (!_there) { if (b.Move.Moving && !b.Move.Failed) return; _there = true; b.Say("Remember me in the hall.", 5); return; }
+            if (!_there) { if (b.Move.Moving && !b.Move.Failed) return; _there = true; b.Say(new[] { "Remember me in the hall.", "Remember me when the ale is poured.", "Tell them I went well, in the hall.", "Remember me at the feast.", "Don't forget me in the hall." }[UnityEngine.Random.Range(0, 5)], 5); return; }
             if (b.Colony.IsOwner) Ascension.Burn(b.Colony, _pyre, b);
             else { b.Say("(the colony's owner must be near to light the pyre)", 5); Done = true; }
         }

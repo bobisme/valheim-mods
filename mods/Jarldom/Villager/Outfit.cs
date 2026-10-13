@@ -78,7 +78,7 @@ namespace Jarldom
             if (w == Stock.Walk.Walking) return;
             ItemDrop.ItemData item = _chest.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == _prefab);
             int got = item == null ? 0 : Stock.Take(_chest, b.Body.GetInventory(), item, Math.Min(_count, item.m_stack));
-            if (got > 0) { b.Say($"I'll take {(got > 1 ? got + " " : "the ")}{Localization.instance.Localize(item.m_shared.m_name).ToLower()} for the work.", 4); b.Dirty(); }
+            if (got > 0) { string took = $"{(got > 1 ? got + " " : "the ")}{Localization.instance.Localize(item.m_shared.m_name).ToLower()}"; b.Say(new[] { $"I'll take {took} for the work.", $"I'll carry {took} for the work.", $"Right, {took} it is, for the work.", $"I'll take {took} along.", $"Off with {took}, for the work." }[UnityEngine.Random.Range(0, 5)], 4); b.Dirty(); }
             else b.NoGearUntil = Time.time + 60;
             Done = true;
         }
@@ -136,7 +136,7 @@ namespace Jarldom
                 if (took > 0 && !own && name != null) b.Hauled.Add(name); // (someone else's: for the stores)
                 got += took;
             }
-            if (got > 0) { b.Say("There it all is.", 3); b.Dirty(); }
+            if (got > 0) { b.Say(new[] { "There it all is.", "That's the lot.", "Everything's in hand now.", "That's all of it.", "All of it, now in hand." }[UnityEngine.Random.Range(0, 5)], 3); b.Dirty(); }
             if (box.GetInventory().NrOfItems() > 0) b.NoGraveUntil = Time.time + 120; // (their bag is full: the rest waits)
             Done = true;
         }

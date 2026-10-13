@@ -136,7 +136,7 @@ namespace Jarldom
                         if (away.sqrMagnitude < 0.01f) away = Vector3.forward;
                         Vector3 to = hearth.transform.position + away.normalized * 3f;
                         b.Move.To(Colony.Spot(to, 1f) ?? to, 0.6f);
-                        if (UnityEngine.Random.value < 0.3f) b.Say("Hot! Too close to the fire.", 3);
+                        if (UnityEngine.Random.value < 0.3f) b.Say(new[] { "Hot! Too close to the fire.", "Ow! The fire is too close.", "Too hot! Back off from the fire.", "That fire bites. Stepping back.", "Hot! Get me away from that fire." }[UnityEngine.Random.Range(0, 5)], 3);
                     }
                     return false;
                 }

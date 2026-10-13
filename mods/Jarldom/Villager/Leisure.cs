@@ -201,7 +201,8 @@ namespace Jarldom
             if (Partner.Held == null || Time.time < _next || !Host) return;
             _next = Time.time + Random.Range(8f, 14f);
             _beat++;
-            string[] talk = { "Your king is boxed in!", "I'll take that one.", "Mind your corner.", "You've left a gap there.", "The king runs!", "Hm. Clever." };
+            string[] talk = { "Your king is boxed in!", "I'll take that one.", "Mind your corner.", "You've left a gap there.", "The king runs!", "Hm. Clever.",
+                "Your move, then.", "Check, and then some.", "I waited all night for that.", "That's a poor square to stand on.", "Do you even see the board?" };
             (Random.value < 0.5f ? b : Partner).Say(talk[Random.Range(0, talk.Length)], 4);
             if (_beat >= 5) { Result(b, Partner, "hnefatafl", "tafl"); _until = 0; }
         }
@@ -211,7 +212,7 @@ namespace Jarldom
             Face(b, Partner.Pos);
             if (!Host || Time.time < _next || Vector3.Distance(b.Pos, Partner.Pos) > 3f) return;
             _next = Time.time + 2.2f; _beat++;
-            if (_beat == 1) { Body_.Anim(b.Body)?.SetTrigger("emote_challenge"); Body_.Anim(Partner.Body)?.SetTrigger("emote_challenge"); b.Say("Glíma, then! Belt-hold.", 4); return; }
+            if (_beat == 1) { Body_.Anim(b.Body)?.SetTrigger("emote_challenge"); Body_.Anim(Partner.Body)?.SetTrigger("emote_challenge"); b.Say(new[] { "Glíma, then! Belt-hold.", "Belt on, then! Come here.", "Glíma! Let's see your grip.", "Hold still, then. Glíma!", "Come on, then. Belt-hold and go." }[UnityEngine.Random.Range(0, 5)], 4); return; }
             if (_beat < 7) { Brain who = _beat % 2 == 0 ? b : Partner; Brain other = who == b ? Partner : b; other.Body.Stagger((other.Pos - who.Pos).normalized); return; } // (the shoves and holds)
             Result(b, Partner, "glíma", "glima");
             _until = 0;
@@ -221,8 +222,8 @@ namespace Jarldom
         {
             float pa = 1f + a.S.Skill(key == "glima" ? "Unarmed" : "Tafl") / 20f + (a.S.Has("strong") && key == "glima" ? 0.5f : 0), pc = 1f + c.S.Skill(key == "glima" ? "Unarmed" : "Tafl") / 20f + (c.S.Has("strong") && key == "glima" ? 0.5f : 0);
             Brain win = Random.value * (pa + pc) < pa ? a : c, lose = win == a ? c : a;
-            if (key == "glima") { lose.Body.Stagger((lose.Pos - win.Pos).normalized); Body_.Anim(win.Body)?.SetTrigger("emote_flex"); win.Say($"Down you go, {lose.S.Name}!", 4); lose.Say("Again tomorrow.", 4); }
-            else { Body_.Anim(win.Body)?.SetTrigger("emote_cheer"); win.Say("The king is mine!", 4); }
+            if (key == "glima") { lose.Body.Stagger((lose.Pos - win.Pos).normalized); Body_.Anim(win.Body)?.SetTrigger("emote_flex"); win.Say(new[] { $"Down you go, {lose.S.Name}!", $"Off your feet, {lose.S.Name}!", $"Down you go, {lose.S.Name}, and stay down!", $"Too slow, {lose.S.Name}!", $"{lose.S.Name} is on the grass!" }[UnityEngine.Random.Range(0, 5)], 4); lose.Say(new[] { "Again tomorrow.", "Next time, then.", "My hip will mend. Again.", "Lucky throw, that.", "I'll have you tomorrow." }[UnityEngine.Random.Range(0, 5)], 4); }
+            else { Body_.Anim(win.Body)?.SetTrigger("emote_cheer"); win.Say(new[] { "The king is mine!", "The king is taken care of.", "Checkmate, or near enough.", "Your king is mine now.", "That king had no chance." }[UnityEngine.Random.Range(0, 5)], 4); }
             win.S.Bump(key + "wins");
             foreach (Brain x in new[] { a, c })
             {
@@ -266,7 +267,7 @@ namespace Jarldom
             if (Time.time < _next) return;
             _next = Time.time + Random.Range(5f, 8f);
             Body_.Anim(b.Body)?.SetTrigger(++_beat % 3 == 0 ? "emote_roar" : "emote_flex");
-            if (_beat == 4 && Random.value < 0.3f) b.Say(new[] { "Heavier than it looks.", "Watch this!", "A stone for a strong back." }[Random.Range(0, 3)], 4);
+            if (_beat == 4 && Random.value < 0.3f) b.Say(new[] { "Heavier than it looks.", "Watch this!", "A stone for a strong back.", "Lift, and mind your feet.", "Look at that. Heavier than the last." }[Random.Range(0, 5)], 4);
         }
         private void Hall(Brain b)
         {
@@ -309,7 +310,7 @@ namespace Jarldom
             if (mug == null || !Gear.IsTankard(mug) || b.Body.InAttack()) return;
             Skal.DrinkFromHall(b); // (with SkalTavern: its ale or mead from the hall's chests, now and then)
             Body_.Anim(b.Body)?.SetTrigger("emote_drink"); // (the tankard's own drink)
-            if (UnityEngine.Random.value < 0.15f) { b.Say(new[] { "Skål!", "To the jarl!", "Another!", "To Odin, who sent us here." }[UnityEngine.Random.Range(0, 4)], 3); Skal.ToastTogether(b); }
+            if (UnityEngine.Random.value < 0.15f) { b.Say(new[] { "Skål!", "To the jarl!", "Another!", "To Odin, who sent us here.", "To the hall!", "Drink, and then drink again!" }[UnityEngine.Random.Range(0, 6)], 3); Skal.ToastTogether(b); }
             else if (b.Held == null) Skal.Merry(b);
             Mood.Satisfy(b.S, Need.Social, 1);
         }
@@ -384,7 +385,8 @@ namespace Jarldom
                 for (int left = n; left > 0;) { ItemDrop.ItemData st = bag.GetAllItems().FirstOrDefault(i => Classes.Prefab(i) == item && !i.m_equipped); if (st == null) break; int k = System.Math.Min(left, st.m_stack); bag.RemoveItem(st, k); left -= k; }
             bag.AddItem(_prefab, _r.m_amount, 1, 0, Colony.Hash(b.S.Vid), b.S.Name, new Vector2i(-1, -1), false, false, false);
             _bench.m_craftItemDoneEffects.Create(_bench.transform.position, Quaternion.identity);
-            b.Say(Gear.IsTankard(Stock.Of(Assets.Find(_prefab))) ? "A tankard of my own. Now for something to put in it." : $"There: {Crafts.Name(_prefab).ToLower()}, my own make.", 4);
+            string madeName = Crafts.Name(_prefab).ToLower();
+            b.Say(Gear.IsTankard(Stock.Of(Assets.Find(_prefab))) ? new[] { "A tankard of my own. Now for something to put in it.", "A tankard of my own. Something to fill it with, next.", "My own tankard. Now for the ale.", "A tankard made by my own hands. Now to fill it.", "My own tankard, finally. Now for the mead." }[UnityEngine.Random.Range(0, 5)] : new[] { $"There: {madeName}, my own make.", $"Done: {madeName}, and my own make.", $"Look: {madeName}, made by my own hands.", $"Finished: {madeName}, my own work.", $"{madeName}, my own make. Not bad." }[UnityEngine.Random.Range(0, 5)], 4);
             b.S.Bump("made"); b.Dirty();
             Done = true;
         }
