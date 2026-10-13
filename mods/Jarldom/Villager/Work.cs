@@ -174,7 +174,7 @@ namespace Jarldom
                 if (smelter != null)
                 {
                     bool needFuel = smelter.m_fuelItem != null && v.GetZDO().GetFloat(ZDOVars.s_fuel) < smelter.m_maxFuel * 0.5f && HaveInStock(c, smelter.m_fuelItem.name);
-                    bool needOre = QueueSize(smelter) < smelter.m_maxOre / 2 && smelter.m_conversion.Any(cv => cv.m_from != null && HaveInStock(c, cv.m_from.name));
+                    bool needOre = QueueSize(smelter) < smelter.m_maxOre / 2 && smelter.m_conversion.Any(cv => cv.m_from != null && Feedable(c, smelter, cv.m_from.name));
                     if (needFuel || needOre) c.Board.Post("smelt", Key(v), Prof.Smelter, 3, p.transform.position.x, p.transform.position.y, p.transform.position.z, now, "", "station");
                 }
                 Fermenter ferm = p.GetComponent<Fermenter>();
@@ -296,6 +296,16 @@ namespace Jarldom
                 }
         }
         private static int InStockCount(Colony c, string item) => Stock.Count(c, item);
+        // A charcoal kiln burns wood into coal: only while the stores want coal (the Work tab's limit, 100 unless set) and never the last
+        // of the wood, which the builders and fires need. (Fed whenever there was wood, a kiln took every log the colony was given.)
+        public const int KilnWoodLeft = 50;
+        public static bool IsKiln(Smelter s) => s.m_conversion.Count > 0 && s.m_conversion.All(cv => cv.m_to != null && cv.m_to.name == "Coal");
+        public static bool Feedable(Colony c, Smelter s, string item)
+        {
+            if (!IsKiln(s)) return HaveInStock(c, item);
+            int keep = Stock.Keep(c, "coal");
+            return (keep == 0 || InStockCount(c, "Coal") < keep) && InStockCount(c, item) > KilnWoodLeft;
+        }
         // A seed crop (a seed carrot, turnip, onion: grown from the food, for its seeds) isn't worth a carrot while the stores hold plenty
         // of the seeds it makes: the food crop instead. (Replanted as it was, a seed patch went on eating every carrot it was given.)
         public const int PlentySeeds = 50;
@@ -1092,7 +1102,7 @@ namespace Jarldom
                 if (smelter != null)
                 {
                     if (smelter.m_fuelItem != null && sv.GetZDO().GetFloat(ZDOVars.s_fuel) < smelter.m_maxFuel * 0.5f) wants.Add(smelter.m_fuelItem.name);
-                    if (Work.QueueSize(smelter) < smelter.m_maxOre / 2) wants.AddRange(smelter.m_conversion.Where(cv => cv.m_from != null).Select(cv => cv.m_from.name));
+                    if (Work.QueueSize(smelter) < smelter.m_maxOre / 2) wants.AddRange(smelter.m_conversion.Where(cv => cv.m_from != null && Work.Feedable(b.Colony, smelter, cv.m_from.name)).Select(cv => cv.m_from.name));
                 }
                 if (cook != null) wants.AddRange(cook.m_conversion.Where(cv => cv.m_from != null).Select(cv => cv.m_from.name));
                 Fermenter cask = _target.GetComponent<Fermenter>();

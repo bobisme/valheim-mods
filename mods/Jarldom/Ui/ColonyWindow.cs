@@ -466,9 +466,9 @@ namespace Jarldom.Ui
             }
             y = Commissions(list, y);
             y = Heading(list, "Stores to keep", y);
-            foreach (var (cat, who, verb, step) in new[] { ("wood", "Woodcutters", "fell trees", 500), ("stone", "Miners", "quarry stone", 500), ("ore", "Miners", "go out to claims for each kind of ore", 100) })
+            foreach (var (cat, who, verb, step) in new[] { ("wood", "Woodcutters", "fell trees", 500), ("stone", "Miners", "quarry stone", 500), ("ore", "Miners", "go out to claims for each kind of ore", 100), ("coal", "Smelters", "burn wood into coal in the kilns (always leaving 50 wood for building and fires)", 50) })
             {
-                int keep = Stock.Keep(_c, cat), held = Stock.Held(_c, cat); string k = cat; int st = step;
+                int keep = Stock.Keep(_c, cat), held = cat == "coal" ? Stock.Count(_c, "Coal") : Stock.Held(_c, cat); string k = cat; int st = step;
                 string now = cat != "ore" ? $"Now {held}." : "Now " + string.Join(", ", new[] { "copperore", "tinore", "ironscrap", "silverore", "blackmetalscrap" }.Select(o => (o, n: Claims.Held(_c, o))).Where(x => x.n > 0 || x.o == "copperore" || x.o == "tinore").Select(x => $"{x.n} {Claims.Name(x.o).Replace(" ore", "").Replace("scrap ", "")}")) + ".";
                 GameUi.Line(list, $"{who} {verb} until the stores hold {(keep == 0 ? "any amount (no limit)" : keep + (cat == "ore" ? " of it" : " " + cat))}. {now}", new Vector2(24, -y), W - 24 - 250, 15, cat != "ore" && keep > 0 && held >= keep ? GameUi.Good : GameUi.Text);
                 GameUi.Button(list, $"−{st}", new Vector2(W - 240, -y + 2), new Vector2(76, 28), () => Net.Act(_c, "keep", $"{k}|{(keep == 0 ? st * 10 : Math.Max(st, keep - st))}"), true, 14);
