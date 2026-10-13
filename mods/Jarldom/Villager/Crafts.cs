@@ -151,7 +151,7 @@ namespace Jarldom
             {
                 var missing = _needs.Where(n => Have(b, n.item) < n.amount).ToList();
                 if (missing.Count == 0) { _phase = 1; b.Move.To(_st.transform.position, 2f); return; }
-                var chests = Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).ToList();
+                var chests = Stock.ChestsFor(b).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).ToList();
                 foreach (var (item, amount) in missing)
                     if (chests.Sum(x => x.chest.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == item).Sum(i => i.m_stack)) + Have(b, item) < amount)
                     {
@@ -161,7 +161,7 @@ namespace Jarldom
                 var (want, count) = missing[0];
                 Container from = chests.Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want));
                 if (from == null) { Release(b); b.NoCraftUntil = Time.time + 20; return; }
-                if (Stock.OutOfReach(b.Pos, from.transform.position, 2.4f)) { if (!b.Move.Moving) b.Move.To(from.transform.position, 1.8f); if (b.Move.Failed) { Release(b); b.NoCraftUntil = Time.time + 30; } return; }
+                if (Stock.WalkTo(b, from) != Stock.Walk.Reached) return; // (one out of reach is passed over: another is chosen next time round)
                 ItemDrop.ItemData stack = from.GetInventory().GetAllItems().First(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want);
                 if (Stock.Take(from, b.Body.GetInventory(), stack, count - Have(b, want)) == 0) { Release(b); b.NoCraftUntil = Time.time + 30; }
                 return;
@@ -198,7 +198,7 @@ namespace Jarldom
                 b.Dirty();
                 if (_made == null) { Done = true; return; } // (a full bag: it dropped at their feet, and the haulers will see it)
                 if (_r.m_item.name == Weaving.Thread && b.S.Prof == Prof.Weaver) { b.Hauled.Remove(_r.m_item.name); Done = true; return; } // (spun thread stays with the weaver, for the loom)
-                _to = Stock.Destination(b.Colony, _made, b.Pos) ?? Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury" && x.chest.GetInventory().CanAddItem(_made)).Select(x => x.chest).FirstOrDefault();
+                _to = Stock.Destination(b.Colony, _made, b.Pos) ?? Stock.ChestsFor(b).Where(x => x.category != "treasury" && x.chest.GetInventory().CanAddItem(_made)).Select(x => x.chest).FirstOrDefault();
                 Doing = "taking " + Localization.instance.Localize(_made.m_shared.m_name).ToLower() + " to the stores";
                 _phase = 2;
                 if (_to == null) { Done = true; return; }

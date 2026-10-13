@@ -105,7 +105,7 @@ namespace Jarldom
                 if (Loaded(b) >= 6 || bag.GetEmptySlots() <= 1) { _phase = 1; return; }
                 if (_from == null)
                 {
-                    _from = Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(Carts.IsCargo));
+                    _from = Stock.ChestsFor(b).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(Carts.IsCargo));
                     if (_from == null) { _phase = Loaded(b) > 0 ? 1 : 9; if (_phase == 9) Done = true; return; }
                 }
                 if (Stock.OutOfReach(b.Pos, _from.transform.position, 2.4f)) { if (!b.Move.Moving) b.Move.To(_from.transform.position, 1.8f); if (b.Move.Failed) { Done = true; b.NoCartUntil = Time.time + 120; } return; }

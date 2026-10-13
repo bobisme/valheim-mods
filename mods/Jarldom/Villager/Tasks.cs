@@ -180,7 +180,7 @@ namespace Jarldom
         {
             Room hall = b.Colony.RoomAt(b.Pos, RoomType.GreatHall);
             if (hall == null) return;
-            foreach (var x in Stock.Chests(b.Colony, b.Pos))
+            foreach (var x in Stock.ChestsFor(b))
             {
                 if (x.category == "treasury" || ContainerAccess.InUse(x.chest) || b.Colony.RoomAt(x.chest.transform.position + Vector3.up * 0.3f) != hall) continue;
                 ItemDrop.ItemData drink = x.chest.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name.StartsWith("dh_drink_"));
@@ -290,14 +290,14 @@ namespace Jarldom
                 // Fetch what's missing from the stores; refuse the piece if the stores don't hold it all.
                 var missing = _needs.Where(n => Have(b, n.item) < n.amount).ToList();
                 if (missing.Count == 0) { _phase = 1; b.Move.To(_at, 2.5f); return; }
-                var chests = Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).ToList();
+                var chests = Stock.ChestsFor(b).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).ToList();
                 foreach (var (item, amount) in missing)
                     if (chests.Sum(x => x.chest.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == item).Sum(i => i.m_stack)) + Have(b, item) < amount)
                     { Done = true; b.NoBuildUntil = Time.time + 60; b.Say($"The stores have too little {Localization.instance.Localize(Assets.Find(item)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name ?? item).ToLower()} to build the plans.", 6); return; }
                 var (want, count) = missing[0];
                 Container from = chests.Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want));
                 if (from == null) { Done = true; b.NoBuildUntil = Time.time + 20; return; }
-                if (Stock.OutOfReach(b.Pos, from.transform.position, 2.4f)) { if (!b.Move.Moving) b.Move.To(from.transform.position, 1.8f); if (b.Move.Failed) Done = true; return; }
+                if (Stock.WalkTo(b, from) != Stock.Walk.Reached) return; // (one out of reach is passed over: another is chosen next time round)
                 ItemDrop.ItemData stack = from.GetInventory().GetAllItems().First(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want);
                 if (Stock.Take(from, b.Body.GetInventory(), stack, count - Have(b, want)) == 0) { Done = true; b.NoBuildUntil = Time.time + 30; return; }
                 return;

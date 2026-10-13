@@ -94,7 +94,7 @@ namespace Jarldom
             }
             else
             {
-                Container chest = Stock.Chests(b.Colony, b.Pos).Select(x => x.chest).FirstOrDefault(ch => !ContainerAccess.InUse(ch) && ch.GetInventory().NrOfItems() > 0);
+                Container chest = Stock.ChestsFor(b).Select(x => x.chest).FirstOrDefault(ch => !ContainerAccess.InUse(ch) && ch.GetInventory().NrOfItems() > 0);
                 ItemDrop.ItemData item = chest?.GetInventory().GetAllItems().OrderBy(_ => rng.Next()).FirstOrDefault();
                 if (item != null && Stock.Take(chest, b.Body.GetInventory(), item, 1) > 0) { b.S.Bump("thefts"); b.Colony.Log("theft", b.S.Name, ""); }
             }

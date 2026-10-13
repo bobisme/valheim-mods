@@ -23,7 +23,7 @@ namespace Jarldom
             {
                 Func<ItemDrop.ItemData, bool> want = Wanted(b, kind, out int count);
                 if (want == null) continue;
-                var found = Stock.Chests(c, b.Pos).Where(x => x.category != "" && x.category != "treasury" && !ContainerAccess.InUse(x.chest))
+                var found = Stock.ChestsFor(b).Where(x => x.category != "" && x.category != "treasury" && !ContainerAccess.InUse(x.chest))
                     .SelectMany(x => x.chest.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && want(i)).Select(i => (x.chest, i))).FirstOrDefault();
                 if (found.chest != null) return new OutfitTask(found.chest, found.i.m_dropPrefab.name, count);
                 // (a hunter with no bow or arrows in the stores makes their own: a crude bow, flint arrows if there's flint, else wooden)
@@ -73,7 +73,9 @@ namespace Jarldom
         public override void Tick(Brain b)
         {
             if (_chest == null) { Done = true; return; }
-            if (Stock.OutOfReach(b.Pos, _chest.transform.position, 2.4f)) { if (!b.Move.Moving) b.Move.To(_chest.transform.position, 1.8f); if (b.Move.Failed) { Done = true; b.NoGearUntil = Time.time + 120; } return; }
+            Stock.Walk w = Stock.WalkTo(b, _chest);
+            if (w == Stock.Walk.Unreachable) { Done = true; return; } // (looked for again from the chests in reach)
+            if (w == Stock.Walk.Walking) return;
             ItemDrop.ItemData item = _chest.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == _prefab);
             int got = item == null ? 0 : Stock.Take(_chest, b.Body.GetInventory(), item, Math.Min(_count, item.m_stack));
             if (got > 0) { b.Say($"I'll take {(got > 1 ? got + " " : "the ")}{Localization.instance.Localize(item.m_shared.m_name).ToLower()} for the work.", 4); b.Dirty(); }

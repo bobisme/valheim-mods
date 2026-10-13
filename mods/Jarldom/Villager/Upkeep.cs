@@ -193,9 +193,9 @@ namespace Jarldom
                 var missing = Needs.Where(n => Have(b, n.item) < n.amount).ToList();
                 if (missing.Count == 0) { _phase = 1; b.Move.To(At, 2.5f); return; }
                 var (want, count) = missing[0];
-                Container from = Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => Classes.Prefab(i) == want));
+                Container from = Stock.ChestsFor(b).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => Classes.Prefab(i) == want));
                 if (from == null) { Done = true; b.NoUpkeepUntil = Time.time + 30; return; }
-                if (Stock.OutOfReach(b.Pos, from.transform.position, 2.4f)) { if (!b.Move.Moving) b.Move.To(from.transform.position, 1.8f); if (b.Move.Failed) Done = true; return; }
+                if (Stock.WalkTo(b, from) != Stock.Walk.Reached) return; // (one out of reach is passed over: another is chosen next time round)
                 ItemDrop.ItemData stack = from.GetInventory().GetAllItems().First(i => Classes.Prefab(i) == want);
                 if (Stock.Take(from, b.Body.GetInventory(), stack, count - Have(b, want)) == 0) { Done = true; b.NoUpkeepUntil = Time.time + 30; }
                 return;

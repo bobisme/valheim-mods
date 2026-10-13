@@ -53,6 +53,28 @@ namespace Jarldom
         // Near enough to reach into a chest: across the floor, and up to a stack's height above (chests stacked three high stand 3 m up;
         // counted straight, its top one was never near, and whoever went to it stood under it for good).
         public static bool OutOfReach(Vector3 me, Vector3 at, float reach) => Utils.DistanceXZ(me, at) > reach || at.y - me.y > 3.5f || me.y - at.y > 1.5f;
+        // A chest walked to and still out of reach once there (the walk ends on a slope above it, under a balcony) is passed over by that
+        // villager a while, and another with the same goods taken instead: never stood beside for ever.
+        public enum Walk { Reached, Walking, Unreachable }
+        private static readonly Dictionary<(string vid, int chest), float> Unreachable = new Dictionary<(string, int), float>();
+        public static Walk WalkTo(Brain b, Container chest, float reach = 2.4f)
+        {
+            Vector3 at = chest.transform.position;
+            if (!OutOfReach(b.Pos, at, reach)) return Walk.Reached;
+            bool there = !b.Move.Moving && b.Move.Arrived && Vector3.Distance(b.Move.Goal, at) < 3f;
+            if (b.Move.Failed && Vector3.Distance(b.Move.Goal, at) < 3f || there)
+            {
+                Unreachable[(b.S.Vid, chest.GetInstanceID())] = Time.time + 600f;
+                if (Unreachable.Count > 500) foreach (var k in Unreachable.Where(kv => kv.Value < Time.time).Select(kv => kv.Key).ToList()) Unreachable.Remove(k);
+                b.Move.Stop();
+                return Walk.Unreachable;
+            }
+            if (!b.Move.Moving || Vector3.Distance(b.Move.Goal, at) > 3f) b.Move.To(at, 1.8f);
+            return Walk.Walking;
+        }
+        public static bool Reachable(Brain b, Container chest) => !Unreachable.TryGetValue((b.S.Vid, chest.GetInstanceID()), out float until) || Time.time > until;
+        // The colony's chests near a villager, less those they couldn't reach lately.
+        public static List<(Container chest, string id, string category)> ChestsFor(Brain b) => Chests(b.Colony, b.Pos).Where(x => Reachable(b, x.chest)).ToList();
         public static void Forget() { Cache.Clear(); Listed.Clear(); Counted.Clear(); }
         private static List<Container> Boxes(Colony c)
         {

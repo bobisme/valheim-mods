@@ -352,7 +352,7 @@ namespace Jarldom
                 var missing = _needs.Where(n => Have(b, n.item) < n.amount).ToList();
                 if (missing.Count == 0) { _phase = 1; _stalls = 0; b.Move.To(_bench.transform.position, 2f); return; }
                 var (want, count) = missing[0];
-                Container from = Stock.Chests(b.Colony, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest) && !_skip.Contains(x.chest)).Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => Classes.Prefab(i) == want));
+                Container from = Stock.ChestsFor(b).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest) && !_skip.Contains(x.chest)).Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => Classes.Prefab(i) == want));
                 if (from == null) { if (_skip.Count > 0) GiveUp(b); else Done = true; return; }
                 if (from != _at) { _at = from; _stalls = 0; }
                 if (Stock.OutOfReach(b.Pos, from.transform.position, 2.4f))
