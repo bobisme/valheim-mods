@@ -104,15 +104,28 @@ class Clip:
                 arm.pose.bones[n].keyframe_insert('rotation_quaternion', frame=f)
             if f in self.hip_moves or self.hip_moves and f in (1, self.last): arm.pose.bones['Hips'].keyframe_insert('location', frame=f)
         rig.captured_pose(arm, self.bones, self.world)
-        # hands: IK on the hand bone (through forearm and upper arm), its target keyed
+        # hands: where the clip wants each hand (an empty, keyed and blended by Blender), then the arm placed by plain two-bone
+        # geometry every frame (Blender's IK flips between elbow solutions from frame to frame: smooth hands, arms spinning)
+        targets = {}
         for side, keys in self.hand_keys.items():
             hand = arm.pose.bones[side + 'Hand']
             e = bpy.data.objects.new(side + 'Target', None); bpy.context.scene.collection.objects.link(e); e.rotation_mode = 'QUATERNION'
-            for f, R, wrist in keys:
+            prev = None
+            for f, R, wrist in sorted(keys, key=lambda k: k[0]):
                 m = self.base[hand.name] if R is None else Matrix.Translation(wrist) @ R.to_4x4()
-                e.location = m @ Vector((0, hand.length, 0)); e.rotation_quaternion = m.to_quaternion()
+                q = m.to_quaternion()
+                # (each key on the same side as the last: q and -q are one turn, but keys are blended number by number)
+                if prev is not None and prev.dot(q) < 0: q.negate()
+                prev = q
+                e.location = m.to_translation(); e.rotation_quaternion = q
                 e.keyframe_insert('location', frame=f); e.keyframe_insert('rotation_quaternion', frame=f)
-            c = hand.constraints.new('IK'); c.target = e; c.chain_count = 3; c.use_rotation = True; c.use_stretch = False
+            targets[side] = e
+        if targets:
+            for f in range(sc.frame_start, sc.frame_end + 1):
+                sc.frame_set(f)
+                for side, e in targets.items(): self._place_arm(side, e.matrix_world.to_translation(), e.matrix_world.to_quaternion())
+                for side in targets:
+                    for b in ('Arm', 'ForeArm', 'Hand'): arm.pose.bones[side + b].keyframe_insert('rotation_quaternion', frame=f)
         if self.pinned:
             for side in ('Left', 'Right'):
                 foot = arm.pose.bones[side + 'Foot']; m = self.base[foot.name]
@@ -120,6 +133,34 @@ class Clip:
                 e.matrix_world = Matrix.Translation(m @ Vector((0, foot.length, 0))) @ m.to_quaternion().to_matrix().to_4x4()
                 c = foot.constraints.new('IK'); c.target = e; c.chain_count = 3; c.use_rotation = True; c.use_stretch = False
         bpy.context.view_layer.update()
+
+    def _place_arm(self, side, wrist, hand_rot):
+        """The arm reaching the wrist with the hand turned as asked: the elbow on the side it was captured on, each bone swung (never
+        rolled) from its captured direction, as its parent now carries it."""
+        arm = self.arm; up_b, fo_b, ha_b = (arm.pose.bones[side + n] for n in ('Arm', 'ForeArm', 'Hand'))
+        B = self.base
+        S0, E0, W0 = B[up_b.name].to_translation(), B[fo_b.name].to_translation(), B[ha_b.name].to_translation()
+        L1, L2 = (E0 - S0).length, (W0 - E0).length
+        # the captured arm as its parent (the shoulder, maybe turned) carries it now
+        carry = up_b.parent.matrix @ B[up_b.parent.name].inverted()
+        S = carry @ S0
+        A0 = carry @ B[up_b.name]
+        d = max(abs(L1 - L2) + 1e-3, min(L1 + L2 - 1e-3, (wrist - S).length))
+        line = (wrist - S).normalized()
+        out = carry.to_3x3() @ (E0 - S0); out = out - out.dot(line) * line
+        if out.length < 1e-4: out = Vector((1 if side == 'Right' else -1, -0.3, -0.3)); out = out - out.dot(line) * line
+        out.normalize()
+        a = (L1 * L1 - L2 * L2 + d * d) / (2 * d); h = math.sqrt(max(0.0, L1 * L1 - a * a))
+        E = S + line * a + out * h; W = S + line * d
+        def swing(m, frm, to):
+            r = frm.normalized().rotation_difference(to.normalized())
+            return r.to_matrix() @ m.to_3x3().normalized()
+        A_rot = swing(A0, (carry @ E0) - S, E - S)
+        up_b.matrix = Matrix.Translation(S) @ A_rot.to_4x4(); bpy.context.view_layer.update()
+        F0 = up_b.matrix @ (B[up_b.name].inverted() @ B[fo_b.name])
+        F_rot = swing(F0, (up_b.matrix @ (B[up_b.name].inverted() @ W0)) - E, W - E)
+        fo_b.matrix = Matrix.Translation(E) @ F_rot.to_4x4(); bpy.context.view_layer.update()
+        ha_b.matrix = Matrix.Translation(W) @ hand_rot.to_matrix().to_4x4(); bpy.context.view_layer.update()
 
     def _curl(self, hand, amounts):
         # From straight fingers (the skeleton's rest: a captured hand may be curled over a knee), then bent toward the palm.

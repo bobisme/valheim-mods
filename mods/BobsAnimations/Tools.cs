@@ -30,7 +30,7 @@ namespace BobsAnimations
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name,"anim",
-                    "anim chars [radius=100] | clips | rig [who] | hold [who] [item=Tankard] [bone=RightHand_Attach] | play <clip> [who] [loop|once] [item=<prefab>] | stop [who] | near [who] | params [who] | drift | shot [who] [yaw=0] [pitch=10] [dist=1.6] [up=0]: "+
+                    "anim chars [radius=100] | clips | rig [who] | hold [who] [item=Tankard] [bone=RightHand_Attach] | play <clip> [who] [loop|once] [item=<prefab>] | stop [who] | near [who] | params [who] | drift | spin [who] | shot [who] [yaw=0] [pitch=10] [dist=1.6] [up=0]: "+
                     "Bob's Animations. who: me, seated (the nearest sitting character), still (the nearest one standing still), nearest (the nearest other character, the default) a number from chars (its default radius) or a name. "+
                     "rig saves the skeleton and skin, posed as now, to claude/shots/anim-rig.json for Authoring/rig.py; play and stop need the game that runs the character; "+
                     "shot pictures it alone (nothing else drawn), yaw 0 at its face",
@@ -100,6 +100,7 @@ namespace BobsAnimations
                 }
                 case "stop":output(new JObject{["stopped"]=Anim.Stop(who),["on"]=who.m_name});break;
                 case "drift":return DriftAtEnd(output);
+                case "spin":return SpinWatch(who,output);
                 case "params":
                 {
                     // The animator's switches that are on (bools, and ints and floats that aren't 0), for finding how a character is posed.
@@ -145,6 +146,21 @@ namespace BobsAnimations
         // the real pose in numbers.)
         // At the end of the frame, as the game draws it: after the clips have posed the bones (a shot during Update has props where the
         // game's own animation left them, while the skin shows the last frame's pose).
+        // Test: the right hand's biggest turn from one frame to the next over the next few seconds (a flip shows as a big one).
+        private static IEnumerator SpinWatch(Character c,Action<JObject> output)
+        {
+            Transform hand=Playback.Bones(c).TryGetValue("RightHand",out Transform h)?h:null;
+            if(hand==null){output(new JObject{["error"]="no hand"});yield break;}
+            float worst=0,at=0,start=Time.time;Quaternion? last=null;int frames=0;var jumps=new JArray();
+            while(Time.time-start<4.5f&&c!=null)
+            {
+                yield return new WaitForEndOfFrame();
+                Quaternion q=Quaternion.Inverse(c.transform.rotation)*hand.rotation;
+                if(last.HasValue){float a=Quaternion.Angle(last.Value,q);if(a>worst){worst=a;at=Time.time-start;}if(a>25)jumps.Add($"{Time.time-start:0.00}s {a:0}deg during {Anim.Playing(c)??"nothing"}");}
+                last=q;frames++;
+            }
+            output(new JObject{["who"]=c?.m_name,["playing"]=c!=null?Anim.Playing(c):null,["frames"]=frames,["worstTurn"]=Math.Round(worst,1),["at"]=Math.Round(at,2),["jumps"]=jumps});
+        }
         private static IEnumerator DriftAtEnd(Action<JObject> output)
         {
             yield return new WaitForEndOfFrame();

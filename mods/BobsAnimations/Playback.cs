@@ -95,7 +95,7 @@ namespace BobsAnimations
                 var bones=Bones(c);
                 st=new State{Body=c,View=v,Clip=clip,Key=key,At=at,Loop=parts.Length>1?parts[1]=="loop":clip.Loop,
                     Bones=clip.Bones.Select(n=>bones.TryGetValue(n,out Transform t)?t:null).ToArray()};
-                if(clip.Seated){st.Animator=c.GetComponentInChildren<Animator>();st.Seats=st.Animator!=null?SeatParams.Where(n=>st.Animator.parameters.Any(q=>q.name==n&&q.type==AnimatorControllerParameterType.Bool)).ToArray():new string[0];}
+                st.Animator=c.GetComponentInChildren<Animator>();st.Seats=st.Animator!=null?SeatParams.Where(n=>st.Animator.parameters.Any(q=>q.name==n&&q.type==AnimatorControllerParameterType.Bool)).ToArray():new string[0];
                 st.Item=z.GetString(Anim.PropKey);st.LastPos=new Vector3[st.Bones.Length];st.BasePos=new Vector3[st.Bones.Length];st.Moved=new bool[st.Bones.Length];
                 st.LastOut=new Quaternion[st.Bones.Length];st.LastBase=new Quaternion[st.Bones.Length];st.Wrote=new bool[st.Bones.Length];
                 st.From=from;st.FromPos=fromPos;
@@ -134,10 +134,12 @@ namespace BobsAnimations
                 float t=(float)((now-st.At)/(double)TimeSpan.TicksPerSecond);
                 long end=st.View.GetZDO().GetLong(Anim.EndKey,0);
                 // A seated clip on someone who got up: it blends out from then (each game sees it for itself; the owner ends it for all).
-                if((st.Clip.Seated||st.Clip.Still)&&st.Stood==0&&Time.time>=st.NextSeatCheck)
+                // (and any other clip on someone who sits down: an armful carried into a chair would go through their lap)
+                if(st.Stood==0&&Time.time>=st.NextSeatCheck)
                 {
                     st.NextSeatCheck=Time.time+0.25f;
-                    bool up=st.Clip.Seated&&st.Animator!=null&&st.Seats.Length>0&&!st.Seats.Any(n=>st.Animator.GetBool(n));
+                    bool sitting=st.Animator!=null&&st.Seats.Any(n=>st.Animator.GetBool(n));
+                    bool up=st.Clip.Seated?st.Seats.Length>0&&!sitting:sitting;
                     bool off=st.Clip.Still&&st.Body.GetVelocity().sqrMagnitude>0.6f*0.6f;
                     if(up||off){st.Stood=now;if(st.View.IsOwner())Anim.Stop(st.Body);}
                 }

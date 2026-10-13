@@ -14,17 +14,19 @@ MUG = hold_item((0.0001, 0.0021, 0.0008), (-1, 0, 0), 85.5)  # (anim hold: the T
 
 def tilt(deg): return Vector((0, -math.sin(math.radians(deg)), math.cos(math.radians(deg))))  # the mug's up, tipped toward the face
 MOUTH = Vector((0.0, 0.19, 1.28))
-def at_lips(deg):  # the mug's centre with its rim's near edge at the lips
-    return MOUTH + Vector((0.02, 0.05, 0)) - tilt(deg) * 0.1
+# Where the mouth is with the head tipped back as keyed below (measured on the rig: the head's turn carries it up and back).
+LIPS = {44: Vector((0.0, 0.18, 1.305)), 56: Vector((0.0, 0.143, 1.347)), 80: Vector((0.0, 0.118, 1.365))}
+def at_lips(deg, frame):  # the mug's centre with its rim's near edge at the lips
+    return LIPS[frame] + Vector((0.02, 0.035, 0)) - tilt(deg) * 0.1
 REST, CHEST = Vector((0.2, 0.25, 0.76)), Vector((0.13, 0.36, 1.02))
 SIDE, IN = Vector((-1, 0.4, 0)), Vector((-1, 0.1, 0))
 
 c.hold(1, 'Right', MUG, REST, Z, SIDE)
 c.hold(16, 'Right', MUG, REST + Vector((0, 0.02, 0.04)), Z, SIDE)          # lifted off the thigh
 c.hold(32, 'Right', MUG, CHEST, tilt(10), IN)                             # up before the chest
-c.hold(44, 'Right', MUG, at_lips(45), tilt(45), IN)                       # to the lips
-c.hold(56, 'Right', MUG, at_lips(70), tilt(70), IN)                       # tipped up
-c.hold(80, 'Right', MUG, at_lips(78), tilt(78), IN)                       # a long pull
+c.hold(44, 'Right', MUG, at_lips(45, 44), tilt(45), IN)                       # to the lips
+c.hold(56, 'Right', MUG, at_lips(70, 56), tilt(70), IN)                       # tipped up
+c.hold(80, 'Right', MUG, at_lips(78, 80), tilt(78), IN)                       # a long pull
 c.hold(94, 'Right', MUG, CHEST + Vector((0, 0.02, 0.02)), tilt(5), IN)    # down from the lips
 c.hold(110, 'Right', MUG, REST + Vector((0, 0.02, 0.05)), Z, SIDE)
 c.hold(126, 'Right', MUG, REST, Z, SIDE)

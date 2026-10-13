@@ -23,3 +23,6 @@ captured was Rognvald (a man); the male and female bodies share bone frames, so 
 Standing captures sway: the game's idle stance is turned and staggered (one foot and hand forward). `anim chars` says who stands still, and
 `anim params <who>` should show only onGround (no forward_speed, no statei) when capturing.
 Fingers: on this skeleton a finger joint bends toward the palm about its own -x; clip.py's curl starts from straight (rest) fingers.
+Arms: placed per frame by two-bone geometry in clip.py (_place_arm), not Blender IK (which flips elbow solutions between frames: the
+hand stays smooth but arm and forearm spin, and the game blends each bone apart). Check new clips with a reach/steps script: wrist misses
+and per-frame turns of the arm bones (a jump over ~40 deg in one frame is a flip). Aim at the mouth where the head's turn puts it.

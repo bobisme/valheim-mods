@@ -73,12 +73,13 @@ def sow(c):
     c.pin_feet()
     c.hand(1, 'Right')
     down = (0, 0.5, -1), (0, 0.3, -1)
-    c.pose(18, 'Right', (0.12, 0.45, 0.16), *down); c.pose(28, 'Right', (0.12, 0.47, 0.10), *down); c.pose(38, 'Right', (0.10, 0.44, 0.20), *down)
-    c.pose(50, 'Right', (0.0, 0.50, 0.11), *down); c.pose(60, 'Right', (0.02, 0.46, 0.22), *down)
+    # (as low as a crouch reaches: a hand about knee height, just in front: into the row)
+    c.pose(18, 'Right', (0.12, 0.46, 0.48), *down); c.pose(28, 'Right', (0.12, 0.47, 0.43), *down); c.pose(38, 'Right', (0.10, 0.46, 0.50), *down)
+    c.pose(50, 'Right', (0.02, 0.48, 0.44), *down); c.pose(60, 'Right', (0.03, 0.46, 0.51), *down)
     c.hand(82, 'Right')
     c.curl(1, 'RightHand', 0); c.curl(18, 'RightHand', 0.6, Index=0.2, Thumb=0.3); c.curl(60, 'RightHand', 0.6, Index=0.2, Thumb=0.3); c.curl(82, 'RightHand', 0)
-    crouch = {'Spine1': [(X, -14)], 'Spine2': [(X, -14)], 'Neck': [(X, -8)], 'Head': [(X, -10)]}
-    c.turn(1, {}, hips=(0, 0, 0)); c.turn(18, crouch, hips=(0, 0.06, -0.32)); c.turn(60, crouch, hips=(0, 0.06, -0.32)); c.turn(82, {}, hips=(0, 0, 0))
+    crouch = {'Spine': [(X, -18)], 'Spine1': [(X, -24)], 'Spine2': [(X, -18)], 'Neck': [(X, 4)], 'Head': [(X, -6)]}
+    c.turn(1, {}, hips=(0, 0, 0)); c.turn(18, crouch, hips=(0, 0.02, -0.44)); c.turn(60, crouch, hips=(0, 0.02, -0.44)); c.turn(82, {}, hips=(0, 0, 0))
 
 def harvest(c):
     """Crouching to pull a crop: both hands down to it, a grip, a pull as they rise, the crop held up a moment."""
@@ -86,14 +87,14 @@ def harvest(c):
     for s in ('Right', 'Left'): c.hand(1, s); c.hand(76, s)
     def both(f, w, fi, pa):
         c.pose(f, 'Right', w, fi, pa); c.pose(f, 'Left', (-w[0], w[1], w[2]), (-fi[0], fi[1], fi[2]), (-pa[0], pa[1], pa[2]))
-    both(16, (0.07, 0.45, 0.22), (-0.3, 0.3, -1), (-1, 0, -0.2))
-    both(26, (0.05, 0.45, 0.18), (-0.3, 0.3, -1), (-1, 0, -0.2))
+    both(16, (0.08, 0.46, 0.48), (-0.3, 0.3, -1), (-1, 0, -0.2))
+    both(26, (0.06, 0.46, 0.44), (-0.3, 0.3, -1), (-1, 0, -0.2))
     both(42, (0.05, 0.38, 0.58), (-0.3, 0.2, 1), (-1, 0, 0))
     both(56, (0.06, 0.30, 1.0), (-0.3, 0.2, 1), (-1, 0, 0))
     for h in ('RightHand', 'LeftHand'): c.curl(1, h, 0); c.curl(16, h, 0.2); c.curl(26, h, 1, Thumb=0.6); c.curl(58, h, 1, Thumb=0.6); c.curl(70, h, 0)
-    crouch = {'Spine1': [(X, -14)], 'Spine2': [(X, -12)], 'Neck': [(X, -8)], 'Head': [(X, -10)]}
-    c.turn(1, {}, hips=(0, 0, 0)); c.turn(16, crouch, hips=(0, 0.06, -0.32)); c.turn(26, crouch, hips=(0, 0.06, -0.34))
-    c.turn(42, {'Spine1': [(X, -5)], 'Spine2': [(X, -4)]}, hips=(0, 0.03, -0.14)); c.turn(56, {'Head': [(X, -6)]}, hips=(0, 0, 0)); c.turn(76, {}, hips=(0, 0, 0))
+    crouch = {'Spine': [(X, -18)], 'Spine1': [(X, -24)], 'Spine2': [(X, -16)], 'Neck': [(X, 4)], 'Head': [(X, -6)]}
+    c.turn(1, {}, hips=(0, 0, 0)); c.turn(16, crouch, hips=(0, 0.02, -0.44)); c.turn(26, crouch, hips=(0, 0.02, -0.46))
+    c.turn(42, {'Spine': [(X, -6)], 'Spine1': [(X, -8)], 'Spine2': [(X, -4)]}, hips=(0, 0.02, -0.18)); c.turn(56, {'Head': [(X, -6)]}, hips=(0, 0, 0)); c.turn(76, {}, hips=(0, 0, 0))
 
 def watch(c):
     """Keeping watch: a hand over the eyes, looking slowly left and right, and down again."""

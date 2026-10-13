@@ -44,15 +44,16 @@ def point(c):
 def toast(c, toward):
     """Skál! The tankard raised high toward someone (toward=+1 the right, -1 the left), held there, then a pull from it."""
     def tilt(deg): return Vector((0, -math.sin(math.radians(deg)), math.cos(math.radians(deg))))
-    def at_lips(deg): return MOUTH + Vector((0.02, 0.05, 0)) - tilt(deg) * 0.1
+    lips = {54: Vector((0.0, 0.18, 1.305)), 68: Vector((0.0, 0.143, 1.347))}  # the mouth with the head tipped as keyed (as in sit_drink)
+    def at_lips(deg, f): return lips[f] + Vector((0.02, 0.035, 0)) - tilt(deg) * 0.1
     REST, CHEST, SIDE, IN = Vector((0.2, 0.25, 0.76)), Vector((0.13, 0.36, 1.02)), Vector((-1, 0.4, 0)), Vector((-1, 0.1, 0))
     up = Vector((0.12 * toward, 0.15, 1))
     c.hold(1, 'Right', TANKARD, REST, Z, SIDE)
     c.hold(18, 'Right', TANKARD, Vector((0.2 + 0.12 * toward, 0.5, 1.38)), up, IN)
     c.hold(26, 'Right', TANKARD, Vector((0.21 + 0.13 * toward, 0.53, 1.44)), up, IN)
     c.hold(40, 'Right', TANKARD, Vector((0.2 + 0.12 * toward, 0.5, 1.38)), up, IN)
-    c.hold(54, 'Right', TANKARD, at_lips(40), tilt(40), IN)
-    c.hold(68, 'Right', TANKARD, at_lips(68), tilt(68), IN)
+    c.hold(54, 'Right', TANKARD, at_lips(40, 54), tilt(40), IN)
+    c.hold(68, 'Right', TANKARD, at_lips(68, 68), tilt(68), IN)
     c.hold(80, 'Right', TANKARD, CHEST, tilt(5), IN)
     c.hold(96, 'Right', TANKARD, REST, Z, SIDE)
     c.curl(1, 'RightHand', 0.85); c.curl(96, 'RightHand', 0.85)
@@ -137,10 +138,11 @@ def board_move(c):
     """A move at a board game on the table in front: reach over, pinch a piece, slide it a square or two, set it down, sit back."""
     c.hand(1, 'Right')
     over = ((-0.2, 1, -0.6), (0, 0.3, -1))  # fingers forward and down, palm down
-    for f, w in ((14, (0.12, 0.42, 1.08)), (22, (0.10, 0.50, 1.00)), (30, (0.10, 0.50, 1.06)), (40, (0.0, 0.56, 1.06)),
-                 (48, (0.0, 0.56, 1.00)), (56, (0.0, 0.55, 1.03)), (64, (0.12, 0.42, 1.08))):
+    # (the table top is 0.94 m up; fingers pointing down reach ~8 cm below the wrist, so a touch on the board is the wrist at ~1.06)
+    for f, w in ((14, (0.12, 0.42, 1.14)), (22, (0.10, 0.50, 1.06)), (30, (0.10, 0.50, 1.12)), (40, (0.0, 0.56, 1.12)),
+                 (48, (0.0, 0.56, 1.06)), (56, (0.0, 0.55, 1.09)), (64, (0.12, 0.42, 1.14))):
         c.pose(f, 'Right', w, *over)
-    c.pose(72, 'Right', (0.22, 0.26, 1.0), (0, 1, -0.5), (0, 0.3, -1))  # back toward the body, clear of the table's edge
+    c.pose(72, 'Right', (0.22, 0.24, 1.06), (0, 1, -0.5), (0, 0.3, -1))  # back toward the body, clear of the table's edge
     c.pose(82, 'Right', (0.28, 0.25, 0.8), *DOWN_HAND)
     c.hand(92, 'Right')
     pinch = dict(Index=0.45, Thumb=0.5)
