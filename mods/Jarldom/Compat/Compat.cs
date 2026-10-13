@@ -23,6 +23,7 @@ namespace Jarldom
             ("Farmhand", new[] { "com.bobisme.farmhand" }, "rows and batches (not yet)"),
             ("Omens", new[] { "com.bobisme.omens" }, "Odin's favour is the gods' Fate"),
             ("Shieldwall", new[] { "com.bobisme.shieldwall" }, "a siege at the colony's Warstone is a raid: villagers defend it"),
+            ("Respite", new[] { "com.bobisme.respite" }, "one raid clock for the world: warbands and Fuling bands wait their turn, and gather outside the colony first"),
             ("TrophyHall", new[] { "com.bobisme.trophyhall" }, "trophies grade the great hall"),
             ("SkalTavern", new[] { "com.quad.skaltavern", "com.dhack.skaltavern" }, "a Skål! at feasts; its ale, mead and wine drunk in the hall from its chests"),
             ("PartyHud", new[] { "com.quad.partyhud", "com.dhack.partyhud" }, "(not yet)"),
@@ -76,6 +77,28 @@ namespace Jarldom
         {
             Func<Vector3[]> f = Omens.Bind<Func<Vector3[]>>("GreatStags", 1);
             return f == null ? new Vector3[0] : Safe(f) ?? new Vector3[0];
+        }
+
+        // ---- Respite: one raid clock for the world, and raiders that gather outside the colony before they come ----
+        private static readonly ApiRef Respite = new ApiRef("Respite.Api", "com.bobisme.respite");
+        // Why no raid may come near a place now ("" if one may, or without Respite).
+        public static string RaidBlocked(Vector3 at)
+        {
+            Func<Vector3, string> blocked = Respite.Bind<Func<Vector3, string>>("Blocked");
+            try { return blocked?.Invoke(at) ?? ""; } catch { return ""; }
+        }
+        public static void Raided(Vector3 at, string source)
+        {
+            Action<Vector3, string> raided = Respite.Bind<Action<Vector3, string>>("Raided");
+            try { raided?.Invoke(at, source); } catch { }
+        }
+        // Raiders gather outside home on from's side, told (text, then where and when) to the players near; spawn(spot) when the warning
+        // is up. False without Respite.
+        public static bool Muster(Vector3 home, float clear, Vector3 from, string text, Action<Vector3> spawn)
+        {
+            var muster = Respite.Bind<Func<Vector3, float, Vector3, string, Action<Vector3>, Vector3>>("MusterFrom");
+            if (muster == null) return false;
+            try { muster(home, clear, from, text, spawn); return true; } catch (Exception e) { Plugin.Warn("Respite muster failed: " + e.Message); return false; }
         }
 
         // ---- Shieldwall: a siege at the colony's Warstone is a raid ----

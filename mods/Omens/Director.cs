@@ -136,16 +136,24 @@ namespace Omens
                     default: // a raid or a hunting pack at the nearest base
                         if(!e.Forced&&!Policy.RaidDue(now,e.SeenAt,e.SeenAtNight,EnvMan.IsNight()))break;
                         Vector3? home=NearestBase(e.Pos);
+                        string rest=home!=null&&!e.Forced?RespiteLink.Blocked(home.Value):""; // (Respite: the base still rests from another raid)
                         why=Game.m_eventRate<=0?"raids are turned off in this world"
                             :omen.Result==Result.Stalkers&&ZoneSystem.instance.GetGlobalKey(GlobalKeys.PassiveMobs)?"monsters are passive in this world"
                             :home==null?$"no workbench or bed within {Plugin.Instance.BaseRange.Value:0} m"
-                            :now-e.SeenAt>DayLength*1.5?"it waited too long for its moment"
+                            :now-e.SeenAt>DayLength*1.5?(rest!=""?"the base still rested from another raid":"it waited too long for its moment")
                             :omen.Result==Result.Raid&&!RandEventSystem.instance.HaveEvent(omen.Raid)?$"the game has no {omen.Raid} raid":"";
                         if(why!="")impossible=true;
+                        else if(rest!="")break; // it waits its turn
                         else if(omen.Result==Result.Raid&&RandEventSystem.instance.GetCurrentRandomEvent()==null) // never interrupts a raid in progress
                         {RandEventSystem.instance.SetRandomEventByName(omen.Raid,home.Value);at=home.Value;done=true;}
                         else if(omen.Result==Result.Stalkers&&Players().Any(p=>Vector3.Distance(p,home.Value)<150)) // they come when someone is home
-                        {done=Hunt(home.Value,Policy.Pack(omen.Kind,(int)WorldGenerator.instance.GetBiome(home.Value.x,home.Value.z)),35,45);at=home.Value;}
+                        {
+                            Vector3 h=home.Value;var pack=Policy.Pack(omen.Kind,(int)WorldGenerator.instance.GetBiome(h.x,h.z));
+                            // With Respite they gather outside first, shown on the map; without, they still start well outside the base.
+                            if(RespiteLink.Muster(h,0,"",spot=>Hunt(spot,pack,2,8))){RespiteLink.Raided(h,"omen: "+omen.Name.ToLowerInvariant());done=true;}
+                            else done=Hunt(h,pack,80,100);
+                            at=h;
+                        }
                         break;
                 }
             }

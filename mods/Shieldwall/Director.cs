@@ -56,6 +56,7 @@ namespace Shieldwall
             string sworn=boasts!=0?$" Sworn: {string.Join(", ",Policy.Sworn(boasts).Select(b=>b.Name))} (+{Math.Round(100*Policy.BoastBonus(boasts))}% warshards).":"";
             Net.Say($"{opening} They march in {gather:0} seconds: {plan.Count} waves, {plan.Sum(w=>w.Count)} strong.{sworn}",stone.transform.position,250);
             Plugin.Log($"Siege called ({cause}) at {stone.transform.position:F0}: {roster.Name}, {plan.Count} waves, {plan.Sum(w=>w.Count)} raiders, rift {rift:F0}");
+            if(cause==Cause.Horn)RespiteLink.Raided(stone.transform.position,"the war horn"); // a siege called is a raid on Respite's clock (a drawn raid is noted as the game's)
         }
 
         // ---- every moment of a siege ----

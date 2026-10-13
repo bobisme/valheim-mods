@@ -95,26 +95,40 @@ namespace Jarldom
             if (n > 0) c.Log("text", "", "", $"With the sun, what was left of {JarlName(c)}'s warband ({n}) sank back into the earth.");
             return n;
         }
-        // At dusk, when it's time: the warband at the colony's edge, from the barrow's side.
+        // At dusk, when it's time: the warband outside the colony, on the barrow's side. With Respite they wait while the colony rests
+        // from another raid, and gather (shown on the map) before they come.
         public static void Dusk(Colony c, int day)
         {
             if (!Stands(c) || day < c.R.Flag("barrow:next")) return;
+            if (Compat.RaidBlocked(c.Position) != "") { c.R.Flags["barrow:next"] = day + 1; c.MarkDirty(); return; }
             c.R.Flags["barrow:next"] = day + UnityEngine.Random.Range(3, 6);
-            Vector3 dir = Barrow(c) - c.Position; dir.y = 0; dir = dir.sqrMagnitude < 1 ? Vector3.forward : dir.normalized;
+            Vector3 barrow = Barrow(c);
+            string text = $"The warband of {JarlName(c)} comes out of the dusk!";
+            if (Compat.Muster(c.Position, c.Radius, barrow, text, at => Band(c, at))) Compat.Raided(c.Position, "the warband of " + JarlName(c));
+            else
+            {
+                Vector3 dir = barrow - c.Position; dir.y = 0; dir = dir.sqrMagnitude < 1 ? Vector3.forward : dir.normalized;
+                Band(c, c.Position + dir * (c.Radius + 40));
+                c.Tell(text, true);
+            }
+            c.MarkDirty();
+        }
+        private static void Band(Colony c, Vector3 gather)
+        {
+            if (ZNetScene.instance == null) return;
+            Vector3 dir = c.Position - gather; dir.y = 0; dir = dir.sqrMagnitude < 1 ? Vector3.forward : dir.normalized; // (facing the colony)
             int n = 3 + (int)c.R.Rank;
             for (int i = 0; i < n; i++)
             {
                 string kind = i % 3 == 2 ? "Draugr_Ranged" : i == 0 ? "Draugr_Elite" : "Draugr";
                 GameObject prefab = ZNetScene.instance.GetPrefab(kind);
                 if (prefab == null) continue;
-                Vector3 at = Colony.Spot(c.Position + dir * (c.Radius * 0.7f) + UnityEngine.Random.insideUnitSphere * 6f, 5f) ?? c.Position + dir * 40;
-                GameObject go = UnityEngine.Object.Instantiate(prefab, at, Quaternion.LookRotation(-dir));
+                Vector3 at = Colony.Spot(gather + UnityEngine.Random.insideUnitSphere * 6f, 5f) ?? gather;
+                GameObject go = UnityEngine.Object.Instantiate(prefab, at, Quaternion.LookRotation(dir));
                 go.GetComponent<ZNetView>().GetZDO().Set(BandKey, c.Id);
                 go.GetComponent<MonsterAI>()?.SetHuntPlayer(true); // (in, as a raid's creatures come, not waiting at the edge)
                 Assets.Effect("vfx_ghost_death", at);
             }
-            c.Tell($"The warband of {JarlName(c)} comes out of the dusk!", true);
-            c.MarkDirty();
         }
         // While any of them stands in the colony, it's a raid (the horn, fighters out, the rest in the hall).
         public static bool Raiding(Colony c) => Character.GetAllCharacters().Any(ch => ch != null && !ch.IsDead() && Utils.DistanceXZ(ch.transform.position, c.Position) < c.Radius + 40

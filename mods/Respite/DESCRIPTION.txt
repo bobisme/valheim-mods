@@ -1,0 +1,7 @@
+A breath between raids, and time to get in position.
+
+One raid clock for the world. After a raid, the land near it rests: no other raid comes within 500 m for 1.5 in-game days, and no place gets more than three in seven days. The clock counts the game's own raids and the raids of Bob's other mods, so they no longer pile up: Omens' bad omens wait their turn (or fade), Jarldom's draugr warbands wait another night and the Fulings put off their next demand, and a Shieldwall horn starts the clock like any raid. Bases farther apart keep their own clocks.
+
+Raiders gather outside the base before they come. A spot past your farthest building is chosen on open ground outside every ward; everyone near is told where ("They gather to the north-east, 120 m out: 90 seconds."), it is pinned on the map, and a rift churns there. When the warning is up they come from there. The game's raids muster too: no spawns for the warning, then they come from the gathering spot (or at least from well outside the base), and they last the warning longer so it doesn't eat the fight.
+
+Cooldown, area, weekly cap, warning, and how far out they gather are all in F7. The host's game keeps the clock (saved per world) and its settings count; players' games keep a copy, so a mod deciding on a player's game asks the same clock. On a vanilla dedicated server each player's game keeps its own clock for the session.

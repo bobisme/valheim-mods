@@ -83,7 +83,7 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
   Games tell each other their Jarldom versions; while two differ in what they save, no colony is saved and everyone is told. Jarldom
   keeps its world keys out of players' character files.
 
-Works with Omens (Odin's favour is the gods' Fate), AICompanion (bed and chest claims respected both ways), Gary, SkalTavern; needs
+Works with Omens (Odin's favour is the gods' Fate), Respite (warbands and Fuling bands wait their turn and gather outside first), AICompanion (bed and chest claims respected both ways), Gary, SkalTavern; needs
 none. **Restart Valheim after installing or updating** (it adds pieces and villagers). **Install on the host and every player** (the hammer refuses Jarldom pieces where the host lacks the mod). **Disband** the colony
 from its window before uninstalling: everyone's gear goes into chests by the pillars. Claude Tools: `jarldom status`, `roster`,
 `villager <name>`, `rooms`, `room check <n>`, `board`, `log`, `saga`, `flags`, `graves`, `netsize`, `pathtest`, `heights`, `spot`, `ui
@@ -339,7 +339,7 @@ The horn rests **20 minutes** after a siege. A stone can't be taken down while a
 (warchiefs 3–6) and drop their trophies more often.
 
 **Raids drawn to the stone.** Once you have a Warstone, a base raid the host would start near it becomes a siege at the stone instead, with
-**three minutes'** warning. Raids from Omens' bad omens are drawn the same way. This part needs Shieldwall on the host; a vanilla dedicated
+**three minutes'** warning. Raids from Omens' bad omens are drawn the same way. With Respite, sounding the horn starts its raid clock at the stone. This part needs Shieldwall on the host; a vanilla dedicated
 server raids as usual.
 
 A siege runs on the game of the player nearest the stone (its owner, in Valheim's terms) and everything about it is saved on the stone (kept small, as
@@ -487,6 +487,10 @@ answerable warning come to pass lowers it by one, and robbing a cursed hoard by 
 point). **Beloved** worlds (+3 or more) get half as much again from every gift. **Forsaken** worlds (−3 or less) see omens a quarter more
 often, and every pack and hunter comes a level stronger.
 
+**With Respite.** Raid omens share one raid clock with the game and Bob's other mods: a bad omen whose base still rests from another raid
+waits its turn (and fades if it waits too long), and a hunting pack gathers outside the base first, shown on the map. Without Respite the
+pack starts 80–100 m from the base's workbench or bed.
+
 **Omens that return.** A bad omen left to come to pass can come back half a day later, worse, near the home it struck, announced as
 "The omen returns, worse than before.": a scattered cairn's dead return as unlit grave candles, a drained deer or a gnawed carcass feeds a
 blood moon, the drowned man's ship comes looking for him, a dead troll's forest calls down Thor's storm, and an abandoned camp's attackers come
@@ -526,6 +530,33 @@ nearest-base search, plus native hooks. First playtest:
 4. See a camp at night; the greydwarf raid follows a few minutes later. See ravens; check rested and the revealed map.
 5. Leave a sign unseen for a day; it fades. Save/restart the host mid-omen; seen omens still come to pass, unseen ones still wait.
 6. Try a world with raids off, a seen bad omen with no base within reach, and an omen seen while another raid is running.
+
+## Respite
+
+A breath between raids, and time to get in position. Respite gives the world **one raid clock**: after a raid, no other comes within
+**500 m** for **1.5 in-game days**, and no place gets more than **three in seven days**. It counts the game's own raids and those of Bob's
+other mods, so they no longer pile up:
+
+| Raid | While the base rests |
+| --- | --- |
+| The game's own raids (and Omens' and the Fulings' raids that start one) | the game's timer skips resting bases |
+| Omens: hunting packs and raids | the omen waits its turn (and fades if it waits too long) |
+| Jarldom: the draugr warband | it comes another night |
+| Jarldom: the Fulings' tribute | the herald puts off the demand a day |
+| Shieldwall: the war horn | never refused, but it starts the clock; a raid the stone draws is the game's raid |
+
+**Raiders gather outside the base before they come.** A spot past your farthest building (a Jarldom colony's border, if that's farther)
+is chosen on open ground outside every ward; everyone within 400 m is told where and how long ("They gather to the north-east, 120 m
+out: 90 seconds."), it's pinned on the map, and a rift churns there. When the warning is up they come from there. The game's raids muster
+too: no spawns for the warning, then they come from the gathering spot (or at least 70 m out), and they last the warning longer.
+
+Settings (F7): **CooldownDays**, **AreaRadius**, **MaxPerWeek** (the host's count; players' games keep its copy), **WarningSeconds**,
+**Margin** (metres past the farthest building), **LeastDistance**, **GameRaids** (muster the game's raids). The host keeps the clock, saved
+per world in `BepInEx/config/respite`. On a vanilla dedicated server each player's game keeps its own clock for the session. Without
+Respite, Jarldom's bands and Omens' hunting packs still start outside the base, with no countdown.
+
+For other mods: `Respite.Api` (found by reflection, version 1): `Blocked(pos)` (why not, or ""), `Raided(pos, source)`,
+`Muster(home, clear, text, spawn)`, `MusterFrom(home, clear, from, text, spawn)`, `WarningSeconds()`.
 
 ## Spyglass
 

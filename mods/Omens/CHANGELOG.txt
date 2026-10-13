@@ -1,3 +1,5 @@
+0.6.5: With Respite installed, raid omens share one raid clock with the game and Bob's other mods: a bad omen whose base still rests from another raid waits its turn (and fades if it waits too long), and a hunting pack gathers outside the base first, shown on the map, before it comes. Without Respite the pack now starts 80 to 100 m from the base's workbench or bed instead of 35 to 45 m, so it no longer appears inside the base.
+
 0.6.4: Omens.Api version 2 adds IsAurora and IsBloodMoon (Jarldom's villagers go out to watch the northern lights).
 
 0.6.3: Other mods can find the great stag: Omens.Api now has Version 1, IsGreatStag and GreatStags (Jarldom villagers ask the jarl to hunt it while one runs).

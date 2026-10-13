@@ -32,6 +32,7 @@ namespace Jarldom
             int next = c.R.Flag("tribute:next");
             if (next == 0) { c.R.Flags["tribute:next"] = day + 2; return; }
             if (day < next) return;
+            if (Compat.RaidBlocked(c.Position) != "") { c.R.Flags["tribute:next"] = day + 1; c.MarkDirty(); return; } // (Respite: not while the colony rests from another raid)
             Demand(c, day);
         }
         public static void Demand(Colony c, int day)
@@ -84,18 +85,26 @@ namespace Jarldom
         {
             Vector3 dir = Random.insideUnitSphere; dir.y = 0; dir = dir.sqrMagnitude < 0.01f ? Vector3.forward : dir.normalized;
             int fulings = BandSize(c.R.Rank);
+            string text = $"A Fuling band comes for the tribute: {fulings} Fuling{(fulings == 1 ? "" : "s")} and their greydwarfs!";
+            // With Respite they gather outside the colony (shown on the map) before they come; without, they start outside it.
+            if (Compat.Muster(c.Position, c.Radius, c.Position + dir * 100, text, at => BandAt(c, at, fulings))) Compat.Raided(c.Position, "the Fulings' tribute band");
+            else { BandAt(c, c.Position + dir * (c.Radius + 40), fulings); c.Tell(text, true); }
+        }
+        private static void BandAt(Colony c, Vector3 gather, int fulings)
+        {
+            if (ZNetScene.instance == null) return;
+            Vector3 dir = c.Position - gather; dir.y = 0; dir = dir.sqrMagnitude < 1 ? Vector3.forward : dir.normalized; // (facing the colony)
             for (int i = 0; i < fulings + 2; i++)
             {
                 GameObject prefab = ZNetScene.instance.GetPrefab(i < fulings ? "Goblin" : "Greydwarf");
                 if (prefab == null) continue;
-                Vector3 at = Colony.Spot(c.Position + dir * (c.Radius * 0.7f) + Random.insideUnitSphere * 5f, 5f) ?? c.Position + dir * 40;
-                GameObject go = Object.Instantiate(prefab, at, Quaternion.LookRotation(-dir));
+                Vector3 at = Colony.Spot(gather + Random.insideUnitSphere * 5f, 5f) ?? gather;
+                GameObject go = Object.Instantiate(prefab, at, Quaternion.LookRotation(dir));
                 go.GetComponent<ZNetView>().GetZDO().Set(BandKey, c.Id);
                 go.GetComponent<Character>()?.SetLevel(1);
                 go.GetComponent<MonsterAI>()?.SetHuntPlayer(true);
                 Assets.Effect("vfx_spawn", at);
             }
-            c.Tell($"A Fuling band comes for the tribute: {fulings} Fuling{(fulings == 1 ? "" : "s")} and their greydwarfs!", true);
         }
         public static bool BandRaiding(Colony c) => Character.GetAllCharacters().Any(ch => ch != null && !ch.IsDead() && Utils.DistanceXZ(ch.transform.position, c.Position) < c.Radius + 40
             && ch.GetComponent<ZNetView>()?.GetZDO()?.GetString(BandKey, "") == c.Id);
