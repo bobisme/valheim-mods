@@ -1,3 +1,5 @@
+0.1.67: the funeral ship (a Hold's honour; build it on the beach): a karve drawn up for a soul's last voyage, grave goods in its hold. A worthy soul sent to Valhalla while it stands goes by ship: at dusk they board, and everyone near sees it slide into the water, go out burning and sink. Odin takes more note than of any pyre (half again the deeds); the ship goes with them.
+
 0.1.66: when a soul goes to Valhalla from the pyre, a Valkyrie comes for them: everyone near sees her circle once over the fire and climb away into the sky.
 
 0.1.65: the memorial stone (hammer, 20 stone): a raised runestone with a serpent band of runes and Odin's valknut. Read it (E) for the colony's dead: who went to Valhalla and the deed that took them there, who was lost to Hel and laid to rest, and who walks still, unburied.

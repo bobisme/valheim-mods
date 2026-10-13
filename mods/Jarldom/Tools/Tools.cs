@@ -66,7 +66,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing", "corner", "dim", "lost", "valkyrie" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing", "corner", "dim", "lost", "valkyrie", "shipburial" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or for a server admin with devcommands on"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -518,6 +518,7 @@ namespace Jarldom
                         else output(new JObject { ["lost"] = new JArray(c.R.Roster.Where(r => r.State == SoulState.Lost).Select(r => $"{r.Name} {r.Vid}{(Lost.Rests(c, r.Vid) ? " (rests)" : "")}")), ["hel"] = c.FavourOf("hel") });
                     }
                     break;
+                case "shipburial": { Vector3 at = new Vector3(F(a[2]), 0, F(a[3])); at.y = Ground(at); Quaternion rot = Quaternion.Euler(0, a.Length > 4 ? F(a[4]) : 0, 0); Vector3 dir = ShipBurial.Out(at, c.Position); Net.ShipBurial_(at, rot, dir); output(new JObject { ["from"] = V(at), ["out"] = V(dir), ["buildHere"] = Pieces.KarveWhy(at) }); } break; // (the last voyage, without an ascension; and whether a funeral ship could be built there)
                 case "valkyrie": { Vector3 at = a.Length > 3 ? new Vector3(F(a[2]), 0, F(a[3])) : me.transform.position + me.transform.forward * 10f; at.y = Ground(at); Net.ValkyrieCircle(at); output(new JObject { ["circling"] = V(at) }); } break; // (the ascension's flight, without one)
                 case "dim":
                     {

@@ -140,11 +140,13 @@ namespace Jarldom
         public static string Why(Colony c, VillagerState s)
         {
             if (!s.Worthy) return $"{s.Name} is not yet worthy ({Mathf.RoundToInt(s.Worth)} of 100)";
-            if (Pyre(c) == null) return "the colony has no funeral pyre";
+            if (Vessel(c) == null) return "the colony has no funeral pyre (or funeral ship)";
             if (c.Hour < Schedule.HallAt && c.Hour >= Schedule.WakeAt) return "a soul leaves at dusk";
             return "";
         }
         public static global::Jarldom.Pyre Pyre(Colony c) => c.PiecesIn(c.Radius).Select(p => p.GetComponent<global::Jarldom.Pyre>()).FirstOrDefault(p => p != null);
+        // Where a soul leaves from: the funeral ship if one stands at the shore (the greater honour), else the pyre.
+        public static MonoBehaviour Vessel(Colony c) => (MonoBehaviour)c.PiecesIn(c.Radius + 30).Select(p => p.GetComponent<FuneralShip>()).FirstOrDefault(p => p != null) ?? Pyre(c);
         public static void Begin(Colony c, string vid, string who)
         {
             Brain b = Villagers.ByVid(vid);
@@ -168,8 +170,9 @@ namespace Jarldom
         }
 
         // On the colony owner's game, once (the soul's record says it has gone, so a second burn finds nothing to reward).
-        public static void Burn(Colony c, global::Jarldom.Pyre pyre, Brain b)
+        public static void Burn(Colony c, MonoBehaviour pyre, Brain b)
         {
+            bool ship = pyre is FuneralShip;
             VillagerState s = b.S;
             if (!Ascensions.Claim(c.R.Flags, s.Vid, c.Day)) return;
             Container goods = pyre.GetComponent<Container>();
@@ -183,20 +186,28 @@ namespace Jarldom
             Inventory bag = b.Body.GetInventory();
             foreach (ItemDrop.ItemData item in bag.GetAllItems().ToList()) value += (int)(Faith.Value(item) * item.m_stack); // they take what they carry
             bool sworn = !string.IsNullOrEmpty(s.Sworn) && Villagers.ByVid(s.Sworn)?.Task is AscendTask;
-            c.R.Deeds += Worth.AscensionDeeds(value, sworn);
-            Faith.Add(c, "odin", 10, s.Name + " went to Valhalla");
+            c.R.Deeds += (int)(Worth.AscensionDeeds(value, sworn) * (ship ? 1.5f : 1f)); // (by ship: the greater honour)
+            Faith.Add(c, "odin", ship ? 15 : 10, s.Name + " went to Valhalla" + (ship ? " by ship" : ""));
             c.R.GuaranteedArrival = 1;
-            pyre.GetComponent<ZNetView>().GetZDO().Set(BurnKey, ZNet.instance.GetTime().Ticks);
+            if (!ship) pyre.GetComponent<ZNetView>().GetZDO().Set(BurnKey, ZNet.instance.GetTime().Ticks);
             RosterRow row = c.R.Row(s.Vid); if (row != null) row.State = SoulState.Ascended;
             c.ReleaseBed(s.Vid);
             c.Log("ascend", s.FullName, "");
             Net.ValkyrieCircle(pyre.transform.position); // (every game near: a Valkyrie comes for them, circles once, and is gone)
-            c.Log("text", "", "", $"A runestone remembers {s.FullName}: {s.Story} Worth {Mathf.RoundToInt(s.Worth)}, {s.Count("kills")} foes slain.");
+            c.Log("text", "", "", $"A runestone remembers {s.FullName}: {s.Story} Worth {Mathf.RoundToInt(s.Worth)}, {s.Count("kills")} foes slain.{(ship ? " They went to Valhalla by ship." : "")}");
             Blessing(c);
             foreach (Brain other in Villagers.All.Where(o => o != b && o.S.Colony == c.Id)) { if (other.S.Bonds.TryGetValue(s.Vid, out int op) && op > 40) Mood.Add(other.S, "festival", other.Now); other.Dirty(); }
             b.Release();
             Assets.Effect("vfx_spawn", b.Pos);
             b.View.Destroy();
+            if (ship)
+            {
+                // (the ship and its hold go with them: every game near sees it go out burning)
+                Vector3 at = pyre.transform.position; Quaternion rot = pyre.transform.rotation;
+                Net.ShipBurial_(at, rot, ShipBurial.Out(at, c.Position));
+                ZNetView sv = pyre.GetComponent<ZNetView>();
+                if (sv != null && sv.IsValid()) { if (!sv.IsOwner()) sv.ClaimOwnership(); ZNetScene.instance.Destroy(pyre.gameObject); }
+            }
             c.MarkDirty(); c.Flush();
             c.Rerank();
         }
@@ -211,13 +222,13 @@ namespace Jarldom
     // Walking to the pyre and going up in flames.
     internal sealed class AscendTask : Task
     {
-        private readonly string _colony; private global::Jarldom.Pyre _pyre; private bool _there;
+        private readonly string _colony; private MonoBehaviour _pyre; private bool _there;
         public AscendTask(string colony) { _colony = colony; }
         public override bool Interruptible => false;
         public override void Start(Brain b)
         {
             Doing = "going to Valhalla";
-            _pyre = Ascension.Pyre(b.Colony);
+            _pyre = Ascension.Vessel(b.Colony);
             if (_pyre == null) { Done = true; return; }
             b.Move.To(_pyre.transform.position, 2f);
             b.Say(new[] { "I hear them. The Valkyries are singing.", "Can you hear that? The Valkyries are singing.", "The Valkyries sing for me. I can hear them.", "Listen. The Valkyries are singing.", "The Valkyries are singing, and it's for me." }[UnityEngine.Random.Range(0, 5)], 6);

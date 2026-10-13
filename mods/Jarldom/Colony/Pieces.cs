@@ -10,7 +10,7 @@ namespace Jarldom
     // from other game prefabs: the High-Seat Pillars, the gods' altars, the war horn, the gilded pieces and the funeral pyre.
     internal static class Pieces
     {
-        public const string WatchPostName = "JarldomWatchPost", OreClaimName = "JarldomOreClaim", MemorialName = "JarldomMemorial";
+        public const string WatchPostName = "JarldomWatchPost", OreClaimName = "JarldomOreClaim", MemorialName = "JarldomMemorial", FuneralKarveName = "JarldomFuneralKarve";
         public const string PillarsName = "JarldomHighSeatPillars", HornName = "JarldomWarHorn", PyreName = "JarldomPyre", DesignateName = "JarldomDesignate";
         public const string AltarPrefix = "JarldomAltar_", GildedSeatName = "JarldomGildedSeat", GildedBannerName = "JarldomGildedBanner";
         public static readonly int PillarsHash = PillarsName.GetStableHashCode();
@@ -39,6 +39,7 @@ namespace Jarldom
             if (Get(WatchPostName) == null) WatchPost();
             if (Get(OreClaimName) == null) OreClaim();
             if (Get(MemorialName) == null) MemorialStone();
+            if (Get(FuneralKarveName) == null) FuneralKarve();
             if (Get(GildedSeatName) == null) Gilded(GildedSeatName, "piece_throne02", "Gilded high seat", "A high seat for the jarl's hall, its carving picked out in gold: the hall's pride and a great hall's grade S.", 60, ("FineWood", 10), ("Coins", 100));
             if (Get(GildedBannerName) == null) Gilded(GildedBannerName, "piece_banner02", "Gilded banner", "A banner worked with gold thread. Halls and temples grade higher for it.", 0, ("LinenCloth", 2), ("Coins", 20), ("Wood", 2));
             if (Get(PyreName) == null) Pyre();
@@ -456,6 +457,58 @@ namespace Jarldom
             Finish(go, look, "Memorial stone", "A raised stone for the colony's dead. Read it (E) for the names: who went to Valhalla and the deeds that took them there, who was lost to Hel and laid to rest, and who walks still, unburied.",
                 Piece.PieceCategory.Misc, ("Stone", 20));
             go.AddComponent<MemorialStone>();
+        }
+
+        // The funeral ship: a karve drawn up on the beach for a soul's last voyage (the game's own karve: hull, mast, its water mask), its
+        // hold for grave goods. Lit at dusk with the soul aboard, it goes out burning and sinks (World/ShipBurial.cs). A Hold's honour.
+        public static GameObject KarveLook(Transform parent)
+        {
+            GameObject karve = Assets.Find("Karve");
+            return karve == null ? null : Assets.Model(karve, parent, Vector3.zero, Quaternion.identity, 1f, r => !HasParent(r.transform, "piece_chest"));
+        }
+        private static bool HasParent(Transform t, string name) { for (; t != null; t = t.parent) if (t.name == name) return true; return false; }
+        private static void FuneralKarve()
+        {
+            GameObject go = Base("wood_pole_log", FuneralKarveName);
+            if (go == null) return;
+            var look = new GameObject("new"); look.transform.SetParent(go.transform, false);
+            if (KarveLook(look.transform) == null) { Object.DestroyImmediate(go); return; }
+            Finish(go, look, "Funeral ship", "A karve drawn up on the beach for a soul's last voyage (a Hold's honour; build it at the shore). Put their grave goods aboard; when a worthy soul is sent to Valhalla they go by ship instead of the pyre: at dusk they board, it goes out burning and sinks, and Odin takes more note than of any pyre. The ship goes with them.",
+                Piece.PieceCategory.Misc, ("FineWood", 30), ("Resin", 20), ("DeerHide", 10), ("BronzeNails", 40));
+            Container goods = go.AddComponent<Container>();
+            goods.m_name = "Grave goods"; goods.m_width = 6; goods.m_height = 2; goods.m_privacy = Container.PrivacySetting.Public;
+            Container chest = Assets.Find("piece_chest_wood")?.GetComponent<Container>();
+            if (chest != null) { goods.m_bkg = chest.m_bkg; goods.m_openEffects = chest.m_openEffects; goods.m_closeEffects = chest.m_closeEffects; }
+            go.AddComponent<FuneralShip>();
+        }
+        // Where it may be built: in a colony of Hold rank, on the beach (water within 8 m). Why not, or "".
+        public static string KarveWhy(Vector3 at)
+        {
+            Colony c = Colony.At(at, 30);
+            if (c == null) return "a funeral ship is built at a colony's shore";
+            if (c.R.Rank < Rank.Hold) return "a funeral ship is a Hold's honour (the colony must be a Hold)";
+            float water = ZoneSystem.instance != null ? ZoneSystem.instance.m_waterLevel : 30f;
+            for (int k = 0; k < 16; k++)
+                for (float d = 2f; d <= 8f; d += 2f)
+                {
+                    Vector3 p = at + Quaternion.Euler(0, k * 22.5f, 0) * Vector3.forward * d;
+                    if (ZoneSystem.instance != null && ZoneSystem.instance.GetGroundHeight(p) < water - 0.3f) return "";
+                }
+            return "build it on the beach, where the water comes within a few steps";
+        }
+        [HarmonyLib.HarmonyPatch(typeof(Player), nameof(Player.TryPlacePiece))]
+        private static class KarvePlace
+        {
+            private static readonly HarmonyLib.AccessTools.FieldRef<Player, GameObject> Ghost = HarmonyLib.AccessTools.FieldRefAccess<Player, GameObject>("m_placementGhost");
+            private static bool Prefix(Player __instance, Piece piece, ref bool __result)
+            {
+                if (piece == null || piece.name != FuneralKarveName) return true;
+                GameObject g = Ghost(__instance); if (g == null) return true;
+                string why = KarveWhy(g.transform.position);
+                if (why == "") return true;
+                __instance.Message(MessageHud.MessageType.Center, "Not here: " + why + ".");
+                __result = false; return false;
+            }
         }
 
         private static void Gilded(string name, string source, string title, string text, int comfort, params (string, int)[] cost)

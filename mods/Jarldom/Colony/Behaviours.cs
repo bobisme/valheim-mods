@@ -255,3 +255,22 @@ namespace Jarldom
         public bool UseItem(Humanoid user, ItemDrop.ItemData item) => false;
     }
 }
+
+namespace Jarldom
+{
+    // The funeral ship on the beach: grave goods in its hold.
+    internal sealed class FuneralShip : MonoBehaviour, Hoverable, Interactable
+    {
+        public string GetHoverName() => "Funeral ship";
+        public string GetHoverText()
+        {
+            Container goods = GetComponent<Container>();
+            int n = goods != null ? goods.GetInventory().NrOfItems() : 0;
+            return Localization.instance.Localize($"Funeral ship\n<size=80%>{n} grave goods. A soul sent to Valhalla goes by ship while it stands.</size>\n[<color=yellow><b>$KEY_Use</b></color>] Grave goods");
+        }
+        public bool Interact(Humanoid user, bool hold, bool alt) => GetComponent<Container>()?.Interact(user, hold, alt) ?? false;
+        public bool UseItem(Humanoid user, ItemDrop.ItemData item) => false;
+        public float GetHoverOffset() => 2f;
+        private void Start() { ZNetView v = GetComponent<ZNetView>(); if (v != null && v.IsValid() && v.IsOwner() && !v.GetZDO().GetBool("dh_notstorage")) v.GetZDO().Set("dh_notstorage", true); }
+    }
+}
