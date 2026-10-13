@@ -291,7 +291,8 @@ namespace Jarldom
                 b.Move.To(_altar.transform.position, 1.8f);
                 return;
             }
-            if (Vector3.Distance(b.Pos, _altar.transform.position) > 2.4f) { if (!b.Move.Moving) b.Move.To(_altar.transform.position, 1.8f); if (b.Move.Failed) { Done = true; b.NoOfferUntil = Time.time + 120; } return; }
+            Stock.Walk aw = Stock.WalkNear(b, _altar.transform.position, 2.4f, 1.8f);
+            if (aw != Stock.Walk.Reached) { if (aw == Stock.Walk.Unreachable) { Done = true; b.NoOfferUntil = Time.time + 120; } return; }
             b.Move.Stop();
             Vector3 d = _altar.transform.position - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized);
             ItemDrop.ItemData gift = bag.GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == _gift);

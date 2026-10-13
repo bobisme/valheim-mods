@@ -241,7 +241,9 @@ namespace Jarldom
         public override void Tick(Brain b)
         {
             if (_at == null || b.Move.Failed) { Done = true; b.NoRepairUntil = Time.time + 120; return; }
-            if (Vector3.Distance(b.Pos, _at.transform.position) > 3f) { if (!b.Move.Moving) b.Move.To(_at.transform.position, 2f); return; }
+            Stock.Walk rw = Stock.WalkNear(b, _at.transform.position, 3f, 2f);
+            if (rw == Stock.Walk.Unreachable) { Done = true; b.NoRepairUntil = Time.time + 120; return; }
+            if (rw == Stock.Walk.Walking) return;
             int n = 0;
             foreach (ItemDrop.ItemData item in Worn(b).Where(i => Can(_at, i)))
             {

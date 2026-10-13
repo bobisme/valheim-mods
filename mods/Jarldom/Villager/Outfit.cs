@@ -123,7 +123,8 @@ namespace Jarldom
         public override void Tick(Brain b)
         {
             if (_grave == null) { Done = true; return; }
-            if (Vector3.Distance(b.Pos, _grave.transform.position) > 2.2f) { if (!b.Move.Moving) b.Move.To(_grave.transform.position, 1.5f); if (b.Move.Failed) { Done = true; b.NoGraveUntil = Time.time + 300; } return; }
+            Stock.Walk gw = Stock.WalkNear(b, _grave.transform.position, 2.2f, 1.5f);
+            if (gw != Stock.Walk.Reached) { if (gw == Stock.Walk.Unreachable) { Done = true; b.NoGraveUntil = Time.time + 300; } return; }
             Container box = _grave.GetComponent<Container>();
             Inventory bag = b.Body.GetInventory();
             int got = 0;

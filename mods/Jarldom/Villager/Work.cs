@@ -852,7 +852,9 @@ namespace Jarldom
                 Stock.Take(_seedChest, bag, seeds, Mathf.Max(plant.amount, 5));
                 _seedsFetched = true; return true;
             }
-            if (Vector3.Distance(b.Pos, _cropAt) > 1.6f) { if (!b.Move.Moving) b.Move.To(_cropAt, 1.0f); if (b.Move.Failed) { _plantFail = "can't reach the spot"; return false; } return true; }
+            Stock.Walk pw = Stock.WalkNear(b, _cropAt, 1.6f, 1.0f);
+            if (pw == Stock.Walk.Unreachable) { _plantFail = "can't reach the spot"; return false; }
+            if (pw == Stock.Walk.Walking) return true;
             Heightmap hm = Heightmap.FindHeightmap(_cropAt);
             if (plant.sapling.GetComponent<Plant>()?.m_needCultivatedGround != false && (hm == null || !hm.IsCultivated(_cropAt)))
             {
@@ -1024,12 +1026,15 @@ namespace Jarldom
             b.Move.To(Point(_wp), 1.2f);
         }
         // Fishing from the dock: a rod and bait, and patience (the catch comes at the game's pace, not by the minigame).
-        private float _fishUntil;
+        private float _fishUntil; private Vector3? _dockAt;
         private void Fish(Brain b)
         {
             Zone dock = b.Colony.R.Zones.FirstOrDefault(z => z.Id == O.Target);
             Vector3 spot = dock != null ? Zones.Centre(dock) : _at;
-            if (Vector3.Distance(b.Pos, spot) > 3f) { if (!b.Move.Moving) b.Move.To(Colony.Spot(spot, 2f) ?? spot, 1.5f); if (b.Move.Failed) Block(b, "can't reach the dock"); return; }
+            if (_dockAt == null) _dockAt = Colony.Spot(spot, 2f) ?? spot; // (one place on the dock, not a new one each step)
+            Stock.Walk dw = Stock.WalkNear(b, _dockAt.Value, 3f, 1.5f);
+            if (dw == Stock.Walk.Unreachable) { Block(b, "can't reach the dock"); return; }
+            if (dw == Stock.Walk.Walking) return;
             ItemDrop.ItemData rod = Gear.Tool(b, "rod");
             ItemDrop.ItemData bait = Gear.Items(b).FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name.StartsWith("FishingBait"));
             if (rod == null || bait == null) { Block(b, rod == null ? "no fishing rod" : "no bait"); return; }

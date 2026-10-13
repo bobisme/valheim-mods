@@ -168,7 +168,8 @@ namespace Jarldom
             }
             if (_phase == 1)
             {
-                if (Vector3.Distance(b.Pos, _st.transform.position) > 3f) { if (!b.Move.Moving) b.Move.To(_st.transform.position, 2f); if (b.Move.Failed) { Release(b); b.NoCraftUntil = Time.time + 30; } return; }
+                Stock.Walk sw = Stock.WalkNear(b, _st.transform.position, 3f, 2f);
+                if (sw != Stock.Walk.Reached) { if (sw == Stock.Walk.Unreachable) { Release(b); b.NoCraftUntil = Time.time + 30; } return; }
                 b.Move.Stop();
                 Vector3 d = _st.transform.position - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized);
                 if (Time.time < _next) return;

@@ -72,6 +72,18 @@ namespace Jarldom
             if (!b.Move.Moving || Vector3.Distance(b.Move.Goal, at) > 3f) b.Move.To(at, 1.8f);
             return Walk.Walking;
         }
+        // The same for any place to stand by (a station, an altar, a grave, a cart, a dock): there once within reach, or once the walk has
+        // ended within reach across the ground (it may stand a little up or down: on a plinth, a dock over the water); out of reach once
+        // the walk has ended farther off or failed.
+        public static Walk WalkNear(Brain b, Vector3 at, float reach, float arrive)
+        {
+            if (Vector3.Distance(b.Pos, at) <= reach) return Walk.Reached;
+            bool ended = !b.Move.Moving && b.Move.Arrived && Vector3.Distance(b.Move.Goal, at) < reach + 1f;
+            if (ended) return Utils.DistanceXZ(b.Pos, at) <= reach ? Walk.Reached : Walk.Unreachable;
+            if (b.Move.Failed && Vector3.Distance(b.Move.Goal, at) < reach + 1f) return Walk.Unreachable;
+            if (!b.Move.Moving) b.Move.To(at, arrive);
+            return Walk.Walking;
+        }
         public static bool Reachable(Brain b, Container chest) => !Unreachable.TryGetValue((b.S.Vid, chest.GetInstanceID()), out float until) || Time.time > until;
         // The colony's chests near a villager, less those they couldn't reach lately.
         public static List<(Container chest, string id, string category)> ChestsFor(Brain b) => Chests(b.Colony, b.Pos).Where(x => Reachable(b, x.chest)).ToList();

@@ -115,7 +115,8 @@ namespace Jarldom
             }
             // To the cart, and away.
             Doing = "taking the cart to the main colony";
-            if (Vector3.Distance(b.Pos, _cart.transform.position) > 3f) { if (!b.Move.Moving) b.Move.To(_cart.transform.position, 2f); if (b.Move.Failed) { Done = true; b.NoCartUntil = Time.time + 120; } return; }
+            Stock.Walk cw = Stock.WalkNear(b, _cart.transform.position, 3f, 2f);
+            if (cw != Stock.Walk.Reached) { if (cw == Stock.Walk.Unreachable) { Done = true; b.NoCartUntil = Time.time + 120; } return; }
             Colony c = b.Colony;
             Vector3 main = Outposts.Where(_main) ?? c.Position;
             float distance = Utils.DistanceXZ(main, c.Position);
