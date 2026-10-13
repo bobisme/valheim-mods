@@ -521,6 +521,16 @@ namespace Jarldom
                 case "shipburial": { Vector3 at = new Vector3(F(a[2]), 0, F(a[3])); at.y = Ground(at); Quaternion rot = Quaternion.Euler(0, a.Length > 4 ? F(a[4]) : 0, 0); Vector3 dir = ShipBurial.Out(at, c.Position); Net.ShipBurial_(at, rot, dir, at - dir * 12f + Vector3.up * 1.5f); output(new JObject { ["from"] = V(at), ["out"] = V(dir), ["buildHere"] = Pieces.KarveWhy(at) }); } break; // (the last voyage, without an ascension; and whether a funeral ship could be built there)
                 case "music": { MusicMan mm = MusicMan.instance; if (mm == null) { error("no music"); return; } if (a.Length > 2) mm.TriggerMusic(a[2]); output(new JObject { ["tracks"] = new JArray(mm.m_music.Where(m => m != null).Select(m => $"{m.m_name} (loop {m.m_loop}, vol {m.m_volume:0.##})")) }); } break;
                 case "valkyrie": { Vector3 at = a.Length > 3 ? new Vector3(F(a[2]), 0, F(a[3])) : me.transform.position + me.transform.forward * 10f; at.y = Ground(at); Net.ValkyrieCircle(at); output(new JObject { ["circling"] = V(at) }); } break; // (the ascension's flight, without one)
+                case "speeds":
+                    {
+                        // Each villager this game runs, moving: how fast (the body's own velocity), its speeds, running, on a road, its
+                        // status effects, its animator's speed. Only those over [min] m/s.
+                        float min = a.Length > 2 ? F(a[2]) : 0.5f;
+                        output(new JObject { ["speeds"] = new JArray(Villagers.All.Where(b => b.Body != null).Select(b => (b, v: Vector3.ProjectOnPlane(b.Body.GetVelocity(), Vector3.up).magnitude)).Where(x => x.v >= min).OrderByDescending(x => x.v)
+                            .Select(x => { Humanoid h = x.b.Body; Animator an = h.GetComponentInChildren<Animator>();
+                                return $"{x.b.S.Name}: {x.v:0.0} m/s (speed {h.m_speed:0.0} run {h.m_runSpeed:0.0} walk {h.m_walkSpeed:0.0}) running {h.IsRunning()} walking {h.IsWalking()} road {x.b.Move.OnRoad} anim {(an != null ? an.speed : -1):0.00} se [{string.Join(",", h.GetSEMan().GetStatusEffects().Select(s => s.name))}] {x.b.Doing}"; })) });
+                    }
+                    break;
                 case "einherjar":
                     {
                         // With no name: whether the raid is going badly enough, and who'd come. With a name (or "next"): bring them now,

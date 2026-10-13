@@ -38,15 +38,16 @@ namespace Jarldom
         public float Distance => Utils.DistanceXZ(_b.Body.transform.position, _goal);
 
         // From the fixed update: one step.
-        // Roads: on paved ground or a stone floor, a sixth faster (checked twice a second; the body's own speeds, kept from the first look).
-        private float _nextRoad, _baseWalk, _baseRun, _baseSpeed; private bool _onRoad;
+        // Roads: on paved ground or a stone floor, a sixth faster (checked twice a second). The speeds are always the prefab's times the
+        // bonus, never the body's own: a brain made anew (a reload, the body changing hands) while on a road would take the raised speeds
+        // for its base, and raise them again, and again.
+        private float _nextRoad; private bool _onRoad, _set;
         private static readonly RaycastHit[] Downs = new RaycastHit[4];
         private void Road(Vector3 me)
         {
             if (Time.time < _nextRoad) return;
             _nextRoad = Time.time + 0.5f;
             Character body = _b.Body;
-            if (_baseSpeed == 0) { _baseSpeed = body.m_speed; _baseRun = body.m_runSpeed; _baseWalk = body.m_walkSpeed; }
             bool road = false;
             Heightmap hm = Heightmap.FindHeightmap(me);
             if (hm != null && hm.GetPaintMask(me).b > 0.5f && Mathf.Abs(me.y - ZoneSystem.instance.GetGroundHeight(me)) < 0.4f) road = true;
@@ -55,10 +56,12 @@ namespace Jarldom
                 string n = Downs[0].collider.GetComponentInParent<Piece>() is Piece p ? Utils.GetPrefabName(p.gameObject) : "";
                 road = n.StartsWith("stone_floor") || n.Contains("road") || n.Contains("path");
             }
-            if (road == _onRoad) return;
-            _onRoad = road;
+            if (road == _onRoad && _set) return;
+            _onRoad = road; _set = true;
+            Character base_ = VillagerPrefab.Prefab != null ? VillagerPrefab.Prefab.GetComponent<Character>() : null;
+            if (base_ == null) return;
             float k = road ? 1.15f : 1f;
-            body.m_speed = _baseSpeed * k; body.m_runSpeed = _baseRun * k; body.m_walkSpeed = _baseWalk * k;
+            body.m_speed = base_.m_speed * k; body.m_runSpeed = base_.m_runSpeed * k; body.m_walkSpeed = base_.m_walkSpeed * k;
         }
         public bool OnRoad => _onRoad;
         public void Step(float dt)
