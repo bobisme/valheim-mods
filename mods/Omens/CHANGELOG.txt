@@ -1,3 +1,5 @@
+0.6.3: Other mods can find the great stag: Omens.Api now has Version 1, IsGreatStag and GreatStags (Jarldom villagers ask the jarl to hunt it while one runs).
+
 0.6.2: Its Claude Tools commands work with Claude Tools under its new id (com.quad.claudetools, from 1.2.2), and still with older copies.
 
 0.6.1: Smoother play: Omens finds Claude Tools through BepInEx's plugin list instead of searching every loaded object every five seconds, which cost about 10 ms each time and lined up with other mods into a regular hitch.
