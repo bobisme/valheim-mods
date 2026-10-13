@@ -42,6 +42,28 @@ namespace Jarldom
         public override void Tick(Brain b) { if (b.Move.Arrived || b.Move.Failed) Done = true; else if (!b.Move.Moving) b.Move.To(_to, _arrive, _run); }
     }
 
+    // Called to the pillars: there, and then wait for the jarl a minute, facing them (they were called for something), unless a raid
+    // comes or they're given something else to do.
+    internal sealed class SummonTask : Task
+    {
+        private readonly Vector3 _to; private float _waitUntil;
+        public SummonTask(Vector3 to) { _to = to; Doing = "coming to the pillars"; }
+        public override bool Interruptible => false;
+        public override void Start(Brain b) => b.Move.To(_to, 2f, true);
+        public override void Tick(Brain b)
+        {
+            if (_waitUntil == 0)
+            {
+                if (b.Move.Failed) { Done = true; b.Say(new[] { "I can't find a way to the pillars.", "There's no way through to the pillars from here.", "I can't get to the pillars." }[UnityEngine.Random.Range(0, 3)], 4); return; }
+                if (!b.Move.Arrived) { if (!b.Move.Moving) b.Move.To(_to, 2f, true); return; }
+                _waitUntil = Time.time + 60f; Doing = "waiting at the pillars for the jarl";
+            }
+            if (Time.time > _waitUntil) { Done = true; return; }
+            Player p = Player.GetClosestPlayer(b.Pos, 20f);
+            if (p != null) { Vector3 d = p.transform.position - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized); }
+        }
+    }
+
     // Sleep: to their own bed, else by the hall's fire, else by the pillars. Rest fills with the bed's comfort.
     internal sealed class SleepTask : Task
     {
