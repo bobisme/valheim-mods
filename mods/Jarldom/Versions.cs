@@ -29,6 +29,7 @@ namespace Jarldom
             Plugin.Warn("Jarldom: " + text);
             Player.m_localPlayer?.Message(MessageHud.MessageType.Center, text);
         }
+        public static IEnumerable<(long sender, string version, int data, string name, float ago)> All => Heard_.Select(kv => (kv.Key, kv.Value.version, kv.Value.data, kv.Value.name, Time.time - kv.Value.at)); // (the test tool)
         public static void Forget() => Heard_.Clear();
     }
 }

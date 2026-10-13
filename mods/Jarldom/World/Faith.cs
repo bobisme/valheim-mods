@@ -245,12 +245,26 @@ namespace Jarldom
         public CleanseTask(Brain them) { _them = them; }
         public override bool Interruptible => _start == 0;
         private Vector3 Front => _altar.transform.position + _altar.transform.forward * 1.2f;
-        private Vector3 Kneel => _altar.transform.position + _altar.transform.forward * 2.6f;
+        private Vector3 _kneel; private Room _room;
+        private Vector3 Kneel => _kneel;
+        // Where they kneel: before the altar, inside its shrine (closer in, in a small one), never out past its wall or door.
+        private void PlaceKneel(Colony c)
+        {
+            _room = c.RoomAt(_altar.transform.position + Vector3.up * 0.3f);
+            _kneel = _altar.transform.position + _altar.transform.forward * 1.5f;
+            foreach (float d in new[] { 2.6f, 2.2f, 1.8f })
+            {
+                Vector3 p = _altar.transform.position + _altar.transform.forward * d;
+                if (InShrine(p, 0.5f)) { _kneel = p; break; }
+            }
+        }
+        private bool InShrine(Vector3 p, float margin) => _room == null || new[] { Vector2.zero, Vector2.left, Vector2.right, Vector2.up, Vector2.down }.All(o => Geometry.Inside(_room.Xz, p.x + o.x * margin, p.z + o.y * margin));
+        private bool Knelt => Utils.DistanceXZ(_them.Pos, Kneel) < 1f || Utils.DistanceXZ(_them.Pos, Kneel) < 2f && InShrine(_them.Pos, 0f);
         public override void Start(Brain b)
         {
             _altar = Saboteur.OdinAltar(b.Colony);
             Doing = "going to Odin's altar for a cleansing rite"; _until = Time.time + 120f;
-            if (_altar != null) b.Move.To(Front, 1.2f);
+            if (_altar != null) { PlaceKneel(b.Colony); b.Move.To(Front, 1.2f); }
         }
         private static readonly string[] Calling = { "Allfather, one-eyed, wise: look down on this one.", "Odin, who hung nine nights on the tree: hear us now.", "Hrafnagud, send your ravens: let them see what we cannot." };
         private static readonly string[] Pressing = { "If the Forsaken's ash is on them, let it burn!", "Nothing hides from the Allfather's eye.", "By the ring and the oath: show us what they are." };
@@ -265,7 +279,7 @@ namespace Jarldom
             {
                 if (Utils.DistanceXZ(b.Pos, Front) > 2f) { if (!b.Move.Moving) b.Move.To(Front, 1.2f); return; }
                 if (!_called) { _called = true; Call(_them, Kneel); b.Say($"{_them.S.Name}, come and kneel before Odin.", 4); }
-                if (Utils.DistanceXZ(_them.Pos, Kneel) > 2.5f) { if (!(_them.Task is GoTask)) Call(_them, Kneel); return; }
+                if (!Knelt) { if (!(_them.Task is GoTask)) Call(_them, Kneel); return; }
                 _start = Time.time; Doing = "holding a cleansing rite";
                 _them.Task?.Stop(_them); _them.Task = new KneelTask(Time.time + 60f, _altar.transform.position); _them.Task.Start(_them);
                 Gather(b);
@@ -441,7 +455,7 @@ namespace Jarldom
             var gifts = Stock.Chests(c, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest))
                 .SelectMany(x => x.chest.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && !Items.IsRing(i) && Faith.Wants(god, i) && Faith.Value(i) > 0).Select(i => (x.chest, i)))
                 .OrderBy(g => Faith.Value(g.i)).ToList();
-            if (gifts.Count == 0) { Skip(b, $"the stores hold nothing {Tables.God(god)?.Name} wants ({Tables.God(god)?.Offerings})"); return; }
+            if (gifts.Count == 0) { Skip(b, $"the stores hold nothing {Tables.God(god)?.Name} wants ({Tables.God(god)?.Offerings}{(Tables.God(god)?.OfferingItems?.Contains("Coins") == true ? "; the treasury's coins aren't the gothi's to give: put some in a stockpile chest" : "")})"); return; }
             _from = gifts[0].chest; _gift = gifts[0].i.m_dropPrefab.name;
             Doing = "fetching an offering for " + Tables.God(god)?.Name;
             b.Move.To(_from.transform.position, 1.8f);

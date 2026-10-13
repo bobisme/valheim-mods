@@ -59,7 +59,7 @@ namespace Jarldom
             {
                 string want = type == RoomType.OdinShrine ? "odin" : god;
                 if (string.IsNullOrEmpty(want) ? f.Count.Keys.All(k => !k.StartsWith("altar_")) : !f.Altar(want))
-                    v.Failures.Add(type == RoomType.OdinShrine ? "no altar of Odin" : "no altar to its god");
+                    v.Failures.Add(type == RoomType.OdinShrine ? "no altar of Odin (hammer, Misc tab: 12 stone and 2 resin, by a workbench; it shows once you've carried stone and resin)" : "no altar to its god (hammer, Misc tab: 12 stone, 2 resin and 10 coins, by a workbench; it shows once you've carried each)");
             }
             v.Points = Points(type, f);
             v.Grade = Tables.Grade(v.Points);
