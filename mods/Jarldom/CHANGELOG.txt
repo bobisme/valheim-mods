@@ -1,3 +1,5 @@
+0.1.43: a payday that finds the treasury chest open (someone in it, or left stuck open) waits and tries again through the day, instead of counting as missed with the coins sitting there; if it stays open all day, the log says so
+
 0.1.42: a villager left in a throne's sitting pose (a high seat at the Thing or the hall) is stood up again, as one left in a chair's or a bed's already was, instead of running about seated
 
 0.1.41: dying with no bed no longer loses a villager to Hel. As a player does, they rise without one, by the pillars, taking three times as long; only one who dies disgraced is lost for good

@@ -270,7 +270,7 @@ namespace Jarldom
             double now = Now; int day = Day; double hour = Hour;
             if (R.Founder == 0) Founder(); // the piece's creator is set just after it wakes
             Board.Expire(now); Board.Prune(now);
-            if (Time.time >= _nextRoster) { _nextRoster = Time.time + 5; Roster(); CountDone(); Plugin.Guard(() => Captives.Owner(this)); Plugin.Guard(() => Warband.Owner(this)); Plugin.Guard(() => Carts.Unload(this)); }
+            if (Time.time >= _nextRoster) { _nextRoster = Time.time + 5; if (R.Flag(PayRetry) != 0) Plugin.Guard(() => Payday(R.Flag(PayRetry))); Roster(); CountDone(); Plugin.Guard(() => Captives.Owner(this)); Plugin.Guard(() => Warband.Owner(this)); Plugin.Guard(() => Carts.Unload(this)); }
             Rise(now);
             // Back after time unloaded: the missing hours made up first (once its people have loaded, or after a while if none do).
             if (!_caughtUp)
@@ -496,6 +496,7 @@ namespace Jarldom
         }
 
         // ---- money ----
+        public const string PayRetry = "payretry";
         public void Payday(int day)
         {
             R.LastPayday = day;
@@ -504,6 +505,10 @@ namespace Jarldom
             if (due <= 0) return;
             Container treasury = Stock.Treasury(this);
             int coins = treasury != null ? Stock.Coins(treasury) : 0;
+            // (the treasury chest open, or left stuck open: tried again every few seconds through the day, not a payday missed with the coins there)
+            bool open = treasury != null && ContainerAccess.InUse(treasury);
+            if (open && Payroll.CanPay(coins, due) && Day <= day) { if (R.Flag(PayRetry) == 0) Tell("Payday waits: the treasury chest is open."); R.Flags[PayRetry] = day; _dirty = true; return; }
+            R.Flags.Remove(PayRetry);
             bool paid = treasury != null && Payroll.CanPay(coins, due) && Stock.TakeCoins(treasury, due) || Outposts.Credit(this, due); // (an outpost's wages fall to its main colony)
             if (paid)
             {
@@ -519,7 +524,7 @@ namespace Jarldom
             {
                 foreach (Brain b in souls) { Mood.Add(b.S, "unpaid", Now); b.S.Unpaid++; if (b.S.Unpaid >= 3 && string.IsNullOrEmpty(b.S.Byname)) { b.S.Byname = Names.Byname("unpaid"); } b.Dirty(); }
                 R.MissedPaydays++;
-                Log("unpaid", "", due.ToString(), $"Payday: {due} coins were due and the treasury {(treasury == null ? "isn't chosen" : "holds " + coins)}. Nobody was paid.");
+                Log("unpaid", "", due.ToString(), $"Payday: {due} coins were due and the treasury {(treasury == null ? "isn't chosen" : open ? "chest was open all day (someone had it open, or it was stuck)" : "holds " + coins)}. Nobody was paid.");
             }
             _dirty = true;
         }
