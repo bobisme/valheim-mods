@@ -109,10 +109,19 @@ namespace Jarldom
             // Doors only matter going into or out of a room (outdoors, a missing path is something else: a crop off the navmesh, a cliff).
             Room from = _b.Colony?.RoomAt(me), to = _b.Colony?.RoomAt(goal);
             if (_b.Colony != null && from == to) { LastDoorPlan = from == null ? "outdoors" : "same room"; return false; }
-            int mask = DoorMask;
-            int n = Physics.OverlapSphereNonAlloc(me, 16f, Hits, mask);
+            // (no door to this goal a moment ago: not looked for again yet)
+            if (Time.time < _noDoorUntil && Utils.DistanceXZ(_noDoorGoal, goal) < 1f) { LastDoorPlan = "no door (looked lately)"; return false; }
             var doors = new HashSet<Door>();
-            for (int i = 0; i < n; i++) { Door d = Hits[i].GetComponentInParent<Door>(); if (d != null && d.m_keyItem == null && !Classes.IsShutter(d.gameObject)) doors.Add(d); }
+            if (_b.Colony != null)
+            {
+                // (the colony's doors, kept with its pieces: a sphere through every piece near was most of a repath)
+                foreach (Door d in _b.Colony.PiecesIn<Door>(_b.Colony.Radius + 20)) if (d != null && d.m_keyItem == null && Utils.DistanceXZ(d.transform.position, me) < 16f && !Classes.IsShutter(d.gameObject)) doors.Add(d);
+            }
+            else
+            {
+                int n = Physics.OverlapSphereNonAlloc(me, 16f, Hits, DoorMask);
+                for (int i = 0; i < n; i++) { Door d = Hits[i].GetComponentInParent<Door>(); if (d != null && d.m_keyItem == null && !Classes.IsShutter(d.gameObject)) doors.Add(d); }
+            }
             LastDoorPlan = $"{doors.Count} doors";
             foreach (Door d in doors.OrderBy(d => Vector3.Distance(d.transform.position, me) + Vector3.Distance(d.transform.position, goal)).Take(8))
             {
@@ -137,9 +146,10 @@ namespace Jarldom
                     return true;
                 }
             }
+            _noDoorUntil = Time.time + 6f; _noDoorGoal = goal;
             return false;
         }
-        private Vector3? _doorNear;
+        private Vector3? _doorNear; private float _noDoorUntil; private Vector3 _noDoorGoal;
 
         private static int DoorMask => _doorMask != -1 ? _doorMask : _doorMask = LayerMask.GetMask("piece", "piece_nonsolid", "Default", "door");
 

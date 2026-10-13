@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System;
 using System.Linq;
 using UnityEngine;
@@ -102,12 +103,15 @@ namespace Jarldom
                 .OrderBy(t => Vector3.Distance(t.transform.position, b.Pos)).FirstOrDefault();
             return grave != null && grave.GetComponent<Container>()?.GetInventory().NrOfItems() > 0 ? new GraveTask(grave) : null;
         }
-        // The tombstones in the world, looked for once every 15 s for everyone (a search of the whole scene isn't for every villager).
-        private static TombStone[] _graves = new TombStone[0]; private static float _gravesAt = -100f;
-        private static TombStone[] Graves()
+        // The tombstones in the world: each noted as it wakes (a search of the whole scene every 15 s was a hitch), the gone ones dropped.
+        private static readonly HashSet<TombStone> Known = new HashSet<TombStone>(); private static bool _seeded;
+        [HarmonyLib.HarmonyPatch(typeof(TombStone), "Awake")]
+        private static class Noted { private static void Postfix(TombStone __instance) => Known.Add(__instance); }
+        private static IEnumerable<TombStone> Graves()
         {
-            if (Time.time - _gravesAt > 15f) { _gravesAt = Time.time; _graves = Object.FindObjectsByType<TombStone>(FindObjectsSortMode.None); }
-            return _graves.Where(t => t != null).ToArray();
+            if (!_seeded) { _seeded = true; foreach (TombStone t in Object.FindObjectsByType<TombStone>(FindObjectsSortMode.None)) Known.Add(t); } // (once: those up before a reload)
+            Known.RemoveWhere(t => t == null);
+            return Known;
         }
         public override void Start(Brain b)
         {

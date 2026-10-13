@@ -13,7 +13,16 @@ namespace Jarldom
         public const string Prefix = "craft:", BrewPrefix = "brew:";
         // The way to make a thing: the game's own recipe for it first (other mods add recipes for the same thing: a recycler's, an
         // upgrade path, one asking for some mod's idol), else another.
-        public static Recipe RecipeFor(string prefab) =>
+        // (kept per item: the game's whole recipe list was gone through on every ask, a hundred a scan; made again when the list changes)
+        private static readonly Dictionary<string, Recipe> Recipes = new Dictionary<string, Recipe>(); private static ObjectDB _recipesOf; private static int _recipeCount;
+        public static Recipe RecipeFor(string prefab)
+        {
+            ObjectDB db = ObjectDB.instance;
+            if (db != _recipesOf || db != null && db.m_recipes.Count != _recipeCount) { Recipes.Clear(); _recipesOf = db; _recipeCount = db?.m_recipes.Count ?? 0; }
+            if (Recipes.TryGetValue(prefab, out Recipe kept)) return kept;
+            return Recipes[prefab] = FindRecipe(prefab);
+        }
+        private static Recipe FindRecipe(string prefab) =>
             ObjectDB.instance?.m_recipes.Where(r => r != null && r.m_enabled && r.m_item != null && r.m_item.name == prefab && r.m_resources.Length > 0 && !r.m_requireOnlyOneIngredient && !r.m_noCraftOnlyUpgrade)
                 .OrderBy(r => r.name == "Recipe_" + prefab ? 0 : 1).ThenBy(r => r.m_resources.Length).FirstOrDefault() ?? Weaving.RecipeFor(prefab); // (clothes: the colony's own weaving)
         public static bool AtCauldron(Recipe r) => r?.m_craftingStation != null && r.m_craftingStation.name == "piece_cauldron";
@@ -28,7 +37,15 @@ namespace Jarldom
         }
         // What keeps a station from working, the game's way (a roof over it, a lit fire under a cauldron); null if it works.
         private static readonly HarmonyLib.AccessTools.FieldRef<CraftingStation, bool> HaveFire = HarmonyLib.AccessTools.FieldRefAccess<CraftingStation, bool>("m_haveFire");
+        // (kept a frame for each station: asked for every station on every look for one)
+        private static readonly Dictionary<CraftingStation, string> UnusableNow = new Dictionary<CraftingStation, string>(); private static int _unusableFrame = -1;
         public static string Unusable(CraftingStation st)
+        {
+            if (_unusableFrame != Time.frameCount) { UnusableNow.Clear(); _unusableFrame = Time.frameCount; }
+            if (UnusableNow.TryGetValue(st, out string why)) return why;
+            return UnusableNow[st] = UnusableFresh(st);
+        }
+        private static string UnusableFresh(CraftingStation st)
         {
             string name = Localization.instance.Localize(st.m_name).ToLower();
             if (st.m_craftRequireRoof && st.m_roofCheckPoint != null)

@@ -32,6 +32,7 @@ namespace Jarldom
         private float _piecesAt = -1, _piecesRadius; private List<Piece> _pieces;
         private readonly Dictionary<float, List<Piece>> _within = new Dictionary<float, List<Piece>>();
         private readonly Dictionary<(System.Type, float), System.Collections.IList> _kinds = new Dictionary<(System.Type, float), System.Collections.IList>();
+        private readonly Dictionary<float, int> _checkedFrame = new Dictionary<float, int>(); private readonly Dictionary<(System.Type, float), int> _kindChecked = new Dictionary<(System.Type, float), int>();
         public List<Piece> PiecesIn(float radius)
         {
             if (_pieces == null || Time.time - _piecesAt >= 1f || radius > _piecesRadius)
@@ -41,7 +42,8 @@ namespace Jarldom
                 Piece.GetAllPiecesInRadius(Position, _piecesRadius, PieceBuffer);
                 _pieces = PieceBuffer.ToList(); _piecesAt = Time.time; _within.Clear(); _kinds.Clear();
             }
-            if (_within.TryGetValue(radius, out var kept)) { if (kept.All(p => p != null)) return kept; _within.Remove(radius); }
+            // (a kept list is checked for pieces gone since at most once a frame: the check of every piece was most of a scan's time)
+            if (_within.TryGetValue(radius, out var kept)) { if (_checkedFrame.TryGetValue(radius, out int f) && f == Time.frameCount || kept.All(p => p != null)) { _checkedFrame[radius] = Time.frameCount; return kept; } _within.Remove(radius); }
             Vector3 at = Position;
             return _within[radius] = _pieces.Where(p => p != null && Vector3.Distance(p.transform.position, at) < radius).ToList();
         }
@@ -49,7 +51,7 @@ namespace Jarldom
         public List<T> PiecesIn<T>(float radius) where T : Component
         {
             List<Piece> all = PiecesIn(radius);
-            if (_kinds.TryGetValue((typeof(T), radius), out var kept)) { var l = (List<T>)kept; if (l.All(x => x != null)) return l; }
+            if (_kinds.TryGetValue((typeof(T), radius), out var kept)) { var l = (List<T>)kept; if (_kindChecked.TryGetValue((typeof(T), radius), out int f) && f == Time.frameCount || l.All(x => x != null)) { _kindChecked[(typeof(T), radius)] = Time.frameCount; return l; } }
             var found = new List<T>(); foreach (Piece p in all) { T t = p.GetComponent<T>(); if (t != null) found.Add(t); }
             _kinds[(typeof(T), radius)] = found; return found;
         }
@@ -78,13 +80,15 @@ namespace Jarldom
         }
         // Free: nobody's, or claimed by a soul who no longer lives here (gone to Valhalla, lost, sent away).
         public List<Bed> FreeBeds() => AllBeds().Where(b => { string who = BedOwner(b, out string kind); return who == "" || kind == "villager" && R.Row(who) is RosterRow r && r.State != SoulState.Active; }).ToList();
+        private List<Bed> _bedsFrom; private readonly Dictionary<string, Bed> _bedIds = new Dictionary<string, Bed>();
         public Bed BedById(string id)
         {
             if (string.IsNullOrEmpty(id)) return null;
             // Any bed in reach, ours or not: a bed already held (or given from the panel) stays held. Ours() only limits choosing new ones.
-            PieceBuffer.Clear();
-            Piece.GetAllPiecesInRadius(Position, Radius + 20, PieceBuffer);
-            return PieceBuffer.Select(p => p.GetComponent<Bed>()).FirstOrDefault(b => b != null && IdOf(b.GetComponent<ZNetView>(), false) == id);
+            // (the beds in reach by id, made again when the kept piece list is: asked by every villager every few seconds)
+            List<Bed> beds = PiecesIn<Bed>(Radius + 20);
+            if (!ReferenceEquals(beds, _bedsFrom)) { _bedsFrom = beds; _bedIds.Clear(); foreach (Bed b in beds) if (b != null) { string bid = IdOf(b.GetComponent<ZNetView>(), false); if (!string.IsNullOrEmpty(bid)) _bedIds[bid] = b; } }
+            return _bedIds.TryGetValue(id, out Bed found) && found != null ? found : null;
         }
         private Vector3? Survey_BedSpot(string bedId)
         {
