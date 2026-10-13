@@ -204,7 +204,9 @@ namespace Jarldom
             {
                 // (the ship and its hold go with them: every game near sees it go out burning)
                 Vector3 at = pyre.transform.position; Quaternion rot = pyre.transform.rotation;
-                Net.ShipBurial_(at, rot, ShipBurial.Out(at, c.Position));
+                Brain archer = Funeral.Archer(c, at);
+                if (archer != null) archer.Say(new[] { $"To Valhalla, {s.Name}!", $"Odin, take {s.Name}!", $"Fly true. For {s.Name}.", $"Skål, {s.Name}. Burn bright." }[UnityEngine.Random.Range(0, 4)], 6);
+                Net.ShipBurial_(at, rot, ShipBurial.Out(at, c.Position), archer != null ? archer.Pos + Vector3.up * 1.5f : Vector3.zero);
                 ZNetView sv = pyre.GetComponent<ZNetView>();
                 if (sv != null && sv.IsValid()) { if (!sv.IsOwner()) sv.ClaimOwnership(); ZNetScene.instance.Destroy(pyre.gameObject); }
             }
@@ -222,7 +224,7 @@ namespace Jarldom
     // Walking to the pyre and going up in flames.
     internal sealed class AscendTask : Task
     {
-        private readonly string _colony; private MonoBehaviour _pyre; private bool _there;
+        private readonly string _colony; private MonoBehaviour _pyre; private bool _there; private float _launchAt;
         public AscendTask(string colony) { _colony = colony; }
         public override bool Interruptible => false;
         public override void Start(Brain b)
@@ -237,6 +239,14 @@ namespace Jarldom
         {
             if (_pyre == null) { Done = true; return; }
             if (!_there) { if (b.Move.Moving && !b.Move.Failed) return; _there = true; b.Say(new[] { "Remember me in the hall.", "Remember me when the ale is poured.", "Tell them I went well, in the hall.", "Remember me at the feast.", "Don't forget me in the hall." }[UnityEngine.Random.Range(0, 5)], 5); return; }
+            // By ship: the colony comes down to the shore first, a little while to gather, then the launch.
+            if (_pyre is FuneralShip && b.Colony.IsOwner && _launchAt == 0)
+            {
+                _launchAt = Time.time + 18f; Doing = "waiting aboard for the farewell";
+                Funeral.Gather(b.Colony, _pyre.transform.position, b);
+                return;
+            }
+            if (_launchAt > 0 && Time.time < _launchAt) return;
             if (b.Colony.IsOwner) Ascension.Burn(b.Colony, _pyre, b);
             else { b.Say("(the colony's owner must be near to light the pyre)", 5); Done = true; }
         }

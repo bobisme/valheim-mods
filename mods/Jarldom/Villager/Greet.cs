@@ -17,11 +17,11 @@ namespace Jarldom
 
         // Says it if the cooldowns allow; pairWait: how long before this villager says this to that player again.
         // urgent: said even if this villager spoke a moment ago (thanks for a gift, a cry at a raid).
-        public static bool Say(Brain b, Greeting kind, Player p, float pairWait = PairWait, bool crowd = true, bool urgent = false)
+        public static bool Say(Brain b, Greeting kind, Player p, float pairWait = PairWait, bool crowd = true, bool urgent = false, string about = null)
         {
             if (b == null || b.S == null) return false;
             float now = Time.time;
-            string name = p != null ? p.GetPlayerName() : "", pair = b.S.Vid + "|" + name + "|" + kind, heard = name + "|" + kind; // (one of each kind at a time per player: a hello doesn't hush a good night)
+            string name = about ?? (p != null ? p.GetPlayerName() : ""), pair = b.S.Vid + "|" + name + "|" + kind, heard = name + "|" + kind; // (one of each kind at a time per player: a hello doesn't hush a good night)
             if (!urgent && ByVillager.TryGetValue(b.S.Vid, out float v) && now < v) return false;
             if (p != null && ByPair.TryGetValue(pair, out float w) && now < w) return false;
             if (p != null && crowd && ByPlayer.TryGetValue(heard, out float pl) && now < pl) return false;
@@ -31,7 +31,7 @@ namespace Jarldom
             bool evening = b.Colony != null && (b.Colony.Hour >= 17 || b.Colony.Hour < 5);
             var line = Greetings.Pick(kind, Rng, name, evening);
             Said.RemoveAll(x => Time.time - x.at > 20f);
-            for (int i = 0; i < 6 && Said.Any(x => x.line == line.english); i++) line = Greetings.Pick(kind, Rng, name, evening); // (not a line someone just said)
+            for (int i = 0; i < 20 && Said.Any(x => x.line == line.english); i++) line = Greetings.Pick(kind, Rng, name, evening); // (not a line someone just said)
             Said.Add((line.english, Time.time));
             b.Say(Greetings.Show(line), 5f);
             Recent.Add($"{System.DateTime.Now:HH:mm:ss} {b.S.Name} ({kind}{(name != "" ? " to " + name : "")}): {line.norse} / {line.english}");

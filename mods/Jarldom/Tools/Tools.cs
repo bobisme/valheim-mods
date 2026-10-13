@@ -518,7 +518,8 @@ namespace Jarldom
                         else output(new JObject { ["lost"] = new JArray(c.R.Roster.Where(r => r.State == SoulState.Lost).Select(r => $"{r.Name} {r.Vid}{(Lost.Rests(c, r.Vid) ? " (rests)" : "")}")), ["hel"] = c.FavourOf("hel") });
                     }
                     break;
-                case "shipburial": { Vector3 at = new Vector3(F(a[2]), 0, F(a[3])); at.y = Ground(at); Quaternion rot = Quaternion.Euler(0, a.Length > 4 ? F(a[4]) : 0, 0); Vector3 dir = ShipBurial.Out(at, c.Position); Net.ShipBurial_(at, rot, dir); output(new JObject { ["from"] = V(at), ["out"] = V(dir), ["buildHere"] = Pieces.KarveWhy(at) }); } break; // (the last voyage, without an ascension; and whether a funeral ship could be built there)
+                case "shipburial": { Vector3 at = new Vector3(F(a[2]), 0, F(a[3])); at.y = Ground(at); Quaternion rot = Quaternion.Euler(0, a.Length > 4 ? F(a[4]) : 0, 0); Vector3 dir = ShipBurial.Out(at, c.Position); Net.ShipBurial_(at, rot, dir, at - dir * 12f + Vector3.up * 1.5f); output(new JObject { ["from"] = V(at), ["out"] = V(dir), ["buildHere"] = Pieces.KarveWhy(at) }); } break; // (the last voyage, without an ascension; and whether a funeral ship could be built there)
+                case "music": { MusicMan mm = MusicMan.instance; if (mm == null) { error("no music"); return; } if (a.Length > 2) mm.TriggerMusic(a[2]); output(new JObject { ["tracks"] = new JArray(mm.m_music.Where(m => m != null).Select(m => $"{m.m_name} (loop {m.m_loop}, vol {m.m_volume:0.##})")) }); } break;
                 case "valkyrie": { Vector3 at = a.Length > 3 ? new Vector3(F(a[2]), 0, F(a[3])) : me.transform.position + me.transform.forward * 10f; at.y = Ground(at); Net.ValkyrieCircle(at); output(new JObject { ["circling"] = V(at) }); } break; // (the ascension's flight, without one)
                 case "dim":
                     {

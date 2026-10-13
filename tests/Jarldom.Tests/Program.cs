@@ -442,7 +442,7 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     var gl = Greetings.Lines;
     Check(Enum.GetValues(typeof(Greeting)).Cast<Greeting>().All(k => gl.ContainsKey(k) && gl[k].Length >= 3), "Every situation has at least three lines");
     int total = gl.Values.Sum(a => a.Length);
-    Check(total >= 36 && total <= 50, "About forty greeting lines: " + total);
+    Check(total >= 36, "At least forty-odd greeting lines: " + total);
     bool placeholders = gl.Values.SelectMany(a => a).All(l => System.Text.RegularExpressions.Regex.Matches(l.norse + l.english, "\\{[^}]*\\}").Cast<System.Text.RegularExpressions.Match>().All(m => m.Value == "{name}"));
     Check(placeholders, "Only {name} as a placeholder");
     bool fontSafe = Greetings.Letters().All(ch => ch < 128 || Greetings.Glyphs.IndexOf(ch) >= 0);

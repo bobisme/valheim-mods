@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace Jarldom
 {
-    public enum Greeting { Hello, Thanks, Fear, Weather, Night, Awe, Welcome }
+    public enum Greeting { Hello, Thanks, Fear, Weather, Night, Awe, Welcome, Farewell }
 
     // What villagers call out in the world: a short line in Old Norse with the English under it. {name} is the player's name;
     // "jarl" is said as is. Only letters the game's font has (þ ð æ ö and the accented vowels; never ǫ or œ).
@@ -75,6 +75,16 @@ namespace Jarldom
                 ("Óðinn horfir á oss.", "Odin is watching us."),
                 ("Fagrt er þat!", "It's beautiful!"),
             },
+            [Greeting.Farewell] = new[] // ({name}: the one going to Valhalla)
+            {
+                ("Far vel, {name}.", "Fare well, {name}."),
+                ("Sjáumsk í Valhöll!", "We'll meet in Valhalla!"),
+                ("Óðinn taki við þér.", "May Odin take you in."),
+                ("Skál, {name}!", "Skål, {name}!"),
+                ("Lifi nafn þitt.", "May your name live."),
+                ("Valkyrjur bera þik heim.", "The Valkyries bear you home."),
+                ("Þú vart einn inn bezti.", "You were one of the best of us."),
+            },
             [Greeting.Welcome] = new[]
             {
                 ("Vel kominn heim, {name}!", "Welcome home, {name}!"),
@@ -97,7 +107,7 @@ namespace Jarldom
         }
         // As it shows over their head: the Old Norse small and in italics, the English beneath.
         public static string Show((string norse, string english) line) => $"<size=75%><i>{line.norse}</i></size>\n{line.english}";
-        public static readonly string Glyphs = "þðæöáéíóúÞÐÆÖÁÉÍÓÚ";
+        public static readonly string Glyphs = "þðæöáéíóúåÞÐÆÖÁÉÍÓÚÅ"; // (å: the hall already toasts "Skål!")
         public static IEnumerable<char> Letters() => Lines.Values.SelectMany(a => a).SelectMany(l => l.norse + l.english).Distinct();
     }
 }

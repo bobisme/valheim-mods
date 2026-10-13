@@ -431,6 +431,15 @@ namespace Jarldom
                 case "need": { string[] f = arg.Split('='); if (f.Length == 2 && Enum.TryParse(f[0], out Need n) && float.TryParse(f[1], out float v)) S.Needs[(int)n] = Mathf.Clamp(v, 0, 100); } break;
                 case "ascend": Task?.Stop(this); Task = new AscendTask(arg); Task.Start(this); break;
                 case "answer": Asks.Answered(this, arg); break;
+                case "farewell":
+                    {
+                        // (down to the shore to see one of ours off to Valhalla by ship: anyone awake and not in a fight)
+                        string[] f = arg.Split('|');
+                        if (f.Length < 3 || Combat.Busy(this) || Task is SleepTask || Task is AscendTask || Follow.LeaderId(this) != 0) break;
+                        if (!float.TryParse(f[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float fx) || !float.TryParse(f[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float fz)) break;
+                        Task?.Stop(this); Task = new FarewellTask(new Vector3(fx, ZoneSystem.instance.GetGroundHeight(new Vector3(fx, 0, fz)), fz), f[2]); Task.Start(this);
+                    }
+                    break;
                 case "meet":
                     {
                         // (to the dock to meet a player coming home by sea: only if nothing pressing, awake, and not in a fight)

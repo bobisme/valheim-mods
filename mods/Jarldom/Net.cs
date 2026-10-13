@@ -12,7 +12,7 @@ namespace Jarldom
     {
         private const string VersionRpc = "Jarldom_Version";
         private static float _nextShout;
-        private const string ActRpc = "Jarldom_Act", FallenRpc = "Jarldom_Fallen", ClaimRpc = "Jarldom_Claim", ReportRpc = "Jarldom_Report", RefusedRpc = "Jarldom_Refused", ValkyrieRpc = "Jarldom_Valkyrie", VillagerRpc = "Jarldom_Villager", HelloRpc = "Jarldom_Hello", ExploreRpc = "Jarldom_Explore", EventRpc = "Jarldom_Event", PinRpc = "Jarldom_Pin", CampRpc = "Jarldom_Camp", CampAtRpc = "Jarldom_CampAt", AskRpc = "Jarldom_AskReply", CircleRpc = "Jarldom_ValkyrieCircle", BurialRpc = "Jarldom_ShipBurial";
+        private const string ActRpc = "Jarldom_Act", FallenRpc = "Jarldom_Fallen", ClaimRpc = "Jarldom_Claim", ReportRpc = "Jarldom_Report", RefusedRpc = "Jarldom_Refused", ValkyrieRpc = "Jarldom_Valkyrie", VillagerRpc = "Jarldom_Villager", HelloRpc = "Jarldom_Hello", ExploreRpc = "Jarldom_Explore", EventRpc = "Jarldom_Event", PinRpc = "Jarldom_Pin", CampRpc = "Jarldom_Camp", CampAtRpc = "Jarldom_CampAt", AskRpc = "Jarldom_AskReply", CircleRpc = "Jarldom_ValkyrieCircle", BurialRpc = "Jarldom_ShipBurial2";
         private static ZRoutedRpc _on; private static int _delay;
         private static readonly string[] Names = { VersionRpc, ActRpc, FallenRpc, ClaimRpc, ReportRpc, RefusedRpc, ValkyrieRpc, VillagerRpc, HelloRpc, HelloRpc + "?", ExploreRpc, EventRpc, PinRpc, CampRpc, CampAtRpc, AskRpc, CircleRpc, BurialRpc };
 
@@ -83,7 +83,7 @@ namespace Jarldom
             rpc.Register<string, string, bool>(AskRpc, (sender, vid, id, ok) => Plugin.Guard(() => Asks.Replied(vid, id, ok)));
             rpc.Register<Vector3>(ValkyrieRpc, (sender, at) => Plugin.Guard(() => Valkyrie.Fly(at)));
             rpc.Register<Vector3>(CircleRpc, (sender, at) => Plugin.Guard(() => Valkyrie.Fly(at, true)));
-            rpc.Register<Vector3, Quaternion, Vector3>(BurialRpc, (sender, at, rot, dir) => Plugin.Guard(() => ShipBurial.Show(at, rot, dir)));
+            rpc.Register<Vector3, Quaternion, Vector3, Vector3>(BurialRpc, (sender, at, rot, dir, archer) => Plugin.Guard(() => ShipBurial.Show(at, rot, dir, archer)));
         }
         // The game gives an object to whichever nearby player it likes; one without Jarldom would leave the colony or a villager frozen.
         // The host takes such objects back for itself (when it has them loaded), every few seconds.
@@ -225,7 +225,7 @@ namespace Jarldom
         }
         public static void Villager(long owner, string vid, string action, string arg) => ZRoutedRpc.instance?.InvokeRoutedRPC(owner, VillagerRpc, vid, action, arg);
         public static void Valkyrie_(Vector3 at) => ZRoutedRpc.instance?.InvokeRoutedRPC(ZRoutedRpc.Everybody, ValkyrieRpc, at);
-        public static void ShipBurial_(Vector3 at, Quaternion rot, Vector3 dir) => ZRoutedRpc.instance?.InvokeRoutedRPC(ZRoutedRpc.Everybody, BurialRpc, at, rot, dir);
+        public static void ShipBurial_(Vector3 at, Quaternion rot, Vector3 dir, Vector3 archer) => ZRoutedRpc.instance?.InvokeRoutedRPC(ZRoutedRpc.Everybody, BurialRpc, at, rot, dir, archer);
         public static void ValkyrieCircle(Vector3 at) => ZRoutedRpc.instance?.InvokeRoutedRPC(ZRoutedRpc.Everybody, CircleRpc, at); // (an ascension: once round the pyre, and up)
     }
 

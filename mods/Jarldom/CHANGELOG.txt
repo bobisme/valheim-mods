@@ -1,3 +1,5 @@
+0.1.68: the ship burial is a ceremony now: when the soul is aboard, the colony comes down to the shore; the ship is launched unlit with the dead laid in a linen shroud, the game's own Valkyrie theme plays, a hunter (or a guard, or whoever's nearest) calls out and looses a burning arrow, and the ship catches as it goes out. Each on the shore calls a farewell after it in Old Norse. ('jarldom music' lists the game's tracks.)
+
 0.1.67: the funeral ship (a Hold's honour; build it on the beach): a karve drawn up for a soul's last voyage, grave goods in its hold. A worthy soul sent to Valhalla while it stands goes by ship: at dusk they board, and everyone near sees it slide into the water, go out burning and sink. Odin takes more note than of any pyre (half again the deeds); the ship goes with them.
 
 0.1.66: when a soul goes to Valhalla from the pyre, a Valkyrie comes for them: everyone near sees her circle once over the fire and climb away into the sky.

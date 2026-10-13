@@ -49,7 +49,7 @@ namespace Jarldom
         public MeetTask(Vector3 dock, string who) { _dock = dock; _who = who; Doing = "going down to the dock to meet " + who; }
         public override bool Interruptible => false; // (two minutes at most)
         // Dry ground at the water's edge by the dock (a fishing dock's middle is out on the water): the nearest spot above it.
-        private static Vector3? Shore(Vector3 dock, Vector3 from)
+        internal static Vector3? Shore(Vector3 dock, Vector3 from)
         {
             float water = ZoneSystem.instance != null ? ZoneSystem.instance.m_waterLevel : 30f;
             Vector3? best = null; float bestD = float.MaxValue;
