@@ -16,7 +16,7 @@ namespace Jarldom
     internal static class Tools
     {
         private static BaseUnityPlugin _tools; private static float _next;
-        private const string Usage = "jarldom status | roster | smite <prefab|stag> | feed <name> | greetings | villager <name|vid> | needs <name> | renown | rooms | room check <n> | board | log [n] | saga | compat | " +
+        private const string Usage = "jarldom status | roster | smite <prefab|stag> | feed <name> | greetings | dogs | dog adopt|release | villager <name|vid> | needs <name> | renown | rooms | room check <n> | board | log [n] | saga | compat | " +
             "[cheats:] place pillars [metres] | spawn [profession] [traits..] | migrate [now|dusk] | accept [i|all] | room <type> <x1> <z1> <x2> <z2> [god] | zone <type> <x1> <z1> <x2> <z2> | " +
             "prof <name> <profession> | mood <name> <moodlet> | worth <name> <n> | need <name> <need>=<n> | give <name> <prefab> [n] | bed <name> | goto <name> <x> <z> | time <hours> | pay | " +
             "favour <god> <n> | feast | thing now | ascend <name> | kill <name> | raid <event> | horn | treasury [x z] | stockpile <category> [x z] | tp <name> | remove | " +
@@ -66,7 +66,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or for a server admin with devcommands on"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -459,6 +459,25 @@ namespace Jarldom
                             ["places"] = new JArray((wf?.Places ?? new List<Place>()).Select(p => $"{p.Label} ({p.Key}, stage {p.Stage}) {Mathf.RoundToInt(Utils.DistanceXZ(new Vector3(p.X, 0, p.Z), c.Position))} m at {p.X:0},{p.Z:0}")),
                             ["avenge"] = new JArray((wf?.Avenge ?? new List<(string, string)>()).Select(x => $"{x.Item1} by {x.Item2}")),
                         });
+                    }
+                    break;
+                case "dogs":
+                    {
+                        JArray Row(IEnumerable<Character> l) => new JArray(l.Select(d => { MonsterAI ai = d.GetComponent<MonsterAI>(); GameObject f = ai?.GetFollowTarget(); ZDO z = d.GetComponent<ZNetView>().GetZDO();
+                            return $"{d.GetComponent<Tameable>()?.GetText()} ({Utils.GetPrefabName(d.gameObject)}) at {d.transform.position.x:0},{d.transform.position.z:0} follow {(f != null ? f.name + (Villagers.Brain(f.GetComponent<Character>()) is Brain fb ? " " + fb.S.Name : "") : "-")} patrol {(z.GetBool(ZDOVars.s_patrol) ? z.GetVec3(ZDOVars.s_patrolPoint, Vector3.zero).ToString("F0") : "-")} owner {(d.GetComponent<ZNetView>().IsOwner() ? "this game" : "other")}"; }));
+                        Character first = Dogs.Of(c).FirstOrDefault();
+                        var around = first == null ? new JArray() : new JArray(Character.GetAllCharacters().Where(ch => ch != null && ch != first && !ch.IsPlayer() && Vector3.Distance(ch.transform.position, first.transform.position) < 40)
+                            .Select(ch => $"{Utils.GetPrefabName(ch.gameObject)} {Vector3.Distance(ch.transform.position, first.transform.position):0} m enemy {BaseAI.IsEnemy(first, ch)} tamed {ch.IsTamed()} alerted {(ch.GetBaseAI() as MonsterAI)?.IsAlerted()} event {(ch.GetBaseAI() as MonsterAI)?.IsEventCreature()}"));
+                        output(new JObject { ["dogs"] = Row(Dogs.Of(c)), ["strays"] = Row(Dogs.Strays(c)), ["around"] = around });
+                    }
+                    break;
+                case "dog":
+                    {
+                        string op = a.Length > 2 ? a[2] : "";
+                        Character near(IEnumerable<Character> l) => l.OrderBy(d => Vector3.Distance(d.transform.position, me.transform.position)).FirstOrDefault();
+                        if (op == "adopt") { Character w = near(Dogs.Strays(c)); if (w == null) { error("no tame wolf in the colony"); return; } string why = Dogs.Adopt(c, w); if (why != "") { error(why); return; } output(new JObject { ["adopted"] = w.GetComponent<Tameable>()?.GetText() }); }
+                        else if (op == "release") { Character d = near(Dogs.Of(c)); if (d == null) { error("no village dog"); return; } Dogs.Release(d); output(new JObject { ["released"] = d.GetComponent<Tameable>()?.GetText() }); }
+                        else { error("dog adopt | release"); return; }
                     }
                     break;
                 case "greetings": output(new JObject { ["recent"] = new JArray(Greet.Recent) }); break;

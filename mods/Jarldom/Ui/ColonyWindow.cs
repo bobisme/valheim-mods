@@ -210,6 +210,33 @@ namespace Jarldom.Ui
         }
         private static Colony _nextFor; private static float _nextAt; private static string _next = "";
         private static readonly string[] Short = { "name your hall", "build a bed", "raise renown to draw Odin's eye", "take in the newcomers", "mark work zones", "give them trades", "choose a treasury", "sort the stores", "raise a great hall" };
+        // Village dogs: the colony's own, and tamed wolves in the colony that could be taken in.
+        private static float DogsPart(RectTransform list, float y)
+        {
+            var dogs = Dogs.Of(_c).ToList(); var strays = Dogs.Strays(_c).ToList();
+            if (dogs.Count == 0 && strays.Count == 0) return y;
+            y = Heading(list, "Village dogs", y);
+            foreach (Character d in dogs)
+            {
+                MonsterAI ai = d.GetComponent<MonsterAI>(); GameObject f = ai?.GetFollowTarget();
+                Brain led = f != null ? Villagers.Brain(f.GetComponent<Character>()) : null; Player with = f != null ? f.GetComponent<Player>() : null;
+                string name = d.GetComponent<Tameable>()?.GetText(); if (string.IsNullOrEmpty(name)) name = "A wolf";
+                float px = 8; Character dog = d;
+                y = Text(list, $"• {name}: {(led != null ? "at " + led.S.Name + "'s heels" : with != null ? "out with " + with.GetPlayerName() : "by the hearth")}", y, 16);
+                Tip(Btn(list, "Let go", ref px, y, () => { Dogs.Release(dog); Build(); }), "Let them go", "No longer the village dog: a tame wolf as any other.");
+                y += 50;
+            }
+            foreach (Character w in strays)
+            {
+                float px = 8; Character wolf = w;
+                string name = w.GetComponent<Tameable>()?.GetText(); if (string.IsNullOrEmpty(name)) name = "A tame wolf";
+                y = Text(list, $"• {name}, {Mathf.RoundToInt(Vector3.Distance(w.transform.position, _c.Position))} m from the pillars", y, 16, GameUi.Dim);
+                Tip(Btn(list, "Take in as the village dog", ref px, y, () => { string why = Dogs.Adopt(_c, wolf); if (why != "") Player.m_localPlayer?.Message(MessageHud.MessageType.Center, "Not now: " + why + "."); Build(); }),
+                    "Village dog", "By day it follows the villagers at their work; at night it lies by the hall's hearth; and it barks when something hostile comes within 40 m, so the colony hears where from. A player can still take it along (E).");
+                y += 50;
+            }
+            return y;
+        }
         private static float FirstSteps(RectTransform list, float y)
         {
             var steps = Steps(_c);
@@ -253,6 +280,7 @@ namespace Jarldom.Ui
                 foreach (var (row, ask) in asks) y = Text(list, $"• {row.Name}: {ask.Value.what} ({ask.Value.daysLeft} {(ask.Value.daysLeft == 1 ? "day" : "days")} left){(ask.Value.deed ? " <color=#ff8c59>a deed, to wash out their disgrace</color>" : "")}", y, 16);
                 y = Text(list, "Talk to them (E) to take it on, hand it over or tell of it. Answered, they think better of you, gain worth and pay from their own hoard, and the colony gains renown.", y, 14, GameUi.Dim);
             }
+            y = DogsPart(list, y);
             y = FirstSteps(list, y);
             y = Heading(list, "Odin's attention", y);
             y = Text(list, $"Renown <color=#ffd27a>{_c.Renown}</color> = wealth {_c.WealthPart} + comfort {_c.ComfortPart} + deeds {r.Deeds}", y);
