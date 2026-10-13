@@ -155,7 +155,15 @@ board.Expire(300 + JobBoard.BlockSeconds + 1); Check(board.Get(b).State == Order
     reach.Expire(10); reach.Block(t1, "can't reach it");
     Check(reach.Get(t2).State == OrderState.Blocked && reach.Get(t3).State == OrderState.Open, "Out of reach: the same work right by it is too, not what's farther off");
     reach.Expire(10 + JobBoard.BlockSeconds + 1); Check(reach.Get(t1).State == OrderState.Open, "An unreachable job is tried again after a while");
-    reach.Block(t1, "can't reach it"); reach.Expire(10 + JobBoard.BlockSeconds * 2.5); Check(reach.Get(t1).State == OrderState.Blocked, "and out of reach again, it waits twice as long");
+    reach.Block(t1, "can't reach it");
+    Check(reach.Get(t1).State == OrderState.Cancelled && reach.Get(t2).State == OrderState.Cancelled && reach.LeftAlone.Contains("fuel|torch1") && reach.LeftAlone.Contains("fuel|torch2"), "A fire out of reach twice is left alone, and the one right by it too");
+    Check(reach.Get(t3).State == OrderState.Open && !reach.LeftAlone.Contains("fuel|torch3"), "but not one farther off");
+    Check(reach.Post("fuel", "torch1", Prof.Hauler, 3, 0, 0, 0, 20) == -1, "and a fire left alone isn't posted again");
+    reach.LeftAlone.Clear(); Check(reach.Post("fuel", "torch1", Prof.Hauler, 3, 0, 0, 0, 20) >= 0, "until it's tried again");
+    var walk = new JobBoard();
+    int h1 = walk.Post("haul", "log1", Prof.Hauler, 3, 0, 0, 0, 0);
+    walk.Expire(10); walk.Block(h1, "can't reach it"); walk.Expire(10 + JobBoard.BlockSeconds + 1);
+    walk.Block(h1, "can't reach it"); walk.Expire(10 + JobBoard.BlockSeconds * 2.5); Check(walk.Get(h1).State == OrderState.Blocked && walk.LeftAlone.Count == 0, "Other work out of reach again waits twice as long (only fires are left alone)");
 }
 var hi = board.Post("chop", "tree9", Prof.Woodcutter, 5, 100, 0, 100, 300);
 var near = board.Post("chop", "tree8", Prof.Woodcutter, 3, 1, 0, 1, 300);
