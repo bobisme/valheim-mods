@@ -327,8 +327,12 @@ namespace Jarldom
         public static int Have(Player p, Request q, out string itemName)
         {
             itemName = ZNetScene.instance?.GetPrefab(q.Target)?.GetComponent<ItemDrop>()?.m_itemData?.m_shared?.m_name;
-            return itemName == null || p == null ? 0 : p.GetInventory().CountItems(itemName);
+            string n = itemName;
+            return n == null || p == null ? 0 : Own(p, n).Sum(i => i.m_stack);
         }
+        // Only what's in the bag itself: the game's count by name and take by name reach into the chests nearby with CraftFromChests
+        // and the like, which would hand the colony's own stores over (and take them away).
+        private static IEnumerable<ItemDrop.ItemData> Own(Player p, string name) => p.GetInventory().GetAllItems().Where(i => i.m_shared.m_name == name && !i.m_equipped).ToList();
         public static bool Ready(Player p, VillagerState s, out string why)
         {
             why = ""; Request q = s.Asked;
@@ -359,7 +363,11 @@ namespace Jarldom
             if (ok && Handing.TryGetValue(id, out var h))
             {
                 Have(p, new Request { Target = h.target }, out string item);
-                if (item != null) p.GetInventory().RemoveItem(item, h.count);
+                for (int left = h.count; item != null && left > 0;)
+                {
+                    ItemDrop.ItemData st = Own(p, item).FirstOrDefault(); if (st == null) break;
+                    int n = Math.Min(left, st.m_stack); p.GetInventory().RemoveItem(st, n); left -= n;
+                }
             }
             Handing.Remove(id);
             Drop(p, vid);
