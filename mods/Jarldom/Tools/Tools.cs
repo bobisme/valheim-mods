@@ -66,7 +66,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or for a server admin with devcommands on"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -478,6 +478,15 @@ namespace Jarldom
                         if (op == "adopt") { Character w = near(Dogs.Strays(c)); if (w == null) { error("no tame wolf in the colony"); return; } string why = Dogs.Adopt(c, w); if (why != "") { error(why); return; } output(new JObject { ["adopted"] = w.GetComponent<Tameable>()?.GetText() }); }
                         else if (op == "release") { Character d = near(Dogs.Of(c)); if (d == null) { error("no village dog"); return; } Dogs.Release(d); output(new JObject { ["released"] = d.GetComponent<Tameable>()?.GetText() }); }
                         else { error("dog adopt | release"); return; }
+                    }
+                    break;
+                case "landing":
+                    {
+                        // "reset": as if every player had been away a while (the next landing at a dock is met); "meet": the welcome at once.
+                        Zone dock = c.R.Zones.FirstOrDefault(z => z.Type == ZoneType.FishingDock);
+                        if (a.Length > 2 && a[2] == "meet") { if (dock == null) { error("no fishing dock zone"); return; } Landing.Meet(c, Zones.Centre(dock), me.GetPlayerName()); }
+                        else Landing.Forget();
+                        output(new JObject { ["dock"] = dock != null ? V(Zones.Centre(dock)) : null, ["onShip"] = Ship.GetLocalShip() != null });
                     }
                     break;
                 case "greetings": output(new JObject { ["recent"] = new JArray(Greet.Recent) }); break;

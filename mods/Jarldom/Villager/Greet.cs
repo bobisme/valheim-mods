@@ -59,7 +59,7 @@ namespace Jarldom
         // Every second or two: a player close by, seen, and not in a fight or asleep.
         public static void Near(Brain b)
         {
-            if (b.Colony == null || Combat.Busy(b) || b.Task is SleepTask || b.Task is AscendTask || b.Colony.RaidOn || Quiet(b.Colony)) return;
+            if (b.Colony == null || Combat.Busy(b) || b.Task is SleepTask || b.Task is AscendTask || b.Colony.RaidOn || b.Task is MeetTask || Quiet(b.Colony)) return;
             if (ByVillager.TryGetValue(b.S.Vid, out float v) && Time.time < v) return;
             Player p = Player.GetAllPlayers().Where(x => x != null && !x.IsDead() && Vector3.Distance(x.transform.position, b.Pos) < Reach && Mathf.Abs(x.transform.position.y - b.Pos.y) < 2.5f)
                 .OrderBy(x => Vector3.Distance(x.transform.position, b.Pos)).FirstOrDefault();
