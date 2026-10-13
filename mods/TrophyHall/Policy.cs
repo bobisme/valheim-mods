@@ -51,5 +51,27 @@ namespace TrophyHall
             string list=names.Count==1?names[0]:string.Join(", ",names.Take(names.Count-1))+" and "+names[names.Count-1];
             return char.ToUpperInvariant(list[0])+list.Substring(1)+" have fallen here.";
         }
+
+        // Halls already read out to this player ("x:z=count;..." on the character): once per hall, and again only when it has more trophies.
+        internal const int MaxSeen=64;
+        internal static Dictionary<string,int> ParseSeen(string text)
+        {
+            var seen=new Dictionary<string,int>();
+            foreach(string entry in (text??"").Split(';'))
+            {
+                int at=entry.LastIndexOf('=');
+                if(at>0&&int.TryParse(entry.Substring(at+1),out int count))seen[entry.Substring(0,at)]=count;
+            }
+            return seen;
+        }
+        internal static bool Announce(Dictionary<string,int> seen,string hall,int count)=>!seen.TryGetValue(hall,out int last)||count>last;
+        // The hall just read goes last; the oldest drop off past MaxSeen.
+        internal static string Remember(Dictionary<string,int> seen,string hall,int count)
+        {
+            int best=seen.TryGetValue(hall,out int last)?Math.Max(last,count):count;
+            var rest=seen.Where(e=>e.Key!=hall).Select(e=>e.Key+"="+e.Value).ToList();
+            rest.Add(hall+"="+best);
+            return string.Join(";",rest.Skip(Math.Max(0,rest.Count-MaxSeen)));
+        }
     }
 }

@@ -411,8 +411,8 @@ it never shrinks: walking to the door or into a smaller hall keeps every perk, a
 | Deer | +5% movement speed |
 
 At most **six** perks apply, rarest first. Every kind of trophy also counts toward **comfort under a roof**: four kinds add +1, eight add +2.
-Walking into a hall names it after the ward's owner, counts its trophies and lists the creatures fallen there, at most every ten minutes per
-hall. **Boss trophies stay on their altars**, where the game uses them for Forsaken powers. The perks are deliberately small: flavour felt over
+Walking into a hall names it after the ward's owner, counts its trophies and lists the creatures fallen there, once per hall
+(again only when it has more trophies). **Boss trophies stay on their altars**, where the game uses them for Forsaken powers. The perks are deliberately small: flavour felt over
 time, not a change to combat balance. Only the player in the hall needs the mod; it reads the item stands everyone already sees. Range,
 readings and the whole mod are in F7.
 
