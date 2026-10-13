@@ -849,7 +849,7 @@ namespace Jarldom
                 Pickable p = _target.GetComponent<Pickable>();
                 if (p == null || !p.CanBePicked()) { Gone(b); return; }
                 _crop = Utils.GetPrefabName(_target); _cropAt = _target.transform.position;
-                Body_.Anim(b.Body)?.SetTrigger("interact");
+                if (!WorkEmotes.Harvest(b)) Body_.Anim(b.Body)?.SetTrigger("interact"); // (crouched to pull it, with Bob's Animations)
                 p.Interact(b.Body, false, false);
                 b.Body.RaiseSkill(Skills.SkillType.Farming, 1f);
                 _phase = 1; _waitUntil = Time.time + 0.6f;
@@ -912,7 +912,7 @@ namespace Jarldom
             GameObject planted = Object.Instantiate(plant.sapling, spot, Quaternion.Euler(0, UnityEngine.Random.Range(0, 360f), 0));
             foreach (IPlaced placed in planted.GetComponentsInChildren<IPlaced>()) placed.OnPlaced();
             planted.GetComponent<Piece>()?.m_placeEffect.Create(_cropAt, Quaternion.identity);
-            Body_.Anim(b.Body)?.SetTrigger("interact");
+            if (!WorkEmotes.Sow(b)) Body_.Anim(b.Body)?.SetTrigger("interact"); // (crouched to sow it, with Bob's Animations)
             b.S.Bump("replanted");
             if (b.S.Count("harvests") >= 100 && string.IsNullOrEmpty(b.S.Byname)) { b.S.Byname = Names.Byname("farmer"); b.Colony.Log("byname", b.S.Name, b.S.Byname); }
             return false;
@@ -1052,7 +1052,7 @@ namespace Jarldom
             if (b.Move.Moving) return;
             Vector3 at = Point(_wp);
             if (Utils.DistanceXZ(b.Pos, at) > 2f && !b.Move.Failed) { _looking = false; b.Move.To(at, 1.2f); return; }
-            if (!_looking) { _looking = true; _waitUntil = Time.time + UnityEngine.Random.Range(3f, 6f); b.Ai.LookTowards(Quaternion.Euler(0, UnityEngine.Random.Range(0f, 360f), 0) * Vector3.forward); return; } // (a look about at each waypoint)
+            if (!_looking) { _looking = true; _waitUntil = Time.time + UnityEngine.Random.Range(3f, 6f); b.Ai.LookTowards(Quaternion.Euler(0, UnityEngine.Random.Range(0f, 360f), 0) * Vector3.forward); if (WorkEmotes.Watch(b)) _waitUntil = Mathf.Max(_waitUntil, Time.time + 5f); return; } // (a look about at each waypoint)
             _looking = false; _wp = (_wp + 1) % count;
             b.Move.To(Point(_wp), 1.2f);
         }
@@ -1073,7 +1073,9 @@ namespace Jarldom
             if (Time.time > _fishUntil) { Finish(b, true); return; }
             _waitUntil = Time.time + 45f / Mathf.Max(0.3f, b.Productivity());
             b.SetDoing("fishing");
-            if (UnityEngine.Random.value < 0.4f + b.SkillLevel(Skills.SkillType.Fishing) / 250f)
+            bool caught = UnityEngine.Random.value < 0.4f + b.SkillLevel(Skills.SkillType.Fishing) / 250f;
+            WorkEmotes.Fishing(b, caught); // (a cast, or the reel-in: with Bob's Animations)
+            if (caught)
             {
                 GameObject fish = Assets.Find("Fish1");
                 b.Body.GetInventory().RemoveItem(bait, 1);

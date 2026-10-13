@@ -6,7 +6,7 @@ namespace BobsAnimations
     // when a method is added; a method's signature never changes.
     public static class Api
     {
-        public const int Version = 1;
+        public const int Version = 2;
 
         // Plays a clip on a character from its start. False when there's no such clip, or this game doesn't run the character (its owner
         // starts and stops its clips; every game near it plays them).
@@ -19,5 +19,10 @@ namespace BobsAnimations
         public static bool Has(string clip) => Clip.Get(clip) != null;
         // Its length in seconds, or 0 when there's no such clip.
         public static float Length(string clip) => Clip.Get(clip)?.Length ?? 0f;
+
+        // Version 2 ----
+        // As Play, with an item (a prefab name) in the hands in place of the clip's own where the clip allows it (the carry clips: the logs,
+        // stone or ore a hauler has picked up). An item this game doesn't know shows nothing in the hands.
+        public static bool PlayWith(Character c, string clip, string item) => Anim.Play(c, clip, item);
     }
 }

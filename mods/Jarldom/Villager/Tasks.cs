@@ -230,7 +230,7 @@ namespace Jarldom
             // With a drum the hall dances; without one a skald can only chant, and it lifts no one much.
             bool drum = b.Body.GetInventory().GetAllItems().Any(Items.IsDrum);
             string[] moves = drum ? new[] { "emote_cheer", "emote_headbang", "emote_dance", "emote_toast" } : new[] { "emote_cheer", "emote_toast" };
-            Body_.Anim(b.Body)?.SetTrigger(moves[UnityEngine.Random.Range(0, moves.Length)]);
+            if (!WorkEmotes.Sing(b, drum)) Body_.Anim(b.Body)?.SetTrigger(moves[UnityEngine.Random.Range(0, moves.Length)]); // (drumming or reciting, with Bob's Animations)
             if (drum) { Assets.Effect("sfx_wood_hit", b.Pos + Vector3.up); Assets.Effect("sfx_wood_hit", b.Pos + Vector3.up * 1.1f); }
             b.Say(drum ? Verses[UnityEngine.Random.Range(0, Verses.Length)] : UnityEngine.Random.value < 0.3f ? "(chants) ...if only I had a drum." : "(chants) " + Verses[UnityEngine.Random.Range(0, Verses.Length)], 6);
             if (!drum) { foreach (Brain o in Villagers.All.Where(o => o != b && o.S.Colony == b.S.Colony && Vector3.Distance(o.Pos, b.Pos) < 20)) { Mood.Satisfy(o.S, Need.Social, 1); o.Dirty(); } b.S.Bump("songs"); return; }

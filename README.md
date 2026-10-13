@@ -75,6 +75,9 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
   pieces and think, in the hall they drink, toast and talk, beside a seated neighbour they talk or point toward them, alone they think,
   fold their arms or lean on their knees, and when a seated villager says something their hands talk toward whoever sits nearest
   ("Skål!" raises the tankard).
+- **At work, they move** (with Bob's Animations too): a fisherman casts, holds the rod out and reels a fish in to look at it; anyone walking
+  with wood, stone or ore for the stores carries it in both arms; farmers crouch to sow and to pull crops; a guard at a watch post shades
+  their eyes and looks about; the skald drums under one arm, or recites without a drum.
 - **Moving the pillars**: taken down (or broken) they leave the *heart of the high seat*; raise new pillars carrying it and the colony
   is back, people, rooms and saga and all.
 - **Running it together**: the founder lets other players run the colony from the hall tab (a button for each player near it; only
@@ -1133,9 +1136,12 @@ clips are made in Blender over a skeleton captured from the game (`mods/BobsAnim
 
 - For modders: `Anim.Play(character, "sit_drink")` (the game that runs the character), `Anim.Stop`, `Anim.Playing`; `Clip.Register(json)`
   adds your own clips (every game that shows them registers them too). Without a reference: `BobsAnimations.Api` (Version 1: `Play`, `Stop`,
-  `Playing`, `Has`, `Length`), found by reflection the way Jarldom finds its neighbours (`mods/Jarldom/Compat/API-CONVENTION.md`).
+  `Playing`, `Has`, `Length`; Version 2: `PlayWith`), found by reflection the way Jarldom finds its neighbours (`mods/Jarldom/Compat/API-CONVENTION.md`).
 - Clips (all seated, each blending out by itself when the character gets up): `sit_drink`, `sit_toast_left`/`_right`, `sit_talk_left`/`_right`,
   `sit_point_left`/`_right`, `sit_laugh`, `sit_think`, `sit_cheer`, `sit_board_move`, and the loops `sit_fold_arms` and `sit_elbows`.
+  Standing (each ending by itself when the character walks off): `stand_fish` (a loop), `stand_fish_cast`, `stand_fish_reel`, `stand_sow`,
+  `stand_harvest` (crouched, feet planted), `stand_watch`, `stand_drum` (a loop), `stand_recite`; and `walk_carry`, a loop played while
+  walking, the armful given when played (`Api.PlayWith(character, "walk_carry", "Wood")`). One clip after another blends without a snap.
 - Claude Tools: `anim chars | clips | rig [who] | hold [who] [item] | play <clip> [who] [loop|once] | stop [who] | near [who] | params [who] | shot [who] [yaw] [pitch] [dist]`.
 
 Tried in game on seated Jarldom villagers (men and women), single player: every clip but `sit_board_move` (checked only in Blender against

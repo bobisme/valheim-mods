@@ -30,8 +30,8 @@ namespace BobsAnimations
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name,"anim",
-                    "anim chars [radius=100] | clips | rig [who] | hold [who] [item=Tankard] [bone=RightHand_Attach] | play <clip> [who] [loop|once] | stop [who] | near [who] | params [who] | shot [who] [yaw=0] [pitch=10] [dist=1.6] [up=0]: "+
-                    "Bob's Animations. who: me, seated (the nearest sitting character), nearest (the nearest other character, the default) a number from chars (its default radius) or a name. "+
+                    "anim chars [radius=100] | clips | rig [who] | hold [who] [item=Tankard] [bone=RightHand_Attach] | play <clip> [who] [loop|once] [item=<prefab>] | stop [who] | near [who] | params [who] | shot [who] [yaw=0] [pitch=10] [dist=1.6] [up=0]: "+
+                    "Bob's Animations. who: me, seated (the nearest sitting character), still (the nearest one standing still), nearest (the nearest other character, the default) a number from chars (its default radius) or a name. "+
                     "rig saves the skeleton and skin, posed as now, to claude/shots/anim-rig.json for Authoring/rig.py; play and stop need the game that runs the character; "+
                     "shot pictures it alone (nothing else drawn), yaw 0 at its face",
                     (Func<string[],Action<JObject>,Action<string>,IEnumerator>)Run});
@@ -62,6 +62,7 @@ namespace BobsAnimations
         {
             if(who=="me")return Player.m_localPlayer;
             List<Character> near=Near(100);
+            if(who=="still")return near.FirstOrDefault(c=>Seat(c)==null&&c.GetVelocity().sqrMagnitude<0.01f&&c.GetComponent<VisEquipment>()!=null);
             if(who=="seated")return near.FirstOrDefault(c=>Seat(c)!=null)??(Player.m_localPlayer!=null&&Seat(Player.m_localPlayer)!=null?Player.m_localPlayer:null);
             if(int.TryParse(who,out int i))return i>=0&&i<near.Count?near[i]:null;
             if(who!="nearest")return near.FirstOrDefault(c=>c.m_name.StartsWith(who,StringComparison.OrdinalIgnoreCase));
@@ -78,11 +79,11 @@ namespace BobsAnimations
                 float radius=args.Length>2&&float.TryParse(args[2],NumberStyles.Float,CultureInfo.InvariantCulture,out float r)?r:100;
                 Player me=Player.m_localPlayer;
                 output(new JObject{["chars"]=new JArray(Near(radius).Select((c,i)=>$"{i}: {c.m_name} ({Utils.GetPrefabName(c.gameObject)}) {Vector3.Distance(c.transform.position,me.transform.position):0.0} m"+
-                    $"{(Seat(c) is string s?", "+s:"")}{(c.GetComponent<ZNetView>()?.IsOwner()==true?", ours":", another game's")}{(Anim.Playing(c) is string p?", playing "+p:"")}")),
+                    $"{(Seat(c) is string s?", "+s:c.GetVelocity().sqrMagnitude<0.01f?", still":", moving")}{(c.GetComponent<ZNetView>()?.IsOwner()==true?", ours":", another game's")}{(Anim.Playing(c) is string p?", playing "+p:"")}")),
                     ["me"]=Seat(me)!=null?"seated: "+Seat(me):"standing"});
                 return null;
             }
-            Character who=Who(sub=="play"?(args.Length>3?args[3]:"nearest"):(args.Length>2?args[2]:"nearest"));
+            Character who=Who(sub=="play"?(args.Length>3&&!args[3].StartsWith("item=",StringComparison.Ordinal)?args[3]:"nearest"):(args.Length>2?args[2]:"nearest"));
             if(who==null){error("anim: nobody there (anim chars lists who's near)");return null;}
             switch(sub)
             {
@@ -90,9 +91,10 @@ namespace BobsAnimations
                 case "play":
                 {
                     if(args.Length<3){error("anim play <clip> [who] [loop|once]");break;}
-                    bool? loop=args.Length>4?args[4]=="loop":(bool?)null;
+                    bool? loop=args.Skip(4).Contains("loop")?true:args.Skip(4).Contains("once")?false:(bool?)null;
+                    string item=args.Skip(3).FirstOrDefault(a=>a.StartsWith("item=",StringComparison.Ordinal))?.Substring(5);
                     if(Clip.Get(args[2])==null){error("anim play: no clip "+args[2]+" (anim clips)");break;}
-                    if(!Anim.Play(who,args[2],loop)){error("anim play: another game runs "+who.m_name);break;}
+                    if(!Anim.Play(who,args[2],item,loop)){error("anim play: another game runs "+who.m_name);break;}
                     output(new JObject{["playing"]=args[2],["on"]=who.m_name,["seat"]=Seat(who),["length"]=Math.Round(Clip.Get(args[2]).Length,2)});
                     break;
                 }

@@ -27,6 +27,7 @@ class Clip:
         rig.captured_pose(self.arm, self.bones, self.world)
         self.base = {pb.name: pb.matrix.copy() for pb in self.arm.pose.bones}
         self.turned, self.curled = set(), set()
+        self.hip_moves, self.pinned = {}, False
         self.turn_keys, self.curl_keys, self.hand_keys = [], [], {}
         self.props, self.last = [], 1
 
@@ -41,8 +42,10 @@ class Clip:
         return self.base[bone] @ Vector(local)
 
     # ---- keys ----
-    def turn(self, frame, turns):
-        """turns: {bone: [(axis, degrees), ...]} at a frame (frames without a bone have it as captured)."""
+    def turn(self, frame, turns, hips=None):
+        """turns: {bone: [(axis, degrees), ...]} at a frame (frames without a bone have it as captured); hips: the hips moved by
+        (x, y, z) metres in the character's axes (crouching: z down), the feet kept where they stand (pin_feet)."""
+        if hips is not None: self.hip_moves[frame] = self.m(hips); turns = dict(turns); turns.setdefault('Hips', [])
         t = {}
         for bone, list_ in turns.items():
             t[self.side(bone)] = [(axis, -deg if self.mirror and axis != X else deg) for axis, deg in list_]
@@ -66,8 +69,13 @@ class Clip:
         b = Matrix((u, t, u.cross(t))).transposed()
         R = b @ a.inverted()
         self.hand(frame, side, R, self.m(centre) - R @ local_c)
-    def prop(self, item, bone, start=0.0, end=None, at=(0, 0, 0), rot=(0, 0, 0)):
-        self.props.append({'item': item, 'bone': self.side(bone), 'from': start, 'to': end, 'p': list(at), 'r': list(rot)})
+    def prop(self, item, bone, start=0.0, end=None, at=(0, 0, 0), rot=(0, 0, 0), swap=False, scale=1.0):
+        """An item in a hand while the clip plays; swap: the item given when it's played (PlayWith) takes its place."""
+        self.props.append({'item': item, 'bone': self.side(bone), 'from': start, 'to': end, 'p': list(at), 'r': list(rot), 'swap': swap or None,
+                           'scale': scale if scale != 1.0 else None})
+    def pin_feet(self):
+        """The feet stay planted where they were captured (IK through foot, shin and thigh), so moving the hips bends the knees."""
+        self.pinned = True
 
     # ---- building the animation ----
     def bake(self):
@@ -79,6 +87,8 @@ class Clip:
         for f in frames:
             rig.captured_pose(arm, self.bones, self.world)
             turns = next((t for k, t in self.turn_keys if k == f), {})
+            if self.hip_moves:
+                hp = arm.pose.bones['Hips']; hp.matrix = Matrix.Translation(self.hip_moves.get(f, Vector())) @ hp.matrix.copy(); bpy.context.view_layer.update()
             for pb in sorted(arm.pose.bones, key=lambda pb: len(pb.parent_recursive)):
                 if pb.name not in turns: continue
                 m = pb.matrix.copy(); head = m.to_translation(); r = Matrix.Identity(4)
@@ -87,8 +97,12 @@ class Clip:
                 bpy.context.view_layer.update()
             for _, hand, amounts in [c for c in self.curl_keys if c[0] == f]: curl_now[hand] = amounts
             for hand, amounts in curl_now.items(): self._curl(hand, amounts)
-            for n in self.turned | set(finger_bones):
+            # each kind of key touches only its own bones (a grip's key mustn't put the spine back between two of its keys)
+            turn_frame = any(k == f for k, _ in self.turn_keys) or f in (1, self.last)
+            curl_frame = any(c[0] == f for c in self.curl_keys) or f in (1, self.last)
+            for n in (self.turned if turn_frame else set()) | (set(finger_bones) if curl_frame else set()):
                 arm.pose.bones[n].keyframe_insert('rotation_quaternion', frame=f)
+            if f in self.hip_moves or self.hip_moves and f in (1, self.last): arm.pose.bones['Hips'].keyframe_insert('location', frame=f)
         rig.captured_pose(arm, self.bones, self.world)
         # hands: IK on the hand bone (through forearm and upper arm), its target keyed
         for side, keys in self.hand_keys.items():
@@ -99,6 +113,12 @@ class Clip:
                 e.location = m @ Vector((0, hand.length, 0)); e.rotation_quaternion = m.to_quaternion()
                 e.keyframe_insert('location', frame=f); e.keyframe_insert('rotation_quaternion', frame=f)
             c = hand.constraints.new('IK'); c.target = e; c.chain_count = 3; c.use_rotation = True; c.use_stretch = False
+        if self.pinned:
+            for side in ('Left', 'Right'):
+                foot = arm.pose.bones[side + 'Foot']; m = self.base[foot.name]
+                e = bpy.data.objects.new(side + 'FootTarget', None); bpy.context.scene.collection.objects.link(e)
+                e.matrix_world = Matrix.Translation(m @ Vector((0, foot.length, 0))) @ m.to_quaternion().to_matrix().to_4x4()
+                c = foot.constraints.new('IK'); c.target = e; c.chain_count = 3; c.use_rotation = True; c.use_stretch = False
         bpy.context.view_layer.update()
 
     def _curl(self, hand, amounts):
@@ -109,30 +129,39 @@ class Clip:
             bpy.context.view_layer.update()
 
     # ---- writing it out: the game's local rotation of each bone per frame; turned bones as turns from the captured pose ----
-    def export(self, out, add=None, sets=None, loop=False, blend_in=0.5, blend_out=0.5, seated=True):
+    def export(self, out, add=None, sets=None, loop=False, blend_in=0.5, blend_out=0.5, seated=True, still=False):
         arm, sc = self.arm, bpy.context.scene
         if add is None: add = sorted(self.turned)
         if sets is None:
             sets = [s + b for s in self.hand_keys for b in ('Arm', 'ForeArm', 'Hand')]
+            if self.pinned: sets += [s + b for s in ('Left', 'Right') for b in ('UpLeg', 'Leg', 'Foot')]
             sets += sorted(b.name for h in self.curled for b in arm.pose.bones if b.name.startswith(h) and b.name != h)
         names = list(add) + [n for n in sets if n not in add]
         def unity_local(pb, mats):
             u = rig.M @ mats[pb.name] @ rig.M
-            pu = rig.M @ mats[pb.parent.name] @ rig.M
+            # (the hips' parent is the game's Armature, not a bone here: as captured)
+            pu = rig.M @ mats[pb.parent.name] @ rig.M if pb.parent else self.world[self.bones[self.idx[pb.name]]['parent']]
             return (pu.to_3x3().normalized().inverted() @ u.to_3x3().normalized()).to_quaternion()
         base = {n: unity_local(arm.pose.bones[n], self.base) for n in names}
-        rot = []
+        rot, hips = [], []
+        # the hips' place as a shift in their parent's own units (the parent, the armature, isn't animated: as captured, scale and all)
+        parent = self.world[self.bones[self.idx['Hips']]['parent']]
+        hips_base = (rig.M @ self.base['Hips'] @ rig.M).to_translation()
         for f in range(sc.frame_start, sc.frame_end + 1):
             sc.frame_set(f)
             mats = {pb.name: pb.matrix.copy() for pb in arm.pose.bones}
+            if self.hip_moves:
+                d = parent.to_3x3().inverted() @ ((rig.M @ mats['Hips'] @ rig.M).to_translation() - hips_base)
+                hips.append([round(d.x, 6), round(d.y, 6), round(d.z, 6)])
             row = []
             for n in names:
                 q = unity_local(arm.pose.bones[n], mats)
                 if n in add: q = base[n].inverted() @ q
                 row.append([round(q.x, 5), round(q.y, 5), round(q.z, 5), round(q.w, 5)])  # Unity order x, y, z, w
             rot.append(row)
-        d = {'name': self.name, 'fps': self.fps, 'loop': loop, 'blendIn': blend_in, 'blendOut': blend_out, 'seated': seated, 'bones': names,
+        d = {'name': self.name, 'fps': self.fps, 'loop': loop, 'blendIn': blend_in, 'blendOut': blend_out, 'seated': seated, 'still': still, 'bones': names,
              'add': [n in add for n in names], 'rot': rot, 'props': [{k: v for k, v in p.items() if v is not None} for p in self.props]}
+        if self.hip_moves: d['pos'] = {'Hips': hips}
         gzip.open(os.path.join(out, self.name + '.json.gz'), 'wt').write(json.dumps(d, separators=(',', ':')))
         print('EXPORT', self.name, len(rot), 'frames', len(names), 'bones', round(len(rot) / self.fps, 2), 's')
 

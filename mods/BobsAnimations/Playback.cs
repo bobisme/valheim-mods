@@ -10,16 +10,18 @@ namespace BobsAnimations
     // when is kept on the character's network object, so every game near it plays the same, in step.
     public static class Anim
     {
-        internal const string ClipKey="bob_anim_clip",AtKey="bob_anim_at",EndKey="bob_anim_end";
+        internal const string ClipKey="bob_anim_clip",AtKey="bob_anim_at",EndKey="bob_anim_end",PropKey="bob_anim_prop";
         internal static long Now=>ZNet.instance!=null?ZNet.instance.GetTime().Ticks:DateTime.UtcNow.Ticks;
 
         // Plays a clip (by name) from its start, looping if the clip loops or loop is true. False if there's no such clip or another game
         // runs the character (ask that game, as with anything else about it).
-        public static bool Play(Character c,string clip,bool? loop=null)
+        public static bool Play(Character c,string clip,bool? loop=null)=>Play(c,clip,null,loop);
+        // As Play, with an item in the hands in place of the clip's own (a clip's swappable prop: the logs or stone a hauler carries).
+        public static bool Play(Character c,string clip,string item,bool? loop=null)
         {
             ZDO z=Owned(c);
             if(z==null||Clip.Get(clip)==null)return false;
-            z.Set(ClipKey,clip+(loop==true?"|loop":loop==false?"|once":""));z.Set(AtKey,Now);z.Set(EndKey,0L);
+            z.Set(ClipKey,clip+(loop==true?"|loop":loop==false?"|once":""));z.Set(AtKey,Now);z.Set(EndKey,0L);z.Set(PropKey,item??"");
             Playback.Scan(true);
             return true;
         }
@@ -51,11 +53,16 @@ namespace BobsAnimations
         private sealed class State
         {
             public Character Body;public ZNetView View;public Clip Clip;public string Key;public long At;public bool Loop;
-            public Animator Animator;public string[] Seats;public float NextSeatCheck;public long Stood; // (seated clips: when it was seen standing)
+            public Animator Animator;public string[] Seats;public float NextSeatCheck;public long Stood; // (seated or still clips: when it was seen getting up or walking off)
+            public string Item;public Vector3[] LastPos,BasePos;public bool[] Moved;
+            public Dictionary<Transform,Quaternion> From;public Dictionary<Transform,Vector3> FromPos; // (the pose the clip before left: blended in from there)
             public Transform[] Bones;public Quaternion[] LastOut,LastBase;public bool[] Wrote;
             public readonly Dictionary<Clip.Prop,GameObject> Props=new Dictionary<Clip.Prop,GameObject>();
         }
         private static readonly Dictionary<Character,State> Playing=new Dictionary<Character,State>();
+        // Bones the clip before drove and the new one doesn't: eased back to the game's pose over a moment.
+        private static readonly List<(Transform bone,Quaternion from,float at)> Easing=new List<(Transform,Quaternion,float)>();
+        private const float EaseTime=0.4f;
         private static readonly string[] SeatParams={"attach_chair","attach_throne","attach_bed","attach_dragon"};
         private static float _nextScan;
 
@@ -73,7 +80,15 @@ namespace BobsAnimations
                 if(string.IsNullOrEmpty(key)){if(st!=null)Drop(st);continue;}
                 long at=z.GetLong(Anim.AtKey,0);
                 if(st!=null&&st.Key==key&&st.At==at)continue;
-                if(st!=null)Drop(st);
+                Dictionary<Transform,Quaternion> from=null;Dictionary<Transform,Vector3> fromPos=null;
+                if(st!=null)
+                {
+                    // One clip after another: the new one starts from where the last left the body, not from the game's pose.
+                    from=new Dictionary<Transform,Quaternion>();fromPos=new Dictionary<Transform,Vector3>();
+                    for(int i=0;i<st.Bones.Length;i++)if(st.Bones[i]!=null&&st.Wrote[i])from[st.Bones[i]]=st.LastOut[i];
+                    for(int i=0;i<st.Bones.Length;i++)if(st.Bones[i]!=null&&st.Moved[i])fromPos[st.Bones[i]]=st.LastPos[i];
+                    Drop(st);
+                }
                 string[] parts=key.Split('|');
                 Clip clip=Clip.Get(parts[0]);
                 if(clip==null)continue; // (a clip this game doesn't have: nothing to show)
@@ -81,7 +96,10 @@ namespace BobsAnimations
                 st=new State{Body=c,View=v,Clip=clip,Key=key,At=at,Loop=parts.Length>1?parts[1]=="loop":clip.Loop,
                     Bones=clip.Bones.Select(n=>bones.TryGetValue(n,out Transform t)?t:null).ToArray()};
                 if(clip.Seated){st.Animator=c.GetComponentInChildren<Animator>();st.Seats=st.Animator!=null?SeatParams.Where(n=>st.Animator.parameters.Any(q=>q.name==n&&q.type==AnimatorControllerParameterType.Bool)).ToArray():new string[0];}
+                st.Item=z.GetString(Anim.PropKey);st.LastPos=new Vector3[st.Bones.Length];st.BasePos=new Vector3[st.Bones.Length];st.Moved=new bool[st.Bones.Length];
                 st.LastOut=new Quaternion[st.Bones.Length];st.LastBase=new Quaternion[st.Bones.Length];st.Wrote=new bool[st.Bones.Length];
+                st.From=from;st.FromPos=fromPos;
+                if(from!=null)foreach(var kv in from)if(!st.Bones.Contains(kv.Key))Easing.Add((kv.Key,kv.Value,Time.time));
                 Playing[c]=st;
             }
             foreach(State gone in Playing.Values.Where(s=>s.Body==null).ToList())Drop(gone);
@@ -101,6 +119,12 @@ namespace BobsAnimations
         // After the game's animation (and its head-turning, done in the animator) has posed the body this frame.
         internal static void LateUpdate()
         {
+            for(int i=Easing.Count-1;i>=0;i--)
+            {
+                var (bone,from,at)=Easing[i];float k=(Time.time-at)/EaseTime;
+                if(bone==null||k>=1){Easing.RemoveAt(i);continue;}
+                bone.localRotation=Quaternion.Slerp(from,bone.localRotation,k);
+            }
             if(Playing.Count==0)return;
             long now=Anim.Now;
             foreach(State st in Playing.Values.ToList())
@@ -110,10 +134,12 @@ namespace BobsAnimations
                 float t=(float)((now-st.At)/(double)TimeSpan.TicksPerSecond);
                 long end=st.View.GetZDO().GetLong(Anim.EndKey,0);
                 // A seated clip on someone who got up: it blends out from then (each game sees it for itself; the owner ends it for all).
-                if(st.Clip.Seated&&st.Stood==0&&Time.time>=st.NextSeatCheck)
+                if((st.Clip.Seated||st.Clip.Still)&&st.Stood==0&&Time.time>=st.NextSeatCheck)
                 {
                     st.NextSeatCheck=Time.time+0.25f;
-                    if(st.Animator!=null&&st.Seats.Length>0&&!st.Seats.Any(n=>st.Animator.GetBool(n))){st.Stood=now;if(st.View.IsOwner())Anim.Stop(st.Body);}
+                    bool up=st.Clip.Seated&&st.Animator!=null&&st.Seats.Length>0&&!st.Seats.Any(n=>st.Animator.GetBool(n));
+                    bool off=st.Clip.Still&&st.Body.GetVelocity().sqrMagnitude>0.6f*0.6f;
+                    if(up||off){st.Stood=now;if(st.View.IsOwner())Anim.Stop(st.Body);}
                 }
                 if(st.Stood!=0&&(end==0||st.Stood<end))end=st.Stood;
                 float weight=Mathf.Clamp01(t/Mathf.Max(0.01f,clip.BlendIn));
@@ -137,8 +163,16 @@ namespace BobsAnimations
                     Quaternion basis=st.Wrote[i]&&Quaternion.Dot(cur,st.LastOut[i])>0.999999f?st.LastBase[i]:cur;
                     Quaternion key=clip.Rotation(i,at);
                     Quaternion target=clip.Add[i]?basis*key:key;
-                    Quaternion pose=Quaternion.Slerp(basis,target,weight);
+                    Quaternion start=t<clip.BlendIn&&st.From!=null&&st.From.TryGetValue(b,out Quaternion was)?was:basis;
+                    Quaternion pose=Quaternion.Slerp(start,target,weight);
                     b.localRotation=pose;st.LastOut[i]=pose;st.LastBase[i]=basis;st.Wrote[i]=true;
+                }
+                foreach(var (i,shift) in clip.Moves)
+                {
+                    Transform b=st.Bones[i];if(b==null)continue;
+                    Vector3 cur=b.localPosition,basis=st.Moved[i]&&(cur-st.LastPos[i]).sqrMagnitude<1e-10f?st.BasePos[i]:cur;
+                    Vector3 place=t<clip.BlendIn&&st.FromPos!=null&&st.FromPos.TryGetValue(b,out Vector3 was)?Vector3.Lerp(was,basis+clip.Shift(shift,at),weight):basis+clip.Shift(shift,at)*weight;
+                    b.localPosition=place;st.LastPos[i]=place;st.BasePos[i]=basis;st.Moved[i]=true;
                 }
                 Props(st,at,weight);
             }
@@ -153,7 +187,7 @@ namespace BobsAnimations
                 if(show&&go==null)
                 {
                     Transform bone=Bones(st.Body).TryGetValue(p.Bone,out Transform found)?found:null;
-                    go=bone!=null?Model(p.Item,bone):null;
+                    go=bone!=null?Model(p.Swap&&!string.IsNullOrEmpty(st.Item)?st.Item:p.Item,bone):null;
                     if(go==null){st.Props[p]=null;continue;}
                     go.transform.localPosition=p.Position;go.transform.localRotation=p.Rotation;go.transform.localScale=Vector3.one*p.Scale;
                     st.Props[p]=go;
@@ -208,7 +242,7 @@ namespace BobsAnimations
             if(st.Body!=null)Playing.Remove(st.Body);
             else foreach(var k in Playing.Where(p=>p.Value==st).Select(p=>p.Key).ToList())Playing.Remove(k);
         }
-        internal static void Clear(){foreach(State st in Playing.Values.ToList())Drop(st);Playing.Clear();}
+        internal static void Clear(){foreach(State st in Playing.Values.ToList())Drop(st);Playing.Clear();Easing.Clear();}
         internal static int Count=>Playing.Count;
         private static string Path(Transform t,Transform root){string path="";for(;t!=null&&t!=root;t=t.parent)path=t.name+(path==""?"":"/"+path);return path;}
         // Test: how many of the bones it drives are ones the character's skins really follow, and the first one's path.

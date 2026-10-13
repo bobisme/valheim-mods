@@ -1,3 +1,5 @@
+0.1.71: villagers move at work, with Bob's Animations installed (nothing changes without it): a fisherman casts, holds the rod out between tries and reels a fish in to look at it; anyone walking with wood, stone or ore for the stores carries it in both arms; farmers crouch to sow and to pull crops; a guard at a watch post shades their eyes and looks about; the skald drums under one arm (with a drum) or recites with their arms.
+
 0.1.70: raids give you time: the draugr warband and the Fuling tribute band now gather outside the colony's border (on the barrow's side for the warband) instead of appearing inside it. With Respite installed they're held there for the warning (shown on the map, with where and how long) before they come, and they share one raid clock with the game and Bob's other mods: a warband waits another night, and the Fulings put off their demand a day, while the colony rests from another raid.
 
 0.1.69: the burning arrow is loosed once the funeral ship is well out from the shore (some forty metres, half a minute after the launch), a longer shot in a higher arc; the archer calls out as they loose, and the farewells follow once the ship has caught.
