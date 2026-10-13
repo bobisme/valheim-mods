@@ -171,7 +171,7 @@ namespace Jarldom
         public static void Burn(Colony c, global::Jarldom.Pyre pyre, Brain b)
         {
             VillagerState s = b.S;
-            if (!Ascensions.Claim(c.R.Flags, s.Vid)) return;
+            if (!Ascensions.Claim(c.R.Flags, s.Vid, c.Day)) return;
             Container goods = pyre.GetComponent<Container>();
             int value = s.Hoard;
             if (goods != null)

@@ -11,15 +11,15 @@ namespace Jarldom.Ui
     // Every window of the mod, ticked and closed together.
     internal static class Windows
     {
-        public static bool AnyOpen => ColonyWindow.IsOpen || VillagerPanel.IsOpen || RoomPicker.IsOpen || RoomEditor.IsOpen || ChestPicker.IsOpen || JarlView.Active || ThingPanel.IsOpen;
+        public static bool AnyOpen => ColonyWindow.IsOpen || VillagerPanel.IsOpen || RoomPicker.IsOpen || RoomEditor.IsOpen || ChestPicker.IsOpen || JarlView.Active || ThingPanel.IsOpen || MemorialPanel.IsOpen;
         public static void Tick()
         {
             GameUi.IsOpen = () => AnyOpen;
             GameUi_EscapeCloses.Close = Escape;
-            ColonyWindow.Tick(); VillagerPanel.Tick(); RoomPicker.Tick(); RoomEditor.Tick(); ChestPicker.Tick(); JarlView.Tick(); ThingPanel.Tick();
+            ColonyWindow.Tick(); VillagerPanel.Tick(); RoomPicker.Tick(); RoomEditor.Tick(); ChestPicker.Tick(); JarlView.Tick(); ThingPanel.Tick(); MemorialPanel.Tick();
         }
         private static void Escape() { if (ThingPanel.IsOpen) ThingPanel.Dismiss(); else CloseAll(); } // (Esc puts off the ruling first)
-        public static void CloseAll() { ThingPanel.Close(); if (ColonyWindow.IsOpen || VillagerPanel.IsOpen || RoomPicker.IsOpen || RoomEditor.IsOpen || ChestPicker.IsOpen) { ColonyWindow.Close(); VillagerPanel.Close(); RoomPicker.Close(); RoomEditor.Close(); ChestPicker.Close(); } else JarlView.End(); } // (Esc closes a window first, then the seat's view)
+        public static void CloseAll() { ThingPanel.Close(); MemorialPanel.Close(); if (ColonyWindow.IsOpen || VillagerPanel.IsOpen || RoomPicker.IsOpen || RoomEditor.IsOpen || ChestPicker.IsOpen) { ColonyWindow.Close(); VillagerPanel.Close(); RoomPicker.Close(); RoomEditor.Close(); ChestPicker.Close(); } else JarlView.End(); } // (Esc closes a window first, then the seat's view)
         public static string Pct(float f) => Mathf.RoundToInt(f * 100) + "%";
         public static string Signed(int v) => v > 0 ? "+" + v : v.ToString();
     }

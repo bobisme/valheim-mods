@@ -296,6 +296,7 @@ namespace Jarldom
                             case "room": Ui.RoomEditor.Open(c, c.R.Rooms[int.Parse(a[3])], null); break;
                             case "zone": Ui.RoomEditor.Open(c, null, c.R.Zones[int.Parse(a[3])]); break;
                             case "seat": if (!Ui.JarlView.Active) Ui.JarlView.Test(); break;
+                            case "memorial": Ui.MemorialPanel.Open(c, me.transform.position); break;
                             case "close": Ui.Windows.CloseAll(); Ui.JarlView.End(); break;
                             default: error("ui colony|villager|room|zone|seat|close"); return;
                         }

@@ -10,7 +10,7 @@ namespace Jarldom
     // from other game prefabs: the High-Seat Pillars, the gods' altars, the war horn, the gilded pieces and the funeral pyre.
     internal static class Pieces
     {
-        public const string WatchPostName = "JarldomWatchPost", OreClaimName = "JarldomOreClaim";
+        public const string WatchPostName = "JarldomWatchPost", OreClaimName = "JarldomOreClaim", MemorialName = "JarldomMemorial";
         public const string PillarsName = "JarldomHighSeatPillars", HornName = "JarldomWarHorn", PyreName = "JarldomPyre", DesignateName = "JarldomDesignate";
         public const string AltarPrefix = "JarldomAltar_", GildedSeatName = "JarldomGildedSeat", GildedBannerName = "JarldomGildedBanner";
         public static readonly int PillarsHash = PillarsName.GetStableHashCode();
@@ -38,6 +38,7 @@ namespace Jarldom
             if (Get(HornName) == null) Horn();
             if (Get(WatchPostName) == null) WatchPost();
             if (Get(OreClaimName) == null) OreClaim();
+            if (Get(MemorialName) == null) MemorialStone();
             if (Get(GildedSeatName) == null) Gilded(GildedSeatName, "piece_throne02", "Gilded high seat", "A high seat for the jarl's hall, its carving picked out in gold: the hall's pride and a great hall's grade S.", 60, ("FineWood", 10), ("Coins", 100));
             if (Get(GildedBannerName) == null) Gilded(GildedBannerName, "piece_banner02", "Gilded banner", "A banner worked with gold thread. Halls and temples grade higher for it.", 0, ("LinenCloth", 2), ("Coins", 20), ("Wood", 2));
             if (Get(PyreName) == null) Pyre();
@@ -433,6 +434,28 @@ namespace Jarldom
                 Piece.PieceCategory.Misc, ("Wood", 2), ("Stone", 1));
             go.GetComponent<Piece>().m_craftingStation = null; // (driven in out in the wilds: no workbench there)
             go.AddComponent<OreClaim>();
+        }
+
+        // The memorial stone: a raised runestone for the colony's dead, a serpent band of runes round its face and Odin's valknut within
+        // (made in Blender: Models/marker/memorial.py). E reads the names on it.
+        private static void MemorialStone()
+        {
+            Mesh model = CarvedMesh("memorial", "marker");
+            Material rock = Assets.Find("rock4_forest")?.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null);
+            Material hewn = Assets.Find("wood_pole")?.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null && m.shader != null && m.shader.name == "Custom/Piece");
+            if (model == null || hewn == null) return;
+            GameObject go = Base("stone_pillar", MemorialName);
+            if (go == null) return;
+            var look = new GameObject("new"); look.transform.SetParent(go.transform, false);
+            Material stone = rock != null ? new Material(rock) { name = "JarldomMemorialStone", hideFlags = HideFlags.HideAndDontSave } : Plain(hewn, new Color(0.5f, 0.5f, 0.48f));
+            if (rock != null) { stone.mainTextureScale = Vector2.one * 0.5f; stone.color *= new Color(0.95f, 0.93f, 0.9f); Assets.Owned.Add(stone); }
+            var m = new GameObject("memorial"); m.transform.SetParent(look.transform, false);
+            m.AddComponent<MeshFilter>().sharedMesh = model;
+            // (stone, paint, rune: as the model's materials are numbered)
+            m.AddComponent<MeshRenderer>().sharedMaterials = new[] { stone, Plain(hewn, new Color(0.62f, 0.16f, 0.09f)), Plain(hewn, new Color(0.1f, 0.09f, 0.085f)) };
+            Finish(go, look, "Memorial stone", "A raised stone for the colony's dead. Read it (E) for the names: who went to Valhalla and the deeds that took them there, who was lost to Hel and laid to rest, and who walks still, unburied.",
+                Piece.PieceCategory.Misc, ("Stone", 20));
+            go.AddComponent<MemorialStone>();
         }
 
         private static void Gilded(string name, string source, string title, string text, int comfort, params (string, int)[] cost)

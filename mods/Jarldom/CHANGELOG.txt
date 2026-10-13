@@ -1,3 +1,5 @@
+0.1.65: the memorial stone (hammer, 20 stone): a raised runestone with a serpent band of runes and Odin's valknut. Read it (E) for the colony's dead: who went to Valhalla and the deed that took them there, who was lost to Hel and laid to rest, and who walks still, unburied.
+
 0.1.64: villagers leave a lost soul's remains where they lie, for the jarl to bring home (a hauler had put them in the stores). A send-off to Valhalla interrupted by a reload or the owner leaving goes on at the next dusk; its rewards still apply once.
 
 0.1.63: seated villagers move, with Bob's Animations installed (found by reflection; nothing changes without it): at a tafl table they move pieces and think, in the hall they drink, toast and talk, beside a seated neighbour they talk or point toward them, alone they think, fold their arms or lean on their knees; a seated villager who says something talks with their hands toward the nearest one sitting ("Skål!" raises the tankard). The game that runs the villager picks; every game near shows it.

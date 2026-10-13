@@ -305,10 +305,10 @@ namespace Jarldom
     // finds it taken. Ordered ascensions are remembered too, so one interrupted resumes.
     public static class Ascensions
     {
-        public static bool Claim(Dictionary<string, int> flags, string vid)
+        public static bool Claim(Dictionary<string, int> flags, string vid, int day = 1)
         {
             if (flags.TryGetValue("ascended:" + vid, out int done) && done != 0) return false;
-            flags["ascended:" + vid] = 1; flags.Remove("ascending:" + vid);
+            flags["ascended:" + vid] = Math.Max(1, day); flags.Remove("ascending:" + vid); // (the day, for the memorial)
             return true;
         }
         public static void Ordered(Dictionary<string, int> flags, string vid, int day) => flags["ascending:" + vid] = Math.Max(1, day);

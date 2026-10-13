@@ -229,3 +229,29 @@ namespace Jarldom
         private void Start() { ZNetView v = GetComponent<ZNetView>(); if (v != null && v.IsValid() && v.IsOwner() && !v.GetZDO().GetBool("dh_notstorage")) v.GetZDO().Set("dh_notstorage", true); }
     }
 }
+
+namespace Jarldom
+{
+    // The memorial stone: hover tells how many it remembers; E reads the names.
+    internal sealed class MemorialStone : MonoBehaviour, Hoverable, Interactable
+    {
+        private Colony Home => Colony.Nearest(transform.position, Renown.ZoneReach + 20);
+        public string GetHoverName() => "Memorial stone";
+        public float GetHoverOffset() => 2.4f;
+        public string GetHoverText()
+        {
+            Colony c = Home;
+            if (c == null) return Localization.instance.Localize("Memorial stone\n<size=80%>Raise it in a colony: it remembers that colony's dead.</size>");
+            int n = c.R.Roster.Count(r => r.State == SoulState.Ascended || r.State == SoulState.Lost);
+            return Localization.instance.Localize($"Memorial stone of {c.R.Name}\n<size=80%>{(n == 0 ? "No names on it yet" : n + (n == 1 ? " name" : " names"))}</size>\n[<color=yellow><b>$KEY_Use</b></color>] Read the names");
+        }
+        public bool Interact(Humanoid user, bool hold, bool alt)
+        {
+            if (hold || !(user is Player) || Ui.MemorialPanel.JustClosed) return false;
+            Colony c = Home; if (c == null) return false;
+            Ui.MemorialPanel.Open(c, transform.position);
+            return true;
+        }
+        public bool UseItem(Humanoid user, ItemDrop.ItemData item) => false;
+    }
+}

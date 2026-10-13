@@ -485,4 +485,19 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     var reloaded = new Dictionary<string, int>(fl); Check(!Ascensions.Claim(reloaded, "v1"), "After a reload (the same record) still taken");
 }
 
+{
+    // The memorial: the ascended with their deed and day, the lost who rest with Hel, the lost who walk still; pages of eight.
+    var mroster = new List<RosterRow> { new RosterRow { Vid = "a", Name = "Thorstein", State = SoulState.Ascended, Worth = 100 }, new RosterRow { Vid = "b", Name = "Ingrid", State = SoulState.Lost }, new RosterRow { Vid = "c", Name = "Hervor", State = SoulState.Lost }, new RosterRow { Vid = "d", Name = "Ulf", State = SoulState.Active } };
+    var mflags = new Dictionary<string, int> { ["ascended:a"] = 40, ["rested:b"] = 90 };
+    var mlog = new List<LogEntry> { new LogEntry(0, 40, "ascend", "Thorstein the Bold", "", ""), new LogEntry(1, 40, "text", "", "", "A runestone remembers Thorstein the Bold: Fell at sea. Worth 100, 12 foes slain."), new LogEntry(2, 60, "lost", "Ingrid", "Draugr", ""), new LogEntry(3, 70, "lost", "Hervor", "Troll", ""), new LogEntry(4, 90, "rest", "Ingrid", "Bob", "") };
+    var mem = Memorial.From(mroster, mflags, mlog);
+    Check(mem.Count == 3 && mem[0].Name == "Thorstein the Bold" && mem[0].Day == 40 && mem[0].Deed.StartsWith("Fell at sea") && !mem[0].Hel, "The ascended: their full name, the day, the deed from their runestone");
+    Check(mem.Any(r => r.Name == "Hervor" && r.Unburied && r.Deed.Contains("Troll") && r.Deed.Contains("unburied")), "The lost who walk still");
+    Check(mem.Any(r => r.Name == "Ingrid" && r.Hel && !r.Unburied && r.Day == 90 && r.Deed.Contains("by Bob") && r.Deed.Contains("Rests with Hel")), "The lost laid to rest, and by whom");
+    Check(mem.All(r => r.Name != "Ulf"), "The living aren't on it");
+    var many = Enumerable.Range(0, 35).Select(i => i).ToList();
+    Check(Memorial.Pages(35) == 5 && Memorial.Page(many, 0).Count == 8 && Memorial.Page(many, 4).Count == 3 && Memorial.Page(many, 99).SequenceEqual(Memorial.Page(many, 4)) && Memorial.Pages(0) == 1, "Thirty-five names: five pages of eight, the last one short");
+    var fl2 = new Dictionary<string, int>(); Ascensions.Claim(fl2, "z", 55); Check(fl2["ascended:z"] == 55, "The ascension's day is kept for the memorial");
+}
+
 Console.WriteLine($"Jarldom: {checks} checks passed");
