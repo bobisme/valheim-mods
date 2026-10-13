@@ -5,7 +5,7 @@ using Object=UnityEngine.Object;
 
 namespace Shieldwall
 {
-    // The mod's building pieces beside the Warstone: the stave socket (a stone pedestal that holds a stave, on the ground, a wall or a
+    // The mod's building pieces beside the Warstone: the stave socket (a stone cairn that holds a stave, on the ground, a wall or a
     // tower) and the four upgrades that raise the stone's level (the game's own crafting-station extensions, like the workbench's).
     internal static class Pieces
     {
@@ -20,14 +20,27 @@ namespace Shieldwall
             if(ZNetScene.instance==null||Stone.Station==null)return;
             if(Socket==null)
             {
-                GameObject altar=Assets.Find("blackmarble_altar_crystal");
-                GameObject socket=Build("stone_pillar",SocketName,altar,Vector3.zero,Quaternion.identity,0.9f,r=>r.name=="altar"); // the pedestal, without its glass case
+                // A dry-stone cairn under a capstone cut with the war rune, the stave stood in an iron ring on its collar stone (Models/socket),
+                // in the Warstone's rock, iron and glowing rune. The game's black marble pedestal, if the model can't be had.
+                GameObject socket;
+                Mesh cairn=Look.SocketMesh;Material[] materials=Look.Materials;
+                if(cairn!=null&&materials!=null)
+                {
+                    var source=new GameObject("BobStaveSocketLook");
+                    try
+                    {
+                        source.AddComponent<MeshFilter>().sharedMesh=cairn;source.AddComponent<MeshRenderer>().sharedMaterials=materials;
+                        socket=Build("stone_pillar",SocketName,source,Vector3.zero,Quaternion.identity,1,null);
+                    }
+                    finally{Object.DestroyImmediate(source);}
+                }
+                else socket=Build("stone_pillar",SocketName,Assets.Find("blackmarble_altar_crystal"),Vector3.zero,Quaternion.identity,0.9f,r=>r.name=="altar"); // the pedestal, without its glass case
                 if(socket!=null)
                 {
                     SocketTop=Top(socket)-0.05f;
                     Piece piece=socket.GetComponent<Piece>();
                     piece.m_name="Stave socket";
-                    piece.m_description="A stone pedestal for a war stave. Set a stave in it (Use, or drag one from your hotbar), take it out again, and Shift+Use to "+
+                    piece.m_description="A stone cairn for a war stave. Set a stave in it (Use, or drag one from your hotbar), take it out again, and Shift+Use to "+
                         "strengthen it with warshards. Build it on the ground, a wall or the top of a tower within reach of a Warstone; the stone feeds a few staves, more as you raise its level. "+
                         "The horde's sappers will try to tear it down.";
                     piece.m_resources=Needs(("Stone",10),("Resin",2));

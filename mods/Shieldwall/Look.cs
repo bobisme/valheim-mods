@@ -44,6 +44,26 @@ namespace Shieldwall
             }
             catch(System.Exception e){Plugin.Log("Shieldwall: the Warstone's model: "+e.Message);_mesh=null;}
         }
+        // The stave socket's cairn (Models/socket/socket.py), in the Warstone's own materials.
+        private static Mesh _socket;
+        internal static Mesh SocketMesh
+        {
+            get
+            {
+                if(_socket!=null)return _socket;
+                try
+                {
+                    using(var raw=typeof(Look).Assembly.GetManifestResourceStream("Shieldwall.socket.json.gz"))
+                    {
+                        if(raw==null)return null;
+                        using(var gz=new System.IO.Compression.GZipStream(raw,System.IO.Compression.CompressionMode.Decompress))
+                        using(var text=new System.IO.StreamReader(gz))
+                            return _socket=Build(JObject.Parse(text.ReadToEnd()),"BobStaveSocket");
+                    }
+                }
+                catch(System.Exception e){Plugin.Log("Shieldwall: the stave socket's model: "+e.Message);return null;}
+            }
+        }
         private static Mesh Build(JObject d,string name)
         {
             if(d==null)return null;
