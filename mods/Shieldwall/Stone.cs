@@ -95,6 +95,7 @@ namespace Shieldwall
         internal StaticTarget Target;
         internal float PendingHealth=-1,HealthFlushAt,NextRockHit; // blows not yet written to the record (the owner's, see Director.FlushHealth)
         private GameObject _glow;
+        internal int ShownMarks=-1,ShownCracked=-1; // what its look shows now (Look.Status)
         private float _nextMarker;private CircleProjector _marker;
         internal ZDO Z=>View!=null&&View.IsValid()?View.GetZDO():null;
         internal Phase Phase=>(Phase)(Z?.GetInt(Stone.PhaseKey,0)??0);
@@ -137,7 +138,8 @@ namespace Shieldwall
         private void Update()
         {
             if(View==null||!View.IsValid())return;
-            if(_glow!=null&&_glow.activeSelf!=(Phase!=Phase.Idle)){_glow.SetActive(Phase!=Phase.Idle);Look.Glow(gameObject,Phase!=Phase.Idle);}
+            if(_glow!=null&&_glow.activeSelf!=(Phase!=Phase.Idle))_glow.SetActive(Phase!=Phase.Idle);
+            Look.Status(this,ref ShownMarks,ref ShownCracked);
             // The ring shown while you look at it marks how far it feeds staves.
             if(_marker!=null&&Time.time>=_nextMarker){_nextMarker=Time.time+2;float reach=Reach;if(Mathf.Abs(_marker.m_radius-reach)>0.1f)_marker.m_radius=reach;}
             if(View.IsOwner()){Director.Run(this);Director.Footing(this);}

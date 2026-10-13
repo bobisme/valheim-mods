@@ -1,6 +1,6 @@
 A game within the game: build a Warstone, raise towers with war staves around it, and hold the line when a horde comes for it.
 
-The Warstone (hammer, misc; 30 stone, 10 wood, 5 flint, 5 resin, near a workbench) is a standing stone that wards your home: a split, iron-bound menhir cut with war runes, ringed with shields. Everyone within 40 metres gets faster health and stamina regeneration, and with each siege the stone holds (its marks), carry weight, eitr regeneration and armor. Set it under a roof with a fire burning within 10 metres and the ward is twice as strong and adds comfort. One Warstone to a home.
+The Warstone (hammer, misc; 30 stone, 10 wood, 5 flint, 5 resin, near a workbench) is a standing stone that wards your home: a split, iron-bound menhir cut with war runes and a mark for each siege it holds. Everyone within 40 metres gets faster health and stamina regeneration, and with each siege the stone holds (its marks), carry weight, eitr regeneration and armor. Set it under a roof with a fire burning within 10 metres and the ward is twice as strong and adds comfort. One Warstone to a home.
 
 Raise the stone's level (1 to 5) by building its upgrades within 10 metres: a war banner, a trophy totem, a horned brazier and a rune obelisk, each paid in warshards. The level decides how many war staves the stone can feed (2 to 10), how far (26 to 50 metres), which staves it can craft and how strong they can be made.
 

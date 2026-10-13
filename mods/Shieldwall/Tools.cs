@@ -64,7 +64,7 @@ namespace Shieldwall
             long siege=w.Siege;
             return new JObject
             {
-                ["position"]=new JArray(Math.Round(w.transform.position.x,1),Math.Round(w.transform.position.y,1),Math.Round(w.transform.position.z,1)),
+                ["position"]=new JArray(Math.Round(w.transform.position.x,1),Math.Round(w.transform.position.y,1),Math.Round(w.transform.position.z,1)),["yaw"]=Math.Round(w.transform.eulerAngles.y),
                 ["distance"]=me!=null?Math.Round(Vector3.Distance(me.transform.position,w.transform.position),1):-1,
                 ["owner"]=w.View.IsOwner()?"this game":z.GetOwner().ToString(),
                 ["marks"]=w.Marks,["cracked"]=w.Cracked,["strength"]=w.Strength,["hearth"]=Ward.AtHearth(w),
@@ -91,18 +91,19 @@ namespace Shieldwall
             switch(sub)
             {
                 case "look":
-                    // Test: siege look [rock=<prefab[:i]>] [iron=<prefab[:i]>] [rockscale=n] [ironscale=n] [glow]: the Warstone's materials, redressed on every stone
+                    // Test: siege look [rock=<prefab[:i]>] [iron=<prefab[:i]>] [rockscale=n] [ironscale=n] [marks=n] [cracked=0|1] [health=0-100] (-1: the stone's own): the Warstone's materials, redressed on every stone
                     foreach(string a in args.Skip(2))
                     {
                         string[] kv=a.Split('=');
                         if(kv[0]=="rock")Look.RockFrom=kv[1];else if(kv[0]=="iron")Look.IronFrom=kv[1];
                         else if(kv[0]=="rockscale")Look.RockScale=float.Parse(kv[1],System.Globalization.CultureInfo.InvariantCulture);
                         else if(kv[0]=="ironscale")Look.IronScale=float.Parse(kv[1],System.Globalization.CultureInfo.InvariantCulture);
+                        else if(kv[0]=="marks")Look.TestMarks=int.Parse(kv[1]);else if(kv[0]=="cracked")Look.TestCracked=int.Parse(kv[1]);else if(kv[0]=="health")Look.TestHealth=int.Parse(kv[1]);
                         else if(kv[0]=="rocktint"){float[] c=kv[1].Split(',').Select(x=>float.Parse(x,System.Globalization.CultureInfo.InvariantCulture)).ToArray();Look.RockTint=new Color(c[0],c[1],c[2]);}
                     }
-                    Look.Restyle();foreach(Warstone w in Warstone.Loaded)if(w!=null)Look.Glow(w.gameObject,args.Contains("glow")||w.Phase!=Phase.Idle);
+                    Look.Restyle();
                     output(new JObject{["rock"]=Look.RockFrom,["iron"]=Look.IronFrom,["rockscale"]=Look.RockScale,["ironscale"]=Look.IronScale,
-                        ["materials"]=new JArray((Look.Materials??new Material[0]).Select(m=>m.name+"/"+m.shader.name).ToArray())});
+                        ["materials"]=new JArray((Look.Materials??new Material[0]).Select(m=>m.name+"/"+m.shader.name).ToArray()),["marks"]=Look.TestMarks,["cracked"]=Look.TestCracked,["health"]=Look.TestHealth});
                     break;
                 case "status":
                     output(new JObject{["fps"]=Math.Round(1/Mathf.Max(0.001f,Time.smoothDeltaTime)),["stage"]=Director.StageNow(),["roster"]=Policy.Rosters[Director.StageNow()].Name,

@@ -16,6 +16,10 @@ namespace Shieldwall
         internal static readonly List<Planted> Loaded=new List<Planted>();
         // Our shots carry the socket's own item; that is how the friendly-fire guard (and the kill count) knows them.
         internal static readonly Dictionary<ItemDrop.ItemData,Planted> Shots=new Dictionary<ItemDrop.ItemData,Planted>();
+        // Marks the copy a stave's shots carry, so a shot still in the air knows it is a stave's when its socket is gone, its stave
+        // changed or the mod reloaded (and Shots no longer knows it): it must still spare players, companions and tames.
+        internal const string ShotKey="bob_sw_staveshot";
+        internal static bool IsStaveShot(ItemDrop.ItemData weapon)=>weapon!=null&&(Shots.ContainsKey(weapon)||weapon.m_customData!=null&&weapon.m_customData.ContainsKey(ShotKey));
         private static int _sight=-1;
 
         internal ZNetView View;internal StaticTarget Target;private WearNTear _wear;internal Container Box;
@@ -64,7 +68,7 @@ namespace Shieldwall
             GameObject source=prefab==null?null:Items.Get(prefab)??Assets.Find(prefab);
             if(source==null)return;
             _item=item;
-            _shot=item.Clone();_shot.m_dropPrefab=source;
+            _shot=item.Clone();_shot.m_dropPrefab=source;_shot.m_customData[ShotKey]="1";
             _stave=Policy.Staves.FirstOrDefault(st=>st.Name==item.m_shared.m_name);
             Shots[_shot]=this;
             Carry();
@@ -638,7 +642,8 @@ namespace Shieldwall
         private static bool Prefix(Projectile __instance,IDestructible destr,ref bool __result)
         {
             ItemDrop.ItemData weapon=Weapon(__instance);
-            if(Owner(__instance)!=null||weapon==null||!Planted.Shots.TryGetValue(weapon,out Planted socket))return true;
+            if(Owner(__instance)!=null||!Planted.IsStaveShot(weapon))return true;
+            Planted.Shots.TryGetValue(weapon,out Planted socket);
             __result=destr is Character c&&Planted.IsFoe(c);
             if(__result&&destr is Character foe&&socket!=null)Raider.ShotBy(foe,socket);
             return false;
@@ -652,7 +657,8 @@ namespace Shieldwall
         private static bool Prefix(Aoe __instance,Collider collider,ref bool __result)
         {
             ItemDrop.ItemData weapon=Weapon(__instance);
-            if(Owner(__instance)!=null||weapon==null||!Planted.Shots.TryGetValue(weapon,out Planted socket))return true;
+            if(Owner(__instance)!=null||!Planted.IsStaveShot(weapon))return true;
+            Planted.Shots.TryGetValue(weapon,out Planted socket);
             __result=collider!=null&&collider.GetComponentInParent<Character>() is Character c&&Planted.IsFoe(c);
             if(__result&&collider.GetComponentInParent<Character>() is Character foe&&socket!=null)Raider.ShotBy(foe,socket);
             return __result; // a foe: let the game's own checks run; anything else: no hit
