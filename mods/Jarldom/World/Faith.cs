@@ -267,12 +267,14 @@ namespace Jarldom
             Doing = "fetching an offering for " + Tables.God(god)?.Name;
             b.Move.To(_from.transform.position, 1.8f);
         }
-        // Nothing to offer (or no altar): tried again in a while (the stores may only just be loading), and said in the saga once a day.
+        // Nothing to offer (or no altar): tried again in a while (the stores may only just be loading), and said in the saga when the
+        // reason is new, or again after three days of it (not every day the same words).
         private void Skip(Brain b, string why)
         {
             Done = true; b.NoOfferUntil = Time.time + 300; b.Idle(why);
-            if (b.Colony.R.Flag("offerwhy:" + _temple.Id) == b.Colony.Day) return;
-            b.Colony.R.Flags["offerwhy:" + _temple.Id] = b.Colony.Day; b.Colony.MarkDirty();
+            string k = "offerwhy:" + _temple.Id, kh = "offerwhyh:" + _temple.Id; int h = why.GetStableHashCode();
+            if (b.Colony.R.Flags.ContainsKey(k) && b.Colony.R.Flag(kh) == h && b.Colony.Day - b.Colony.R.Flag(k) < 3) return;
+            b.Colony.R.Flags[k] = b.Colony.Day; b.Colony.R.Flags[kh] = h; b.Colony.MarkDirty();
             b.Colony.Log("text", b.S.Name, "", $"{b.S.Name} the gothi has no offering to make yet: {why}.");
         }
         public override void Tick(Brain b)

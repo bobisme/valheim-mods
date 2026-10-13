@@ -574,7 +574,7 @@ namespace Jarldom
         public readonly Order O; public string Kind => O.Kind; public Character Target;
         public string Tool { get; private set; } = "";
         private GameObject _target; private Vector3 _at; private int _phase; private float _next, _waitUntil, _renew; private string _crop; private Vector3 _cropAt;
-        private readonly List<ItemDrop> _collect = new List<ItemDrop>();
+        private readonly List<ItemDrop> _collect = new List<ItemDrop>(); private float _collectUntil;
         public override bool Interruptible => _phase == 0;
         public override string Debug(Brain b) => $"{Kind} #{O.Id} phase {_phase} target {(_target != null ? Utils.GetPrefabName(_target) + " " + _target.transform.position.ToString("F1") : "none")} near {(_target != null ? Near(b, 1.6f) : false)} approach {Approach(b):F1} solid {(_target != null ? Solid(_target, b.Pos)?.name + "@" + Solid(_target, b.Pos)?.bounds.center.ToString("F1") : "")}{(_source != null ? $" source {_source.transform.position:F1} carry {_carry} fetched {_fetched}" : "")} wait {Mathf.Max(0, _waitUntil - Time.time):0.0}";
         public WorkTask(Order o) { O = o; }
@@ -662,6 +662,7 @@ namespace Jarldom
         {
             if (Done) return;
             if (Time.time > _renew) { _renew = Time.time + 20f; if (!Renew(b)) { Finish(b, false); return; } }
+            if (Stalled(b)) return;
             if (Time.time < _waitUntil) return;
             switch (Kind)
             {
@@ -678,6 +679,19 @@ namespace Jarldom
                 case "cull": Cull(b); break;
                 default: Finish(b, false); break;
             }
+        }
+        // A watchdog: no change at all in two minutes (the phase, the target, where they stand, what they carry) and the job is let go,
+        // and said in the log (a stall nothing else caught). Not for work that's long by nature: felling, mining, fishing, the watch, the hunt.
+        private string _sig; private float _sigSince;
+        private bool Stalled(Brain b)
+        {
+            if (Kind == "chop" || Kind == "mine" || Kind == "fish" || Kind == "guard" || Kind == "hunt") return false;
+            string sig = $"{_phase}|{(_target != null ? _target.GetInstanceID() : 0)}|{_collect.Count}|{Mathf.RoundToInt(b.Pos.x)},{Mathf.RoundToInt(b.Pos.z)}|{b.Body.GetInventory().NrOfItems()}|{b.Body.GetInventory().GetAllItems().Sum(i => i.m_stack)}";
+            if (sig != _sig) { _sig = sig; _sigSince = Time.time; return false; }
+            if (Time.time - _sigSince < 120f) return false;
+            Plugin.Warn($"Jarldom: {b.S.Name}'s {Kind} job #{O.Id} stalled for 2 min ({Debug(b)}): let go");
+            Block(b, "stalled");
+            return true;
         }
         private bool Renew(Brain b) => b.Colony.IsOwner ? b.Colony.Board.Renew(O.Id, b.S.Vid, b.Colony.Now) : Net.Renew(b.Colony, b, O);
 
@@ -771,14 +785,18 @@ namespace Jarldom
         private bool Collect(Brain b)
         {
             if (_phase < 2) { _phase = 2; _waitUntil = Time.time + 1.5f; return true; } // drops fall a moment after
-            if (_phase == 2) { _collect.Clear(); _collect.AddRange(Work.Drops(b.Pos, 7f).Take(8)); _phase = 3; }
+            if (_phase == 2) { _collect.Clear(); _collect.AddRange(Work.Drops(b.Pos, 7f).Take(8)); _phase = 3; _collectUntil = Time.time + 60f; }
             _collect.RemoveAll(d => d == null);
-            if (_collect.Count == 0) return false;
+            if (_collect.Count == 0 || Time.time > _collectUntil) return false; // (a minute to gather up; what's left lies for the haulers)
             ItemDrop next = _collect.OrderBy(d => Vector3.Distance(d.transform.position, b.Pos)).First();
-            if (Vector3.Distance(next.transform.position, b.Pos) > 1.6f) { if (!b.Move.Moving) b.Move.To(next.transform.position, 0.8f); if (b.Move.Failed) _collect.Remove(next); return true; }
+            if (!InReach(b, next.transform.position)) { if (Under(b, next.transform.position) || b.Move.Failed) { _collect.Remove(next); return true; } if (!b.Move.Moving) b.Move.To(next.transform.position, 0.8f); return true; }
             if (!PickUp(b, next)) _collect.Remove(next);
             return true;
         }
+        // An item within a reach of the chest, as a player's (one on a fence or a table is picked up from beside it); and one straight
+        // over the head and still out of that reach (on a wall top, a roof): walking to it again only stands under it again.
+        public static bool InReach(Brain b, Vector3 item) => Vector3.Distance(b.Pos + Vector3.up, item) <= 2.0f;
+        public static bool Under(Brain b, Vector3 item) => !b.Move.Moving && Utils.DistanceXZ(b.Pos, item) < 1.5f && item.y - b.Pos.y > 2.0f;
         public enum Got { Picked, Waiting, Failed }
         public static Got PickUpNow(Brain b, ItemDrop drop)
         {
@@ -959,7 +977,11 @@ namespace Jarldom
             {
                 ItemDrop drop = _target != null ? _target.GetComponent<ItemDrop>() : null;
                 if (drop == null) { Gone(b); return; }
-                if (Vector3.Distance(b.Pos, drop.transform.position) > 1.4f) { if (!b.Move.Moving) b.Move.To(drop.transform.position, 0.8f); if (b.Move.Failed) Block(b, "can't reach it"); return; }
+                if (!InReach(b, drop.transform.position))
+                {
+                    if (Under(b, drop.transform.position)) { Block(b, "can't reach it"); return; } // (stood under it and it's still up out of reach: on a wall top, a roof)
+                    if (!b.Move.Moving) b.Move.To(drop.transform.position, 0.8f); if (b.Move.Failed) Block(b, "can't reach it"); return;
+                }
                 string gear = !Work.Loot(drop.m_itemData) && drop.m_itemData.m_dropPrefab != null && !Stock.Edible(drop.m_itemData) ? drop.m_itemData.m_dropPrefab.name : null;
                 Got got = PickUpNow(b, drop);
                 if (got == Got.Failed) { Finish(b, false); return; }

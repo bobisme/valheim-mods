@@ -105,6 +105,14 @@ namespace Jarldom.Ui
         private static float Heading(RectTransform list, string text, float y) => Text(list, text, y + 6, 22, GameUi.Warm);
 
         // What's holding the colony back, plainly: the first thing a jarl looks at.
+        // What a cooking station turns into food (the game's own: raw meat, fish, necktails...), in the colony's stores.
+        private static HashSet<string> _raw;
+        private static int RawInStores(Colony c)
+        {
+            if (_raw == null || _raw.Count == 0)
+                _raw = new HashSet<string>(new[] { "piece_cookingstation", "piece_cookingstation_iron" }.Select(Assets.Find).Where(g => g != null).SelectMany(g => g.GetComponent<CookingStation>()?.m_conversion ?? new List<CookingStation.ItemConversion>()).Where(cv => cv.m_from != null).Select(cv => cv.m_from.name));
+            return Stock.Chests(c).Where(x => x.category != "treasury").Sum(x => x.chest.GetInventory().GetAllItems().Where(i => _raw.Contains(Classes.Prefab(i))).Sum(i => i.m_stack));
+        }
         internal static List<string> NeedsYou(Colony c)
         {
             var list = new List<string>();
@@ -114,6 +122,12 @@ namespace Jarldom.Ui
             int meals = Stock.Food(c, c.Position).Sum(f => f.item.m_stack);
             if (people.Count > 0 && meals < people.Count * 3)
                 list.Add(meals == 0 ? "The stores hold no food: mark fields, foraging or hunting grounds, or a fishing dock, or fill a chest." : $"Food for less than a day: {meals} meals for {people.Count} people.");
+            // (raw meat and fish piling up with no one to cook them: the hunters and fishers feed no one)
+            if (people.Count > 0 && !people.Any(p => p.Prof == Prof.Cook))
+            {
+                int raw = RawInStores(c);
+                if (raw >= 5) list.Add($"{raw} raw meat and fish wait in the stores and no one cooks: give someone the Cook trade (People tab), with a cooking station over a fire.");
+            }
             var full = Stock.Chests(c).Where(x => x.category != "" && x.category != "treasury").GroupBy(x => x.category).Where(g => g.All(x => x.chest.GetInventory().GetEmptySlots() == 0)).Select(g => g.Key).ToList(); // (every chest of the kind full)
             if (full.Count > 0) list.Add($"Full stockpiles ({string.Join(", ", full)}): add chests, or what's gathered lies about.");
             var stuck = new Dictionary<string, List<string>>();
