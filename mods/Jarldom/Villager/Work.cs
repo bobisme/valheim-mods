@@ -44,7 +44,7 @@ namespace Jarldom
         private static readonly Dictionary<ZDOID, float> FirstSeen = new Dictionary<ZDOID, float>();
         public static readonly HashSet<string> Crops = new HashSet<string>(); // grown crop prefabs (from the cultivator's saplings)
 
-        private static string Key(ZNetView v) => v.GetZDO().m_uid.ToString();
+        internal static string Key(ZNetView v) => v.GetZDO().m_uid.ToString();
         public static GameObject Resolve(string target)
         {
             if (string.IsNullOrEmpty(target) || ZNetScene.instance == null) return null;
@@ -168,7 +168,7 @@ namespace Jarldom
                 if (v == null || !v.IsValid()) continue;
                 // (every fire the colony tends, in a room or out: a campfire under the cooking station, the torches along the road, a brazier,
                 // a hot tub; the haulers' round, and anyone idle helps: what warms or lights is one job whatever burns in it)
-                if (fire != null && !fire.m_infiniteFuel && fire.m_fuelItem != null && c.Feeds(p) && v.GetZDO().GetFloat(ZDOVars.s_fuel) < fire.m_maxFuel * 0.5f && HaveInStock(c, fire.m_fuelItem.name))
+                if (fire != null && !fire.m_infiniteFuel && fire.m_fuelItem != null && c.Feeds(p) && v.GetZDO().GetFloat(ZDOVars.s_fuel) < fire.m_maxFuel * 0.5f && HaveInStock(c, fire.m_fuelItem.name) && !c.LeftAloneAt(p.transform.position)) // (none can walk to it: left alone)
                     c.Board.Post("fuel", Key(v), Prof.Hauler, Classes.Warms(fire) ? 4 : 3, p.transform.position.x, p.transform.position.y, p.transform.position.z, now, "", "fire");
                 Smelter smelter = p.GetComponent<Smelter>();
                 if (smelter != null)

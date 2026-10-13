@@ -441,6 +441,15 @@ namespace Jarldom.Ui
             int open = orders.Count(o => o.State == OrderState.Open), claimed = orders.Count(o => o.State == OrderState.Claimed), blocked = orders.Count(o => o.State == OrderState.Blocked);
             y = Text(list, $"{open} open, {claimed} being done, {blocked} blocked. Done today: {_c.DoneToday}.", y);
             y = Text(list, "Jobs come from what you mark (zones and rooms), what lies about, and fires and stations running low. Villagers take the jobs of their trade; haulers take any carrying and keep the fires and torches fed, and anyone idle helps them.", y, 15, GameUi.Dim);
+            int alone = _c.LeftAloneCount;
+            if (alone > 0)
+            {
+                Tip(GameUi.Button(list, "Try them again", new Vector2(W - 160, -y + 2), new Vector2(160, 30), () => Net.Act(_c, "tryreach", ""), true, 14), "Try them again", "The haulers go for the fires and torches they gave up on, once more.");
+                string say = $"{(alone == 1 ? "A fire or torch" : alone + " fires and torches")} no one can walk to {(alone == 1 ? "is" : "are")} left alone (out on a dock, up on a roof). Build a way to {(alone == 1 ? "it" : "them")}: they're tried again in {Colony.AloneDays} days, or now.";
+                float sw = W - 24 - 180; TMP_Text st = GameUi.Label(list, say, new Vector2(24, -y), new Vector2(sw, 20), 15, GameUi.Dim);
+                float sh = st.GetPreferredValues(say, sw, 0).y; ((RectTransform)st.transform).sizeDelta = new Vector2(sw, sh);
+                y += Math.Max(36, sh + 8);
+            }
             y = Commissions(list, y);
             y = Heading(list, "Stores to keep", y);
             foreach (var (cat, who, verb, step) in new[] { ("wood", "Woodcutters", "fell trees", 500), ("stone", "Miners", "quarry stone", 500), ("ore", "Miners", "go out to claims for each kind of ore", 100) })

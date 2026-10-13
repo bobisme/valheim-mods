@@ -37,6 +37,7 @@ namespace Jarldom
         // Post an order, or refresh the one already standing for the same kind and target. Returns its id.
         public int Post(string kind, string target, Prof prof, int priority, float x, float y, float z, double now, string zone = "", string by = "")
         {
+            if (LeftAlone.Contains(kind + "|" + target)) return -1; // (out of reach: not posted)
             if (_byKey.TryGetValue(kind + "|" + target, out int id) && _orders.TryGetValue(id, out Order have) && have.State != OrderState.Done && have.State != OrderState.Cancelled)
             {
                 have.Priority = Math.Max(have.Priority, priority);
@@ -94,12 +95,23 @@ namespace Jarldom
         // and the same work right by it (the next torches along) is taken as out of reach too, not walked to one by one.
         private readonly Dictionary<string, int> _unreachable = new Dictionary<string, int>();
         public const double MostBlocked = 21600;
+        // A fire or torch out of reach twice over is left alone (the colony keeps the list a while, and the scan doesn't post it).
+        public const int LeaveAloneAfter = 2;
+        public readonly HashSet<string> LeftAlone = new HashSet<string>();
+        public readonly List<(float x, float y, float z)> LeftAloneAt = new List<(float, float, float)>(); // (where, for the colony to keep: ids don't last a reload)
         public void Block(int id, string reason)
         {
             if (!_orders.TryGetValue(id, out Order o) || o.State == OrderState.Done) return;
             double wait = BlockSeconds;
             bool reach = (reason ?? "").StartsWith("can't reach");
-            if (reach) { int n = _unreachable.TryGetValue(o.Key, out int k) ? k + 1 : 1; _unreachable[o.Key] = n; wait = Math.Min(MostBlocked, BlockSeconds * Math.Pow(2, n - 1)); }
+            if (reach) { int n = _unreachable.TryGetValue(o.Key, out int k) ? k + 1 : 1; _unreachable[o.Key] = n; wait = Math.Min(MostBlocked, BlockSeconds * Math.Pow(2, n - 1));
+                if (o.Kind == "fuel" && n >= LeaveAloneAfter)
+                {
+                    foreach (Order gone in _orders.Values.Where(x => x.Id == id || x.Kind == o.Kind && x.State != OrderState.Done && x.State != OrderState.Cancelled && (x.X - o.X) * (x.X - o.X) + (x.Z - o.Z) * (x.Z - o.Z) < 64 && Math.Abs(x.Y - o.Y) < 3).ToList())
+                    { LeftAlone.Add(gone.Key); LeftAloneAt.Add((gone.X, gone.Y, gone.Z)); gone.State = OrderState.Cancelled; gone.Vid = ""; gone.Blocked = reason ?? ""; Unreserve(gone.Id); _byKey.Remove(gone.Key); }
+                    return;
+                }
+            }
             o.State = OrderState.Blocked; o.Blocked = reason ?? ""; o.Vid = ""; o.LeaseUntil = 0; o.BlockedUntil = _now + wait;
             Unreserve(id);
             if (!reach) return;

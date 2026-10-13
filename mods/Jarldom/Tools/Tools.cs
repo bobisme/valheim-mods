@@ -66,7 +66,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "traderun", "away", "master", "envoy", "capture", "barrow", "claims" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or with devcommands"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -565,6 +565,8 @@ namespace Jarldom
                         output(new JObject { ["pieces"] = made, ["yaw"] = yaw, ["floor"] = floor });
                     }
                     break;
+                case "alonewhere": output(new JObject { ["alone"] = new JArray(c.PiecesIn(c.Radius + 20).Select(p => p.GetComponent<ZNetView>()).Where(v => v != null && v.IsValid() && v.GetComponent<Fireplace>() != null && c.LeftAloneAt(v.transform.position)).Select(v => $"{Utils.GetPrefabName(v.gameObject)} at {V(v.transform.position)}")) }); break; // (test: where the fires left alone are)
+                case "tagged": { var counts = c.PiecesIn(c.Radius + 30).Where(p => p.GetComponent<ZNetView>()?.GetZDO()?.GetBool(TestKey) == true && (a.Length < 3 || Utils.GetPrefabName(p.gameObject) == a[2])).GroupBy(p => Utils.GetPrefabName(p.gameObject)).OrderByDescending(g => g.Count()); output(new JObject { ["tagged"] = new JObject(counts.Select(g => new JProperty(g.Key, g.Count()))) }); } break; // (count only: what unput would take)
                 case "unput":
                     {
                         int n = 0;
@@ -795,6 +797,7 @@ namespace Jarldom
                     }
                     break;
                 case "carvedebug": { var res = new JArray(); foreach (MeshFilter f in Object.FindObjectsByType<MeshFilter>(FindObjectsInactive.Include, FindObjectsSortMode.None).Where(f => f.name.EndsWith("_odin") || f.name.EndsWith("_thor")).Where(f => f.gameObject.activeInHierarchy).Take(6)) { var r = f.GetComponent<MeshRenderer>(); res.Add($"{f.name} idx {(f.sharedMesh != null ? string.Join("/", Enumerable.Range(0, f.sharedMesh.subMeshCount).Select(k => f.sharedMesh.GetIndexCount(k))) : "")} enabled {r?.enabled} visible {r?.isVisible} readable {f.sharedMesh?.isReadable} active {f.gameObject.activeInHierarchy} pos {V(f.transform.position)} scale {f.transform.lossyScale} verts {f.sharedMesh?.vertexCount} subs {f.sharedMesh?.subMeshCount} bounds {f.sharedMesh?.bounds} rb {r?.bounds} mats {string.Join(",", r?.sharedMaterials.Select(m => m?.name + "/" + m?.shader?.name))} layer {f.gameObject.layer}"); } output(new JObject { ["carved"] = res }); } break;
+                case "setfuel": { Vector3 at = new Vector3(F(a[2]), 0, F(a[3])); Fireplace f = c.PiecesIn<Fireplace>(c.Radius + 20).OrderBy(x => Utils.DistanceXZ(x.transform.position, at)).FirstOrDefault(); ZNetView v = f?.GetComponent<ZNetView>(); if (v == null) { error("no fire"); return; } v.ClaimOwnership(); v.GetZDO().Set(ZDOVars.s_fuel, F(a[4])); output(new JObject { ["fire"] = V(f.transform.position), ["fuel"] = F(a[4]), ["max"] = f.m_maxFuel }); } break; // (test: setfuel <x> <z> <n>)
                 case "tier":
                     {
                         HighSeat.TestTier = int.Parse(a[2]);

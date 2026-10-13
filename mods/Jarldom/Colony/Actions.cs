@@ -26,6 +26,7 @@ namespace Jarldom
                 case "bed": Villagers.Command(a[0], "bed", Get(a, 1)); break;
                 case "autobeds": AutoBeds(); break;
                 case "backpay": BackPay(who); break;
+                case "tryreach": TryReachAgain(); break;
                 case "ruin": Upkeep.Add(this, string.Join("|", a)); break;
                 case "unruin": Upkeep.Remove(this, string.Join("|", a)); break;
                 case "reshape": { Zone z = R.Zones.FirstOrDefault(x => x.Id == Get(a, 0)); var xz = Get(a, 1).Split(',').Select(Flt).ToList(); if (z != null && xz.Count >= 6 && xz.Count == z.Xz.Count && Geometry.Simple(xz)) z.Xz = xz; } break;

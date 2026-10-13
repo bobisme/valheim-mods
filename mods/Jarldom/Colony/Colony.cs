@@ -288,7 +288,7 @@ namespace Jarldom
             if (hour >= Schedule.HallAt && R.LastDusk != day) { R.LastDusk = day; _dirty = true; Plugin.Guard(() => Dusk(day)); }
             if (Time.time >= _nextSurvey) { _nextSurvey = Time.time + 300; Plugin.Guard(Survey); Plugin.Guard(Rerank); }
             if (Time.time >= _nextRooms) { _nextRooms = Time.time + 20; Plugin.Guard(RoomsDue); }
-            if (Time.time >= _nextScan) { _nextScan = Time.time + 8; Plugin.Guard(() => Work.Scan(this)); }
+            if (Time.time >= _nextScan) { _nextScan = Time.time + 8; Plugin.Guard(LeftAloneSync); Plugin.Guard(() => Work.Scan(this)); }
             Plugin.Guard(() => Defense.Tick(this));
             Plugin.Guard(() => Thing.Tick(this));
         }
@@ -326,6 +326,30 @@ namespace Jarldom
         public int Population => R.Living.Count();
 
         // ---- dawn and dusk ----
+        // Fires and torches no one could reach (twice), kept in the record so they stay left alone through reloads and owner changes;
+        // after a few days they're tried again (a way to them may have been built), or at once with "Try them again" in the Work tab.
+        public const string AlonePrefix = "alone:"; public const int AloneDays = 3;
+        // (kept by where they stand, "alone:x,y,z": the game's object ids are renumbered when a world loads)
+        private void LeftAloneSync()
+        {
+            foreach (var (x, y, z) in Board.LeftAloneAt) { string k = AlonePrefix + string.Join(",", new[] { x, y, z }.Select(f => Mathf.Round(f).ToString(System.Globalization.CultureInfo.InvariantCulture))); if (!R.Flags.ContainsKey(k)) { R.Flags[k] = Day; _dirty = true; } }
+            Board.LeftAloneAt.Clear();
+            bool expired = false;
+            foreach (var kv in R.Flags.Where(f => f.Key.StartsWith(AlonePrefix)).ToList())
+                if (Day - kv.Value >= AloneDays) { R.Flags.Remove(kv.Key); _dirty = true; expired = true; }
+            if (expired) Board.LeftAlone.Clear(); // (tried again: the board's own list was only this session's)
+            _alone = null;
+        }
+        private List<Vector3> _alone;
+        // Is the fire standing here one that's left alone?
+        public bool LeftAloneAt(Vector3 p)
+        {
+            if (_alone == null) _alone = R.Flags.Keys.Where(k => k.StartsWith(AlonePrefix)).Select(k => k.Substring(AlonePrefix.Length).Split(',')).Where(v => v.Length == 3)
+                .Select(v => new Vector3(Flt(v[0]), Flt(v[1]), Flt(v[2]))).ToList();
+            return _alone.Any(q => Utils.DistanceXZ(q, p) < 1.2f && Mathf.Abs(q.y - p.y) < 1.5f);
+        }
+        public int LeftAloneCount => R.Flags.Keys.Count(k => k.StartsWith(AlonePrefix));
+        private void TryReachAgain() { foreach (string k in R.Flags.Keys.Where(f => f.StartsWith(AlonePrefix)).ToList()) R.Flags.Remove(k); Board.LeftAlone.Clear(); _alone = null; _dirty = true; }
         private void Dawn(int day)
         {
             foreach (string god in R.Favour.Keys.ToList()) R.Favour[god] = Favour.Decay(R.Favour[god], 1);
