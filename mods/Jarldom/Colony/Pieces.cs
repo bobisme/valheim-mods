@@ -437,7 +437,7 @@ namespace Jarldom
             go.AddComponent<OreClaim>();
         }
 
-        // The memorial stone: a raised runestone for the colony's dead, a serpent band of runes round its face and Odin's valknut within
+        // The memorial stone: a rough runestone for the colony's dead, a serpent band of runes cut round its face and Odin's valknut within
         // (made in Blender: Models/marker/memorial.py). E reads the names on it.
         private static void MemorialStone()
         {
@@ -452,8 +452,16 @@ namespace Jarldom
             if (rock != null) { stone.mainTextureScale = Vector2.one * 0.5f; stone.color *= new Color(0.95f, 0.93f, 0.9f); Assets.Owned.Add(stone); }
             var m = new GameObject("memorial"); m.transform.SetParent(look.transform, false);
             m.AddComponent<MeshFilter>().sharedMesh = model;
-            // (stone, paint, rune: as the model's materials are numbered)
-            m.AddComponent<MeshRenderer>().sharedMaterials = new[] { stone, Plain(hewn, new Color(0.62f, 0.16f, 0.09f)), Plain(hewn, new Color(0.1f, 0.09f, 0.085f)) };
+            // The carving in the rock's own shader, black (in any other, the rock's surface is drawn over it where the face slopes away).
+            Material cut = Plain(hewn, new Color(0.1f, 0.09f, 0.085f));
+            if (rock != null)
+            {
+                cut = new Material(rock) { name = "JarldomMemorialCut", hideFlags = HideFlags.HideAndDontSave, color = new Color(0.07f, 0.065f, 0.06f) };
+                cut.SetFloat("_AddSnow", 0f); cut.DisableKeyword("_ADDSNOW_ON"); cut.SetFloat("_MossAlpha", 0f); cut.SetFloat("_Glossiness", 0.1f);
+                Assets.Owned.Add(cut);
+            }
+            // (stone, paint, rune: as the model's materials are numbered; nothing is painted now)
+            m.AddComponent<MeshRenderer>().sharedMaterials = new[] { stone, cut, cut };
             Finish(go, look, "Memorial stone", "A raised stone for the colony's dead. Read it (E) for the names: who went to Valhalla and the deeds that took them there, who was lost to Hel and laid to rest, and who walks still, unburied.",
                 Piece.PieceCategory.Misc, ("Stone", 20));
             go.AddComponent<MemorialStone>();
