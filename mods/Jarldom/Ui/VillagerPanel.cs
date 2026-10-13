@@ -86,7 +86,7 @@ namespace Jarldom.Ui
             ry = Text(right, "Skills: " + (skills.Any() ? string.Join(", ", skills) : "none yet"), ry, 15);
             ry = Text(right, $"Kills {s.Count("kills")}, jobs done {s.Count("orders")}, deaths {s.Deaths}. Hoard {s.Hoard} coins.", ry, 15, GameUi.Dim);
             Bed bed = c?.BedById(s.Bed);
-            ry = Text(right, string.IsNullOrEmpty(s.Bed) ? "<color=#ff8c59>No bed</color>: sleeps by the hall fire. A soul with no bed who dies is lost." : bed != null ? $"Has a bed (comfort {Colony.ComfortAt(bed.transform.position)})." : "Has a bed (not loaded here).", ry, 15);
+            ry = Text(right, string.IsNullOrEmpty(s.Bed) ? "<color=#ff8c59>No bed</color>: sleeps by the hall fire. If they die, they're slow to rise again (by the pillars)." : bed != null ? $"Has a bed (comfort {Colony.ComfortAt(bed.transform.position)})." : "Has a bed (not loaded here).", ry, 15);
             string vid = s.Vid;
             float bx = 10;
             if (c != null)

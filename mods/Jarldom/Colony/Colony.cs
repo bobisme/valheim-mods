@@ -426,6 +426,7 @@ namespace Jarldom
                 VillagerState s;
                 try { s = VillagerState.Load(f.State); } catch { s = null; }
                 if (s == null) { R.Fallen.Remove(f); continue; }
+                if (string.IsNullOrEmpty(s.Bed) && now - f.At < wait * 3 && !f.Killer.StartsWith("trade:")) continue; // (no bed to rise at: slower, by the pillars)
                 if (Villagers.Body(s.Vid) != null) { R.Fallen.Remove(f); continue; } // already up somewhere
                 bool carter = f.Killer.StartsWith(Carts.Prefix);
                 bool miner = f.Killer.StartsWith(Mining.Prefix) || f.Killer.StartsWith(Mining.Escort);

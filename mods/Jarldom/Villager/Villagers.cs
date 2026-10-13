@@ -198,7 +198,7 @@ namespace Jarldom
             }
             s.Deaths++;
             foreach (string k in s.Skills.Keys.ToList()) s.Skills[k] *= 0.95f;
-            bool lost = string.IsNullOrEmpty(s.Bed) || s.Disgraced;
+            bool lost = s.Disgraced; // (one with no bed isn't lost for it, as a player isn't: they rise by the pillars, slower)
             if (lost && colony != null && colony.HelSaves()) { lost = false; colony.Log("text", s.Name, "", $"Hel let {s.Name} go."); }
             // (a day's grace after rising: Hel doesn't take one who has only just come back, if their bed was lost in the same fight)
             if (lost && colony != null && JustRose(s, colony.Now)) { lost = false; colony.Log("text", s.Name, "", $"{s.Name} fell again, so soon after rising that Hel would not have them yet."); }

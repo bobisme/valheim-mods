@@ -345,7 +345,7 @@ namespace Jarldom.Ui
             ColonyRecord r = _c.R; float y = 4;
             y = Text(list, "The Valkyrie set them down at the pillars. They fell in battle and Odin sent them here: will you take them in? (Turned away, they fly on. Unanswered, they wait.)", y, 16, GameUi.Dim);
             int free = _c.FreeBeds().Count;
-            if (free < r.Coming.Count) y = Text(list, free == 0 ? "There's no free bed for them: they'd sleep by the hall fire, unhappily, and one with no bed who dies is lost to Hel. Build a bed first." : $"Only {free} free bed{(free == 1 ? "" : "s")} for {r.Coming.Count}.", y, 15, GameUi.Warn);
+            if (free < r.Coming.Count) y = Text(list, free == 0 ? "There's no free bed for them: they'd sleep by the hall fire, unhappily, and one with no bed who dies is slow to rise again, by the pillars. Build a bed first." : $"Only {free} free bed{(free == 1 ? "" : "s")} for {r.Coming.Count}.", y, 15, GameUi.Warn);
             for (int i = 0; i < r.Coming.Count; i++)
             {
                 Newcomer n = r.Coming[i]; int idx = i;
