@@ -16,7 +16,7 @@ namespace Jarldom
     internal static class Tools
     {
         private static BaseUnityPlugin _tools; private static float _next;
-        private const string Usage = "jarldom status | hallsound [<volume>|roar|mood <n>|auto] | roster | smite <prefab|stag> | feed <name> | greetings | dogs | dog adopt|release | corner <name> [stand] | dim <name> <days> | lost [raise <name>] | villager <name|vid> | needs <name> | renown | rooms | room check <n> | board | log [n] | saga | compat | " +
+        private const string Usage = "jarldom status | hallsound [<volume>|roar|mood <n>|auto] | among hall|sleep | roster | smite <prefab|stag> | feed <name> | greetings | dogs | dog adopt|release | corner <name> [stand] | dim <name> <days> | lost [raise <name>] | villager <name|vid> | needs <name> | renown | rooms | room check <n> | board | log [n] | saga | compat | " +
             "[cheats:] place pillars [metres] | spawn [profession] [traits..] | migrate [now|dusk] | accept [i|all] | room <type> <x1> <z1> <x2> <z2> [god] | zone <type> <x1> <z1> <x2> <z2> | " +
             "prof <name> <profession> | mood <name> <moodlet> | worth <name> <n> | need <name> <need>=<n> | give <name> <prefab> [n] | bed <name> | goto <name> <x> <z> | time <hours> | pay | " +
             "favour <god> <n> | feast | thing now | ascend <name> | kill <name> | raid <event> | horn | treasury [x z] | stockpile <category> [x z] | tp <name> | remove | " +
@@ -538,6 +538,7 @@ namespace Jarldom
                             ["blessing"] = af == null ? "none" : $"{Calendar.Name(af.Value)} at {Mathf.RoundToInt(ap * 100)}%", ["neglected"] = Festivals.Neglected(c.R.Flags, c.Day) });
                     }
                     break;
+                case "among": output(new JObject { ["among"] = Among.Test(a.Length > 2 ? a[2] : "hall") }); break;
                 case "hallsound":
                     {
                         // What the great hall sounds like on this game now; a volume or roar holds it there (for a listen), auto lets it go.
@@ -1346,7 +1347,7 @@ namespace Jarldom
             ["reasons"] = new JArray(Mood.Reasons(b.S, b.Now).Select(r => $"{r.value:+0;-0} {r.text}")), ["meals"] = new JArray(b.Meals.Select(m => $"{m.Prefab} {m.Left:0}s")),
             ["bed"] = b.S.Bed, ["worth"] = b.S.Worth, ["skills"] = new JObject(b.S.Skills.Where(kv => !kv.Key.EndsWith("#")).Select(kv => new JProperty(kv.Key, Math.Round(kv.Value, 1)))),
             ["bag"] = new JArray(b.Body.GetInventory().GetAllItems().Select(i => $"{Prefab(i)} x{i.m_stack}{(i.m_equipped ? " (worn)" : "")}")), ["held"] = b.Held != null, ["fighting"] = b.Fighting, ["anim"] = AnimInfo(b.Body), ["lastAttacker"] = b.LastAttacker, ["foe"] = b.Foe != null ? b.Foe.m_name : "", ["combat"] = $"{b.CombatNote} swings {b.SwingsStarted}/{b.Swings} weapon {b.Body.GetCurrentWeapon()?.m_shared.m_name}",
-            ["counts"] = new JObject(b.S.Counts.Select(kv => new JProperty(kv.Key, kv.Value))), ["moving"] = b.Move.Moving, ["goal"] = V(b.Move.Goal), ["taskDebug"] = b.Task?.Debug(b) ?? "", ["move"] = b.Move.Debug, ["velocity"] = Math.Round(b.Body.GetVelocity().magnitude, 2), ["moveDir"] = V(b.Body.GetMoveDir()),
+            ["counts"] = new JObject(b.S.Counts.Select(kv => new JProperty(kv.Key, kv.Value))), ["opinions"] = new JObject(b.S.Opinions.Select(kv => new JProperty(kv.Key, kv.Value))), ["moving"] = b.Move.Moving, ["goal"] = V(b.Move.Goal), ["taskDebug"] = b.Task?.Debug(b) ?? "", ["move"] = b.Move.Debug, ["velocity"] = Math.Round(b.Body.GetVelocity().magnitude, 2), ["moveDir"] = V(b.Body.GetMoveDir()),
         };
     }
 }

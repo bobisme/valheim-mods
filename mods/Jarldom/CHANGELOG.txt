@@ -1,3 +1,5 @@
+0.1.96: Live among them. Sit in a great hall seat at dusk with three or more villagers for half a minute: hall-fed, Rested five minutes longer (once a day), and those at table think the better of you. Sleep in a colony longhouse: wake Rested five minutes longer, and your roommates think the better of you.
+
 0.1.95: News of the Dimming is gathered: when a festival lifts it from the whole colony, the saga says so in one line, not one per villager.
 
 0.1.94: Frigg's altar: the top of the chest no longer flickers (its body and lid shared a top).

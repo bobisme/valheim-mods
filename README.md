@@ -36,6 +36,9 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
   The great hall murmurs with talk as it fills (recorded crowds, CC0), with laughter when they're glad; quieter and broken
   up when they're low, a roar on a feast or festival night. Below -40 on average the colony is miserable: the hall is quiet (no talk,
   no greetings, no songs, work makes half the noise) and the people tab says so.
+  Live among them: sit in a great hall seat at dusk with three or more of them for half a minute and you're hall-fed (Rested five
+  minutes longer, once a day; those at table think the better of you); sleep in a colony longhouse and you wake Rested five minutes
+  longer, and your roommates think the better of you.
 - **Death**: rising at their bed after 30 s with their own gear (armour, weapons, tools); the rest goes to a tombstone they walk back
   to for it (haulers empty the graves of those who won't come back). With no bed (or disgraced) they're lost and rise as a named
   draugr carrying their hoard.

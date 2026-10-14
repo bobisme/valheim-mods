@@ -43,6 +43,7 @@ namespace Jarldom
                 case "horn": HornUntil = a[0] == "on" ? Time.time + 300 : 0; if (a[0] == "on") { Assets.Effect("sfx_fader_bell", Position); Tell("The war horn sounds!", true); } else Tell("The all-clear."); break;
                 case "offer": Faith.Received(this, Get(a, 0), Int(a, 1), Get(a, 2), who); break;
                 case "rest": Lost.Rested(this, Get(a, 0), Get(a, 1), who); break;
+                case "among": Among.Owned(this, arg, who); break;
                 case "ascend": Ascension.Begin(this, a[0], who); break;
                 case "rule": if (Get(a, 1) == "rite") Thing.RuleRite(this, Int(a, 0), who, a.Length > 2 ? string.Join("|", a.Skip(2)) : null); else Thing.Rule(this, Int(a, 0), Get(a, 1) == "yes", who, a.Length > 2 ? string.Join("|", a.Skip(2)) : null); break;
                 case "thingcall": Thing.Call(this, who); break;
