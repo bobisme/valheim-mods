@@ -757,6 +757,9 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(!Petitions.Raise(new Random(1), gview, 10).Any(p => p.Id == "greatwork"), "Not once one's begun, or away from the sea");
     var gf = new Dictionary<string, int> { [GreatWorks.Key(GreatWorks.Lighthouse)] = GreatWorks.Laid };
     Check(GreatWorks.Stage(gf, GreatWorks.Lighthouse) == GreatWorks.Laid && GreatWorks.Proper(GreatWorks.Lighthouse, "Shithole") == "Lighthouse of Shithole", "Its stage and its name on the map");
+    var site = new List<float> { 10, 10, 18, 10, 18, 18, 10, 18 };
+    Check(GreatWorks.Site(site, out float sx, out float sz) == "" && Math.Abs(sx - 14) < 0.01f && Math.Abs(sz - 14) < 0.01f, "A work stands in the middle of the outline drawn for it");
+    Check(GreatWorks.Site(new List<float> { 0, 0, 4, 0, 4, 4, 0, 4 }, out _, out _).Contains("too small") && GreatWorks.Site(new List<float> { 0, 0, 4, 0 }, out _, out _) != "", "Not in an outline too small for its footing, or not an outline");
     Check(Verse.Make(new List<LogEntry> { new LogEntry(5, 3, "greatwork", "Shithole", "the Lighthouse", "") }, 2, p => p).Any(l => l.Contains("Lighthouse")), "The skald sings it");
 }
 

@@ -226,6 +226,14 @@ namespace Jarldom.Ui
             }
             else
             {
+                // (a great work the Thing chose, not yet placed: this outline can be its site)
+                if (GreatWorks.Stage(_c.R.Flags, GreatWorks.Lighthouse) == GreatWorks.Promised)
+                {
+                    GameUi.Line(_window, "Great work", new Vector2(30, -y), 300, 18, GameUi.Warm); y += 30;
+                    var outline = _xz;
+                    Place(GreatWorks.Title(GreatWorks.Lighthouse), ref x, ref y, () => { if (GreatWork.RaiseIn(_c, GreatWorks.Lighthouse, outline)) { Close(); Designate.Clear(); } });
+                    x = 30; y += 52;
+                }
                 if (!_zonesOnly) { GameUi.Line(_window, "Rooms", new Vector2(30, -y), 300, 18, GameUi.Dim); y += 30; }
                 foreach (RoomInfo r in _zonesOnly ? Enumerable.Empty<RoomInfo>() : Tables.Rooms)
                 {
@@ -240,7 +248,10 @@ namespace Jarldom.Ui
                     Place(z.Name, ref x, ref y, () => { Net.Act(_c, "zone", $"{t}|{floor}|{xz}"); Close(); Designate.Clear(); });
                 }
             }
-            GameUi.Button(_window, "Cancel", new Vector2(760 - 180, -470 + 64), new Vector2(150, 42), () => { Close(); }, true, 16);
+            // (as tall as its buttons need, a great work's row and all; Cancel under the last row)
+            float h = Mathf.Max(470f, y + 52 + 72);
+            _window.sizeDelta = new Vector2(760, h);
+            GameUi.Button(_window, "Cancel", new Vector2(760 - 180, -h + 64), new Vector2(150, 42), () => { Close(); }, true, 16);
         }
         private static void Place(string text, ref float x, ref float y, Action click)
         {

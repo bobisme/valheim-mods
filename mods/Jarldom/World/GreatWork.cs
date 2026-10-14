@@ -27,7 +27,7 @@ namespace Jarldom
             return null;
         }
 
-        // ---- the jarl's game: Shift+E on the ground with the Mark tool (Ui/Designate.cs) ----
+        // ---- the jarl's game: an outline drawn with the Mark tool, chosen as the great work's site (Ui/RoomPicker) ----
         // Why it can't stand at that spot ("" if it can): inside the colony, on ground flat enough, near the water.
         public static string Why(Colony c, string work, Player me, Vector3 spot, out Vector3 at, out float yaw)
         {
@@ -48,27 +48,38 @@ namespace Jarldom
                 if (!water) return "a lighthouse wants the sea within 40 m";
             }
             at.y = ground;
-            Vector3 f = me.transform.forward; f.y = 0;
+            Vector3 f = c.Position - at; f.y = 0; // (its door toward the colony)
             yaw = f.sqrMagnitude > 0.01f ? Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg : 0f;
             return "";
         }
-        public static void RaiseHere(Colony c, string work, Vector3 spot)
+        // The site from an outline: planned in its middle, or why not (said to the player). True if it's planned.
+        public static bool RaiseIn(Colony c, string work, IList<float> xz)
+        {
+            Player me = Player.m_localPlayer;
+            string site = GreatWorks.Site(xz, out float x, out float z);
+            if (site != "") { me?.Message(MessageHud.MessageType.Center, $"Not here: {site}."); return false; }
+            Vector3 spot = new Vector3(x, 0, z);
+            ZoneSystem.instance.GetSolidHeight(spot, out float gy); spot.y = gy;
+            return RaiseHere(c, work, spot);
+        }
+        public static bool RaiseHere(Colony c, string work, Vector3 spot)
         {
             Player me = Player.m_localPlayer;
             string why = Why(c, work, me, spot, out Vector3 at, out float yaw);
-            if (why != "") { me?.Message(MessageHud.MessageType.Center, $"Not here: {why}."); return; }
+            if (why != "") { me?.Message(MessageHud.MessageType.Center, $"Not here: {why}."); return false; }
             var parts = GreatWorks.Parts(work);
             var placed = parts.Select(p => GreatWorks.Place(p, at.x, at.y, at.z, yaw)).ToList();
             object bo = Compat.Find("com.quad.buildorders", "com.dhack.buildorders");
             var method = bo?.GetType().GetMethod("TryCreateBuildingShell");
-            if (method == null) { me.Message(MessageHud.MessageType.Center, "BuildOrders can't lay out a plan (too old a version?)."); return; }
+            if (method == null) { me.Message(MessageHud.MessageType.Center, "BuildOrders can't lay out a plan (too old a version?)."); return false; }
             object[] args = { me, GreatWorks.Proper(work, c.R.Name), parts.Select(p => p.Prefab).ToArray(),
                 placed.Select(p => new Vector3(p.x, p.y, p.z)).ToArray(), parts.Select(p => Turn(p, yaw)).ToArray(), null, null };
             bool ok;
             try { ok = (bool)method.Invoke(bo, args); } catch (System.Exception e) { ok = false; args[6] = e.InnerException?.Message ?? e.Message; }
-            if (!ok) { me.Message(MessageHud.MessageType.Center, $"The plan couldn't be laid out: {args[6]}"); return; }
+            if (!ok) { me.Message(MessageHud.MessageType.Center, $"The plan couldn't be laid out: {args[6]}"); return false; }
             Net.Act(c, "greatwork", $"{work}|{at.x.ToString(System.Globalization.CultureInfo.InvariantCulture)}|{at.y.ToString(System.Globalization.CultureInfo.InvariantCulture)}|{at.z.ToString(System.Globalization.CultureInfo.InvariantCulture)}|{yaw.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
             me.Message(MessageHud.MessageType.Center, $"{GreatWorks.Title(work)} is planned here: the builders raise it from the stores ({GreatWorks.NeedsText(work)}).");
+            return true;
         }
 
         // A part's turn in the world: the work's own turn, then the part's (a leaning log along its line).
@@ -85,6 +96,7 @@ namespace Jarldom
             c.R.Flags[GreatWorks.Key(work)] = GreatWorks.Laid;
             c.R.Flags[GreatWorks.AtKey(work)] = TrueLegend.Pack(F(f[1]), F(f[3]));
             c.R.Flags[GreatWorks.YKey(work)] = Mathf.RoundToInt(F(f[2]) * 10f);
+            c.R.Flags[GreatWorks.XKey(work)] = Mathf.RoundToInt(F(f[1]) * 10f); c.R.Flags[GreatWorks.ZKey(work)] = Mathf.RoundToInt(F(f[3]) * 10f);
             c.R.Flags[GreatWorks.YawKey(work)] = Mathf.RoundToInt(F(f[4]));
             c.R.Flags[GreatWorks.BuiltKey(work)] = 0;
             c.Log("text", who, "", $"{who} chose where {GreatWorks.Name(work)} will stand, and the builders began.");
@@ -93,6 +105,7 @@ namespace Jarldom
         public static Vector3 At(Colony c, string work, out float yaw)
         {
             var (x, z) = TrueLegend.Unpack(c.R.Flag(GreatWorks.AtKey(work)));
+            if (c.R.Flags.ContainsKey(GreatWorks.XKey(work))) { x = c.R.Flag(GreatWorks.XKey(work)) / 10f; z = c.R.Flag(GreatWorks.ZKey(work)) / 10f; }
             yaw = c.R.Flag(GreatWorks.YawKey(work));
             return new Vector3(x, c.R.Flag(GreatWorks.YKey(work)) / 10f, z);
         }

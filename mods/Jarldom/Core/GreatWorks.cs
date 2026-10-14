@@ -14,6 +14,8 @@ namespace Jarldom
         public static string Key(string work) => "gw:" + work;
         public static string AtKey(string work) => "gw:" + work + ":at";     // (packed x, z: TrueLegend.Pack)
         public static string YKey(string work) => "gw:" + work + ":y";       // (the ground's height, in tenths of a metre)
+        public static string XKey(string work) => "gw:" + work + ":x";       // (where exactly, in tenths of a metre: the plan's parts are checked to half a metre)
+        public static string ZKey(string work) => "gw:" + work + ":z";
         public static string YawKey(string work) => "gw:" + work + ":yaw";   // (degrees: its front, toward the sea)
         public static string BuiltKey(string work) => "gw:" + work + ":built";
         public static string DayKey(string work) => "gw:" + work + ":day";
@@ -75,6 +77,18 @@ namespace Jarldom
         {
             parts.Add(new Part(log, 0, y, half, 0)); parts.Add(new Part(log, 0, y, -half, 0));
             parts.Add(new Part(log, half, y, 0, 90)); parts.Add(new Part(log, -half, y, 0, 90));
+        }
+        public const float Footing = 2.5f; // (half its footing, the gallery's overhang with it: the outline must hold this square)
+        // Where a work stands in an outline drawn for it: the middle of the outline, if its footing fits inside ("" or why not).
+        public static string Site(IList<float> xz, out float x, out float z)
+        {
+            x = z = 0;
+            int n = xz.Count / 2;
+            if (n < 3) return "draw its outline first";
+            for (int i = 0; i < n; i++) { x += xz[i * 2]; z += xz[i * 2 + 1]; }
+            x /= n; z /= n;
+            foreach (var (sx, sz) in Corners) if (!Geometry.Inside(xz, x + sx * Footing, z + sz * Footing)) return $"the outline is too small: it needs {Footing * 2:0} × {Footing * 2:0} m clear in its middle";
+            return "";
         }
         public static List<Part> Parts(string work) => work == Lighthouse ? LighthouseParts() : new List<Part>();
 

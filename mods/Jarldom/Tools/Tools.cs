@@ -960,10 +960,15 @@ namespace Jarldom
                 case "greatwork": // (test: "greatwork": its stage; "promise": as if the Thing chose it; "place x z": Shift+E there; "finish": done now; "clear": none)
                     {
                         string w = GreatWorks.Lighthouse, sub = a.Length > 2 ? a[2] : "";
+                        bool force = a.Contains("force"); a = a.Where(x => x != "force").ToArray();
+                        if ((sub == "promise" || sub == "clear" || sub == "outline" || sub == "place") && GreatWorks.Stage(c.R.Flags, w) >= GreatWorks.Laid && !force) { error($"a real {GreatWorks.Name(w)} is under way (stage {GreatWorks.Stage(c.R.Flags, w)}): add \"force\" to test over it"); return; }
                         if (sub == "promise") c.R.Flags[GreatWorks.Key(w)] = GreatWorks.Promised;
                         if (sub == "clear") { foreach (string k in c.R.Flags.Keys.Where(k => k.StartsWith("gw:")).ToList()) c.R.Flags.Remove(k); }
                         if (sub == "place") { Vector3 spot = new Vector3(F(a[3]), 0, F(a[4])); ZoneSystem.instance.GetSolidHeight(spot, out float gh); spot.y = gh; GreatWork.RaiseHere(c, w, spot); }
                         if (sub == "finish") GreatWork.Finish(c, w);
+                        if (sub == "set") { c.R.Flags[GreatWorks.Key(w)] = GreatWorks.Laid; c.R.Flags[GreatWorks.AtKey(w)] = TrueLegend.Pack(F(a[3]), F(a[4])); c.R.Flags[GreatWorks.YKey(w)] = Mathf.RoundToInt(F(a[5]) * 10f); c.R.Flags[GreatWorks.YawKey(w)] = Mathf.RoundToInt(F(a[6])); c.R.Flags[GreatWorks.BuiltKey(w)] = 0; c.R.Flags[GreatWorks.XKey(w)] = Mathf.RoundToInt(F(a[3]) * 10f); c.R.Flags[GreatWorks.ZKey(w)] = Mathf.RoundToInt(F(a[4]) * 10f); } // (test: "set x z y yaw", a site put back)
+                        if (sub == "outline" || sub == "picker") { float cx = F(a[3]), cz = F(a[4]), hh = a.Length > 5 ? F(a[5]) : 4f; var xz = new List<float> { cx - hh, cz - hh, cx + hh, cz - hh, cx + hh, cz + hh, cx - hh, cz + hh };
+                            if (sub == "picker") { ZoneSystem.instance.GetSolidHeight(new Vector3(cx, 0, cz), out float fy); Ui.RoomPicker.Open(c, xz, fy); } else output(new JObject { ["planned"] = GreatWork.RaiseIn(c, w, xz) }); }
                         if (sub == "unplan") { object bo = Compat.Find("com.quad.buildorders", "com.dhack.buildorders"); object[] args = { me, string.Join(" ", a.Skip(3)), 0, null }; bool ok = (bool)bo.GetType().GetMethod("TryRemoveGhostPlan").Invoke(bo, args); output(new JObject { ["unplanned"] = ok, ["removed"] = (int)args[2], ["error"] = (string)args[3] }); }
                         if (sub == "why") { Vector3 spot = new Vector3(F(a[3]), 0, F(a[4])); ZoneSystem.instance.GetSolidHeight(spot, out float gh); spot.y = gh; output(new JObject { ["why"] = GreatWork.Why(c, w, me, spot, out _, out _) }); }
                         c.MarkDirty();

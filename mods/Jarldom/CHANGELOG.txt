@@ -1,3 +1,5 @@
+0.1.122: a great work's site is outlined like a zone (Mark rooms and zones) and chosen under Great work in the picker, its door toward the colony (no more Shift+E); the picker grows to fit; its site kept to a tenth of a metre, so a finished work is always seen as finished
+
 0.1.121: a villager whose work never empties their bag (a gothi, a skald, a healer) puts a stray load away after five minutes instead of carrying it forever; a stick or two isn't carried as an armful
 
 0.1.120: People tab: the Teach button (a master visiting) sits beside Details instead of under it
