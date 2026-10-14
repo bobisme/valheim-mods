@@ -114,7 +114,7 @@ namespace WrongUniverse
             bool boost=forced?_forceBoost:Run(p);
             bool can=!p.IsDead()&&!p.IsSwimming()&&!p.IsAttached()&&!p.IsTeleporting()&&!p.IsStaggering()&&!p.InIntro();
             if(p.IsOnGround()||p.IsSwimming())Fuel=Mathf.MoveTowards(Fuel,1f,dt/RefuelSeconds.Value);
-            int want=held&&can&&!p.IsOnGround()&&Fuel>0f?(boost?2:1):0;
+            int want=held&&can&&(!p.IsOnGround()||forced)&&Fuel>0f?(boost?2:1):0;
             if(want!=Thrust)SetThrust(p,want);
             if(want==0)return;
             Fuel=Mathf.Max(0f,Fuel-dt/FuelSeconds.Value*(want==2?BoostBurn.Value:1f));

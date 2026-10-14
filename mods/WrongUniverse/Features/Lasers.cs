@@ -127,6 +127,7 @@ namespace WrongUniverse
         private static AudioClip _pew,_pshew,_bigShot,_hiss,_click;
         private static readonly MethodInfo TakeInput=AccessTools.Method(typeof(Player),"TakeInput");
         private static readonly AccessTools.FieldRef<VisEquipment,GameObject> RightInstance=AccessTools.FieldRefAccess<VisEquipment,GameObject>("m_rightItemInstance");
+        private static readonly AccessTools.FieldRef<VisEquipment,GameObject> LeftInstance=AccessTools.FieldRefAccess<VisEquipment,GameObject>("m_leftItemInstance");   // (bow-type items, the rifle, are held in the left hand)
 
         internal static bool InputAllowed(Player p)
         {
@@ -226,8 +227,13 @@ namespace WrongUniverse
         internal static Transform Muzzle(Player p)
         {
             VisEquipment vis=p!=null?p.GetComponent<VisEquipment>():null;
-            GameObject inst=vis!=null?RightInstance(vis):null;
-            return inst!=null?Find(inst.transform,"wu_muzzle"):null;
+            if(vis==null)return null;
+            foreach(GameObject inst in new[]{RightInstance(vis),LeftInstance(vis)})
+            {
+                Transform m=inst!=null?Find(inst.transform,"wu_muzzle"):null;
+                if(m!=null)return m;
+            }
+            return null;
         }
         internal static Transform Find(Transform t,string name)
         {

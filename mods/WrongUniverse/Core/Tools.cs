@@ -26,7 +26,7 @@ namespace WrongUniverse
             if(found==null)return;
             try
             {
-                string help="wu list | give <prefab|all> | held | icons"+string.Concat(Features.All.Where(f=>f.Command!=null).Select(f=>" | "+f.Command+" "+(f.Help??"")))+
+                string help="wu list | give <prefab|all> | held | icons | look <prefab> [yaw pitch child] | bones"+string.Concat(Features.All.Where(f=>f.Command!=null).Select(f=>" | "+f.Command+" "+(f.Help??"")))+
                     ": check Wrong Universe. list shows the items, give puts one (or one of each) in the inventory, held says what's in hand.";
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name,"wu",help,
                     (Func<string[],Action<JObject>,Action<string>,IEnumerator>)Run});
@@ -89,6 +89,33 @@ namespace WrongUniverse
                         res[d.Prefab]=file;
                     }
                     output(res);
+                    return null;
+                }
+                case "look":
+                {
+                    // Studio pictures of a model: wu look <item prefab|scene prefab> [yaw] [pitch] [child]
+                    string what=args.Length>2?args[2]:"";
+                    float yaw=args.Length>3&&float.TryParse(args[3],System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out float y)?y:35f;
+                    float pitch=args.Length>4&&float.TryParse(args[4],System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out float pt)?pt:20f;
+                    ItemDef d=Things.Find(what);
+                    GameObject prefab=d!=null?d.Built:ZNetScene.instance?.GetPrefab(what);
+                    if(prefab==null){error("wu look: no such prefab");return null;}
+                    string child=args.Length>5?args[5]:d?.Attach;
+                    string file=System.IO.Path.Combine(Paths.BepInExRootPath,"claude","shots","wu-look-"+what+".png");
+                    string done=Stage.Shoot(prefab,child,file,768,yaw,pitch);
+                    if(done==null)error("wu look: nothing to draw");else output(new JObject{["file"]=done});
+                    return null;
+                }
+                case "bones":
+                {
+                    // Where the hands, head and back are (for aiming `view world` at what the player holds and wears), and which way the player faces.
+                    var o=new JObject{["yaw"]=Math.Round(me.transform.eulerAngles.y,1),["position"]=V(me.transform.position)};
+                    foreach(string bone in new[]{"RightHand","LeftHand","Head","Spine2","Hips"})
+                    {
+                        Transform t=Utils.FindChild(me.transform,bone);
+                        if(t!=null)o[bone]=V(t.position);
+                    }
+                    output(o);
                     return null;
                 }
                 case "held":

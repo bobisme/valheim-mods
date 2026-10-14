@@ -45,7 +45,7 @@ namespace WrongUniverse
             string key=$"p{color.r:F3}/{color.g:F3}/{color.b:F3}/{metal:F2}/{gloss:F2}/{emit:F2}";
             if(Cache.TryGetValue(key,out Material m)&&m!=null)return m;
             m=Own(Base!=null?new Material(Base):new Material(Shader.Find("Standard")));
-            m.mainTexture=null;
+            foreach(string tex in m.GetTexturePropertyNames())m.SetTexture(tex,null);   // (the Arbalest's normal and detail maps stamp its wood grain and plates on every face)
             if(m.HasProperty("_Color"))m.SetColor("_Color",color);
             if(m.HasProperty("_Metallic"))m.SetFloat("_Metallic",metal);
             if(m.HasProperty("_Glossiness"))m.SetFloat("_Glossiness",gloss);
@@ -67,6 +67,56 @@ namespace WrongUniverse
             if(m.HasProperty("_EmissionColor"))m.SetColor("_EmissionColor",c);
             Cache[key]=m;
             return m;
+        }
+
+        // A material by palette name, as Blender models name their slots (Models/wulib.py has the same table, for its previews):
+        // "white" "offwhite" "gunmetal" "black" "rubber" "carbon" "chrome" "steel" "brass" "copper" "hazard" "red" "blue" "olive" "lens"
+        // "glass", "glow_<cyan|red|blue|green|orange|violet|white|yellow>" (light, added on top), "emit_<same>" (a lit surface that glows:
+        // indicator lights, screens), or "c_RRGGBB[_mNN][_gNN][_eNN]" for any colour (metal, gloss, emission in hundredths).
+        internal static Material Slot(string name)
+        {
+            switch(name)
+            {
+                case "white":return Paint(new Color(0.86f,0.87f,0.88f),0.1f,0.55f);
+                case "offwhite":return Paint(new Color(0.74f,0.73f,0.70f),0.1f,0.45f);
+                case "gunmetal":return Paint(new Color(0.16f,0.17f,0.19f),0.6f,0.5f);
+                case "black":return Paint(new Color(0.05f,0.05f,0.06f),0.2f,0.35f);
+                case "rubber":return Paint(new Color(0.035f,0.035f,0.04f),0f,0.12f);
+                case "carbon":return Paint(new Color(0.09f,0.09f,0.10f),0.3f,0.65f);
+                case "chrome":return Paint(new Color(0.72f,0.74f,0.78f),0.9f,0.85f);
+                case "steel":return Paint(new Color(0.45f,0.47f,0.5f),0.75f,0.55f);
+                case "brass":return Paint(new Color(0.66f,0.50f,0.20f),0.8f,0.6f);
+                case "copper":return Paint(new Color(0.72f,0.42f,0.22f),0.8f,0.6f);
+                case "hazard":return Paint(new Color(0.95f,0.62f,0.08f),0.1f,0.5f);
+                case "red":return Paint(new Color(0.62f,0.08f,0.06f),0.15f,0.5f);
+                case "blue":return Paint(new Color(0.10f,0.22f,0.55f),0.2f,0.55f);
+                case "olive":return Paint(new Color(0.22f,0.26f,0.17f),0.1f,0.35f);
+                case "lens":return Paint(Lens,0.3f,0.95f);
+                case "glass":return Paint(new Color(0.08f,0.12f,0.16f),0.5f,0.95f);
+            }
+            if(name.StartsWith("glow_"))return Glow(Named(name.Substring(5)));
+            if(name.StartsWith("emit_")){Color c=Named(name.Substring(5));return Paint(c,0f,0.6f,2.5f);}
+            if(name.StartsWith("c_")&&name.Length>=8&&ColorUtility.TryParseHtmlString("#"+name.Substring(2,6),out Color hex))
+            {
+                float metal=0.3f,gloss=0.5f,emit=0f;
+                foreach(string bit in name.Substring(8).Split(new[]{'_'},System.StringSplitOptions.RemoveEmptyEntries))
+                {
+                    if(bit.Length<2||!int.TryParse(bit.Substring(1),out int k))continue;
+                    if(bit[0]=='m')metal=k/100f;else if(bit[0]=='g')gloss=k/100f;else if(bit[0]=='e')emit=k/100f;
+                }
+                return Paint(hex,metal,gloss,emit);
+            }
+            Plugin.Warn("Unknown material slot "+name);
+            return Paint(Color.magenta,0,0.5f);
+        }
+        internal static Color Named(string glow)
+        {
+            switch(glow)
+            {
+                case "cyan":return Cyan;case "red":return Red;case "blue":return Blue;case "green":return Green;case "violet":return Violet;
+                case "orange":return new Color(1f,0.45f,0.08f);case "yellow":return new Color(1f,0.85f,0.2f);case "white":return Color.white;
+            }
+            return Color.white;
         }
 
         // The box around every renderer under root, in space's own coordinates.

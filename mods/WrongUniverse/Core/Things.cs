@@ -207,6 +207,7 @@ namespace WrongUniverse
             if(!ItemReload.KeepOnUnload&&_holder!=null)Object.Destroy(_holder);
             _holder=null;
             Look.Clear();
+            Meshes.Clear();
         }
 
         // After a hot reload: items in bags, chests and on the ground point at this copy's prefabs.

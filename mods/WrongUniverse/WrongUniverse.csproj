@@ -6,5 +6,6 @@
     <Reference Include="UnityEngine.AudioModule"><HintPath>$(ManagedDir)/UnityEngine.AudioModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.ImageConversionModule"><HintPath>$(ManagedDir)/UnityEngine.ImageConversionModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.ParticleSystemModule"><HintPath>$(ManagedDir)/UnityEngine.ParticleSystemModule.dll</HintPath><Private>false</Private></Reference>
+    <EmbeddedResource Include="Models/*.json.gz" LogicalName="WrongUniverse.%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>
