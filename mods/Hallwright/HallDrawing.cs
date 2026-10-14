@@ -88,8 +88,8 @@ namespace Hallwright
             {
                 Vector3 a=_markers[i],b=_markers[(i+1)%count];
                 Vector3[] path=HallGroundPath(a,b);
-                // Over a sketch, red chalk dashes instead of glowing amber (a dark colour doesn't set off the game's bloom).
-                HallDottedLine(path,_hallSketch && HallPiecesShown?new Color(SketchSanguine.r,SketchSanguine.g,SketchSanguine.b,0.9f):HallEdgeColor);
+                // Over a sketch, blue pencil dashes instead of glowing amber (a dark colour doesn't set off the game's bloom).
+                HallDottedLine(path,_hallSketch && HallPiecesShown?new Color(SketchBluePencil.r,SketchBluePencil.g,SketchBluePencil.b,0.9f):HallEdgeColor);
                 _hallLabels.Add((HallLabelAt(path),HallLength(a,b),false));
             }
             _hallLiveKey=null; // ClearVisuals took the live lines with it.

@@ -313,14 +313,14 @@ namespace Hallwright
                 if(wash>=1){_sketchPending.Remove(a.Key);_sketchArrivals.RemoveAt(i);}
             }
         }
-        // Markers over a sketch: corner stakes, door frames and chimney posts in sanguine, the red chalk architects annotate with.
-        private static readonly Color SketchSanguine=new Color(0.62f,0.24f,0.13f);
+        // Markers over a sketch: corner stakes, door frames and chimney posts in an architect's blue pencil (red read as an error).
+        private static readonly Color SketchBluePencil=new Color(0.2f,0.33f,0.58f);
         private Material _sketchMarkInk;
         private readonly List<Mesh> _sketchMarkMeshes=new List<Mesh>();
         private bool SketchMark(Transform under,Vector3[] points)
         {
             if(points==null || points.Length<2)return false;
-            if(_sketchMarkInk==null)_sketchMarkInk=SketchInkMaterial(SketchSanguine);
+            if(_sketchMarkInk==null)_sketchMarkInk=SketchInkMaterial(SketchBluePencil);
             Vector3 origin=points[0];
             var xyz=new float[points.Length*3];var lines=new int[(points.Length-1)*2];
             for(int i=0;i<points.Length;i++){Vector3 p=points[i]-origin;xyz[3*i]=p.x;xyz[3*i+1]=p.y;xyz[3*i+2]=p.z;}

@@ -35,7 +35,7 @@ namespace Hallwright
                 var line=_visuals[_visuals.Count-1].GetComponent<LineRenderer>();line.sharedMaterial=_hallMarkerMaterial;
                 line.startColor=line.endColor=new Color(1f,0.75f,0.2f,0.8f);
                 line.shadowCastingMode=ShadowCastingMode.Off;line.receiveShadows=false;
-                // Over a sketch, a marker is drawn in red chalk instead of a glowing line (the line stays, hidden, for sharing the draft).
+                // Over a sketch, a marker is drawn in blue pencil instead of a glowing line (the line stays, hidden, for sharing the draft).
                 if(_hallSketch && HallPiecesShown && SketchMark(_visuals[_visuals.Count-1].transform,points))line.enabled=false;
             }
         }
