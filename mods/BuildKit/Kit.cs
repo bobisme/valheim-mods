@@ -14,7 +14,7 @@ namespace BuildKit
     {
         internal sealed class Def
         {
-            public string Name, From, Title, Text; public Shape Shape; public bool Steep;
+            public string Name, From, Title, Text; public Shape Shape; public bool Steep, Hole;
         }
         // Turf roofs: one for each of the game's roof shapes, 26° and 45°.
         internal static readonly Def[] Defs =
@@ -27,6 +27,14 @@ namespace BuildKit
             Turf("BK_turf_roof_top_45", "wood_roof_top_45", Shape.Ridge, true, "Turf roof ridge 45°"),
             Turf("BK_turf_roof_ocorner_45", "wood_roof_ocorner_45", Shape.OuterCorner, true, "Turf roof outer corner 45°"),
             Turf("BK_turf_roof_icorner_45", "wood_roof_icorner_45", Shape.InnerCorner, true, "Turf roof inner corner 45°"),
+            // Smoke holes: a straight piece with a vent over the hearth.
+            Vent("BK_turf_roof_smoke", "wood_roof", false, "Turf roof smoke hole 26°"),
+            Vent("BK_turf_roof_smoke_45", "wood_roof_45", true, "Turf roof smoke hole 45°"),
+        };
+        private static Def Vent(string name, string from, bool steep, string title) => new Def
+        {
+            Name = name, From = from, Shape = Shape.Straight, Steep = steep, Hole = true, Title = title,
+            Text = "A turf roof with a smoke hole through it and a little hooded vent over the hole, as a longhouse without a chimney let out its hearth's smoke. Put it over the fire: the smoke rises out under the hood, and the hood keeps the rain off the fire.",
         };
         private static Def Turf(string name, string from, Shape s, bool steep, string title) => new Def
         {
@@ -99,6 +107,7 @@ namespace BuildKit
                 if (o.GetComponent<MeshFilter>() is MeshFilter f) Object.DestroyImmediate(f);
             }
             if (states.Count == 0) states.Add(go);
+            if (wear != null) wear.m_fragmentRoots = new GameObject[0]; // (the game's broken bits were the old look's)
             Mesh mesh = TurfMesh(d, 15, 0);
             Material[] mats = TurfMaterials(scene, from);
             foreach (GameObject s in states)
@@ -110,22 +119,51 @@ namespace BuildKit
                 look.AddComponent<MeshFilter>().sharedMesh = mesh;
                 look.AddComponent<MeshRenderer>().sharedMaterials = mats;
             }
-            go.AddComponent<TurfLook>(); // (its open sides torn, the rest left to meet their neighbours)
             Piece piece = go.GetComponent<Piece>();
+            go.AddComponent<TurfLook>(); // (its open sides torn, the rest left to meet their neighbours)
+            if (d.Hole) HoleColliders(go, d);
+            piece.m_resources = d.Hole ? Cost(("Wood", 4), ("FineWood", 1)) : Cost(("Wood", 2), ("FineWood", 1)); // (two wood for the boards, as a roof costs, and a fine wood: birch, its bark)
+            piece.m_comfort = 1; piece.m_comfortGroup = TurfGroup;
             piece.m_name = d.Title;
             piece.m_description = d.Text;
-            piece.m_resources = Cost(scene);
-            piece.m_comfort = 1; piece.m_comfortGroup = TurfGroup;
             piece.m_enabled = true;
             try { if (Icons.Render(go) is Sprite icon) { piece.m_icon = icon; Owned.Add(icon); Owned.Add(icon.texture); } }
             catch (Exception ex) { Plugin.Warn($"No icon for {d.Title}: {ex.Message}"); }
             return go;
         }
-        // Two wood for the boards and a fine wood (birch: its bark), as a roof costs two wood.
-        private static Piece.Requirement[] Cost(ZNetScene scene)
+        // The roof's solid box split in four round the smoke hole (a smoke ball rises through the middle), and the hood's cap: two
+        // sloped boards (the fire under it is under a roof; the smoke slides off them and out).
+        private static void HoleColliders(GameObject go, Def d)
+        {
+            BoxCollider roof = go.GetComponentsInChildren<BoxCollider>(true).OrderByDescending(b => b.size.x * b.transform.localScale.x * b.size.z * b.transform.localScale.z).FirstOrDefault();
+            if (roof == null) { Plugin.Warn(d.Title + ": no roof collider to cut"); return; }
+            Transform rt = roof.transform;
+            Vector3 size = Vector3.Scale(roof.size, rt.localScale), centre = Vector3.Scale(roof.center, rt.localScale);
+            var pivot = new GameObject("smokehole collider"); pivot.layer = roof.gameObject.layer;
+            pivot.transform.SetParent(rt.parent, false); pivot.transform.localPosition = rt.localPosition; pivot.transform.localRotation = rt.localRotation;
+            float half = BuildKit.TurfMesh.HoleHalf, along = half / Mathf.Cos(rt.localEulerAngles.x * Mathf.Deg2Rad), w = size.x / 2, l = size.z / 2;
+            void Add(float x0, float x1, float z0, float z1)
+            {
+                var b = pivot.AddComponent<BoxCollider>();
+                b.center = centre + new Vector3((x0 + x1) / 2, 0, (z0 + z1) / 2); b.size = new Vector3(x1 - x0, size.y, z1 - z0);
+            }
+            Add(-w, -half, -l, l); Add(half, w, -l, l); Add(-half, half, along, l); Add(-half, half, -l, -along);
+            Object.DestroyImmediate(roof);
+            float baseY = BuildKit.TurfMesh.HoodBase(d.Shape, d.Steep), rise = BuildKit.TurfMesh.HoodRise, reach = BuildKit.TurfMesh.HoodHalf;
+            float angle = Mathf.Atan2(rise, reach) * Mathf.Rad2Deg, len = Mathf.Sqrt(rise * rise + reach * reach);
+            foreach (int side in new[] { -1, 1 })
+            {
+                var cap = new GameObject("smokehole cap"); cap.layer = pivot.layer;
+                cap.transform.SetParent(go.transform, false);
+                cap.transform.localPosition = new Vector3(0, baseY + rise / 2 + 0.02f, side * reach / 2);
+                cap.transform.localRotation = Quaternion.Euler(side * angle, 0, 0);
+                cap.AddComponent<BoxCollider>().size = new Vector3(reach * 2, 0.04f, len);
+            }
+        }
+        private static Piece.Requirement[] Cost(params (string item, int n)[] items)
         {
             var list = new List<Piece.Requirement>();
-            foreach (var (item, n) in new[] { ("Wood", 2), ("FineWood", 1) })
+            foreach (var (item, n) in items)
             {
                 ItemDrop drop = ObjectDB.instance.GetItemPrefab(item)?.GetComponent<ItemDrop>();
                 if (drop != null) list.Add(new Piece.Requirement { m_resItem = drop, m_amount = n, m_recover = true });
@@ -138,7 +176,7 @@ namespace BuildKit
         internal static Mesh TurfMesh(Def d, int mask, int variant)
         {
             if (Meshes.TryGetValue((d.Name, mask, variant), out Mesh have) && have != null) return have;
-            var t = BuildKit.TurfMesh.Build(d.Shape, d.Steep, 7 + variant * 13, mask);
+            var t = BuildKit.TurfMesh.Build(d.Shape, d.Steep, 7 + variant * 13, mask, d.Hole);
             var mesh = new Mesh { name = $"{d.Name} {mask} {variant}" };
             var v = new Vector3[t.Count]; var n = new Vector3[t.Count]; var uv = new Vector2[t.Count];
             for (int i = 0; i < t.Count; i++) { v[i] = new Vector3(t.V[3 * i], t.V[3 * i + 1], t.V[3 * i + 2]); n[i] = new Vector3(t.N[3 * i], t.N[3 * i + 1], t.N[3 * i + 2]); uv[i] = new Vector2(t.Uv[2 * i], t.Uv[2 * i + 1]); }
@@ -182,6 +220,13 @@ namespace BuildKit
                 if ((t == UnityEngine.Rendering.ShaderPropertyType.Float || t == UnityEngine.Rendering.ShaderPropertyType.Range) && (l.Contains("gloss") || l.Contains("metal") || l.Contains("smooth") || l.Contains("spec"))) m.SetFloat(n, 0);
                 if (t == UnityEngine.Rendering.ShaderPropertyType.Color && l.Contains("spec")) m.SetColor(n, Color.black);
             }
+            return m;
+        }
+        // No holes: a texture whose alpha cuts out a shape (a hide's outline, fur tufts) drawn whole.
+        internal static Material Solid(Material m)
+        {
+            if (m.HasProperty("_Cutoff")) m.SetFloat("_Cutoff", 0);
+            m.DisableKeyword("_ALPHATEST_ON");
             return m;
         }
         private static Material Mat(string key, Func<Material> make)

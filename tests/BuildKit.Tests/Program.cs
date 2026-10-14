@@ -66,4 +66,33 @@ foreach (Shape shape in Enum.GetValues<Shape>())
         Check(rough != 15 || maxOut > 1.08f, name + ": the open edge reaches out: " + maxOut);
     }
 
+// ---- The smoke hole: open through the middle, a hood standing clear over it ----
+foreach (bool steep in new[] { false, true })
+{
+    var m = TurfMesh.Build(Shape.Straight, steep, 7, 15, hole: true);
+    var plain = TurfMesh.Build(Shape.Straight, steep, 7, 15);
+    Check(m.T[TurfMesh.Top].Count < plain.T[TurfMesh.Top].Count, "The hole takes sod away");
+    // (nothing of the sod or the boards over the hole's middle)
+    bool covered = false;
+    foreach (int slot in new[] { TurfMesh.Top, TurfMesh.Boards, TurfMesh.Earth })
+        for (int i = 0; i < m.T[slot].Count; i += 3)
+        {
+            float cx = 0, cz = 0; for (int k = 0; k < 3; k++) { cx += m.V[3 * m.T[slot][i + k]] / 3; cz += m.V[3 * m.T[slot][i + k] + 2] / 3; }
+            if (Math.Abs(cx) < TurfMesh.HoleHalf - 0.05f && Math.Abs(cz) < TurfMesh.HoleHalf - 0.05f) covered = true;
+        }
+    Check(!covered, "Nothing over the smoke hole but the hood");
+    float clear = TurfMesh.HoodBase(Shape.Straight, steep) - (Roofs.Height(Shape.Straight, steep, 0, -TurfMesh.HoleHalf) + TurfMesh.Thick);
+    Check(clear >= 0.84f, $"A smoke ball (0.84 m) rolls out under the cap: {clear:0.00} m clear");
+    int bad = 0; var t = m.T[TurfMesh.Stick];
+    for (int i = 0; i < t.Count; i += 3)
+    {
+        (float x, float y, float z) P(int k) => (m.V[3 * k], m.V[3 * k + 1], m.V[3 * k + 2]);
+        var (a, b, c) = (P(t[i]), P(t[i + 1]), P(t[i + 2]));
+        float ux = b.x - a.x, uy = b.y - a.y, uz = b.z - a.z, vx = c.x - a.x, vy = c.y - a.y, vz = c.z - a.z;
+        float nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+        if (nx * m.N[3 * t[i]] + ny * m.N[3 * t[i] + 1] + nz * m.N[3 * t[i] + 2] <= 0 && nx * nx + ny * ny + nz * nz > 1e-7) bad++;
+    }
+    Check(bad == 0, $"The hood's wood faces out ({bad} turned in)");
+}
+
 Console.WriteLine($"BuildKit: {checks} checks passed");

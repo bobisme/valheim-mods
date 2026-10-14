@@ -1,0 +1,1 @@
+0.1.0: First version. Turf roofs in all eight of the game's roof shapes (26° and 45°: straight, ridge, outer and inner corner), snapping and holding like the wooden roofs; torn, drooping edges where a side is open, clean ones against a neighbour; sticks in the sod; +1 comfort under turf. Smoke-hole turf roofs (26° and 45°) with a hooded vent the hearth's smoke rolls out of.

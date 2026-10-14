@@ -139,6 +139,55 @@ namespace BuildKit
                         output(new JObject { ["icons"] = path });
                     }
                     break;
+                case "smoke": // (how the game's smoke is made: the hearth's spawner, its smoke's collider and layer)
+                    {
+                        SmokeSpawner sp = scene.GetPrefab(a.Length > 2 ? a[2] : "hearth")?.GetComponentInChildren<SmokeSpawner>(true);
+                        GameObject smoke = sp?.m_smokePrefab;
+                        var cols = smoke != null ? smoke.GetComponentsInChildren<Collider>(true) : new Collider[0];
+                        string Layers(int mask) => string.Join(",", Enumerable.Range(0, 32).Where(i => (mask & (1 << i)) != 0).Select(LayerMask.LayerToName));
+                        output(new JObject { ["prefab"] = smoke?.name, ["interval"] = sp?.m_interval, ["testRadius"] = sp?.m_testRadius, ["testMask"] = sp != null ? Layers(sp.m_testMask.value) : "",
+                            ["layer"] = smoke != null ? LayerMask.LayerToName(smoke.layer) : "", ["colliders"] = new JArray(cols.Select(c => c is SphereCollider sc ? $"sphere r {sc.radius} scale {smoke.transform.localScale}" : c.GetType().Name)),
+                            ["collidesWith"] = smoke != null ? string.Join(",", Enumerable.Range(0, 32).Where(i => !Physics.GetIgnoreLayerCollision(smoke.layer, i) && LayerMask.LayerToName(i) != "").Select(LayerMask.LayerToName)) : "",
+                            ["vel"] = smoke?.GetComponent<Smoke>()?.m_vel.ToString(), ["force"] = smoke?.GetComponent<Smoke>()?.m_force, ["ttl"] = smoke?.GetComponent<Smoke>()?.m_ttl });
+                    }
+                    break;
+                case "smoketest": // (kit smoketest <piece> x z: the piece on four poles 2 m up (3 m at its high side), a lit fire pit under its middle)
+                    {
+                        string name = a[2]; var at = new Vector3(F(a[3]), 0, F(a[4])); at.y = ZoneSystem.instance.GetGroundHeight(at);
+                        Kit.Def d = Kit.Defs.FirstOrDefault(x => x.Name == name);
+                        if (d == null) { error("no kit piece " + name); yield break; }
+                        var made = new JArray();
+                        GameObject Put(string prefab, Vector3 p, float yaw)
+                        {
+                            GameObject go = Object.Instantiate(scene.GetPrefab(prefab), p, Quaternion.Euler(0, yaw, 0));
+                            go.GetComponent<Piece>()?.SetCreator(Player.m_localPlayer.GetPlayerID(), Splatform.PlatformManager.DistributionPlatform.LocalUser.PlatformUserID);
+                            go.GetComponent<WearNTear>()?.OnPlaced();
+                            made.Add($"{prefab} {p.x:0.00} {p.y:0.00} {p.z:0.00}");
+                            return go;
+                        }
+                        float baseY = at.y + 2f;
+                        foreach (float x in new[] { -0.9f, 0.9f })
+                            foreach (float z in new[] { -0.9f, 0.9f })
+                            {
+                                float top = baseY + Roofs.Height(d.Shape, d.Steep, x, z); // (the roof's underside over this pole)
+                                // (poles stand on their middle: a 2 m one from the ground, a 1 m one on it where the roof is higher)
+                                Put("wood_pole2", new Vector3(at.x + x, at.y + 1f, at.z + z), 0);
+                                if (top - at.y > 2.5f) Put("wood_pole", new Vector3(at.x + x, at.y + 2.5f, at.z + z), 0);
+                            }
+                        Put(name, new Vector3(at.x, baseY, at.z), 0);
+                        GameObject fire = Put("fire_pit", at, 0);
+                        var fv = fire.GetComponent<ZNetView>(); if (fv != null && fv.IsValid()) fv.GetZDO().Set(ZDOVars.s_fuel, fire.GetComponent<Fireplace>().m_maxFuel);
+                        output(new JObject { ["built"] = made, ["capUnderside"] = baseY + BuildKit.TurfMesh.HoodBase(d.Shape, d.Steep) });
+                    }
+                    break;
+                case "smokecount": // (kit smokecount x z capY: smoke balls within 3 m, those above capY (out through the vent), those under the roof)
+                    {
+                        var at = new Vector3(F(a[2]), 0, F(a[3])); float cap = F(a[4]);
+                        var near = Object.FindObjectsOfType<Smoke>().Where(sm => sm != null && Vector2.Distance(new Vector2(sm.transform.position.x, sm.transform.position.z), new Vector2(at.x, at.z)) < 3f).ToList();
+                        output(new JObject { ["near"] = near.Count, ["aboveCap"] = near.Count(sm => sm.transform.position.y > cap), ["underRoof"] = near.Count(sm => sm.transform.position.y < cap - 1.2f),
+                            ["balls"] = string.Join(" ", near.OrderBy(sm => sm.transform.position.y).Select(sm => $"({sm.transform.position.x - at.x:0.0},{sm.transform.position.y:0.0},{sm.transform.position.z - at.z:0.0})")) });
+                    }
+                    break;
                 case "probe": // (what's built at a spot: kit probe x y z [radius])
                     {
                         var at = new Vector3(F(a[2]), F(a[3]), F(a[4])); float r = a.Length > 5 ? F(a[5]) : 0.3f;

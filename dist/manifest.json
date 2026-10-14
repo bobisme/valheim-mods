@@ -14,6 +14,19 @@
       ]
     },
     {
+      "guid": "com.bobisme.buildkit",
+      "name": "BuildKit",
+      "version": "0.1.0",
+      "description": "Norse building pieces for the hammer (Building tab, at a workbench).\n\nTurf roofs: sod on birch bark over boards, in every shape the game's wooden roofs come in (26\u00b0 and 45\u00b0: straight, ridge, outer and inner corner). Each one snaps, holds and wears exactly like the wooden roof it's shaped on, so the two mix freely. The grass is the game's own (from its unused turf roof) and sways in the wind. Open edges tear: the sod reaches out in lumps and droops over the edge, with sticks poking out of the soil. Sides that meet another roof piece stay clean, so a long roof shows no seams. A turf roof keeps the house warm: +1 comfort when you're sheltered under one (once, however many pieces). 2 wood and 1 fine wood (birch: its bark).\n\nSmoke-hole roofs (26\u00b0 and 45\u00b0): a turf roof with a metre-square hole through it and a little hooded vent over the hole, as a longhouse without a chimney let out its hearth's smoke. Put it over the fire: the smoke rises up the hole and rolls out under the hood, and the hood keeps the rain off the fire below. 4 wood and 1 fine wood.\n\nReloads in a world. Native Linux and Windows.",
+      "notes": "0.1.0: First version. Turf roofs in all eight of the game's roof shapes (26\u00b0 and 45\u00b0: straight, ridge, outer and inner corner), snapping and holding like the wooden roofs; torn, drooping edges where a side is open, clean ones against a neighbour; sticks in the sod; +1 comfort under turf. Smoke-hole turf roofs (26\u00b0 and 45\u00b0) with a hooded vent the hearth's smoke rolls out of.",
+      "restart": "",
+      "cover": "BuildKit.cover.jpg",
+      "files": [
+        "BuildKit.dll",
+        "BuildKit.pdb"
+      ]
+    },
+    {
       "guid": "com.bobisme.buildshapes",
       "name": "BuildShapes",
       "version": "0.10.0",

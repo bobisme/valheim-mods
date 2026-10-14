@@ -45,9 +45,10 @@ namespace BuildKit
 
         // rough: the sides left open (bit 0: -z, 1: +x, 2: +z, 3: -x), whose edges are torn and lumpy; the others meet a neighbour, and
         // stay where the neighbour's sod meets them.
-        public static TurfMesh Build(Shape s, bool steep, int seed = 7, int rough = 15)
+        // hole: a smoke hole in its middle (a straight piece's), lined with boards, with a little hooded vent standing over it.
+        public static TurfMesh Build(Shape s, bool steep, int seed = 7, int rough = 15, bool hole = false)
         {
-            var m = new TurfMesh();
+            var m = new TurfMesh { _hole = hole };
             int cells = (int)Math.Round(2 / Step);
             // The sod's top, and the boards under it (seen from inside the house), on the same grid.
             int[,] top = new int[cells + 1, cells + 1], bottom = new int[cells + 1, cells + 1];
@@ -64,6 +65,7 @@ namespace BuildKit
             for (int i = 0; i < cells; i++)
                 for (int j = 0; j < cells; j++)
                 {
+                    if (m.InHole(-1 + (i + 0.5f) * Step, -1 + (j + 0.5f) * Step, 0)) continue;
                     int a = top[i, j], b = top[i + 1, j], c = top[i + 1, j + 1], d = top[i, j + 1];
                     m.Quad(Top, a, b, c, d);
                     a = bottom[i, j]; b = bottom[i + 1, j]; c = bottom[i + 1, j + 1]; d = bottom[i, j + 1];
@@ -71,9 +73,88 @@ namespace BuildKit
                 }
             // Round the edge: a strip of bark over the boards, then the cut sod, crumbly and bulging (not cut clean).
             for (int side = 0; side < 4; side++) m.RoughEdge(s, steep, side, seed, (rough >> side & 1) != 0);
+            if (hole) m.Vent(s, steep, seed);
             m.Tufts(s, steep, seed);
             m.Sticks(s, steep, seed, rough);
             return m;
+        }
+
+        // ---- the smoke hole ----
+        // A metre square through the sod and boards (a smoke ball, 0.84 m, rises through it), its sides lined with boards; over it a
+        // hood on four posts, its little gabled cap high enough above the sod for the smoke to roll out under it (and over the fire
+        // below, so the fire counts as under a roof in the rain).
+        public const float HoleHalf = 0.5f, HoodClear = 0.92f, HoodHalf = 0.62f, HoodRise = 0.24f, PostHalf = 0.045f;
+        private bool _hole;
+        private bool InHole(float x, float z, float margin) => _hole && Math.Abs(x) < HoleHalf + margin && Math.Abs(z) < HoleHalf + margin;
+        // Where the cap's underside is, over the piece's origin (the same for the colliders in the game).
+        public static float HoodBase(Shape s, bool steep)
+        {
+            float top = float.MinValue;
+            foreach (float x in new[] { -HoleHalf, HoleHalf }) foreach (float z in new[] { -HoleHalf, HoleHalf }) top = Math.Max(top, Roofs.Height(s, steep, x, z) + Thick);
+            return top + HoodClear;
+        }
+        private void Vent(Shape s, bool steep, int seed)
+        {
+            // (the lining: each side of the hole, board from under the boards to the grass, facing into the hole)
+            int n = (int)Math.Round(2 * HoleHalf / Step);
+            for (int side = 0; side < 4; side++)
+                for (int k = 0; k < n; k++)
+                {
+                    float t0 = -HoleHalf + k * Step, t1 = t0 + Step;
+                    (float x, float z) p0 = side == 0 ? (t0, -HoleHalf) : side == 1 ? (HoleHalf, t0) : side == 2 ? (t0, HoleHalf) : (-HoleHalf, t0);
+                    (float x, float z) p1 = side == 0 ? (t1, -HoleHalf) : side == 1 ? (HoleHalf, t1) : side == 2 ? (t1, HoleHalf) : (-HoleHalf, t1);
+                    float inx = side == 1 ? -1 : side == 3 ? 1 : 0, inz = side == 0 ? 1 : side == 2 ? -1 : 0;
+                    float h0 = Roofs.Height(s, steep, p0.x, p0.z), h1 = Roofs.Height(s, steep, p1.x, p1.z);
+                    int a = Add(p0.x, h0 - Under, p0.z, inx, 0, inz, t0, 0), b = Add(p1.x, h1 - Under, p1.z, inx, 0, inz, t1, 0);
+                    int c = Add(p1.x, h1 + Sod(p1.x, p1.z, seed), p1.z, inx, 0, inz, t1, 0.3f), d = Add(p0.x, h0 + Sod(p0.x, p0.z, seed), p0.z, inx, 0, inz, t0, 0.3f);
+                    QuadOut(Boards, a, b, c, d, inx, 0, inz);
+                }
+            float baseY = HoodBase(s, steep);
+            // Four posts from the sod up to the cap.
+            foreach (float x in new[] { -HoleHalf + PostHalf, HoleHalf - PostHalf })
+                foreach (float z in new[] { -HoleHalf + PostHalf, HoleHalf - PostHalf })
+                    Box(Stick, x - PostHalf, Roofs.Height(s, steep, x, z) + Thick - 0.08f, z - PostHalf, x + PostHalf, baseY + 0.02f, z + PostHalf);
+            // A low rail between them on each side (the smoke goes out above it).
+            foreach (float z in new[] { -HoleHalf + PostHalf, HoleHalf - PostHalf })
+            {
+                float y = Math.Max(Roofs.Height(s, steep, 0, z) + Thick, Roofs.Height(s, steep, -HoleHalf, z) + Thick) + 0.06f;
+                Box(Stick, -HoleHalf, y, z - 0.02f, HoleHalf, y + 0.1f, z + 0.02f);
+            }
+            // The cap: two boards meeting over the middle, the ridge along x.
+            Slope(baseY, -1); Slope(baseY, 1);
+        }
+        // One board of the cap: from the ridge (z = 0, HoodRise up) down to its eave at z = side * HoodHalf.
+        private void Slope(float baseY, int side)
+        {
+            const float thick = 0.04f;
+            float y0 = baseY + HoodRise, y1 = baseY, z1 = side * HoodHalf;
+            float len = (float)Math.Sqrt(HoodHalf * HoodHalf + HoodRise * HoodRise), ny = HoodHalf / len, nz = side * HoodRise / len; // (its upward normal)
+            var c = new (float x, float y, float z)[8];
+            for (int i = 0; i < 8; i++)
+            {
+                float x = (i & 1) == 0 ? -HoodHalf : HoodHalf; bool far = (i & 2) != 0, up = (i & 4) != 0;
+                float y = far ? y1 : y0, z = far ? z1 : 0;
+                if (up) { y += ny * thick; z += nz * thick; }
+                c[i] = (x, y, z);
+            }
+            void Face(int a, int b, int d, int e, float fx, float fy, float fz) => QuadOut(Stick, Add(c[a].x, c[a].y, c[a].z, fx, fy, fz, c[a].x, c[a].z), Add(c[b].x, c[b].y, c[b].z, fx, fy, fz, c[b].x, c[b].z), Add(c[d].x, c[d].y, c[d].z, fx, fy, fz, c[d].x, c[d].z), Add(c[e].x, c[e].y, c[e].z, fx, fy, fz, c[e].x, c[e].z), fx, fy, fz);
+            Face(4, 5, 7, 6, 0, ny, nz); Face(0, 1, 3, 2, 0, -ny, -nz);  // (top, underside)
+            Face(1, 3, 7, 5, 1, 0, 0); Face(0, 2, 6, 4, -1, 0, 0);       // (the gable ends)
+            Face(2, 3, 7, 6, 0, -nz * side, ny * side); Face(0, 1, 5, 4, 0, nz * side, -ny * side); // (the eave edge, down the slope; the ridge edge, up it)
+        }
+        private void Box(int slot, float x0, float y0, float z0, float x1, float y1, float z1)
+        {
+            var faces = new (float nx, float ny, float nz)[] { (1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1) };
+            foreach (var f in faces)
+            {
+                var c = new (float x, float y, float z)[4];
+                if (f.nx != 0) { float x = f.nx > 0 ? x1 : x0; c[0] = (x, y0, z0); c[1] = (x, y0, z1); c[2] = (x, y1, z1); c[3] = (x, y1, z0); }
+                else if (f.ny != 0) { float y = f.ny > 0 ? y1 : y0; c[0] = (x0, y, z0); c[1] = (x1, y, z0); c[2] = (x1, y, z1); c[3] = (x0, y, z1); }
+                else { float z = f.nz > 0 ? z1 : z0; c[0] = (x0, y0, z); c[1] = (x1, y0, z); c[2] = (x1, y1, z); c[3] = (x0, y1, z); }
+                int[] k = new int[4];
+                for (int i = 0; i < 4; i++) k[i] = Add(c[i].x, c[i].y, c[i].z, f.nx, f.ny, f.nz, f.nx != 0 ? c[i].z * 2 : c[i].x * 2, c[i].y * 2);
+                QuadOut(slot, k[0], k[1], k[2], k[3], f.nx, f.ny, f.nz);
+            }
         }
         // Along each side, anticlockwise from above: -z, +x, +z, -x.
         private static (float x, float z) Edge(int side, float t) =>
@@ -173,6 +254,7 @@ namespace BuildKit
                 float cx = R(-0.8f, 0.8f), cz = R(-0.8f, 0.8f), len = R(0.25f, 0.6f), ang = R(0, (float)Math.PI * 2), rad = R(0.011f, 0.022f);
                 float dx = (float)Math.Cos(ang) * len / 2, dz = (float)Math.Sin(ang) * len / 2;
                 float ax = Clamp(cx - dx), az = Clamp(cz - dz), bx = Clamp(cx + dx), bz = Clamp(cz + dz);
+                if (InHole(ax, az, 0.1f) || InHole(bx, bz, 0.1f) || InHole(cx, cz, 0.1f)) continue;
                 Prism((ax, TopAt(ax, az) - R(0.03f, 0.06f), az), (bx, TopAt(bx, bz) + R(-0.01f, Math.Min(0.04f, len * 0.1f)), bz), rad, rng); // (lifting out low, not standing up)
             }
             for (int side = 0; side < 4; side++)
@@ -233,6 +315,7 @@ namespace BuildKit
             for (int n = 0; n < TuftCount; n++)
             {
                 float x = (float)(rng.NextDouble() * 1.6 - 0.8), z = (float)(rng.NextDouble() * 1.6 - 0.8);
+                if (InHole(x, z, 0.2f)) continue;
                 float y = Roofs.Height(s, steep, x, z) + Sod(x, z, seed) - 0.04f;
                 float tall = TuftTall * (0.7f + 0.6f * (float)rng.NextDouble()), wide = TuftWide * (0.8f + 0.4f * (float)rng.NextDouble());
                 double turn = rng.NextDouble() * Math.PI;
