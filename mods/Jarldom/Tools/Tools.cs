@@ -974,7 +974,7 @@ namespace Jarldom
                         c.MarkDirty();
                         int st = GreatWorks.Stage(c.R.Flags, w);
                         output(new JObject { ["stage"] = st, ["shore"] = GreatWork.Shore(c) is Vector3 sh ? V(sh) : null, ["parts"] = GreatWorks.Parts(w).Count, ["needs"] = GreatWorks.NeedsText(w),
-                            ["built"] = st >= GreatWorks.Laid ? GreatWork.Built(c, w) : 0, ["at"] = st >= GreatWorks.Laid ? V(GreatWork.At(c, w, out _)) : null, ["ghosts"] = Compat.GhostCount(c.Position, c.Radius), ["plans"] = GreatWork.Plans(c, w), ["movable"] = GreatWork.Movable(c, w) });
+                            ["built"] = st >= GreatWorks.Laid ? GreatWork.Built(c, w) : 0, ["at"] = st >= GreatWorks.Laid ? V(GreatWork.At(c, w, out _)) : null, ["ghosts"] = Compat.GhostCount(c.Position, c.Radius), ["plans"] = GreatWork.Plans(c, w), ["movable"] = GreatWork.Movable(c, w), ["missing"] = st >= GreatWorks.Laid ? new JArray(GreatWork.Missing(c, w)) : null });
                     }
                     break;
                 case "payfix": // (test: payfix <missed> <last payday>: a test payday undone)

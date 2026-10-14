@@ -1,3 +1,5 @@
+0.1.126: the Lighthouse's floors are open over each landing and the top of each ladder, so the stair can be climbed without bumping your head (the fire's cairn moved clear of the stairwell)
+
 0.1.125: the Lighthouse is a timber tower again, now on a stone plinth with a course of stone round the keeper's hut, ladders in switchbacks inside up every storey to the gallery (a floor and a landing at each), its workbench and stonecutter beside it; the fire on its cairn 14 m up (outline 8 × 8 m)
 
 0.1.124: the Lighthouse is grander: a stone base 8 m square with buttressed corners and battlements, its workbench and stonecutter inside, ladders up through it, a stone shaft with a stair winding round its outside to a braced, railed gallery, and a bonfire 17 m up (outline 9 × 9 m)

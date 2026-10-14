@@ -156,6 +156,14 @@ namespace Jarldom
             }
             return n;
         }
+        // The parts of its plan that don't stand (local x, y, z, prefab), for a look at what's missing.
+        public static List<string> Missing(Colony c, string work)
+        {
+            Vector3 at = At(c, work, out float yaw);
+            var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 9f, 16f, near);
+            return GreatWorks.Parts(work).Where(p => { var w = GreatWorks.Place(p, at.x, at.y, at.z, yaw); Vector3 spot = new Vector3(w.x, w.y, w.z);
+                return !near.Any(x => x != null && Utils.GetPrefabName(x.gameObject) == p.Prefab && Vector3.Distance(x.transform.position, spot) < 0.5f); }).Select(p => $"{p.Prefab} {p.X} {p.Y:0.##} {p.Z}").ToList();
+        }
         public static void Tick(Colony c)
         {
             if (!c.IsOwner || Time.time < _next) return;

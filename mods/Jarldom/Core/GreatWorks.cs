@@ -55,7 +55,7 @@ namespace Jarldom
             }
             Ring(parts, "wood_wall_log_4x0.5", 2f, deck + storey + 0.27f);
             // three flights of two ladders, one over another: up toward the back, a landing, back up toward the front; a floor at each
-            // storey, open over the second ladder
+            // storey, open over the second ladder, the landing and the top of the first (head room all the way up)
             float[] half = { 2f, 1.75f, 1.5f };
             for (int s = 0; s < 3; s++)
             {
@@ -63,7 +63,7 @@ namespace Jarldom
                 P("wood_stepladder", 0.5f, y0, 0); P("wood_stepladder", -0.5f, y0 + 2, 0, 180);
                 P("wood_floor_1x1", -0.5f, y0 + 1.92f, -1.5f); P("wood_floor_1x1", 0.5f, y0 + 1.92f, -1.5f);
                 for (float x = -1.5f; x <= 1.5f; x += 1f) for (float z = -1.5f; z <= 1.5f; z += 1f)
-                    if (!(x < 0 && x > -1 && z > -1 && z < 1)) P("wood_floor_1x1", x, y0 + storey - 0.08f, z);
+                    if (!Stairwell(x, z)) P("wood_floor_1x1", x, y0 + storey - 0.08f, z);
                 if (s == 0) continue;
                 // the trestle storey this flight climbs: leaning corner logs, a ring halfway and one on top
                 float lo = half[s - 1], hi = half[s], yb = deck + storey * s;
@@ -75,10 +75,13 @@ namespace Jarldom
             float onDeck = deck + storey * 3 + 0.08f;
             foreach (var (sx, sz) in Corners) { P("wood_pole", sx * 1.85f, onDeck + 0.5f, sz * 1.85f); P("piece_groundtorch_wood", sx * 1.85f, onDeck + 1.65f, sz * 1.85f); }
             Ring(parts, "wood_wall_log_4x0.5", 1.85f, onDeck + 0.8f);
-            P("stone_pile", 1, onDeck + 0.09f, 0);
-            P("fire_pit", 1, onDeck + 0.9f, 0);
+            P("stone_pile", 1, onDeck + 0.09f, 1);
+            P("fire_pit", 1, onDeck + 0.9f, 1);
             return parts;
         }
+        // Where each floor is open for the stair (cells of a metre, by their middles): over the second ladder, over the landing, and over the
+        // top of the first ladder.
+        public static bool Stairwell(float x, float z) => x < 0 && x > -1 && z > -1 && z < 1 || z < -1 && z > -2 && Math.Abs(x) < 1 || x > 0 && x < 1 && z > -1 && z < 0;
         private static readonly (int, int)[] Corners = { (1, 1), (1, -1), (-1, 1), (-1, -1) };
         // Four logs lying round a square (half its side out from the middle) at a height.
         private static void Ring(List<Part> parts, string log, float half, float y)
