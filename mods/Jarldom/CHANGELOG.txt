@@ -1,3 +1,5 @@
+0.1.112: Needs you names the villagers who couldn't get to their bed last night (walled in, upstairs with no way up) and slept by the hall fire, and says what to do; it clears once they sleep in their own bed.
+
 0.1.111: The skald's verse of a raid held reads right: a siege at the Warstone is sung as a siege, a draugr warband by its jarl's name, and other raids as raiders (not the game's own warning words).
 
 0.1.110: New matters for the Thing: 'Raise a beacon' after a jarl comes home by night to a dark shore, and 'Make a burial ground' while the lost walk unburied with nowhere to lay them; promised, they're kept by building it within five days. A beacon's matter is withdrawn as soon as there is one.

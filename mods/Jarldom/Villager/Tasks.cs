@@ -68,6 +68,7 @@ namespace Jarldom
     internal sealed class SleepTask : Task
     {
         public bool JustRest;
+        public const string BedFailKey = "jarldom_bedfail"; // (tag: their own bed couldn't be reached last night)
         private Bed _bed; private Transform _spot; private GameObject _marker; private bool _down; private float _comfort; private double _since; private bool _own, _fireTried;
         public override bool Interruptible => false;
         public override void Start(Brain b)
@@ -135,7 +136,7 @@ namespace Jarldom
                 if (!beside && b.Move.Failed)
                 {
                     // (a bed that can't be got to: by the hall fire tonight, not trying all night)
-                    if (_own && !_fireTried) { _fireTried = true; Doing = "can't get to my bed: sleeping by the hall fire"; ByTheFire(b); return; }
+                    if (_own && !_fireTried) { _fireTried = true; Doing = "can't get to my bed: sleeping by the hall fire"; Villagers.Tag(b.View.GetZDO(), BedFailKey, "1"); ByTheFire(b); return; }
                     Done = true; return;
                 }
                 if (!beside && !b.Move.Arrived && d > 1.6f) { if (!b.Move.Moving) b.Move.To(_approach ?? _spot.position, 1.2f); return; }
@@ -144,6 +145,7 @@ namespace Jarldom
                 _comfort = Colony.ComfortAt(_spot.position);
                 b.Sit(_spot, "attach_bed", Vector3.zero);
                 Doing = JustRest ? "resting in bed" : _own ? "asleep" : "asleep by the fire";
+                if (_own && _bed != null) Villagers.Tag(b.View.GetZDO(), BedFailKey, ""); // (got to it: no longer a matter for the jarl)
                 return;
             }
             double hours = (b.Now - _since) / Clock.Hour;

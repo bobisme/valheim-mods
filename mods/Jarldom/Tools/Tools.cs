@@ -595,6 +595,7 @@ namespace Jarldom
                             ["learned"] = new JArray(c.R.Flags.Where(kv => kv.Key.StartsWith(Legends.Prefix)).Select(kv => $"{kv.Key} = {kv.Value}")) });
                     }
                     break;
+                case "bedfail": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } Villagers.Tag(b.View.GetZDO(), SleepTask.BedFailKey, a.Length > 3 && a[3] == "off" ? "" : "1"); output(new JObject { ["needsYou"] = new JArray(Ui.ColonyWindow.NeedsYou(c)) }); } break; // (test: "bedfail <name> [off]")
                 case "logdrop": // (test: saga entries a test left, by a piece of their text or names: "logdrop <words>")
                     {
                         string q = string.Join(" ", a.Skip(2));

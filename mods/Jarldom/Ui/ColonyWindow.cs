@@ -160,6 +160,9 @@ namespace Jarldom.Ui
             }
             var full = Stock.Chests(c).Where(x => x.category != "" && x.category != "treasury").GroupBy(x => x.category).Where(g => g.All(x => x.chest.GetInventory().GetEmptySlots() == 0)).Select(g => g.Key).ToList(); // (every chest of the kind full)
             if (full.Count > 0) list.Add($"Full stockpiles ({string.Join(", ", full)}): add chests, or what's gathered lies about.");
+            // (beds that couldn't be got to last night: walled in, upstairs with no way up, past a locked door)
+            var bedless = Villagers.Bodies().Where(h => h.GetComponent<ZNetView>()?.GetZDO() is ZDO z && z.GetString(Villagers.ColonyKey, "") == c.Id && Villagers.Tags(z).GetString(SleepTask.BedFailKey, "") == "1").Select(h => Villagers.DisplayName(h).Split(' ')[0]).ToList();
+            if (bedless.Count > 0) list.Add($"{string.Join(", ", bedless)} couldn't get to {(bedless.Count == 1 ? "their bed" : "their beds")} last night and slept by the hall fire: make a way to it (stairs, an open door, room to stand beside it) or give them another bed.");
             var stuck = new Dictionary<string, List<string>>();
             foreach (Humanoid h in Villagers.Bodies())
             {
