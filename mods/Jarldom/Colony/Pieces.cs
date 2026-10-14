@@ -292,21 +292,79 @@ namespace Jarldom
             GameObject go = Base("stone_pillar", name);
             if (go == null || plinth == null) return;
             var look = new GameObject("new"); look.transform.SetParent(go.transform, false);
-            GameObject stone = Assets.Model(plinth, look.transform, Vector3.zero, Quaternion.identity, 1f);
-            stone.transform.localScale = new Vector3(0.75f, 0.5f, 0.75f);
-            Bounds sb = Assets.MeshBounds(look.transform, stone); stone.transform.localPosition += Vector3.up * -sb.min.y;
-            if (emblem != null)
-            {
-                GameObject e = Assets.Model(emblem, look.transform, Vector3.zero, turn, scale, r => !(r.name.ToLower().Contains("broken")));
-                Bounds eb = Assets.MeshBounds(look.transform, e);
-                float dz = offset.z > 50 ? -(eb.max.z - 0.35f) : offset.z - eb.center.z;
-                e.transform.localPosition += new Vector3(offset.x - eb.center.x, sb.size.y - eb.min.y + 0.02f, dz);
-            }
+            // Each god's own altar, made in Blender (Models/altar/altars.py), its face to the piece's forward where the worshipper kneels.
+            // The stone pillar with the god's token on it, if the model can't be had.
+            if (!AltarModel(god, look.transform)) PlinthAltar(look.transform, plinth, emblem, scale, offset, turn);
             GodInfo info = Tables.God(god);
             Finish(go, look, $"Altar of {info.Name}",
                 $"An altar to {info.Name}. Designate a {(god == "odin" ? "shrine" : "temple")} room round it. {info.Name} wants {info.Offerings}; the blessing: {info.Blessing}. Use it to make an offering from your bag.",
                 Piece.PieceCategory.Misc, ("Stone", 12), (god == "odin" ? "TrophyEikthyr" : "Coins", god == "odin" ? 0 : 10), ("Resin", 2));
             go.AddComponent<Altar>().God = god;
+        }
+
+        // The colours that are each god's own in their altar's model: cloth, flowers, paint.
+        private static readonly Dictionary<string, (Color cloth, Color bloom, Color paint)> AltarColours = new Dictionary<string, (Color, Color, Color)>
+        {
+            ["odin"] = (new Color(0.3f, 0.32f, 0.45f), new Color(0.7f, 0.3f, 0.35f), new Color(0.56f, 0.1f, 0.06f)),
+            ["thor"] = (new Color(0.5f, 0.12f, 0.08f), new Color(0.7f, 0.3f, 0.35f), new Color(0.6f, 0.11f, 0.06f)),
+            ["freyja"] = (new Color(0.55f, 0.3f, 0.35f), new Color(0.86f, 0.4f, 0.5f), new Color(0.62f, 0.14f, 0.08f)),
+            ["njord"] = (new Color(0.25f, 0.35f, 0.42f), new Color(0.7f, 0.3f, 0.35f), new Color(0.45f, 0.56f, 0.62f)),
+            ["frigg"] = (new Color(0.17f, 0.26f, 0.5f), new Color(0.7f, 0.3f, 0.35f), new Color(0.78f, 0.62f, 0.3f)),
+            ["tyr"] = (new Color(0.5f, 0.12f, 0.08f), new Color(0.7f, 0.3f, 0.35f), new Color(0.58f, 0.1f, 0.06f)),
+            ["ullr"] = (new Color(0.3f, 0.35f, 0.3f), new Color(0.7f, 0.3f, 0.35f), new Color(0.6f, 0.12f, 0.08f)),
+            ["hel"] = (new Color(0.33f, 0.34f, 0.32f), new Color(0.5f, 0.45f, 0.5f), new Color(0.3f, 0.3f, 0.32f)),
+        };
+
+        private static bool AltarModel(string god, Transform look)
+        {
+            Mesh model = CarvedMesh("altar_" + god, "altar");
+            Material hewn = Assets.Find("wood_pole")?.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null && m.shader != null && m.shader.name == "Custom/Piece");
+            Material rock = Assets.Find("rock4_forest")?.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null);
+            if (model == null || hewn == null) return false;
+            if (!AltarColours.TryGetValue(god, out var own)) own = AltarColours["odin"];
+            Material grain = new Material(hewn) { name = "JarldomAltarWood", hideFlags = HideFlags.HideAndDontSave }; grain.mainTextureScale = Vector2.one * StakeGrain; Assets.Owned.Add(grain);
+            Material stone = Plain(hewn, new Color(0.45f, 0.44f, 0.42f)), cut = Plain(hewn, new Color(0.08f, 0.075f, 0.07f));
+            if (rock != null)
+            {
+                stone = new Material(rock) { name = "JarldomAltarStone", hideFlags = HideFlags.HideAndDontSave }; stone.mainTextureScale = Vector2.one * 0.4f; stone.color *= new Color(0.85f, 0.85f, 0.86f);
+                // (kept clean, no moss on the offering table: this shader lays its moss on every upward face whatever its alpha, so its moss is the rock)
+                stone.SetFloat("_AddSnow", 0f); stone.DisableKeyword("_ADDSNOW_ON"); stone.SetTexture("_MossTex", rock.mainTexture); stone.SetColor("_MossColor", new Color(0.85f, 0.85f, 0.86f)); Assets.Owned.Add(stone);
+                // (the carving, and Hel's black stone, in the rock's own shader: in any other the rock is drawn over it where the face slopes away)
+                cut = new Material(rock) { name = "JarldomAltarCut", hideFlags = HideFlags.HideAndDontSave, color = new Color(0.08f, 0.075f, 0.07f) };
+                cut.SetFloat("_AddSnow", 0f); cut.DisableKeyword("_ADDSNOW_ON"); cut.SetFloat("_MossAlpha", 0f); cut.SetFloat("_Glossiness", 0.1f);
+                cut.mainTextureScale = Vector2.one * 0.4f; Assets.Owned.Add(cut);
+            }
+            Material Matte(Color c) { Material m = Plain(hewn, c); foreach (string k in new[] { "_Glossiness", "_Metallic", "_Smoothness" }) if (m.HasProperty(k)) m.SetFloat(k, 0); return m; }
+            Material gold = Plain(hewn, new Color(0.8f, 0.58f, 0.2f));
+            if (gold.HasProperty("_Metallic")) gold.SetFloat("_Metallic", 0.6f);
+            if (gold.HasProperty("_Glossiness")) gold.SetFloat("_Glossiness", 0.55f);
+            Material glow = Plain(hewn, new Color(1f, 0.78f, 0.42f));
+            if (glow.HasProperty("_EmissionColor")) { glow.EnableKeyword("_EMISSION"); glow.SetColor("_EmissionColor", new Color(1f, 0.6f, 0.22f) * 1.6f); }
+            var m_ = new GameObject("altar"); m_.transform.SetParent(look, false);
+            m_.AddComponent<MeshFilter>().sharedMesh = model;
+            // (stone, cut, wood, dark, iron, gold, bone, cloth, rope, glow, leaf, bloom, paint, hide: as the model's materials are numbered)
+            m_.AddComponent<MeshRenderer>().sharedMaterials = new[]
+            {
+                stone, cut, grain, Plain(hewn, new Color(0.07f, 0.07f, 0.075f)), Plain(hewn, new Color(0.17f, 0.165f, 0.16f)), gold,
+                Matte(new Color(0.66f, 0.63f, 0.56f)), Matte(own.cloth), Matte(new Color(0.55f, 0.46f, 0.3f)), glow, Matte(new Color(0.2f, 0.36f, 0.12f)),
+                Matte(own.bloom), Matte(own.paint), Matte(new Color(0.42f, 0.3f, 0.19f)),
+            };
+            return true;
+        }
+
+        // The look the altars had before their models: the stone pillar, the god's token on it.
+        private static void PlinthAltar(Transform look, GameObject plinth, GameObject emblem, float scale, Vector3 offset, Quaternion turn)
+        {
+            GameObject stone = Assets.Model(plinth, look, Vector3.zero, Quaternion.identity, 1f);
+            stone.transform.localScale = new Vector3(0.75f, 0.5f, 0.75f);
+            Bounds sb = Assets.MeshBounds(look, stone); stone.transform.localPosition += Vector3.up * -sb.min.y;
+            if (emblem != null)
+            {
+                GameObject e = Assets.Model(emblem, look, Vector3.zero, turn, scale, r => !(r.name.ToLower().Contains("broken")));
+                Bounds eb = Assets.MeshBounds(look, e);
+                float dz = offset.z > 50 ? -(eb.max.z - 0.35f) : offset.z - eb.center.z;
+                e.transform.localPosition += new Vector3(offset.x - eb.center.x, sb.size.y - eb.min.y + 0.02f, dz);
+            }
         }
 
         private static void Horn()

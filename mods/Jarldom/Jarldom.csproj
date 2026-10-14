@@ -12,5 +12,6 @@
   <ItemGroup>
     <EmbeddedResource Include="Models/carve/*.json.gz" LogicalName="Jarldom.carve.%(Filename)%(Extension)" />
     <EmbeddedResource Include="Models/marker/*.json.gz" LogicalName="Jarldom.marker.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Models/altar/*.json.gz" LogicalName="Jarldom.altar.%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>
