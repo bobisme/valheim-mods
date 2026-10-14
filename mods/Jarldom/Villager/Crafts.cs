@@ -10,7 +10,7 @@ namespace Jarldom
     // A commission is a flag on the colony record: "craft:<item prefab>" = how many are still wanted.
     internal static class Crafts
     {
-        public const string Prefix = "craft:", BrewPrefix = "brew:";
+        public const string Prefix = "craft:", BrewPrefix = "brew:", PrepPrefix = "prep:";
         // The way to make a thing: the game's own recipe for it first (other mods add recipes for the same thing: a recycler's, an
         // upgrade path, one asking for some mod's idol), else another.
         // (kept per item: the game's whole recipe list was gone through on every ask, a hundred a scan; made again when the list changes)
@@ -25,8 +25,12 @@ namespace Jarldom
         private static Recipe FindRecipe(string prefab) =>
             ObjectDB.instance?.m_recipes.Where(r => r != null && r.m_enabled && r.m_item != null && r.m_item.name == prefab && r.m_resources.Length > 0 && !r.m_requireOnlyOneIngredient && !r.m_noCraftOnlyUpgrade)
                 .OrderBy(r => r.name == "Recipe_" + prefab ? 0 : 1).ThenBy(r => r.m_resources.Length).FirstOrDefault() ?? Weaving.RecipeFor(prefab); // (clothes: the colony's own weaving)
-        public static bool AtCauldron(Recipe r) => r?.m_craftingStation != null && r.m_craftingStation.name == "piece_cauldron";
+        public static bool AtCauldron(Recipe r) => r?.m_craftingStation != null && (r.m_craftingStation.name == "piece_cauldron" || r.m_craftingStation.name == "piece_preptable"); // (the kitchen: cauldron and food preparation table)
         public static Prof Maker(Recipe r) => Weaving.Is(r) ? Prof.Weaver : AtCauldron(r) ? Prof.Cook : Prof.Smith;
+        // A recipe by its own name (a fish prep: the game has one per kind of fish, all making the same raw fish).
+        public static Recipe Named(string name) => ObjectDB.instance?.m_recipes.FirstOrDefault(r => r != null && r.name == name);
+        public static bool IsFish(GameObject p) => p?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Fish;
+        public const int PrepKeep = 20; // (raw fish kept ready for the cooking station; past that, the catch waits whole)
         // A station of the recipe's kind in the colony, at the recipe's level (null if it needs one and the colony has none).
         public static CraftingStation StationFor(Colony c, Recipe r, Vector3 near)
         {
@@ -99,6 +103,14 @@ namespace Jarldom
                 Vector3 p = st.transform.position;
                 c.Board.Post("craft", Prefix + kv.Key, Maker(r), 3, p.x, p.y, p.z, now, "", "commission");
             }
+            // Fish in the stores, whole as caught: a cook prepares them by the game's own recipe for them (at whatever station it asks), so
+            // the cooking station has something to cook.
+            Recipe prep = PrepRecipes().FirstOrDefault(r => InStock(c, r.m_item.name) < PrepKeep && Needs(r).Any(n => InStock(c, n.item) > 0) && CanAfford(c, r) && StationFor(c, r, c.Position) != null);
+            if (prep != null)
+            {
+                CraftingStation st = StationFor(c, prep, c.Position);
+                c.Board.Post("craft", PrepPrefix + prep.name, Prof.Cook, 3, st.transform.position.x, st.transform.position.y, st.transform.position.z, now, "", "fish");
+            }
             // An empty fermenter and no mead base in the stores: a cook brews one at the cauldron, if the stores have what it takes.
             foreach (Fermenter f in c.PiecesIn<Fermenter>(c.Radius))
             {
@@ -110,6 +122,20 @@ namespace Jarldom
                 c.Board.Post("craft", BrewPrefix + brew.m_item.name, Prof.Cook, 3, st.transform.position.x, st.transform.position.y, st.transform.position.z, now, "", "fermenter");
                 break; // one at a time
             }
+        }
+        // The game's recipes that take a whole fish and make something else of it (raw fish, chiefly). Kept until the recipe list changes.
+        private static List<Recipe> _prep; private static ObjectDB _prepOf; private static int _prepCount;
+        public static List<Recipe> PrepRecipes()
+        {
+            ObjectDB db = ObjectDB.instance;
+            if (db == null) return new List<Recipe>();
+            if (_prep == null || db != _prepOf || db.m_recipes.Count != _prepCount)
+            {
+                _prepOf = db; _prepCount = db.m_recipes.Count;
+                _prep = db.m_recipes.Where(r => r != null && r.m_enabled && r.m_item != null && r.m_craftingStation != null && r.m_resources.Length > 0 && !r.m_requireOnlyOneIngredient
+                    && !IsFish(r.m_item.gameObject) && r.m_resources.Any(q => q.m_resItem != null && IsFish(q.m_resItem.gameObject))).ToList();
+            }
+            return _prep;
         }
         // On the owner, when one is made.
         public static void Made(Colony c, string target, string who)
@@ -134,13 +160,14 @@ namespace Jarldom
         public override void Start(Brain b)
         {
             string prefab = O.Target.Substring(O.Target.IndexOf(':') + 1);
-            _r = Crafts.RecipeFor(prefab);
+            _r = O.Target.StartsWith(Crafts.PrepPrefix) ? Crafts.Named(prefab) : Crafts.RecipeFor(prefab);
+            if (_r != null && O.Target.StartsWith(Crafts.PrepPrefix)) prefab = _r.m_item.name;
             _st = Crafts.StationFor(b.Colony, _r, b.Pos);
             if (_r == null || _st == null) { Release(b); b.NoCraftUntil = Time.time + 60; return; }
             string why = Crafts.Unusable(_st);
             if (why != null) { Done = true; b.NoCraftUntil = Time.time + 30; if (b.Colony.IsOwner) b.Colony.Board.Block(O.Id, why); b.Idle(why); return; }
             _needs = Crafts.Needs(_r);
-            Doing = "making " + Crafts.Name(prefab).ToLower();
+            Doing = O.Target.StartsWith(Crafts.PrepPrefix) ? "preparing fish" : "making " + Crafts.Name(prefab).ToLower();
         }
         private void Release(Brain b) { Done = true; if (b.Colony?.IsOwner == true) b.Colony.Board.Release(O.Id, b.S.Vid); }
         public override void Tick(Brain b)
