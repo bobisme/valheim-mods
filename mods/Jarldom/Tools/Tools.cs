@@ -512,6 +512,21 @@ namespace Jarldom
                             if (row == null) { error("no lost soul called " + a[3]); return; }
                             Lost.Walk(c, row, c.Day); output(new JObject { ["walking"] = row.Name }); return;
                         }
+                        if (a.Length > 3 && (a[2] == "still" || a[2] == "vanish"))
+                        {
+                            // (test: "still <name>", their draugr 25 m off, its AI off so it stands; "vanish <name>", gone without dying, as a
+                            // draugr killed on another player's game looks to this one)
+                            RosterRow row = c.R.Roster.FirstOrDefault(r => r.State == SoulState.Lost && r.Name.StartsWith(a[3], StringComparison.OrdinalIgnoreCase));
+                            if (row == null) { error("no lost soul called " + a[3]); return; }
+                            Character d = Character.GetAllCharacters().LastOrDefault(x => x != null && x.GetComponent<ZNetView>()?.GetZDO()?.GetString(Lost.VidKey, "") == row.Vid);
+                            if (a[2] == "vanish") { if (d == null) { error("not about"); return; } d.GetComponent<ZNetView>().Destroy(); output(new JObject { ["vanished"] = row.Name }); return; }
+                            Vector3 to = me.transform.position + me.transform.forward * 25f; to.y = Ground(to);
+                            Draugr.Raise(c, new VillagerState { Vid = row.Vid, Name = row.Name, Colony = c.Id }, to);
+                            d = Character.GetAllCharacters().LastOrDefault(x => x != null && x.GetComponent<ZNetView>()?.GetZDO()?.GetString(Lost.VidKey, "") == row.Vid);
+                            if (d != null) { d.transform.position = to; d.GetComponent<ZNetView>().GetZDO().SetPosition(to); if (d.GetComponent<MonsterAI>() is MonsterAI ai) ai.enabled = false; }
+                            output(new JObject { ["still"] = row.Name, ["at"] = V(to) }); return;
+                        }
+                        if (a.Length > 2 && a[2] == "pins") { output(new JObject { ["pins"] = new JArray(Net.PinKeys) }); return; }
                         if (a.Length > 3 && a[2] == "raise")
                         {
                             RosterRow row = c.R.Roster.FirstOrDefault(r => r.State == SoulState.Lost && r.Name.StartsWith(a[3], StringComparison.OrdinalIgnoreCase));

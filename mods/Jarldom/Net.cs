@@ -122,6 +122,7 @@ namespace Jarldom
             }
             if (add) Pins[key] = Minimap.instance.AddPin(at, Minimap.PinType.Icon3, text, false, false);
         }
+        public static IEnumerable<string> PinKeys => Pins.Select(kv => $"{kv.Key} at {kv.Value.m_pos.x:0},{kv.Value.m_pos.z:0}: {kv.Value.m_name}"); // (test)
         public static void ForgetPins() { if (Minimap.instance != null) foreach (var p in Pins.Values) Minimap.instance.RemovePin(p); Pins.Clear(); }
         public static void FindCamp(Colony c, string vid, string name) => ZRoutedRpc.instance?.InvokeRoutedRPC(CampRpc, c.Id, vid, c.Position, name); // (to the server)
         public static void Event(string name, Vector3 at) => ZRoutedRpc.instance?.InvokeRoutedRPC(ZRoutedRpc.Everybody, EventRpc, name, at);

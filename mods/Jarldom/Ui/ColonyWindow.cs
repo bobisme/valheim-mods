@@ -128,6 +128,13 @@ namespace Jarldom.Ui
                 int raw = RawInStores(c);
                 if (raw >= 5) list.Add($"{raw} raw meat and fish wait in the stores and no one cooks: give someone the Cook trade (People tab), with a cooking station over a fire.");
             }
+            // (whole fish as caught, and nowhere to clean them: the cook can't cook them)
+            if (people.Count > 0 && Crafts.PrepRecipes() is var preps && preps.Count > 0 && !preps.Any(r => Crafts.StationFor(c, r, c.Position) != null))
+            {
+                int whole = Stock.Chests(c).Where(x => x.category != "treasury").Sum(x => x.chest.GetInventory().GetAllItems().Where(i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Fish).Sum(i => i.m_stack));
+                string where = preps.Select(r => r.m_craftingStation.m_name).Distinct().Select(n => Localization.instance.Localize(n).ToLower()).FirstOrDefault();
+                if (whole >= 5) list.Add($"{whole} whole fish wait in the stores: build a {where} so the cook can clean them for the cooking station.");
+            }
             var full = Stock.Chests(c).Where(x => x.category != "" && x.category != "treasury").GroupBy(x => x.category).Where(g => g.All(x => x.chest.GetInventory().GetEmptySlots() == 0)).Select(g => g.Key).ToList(); // (every chest of the kind full)
             if (full.Count > 0) list.Add($"Full stockpiles ({string.Join(", ", full)}): add chests, or what's gathered lies about.");
             var stuck = new Dictionary<string, List<string>>();

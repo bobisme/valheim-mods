@@ -64,7 +64,16 @@ namespace Jarldom
         public static List<(string item, int amount)> Needs(Recipe r) =>
             r.m_resources.Where(q => q.m_resItem != null && !q.m_upgraderResource && q.GetAmount(1) > 0).Select(q => (q.m_resItem.name, q.GetAmount(1))).ToList();
         public static int InStock(Colony c, string item) => Stock.Count(c, item);
-        public static bool CanAfford(Colony c, Recipe r) => Needs(r).All(n => InStock(c, n.item) >= n.amount);
+        public static bool CanAfford(Colony c, Recipe r) => r.m_requireOnlyOneIngredient ? Needs(r).Any(n => InStock(c, n.item) >= n.amount) : Needs(r).All(n => InStock(c, n.item) >= n.amount);
+        // What one making takes from these stores: all of it, or for a recipe of "any one of these" (the fish prep: any fish), the first
+        // of them the stores have enough of.
+        public static List<(string item, int amount)> Needs(Recipe r, Colony c)
+        {
+            var all = Needs(r);
+            if (!r.m_requireOnlyOneIngredient || all.Count == 0) return all;
+            var one = all.FirstOrDefault(n => InStock(c, n.item) >= n.amount);
+            return new List<(string, int)> { one.item != null ? one : all[0] };
+        }
         public static string Name(string prefab) { GameObject p = Assets.Find(prefab); string n = p?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name; return n == null ? prefab : Localization.instance.Localize(n); }
 
         // Why each fermenter isn't being kept going (for the jarldom craft command).
@@ -132,7 +141,7 @@ namespace Jarldom
             if (_prep == null || db != _prepOf || db.m_recipes.Count != _prepCount)
             {
                 _prepOf = db; _prepCount = db.m_recipes.Count;
-                _prep = db.m_recipes.Where(r => r != null && r.m_enabled && r.m_item != null && r.m_craftingStation != null && r.m_resources.Length > 0 && !r.m_requireOnlyOneIngredient
+                _prep = db.m_recipes.Where(r => r != null && r.m_enabled && r.m_item != null && r.m_craftingStation != null && r.m_resources.Length > 0
                     && !IsFish(r.m_item.gameObject) && r.m_resources.Any(q => q.m_resItem != null && IsFish(q.m_resItem.gameObject))).ToList();
             }
             return _prep;
@@ -166,7 +175,7 @@ namespace Jarldom
             if (_r == null || _st == null) { Release(b); b.NoCraftUntil = Time.time + 60; return; }
             string why = Crafts.Unusable(_st);
             if (why != null) { Done = true; b.NoCraftUntil = Time.time + 30; if (b.Colony.IsOwner) b.Colony.Board.Block(O.Id, why); b.Idle(why); return; }
-            _needs = Crafts.Needs(_r);
+            _needs = Crafts.Needs(_r, b.Colony);
             Doing = O.Target.StartsWith(Crafts.PrepPrefix) ? "preparing fish" : "making " + Crafts.Name(prefab).ToLower();
         }
         private void Release(Brain b) { Done = true; if (b.Colony?.IsOwner == true) b.Colony.Board.Release(O.Id, b.S.Vid); }
