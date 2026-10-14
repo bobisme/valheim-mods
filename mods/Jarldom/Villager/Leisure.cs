@@ -214,14 +214,17 @@ namespace Jarldom
             return true;
         }
         // Close enough to a seat to sit (a bench's seats are inside its collider: walking right onto one fails).
+        private Chair _approachFor; private Vector3? _approach;
         private bool Near(Brain b, Chair seat)
         {
             Vector3 at = seat.m_attachPoint != null ? seat.m_attachPoint.position : seat.transform.position;
+            if (_approachFor != seat) { _approachFor = seat; _approach = Approaches.Inside(b, at); } // (from inside its room: see Approaches)
             float d = Utils.DistanceXZ(b.Pos, at);
-            if (d < 2.2f && Mathf.Abs(b.Pos.y - at.y) < 1.5f) { b.Move.Stop(); return true; }
+            bool atApproach = _approach.HasValue && Utils.DistanceXZ(b.Pos, _approach.Value) < 1.3f;
+            if (Mathf.Abs(b.Pos.y - at.y) < 1.5f && (d < 2.2f || atApproach && d < 4.5f)) { b.Move.Stop(); return true; }
             if (b.Move.Failed && d < 4f) return true;
             if (b.Move.Failed) { Done = true; return false; }
-            if (!b.Move.Moving) b.Move.To(at, 1.5f);
+            if (!b.Move.Moving || _approach.HasValue && Vector3.Distance(b.Move.Goal, _approach.Value) > 0.5f) b.Move.To(_approach ?? at, 1.2f);
             return false;
         }
         private void Face(Brain b, Vector3 at) { Vector3 d = at - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized); }

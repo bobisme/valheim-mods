@@ -160,6 +160,9 @@ namespace Jarldom.Ui
             }
             var full = Stock.Chests(c).Where(x => x.category != "" && x.category != "treasury").GroupBy(x => x.category).Where(g => g.All(x => x.chest.GetInventory().GetEmptySlots() == 0)).Select(g => g.Key).ToList(); // (every chest of the kind full)
             if (full.Count > 0) list.Add($"Full stockpiles ({string.Join(", ", full)}): add chests, or what's gathered lies about.");
+            // (a treasury chest so full of other things that coins can't go in: trade's takings go elsewhere and paydays come up short)
+            if (Stock.Treasury(c) is Container tre && tre.GetInventory().GetEmptySlots() == 0 && tre.GetInventory().GetAllItems().Any(i => i.m_dropPrefab == null || i.m_dropPrefab.name != "Coins"))
+                list.Add("The treasury chest is full, and not of coins: take out the rest (" + string.Join(", ", tre.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name != "Coins").Select(i => Localization.instance.Localize(i.m_shared.m_name).ToLower()).Distinct().Take(3)) + "), or no more coins fit for wages.");
             // (beds that couldn't be got to last night: walled in, upstairs with no way up, past a locked door)
             var bedless = Villagers.Bodies().Where(h => h.GetComponent<ZNetView>()?.GetZDO() is ZDO z && z.GetString(Villagers.ColonyKey, "") == c.Id && Villagers.Tags(z).GetString(SleepTask.BedFailKey, "") == "1").Select(h => Villagers.DisplayName(h).Split(' ')[0]).ToList();
             if (bedless.Count > 0) list.Add($"{string.Join(", ", bedless)} couldn't get to {(bedless.Count == 1 ? "their bed" : "their beds")} last night and slept by the hall fire: make a way to it (stairs, an open door, room to stand beside it) or give them another bed.");

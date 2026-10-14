@@ -596,6 +596,7 @@ namespace Jarldom
                     }
                     break;
                 case "bedfail": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } Villagers.Tag(b.View.GetZDO(), SleepTask.BedFailKey, a.Length > 3 && a[3] == "off" ? "" : "1"); output(new JObject { ["needsYou"] = new JArray(Ui.ColonyWindow.NeedsYou(c)) }); } break; // (test: "bedfail <name> [off]")
+                case "approach": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } Vector3 t = new Vector3(F(a[3]), F(a[4]), F(a[5])); Vector3? r = Approaches.Inside(b, t); output(new JObject { ["approach"] = r.HasValue ? V(r.Value) : null, ["why"] = Approaches.Last, ["from"] = V(b.Pos) }); } break; // (test: "approach <who> x y z")
                 case "logdrop": // (test: saga entries a test left, by a piece of their text or names: "logdrop <words>")
                     {
                         string q = string.Join(" ", a.Skip(2));

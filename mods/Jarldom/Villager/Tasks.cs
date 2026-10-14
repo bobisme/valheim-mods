@@ -82,7 +82,7 @@ namespace Jarldom
                 Bed sick = b.Colony.AllBeds().FirstOrDefault(x => b.Colony.RoomAt(x.transform.position, RoomType.HealersHouse) != null && (Colony.BedOwner(x, out _) == "" || x == _bed));
                 if (sick != null) { _spot = sick.m_spawnPoint != null ? sick.m_spawnPoint : sick.transform; Doing = "resting at the healer's"; b.Move.To(_spot.position, 1.2f); _own = true; return; }
             }
-            if (_bed != null) { _own = true; _spot = _bed.m_spawnPoint != null ? _bed.m_spawnPoint : _bed.transform; _approach = Approach(b, _spot.position); b.Move.To(_approach ?? _spot.position, 1.2f); return; }
+            if (_bed != null) { _own = true; _spot = _bed.m_spawnPoint != null ? _bed.m_spawnPoint : _bed.transform; _approach = Approaches.Inside(b, _spot.position); b.Move.To(_approach ?? _spot.position, 1.2f); return; }
             ByTheFire(b);
         }
         // The floor nearest the bed inside its own room (the navmesh's nearest point may be outside the wall, beyond packed beds).
@@ -102,24 +102,6 @@ namespace Jarldom
             _marker.transform.rotation = Quaternion.LookRotation(fire != null ? (fire.transform.position - spot).normalized : Vector3.forward) * Quaternion.Euler(0, 90, 0);
             _spot = _marker.transform;
             b.Move.To(spot, 1.2f);
-        }
-        private static readonly List<Vector3> ApproachPath = new List<Vector3>();
-        private static Vector3? Approach(Brain b, Vector3 bed)
-        {
-            Room room = b.Colony.RoomAt(bed + Vector3.up * 0.3f);
-            if (room == null || Pathfinding.instance == null) return null;
-            var found = new List<(Vector3 v, float d)>();
-            for (float dx = -4f; dx <= 4f; dx += 0.5f)
-                for (float dz = -4f; dz <= 4f; dz += 0.5f)
-                {
-                    Vector3 p = bed + new Vector3(dx, 0, dz);
-                    if (!Nav.Valid(out Vector3 v, p, 0.35f) || Mathf.Abs(v.y - bed.y) > 1.2f || b.Colony.RoomAt(v + Vector3.up * 0.3f) != room) continue;
-                    found.Add((v, Utils.DistanceXZ(v, bed)));
-                }
-            // (the nearest that can be walked to: a pocket between a fire and the wall is floor too, but cut off)
-            foreach (var (v, _) in found.GroupBy(x => (Mathf.RoundToInt(x.v.x * 2), Mathf.RoundToInt(x.v.z * 2))).Select(g => g.First()).OrderBy(x => x.d).Take(20)) // (many sample points snap to one spot)
-                if (Pathfinding.instance.GetPath(b.Pos, v, ApproachPath, b.Ai.m_pathAgentType, requireFullPath: true)) return v;
-            return null;
         }
         public override void Tick(Brain b)
         {
@@ -216,8 +198,10 @@ namespace Jarldom
             Fireplace hearth = hall != null && b.S.Prof == Prof.Skald ? Classes.NearestFire(at, 12f, hall.Xz) : null;
             if (hearth != null) at = hearth.transform.position + (b.Pos - hearth.transform.position).normalized * 2f;
             _stand = _chair != null ? _chair.transform.position : Colony.Spot(at, hearth != null ? 1f : 3f) ?? at;
-            b.Move.To(_stand, _chair != null ? 1.2f : 2f);
+            _approach = _chair != null && _chair.m_attachPoint != null ? Approaches.Inside(b, _chair.m_attachPoint.position) : null;
+            b.Move.To(_approach ?? _stand, _chair != null ? 1.2f : 2f);
         }
+        private Vector3? _approach;
         public override void Tick(Brain b)
         {
             if (!_there)
@@ -225,19 +209,21 @@ namespace Jarldom
                 // (beside the seat is near enough to sit: a bench's seats are inside its collider, and walking onto one fails)
                 Vector3? seat = _chair != null && _chair.m_attachPoint != null ? _chair.m_attachPoint.position : (Vector3?)null;
                 float d = seat.HasValue ? Utils.DistanceXZ(b.Pos, seat.Value) : 99f;
-                bool beside = seat.HasValue && (d < 2.2f && Mathf.Abs(b.Pos.y - seat.Value.y) < 1.5f || b.Move.Failed && d < 4f) && b.Colony.RoomAt(b.Pos) == b.Colony.RoomAt(seat.Value); // (not through the wall)
+                bool atApproach = _approach.HasValue && Utils.DistanceXZ(b.Pos, _approach.Value) < 1.3f;
+                bool beside = seat.HasValue && Mathf.Abs(b.Pos.y - seat.Value.y) < 1.5f && (d < 2.2f || (b.Move.Failed || atApproach) && d < 4.5f) && b.Colony.RoomAt(b.Pos) == b.Colony.RoomAt(seat.Value); // (not through the wall)
                 if (beside) b.Move.Stop();
                 else if (b.Move.Failed && _chair != null && ++_tries <= 2 && b.Colony.Best(RoomType.GreatHall) is Room hall)
                 {
                     // (that seat can't be got to: another, else a place on the floor)
                     _chair = Seats.Free(b, hall, b.Colony);
                     _stand = _chair != null ? _chair.transform.position : Colony.Spot(b.Colony.Centre(hall), 3f) ?? b.Colony.Centre(hall);
-                    b.Move.To(_stand, _chair != null ? 1.2f : 2f);
+                    _approach = _chair != null && _chair.m_attachPoint != null ? Approaches.Inside(b, _chair.m_attachPoint.position) : null;
+                    b.Move.To(_approach ?? _stand, _chair != null ? 1.2f : 2f);
                     return;
                 }
                 else if (b.Move.Failed) { Seats.Free(b); _chair = null; _there = true; Doing = "keeping company"; return; }
                 else if (b.Move.Moving) return;
-                if (!beside && !b.Move.Arrived && Utils.DistanceXZ(b.Pos, _stand) > 2.5f) { b.Move.To(_stand, _chair != null ? 1.2f : 2f); return; } // stopped by a fight
+                if (!beside && !b.Move.Arrived && Utils.DistanceXZ(b.Pos, _approach ?? _stand) > 2.5f) { b.Move.To(_approach ?? _stand, _chair != null ? 1.2f : 2f); return; } // stopped by a fight
                 _there = true;
                 if (_chair != null && _chair.m_attachPoint != null) b.Sit(_chair.m_attachPoint, string.IsNullOrEmpty(_chair.m_attachAnimation) ? "attach_chair" : _chair.m_attachAnimation, Vector3.zero);
                 Doing = Shelter ? "sheltering" : _chair != null ? "in the hall" : "keeping company";
@@ -609,6 +595,7 @@ namespace Jarldom
             _chair = hall != null ? Seats.Free(b, hall, c) : null;
             Vector3 at = Thing.Place(c);
             _stand = _chair != null ? _chair.transform.position : Colony.Spot(at, 4f) ?? at;
+            if (_chair != null && _chair.m_attachPoint != null && Approaches.Inside(b, _chair.m_attachPoint.position) is Vector3 near) _stand = near; // (beside the bench, from inside the hall)
             Arrived = false; Doing = "off to the Thing"; _since = Time.time;
             b.Move.To(_stand, _chair != null ? 1.2f : 2f);
         }
@@ -657,6 +644,52 @@ namespace Jarldom
             Vector3 d = to.Value - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized);
         }
         public override void Stop(Brain b) { Seats.Free(b); base.Stop(b); }
+    }
+
+    // Getting next to a bed or a seat: the navmesh's nearest point to one packed against a wall (or between others, or by a fire) may
+    // be outside the wall, and the walk goes out of the door and round, and back, and out. The floor nearest it inside its own room
+    // that can be walked to instead (null: none found, go for the thing itself).
+    internal static class Approaches
+    {
+        private static readonly List<Vector3> Path = new List<Vector3>();
+        public static string Last = ""; // (test: why the last search came out as it did)
+        // The floor just inside a room's door nearest a point (where one walks in), or null.
+        public static Vector3? Entry(Colony c, Room room, Vector3 near)
+        {
+            foreach (Door d in c.PiecesIn<Door>(c.Radius + 20).Where(d => d != null && !Classes.IsShutter(d.gameObject) && Geometry.Distance(room.Xz, d.transform.position.x, d.transform.position.z) < 1.5f)
+                .OrderBy(d => Vector3.Distance(d.transform.position, near)))
+            {
+                Vector3 foot = d.transform.position + Vector3.down * 0.9f;
+                foreach (Vector3 side in new[] { foot + d.transform.forward * 1.5f, foot - d.transform.forward * 1.5f })
+                    if (c.RoomAt(side + Vector3.up * 0.3f) == room && Nav.Valid(out Vector3 v, side, 1f)) return v;
+            }
+            return null;
+        }
+        public static Vector3? Inside(Brain b, Vector3 bed)
+        {
+            Last = "";
+            Room room = b.Colony.RoomAt(bed + Vector3.up * 0.3f);
+            if (room == null || Pathfinding.instance == null) { Last = "no room there"; return null; }
+            // (the plain way first: if it stays in the room and ends beside it, nothing more to find)
+            if (Pathfinding.instance.GetPath(b.Pos, bed, Path, b.Ai.m_pathAgentType) && Path.Count > 0 && Utils.DistanceXZ(Path[Path.Count - 1], bed) < 2f && b.Colony.RoomAt(Path[Path.Count - 1] + Vector3.up * 0.3f) == room
+                && Path.All(q => b.Colony.RoomAt(q + Vector3.up * 0.3f) == room || Utils.DistanceXZ(q, b.Pos) < 1f || b.Colony.RoomAt(b.Pos + Vector3.up * 0.3f) != room && b.Colony.RoomAt(q + Vector3.up * 0.3f) == null)) { Last = "the plain way does"; return null; }
+            var found = new List<(Vector3 v, float d)>();
+            for (float dx = -4f; dx <= 4f; dx += 0.5f)
+                for (float dz = -4f; dz <= 4f; dz += 0.5f)
+                {
+                    Vector3 p = bed + new Vector3(dx, 0, dz);
+                    if (!Nav.Valid(out Vector3 v, p, 0.35f) || Mathf.Abs(v.y - room.Floor) > 0.5f || b.Colony.RoomAt(v + Vector3.up * 0.3f) != room) continue; // (the floor: not a table top or a bench seat, which the navmesh covers too)
+                    found.Add((v, Utils.DistanceXZ(v, bed)));
+                }
+            // (the nearest that can be walked to: a pocket between a fire and the wall is floor too, but cut off)
+            // (reachable from inside the room: from where they stand if they're in it, else from its middle - a shut door between
+            // them and it would fail every way in, and the walk opens doors as it goes)
+            Vector3 from = b.Colony.RoomAt(b.Pos + Vector3.up * 0.3f) == room ? b.Pos : Entry(b.Colony, room, b.Pos) ?? Colony.Spot(b.Colony.Centre(room), 3f) ?? b.Colony.Centre(room);
+            foreach (var (v, _) in found.GroupBy(x => (Mathf.RoundToInt(x.v.x * 2), Mathf.RoundToInt(x.v.z * 2))).Select(g => g.First()).OrderBy(x => x.d).Take(40)) // (many sample points snap to one spot; the nearest may be pockets between benches)
+                if (Pathfinding.instance.GetPath(from, v, Path, b.Ai.m_pathAgentType, requireFullPath: true)) { Last = $"{found.Count} floor points; from {from}"; return v; }
+            Last = $"{found.Count} floor points, none reached from {from}";
+            return null;
+        }
     }
 
     // Chairs in use by villagers (the game only sees players on them).
