@@ -597,6 +597,10 @@ namespace Jarldom
                     break;
                 case "bedfail": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } Villagers.Tag(b.View.GetZDO(), SleepTask.BedFailKey, a.Length > 3 && a[3] == "off" ? "" : "1"); output(new JObject { ["needsYou"] = new JArray(Ui.ColonyWindow.NeedsYou(c)) }); } break; // (test: "bedfail <name> [off]")
                 case "approach": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } Vector3 t = new Vector3(F(a[3]), F(a[4]), F(a[5])); Vector3? r = Approaches.Inside(b, t); output(new JObject { ["approach"] = r.HasValue ? V(r.Value) : null, ["why"] = Approaches.Last, ["from"] = V(b.Pos) }); } break; // (test: "approach <who> x y z")
+                case "badrecipes": // (test: recipes with a missing ingredient or item - the crafting screen throws on them)
+                    output(new JObject { ["bad"] = new JArray(ObjectDB.instance.m_recipes.Where(r => r == null || r.m_item == null || r.m_resources == null || r.m_resources.Any(q => q == null || q.m_resItem == null))
+                        .Select(r => r == null ? "null recipe" : $"{r.name} -> {(r.m_item != null ? r.m_item.name : "NO ITEM")}: {(r.m_resources == null ? "no resources" : string.Join(", ", r.m_resources.Select(q => q?.m_resItem != null ? q.m_resItem.name : "MISSING")))}")) });
+                    break;
                 case "logdrop": // (test: saga entries a test left, by a piece of their text or names: "logdrop <words>")
                     {
                         string q = string.Join(" ", a.Skip(2));
