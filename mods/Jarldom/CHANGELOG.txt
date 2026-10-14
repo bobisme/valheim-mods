@@ -1,3 +1,5 @@
+0.1.114: A storm sends in those who work outdoors, but the healer, gothi, weaver, smith and cook go on with their work under a roof.
+
 0.1.113: Villagers stop milling at the hall door: a seat on a bench against the wall was walked to by the navmesh's nearest point to it - outside the wall - so they went out of the door and round, and back, and out. They now go to the nearest floor inside the hall that can be walked to and sit from there (the evening hall, a seat at leisure, hnefatafl, the Thing). Needs you warns when the treasury chest is so full of other things that coins can't go in.
 
 0.1.112: Needs you names the villagers who couldn't get to their bed last night (walled in, upstairs with no way up) and slept by the hall fire, and says what to do; it clears once they sleep in their own bed.

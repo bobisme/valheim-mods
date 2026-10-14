@@ -156,10 +156,11 @@ namespace Jarldom
             if (Colony.RaidOn || Colony.HornUntil > Time.time) return Activity.Defend;
             if (Thing.Held(Colony) && Thing.Comes(this)) return Activity.Thing; // (everyone to the Thing)
             if (Body.GetHealthPercentage() < 0.1f || S.InjuredUntil > Now) return S.Needs[(int)Need.Food] < Mood.EatBelow && Time.time > NoFoodUntil && Food.CanEat(this) ? Activity.Wake : Activity.Home;
-            Activity a = Schedule.At(Colony.Hour, S.Traits, heavyRain: Storm(), outdoorTask: true, urgent: false);
+            Activity a = Schedule.At(Colony.Hour, S.Traits, heavyRain: Storm(), outdoorTask: !Indoors(S.Prof), urgent: false); // (a storm sends in those who work outside; the healer, gothi, weaver, smith and cook work under a roof)
             if (a == Activity.Work || a == Activity.Wake) { if (S.Needs[(int)Need.Food] < Mood.EatBelow && Time.time > NoFoodUntil && Food.CanEat(this)) return Activity.Wake; }
             return a;
         }
+        private static bool Indoors(Prof p) => p == Prof.Healer || p == Prof.Gothi || p == Prof.Weaver || p == Prof.Smith || p == Prof.Cook;
         // A storm (thunder, or rain in a gale) drives them in; plain rain doesn't: it lasts, and work in the wet is still work.
         private static float _stormAt; private static bool _storm;
         private static bool Storm()
