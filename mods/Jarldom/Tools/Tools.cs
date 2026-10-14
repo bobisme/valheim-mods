@@ -565,6 +565,16 @@ namespace Jarldom
                         output(new JObject { ["beacon"] = at.HasValue ? V(at.Value) : null, ["lit"] = lit, ["wayfinder"] = marked == null && at.HasValue, ["marked"] = marked != null ? Utils.GetPrefabName(marked.gameObject) : null });
                     }
                     break;
+                case "legend": // ("legend": the legend the colony has to tell; "legend tell": told now (in the great hall); "legend reset": a new one asked for)
+                    {
+                        if (a.Length > 2 && a[2] == "reset") { c.R.Flags.Remove(TrueLegend.Cur); c.R.Flags.Remove(TrueLegend.KindKey); c.R.Flags.Remove(TrueLegend.Heard); c.MarkDirty(); }
+                        if (a.Length > 2 && a[2] == "tell" && c.R.Flag(TrueLegend.Cur) != 0 && c.Best(RoomType.GreatHall) is Room hall) TrueLegends.Tell(c, hall);
+                        var (lx, lz) = TrueLegend.Unpack(c.R.Flag(TrueLegend.Cur));
+                        output(new JObject { ["on"] = TrueLegends.On, ["stage"] = TrueLegends.Stage(), ["legend"] = c.R.Flag(TrueLegend.Cur) == 0 ? null : $"{TrueLegend.Kinds[c.R.Flag(TrueLegend.KindKey)].name} at {lx:0},{lz:0} ({Utils.DistanceXZ(new Vector3(lx, 0, lz), c.Position):0} m), heard {c.R.Flag(TrueLegend.Heard)}",
+                            ["told"] = new JArray(c.R.Flags.Keys.Where(k => k.StartsWith(TrueLegend.ToldPrefix))), ["pinnedForMe"] = me.m_customData.TryGetValue(TrueLegends.PinnedKey, out string lp) ? lp : "",
+                            ["mapPins"] = new JArray(((System.Collections.Generic.List<Minimap.PinData>)HarmonyLib.AccessTools.Field(typeof(Minimap), "m_pins").GetValue(Minimap.instance)).Where(p => p.m_name.Contains("legend")).Select(p => $"{p.m_name} at {p.m_pos.x:0},{p.m_pos.z:0} saved {p.m_save}")) });
+                    }
+                    break;
                 case "rune": // ("rune": the runestones loaded here; "rune read": the nearest read, as the player would; "rune <text key>": that tale carried home, as if read)
                     {
                         var stones = UnityEngine.Object.FindObjectsByType<RuneStone>(FindObjectsSortMode.None).OrderBy(r => Vector3.Distance(r.transform.position, me.transform.position)).ToList();

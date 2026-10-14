@@ -88,6 +88,9 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
   to four alliterative lines, shown to the players in the hall and kept in the saga. Sail home at night and the watch lights the
   **beacon** (Wayfinder's Beacon Fire, or any fire: Shift+E on it with the Mark rooms tool), getting out of bed to do it. Read a
   runestone and its tale goes home with you: the colony learns it, and after the verse the skald tells it as the colony's own.
+  **True legends** (setting TrueLegends, on): with a jarl in the great hall, every few minutes a villager tells of a real place
+  nearby (a burial chamber, a troll's cave, a sunken barrow, a wreck...), never more than a step beyond the bosses the world has
+  beaten; the third telling marks it on the jarls' maps.
   Inspired villagers work faster for a day; a jarl most of the colony loves lifts their followers. After the first boss, one newcomer
   in twelve may be **Forsaken-touched**: watch the mischief, and name them at the Thing. Roads (paved ground, stone floors): a sixth
   faster. **While you were away**: a colony that was unloaded makes up the time at the rates it showed live (goods, meals, wages, raids).

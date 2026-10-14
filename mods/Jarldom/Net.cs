@@ -12,9 +12,9 @@ namespace Jarldom
     {
         private const string VersionRpc = "Jarldom_Version";
         private static float _nextShout;
-        private const string ActRpc = "Jarldom_Act", FallenRpc = "Jarldom_Fallen", ClaimRpc = "Jarldom_Claim", ReportRpc = "Jarldom_Report", RefusedRpc = "Jarldom_Refused", ValkyrieRpc = "Jarldom_Valkyrie", VillagerRpc = "Jarldom_Villager", HelloRpc = "Jarldom_Hello", ExploreRpc = "Jarldom_Explore", EventRpc = "Jarldom_Event", PinRpc = "Jarldom_Pin", CampRpc = "Jarldom_Camp", CampAtRpc = "Jarldom_CampAt", AskRpc = "Jarldom_AskReply", CircleRpc = "Jarldom_ValkyrieCircle", BurialRpc = "Jarldom_ShipBurial2", EinherjarRpc = "Jarldom_Einherjar", FestRpc = "Jarldom_Fest";
+        private const string ActRpc = "Jarldom_Act", FallenRpc = "Jarldom_Fallen", ClaimRpc = "Jarldom_Claim", ReportRpc = "Jarldom_Report", RefusedRpc = "Jarldom_Refused", ValkyrieRpc = "Jarldom_Valkyrie", VillagerRpc = "Jarldom_Villager", HelloRpc = "Jarldom_Hello", ExploreRpc = "Jarldom_Explore", EventRpc = "Jarldom_Event", PinRpc = "Jarldom_Pin", CampRpc = "Jarldom_Camp", CampAtRpc = "Jarldom_CampAt", AskRpc = "Jarldom_AskReply", CircleRpc = "Jarldom_ValkyrieCircle", BurialRpc = "Jarldom_ShipBurial2", EinherjarRpc = "Jarldom_Einherjar", FestRpc = "Jarldom_Fest", LegendRpc = "Jarldom_Legend", LegendAtRpc = "Jarldom_LegendAt", LegendPinRpc = "Jarldom_LegendPin";
         private static ZRoutedRpc _on; private static int _delay;
-        private static readonly string[] Names = { VersionRpc, ActRpc, FallenRpc, ClaimRpc, ReportRpc, RefusedRpc, ValkyrieRpc, VillagerRpc, HelloRpc, HelloRpc + "?", ExploreRpc, EventRpc, PinRpc, CampRpc, CampAtRpc, AskRpc, CircleRpc, BurialRpc, EinherjarRpc, FestRpc };
+        private static readonly string[] Names = { VersionRpc, ActRpc, FallenRpc, ClaimRpc, ReportRpc, RefusedRpc, ValkyrieRpc, VillagerRpc, HelloRpc, HelloRpc + "?", ExploreRpc, EventRpc, PinRpc, CampRpc, CampAtRpc, AskRpc, CircleRpc, BurialRpc, EinherjarRpc, FestRpc, LegendRpc, LegendAtRpc, LegendPinRpc };
 
         // Whether the host has Jarldom too (a host without it deletes our pieces and villagers as soon as it loads them).
         public static bool HostHasJarldom => ZNet.instance == null || ZNet.instance.IsServer() || _hostAnswered;
@@ -79,6 +79,15 @@ namespace Jarldom
                 Pin(Captives.KeyFor(colony, vid), camp, name + ", held by the Fulings", true);
                 ZRoutedRpc.instance.InvokeRoutedRPC(sender, CampAtRpc, colony, vid, camp);
             }));
+            // True legends: the server finds the place; the colony's owner keeps it; each jarl's game pins it.
+            rpc.Register<string, Vector3, int, string>(LegendRpc, (sender, colony, from, stage, told) => Plugin.Guard(() =>
+            {
+                if (ZNet.instance == null || !ZNet.instance.IsServer()) return;
+                var f = TrueLegends.Find(from, stage, told);
+                if (f != null) ZRoutedRpc.instance.InvokeRoutedRPC(sender, LegendAtRpc, colony, f.Value.prefab, f.Value.at);
+            }));
+            rpc.Register<string, string, Vector3>(LegendAtRpc, (sender, colony, prefab, at) => Plugin.Guard(() => TrueLegends.Found(Colony.Of(colony), prefab, at)));
+            rpc.Register<string, Vector3, string>(LegendPinRpc, (sender, colony, at, label) => Plugin.Guard(() => TrueLegends.Pin(colony, at, label)));
             rpc.Register<string, string, Vector3>(CampAtRpc, (sender, colony, vid, camp) => Plugin.Guard(() => Captives.CampFound(colony, vid, camp)));
             rpc.Register<string, string, bool>(AskRpc, (sender, vid, id, ok) => Plugin.Guard(() => Asks.Replied(vid, id, ok)));
             rpc.Register<Vector3>(ValkyrieRpc, (sender, at) => Plugin.Guard(() => Valkyrie.Fly(at)));
@@ -125,6 +134,8 @@ namespace Jarldom
         public static IEnumerable<string> PinKeys => Pins.Select(kv => $"{kv.Key} at {kv.Value.m_pos.x:0},{kv.Value.m_pos.z:0}: {kv.Value.m_name}"); // (test)
         public static void ForgetPins() { if (Minimap.instance != null) foreach (var p in Pins.Values) Minimap.instance.RemovePin(p); Pins.Clear(); }
         public static void FindCamp(Colony c, string vid, string name) => ZRoutedRpc.instance?.InvokeRoutedRPC(CampRpc, c.Id, vid, c.Position, name); // (to the server)
+        public static void LegendAsk(Colony c, int stage, string told) => ZRoutedRpc.instance?.InvokeRoutedRPC(LegendRpc, c.Id, c.Position, stage, told); // (to the server: on the server itself, at once)
+        public static void LegendPin(Colony c, Vector3 at, string label) => ZRoutedRpc.instance?.InvokeRoutedRPC(ZRoutedRpc.Everybody, LegendPinRpc, c.Id, at, label);
         public static void Event(string name, Vector3 at) => ZRoutedRpc.instance?.InvokeRoutedRPC(ZRoutedRpc.Everybody, EventRpc, name, at);
         public static void Unregister() { if (ZRoutedRpc.instance != null) Remove(ZRoutedRpc.instance); _on = null; }
         private static void Remove(ZRoutedRpc rpc)

@@ -1,3 +1,5 @@
+0.1.102: True legends (setting TrueLegends, on): with a jarl in the great hall, now and then a villager tells of a real place nearby - a burial chamber, a troll's cave, a sunken barrow, a wreck - no more than a step beyond the bosses the world has beaten; the third telling marks it on the jarls' maps. The server finds the places.
+
 0.1.101: Legends from runestones: read one and its tale goes home with you; the colony learns it, and after the night's verse the skald tells it as the colony's own ("As our grandmothers told it..."), kept in the saga. The skald sings the verse to its end, past bedtime.
 
 0.1.100: Villagers reach upper floors again: the links Jarldom lays over stairs were never laid in game sessions where the navmesh's agent id came out negative (half of them), so villagers with beds upstairs stood under them all night. Beds packed against walls, each other or a fire are got into from the nearest floor that can be walked to in their room; a bed that can't be reached at all means a night by the hall fire, not a night of trying. With two named jarls, villagers compare them in small talk. The skald's verse isn't passed on as gossip.

@@ -299,6 +299,7 @@ namespace Jarldom
             Plugin.Guard(() => Defense.Tick(this));
             Plugin.Guard(() => JarlDeeds.Tick(this));
             Plugin.Guard(() => Beacon.Tick(this));
+            Plugin.Guard(() => TrueLegends.Tick(this));
             Plugin.Guard(() => Thing.Tick(this));
         }
         // Jobs done today, for the colony window (the board's own count starts again each time it loads).

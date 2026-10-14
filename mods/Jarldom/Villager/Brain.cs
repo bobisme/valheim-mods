@@ -480,6 +480,7 @@ namespace Jarldom
                         Task?.Stop(this); Task = new SigrTask(long.Parse(f[0], inv), new Vector3(P(1), P(2), P(3)), new Vector3(P(4), 0, P(5)), f[6], int.Parse(f[7], inv), int.Parse(f[8], inv), int.Parse(f[9], inv), f[10]); Task.Start(this);
                     }
                     break;
+                case "say": if (!Combat.Busy(this) && !(Task is SleepTask)) Say(arg, 8f); break; // (a legend told, or any line the colony's owner wants said)
                 case "beacon":
                     {
                         // (a guard to light the beacon for a jarl's ship coming in: up out of bed if need be, unless fighting)

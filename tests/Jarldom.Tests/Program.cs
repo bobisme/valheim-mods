@@ -658,4 +658,18 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Bynames.Deed("bane", "Moder-bane") == "brought down Moder", "A bane's deed names the boss");
 }
 
+{
+    // True legends: the nearest place of a kind the world is ready for, 150 m to 1.5 km off, not told before; the tale says where.
+    var places = new List<(string, float, float)> { ("Crypt4", 300, 0), ("SunkenCrypt4", 200, 0), ("MountainCave02", 180, 0), ("TrollCave02", 1400, 0), ("Crypt2", 50, 0), ("Eikthyrnir", 400, 0), ("Crypt3", 2000, 0) };
+    Check(TrueLegend.Pick(places, 0, 0, 0, new List<int>()) == 0, "No bosses yet: one stage ahead at most (a burial chamber, not the nearer sunken barrow)");
+    Check(TrueLegend.Pick(places, 0, 0, 0, new List<int> { TrueLegend.Pack(300, 0) }) == 3, "A told one isn't told again: the next ready one");
+    Check(TrueLegend.Pick(places, 0, 0, 2, new List<int>()) == 2, "Further on, a frost cave may be told");
+    Check(TrueLegend.Pick(new List<(string, float, float)> { ("Crypt2", 50, 0), ("Crypt3", 2000, 0), ("Vendor", 300, 0) }, 0, 0, 5, new List<int>()) == -1, "Too near, too far, not a legend: none");
+    var pk = TrueLegend.Unpack(TrueLegend.Pack(-1234.4f, 5678.6f));
+    Check(pk.x == -1234 && pk.z == 5679, "Positions packed into a flag and back");
+    string tale = TrueLegend.Tale(1, 700, "north-west", 1, new Random(2));
+    Check(tale.Contains("burial chamber") && tale.Contains("north-west") && tale.Contains("morning") && !tale.Contains("three times"), "The tale: what, where, how far");
+    Check(TrueLegend.Tale(1, 700, "west", 3, new Random(2)).Contains("three times"), "The third telling says so");
+}
+
 Console.WriteLine($"Jarldom: {checks} checks passed");

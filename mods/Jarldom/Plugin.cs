@@ -14,13 +14,13 @@ namespace Jarldom
     {
         public const string Guid = "com.bobisme.jarldom";
         public const string Name = "Jarldom";
-        public const string Version = "0.1.101";
+        public const string Version = "0.1.102";
         public const int DataVersion = 1; // raised whenever what's saved changes shape: games of different data versions mustn't write each other's colonies
         internal static Plugin Instance;
         internal ServerSettings Synced;
         internal ConfigEntry<float> LeaseSeconds, RespawnSeconds, WorkRate, ArrivalChance, RadiusBonus;
         internal ConfigEntry<int> MaxVillagers, WageScale, MaxBrainsPerFrame;
-        internal ConfigEntry<bool> Migration, Payroll, Raids, Tribute, Debug, Overlay;
+        internal ConfigEntry<bool> Migration, Payroll, Raids, Tribute, Debug, Overlay, TrueLegendsOn;
         internal ConfigEntry<string> TributeEvent;
         private Harmony _harmony;
 
@@ -33,6 +33,7 @@ namespace Jarldom
             ArrivalChance = Synced.Add(Config.Bind("1 - Colony", "ArrivalChance", 0.6f, new ConfigDescription("Chance at dawn, once renown is high enough and a bed is free, that Odin sends someone. [Synced with Server]", new AcceptableValueRange<float>(0f, 1f))));
             MaxVillagers = Synced.Add(Config.Bind("1 - Colony", "MaxVillagers", 40, new ConfigDescription("Most villagers a colony can hold, whatever its rank. [Synced with Server]", new AcceptableValueRange<int>(1, 60))));
             RadiusBonus = Synced.Add(Config.Bind("1 - Colony", "RadiusBonus", 0f, new ConfigDescription("Metres added to every colony's radius. [Synced with Server]", new AcceptableValueRange<float>(0f, 100f))));
+            TrueLegendsOn = Synced.Add(Config.Bind("1 - Colony", "TrueLegends", true, "With a jarl in the great hall, villagers now and then tell legends of real places (crypts, caves, wrecks); the third telling marks it on the jarls' maps. [Synced with Server]"));
             Payroll = Synced.Add(Config.Bind("2 - Economy", "Payroll", true, "Villagers want wages from the treasury every five days. [Synced with Server]"));
             WageScale = Synced.Add(Config.Bind("2 - Economy", "WagePercent", 100, new ConfigDescription("Wages as a percentage of the table's. [Synced with Server]", new AcceptableValueRange<int>(0, 500))));
             WorkRate = Synced.Add(Config.Bind("3 - Work", "WorkRate", 1f, new ConfigDescription("How fast villagers work, before mood and skill. [Synced with Server]", new AcceptableValueRange<float>(0.25f, 4f))));
@@ -130,6 +131,7 @@ namespace Jarldom
             Guard(DimNews.Forget);
             Guard(Landing.Forget);
             Guard(Beacon.Forget);
+            Guard(TrueLegends.Forget);
             Guard(Lost.Forget);
             Guard(StairLinks.Clear);
             Guard(Doors.Clear);
