@@ -63,6 +63,7 @@ namespace BuildKit
             ZNetScene scene = ZNetScene.instance; PieceTable table = Hammer();
             if (scene == null || table == null || Plugin.Instance == null || !Plugin.Instance.Enabled.Value) return;
             if (scene != _scene) { Forget(); _scene = scene; }
+            table.m_pieces.RemoveAll(p => p == null); // (a piece an older copy made and destroyed, or one dropped from the kit: the build menu throws on it)
             bool changed = false;
             foreach (Def d in Defs)
             {
