@@ -145,8 +145,8 @@ namespace Hallwright
             _shareDraftPieces.Value=GUILayout.Toggle(_shareDraftPieces.Value,"Include piece previews (Layout sends guides only)");
             GUILayout.Label("Viewers need Hallwright. Cyan drafts are visual only; Plan shell creates the buildable shared ghosts.",_menuHint);
             GUILayout.Space(10);GUILayout.Label("Preview",_menuText);
-            int preview=GUILayout.SelectionGrid(_hallGuideOnly?2:_hallSolid?0:1,new[]{"Materials","Ghosts","Layout"},3,_menuButton,GUILayout.Height(34));
-            _hallGuideOnly=preview==2;if(preview!=2)_hallSolid=preview==0;
+            int preview=GUILayout.SelectionGrid(HallPreviewMode,HallPreviewModes,4,_menuButton,GUILayout.Height(34));
+            SetHallPreviewMode(preview);
             GUILayout.Label("Layout shows the footprint, storey heights and roof outline. Tall amber posts mark terrain corners even on slopes.",_menuHint);
             if(GUILayout.Button(_hallShowRoof?"Hide roof":"Show roof",_menuButton)){_hallShowRoof=!_hallShowRoof;changed=true;}
             if(GUILayout.Button("Refresh unlocks and support",_menuButton)){_hallMeshes.Clear();changed=true;}

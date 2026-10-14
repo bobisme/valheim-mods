@@ -34,6 +34,8 @@ try
  Check(marked.Chimneys.Length==2&&marked.Chimneys[1].SequenceEqual(new[]{7f,0f,9f})&&!marked.Shutters,"Chimney markers and the shutter switch survive reloads");
  old=Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(path));old.Remove("Chimneys");old.Remove("Shutters");File.WriteAllText(path,old.ToString());var before=HallDraftStore.Read(path,17,99);
  Check(before.Chimneys==null&&before.Shutters,"Drafts saved before chimneys load with none, and shutters on");
+ record.Sketch=false;HallDraftStore.Write(path,record);Check(!HallDraftStore.Read(path,17,99).Sketch,"Leaving the Sketch preview survives reloads");
+ old=Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(path));old.Remove("Sketch");File.WriteAllText(path,old.ToString());Check(HallDraftStore.Read(path,17,99).Sketch,"Drafts saved before the Sketch preview open in it");
  record.Chimneys=Enumerable.Range(0,5).Select(i=>new[]{i*2+1f,0f,1f}).ToArray();Reject(()=>HallDraftStore.Write(path,record),"Five chimneys accepted");
  record.Chimneys=new[]{new[]{float.NaN,0f,1f}};Reject(()=>HallDraftStore.Write(path,record),"Non-finite chimney accepted");
  record.Chimneys=null;record.StaveTemple=false;record.Norse=true;record.Sink=1.5f;record.Benches=false;record.Hearth=false;record.StoneFooting=false;record.Storeys=1;record.Basement=record.Porch=record.Overhang=false;HallDraftStore.Write(path,record);var norse=HallDraftStore.Read(path,17,99);

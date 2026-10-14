@@ -17,6 +17,7 @@ namespace Hallwright
         public int Height,Detail,Entrance,Material,Opening,Crest,Storeys;
         public bool Roof45,Solid,ShowRoof,Tiered,Overhang,Porch,Sweep,Basement,GuideOnly,Shutters=true;
         public bool Norse,Benches=true,Hearth=true,StoneFooting=true;
+        public bool Sketch=true; // (drafts saved before the Sketch preview open in it)
         public float Sink=0.5f;
         private static bool Finite(float x)=>!float.IsNaN(x) && !float.IsInfinity(x);
         private static bool Point(float[] p)=>p!=null && p.Length==3 && p.All(x=>Finite(x) && Math.Abs(x)<1000000);

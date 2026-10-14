@@ -139,9 +139,9 @@ namespace Hallwright
             Toggle("Include piece previews",_shareDraftPieces.Value,()=>_shareDraftPieces.Value=!_shareDraftPieces.Value);
             Hint("Viewers need Hallwright. Cyan drafts are visual only; Plan shell creates the buildable shared ghosts.");
             Gap();Head("Preview");
-            Tabs(new[]{"Materials","Ghosts","Layout"},_hallGuideOnly?2:_hallSolid?0:1,i=>{_hallGuideOnly=i==2;if(i!=2)_hallSolid=i==0;HallChanged();});
-            Buttons((_hallShowRoof?"Hide roof":"Show roof",true,(Action)(()=>{_hallShowRoof=!_hallShowRoof;HallChanged();})),("Refresh unlocks and support",true,(Action)(()=>{_hallMeshes.Clear();foreach(var t in _hallTemplates.Values)if(t!=null)Object.Destroy(t);_hallTemplates.Clear();HallChanged();})));
-            Hint("Layout shows the footprint, storey heights and roof outline without the pieces.");
+            Tabs(HallPreviewModes,HallPreviewMode,i=>{SetHallPreviewMode(i);HallChanged();});
+            Buttons((_hallShowRoof?"Hide roof":"Show roof",true,(Action)(()=>{_hallShowRoof=!_hallShowRoof;HallChanged();})),("Refresh unlocks and support",true,(Action)(()=>{_hallMeshes.Clear();foreach(var t in _hallTemplates.Values)if(t!=null)Object.Destroy(t);_hallTemplates.Clear();foreach(var t in _sketchTemplates.Values)if(t!=null)Object.Destroy(t);_sketchTemplates.Clear();HallChanged();})));
+            Hint("Sketch draws the pieces as an architect's drawing; Materials and Ghosts show them as they will look. Layout shows the footprint, storey heights and roof outline without the pieces.");
             Gap();Head("Materials bill");
             foreach(var entry in _hallBill.OrderBy(v=>v.Key))
             {

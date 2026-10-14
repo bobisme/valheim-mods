@@ -17,7 +17,7 @@ namespace Hallwright
     {
         public const string Guid = "cx.bob.hallwright";
         public const string Name = "Hallwright";
-        public const string Version = "0.9.0";
+        public const string Version = "0.10.0";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");

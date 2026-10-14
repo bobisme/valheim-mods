@@ -1185,3 +1185,6 @@
 1792011184755994	codex-hallwright-cover	itc:AQ		item.move	bn-oue	{"state":"doing"}	blake3:zK_Dc0gT95rBIQevq-udBi8z6BT1LPweJKnnW8L1lzg
 1792011184771535	codex-hallwright-cover	itc:AQ		item.assign	bn-oue	{"action":"assign","agent":"codex-hallwright-cover"}	blake3:Y96CMc_jcjr0YjWvtRKVLyxDxealwBKP2CQui1IWag0
 1792011286774960	codex-hallwright-cover	itc:AQ		item.move	bn-oue	{"state":"done"}	blake3:Aam9O-nK0xonoL4SnfP75u7275mFyV-jaduRfCPaHGw
+1792014015177105	claude-hallwright	itc:AQ		item.create	bn-2jm4	{"kind":"task","labels":["hallwright"],"title":"Hallwright Sketch preview: Piranesi-style watercolour draft (ink strokes + own-colour wash), default"}	blake3:qgEE07OGn-l22OQQWhh7zkzWo5pqt0yVhoD3S_nTvPY
+1792014015201795	claude-hallwright	itc:AQ		item.comment	bn-2jm4	{"body":"Released 0.10.0. Seen live on Bob's hall; Bob: 'looks fantastic'."}	blake3:dtPPeQ_Um4pKzbrK8F75DHCNQYgcys_j40JQ9_tIdp8
+1792014015218320	claude-hallwright	itc:AQ		item.move	bn-2jm4	{"state":"done"}	blake3:kO2mthtF2gG2HyyCwxJgyfAG6o15gH7G978lt9riD_k

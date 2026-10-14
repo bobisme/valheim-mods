@@ -427,7 +427,7 @@ namespace Hallwright
             _hallRoles.Clear();_hallBill.Clear();_hallStations.Clear();_hallSupport.Clear();
         }
         private void DestroyHall()
-        {ClearHallPieces();if(_hallTemplateHolder!=null)Destroy(_hallTemplateHolder);_hallTemplateHolder=null;_hallTemplates.Clear();if(_hallMarkerMaterial!=null)Destroy(_hallMarkerMaterial);_hallMarkerMaterial=null;_hallCapture=null;_hallUnderlying=_hallBaseline=null;foreach(var material in _hallGhostMaterials.Values)if(material!=null)Destroy(material);_hallGhostMaterials.Clear();_hallMeshes.Clear();_hallMaterials.Clear();_hallColliderShapes.Clear();}
+        {ClearHallPieces();DestroySketch();if(_hallTemplateHolder!=null)Destroy(_hallTemplateHolder);_hallTemplateHolder=null;_hallTemplates.Clear();if(_hallMarkerMaterial!=null)Destroy(_hallMarkerMaterial);_hallMarkerMaterial=null;_hallCapture=null;_hallUnderlying=_hallBaseline=null;foreach(var material in _hallGhostMaterials.Values)if(material!=null)Destroy(material);_hallGhostMaterials.Clear();_hallMeshes.Clear();_hallMaterials.Clear();_hallColliderShapes.Clear();}
 
         private List<HallMesh> HallMeshes(string name)
         {
@@ -487,7 +487,7 @@ namespace Hallwright
         private void ClearHallPieces(){if(_hallPieceRoot!=null)Destroy(_hallPieceRoot);_hallPieceRoot=null;_hallPieceKey=null;}
         private void DrawHallMeshes()
         {
-            string key=$"{_hallPreviewVersion}:{_hallSolid}:{_hallGuideOnly}:{_hallShowRoof}";
+            string key=$"{_hallPreviewVersion}:{HallPreviewMode}:{_hallShowRoof}";
             if(key==_hallPieceKey)return;
             ClearHallPieces();_hallPieceKey=key;
             if(_hallGuideOnly || _output.Count==0)return;
@@ -496,8 +496,15 @@ namespace Hallwright
             {
                 var pose=_output[i];if(!_hallShowRoof && _hallRoles[i].EndsWith("roof",StringComparison.Ordinal))continue;
                 _hallSupport.TryGetValue(i.ToString(),out var support);
-                var copy=Instantiate(HallTemplate(pose.Prefab),pose.Position,pose.Rotation,_hallPieceRoot.transform);
                 bool falls=support?.Collapses==true;
+                if(_hallSketch)
+                {
+                    var drawing=Instantiate(HallSketchTemplate(pose.Prefab),pose.Position,pose.Rotation,_hallPieceRoot.transform);
+                    SketchMix(drawing,pose.Position);
+                    if(falls)SketchFalls(drawing);
+                    continue;
+                }
+                var copy=Instantiate(HallTemplate(pose.Prefab),pose.Position,pose.Rotation,_hallPieceRoot.transform);
                 if(!_hallSolid || falls)foreach(var renderer in copy.GetComponentsInChildren<MeshRenderer>(true))
                 {
                     if(!_hallSolid)renderer.sharedMaterials=renderer.sharedMaterials.Select(m=>m==null?null:HallGhostMaterial(m)).ToArray();
