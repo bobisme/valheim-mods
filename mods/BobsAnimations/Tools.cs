@@ -73,7 +73,7 @@ namespace BobsAnimations
         {
             string sub=args.Length>1?args[1]:"chars";
             if(Player.m_localPlayer==null){error("anim: needs the player in a world");return null;}
-            if(sub=="clips"){output(new JObject{["clips"]=new JArray(Clip.Names().Select(n=>{Clip c=Clip.Get(n);return $"{n}: {c.Length:0.0}s, {c.Bones.Length} bones{(c.Loop?", loops":"")}{(c.Props.Length>0?", props "+string.Join(",",c.Props.Select(p=>p.Item)):"")}";})),["playing"]=Playback.Describe()});return null;}
+            if(sub=="clips"){output(new JObject{["clips"]=new JArray(Clip.Names().Select(n=>{Clip c=Clip.Get(n);return $"{n}: {c.Length:0.0}s, {c.Bones.Length} bones{(c.Loop?", loops":"")}{(c.Props.Length>0?", props "+string.Join(",",c.Props.Select(p=>p.Item)):"")}";})),["playing"]=Playback.Describe(),["posedAheadOfCloth"]=ClothHook.PosedFrame>=Time.frameCount-2});return null;}
             if(sub=="chars")
             {
                 float radius=args.Length>2&&float.TryParse(args[2],NumberStyles.Float,CultureInfo.InvariantCulture,out float r)?r:100;
@@ -101,6 +101,19 @@ namespace BobsAnimations
                 case "stop":output(new JObject{["stopped"]=Anim.Stop(who),["on"]=who.m_name});break;
                 case "drift":return DriftAtEnd(output);
                 case "spin":return SpinWatch(who,output);
+                case "skins":
+                {
+                    // Each skin on the character: its bones that aren't the body's own (by path), so a worn thing's own bones show.
+                    var body=Playback.Bones(who);
+                    var list=new JArray();
+                    foreach(SkinnedMeshRenderer r in who.GetComponentsInChildren<SkinnedMeshRenderer>())
+                    {
+                        var odd=r.bones.Where(b=>b!=null&&(!body.TryGetValue(b.name,out Transform mine)||mine!=b)).Select(b=>{string p="";for(Transform t=b;t!=null&&t!=who.transform;t=t.parent)p=t.name+(p==""?"":"/"+p);return p;}).Distinct().Take(12);
+                        list.Add($"{r.name} ({r.bones.Length} bones, root {r.rootBone?.name}, cloth {r.GetComponents<Component>().Any(k=>k.GetType().Name.Contains("Cloth")||k.GetType().Name.Contains("Magica"))}): "+string.Join(", ",odd));
+                    }
+                    output(new JObject{["who"]=who.m_name,["skins"]=list});
+                    break;
+                }
                 case "params":
                 {
                     // The animator's switches that are on (bools, and ints and floats that aren't 0), for finding how a character is posed.
@@ -142,8 +155,6 @@ namespace BobsAnimations
             return null;
         }
 
-        // (A character out of the player's view keeps the skin it last had in view: Unity skins only what a camera sees. `anim drift` gives
-        // the real pose in numbers.)
         // At the end of the frame, as the game draws it: after the clips have posed the bones (a shot during Update has props where the
         // game's own animation left them, while the skin shows the last frame's pose).
         // Test: the right hand's biggest turn from one frame to the next over the next few seconds (a flip shows as a big one).
@@ -168,11 +179,13 @@ namespace BobsAnimations
         }
         private static IEnumerator ShotAtEnd(Character c,float yaw,float pitch,float dist,float up,Action<JObject> output)
         {
+            // (a few frames seen by the shot's own camera first: Unity skins, and the cloth simulates, only what a camera saw last frame)
+            for(int i=0;i<4&&c!=null;i++){yield return new WaitForEndOfFrame();Shot(c,yaw,pitch,dist,up,false);}
             yield return new WaitForEndOfFrame();
             if(c!=null)output(Shot(c,yaw,pitch,dist,up));
         }
         // The character alone (nothing else drawn), from a camera round its chest: yaw 0 is its face.
-        private static JObject Shot(Character c,float yaw,float pitch,float dist,float up)
+        private static JObject Shot(Character c,float yaw,float pitch,float dist,float up,bool save=true)
         {
             const int layer=31;
             var moved=new List<(GameObject go,int layer)>();
@@ -188,6 +201,7 @@ namespace BobsAnimations
                 holder.transform.SetPositionAndRotation(focus-turn*Vector3.forward*dist,turn);
                 var light=holder.AddComponent<Light>();light.type=LightType.Directional;light.cullingMask=1<<layer;light.intensity=0.9f;
                 cam.Render();
+                if(!save)return null;
                 RenderTexture before=RenderTexture.active;RenderTexture.active=texture;
                 var image=new Texture2D(900,900,TextureFormat.RGB24,false);image.ReadPixels(new Rect(0,0,900,900),0,0);image.Apply();RenderTexture.active=before;
                 string dir=System.IO.Path.Combine(Paths.BepInExRootPath,"claude","shots");System.IO.Directory.CreateDirectory(dir);

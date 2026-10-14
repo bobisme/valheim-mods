@@ -15,7 +15,7 @@ namespace BobsAnimations
     {
         public const string Guid="com.bobisme.animations";
         public const string Name="Bob's Animations";
-        public const string Version="0.3.5";
+        public const string Version="0.3.6";
         internal static Plugin Instance;
 
         private void Awake()
@@ -25,17 +25,17 @@ namespace BobsAnimations
         }
         private void OnDestroy()
         {
-            Playback.Clear();Tools.Stop();
+            ClothHook.Remove();Playback.Clear();Tools.Stop();
             if(Instance==this)Instance=null;
         }
         private void Update()
         {
-            try{Tools.Tick();Playback.Scan();}
+            try{ClothHook.Install();Tools.Tick();Playback.Scan();}
             catch(Exception e){Error(e);}
         }
         private void LateUpdate()
         {
-            try{Playback.LateUpdate();}
+            try{if(ClothHook.PosedFrame!=Time.frameCount)Playback.LateUpdate();} // (posed already, ahead of the cloth: ClothHook)
             catch(Exception e){Error(e);Playback.Clear();}
         }
         internal void Error(Exception e)=>Logger.LogError(e);
