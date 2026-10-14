@@ -355,7 +355,31 @@ namespace Jarldom
                 Matte(new Color(0.66f, 0.63f, 0.56f)), Matte(own.cloth), Matte(new Color(0.55f, 0.46f, 0.3f)), glow, Matte(new Color(0.2f, 0.36f, 0.12f)),
                 Matte(own.bloom), Matte(own.paint), Matte(new Color(0.42f, 0.3f, 0.19f)),
             };
+            if (god == "hel") HelKit(look);
             return true;
+        }
+
+        // Hel's bones, the game's own: a beast's ribcage rising behind her table like claws, skulls on it, bones and a skull at its foot.
+        private static void HelKit(Transform look)
+        {
+            Kit(look, "UndeadBjornRibcage", new Vector3(0, 0, -0.42f), new Vector3(0, 90, 0), 0.8f, 0.4f); // (its length squeezed: it stands close behind)
+            Kit(look, "Skull1", new Vector3(0, 0.86f, -0.1f), new Vector3(0, -90, 0), 0.85f);
+            Kit(look, "Skull1", new Vector3(-0.26f, 0.86f, -0.04f), new Vector3(0, -70, 0), 0.68f);
+            Kit(look, "Skull1", new Vector3(0.27f, 0.86f, -0.1f), new Vector3(0, -112, 0), 0.68f);
+            Kit(look, "bone_stack", new Vector3(-0.42f, 0, 0.5f), new Vector3(0, 20, 0), 0.32f);
+            Kit(look, "LargeBone", new Vector3(0.22f, 0, 0.52f), new Vector3(0, 30, 90), 0.3f);
+            Kit(look, "LargeBone", new Vector3(0.42f, 0, 0.42f), new Vector3(0, -55, 90), 0.26f);
+            Kit(look, "Skull1", new Vector3(0.5f, 0, 0.6f), new Vector3(8, -40, 0), 0.62f);
+        }
+        // A game prefab's look, turned and scaled (squeezed along its own x, if asked), set down with its foot's middle at a point.
+        private static void Kit(Transform look, string prefab, Vector3 at, Vector3 euler, float scale, float squeeze = 1f)
+        {
+            GameObject source = Assets.Find(prefab);
+            if (source == null) return;
+            GameObject m = Assets.Model(source, look, Vector3.zero, Quaternion.Euler(euler), scale);
+            m.transform.localScale = new Vector3(scale * squeeze, scale, scale); // (squeeze: along its own length, x)
+            Bounds b = Assets.MeshBounds(look, m);
+            m.transform.localPosition += new Vector3(at.x - b.center.x, at.y - b.min.y, at.z - b.center.z);
         }
 
         // The look the altars had before their models: the stone pillar, the god's token on it.

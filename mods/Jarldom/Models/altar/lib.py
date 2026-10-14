@@ -151,22 +151,56 @@ def sweep(name, path, profile, mat, smooth=False, cap=True, fixed=None):
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     return link(name, bm, mat, smooth)
 
-def raven(at, yaw, scale=1.0, mat=DARK, beak=IRON, head_turn=0.0):
-    """A perched raven: body, breast, head, heavy beak, tail, folded wings."""
+def raven(at, yaw, scale=1.0, mat=DARK, beak=DARK, head_turn=0.0):
+    """A perched raven, carved: one lofted body from the wedge tail to the heavy bill, folded wings crossing over the tail, shaggy
+    throat hackles, legs and toes gripping what it stands on. at = between its feet; facing yaw (0: +y)."""
     q = Matrix.Rotation(yaw, 3, 'Z'); s = scale
-    def P(x, y, z): return Vector(at) + q @ Vector((x * s, y * s, z * s))
-    ball('raven', P(0, 0, 0.09), 0.075 * s, mat, squash=(0.8, 1.3, 0.9))
-    ball('raven', P(0, 0.06, 0.12), 0.06 * s, mat, squash=(0.9, 1.0, 1.0))
-    hq = Matrix.Rotation(head_turn, 3, 'Z')
-    H = P(0, 0.1, 0.19)
-    ball('raven', H, 0.045 * s, mat, squash=(0.85, 1.1, 0.95))
-    tip = H + q @ hq @ Vector((0, 0.1 * s, -0.012 * s))
-    hull('raven', [H + q @ hq @ Vector((x * s, 0.03 * s, z * s)) for x in (-0.016, 0.016) for z in (-0.016, 0.018)] + [tip], beak, 1)
-    hull('raven', [P(x, -0.07, 0.1) for x in (-0.03, 0.03)] + [P(x, -0.08, 0.06) for x in (-0.03, 0.03)] + [P(x, -0.2, 0.03) for x in (-0.045, 0.045)] + [P(0, -0.21, 0.045)], mat, 1)
+    neck = Vector((0, 0.12, 0.2)); hq = Matrix.Rotation(head_turn, 3, 'Z')
+    def W(p):  # the head and bill turn about the neck
+        p = Vector(p)
+        if p.y > 0.115: p = neck + hq @ (p - neck)
+        return Vector(at) + q @ (p * s)
+    # (along it: y, z of its middle, half width, half height)
+    keys = [(-0.31, 0.06, 0.04, 0.005), (-0.2, 0.085, 0.042, 0.012), (-0.1, 0.11, 0.055, 0.04), (-0.02, 0.125, 0.07, 0.068), (0.06, 0.14, 0.064, 0.068),
+            (0.115, 0.2, 0.042, 0.046), (0.14, 0.25, 0.042, 0.042), (0.175, 0.258, 0.036, 0.034), (0.2, 0.252, 0.02, 0.027), (0.245, 0.243, 0.011, 0.016), (0.285, 0.226, 0.002, 0.004)]
+    def interp(t):
+        f = t * (len(keys) - 1); k = min(int(f), len(keys) - 2); u = f - k
+        u = u * u * (3 - 2 * u)
+        return [a + (b - a) * u for a, b in zip(keys[k], keys[k + 1])]
+    n = 30; rings = []; bm = bmesh.new()
+    for i in range(n + 1):
+        y, z, w, h = interp(i / n)
+        rings.append([bm.verts.new(W((math.cos(a) * w, y, z + math.sin(a) * h * (1.0 if math.sin(a) > 0 else 0.9)))) for a in [2 * math.pi * k / 8 + math.pi / 8 for k in range(8)]])
+    for r0, r1 in zip(rings, rings[1:]):
+        for k in range(8): bm.faces.new((r0[k], r0[(k + 1) % 8], r1[(k + 1) % 8], r1[k]))
+    bm.faces.new(list(reversed(rings[0]))); bm.faces.new(rings[-1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    link('raven', bm, mat)
+    hull('raven', [W((x, 0.2, 0.252 + z)) for x in (-0.012, 0.012) for z in (-0.02, 0.026)] + [W((0, 0.29, 0.222)), W((0, 0.27, 0.205)), W((0, 0.215, 0.282))], beak, 1)  # (the bill, heavy and hooked)
     for sx in (-1, 1):
-        hull('raven', [P(sx * 0.055, 0.06, 0.15), P(sx * 0.07, 0.0, 0.14), P(sx * 0.06, -0.13, 0.08), P(sx * 0.04, -0.12, 0.05), P(sx * 0.065, 0.02, 0.06), P(sx * 0.045, 0.05, 0.08)], mat, 1)
-        for k in (-1, 1):
-            cyl('raven', P(sx * 0.025, 0.0, 0.03), P(sx * 0.028 + k * 0.01, 0.04, -0.005), 0.006 * s, beak, n=5)
+        # a folded wing: a long blade from the shoulder down the flank, its tip over the tail, the other's tip crossing it
+        path = [(sx * 0.055, 0.075, 0.17), (sx * 0.066, 0.0, 0.155), (sx * 0.054, -0.11, 0.128), (sx * 0.026, -0.22, 0.103), (sx * -0.012, -0.29, 0.094)]
+        bm = bmesh.new(); prev = None
+        for i, p in enumerate(path):
+            t = i / (len(path) - 1); hh = 0.05 * (1 - 0.75 * t); th = 0.009 * (1 - 0.5 * t)
+            ring_ = [bm.verts.new(W((p[0] + sx * dx, p[1], p[2] + dz))) for dx, dz in ((th, hh * 0.3), (th, -hh), (-th, -hh * 0.9), (-th, hh * 0.35))]
+            if prev:
+                for k in range(4): bm.faces.new((prev[k], prev[(k + 1) % 4], ring_[(k + 1) % 4], ring_[k]))
+            prev = ring_ if i else ring_
+            if i == 0: first = ring_
+        bm.faces.new(list(reversed(first))); bm.faces.new(prev)
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces); link('raven', bm, mat)
+        for k in range(3):  # the primaries, fingered at the wing's end
+            y0 = -0.19 - 0.03 * k
+            hull('raven', [W((sx * (0.035 - 0.015 * k) + sx * dx, y0, 0.108 - 0.004 * k + dz)) for dx in (-0.006, 0.006) for dz in (-0.012, 0.004)] + [W((sx * (0.01 - 0.012 * k), y0 - 0.09, 0.098 - 0.004 * k))], mat, 1)
+        # its legs and toes, three forward and one back, gripping
+        hip = (sx * 0.028, 0.02, 0.075); foot = (sx * 0.032, 0.035, 0.012)
+        cyl('raven', W(hip), W(foot), 0.008 * s, beak, n=5)
+        for dx, dy in ((-0.02, 0.05), (0.0, 0.058), (0.02, 0.05), (0.0, -0.035)):
+            cyl('raven', W(foot), W((foot[0] + sx * dx, foot[1] + dy, 0.003)), 0.005 * s, beak, n=4, r2=0.003 * s)
+    for k in range(6):  # the shaggy throat
+        y = 0.13 + 0.012 * k
+        hull('raven', [W((x, y, 0.2 - 0.004 * k)) for x in (-0.016, 0.016)] + [W((0, y - 0.01, 0.235))] + [W((0, y - 0.035, 0.165 + 0.006 * k))], mat, 1)
 
 def sheet(name, f, nu, nv, mat, thick=0.012, smooth=True):
     """A cloth or hide: f(u, v) -> point for u, v in 0..1, given a thickness (solidified)."""

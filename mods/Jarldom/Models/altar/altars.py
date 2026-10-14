@@ -67,8 +67,11 @@ def odin():
         carve(face, [mid, mid + Vector((rng.choice((-1, 1)) * 0.035, 0, -0.03))], (0, -1, 0), w=0.009)
         if m < 0.5: carve(face, [a, a + Vector((0.03, 0, -0.025))], (0, -1, 0), w=0.009)
     # Huginn and Muninn on its shoulders, looking out and down at the worshipper
-    raven(Vector((-0.24, Y, TOPZ * 0.93 - 0.06)), math.radians(-20), 1.35, head_turn=math.radians(-15))
-    raven(Vector((0.22, Y, TOPZ * 0.93 - 0.04)), math.radians(25), 1.35, head_turn=math.radians(20))
+    def perch(x, y):  # (stood on the slab's top, found by a ray down)
+        hit = face.ray_cast(Vector((x, y, 3.0)), Vector((0, 0, -1)))
+        return Vector((x, y, (hit[0].z if hit[0] is not None else TOPZ) - 0.01))
+    raven(perch(-0.15, Y + 0.0), math.radians(-18), 1.25, head_turn=math.radians(40))
+    raven(perch(0.15, Y + 0.0), math.radians(20), 1.25, head_turn=math.radians(-25))
     # Gungnir leaning on the slab's right edge
     foot, top = Vector((0.66, -0.22, 0.0)), Vector((0.42, -0.44, 1.78))
     cyl('spear', foot, top, 0.02, DARK if False else WOOD, n=8, smooth=True)
@@ -543,8 +546,8 @@ def ullr():
     return dict(height=1.95, paint=(0.6, 0.12, 0.08))
 
 def hel():
-    """Half and half, as she is: a table of two stones, one pale and one black; over its back an arch of spine and ribs; skulls and
-    guttering candles on it; a grey shroud hung over its front; bones at its foot."""
+    """Half and half, as she is: a table of two stones, one pale and one black, guttering candles on it, a grey shroud hung over its
+    front. The game's own bones join it in the game (Pieces.HelKit): a ribcage rising behind, skulls on it, bones at its foot."""
     seed(81)
     for sx, m in ((-1, STONE), (1, CUT)):
         pts = [Vector((sx * x, y, z)) for x in (0.01, 0.5) for y in (-0.31, 0.31) for z in (0, 0.86)]
@@ -553,27 +556,8 @@ def hel():
         weather(ob, voxel=0.015, big=0.025, small=0.008, ratio=0.2, seed_=9 + sx)
         flatten(ob, 2, 0.86, 0.85, 1)
         flatten(ob, 0, sx * 0.005, 0.95, -sx)   # (the two meet close)
-    # the spine arched over the back, ribs off it
-    SY = -0.42
-    def spine(t): return Vector((0.6 * math.cos(math.pi * t), SY, 0.04 + 1.68 * math.sin(math.pi * t) ** 0.85))
-    for i in range(1, 60):
-        t = i / 60; p = spine(t); d = (spine(t + 0.01) - spine(t - 0.01)).normalized()
-        q = d.to_track_quat('Z', 'Y').to_matrix()
-        hull('vert', [p + q @ Vector((x, y, z)) for x in (-0.035, 0.035) for y in (-0.03, 0.03) for z in (-0.024, 0.024)], BONE, 1)
-        cyl('disc', p - d * 0.04, p + d * 0.04, 0.022, BONE, n=8)
-        hull('vert', [p + q @ Vector((0, y, z)) for y, z in ((-0.06, 0), (0, -0.012), (0, 0.012))] + [p + Vector((0.008, -0.03, 0)), p + Vector((-0.008, -0.03, 0))], BONE, 1)
-    for i in range(9):
-        t = 0.24 + 0.52 * i / 8; S = spine(t)
-        out = (S - Vector((0, SY, 0.04))); out.y = 0; out.normalize()
-        for sy in (-1, 1):
-            depth = 0.26 if sy < 0 else 0.17
-            pts = [S + Vector((0, sy * depth * math.sin(th), 0)) - out * (0.32 * (1 - math.cos(th))) + Vector((0, 0, -0.08 * math.sin(th))) for th in [k * 1.4 / 12 for k in range(13)]]
-            tube('rib', pts, 0.016, BONE, taper=lambda t: 1 - 0.5 * t)
-    # skulls and candles on the table
-    skull(Vector((0.0, -0.1, 0.86)), 0.0, 1.25)
-    skull(Vector((-0.3, -0.05, 0.86)), math.radians(18), 1.0, tilt=math.radians(-6))
-    skull(Vector((0.3, -0.12, 0.86)), math.radians(-25), 0.95)
-    for x, y, h in ((-0.4, 0.18, 0.2), (-0.16, 0.16, 0.13), (0.2, 0.2, 0.24), (0.42, 0.08, 0.15), (0.1, -0.24, 0.3)):
+    # (the spine and ribs behind, the skulls on it and the bones at its foot are the game's own: Pieces.HelKit)
+    for x, y, h in ((-0.44, 0.2, 0.2), (-0.13, 0.22, 0.13), (0.15, 0.22, 0.24), (0.44, 0.12, 0.15), (-0.44, -0.22, 0.3), (0.44, -0.24, 0.22)):
         candle(Vector((x, y, 0.86)), h)
     # a grey shroud over the front, ragged at the hem
     def shroud(u, v):
@@ -583,13 +567,6 @@ def hel():
         z = 0.875 - (0.875 - hem) * (v - 0.35) / 0.65
         return Vector((x * (1 + 0.06 * (v - 0.35)), 0.322 + 0.01 * math.sin(u * 11) * (v - 0.35), z))
     sheet('shroud', shroud, 14, 14, CLOTH, thick=0.01)
-    # bones at its foot
-    for k in range(5):
-        a = rng.uniform(-0.6, 0.6); c = Vector((rng.uniform(-0.55, 0.55), rng.uniform(0.36, 0.56), 0.02))
-        d = Vector((math.cos(a), math.sin(a), 0)) * rng.uniform(0.12, 0.2)
-        cyl('bone', c - d, c + d, 0.016, BONE, n=6)
-        for e in (c - d, c + d): ball('knob', e, 0.028, BONE, squash=(1, 1, 0.7), n=6)
-    skull(Vector((0.5, 0.52, 0.0)), math.radians(40), 0.9, tilt=math.radians(12))
     export('altar_hel')
     return dict(height=1.8, cloth=(0.35, 0.36, 0.34))
 
