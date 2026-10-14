@@ -11,6 +11,7 @@ namespace Jarldom
     {
         public const string MarkPrefix = "beacon:"; // (colony flag "beacon:<fire id>" = 1: the fire marked as its beacon)
         public const float LateAfter = 25f;
+        public const string DarkKey = "darkhome"; // (colony flag: the day a jarl came home by night to no beacon - a matter for the Thing)
         private static readonly Dictionary<string, double> LastReturn = new Dictionary<string, double>();
         private static readonly Dictionary<string, (float at, string who)> Waiting = new Dictionary<string, (float, string)>();
         private static float _next;
@@ -62,7 +63,7 @@ namespace Jarldom
         public static void Called(Colony c, string who)
         {
             Vector3? at = Where(c, out bool lit, out _);
-            if (at == null) { c.TellPlayer(who, $"No beacon at {c.R.Name} to light for you: build a Beacon Fire (Wayfinder), or make a fire the colony's beacon (Shift+E on it with the Mark rooms tool)."); return; }
+            if (at == null) { c.R.Flags[DarkKey] = Mathf.Max(1, c.Day); c.MarkDirty(); c.TellPlayer(who, $"No beacon at {c.R.Name} to light for you: build a Beacon Fire (Wayfinder), or make a fire the colony's beacon (Shift+E on it with the Mark rooms tool)."); return; }
             if (lit) return;
             Waiting[c.Id] = (Time.time + LateAfter, who);
             RosterRow guard = c.R.Living.Where(r => r.Prof == Prof.Guard && Villagers.Body(r.Vid) != null).OrderBy(r => Utils.DistanceXZ(Villagers.Body(r.Vid).transform.position, at.Value)).FirstOrDefault()

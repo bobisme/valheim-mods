@@ -140,6 +140,8 @@ namespace Jarldom
                 HasShrine = c.R.Rooms.Any(r => r.Ok && r.Type == RoomType.OdinShrine), MissedPaydays = c.R.MissedPaydays, Beds = c.Beds,
                 Hungry = Villagers.All.Count(b => b.S.Colony == c.Id && b.S.Needs[(int)Need.Food] < 30) > c.Population / 2,
                 GuardWage = Tables.Wage(Prof.Guard, false) + c.GuardExtra, // (raised at a Thing: not asked again)
+                DarkHome = c.R.Flag(Beacon.DarkKey) > 0 && day - c.R.Flag(Beacon.DarkKey) <= 10 && Beacon.Where(c, out _, out _) == null, // (withdrawn once there's a beacon)
+                UnburiedNoGround = c.R.Roster.Any(r => r.State == SoulState.Lost && !Lost.Rests(c, r.Vid)) && !c.R.Rooms.Any(r => r.Ok && r.Type == RoomType.BurialGround),
             };
             foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id))
             {
@@ -338,7 +340,7 @@ namespace Jarldom
         public static void Forget() => JarlSeen.Clear();
 
         // Promises made at the Thing, checked each dawn: kept is remembered well, broken (five days gone) badly.
-        private static readonly string[] Promises = { "beauty", "shrine", "beds", "food", "wages" };
+        private static readonly string[] Promises = { "beauty", "shrine", "beds", "food", "wages", "beacon", "burial" };
         public static void CheckPromises(Colony c, int day)
         {
             foreach (string key in c.R.Flags.Keys.Where(k => k.StartsWith("promise:")).ToList())
@@ -348,6 +350,8 @@ namespace Jarldom
                     : id == "shrine" ? c.R.Rooms.Any(r => r.Ok && r.Type == RoomType.OdinShrine)
                     : id == "beds" ? c.Beds >= c.Population
                     : id == "food" ? day >= due - 3 && Villagers.All.Any(b => b.S.Colony == c.Id) && Villagers.All.Where(b => b.S.Colony == c.Id).All(b => b.S.Needs[(int)Need.Food] > 40) // (fed for a couple of days, not one morning)
+                    : id == "beacon" ? Beacon.Where(c, out _, out _) != null
+                    : id == "burial" ? c.R.Rooms.Any(r => r.Ok && r.Type == RoomType.BurialGround)
                     : id == "wages" && c.R.MissedPaydays == 0 && c.R.LastPayday > due - 5;
                 if (!kept && day < due) continue;
                 c.R.Flags.Remove(key);

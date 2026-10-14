@@ -1,3 +1,5 @@
+0.1.110: New matters for the Thing: 'Raise a beacon' after a jarl comes home by night to a dark shore, and 'Make a burial ground' while the lost walk unburied with nowhere to lay them; promised, they're kept by building it within five days. A beacon's matter is withdrawn as soon as there is one.
+
 0.1.109: The skald sings more of the colony's great moments: an Einherjar riding down from Valhalla to fight, the draugr jarl cut down in his barrow, the beacon lit for a jarl coming home, the hall's hnefatafl and glíma champions.
 
 0.1.108: A butcher's table or a mage table's parts aren't tables to sit at and play hnefatafl (or to count in a room): only real tables are.

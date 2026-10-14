@@ -692,4 +692,12 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Stories.Line(ev[0]) == "In the colony's need, Ingrid came back from Valhalla to fight.", "The saga's words unchanged");
 }
 
+{
+    // The Thing hears of a dark homecoming and of the unburied with nowhere to rest.
+    var cv = new ColonyView { Population = 5, HasBeautyRoom = true, HasShrine = true, GuardWage = 9, Beds = 5, DarkHome = true, UnburiedNoGround = true };
+    var raised = Petitions.Raise(new Random(1), cv, 10);
+    Check(raised.Any(p => p.Id == "beacon") && raised.Any(p => p.Id == "burial"), "A beacon and a burial ground asked for");
+    Check(!Petitions.Raise(new Random(1), new ColonyView { Population = 5, HasBeautyRoom = true, HasShrine = true, GuardWage = 9, Beds = 5 }, 10).Any(p => p.Id == "beacon" || p.Id == "burial"), "Not when there's no need");
+}
+
 Console.WriteLine($"Jarldom: {checks} checks passed");
