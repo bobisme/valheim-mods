@@ -644,4 +644,18 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Return.Night(19) && Return.Night(3) && !Return.Night(12), "Night is dusk to dawn");
 }
 
+{
+    // Co-jarls compared: only with two bynamed players; the favourite has the last word; close opinions praise both.
+    var ring = (2, "Ring-giver", "rings"); var bane = (13, "Bonemass-bane", "bane"); var untitled = (0, "", ""); var gone = (1, "the Absent", "away");
+    var cr = new Random(1);
+    Check(Bynames.Compare("Bob", ring, 10, "Quad", untitled, 10, cr) == null, "One bynamed jarl: no comparison");
+    string favQ = Bynames.Compare("Bob", ring, 0, "Quad", bane, 60, cr);
+    Check(favQ != null && favQ.Contains("Bonemass") && favQ.Contains("rings") && favQ.IndexOf("Quad") > favQ.IndexOf("Bob") || favQ.StartsWith("Give me Quad"), "Quad favoured: Quad has the last word (or is asked for first)");
+    string even = Bynames.Compare("Bob", ring, 30, "Quad", bane, 35, cr);
+    Check(even.Contains("Bob") && even.Contains("Quad") && !even.Contains("but"), "Close: both praised");
+    string abs = Bynames.Compare("Bob", gone, 50, "Quad", ring, 0, cr);
+    Check(abs == null || abs.Contains("never home") && abs.Contains("At least Quad"), "Even the favourite is no praise when away: the one at home is");
+    Check(Bynames.Deed("bane", "Moder-bane") == "brought down Moder", "A bane's deed names the boss");
+}
+
 Console.WriteLine($"Jarldom: {checks} checks passed");

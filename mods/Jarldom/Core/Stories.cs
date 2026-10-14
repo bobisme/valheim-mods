@@ -331,7 +331,7 @@ namespace Jarldom
         // told: what the hall has gossiped about lately (newest last), so a crowd doesn't all tell the same thing at once.
         public static string Gossip(Random rng, string speaker, IEnumerable<LogEntry> log, double now, List<string> told = null)
         {
-            var recent = log.Where(e => now - e.Time <= Clock.DayLength * 2 && Line(e) != null && e.A != speaker && e.Kind != "text" && e.Kind != "payday").ToList();
+            var recent = log.Where(e => now - e.Time <= Clock.DayLength * 2 && Line(e) != null && e.A != speaker && e.Kind != "text" && e.Kind != "payday" && e.Kind != "verse").ToList(); // (the verse was sung for all to hear: not passed on as news)
             if (recent.Count == 0) return null;
             string Key(LogEntry x) => $"{x.Time:0.#}|{x.Kind}|{x.A}";
             var fresh = told == null ? recent : recent.Where(x => !told.Contains(Key(x))).ToList();

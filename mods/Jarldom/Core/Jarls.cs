@@ -72,6 +72,32 @@ namespace Jarldom
             if (Get(Tally.LastAway) >= Absent) return (1, "the Absent", "away");
             return (0, "", "");
         }
+        // What a byname says they do, for small talk ("gives rings").
+        public static string Deed(string kind, string title)
+        {
+            switch (kind)
+            {
+                case "bane": return "brought down " + title.Replace("-bane", "");
+                case "rings": return "gives rings";
+                case "raids": return "holds the wall";
+                case "ascensions": return "sends our dead to Valhalla";
+                case "feasts": return "fills the hall with feasts";
+                case "away": return "is never home";
+                default: return "";
+            }
+        }
+        // Two jarls compared by a villager: the one they think better of has the last word (or both praised, if it's close). Null unless
+        // both have bynames.
+        public static string Compare(string a, (int id, string title, string kind) ta, int opA, string b, (int id, string title, string kind) tb, int opB, Random rng)
+        {
+            if (ta.id == 0 || tb.id == 0 || a == b) return null;
+            string da = Deed(ta.kind, ta.title), db = Deed(tb.kind, tb.title);
+            if (Math.Abs(opA - opB) < 15)
+                return new[] { $"{a} {da}, and {b} {db}. We're well served.", $"Two jarls: {a} {da}, {b} {db}. Lucky hall.", $"Between {a}, who {da}, and {b}, who {db}, we want for little." }[rng.Next(3)];
+            if (opA > opB) { var (n, d, m, e) = (a, da, b, db); (a, da, b, db) = (m, e, n, d); } // (the favourite last)
+            if (ta.kind == "away" && opA > opB || tb.kind == "away" && opA < opB) return $"{(ta.kind == "away" && opA > opB ? b : a)} {Deed("away", "")}. At least {(ta.kind == "away" && opA > opB ? a : b)} is here."; // (absence is no praise)
+            return new[] { $"They say {a} {da}, but {b} {db}.", $"{a} {da}, sure. {b} {db}, and that's worth more.", $"Give me {b}, who {db}, over {a}, who {da}." }[rng.Next(3)];
+        }
         // "Bob Bonemass-bane", or just "Bob".
         public static string Named(string player, IDictionary<string, int> tally) { string t = For(tally).title; return t == "" ? player : player + " " + t; }
     }

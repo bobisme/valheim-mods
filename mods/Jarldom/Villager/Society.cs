@@ -51,12 +51,30 @@ namespace Jarldom
             if (b.Colony == null || Greet.Quiet(b.Colony)) return; // (a miserable hall keeps its talk to itself)
             var rng = new System.Random(Environment.TickCount ^ b.S.Vid.GetStableHashCode());
             if (rng.Next(3) == 0 && b.S.Has("merry")) { b.Say(Merry[rng.Next(Merry.Length)], 5); foreach (Brain o in Villagers.All.Where(o => o != b && Vector3.Distance(o.Pos, b.Pos) < 10)) Mood.Add(o.S, "merry", o.Now); return; }
+            if (rng.Next(5) == 0 && CoJarls(b, rng)) return;
             if (!Told.TryGetValue(b.S.Colony, out List<string> told)) Told[b.S.Colony] = told = new List<string>();
             string line = Stories.Gossip(rng, b.S.Name, b.Colony.R.Log, b.Now, told);
             if (line == null) return;
             b.Say(line.Substring(b.S.Name.Length).TrimStart(), 7);
             // Talking together warms them to each other.
             foreach (Brain o in Villagers.All.Where(o => o != b && o.S.Colony == b.S.Colony && Vector3.Distance(o.Pos, b.Pos) < 8)) Society.Warm(b, o, 1);
+        }
+        // Two jarls with bynames, compared (Core/Jarls.cs): now and then, slanted by what this one thinks of each.
+        private static readonly Dictionary<string, float> Compared = new Dictionary<string, float>();
+        private static bool CoJarls(Brain b, System.Random rng)
+        {
+            Colony c = b.Colony;
+            if (Compared.TryGetValue(c.Id, out float at) && Time.time - at < 90f) return false;
+            var titled = Tally.Players(c.R.Flags).Select(p => (p, t: Bynames.For(Tally.Of(c.R.Flags, p)))).Where(x => x.t.id > 0).ToList();
+            if (titled.Count < 2) return false;
+            var two = titled.OrderBy(_ => rng.Next()).Take(2).ToList();
+            int Op(string p) => b.S.Opinions.TryGetValue(p, out int o) ? o : 0;
+            string line = Bynames.Compare(two[0].p, two[0].t, Op(two[0].p), two[1].p, two[1].t, Op(two[1].p), rng);
+            if (line == null) return false;
+            Compared[c.Id] = Time.time;
+            b.Say(line, 7);
+            Greet.Recent.Add($"{System.DateTime.Now:HH:mm:ss} {b.S.Name} (co-jarls): {line}"); if (Greet.Recent.Count > 20) Greet.Recent.RemoveAt(0);
+            return true;
         }
         private static readonly string[] Merry = { "Another horn of mead for the jarl!", "Did you hear the one about the troll and the fishing rod?", "Skål!", "Sing, you lot, sing!", "My grandmother could out-drink this whole hall.",
             "Fill the horns, the night is young!", "Who here can still stand straight?", "I've had three, and the fourth is mine.", "Dance with me, you great oaf!",

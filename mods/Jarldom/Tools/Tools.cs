@@ -584,7 +584,8 @@ namespace Jarldom
                         if (a.Length > 2 && a[2] == "clear") // (test: the local player's carried deeds gone, and their tally here)
                         {
                             var keys = me.m_customData.Keys.Where(k => k.StartsWith(JarlDeeds.PendingKey)).ToList(); foreach (string k in keys) me.m_customData.Remove(k);
-                            if (c.IsOwner) { foreach (string k in c.R.Flags.Keys.Where(k => k.StartsWith(Tally.Key(me.GetPlayerName(), ""))).ToList()) c.R.Flags.Remove(k); c.MarkDirty(); }
+                            string whose = a.Length > 3 ? a[3].Replace('_', ' ') : me.GetPlayerName();
+                            if (c.IsOwner) { foreach (string k in c.R.Flags.Keys.Where(k => k.StartsWith(Tally.Key(whose, ""))).ToList()) c.R.Flags.Remove(k); c.MarkDirty(); }
                             output(new JObject { ["cleared"] = new JArray(keys) }); return;
                         }
                         if (a.Length > 4 && c.IsOwner) JarlDeeds.Add(c, a[2].Replace('_', ' '), a[3], int.Parse(a[4]));
