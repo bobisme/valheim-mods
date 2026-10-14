@@ -1,3 +1,5 @@
+0.1.132: test tools for great works (BuildOrders' stability of a plan, what's missing, building one ghost)
+
 0.1.131: the tall Lighthouse stands to the top: an iron-banded pole runs up inside each corner log from the plinth to the gallery (timber alone loses its strength about 20 m up), a forge for them by the hut; the fire deck's posts sit on them, and the banners hang over the gallery rail
 
 0.1.130: a great work taken down can be raised again: outline a site and choose "Raise it again" (its fire becomes the beacon when it stands; the renown and the rest were had the first time)

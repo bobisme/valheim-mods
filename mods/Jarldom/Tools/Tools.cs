@@ -970,6 +970,37 @@ namespace Jarldom
                             var f = HarmonyLib.AccessTools.Field(typeof(WearNTear), "m_support");
                             output(new JObject { ["pieces"] = new JArray(ps.Where(x => x != null && x.GetComponent<WearNTear>() != null && x.transform.position.y - at0.y > F(a[3])).OrderBy(x => x.transform.position.y).Select(x => $"{Utils.GetPrefabName(x.gameObject)} {x.transform.position.y - at0.y:0.0} ({x.transform.position.x - at0.x:0.0},{x.transform.position.z - at0.z:0.0}) {(float)f.GetValue(x.GetComponent<WearNTear>()):0}")) }); return; }
                         if (sub == "stability") { Vector3? nearSpot = null; if (a.Length > 5) { nearSpot = new Vector3(F(a[4]), 0, F(a[5])); ZoneSystem.instance.GetSolidHeight(nearSpot.Value, out float ny); nearSpot = new Vector3(nearSpot.Value.x, ny, nearSpot.Value.z); } var rows = GreatWork.Stability(c, w, nearSpot); output(new JObject { ["weak"] = new JArray(rows.Take(a.Length > 3 ? int.Parse(a[3]) : 40)), ["count"] = rows.Count }); return; }
+                        if (sub == "trybuild") // (test: BuildOrders builds one ghost of this prefab, its own way, and says what happened)
+                        {
+                            var bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public;
+                            object bo = Compat.Find("com.quad.buildorders", "com.dhack.buildorders");
+                            var orders = bo.GetType().GetField("_orders", bf).GetValue(bo) as System.Collections.IDictionary;
+                            object pick = null; foreach (System.Collections.DictionaryEntry e in orders) { var t = e.Value.GetType(); if ((string)t.GetField("Prefab").GetValue(e.Value) == a[3] && ((string)t.GetField("By").GetValue(e.Value)).Contains("Lighthouse")) { if (pick == null || ((Vector3)t.GetField("Pos").GetValue(e.Value)).y < ((Vector3)pick.GetType().GetField("Pos").GetValue(pick)).y) pick = e.Value; } }
+                            if (pick == null) { error("no ghost " + a[3]); return; }
+                            bool ok = (bool)bo.GetType().GetMethod("TryBuild", bf).Invoke(bo, new object[] { me, pick, false });
+                            output(new JObject { ["built"] = ok, ["at"] = V((Vector3)pick.GetType().GetField("Pos").GetValue(pick)) }); return;
+                        }
+                        if (sub == "rmpiece") // (test: the one piece of that prefab within 0.3 m of x y z, removed)
+                        {
+                            Vector3 q = new Vector3(F(a[4]), F(a[5]), F(a[6])); var ps = new List<Piece>(); Piece.GetAllPiecesInRadius(q, 1f, ps);
+                            Piece hit = ps.Where(x => x != null && Utils.GetPrefabName(x.gameObject) == a[3] && Vector3.Distance(x.transform.position, q) < 0.3f).ToList() is var l && l.Count == 1 ? l[0] : null;
+                            if (hit == null) { error("not exactly one " + a[3] + " there"); return; }
+                            ZNetView zv = hit.GetComponent<ZNetView>(); zv.ClaimOwnership(); zv.Destroy(); output(new JObject { ["removed"] = a[3] }); return;
+                        }
+                        if (sub == "bostations") // (test: a stonecutter and a stone floor 6 m ahead of the player, then BuildOrders' Build all; "count" after)
+                        {
+                            var bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public;
+                            object bo = Compat.Find("com.quad.buildorders", "com.dhack.buildorders");
+                            Vector3 f0 = me.transform.forward; f0.y = 0; f0.Normalize(); Vector3 p0 = me.transform.position + f0 * 6f; ZoneSystem.instance.GetSolidHeight(p0, out float g0); p0.y = g0;
+                            Vector3 side = Vector3.Cross(Vector3.up, f0);
+                            if (a.Length > 3 && a[3] == "build") { ((MonoBehaviour)bo).StartCoroutine((System.Collections.IEnumerator)bo.GetType().GetMethod("BuildMany", bf).Invoke(bo, new object[] { me })); output(new JObject { ["building"] = true }); return; }
+                            if (a.Length > 3 && a[3] == "count") { var ps = new List<Piece>(); Piece.GetAllPiecesInRadius(new Vector3(F(a[4]), F(a[5]), F(a[6])), 6f, ps); output(new JObject { ["near"] = new JArray(ps.Where(x => x != null && (Utils.GetPrefabName(x.gameObject) == "piece_stonecutter" || Utils.GetPrefabName(x.gameObject) == "stone_floor_2x2")).Select(x => Utils.GetPrefabName(x.gameObject) + " " + V(x.transform.position))), ["stonecutterNearMe"] = CraftingStation.HaveBuildStationInRange("$piece_stonecutter", me.transform.position) != null }); return; }
+                            object[] args = { me, "Station test", new[] { "piece_stonecutter", "stone_floor_2x2" }, new[] { p0, p0 + side * 3.5f + Vector3.down * 0.5f }, new[] { Quaternion.LookRotation(-f0), Quaternion.identity }, null, null };
+                            bool ok = (bool)bo.GetType().GetMethod("TryCreateGhostPlan").Invoke(bo, args);
+                            if (!ok) { error("plan: " + args[6]); return; }
+                            ((MonoBehaviour)bo).StartCoroutine((System.Collections.IEnumerator)bo.GetType().GetMethod("BuildMany", bf).Invoke(bo, new object[] { me }));
+                            output(new JObject { ["plan"] = (string)args[5], ["stonecutterNearMeBefore"] = CraftingStation.HaveBuildStationInRange("$piece_stonecutter", me.transform.position) != null }); return;
+                        }
                         if (sub == "amend") { output(new JObject { ["amended"] = GreatWork.Amend(c, w) }); }
                         if (sub == "set") { c.R.Flags[GreatWorks.Key(w)] = GreatWorks.Laid; c.R.Flags[GreatWorks.AtKey(w)] = TrueLegend.Pack(F(a[3]), F(a[4])); c.R.Flags[GreatWorks.YKey(w)] = Mathf.RoundToInt(F(a[5]) * 10f); c.R.Flags[GreatWorks.YawKey(w)] = Mathf.RoundToInt(F(a[6])); c.R.Flags[GreatWorks.BuiltKey(w)] = 0; c.R.Flags[GreatWorks.XKey(w)] = Mathf.RoundToInt(F(a[3]) * 10f); c.R.Flags[GreatWorks.ZKey(w)] = Mathf.RoundToInt(F(a[4]) * 10f); } // (test: "set x z y yaw", a site put back)
                         if (sub == "outline" || sub == "picker") { float cx = F(a[3]), cz = F(a[4]), hh = a.Length > 5 ? F(a[5]) : 4f; var xz = new List<float> { cx - hh, cz - hh, cx + hh, cz - hh, cx + hh, cz + hh, cx - hh, cz + hh };
@@ -979,7 +1010,7 @@ namespace Jarldom
                         c.MarkDirty();
                         int st = GreatWorks.Stage(c.R.Flags, w);
                         output(new JObject { ["stage"] = st, ["shore"] = GreatWork.Shore(c) is Vector3 sh ? V(sh) : null, ["parts"] = GreatWorks.Parts(w).Count, ["needs"] = GreatWorks.NeedsText(w),
-                            ["built"] = st >= GreatWorks.Laid ? GreatWork.Built(c, w) : 0, ["at"] = st >= GreatWorks.Laid ? V(GreatWork.At(c, w, out _)) : null, ["ghosts"] = Compat.GhostCount(c.Position, c.Radius), ["plans"] = GreatWork.Plans(c, w), ["movable"] = GreatWork.Movable(c, w), ["missing"] = st >= GreatWorks.Laid ? new JArray(GreatWork.Missing(c, w)) : null });
+                            ["built"] = st >= GreatWorks.Laid ? GreatWork.Built(c, w) : 0, ["at"] = st >= GreatWorks.Laid ? V(GreatWork.At(c, w, out _)) : null, ["ghosts"] = Compat.GhostCount(c.Position, c.Radius), ["plans"] = GreatWork.Plans(c, w), ["movable"] = GreatWork.Movable(c, w), ["blockers"] = new JArray(Compat.GhostBlockers(GreatWork.At(c, w, out _), 30f)), ["knowsIron"] = me.IsRecipeKnown(Assets.Find("woodiron_pole")?.GetComponent<Piece>()?.m_name ?? ""), ["missing"] = st >= GreatWorks.Laid ? new JArray(GreatWork.Missing(c, w)) : null });
                     }
                     break;
                 case "payfix": // (test: payfix <missed> <last payday>: a test payday undone)
