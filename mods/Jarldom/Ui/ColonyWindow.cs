@@ -113,6 +113,29 @@ namespace Jarldom.Ui
                 _raw = new HashSet<string>(new[] { "piece_cookingstation", "piece_cookingstation_iron" }.Select(Assets.Find).Where(g => g != null).SelectMany(g => g.GetComponent<CookingStation>()?.m_conversion ?? new List<CookingStation.ItemConversion>()).Where(cv => cv.m_from != null).Select(cv => cv.m_from.name));
             return Stock.Chests(c).Where(x => x.category != "treasury").Sum(x => x.chest.GetInventory().GetAllItems().Where(i => _raw.Contains(Classes.Prefab(i))).Sum(i => i.m_stack));
         }
+        // The jarls and what the colony calls them, from what they've done for it.
+        private static float JarlsPart(RectTransform list, float y)
+        {
+            var players = Tally.Players(_c.R.Flags);
+            string me = Player.m_localPlayer?.GetPlayerName() ?? "";
+            if (me != "" && _c.AllowedName(me) && !players.Contains(me)) players.Insert(0, me);
+            if (players.Count == 0) return y;
+            y = Heading(list, "The jarls", y);
+            foreach (string p in players)
+            {
+                var t = Tally.Of(_c.R.Flags, p);
+                int Get(string k) => t.TryGetValue(k, out int v) ? v : 0;
+                var did = new List<string>();
+                if (Get(Tally.Bosses) > 0) did.Add($"{Get(Tally.Bosses)} {(Get(Tally.Bosses) == 1 ? "boss" : "bosses")} slain");
+                if (Get(Tally.Rings) > 0) did.Add($"{Get(Tally.Rings)} arm {(Get(Tally.Rings) == 1 ? "ring" : "rings")} given");
+                if (Get(Tally.Raids) > 0) did.Add($"{Get(Tally.Raids)} {(Get(Tally.Raids) == 1 ? "raid" : "raids")} fought at home");
+                if (Get(Tally.Ascensions) > 0) did.Add($"{Get(Tally.Ascensions)} sent to Valhalla");
+                if (Get(Tally.Feasts) > 0) did.Add($"{Get(Tally.Feasts)} {(Get(Tally.Feasts) == 1 ? "feast" : "feasts")}");
+                if (Get(Tally.Away) > 0) did.Add($"{Get(Tally.Away)} days away");
+                y = Text(list, $"<color=#ffd27a>{Bynames.Named(p, t)}</color>: {(did.Count == 0 ? "nothing yet the colony sings of" : string.Join(", ", did))}.", y, 16);
+            }
+            return Text(list, "Bynames are earned: slay a boss (its \"-bane\"), give 5 arm rings (Ring-giver), fight 5 raids at home (Shield of the hall), send 3 to Valhalla (Soul-guide), hold 5 feasts (Feast-giver). Twenty days away and you're the Absent.", y, 14, GameUi.Dim);
+        }
         internal static List<string> NeedsYou(Colony c)
         {
             var list = new List<string>();
@@ -289,6 +312,7 @@ namespace Jarldom.Ui
             }
             y = DogsPart(list, y);
             y = FirstSteps(list, y);
+            y = JarlsPart(list, y);
             y = Heading(list, "The year", y);
             y = Text(list, Calendar.Line(Year.Today()) + (Year.BySeasons ? " <color=#b8b0a0>(by the Seasons mod)</color>" : ""), y);
             y = Heading(list, "Odin's attention", y);

@@ -590,4 +590,28 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Festivals.Active(ff) == (Festival.Yule, 1f) && !Festivals.Neglected(ff, 34), "The next one held: its blessing replaces, the neglect is over");
 }
 
+{
+    // Jarls: a tally per player in the colony's flags, and a byname from it.
+    var jf = new Dictionary<string, int>();
+    Check(Bynames.Named("Bob", Tally.Of(jf, "Bob")) == "Bob", "No deeds: just the name");
+    Tally.Boss(jf, "Bob", "Eikthyr");
+    Check(Tally.Get(jf, "Bob", Tally.Bosses) == 1 && Bynames.Named("Bob", Tally.Of(jf, "Bob")) == "Bob Eikthyr-bane", "A boss slain: its bane");
+    for (int i = 0; i < 5; i++) Tally.Add(jf, "Bob", Tally.Rings);
+    Check(Bynames.Named("Bob", Tally.Of(jf, "Bob")) == "Bob Ring-giver", "Five rings given outrank an early boss");
+    Tally.Boss(jf, "Bob", "Bonemass"); Tally.Boss(jf, "Bob", "gd_king");
+    Check(Bynames.Named("Bob", Tally.Of(jf, "Bob")) == "Bob Bonemass-bane" && Tally.Get(jf, "Bob", Tally.Bane) == 3 && Tally.Get(jf, "Bob", Tally.Bosses) == 3, "Bonemass and on outrank all; an earlier boss after doesn't lower it");
+    Check(Tally.Players(jf).SequenceEqual(new[] { "Bob" }) && Tally.Of(jf, "Quad").Count == 0, "Each player apart");
+    Tally.Add(jf, "Quad Tester", Tally.Feasts, 5);
+    Check(Tally.Players(jf).Contains("Quad Tester") && Bynames.For(Tally.Of(jf, "Quad Tester")).title == "Feast-giver", "Names with spaces");
+    Check(Tally.Home(jf, "Ann", 10) == 0 && Tally.Home(jf, "Ann", 11) == 0 && Tally.Home(jf, "Ann", 40) == 29 && Tally.Get(jf, "Ann", Tally.Away) == 29, "Days away: counted on coming home");
+    Check(Bynames.For(Tally.Of(jf, "Ann")).title == "the Absent", "Long away: the Absent");
+    for (int d = 41; d <= 45; d++) Tally.Home(jf, "Ann", d);
+    Check(Bynames.For(Tally.Of(jf, "Ann")).title == "the Absent", "Still, soon after");
+    for (int d = 46; d <= 50; d++) Tally.Home(jf, "Ann", d);
+    Check(Bynames.For(Tally.Of(jf, "Ann")).title == "" && Tally.Get(jf, "Ann", Tally.Away) == 29, "Forgotten ten days home; the days away still counted");
+    Tally.Add(jf, "Ann", Tally.Raids, 5); Tally.Add(jf, "Ann", Tally.Ascensions, 3);
+    Check(Bynames.For(Tally.Of(jf, "Ann")).title == "Shield of the hall", "Raids outrank ascensions");
+    Check(Bynames.Tier("Fader") == 7 && Bynames.Tier("Troll") == 0, "Boss tiers");
+}
+
 Console.WriteLine($"Jarldom: {checks} checks passed");

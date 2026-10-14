@@ -297,6 +297,7 @@ namespace Jarldom
             if (Time.time >= _nextRooms) { _nextRooms = Time.time + 20; Plugin.Guard(RoomsDue); }
             if (Time.time >= _nextScan) { _nextScan = Time.time + 8; Plugin.Guard(LeftAloneSync); Plugin.Guard(() => Work.Scan(this)); }
             Plugin.Guard(() => Defense.Tick(this));
+            Plugin.Guard(() => JarlDeeds.Tick(this));
             Plugin.Guard(() => Thing.Tick(this));
         }
         // Jobs done today, for the colony window (the board's own count starts again each time it loads).

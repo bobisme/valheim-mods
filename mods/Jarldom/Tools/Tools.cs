@@ -553,6 +553,21 @@ namespace Jarldom
                             ["blessing"] = af == null ? "none" : $"{Calendar.Name(af.Value)} at {Mathf.RoundToInt(ap * 100)}%", ["neglected"] = Festivals.Neglected(c.R.Flags, c.Day) });
                     }
                     break;
+                case "tally":
+                    {
+                        // "tally": every jarl's tally and byname; "tally <player> <what> <n>" adds (on the owner); "tally <player> boss <prefab>"
+                        // carries a boss kill on the local player, as one slain far away (brought to the colony in a few seconds).
+                        if (a.Length > 4 && a[3] == "boss") { JarlDeeds.Carry(me, "boss:" + a[4]); output(new JObject { ["carried"] = a[4] }); return; }
+                        if (a.Length > 2 && a[2] == "clear") // (test: the local player's carried deeds gone, and their tally here)
+                        {
+                            var keys = me.m_customData.Keys.Where(k => k.StartsWith(JarlDeeds.PendingKey)).ToList(); foreach (string k in keys) me.m_customData.Remove(k);
+                            if (c.IsOwner) { foreach (string k in c.R.Flags.Keys.Where(k => k.StartsWith(Tally.Key(me.GetPlayerName(), ""))).ToList()) c.R.Flags.Remove(k); c.MarkDirty(); }
+                            output(new JObject { ["cleared"] = new JArray(keys) }); return;
+                        }
+                        if (a.Length > 4 && c.IsOwner) JarlDeeds.Add(c, a[2].Replace('_', ' '), a[3], int.Parse(a[4]));
+                        output(new JObject(Tally.Players(c.R.Flags).Select(p => new JProperty(p, $"{Bynames.Named(p, Tally.Of(c.R.Flags, p))}: " + string.Join(", ", Tally.Of(c.R.Flags, p).Select(kv => kv.Key + " " + kv.Value))))));
+                    }
+                    break;
                 case "among": output(new JObject { ["among"] = Among.Test(a.Length > 2 ? a[2] : "hall") }); break;
                 case "hallsound":
                     {

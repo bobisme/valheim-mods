@@ -159,7 +159,7 @@ namespace Jarldom
             string why = Why(c, s);
             if (why != "") { c.Tell("Not now: " + why + "."); return; }
             c.Log("text", s.Name, "", $"{who} sends {s.FullName} to Valhalla.");
-            if (c.IsOwner) { Ascensions.Ordered(c.R.Flags, vid, c.Day); c.MarkDirty(); } // (remembered: an interrupted ceremony goes on)
+            if (c.IsOwner) { Ascensions.Ordered(c.R.Flags, vid, c.Day); c.MarkDirty(); JarlDeeds.Add(c, who, Tally.Ascensions); } // (remembered: an interrupted ceremony goes on)
             Villagers.Command(vid, "ascend", c.Id);
         }
         // On the pyre's owner: the fire burns a minute after it's lit.

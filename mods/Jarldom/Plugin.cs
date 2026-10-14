@@ -97,6 +97,7 @@ namespace Jarldom
             Guard(HallSound.Tick);
             Guard(DimNews.Tick);
             Guard(Among.Tick);
+            Guard(JarlDeeds.PlayerTick);
             Guard(Landing.Tick);
             Guard(Lost.Tick);
         }

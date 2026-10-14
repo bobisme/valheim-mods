@@ -29,9 +29,10 @@ namespace Jarldom
             if (p != null) { ByPair[pair] = now + pairWait; ByPlayer[heard] = now + PlayerWait; }
             if (ByPair.Count > 2000) ByPair.Clear();
             bool evening = b.Colony != null && (b.Colony.Hour >= 17 || b.Colony.Hour < 5);
-            var line = Greetings.Pick(kind, Rng, name, evening);
+            string called = p != null && about == null && Rng.Next(2) == 0 ? JarlDeeds.Named(b.Colony, name) : name; // (now and then by their byname, if they've earned one)
+            var line = Greetings.Pick(kind, Rng, called, evening);
             Said.RemoveAll(x => Time.time - x.at > 20f);
-            for (int i = 0; i < 20 && Said.Any(x => x.line == line.english); i++) line = Greetings.Pick(kind, Rng, name, evening); // (not a line someone just said)
+            for (int i = 0; i < 20 && Said.Any(x => x.line == line.english); i++) line = Greetings.Pick(kind, Rng, called, evening); // (not a line someone just said)
             Said.Add((line.english, Time.time));
             b.Say(Greetings.Show(line), 5f);
             Recent.Add($"{System.DateTime.Now:HH:mm:ss} {b.S.Name} ({kind}{(name != "" ? " to " + name : "")}): {line.norse} / {line.english}");

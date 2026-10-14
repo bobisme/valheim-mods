@@ -37,6 +37,7 @@ namespace Jarldom
             c.R.Flags["feastday"] = c.Day;
             c.MarkDirty();
             c.Tell($"{who} calls a feast in the hall tonight!", true);
+            JarlDeeds.FeastCalled(c, who);
             if (c.Hour >= Schedule.HallAt) Dusk(c, c.Day); // already evening: now
         }
         public static void Dusk(Colony c, int day)
@@ -46,6 +47,7 @@ namespace Jarldom
             int pop = Math.Max(1, c.Population);
             Take(food, 3 * pop); Take(mead, pop);
             c.R.LastFeast = day; c.R.Flags.Remove("feastday");
+            JarlDeeds.FeastHeld(c, day);
             c.R.Deeds += Renown.Deed("feast");
             string glutton = null;
             foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id))
@@ -406,6 +408,7 @@ namespace Jarldom
                     string name = ended;
                     c.R.Deeds += Renown.Deed("raidheld");
                     c.Log("raidheld", "", name);
+                    JarlDeeds.RaidHeld(c);
                     foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) { Mood.Add(b.S, "raidheld", b.Now); b.S.Bump("raids"); if (b.S.Prof == Prof.Guard && b.S.Count("raids") >= 3 && string.IsNullOrEmpty(b.S.Byname)) { b.S.Byname = Names.Byname("defender"); c.Log("byname", b.S.Name, b.S.Byname); } Asks.FoughtWell(b); b.Dirty(); }
                 }
                 Running.Remove(c.Id);

@@ -65,7 +65,8 @@ namespace Jarldom
                     }
                     break;
                 case "swear": Society.Swear(this, Get(a, 0), Get(a, 1)); break;
-                case "ring": Villagers.Command(a[0], "ring", who); Log("ring", Villagers.ByVid(a[0])?.S.Name ?? a[0], who); break;
+                case "ring": Villagers.Command(a[0], "ring", who); Log("ring", Villagers.ByVid(a[0])?.S.Name ?? a[0], who); JarlDeeds.Add(this, who, Tally.Rings); break;
+                case "tally": JarlDeeds.Delivered(this, who, arg); break;
                 case "summon": Villagers.Command(a[0], "summon", ""); break;
                 case "asked": Asks.Logged(this, a); break;
                 case "follow": Villagers.Command(a[0], "follow", Get(a, 1) + "|" + who); break;
