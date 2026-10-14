@@ -12,7 +12,7 @@ namespace Jarldom
     {
         public readonly Humanoid Body; public readonly MonsterAI Ai; public readonly ZNetView View; public readonly Mover Move;
         public VillagerState S; public Colony Colony;
-        public float SongUntil; private float _lastWorth = -1; public int DimStage = -1;
+        public float SongUntil, LoadSince; private float _lastWorth = -1; public int DimStage = -1;
         public Task Task; public Activity Activity = Activity.Idle; public string Doing = "";
         public string LastAttacker = ""; public Character Foe; private float _foeUntil;
         public bool KeepDoorsOpen; public float Stamina = 1f;
@@ -180,6 +180,11 @@ namespace Jarldom
                 case Activity.Wake: return Food.CanEat(this) ? new EatTask() : (Task)new WanderTask(Colony.Position, 8, "getting up");
                 case Activity.Work:
                     {
+                        // (a stray load for the stores, carried five minutes by one whose work never empties their bag: a gothi, a skald, a
+                        // healer: put away first)
+                        int load = Work.Carrying(this);
+                        if (load == 0) LoadSince = 0; else if (LoadSince == 0) LoadSince = Time.time;
+                        if (load > 0 && Time.time - LoadSince > 300f && Time.time > NoStoreUntil) { LoadSince = Time.time; return new DepositTask(); }
                         Task work = Work.Next(this); if (work != null) { Leisure.Clean(this); return work; }
                         // (nothing to do: first whatever's in the bag to the stores, a light bag being a small body to send; then some sport, or the hall)
                         if (Time.time > NoStoreUntil && Work.Carrying(this) > 0 && Body.GetInventory().GetAllItems().Where(i => Work.Stores(this, i)).Any(i => Stock.Destination(Colony, i, Pos) != null)) return new DepositTask();

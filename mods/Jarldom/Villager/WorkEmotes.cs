@@ -87,7 +87,7 @@ namespace Jarldom
                 if (i.m_dropPrefab == null || !Bulky(i.m_dropPrefab.name) || !Work.Stores(b, i)) continue;
                 if (best == null || i.m_stack * i.m_shared.m_weight > best.m_stack * best.m_shared.m_weight) best = i;
             }
-            return best?.m_dropPrefab.name;
+            return best != null && best.m_stack * best.m_shared.m_weight >= 5f ? best.m_dropPrefab.name : null; // (a stick or two is carried in the hand, not as an armful)
         }
         private static bool Bulky(string prefab) =>
             prefab.EndsWith("Wood", StringComparison.Ordinal) || prefab == "RoundLog" || prefab.Contains("Log") || prefab == "Stone" || prefab.EndsWith("Ore", StringComparison.Ordinal)

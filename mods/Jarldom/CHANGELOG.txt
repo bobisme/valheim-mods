@@ -1,3 +1,5 @@
+0.1.121: a villager whose work never empties their bag (a gothi, a skald, a healer) puts a stray load away after five minutes instead of carrying it forever; a stick or two isn't carried as an armful
+
 0.1.120: People tab: the Teach button (a master visiting) sits beside Details instead of under it
 
 0.1.119: Great Works, the first a Lighthouse. A village by the sea may be asked at the Thing to raise one; agreed, a jarl shows where with the hammer's Mark rooms and zones (Shift+E on flat ground near the water), and the builders raise it from the stores (Quad's BuildOrders lays out its plan): a keeper's hut, a tapering log tower and a gallery with the beacon fire 15 m up. Done, it's in the saga and on the jarls' maps, +40 renown, its fire is the colony's beacon, and trade runs at sea are lost half as often.
