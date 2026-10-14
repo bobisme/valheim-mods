@@ -316,7 +316,8 @@ namespace Jarldom.Ui
             y = Heading(list, "The year", y);
             y = Text(list, Calendar.Line(Year.Today()) + (Year.BySeasons ? " <color=#b8b0a0>(by the Seasons mod)</color>" : ""), y);
             y = Heading(list, "Odin's attention", y);
-            y = Text(list, $"Renown <color=#ffd27a>{_c.Renown}</color> = wealth {_c.WealthPart} + comfort {_c.ComfortPart} + deeds {r.Deeds}", y);
+            y = Text(list, $"Renown <color=#ffd27a>{_c.Renown}</color> = wealth {_c.WealthPart} + comfort {_c.ComfortPart} + deeds {r.Deeds} + saga {_c.SagaPart}", y);
+            y = Text(list, "Saga: what the jarls do first out in the world - a new land, a landmark found, a dungeon entered, further from home than before.", y, 14, GameUi.Dim);
             string why = Migration.Why(_c);
             y = Text(list, why == "" ? $"Odin may send someone at dawn (renown {Renown.Threshold(r.Arrivals)} reached)." : "No one will come yet: " + why + ".", y, 16, GameUi.Dim);
             if (r.Coming.Count > 0 && !r.ComingLanded) y = Text(list, $"{r.Coming.Count} on their way: they arrive at dusk.", y, 16, GameUi.Good);

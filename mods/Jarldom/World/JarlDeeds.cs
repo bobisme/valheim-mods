@@ -49,6 +49,7 @@ namespace Jarldom
             {
                 string[] f = d.Split(':');
                 if (f[0] == "boss" && f.Length > 1) { Tally.Boss(c.R.Flags, who, f[1]); c.Log("slew", who, Boss(f[1])); }
+                if (f[0] == "first" && f.Length > 2) { string what = string.Join(":", f.Skip(1)); if (!Wanderer.Known(c.R.Flags, what) && Wanderer.Points(what) > 0) { c.R.Flags[Wanderer.Prefix + what] = c.Day; c.Log("first", who, "", Wanderer.Tell(what, who)); } }
                 if (f[0] == "lore" && f.Length > 1 && c.R.Flag(Legends.Prefix + f[1]) == 0) { c.R.Flags[Legends.Prefix + f[1]] = Legends.Learned; c.Log("lore", who, ""); }
             }
             Title(c, who); c.MarkDirty();
@@ -126,6 +127,40 @@ namespace Jarldom
                     Carry(p, "lore:" + text);
                 });
             }
+        }
+        // ---- Odin the Wanderer (Core/Wanderer.cs): firsts out in the world, noticed on the player's game and carried home ----
+        public const string FirstsKey = "jarldom_firsts"; // (player custom data: the firsts this character has carried, so each goes once)
+        private static float _nextFirst;
+        public static void Firsts()
+        {
+            Player me = Player.m_localPlayer;
+            if (me == null || me.IsDead() || Time.time < _nextFirst || ZoneSystem.instance == null) return;
+            _nextFirst = Time.time + 3f;
+            Vector3 at = me.transform.position;
+            var found = new List<string>();
+            Heightmap.Biome biome = me.GetCurrentBiome();
+            if (biome != Heightmap.Biome.Meadows && biome != Heightmap.Biome.None && !me.InInterior()) found.Add("biome:" + biome);
+            Location loc = Location.GetLocation(at, true);
+            var lm = loc != null ? Requests.Landmark(Utils.GetPrefabName(loc.gameObject)) : null;
+            if (lm != null) found.Add((me.InInterior() ? "dungeon:" : "place:") + lm.Value.prefix);
+            float home = float.MaxValue;
+            foreach (string line in ZoneSystem.instance.GetGlobalKeys().Where(l => l.StartsWith("jarldom_colony_")))
+            {
+                string[] v = line.Substring(line.IndexOf(' ') + 1).Split(',');
+                if (v.Length >= 2 && float.TryParse(v[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float x) && float.TryParse(v[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float z))
+                    home = Mathf.Min(home, Utils.DistanceXZ(at, new Vector3(x, 0, z)));
+            }
+            int far = home < float.MaxValue && !me.InInterior() ? Wanderer.Far(home) : 0;
+            foreach (int km in Wanderer.FarKm.Where(k => k <= far)) found.Add("far:" + km); // (every milestone on the way)
+            if (found.Count == 0) return;
+            me.m_customData.TryGetValue(FirstsKey, out string had);
+            var carried = new HashSet<string>((had ?? "").Split(';').Where(s => s != ""));
+            foreach (string f in found.Where(f => !carried.Contains(f) && Wanderer.Points(f) > 0))
+            {
+                carried.Add(f);
+                Carry(me, "first:" + f);
+            }
+            me.m_customData[FirstsKey] = string.Join(";", carried);
         }
         public static void Carry(Player me, string deed)
         {

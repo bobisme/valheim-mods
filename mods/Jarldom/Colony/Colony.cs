@@ -40,7 +40,10 @@ namespace Jarldom
         public double Now => ZNet.instance != null ? ZNet.instance.GetTimeSeconds() : 0;
         public int Day => Clock.Day(Now);
         public double Hour => Clock.HourOfDay(Now);
-        public int Renown => WealthPart + ComfortPart + (R?.Deeds ?? 0);
+        public int Renown => WealthPart + ComfortPart + (R?.Deeds ?? 0) + SagaPart;
+        // (Odin the Wanderer: the jarls' firsts out in the world, Core/Wanderer.cs; summed once a second at most)
+        private int _saga; private float _sagaAt = -10;
+        public int SagaPart { get { if (R == null) return 0; if (Time.time - _sagaAt > 1f) { _sagaAt = Time.time; _saga = Wanderer.Saga(R.Flags); } return _saga; } }
 
         private Colony(HighSeat seat) { Seat = seat; View = seat.GetComponent<ZNetView>(); _attachedAt = Time.time; }
         private readonly float _attachedAt; private bool _caughtUp; private float _nextLive;

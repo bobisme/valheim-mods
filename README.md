@@ -90,7 +90,9 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
   runestone and its tale goes home with you: the colony learns it, and after the verse the skald tells it as the colony's own.
   **True legends** (setting TrueLegends, on): with a jarl in the great hall, every few minutes a villager tells of a real place
   nearby (a burial chamber, a troll's cave, a sunken barrow, a wreck...), never more than a step beyond the bosses the world has
-  beaten; the third telling marks it on the jarls' maps.
+  beaten; the third telling marks it on the jarls' maps. **Odin the Wanderer**: the jarls' firsts out in the world (a new land, a
+  landmark found, a dungeon entered, 1, 2, 4 and 8 km from home) are the colony's saga: told in the saga and the verse, and a
+  "saga" part of renown (all of them together about a boss and a half).
   Inspired villagers work faster for a day; a jarl most of the colony loves lifts their followers. After the first boss, one newcomer
   in twelve may be **Forsaken-touched**: watch the mischief, and name them at the Thing. Roads (paved ground, stone floors): a sixth
   faster. **While you were away**: a colony that was unloaded makes up the time at the rates it showed live (goods, meals, wages, raids).

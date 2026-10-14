@@ -672,4 +672,15 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(TrueLegend.Tale(1, 700, "west", 3, new Random(2)).Contains("three times"), "The third telling says so");
 }
 
+{
+    // Odin the Wanderer: firsts in the world are the colony's saga, and renown.
+    var wf = new Dictionary<string, int>();
+    Check(Wanderer.Saga(wf) == 0 && Wanderer.Points("biome:Meadows") == 0, "Nothing yet; home's own meadows count for nothing");
+    wf[Wanderer.Prefix + "biome:Swamp"] = 3; wf[Wanderer.Prefix + "place:Crypt"] = 4; wf[Wanderer.Prefix + "dungeon:SunkenCrypt"] = 4; wf[Wanderer.Prefix + "far:2"] = 5;
+    Check(Wanderer.Saga(wf) == 6 + 2 + 5 + 4, "Each first's worth summed");
+    Check(Wanderer.Points("place:NotALandmark") == 0 && Wanderer.Points("far:3") == 0, "Only landmarks and the milestones count");
+    Check(Wanderer.Far(900) == 0 && Wanderer.Far(2500) == 2 && Wanderer.Far(9000) == 8, "Milestones by distance");
+    Check(Wanderer.Tell("biome:BlackForest", "Bob") == "Bob was the first of the hall to set foot in the Black Forest." && Wanderer.Tell("dungeon:Crypt4", "Ann").Contains("burial chamber"), "Told in the saga");
+}
+
 Console.WriteLine($"Jarldom: {checks} checks passed");

@@ -601,6 +601,7 @@ namespace Jarldom
                         // "tally": every jarl's tally and byname; "tally <player> <what> <n>" adds (on the owner); "tally <player> boss <prefab>"
                         // carries a boss kill on the local player, as one slain far away (brought to the colony in a few seconds).
                         if (a.Length > 4 && a[3] == "boss") { JarlDeeds.Carry(me, "boss:" + a[4]); output(new JObject { ["carried"] = a[4] }); return; }
+                        if (a.Length > 4 && a[3] == "first") { JarlDeeds.Carry(me, "first:" + a[4]); output(new JObject { ["carried"] = a[4] }); return; } // ("tally x first biome:Swamp": a first, as if found out there)
                         if (a.Length > 2 && a[2] == "clear") // (test: the local player's carried deeds gone, and their tally here)
                         {
                             var keys = me.m_customData.Keys.Where(k => k.StartsWith(JarlDeeds.PendingKey)).ToList(); foreach (string k in keys) me.m_customData.Remove(k);

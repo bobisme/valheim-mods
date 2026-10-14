@@ -146,6 +146,7 @@ namespace Jarldom
                     $"{e.A} was home again, {e.B} days gone.",
                     $"After {e.B} days away, {e.A} came home.");
                 case "fest": return $"The colony kept {e.B}{e.Text}.";
+                case "first": return e.Text;
                 case "lore": return Telling(e, $"{e.A} read a runestone, and brought its tale home.", $"{e.A} brought home a tale from an old runestone.", $"{e.A} learned the words of a runestone, and the hall learned them too.");
                 case "legend": return $"{e.A} told an old tale: “{e.Text}”";
                 case "verse": return $"{e.A} sang: “{e.Text.Replace(" / ", " / ")}”";

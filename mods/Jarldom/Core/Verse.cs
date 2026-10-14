@@ -12,7 +12,7 @@ namespace Jarldom
         private static readonly Dictionary<string, int> Weight = new Dictionary<string, int>
         {
             ["slew"] = 10, ["home"] = 9, ["raidheld"] = 8, ["ascend"] = 8, ["lost"] = 7, ["death"] = 7, ["rest"] = 6, ["arrive"] = 6,
-            ["byname"] = 5, ["feast"] = 5, ["fest"] = 6, ["lore"] = 4, ["starkill"] = 4, ["ring"] = 4, ["worthy"] = 3,
+            ["byname"] = 5, ["feast"] = 5, ["fest"] = 6, ["lore"] = 4, ["first"] = 7, ["starkill"] = 4, ["ring"] = 4, ["worthy"] = 3,
         };
         public static bool Sings(string kind) => Weight.ContainsKey(kind);
 
@@ -57,6 +57,7 @@ namespace Jarldom
                 case "starkill": return $"{a} the {Alliter(rng, Bold, a)} {Alliter(rng, Felled, b)} a mighty {b}.";
                 case "ring": return $"{named(b)} gave gold to {a} the {Alliter(rng, Bold, a)}.";
                 case "worthy": return $"{a} is worthy of Odin's hall.";
+                case "first": return $"{named(a)} the {Alliter(rng, Bold, a)} went where none of us had gone.";
                 case "lore": return $"{named(a)} read the old runes, and brought their words to us.";
                 case "fest": return Pick(rng, $"We kept {b} as our fathers kept it.", $"{b} was kept, and the gods looked on.", $"The fires of {b} burned high.");
             }
