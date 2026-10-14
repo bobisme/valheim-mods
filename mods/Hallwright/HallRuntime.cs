@@ -423,7 +423,7 @@ namespace Hallwright
         }
         private void ClearHall()
         {
-            CloseHallMenu();ClearHallPieces();_hallProblemUntil=0;_hallAnnouncedProblem=null;_hallAnnouncedCorners=-1;_hallGuideHasFloor=false;_hallDoorPoints.Clear();_hallChimneyPoints.Clear();_hallGroundJob.Clear();_hallTargetMaps.Clear();_hallDesign=null;_hallDue=0;_hallProblem=_hallNote=_hallFingerprint=null;
+            CloseHallMenu();ClearHallPieces();_sketchShown.Clear();_sketchPending.Clear();_hallProblemUntil=0;_hallAnnouncedProblem=null;_hallAnnouncedCorners=-1;_hallGuideHasFloor=false;_hallDoorPoints.Clear();_hallChimneyPoints.Clear();_hallGroundJob.Clear();_hallTargetMaps.Clear();_hallDesign=null;_hallDue=0;_hallProblem=_hallNote=_hallFingerprint=null;
             _hallRoles.Clear();_hallBill.Clear();_hallStations.Clear();_hallSupport.Clear();
         }
         private void DestroyHall()
@@ -484,14 +484,19 @@ namespace Hallwright
             }
             return _hallTemplates[name]=template;
         }
-        private void ClearHallPieces(){if(_hallPieceRoot!=null)Destroy(_hallPieceRoot);_hallPieceRoot=null;_hallPieceKey=null;}
+        private void ClearHallPieces(){if(_hallPieceRoot!=null)Destroy(_hallPieceRoot);_hallPieceRoot=null;_hallPieceKey=null;_sketchArrivals.Clear();}
         private void DrawHallMeshes()
         {
+            AnimateSketch();
             string key=$"{_hallPreviewVersion}:{HallPreviewMode}:{_hallShowRoof}";
             if(key==_hallPieceKey)return;
             ClearHallPieces();_hallPieceKey=key;
+            // Out of Sketch, or no hall to draw (an outline gone invalid, Layout): when it comes back, it's drawn in again.
+            if(!_hallSketch || _hallGuideOnly || _output.Count==0){_sketchShown.Clear();_sketchPending.Clear();}
             if(_hallGuideOnly || _output.Count==0)return;
             _hallPieceRoot=new GameObject("Hallwright preview");
+            var drawn=new List<(GameObject,PiecePose,bool)>();
+            if(_hallSketch)DrawSketchConstruction(_hallPieceRoot.transform);
             for(int i=0;i<_output.Count;i++)
             {
                 var pose=_output[i];if(!_hallShowRoof && _hallRoles[i].EndsWith("roof",StringComparison.Ordinal))continue;
@@ -502,6 +507,7 @@ namespace Hallwright
                     var drawing=Instantiate(HallSketchTemplate(pose.Prefab),pose.Position,pose.Rotation,_hallPieceRoot.transform);
                     SketchMix(drawing,pose.Position);
                     if(falls)SketchFalls(drawing);
+                    drawn.Add((drawing,pose,falls));
                     continue;
                 }
                 var copy=Instantiate(HallTemplate(pose.Prefab),pose.Position,pose.Rotation,_hallPieceRoot.transform);
@@ -511,6 +517,7 @@ namespace Hallwright
                     if(falls){_hallTint.Clear();_hallTint.SetColor("_Color",new Color(1,0.3f,0.2f,0.75f));renderer.SetPropertyBlock(_hallTint);}
                 }
             }
+            if(_hallSketch)SketchArrive(drawn);
         }
     }
 }

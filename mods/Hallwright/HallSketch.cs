@@ -32,6 +32,9 @@ namespace Hallwright
         private readonly Dictionary<Material,Material> _sketchPaperSource=new Dictionary<Material,Material>();
         private readonly Dictionary<Texture,Color> _sketchAverages=new Dictionary<Texture,Color>();
         private readonly Dictionary<(Mesh,Vector3),Mesh> _sketchInkMeshes=new Dictionary<(Mesh,Vector3),Mesh>();
+        private readonly Dictionary<Mesh,Mesh> _sketchFlatMeshes=new Dictionary<Mesh,Mesh>();
+        private Material _sketchFaintInk;
+        private Mesh _sketchConstruction;
         private readonly MaterialPropertyBlock _sketchFallsTint=new MaterialPropertyBlock();
         private readonly Dictionary<string,GameObject> _sketchTemplates=new Dictionary<string,GameObject>();
 
@@ -146,6 +149,22 @@ namespace Hallwright
             ink.RecalculateBounds();
             return _sketchInkMeshes[key]=ink;
         }
+        // A roof's mesh lit as its plain slopes (SketchEdges.Planes): its thatch bumps made the paper look crumpled in the sun. The shape is
+        // the same; only the light on it changes.
+        private Mesh SketchFlatMesh(Mesh source)
+        {
+            if(!source.isReadable)return source;
+            if(_sketchFlatMeshes.TryGetValue(source,out var cached))return cached;
+            Vector3[] v=source.vertices;var xyz=new float[v.Length*3];
+            for(int i=0;i<v.Length;i++){xyz[3*i]=v[i].x;xyz[3*i+1]=v[i].y;xyz[3*i+2]=v[i].z;}
+            var triangles=new List<int>();
+            for(int sub=0;sub<source.subMeshCount;sub++)if(source.GetTopology(sub)==MeshTopology.Triangles)triangles.AddRange(source.GetTriangles(sub));
+            float[] n=SketchEdges.Planes(xyz,triangles.ToArray());
+            var flat=Object.Instantiate(source);flat.name=source.name+" (sketch planes)";flat.hideFlags=HideFlags.HideAndDontSave;
+            var normals=new Vector3[v.Length];for(int i=0;i<normals.Length;i++)normals[i]=new Vector3(n[3*i],n[3*i+1],n[3*i+2]);
+            flat.normals=normals;
+            return _sketchFlatMeshes[source]=flat;
+        }
         private GameObject HallSketchTemplate(string name)
         {
             if(_sketchTemplates.TryGetValue(name,out var cached) && cached!=null)return cached;
@@ -157,7 +176,7 @@ namespace Hallwright
                 var part=new GameObject(mesh.Path);part.transform.SetParent(template.transform,false);
                 Vector3 scale=mesh.Local.lossyScale;
                 part.transform.localPosition=mesh.Local.GetPosition();part.transform.localRotation=mesh.Local.rotation;part.transform.localScale=scale;
-                part.AddComponent<MeshFilter>().sharedMesh=mesh.Mesh;
+                part.AddComponent<MeshFilter>().sharedMesh=name.Contains("roof")?SketchFlatMesh(mesh.Mesh):mesh.Mesh;
                 var fill=part.AddComponent<MeshRenderer>();fill.sharedMaterials=mesh.Materials.Select(m=>SketchPaperMaterial(m)).ToArray();
                 fill.shadowCastingMode=ShadowCastingMode.Off;fill.receiveShadows=true;
                 var lines=new GameObject("ink");lines.transform.SetParent(part.transform,false);
@@ -184,13 +203,151 @@ namespace Hallwright
             foreach(var renderer in copy.GetComponentsInChildren<MeshRenderer>(true))
                 if(renderer.sharedMaterial==_sketchInk)renderer.sharedMaterials=new[]{_sketchFallsInk,_sketchFallsInk};else renderer.SetPropertyBlock(_sketchFallsTint);
         }
+        // Construction lines, as an architect lays a drawing out: faint, fine strokes carrying the hall's main lines (the floor and wall-top
+        // outlines, each wing's eaves and ridge) past its corners and gables, and the corner posts' lines past the floor and wall top.
+        private void DrawSketchConstruction(Transform under)
+        {
+            if(_hallDesign==null || _markers.Count<3)return;
+            if(_sketchFaintInk==null)_sketchFaintInk=SketchInkMaterial(new Color(SketchInk.r,SketchInk.g,SketchInk.b,0.55f));
+            const float Reach=1.2f;
+            var segments=new List<(Vector3 a,Vector3 b)>();
+            void Carry(Vector3 a,Vector3 b,float reach=Reach){Vector3 d=(b-a).normalized;if(d.sqrMagnitude>0.5f)segments.Add((a-d*reach,b+d*reach));}
+            float floor=_hallFloorY,top=_hallFloorY+(_staveTemple?_hallHeight:_hallHeight*_hallStoreys);
+            Vector3 At(Vector3 p,float y)=>new Vector3(p.x,y,p.z);
+            for(int i=0;i<_markers.Count;i++)
+            {
+                Vector3 a=_markers[i],b=_markers[(i+1)%_markers.Count];
+                Carry(At(a,floor),At(b,floor));Carry(At(a,top),At(b,top));
+                segments.Add((At(a,floor-0.6f),At(a,top+0.8f)));
+            }
+            if(_hallShowRoof && _hallKit!=null)foreach(var wing in _hallDesign.Wings)
+            {
+                double width=wing.Width*2,length=wing.Length*2,peak=wing.RoofBase+width*0.5*_hallKit.Slope+wing.TierLift;
+                Vector3 W(double u,double y,double v)=>HallWorld(wing.At(u,y,v));
+                Carry(W(width/2,peak,0),W(width/2,peak,length));
+                Carry(W(0,wing.RoofBase,0),W(0,wing.RoofBase,length),0.8f);Carry(W(width,wing.RoofBase,0),W(width,wing.RoofBase,length),0.8f);
+            }
+            Vector3 origin=new Vector3(_hallOrigin.x,_hallFloorY,_hallOrigin.z);
+            var points=new float[segments.Count*6];var lines=new int[segments.Count*2];
+            for(int i=0;i<segments.Count;i++)
+            {
+                Vector3 a=segments[i].a-origin,b=segments[i].b-origin;
+                points[6*i]=a.x;points[6*i+1]=a.y;points[6*i+2]=a.z;points[6*i+3]=b.x;points[6*i+4]=b.y;points[6*i+5]=b.z;lines[2*i]=2*i;lines[2*i+1]=2*i+1;
+            }
+            var (xyz,triangles)=SketchEdges.Strokes(points,lines,width:SketchEdges.Width*0.8);
+            if(_sketchConstruction==null)_sketchConstruction=new Mesh{name="Hallwright construction lines",hideFlags=HideFlags.HideAndDontSave};
+            _sketchConstruction.Clear();
+            var corners=new Vector3[xyz.Length/3];for(int i=0;i<corners.Length;i++)corners[i]=new Vector3(xyz[3*i],xyz[3*i+1],xyz[3*i+2]);
+            _sketchConstruction.indexFormat=corners.Length>65535?IndexFormat.UInt32:IndexFormat.UInt16;
+            _sketchConstruction.vertices=corners;_sketchConstruction.SetIndices(triangles,MeshTopology.Triangles,0);_sketchConstruction.RecalculateBounds();
+            var go=new GameObject("construction lines");go.transform.SetParent(under,false);go.transform.position=origin;
+            go.AddComponent<MeshFilter>().sharedMesh=_sketchConstruction;
+            var pen=go.AddComponent<MeshRenderer>();pen.sharedMaterial=_sketchFaintInk;pen.shadowCastingMode=ShadowCastingMode.Off;pen.receiveShadows=false;
+        }
+        // Drawn in: when a piece first appears in the sketch (the draft opened, a corner added, a storey or porch switched on) it's drawn,
+        // bottom up, ink first, and its colour washes in from bare paper a moment later. Pieces already drawn stay as they are, so
+        // changing a setting doesn't replay the whole hall. A rebuild while pieces are still being drawn (a valid outline opens the settings,
+        // which rebuilds it again) keeps their places in the drawing. The construction lines are there from the start, as an architect
+        // lays them first.
+        private const float SketchInkLead=0.25f,SketchWashIn=0.35f,SketchLongest=1.5f;
+        private sealed class SketchArrival { internal string Key; internal float Start; internal Renderer[] Ink,Paper; internal Color[] Wash; internal bool Falls; }
+        private readonly Dictionary<string,float> _sketchPending=new Dictionary<string,float>(); // (pieces still being drawn: when each started)
+        private int _sketchLastDrawn,_sketchLastFresh,_sketchLastCarried,_sketchBuilds; // (for hall status)
+        private readonly List<SketchArrival> _sketchArrivals=new List<SketchArrival>();
+        private HashSet<string> _sketchShown=new HashSet<string>();
+        private readonly MaterialPropertyBlock _sketchWashTint=new MaterialPropertyBlock();
+        private static string SketchKey(PiecePose pose)=>pose.Prefab+"@"+Mathf.RoundToInt(pose.Position.x*20)+","+Mathf.RoundToInt(pose.Position.y*20)+","+Mathf.RoundToInt(pose.Position.z*20)+","+Mathf.RoundToInt(pose.Rotation.eulerAngles.y);
+        // drawn: this rebuild's drawings and their poses; the new ones are scheduled, the rest shown at once.
+        private void SketchArrive(List<(GameObject drawing,PiecePose pose,bool falls)> drawn)
+        {
+            _sketchArrivals.Clear();
+            var shown=new HashSet<string>();var fresh=new List<(GameObject drawing,PiecePose pose,bool falls)>();
+            var pending=new Dictionary<string,float>();
+            foreach(var d in drawn)
+            {
+                string key=SketchKey(d.pose);shown.Add(key);
+                if(_sketchPending.TryGetValue(key,out float start)){pending[key]=start;Schedule(d.drawing,key,start,d.falls);}
+                else if(!_sketchShown.Contains(key))fresh.Add(d);
+            }
+            _sketchShown=shown;_sketchPending.Clear();foreach(var kv in pending)_sketchPending[kv.Key]=kv.Value;
+            _sketchBuilds++;_sketchLastDrawn=drawn.Count;_sketchLastFresh=fresh.Count;_sketchLastCarried=pending.Count;
+            if(fresh.Count==0)return;
+            // Drawing order: from the ground up, then outwards from the first corner.
+            Vector3 first=_markers.Count>0?_markers[0]:Vector3.zero;
+            fresh.Sort((a,b)=>{int byHeight=Mathf.RoundToInt(a.pose.Position.y*2).CompareTo(Mathf.RoundToInt(b.pose.Position.y*2));return byHeight!=0?byHeight:(a.pose.Position-first).sqrMagnitude.CompareTo((b.pose.Position-first).sqrMagnitude);});
+            float span=Mathf.Min(SketchLongest-SketchInkLead-SketchWashIn,0.004f*fresh.Count+0.3f),now=Time.unscaledTime;
+            for(int i=0;i<fresh.Count;i++)
+            {
+                string key=SketchKey(fresh[i].pose);float start=now+span*i/Math.Max(1,fresh.Count-1);
+                _sketchPending[key]=start;Schedule(fresh[i].drawing,key,start,fresh[i].falls);
+            }
+        }
+        private void Schedule(GameObject drawing,string key,float start,bool falls)
+        {
+            var renderers=drawing.GetComponentsInChildren<MeshRenderer>(true);
+            var arrival=new SketchArrival{Key=key,Start=start,Falls=falls,
+                Ink=renderers.Where(r=>r.gameObject.name=="ink").ToArray<Renderer>(),Paper=renderers.Where(r=>r.gameObject.name!="ink").ToArray<Renderer>()};
+            arrival.Wash=arrival.Paper.Select(r=>r.sharedMaterial!=null && r.sharedMaterial.HasProperty("_Color")?r.sharedMaterial.color:SketchPaper).ToArray();
+            foreach(var r in renderers)r.enabled=false;
+            _sketchArrivals.Add(arrival);
+        }
+        private void AnimateSketch()
+        {
+            if(_sketchArrivals.Count==0)return;
+            float now=Time.unscaledTime;
+            for(int i=_sketchArrivals.Count-1;i>=0;i--)
+            {
+                var a=_sketchArrivals[i];float t=now-a.Start;
+                if(t<0)continue;
+                foreach(var r in a.Ink)if(r!=null)r.enabled=true;
+                if(t<SketchInkLead)continue;
+                float wash=Mathf.Clamp01((t-SketchInkLead)/SketchWashIn);
+                for(int k=0;k<a.Paper.Length;k++)
+                {
+                    var r=a.Paper[k];if(r==null)continue;
+                    r.enabled=true;
+                    if(a.Falls)continue; // (keeps its red tint)
+                    if(wash>=1){r.SetPropertyBlock(null);continue;}
+                    _sketchWashTint.Clear();_sketchWashTint.SetColor("_Color",Color.Lerp(SketchPaper,a.Wash[k],wash*wash));r.SetPropertyBlock(_sketchWashTint);
+                }
+                if(wash>=1){_sketchPending.Remove(a.Key);_sketchArrivals.RemoveAt(i);}
+            }
+        }
+        // Markers over a sketch: corner stakes, door frames and chimney posts in sanguine, the red chalk architects annotate with.
+        private static readonly Color SketchSanguine=new Color(0.62f,0.24f,0.13f);
+        private Material _sketchMarkInk;
+        private readonly List<Mesh> _sketchMarkMeshes=new List<Mesh>();
+        private bool SketchMark(Transform under,Vector3[] points)
+        {
+            if(points==null || points.Length<2)return false;
+            if(_sketchMarkInk==null)_sketchMarkInk=SketchInkMaterial(SketchSanguine);
+            Vector3 origin=points[0];
+            var xyz=new float[points.Length*3];var lines=new int[(points.Length-1)*2];
+            for(int i=0;i<points.Length;i++){Vector3 p=points[i]-origin;xyz[3*i]=p.x;xyz[3*i+1]=p.y;xyz[3*i+2]=p.z;}
+            for(int i=0;i+1<points.Length;i++){lines[2*i]=i;lines[2*i+1]=i+1;}
+            var (strokeXyz,triangles)=SketchEdges.Strokes(xyz,lines,width:SketchEdges.Width*1.2);
+            if(triangles.Length==0)return false;
+            var mesh=new Mesh{name="Hallwright sketch marker",hideFlags=HideFlags.HideAndDontSave};
+            var corners=new Vector3[strokeXyz.Length/3];for(int i=0;i<corners.Length;i++)corners[i]=new Vector3(strokeXyz[3*i],strokeXyz[3*i+1],strokeXyz[3*i+2]);
+            mesh.vertices=corners;mesh.SetIndices(triangles,MeshTopology.Triangles,0);mesh.RecalculateBounds();_sketchMarkMeshes.Add(mesh);
+            var go=new GameObject("sketch marker");go.transform.SetParent(under,false);go.transform.position=origin;go.layer=under.gameObject.layer;
+            go.AddComponent<MeshFilter>().sharedMesh=mesh;
+            var pen=go.AddComponent<MeshRenderer>();pen.sharedMaterial=_sketchMarkInk;pen.shadowCastingMode=ShadowCastingMode.Off;pen.receiveShadows=false;
+            return true;
+        }
+        // With the guides they belong to (ClearVisuals).
+        private void ClearSketchMarks(){foreach(var mesh in _sketchMarkMeshes)if(mesh!=null)Destroy(mesh);_sketchMarkMeshes.Clear();}
         private void DestroySketch()
         {
+            _sketchArrivals.Clear();_sketchShown.Clear();_sketchPending.Clear();
             foreach(var t in _sketchTemplates.Values)if(t!=null)Destroy(t);_sketchTemplates.Clear();
             foreach(var paper in _sketchPapers.Values)if(paper!=null)Destroy(paper);_sketchPapers.Clear();_sketchPaperSource.Clear();_sketchAverages.Clear();
             foreach(var ink in _sketchInkMeshes.Values)if(ink!=null)Destroy(ink);_sketchInkMeshes.Clear();
-            foreach(var m in new[]{_sketchInk,_sketchFallsInk})if(m!=null)Destroy(m);
-            _sketchInk=_sketchFallsInk=null;
+            foreach(var flat in _sketchFlatMeshes.Values)if(flat!=null)Destroy(flat);_sketchFlatMeshes.Clear();
+            if(_sketchConstruction!=null)Destroy(_sketchConstruction);_sketchConstruction=null;
+            ClearSketchMarks();
+            foreach(var m in new[]{_sketchInk,_sketchFallsInk,_sketchFaintInk,_sketchMarkInk})if(m!=null)Destroy(m);
+            _sketchInk=_sketchFallsInk=_sketchFaintInk=_sketchMarkInk=null;
             if(_sketchSheet!=null)Destroy(_sketchSheet);_sketchSheet=null;
         }
     }

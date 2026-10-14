@@ -1188,3 +1188,4 @@
 1792014015177105	claude-hallwright	itc:AQ		item.create	bn-2jm4	{"kind":"task","labels":["hallwright"],"title":"Hallwright Sketch preview: Piranesi-style watercolour draft (ink strokes + own-colour wash), default"}	blake3:qgEE07OGn-l22OQQWhh7zkzWo5pqt0yVhoD3S_nTvPY
 1792014015201795	claude-hallwright	itc:AQ		item.comment	bn-2jm4	{"body":"Released 0.10.0. Seen live on Bob's hall; Bob: 'looks fantastic'."}	blake3:dtPPeQ_Um4pKzbrK8F75DHCNQYgcys_j40JQ9_tIdp8
 1792014015218320	claude-hallwright	itc:AQ		item.move	bn-2jm4	{"state":"done"}	blake3:kO2mthtF2gG2HyyCwxJgyfAG6o15gH7G978lt9riD_k
+1792015246435321	claude-hallwright	itc:AQ		item.comment	bn-2jm4	{"body":"0.11.0: construction lines (1.2 m, thicker per Bob), flat-lit roofs, drawn-in animation (fixed: valid outline after invalid now animates; rebuilds keep pending pieces), sanguine markers/dashes, ink live line. Bob: 'you absolutely nailed what I was looking for'."}	blake3:McL2NpC0X3efKpg3mJhRw07OiaixZvo6dx4fVAHLB8s

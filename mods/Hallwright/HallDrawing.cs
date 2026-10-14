@@ -88,7 +88,8 @@ namespace Hallwright
             {
                 Vector3 a=_markers[i],b=_markers[(i+1)%count];
                 Vector3[] path=HallGroundPath(a,b);
-                HallDottedLine(path,HallEdgeColor);
+                // Over a sketch, red chalk dashes instead of glowing amber (a dark colour doesn't set off the game's bloom).
+                HallDottedLine(path,_hallSketch && HallPiecesShown?new Color(SketchSanguine.r,SketchSanguine.g,SketchSanguine.b,0.9f):HallEdgeColor);
                 _hallLabels.Add((HallLabelAt(path),HallLength(a,b),false));
             }
             _hallLiveKey=null; // ClearVisuals took the live lines with it.
@@ -117,12 +118,14 @@ namespace Hallwright
             }
             Vector3 last=_markers[_markers.Count-1];
             Vector3[] next=HallGroundPath(last,point);
-            _hallLiveNext=HallDottedLine(next,problem!=null?HallBadColor:HallLiveColor,_hallLiveNext);
+            // Over a sketch, in ink (white glows there).
+            bool inked=_hallSketch && HallPiecesShown;
+            _hallLiveNext=HallDottedLine(next,problem!=null?HallBadColor:inked?new Color(SketchInk.r,SketchInk.g,SketchInk.b,0.9f):HallLiveColor,_hallLiveNext);
             _hallLabels.Add((HallLabelAt(next,true),HallLength(last,point)+(problem!=null?" · "+problem:closes?" · closes the outline":""),true));
             if(_markers.Count>=2 && !closes)
             {
                 Vector3[] back=HallGroundPath(point,_markers[0]);
-                _hallLiveBack=HallDottedLine(back,HallBackColor,_hallLiveBack);
+                _hallLiveBack=HallDottedLine(back,inked?new Color(SketchInk.r,SketchInk.g,SketchInk.b,0.45f):HallBackColor,_hallLiveBack);
                 _hallLabels.Add((HallLabelAt(back,true),HallLength(point,_markers[0]),true));
             }
             else if(_hallLiveBack!=null)_hallLiveBack.SetActive(false);

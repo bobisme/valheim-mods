@@ -97,4 +97,27 @@ var cubeStrokes = SketchEdges.Strokes(boxLines.points, boxLines.lines);
 Check(cubeStrokes.triangles.Length >= 12 * 2 * 2 * 3, "Every line of a cube gets at least one stroke");
 Check(SketchEdges.Strokes(new float[]{1,1,1, 1,1,1}, new[]{0,1}).triangles.Length == 0, "A zero-length line gets no stroke");
 Reject(() => SketchEdges.Strokes(new float[]{0,0,0}, new[]{0,1}), "A line naming a missing point");
+// Planes: a bumpy slope lights as one slope; a ridge keeps its two sides; a box keeps its six faces.
+(float[] xyz, int[] tris) Bumpy()
+{
+    // A 45° slope of 4 × 4 quads whose corners bob by a few centimetres, sharing corners like a smooth-shaded thatch mesh.
+    var xyz = new List<float>(); var tris = new List<int>();
+    for (int j = 0; j <= 4; j++) for (int i = 0; i <= 4; i++) { float bob = 0.06f * (float)Math.Sin(i * 1.7 + j * 2.3); xyz.AddRange(new[]{ (float)i, j * 0.7071f + bob, j * 0.7071f - bob }); }
+    for (int j = 0; j < 4; j++) for (int i = 0; i < 4; i++) { int a = j * 5 + i; tris.AddRange(new[]{ a, a + 5, a + 1, a + 1, a + 5, a + 6 }); }
+    return (xyz.ToArray(), tris.ToArray());
+}
+var slope = Bumpy(); var flatNormals = SketchEdges.Planes(slope.xyz, slope.tris);
+Check(flatNormals.Length == slope.xyz.Length, "One normal per corner");
+var n0 = (flatNormals[0], flatNormals[1], flatNormals[2]);
+Check(Enumerable.Range(0, flatNormals.Length / 3).All(i => Math.Abs(flatNormals[3*i] - n0.Item1) < 1e-5 && Math.Abs(flatNormals[3*i+1] - n0.Item2) < 1e-5 && Math.Abs(flatNormals[3*i+2] - n0.Item3) < 1e-5), "A bumpy slope lights as one plane");
+Check(Math.Abs(Math.Abs(n0.Item2) - 0.7071) < 0.05 && Math.Abs(Math.Abs(n0.Item3) - 0.7071) < 0.05, "...facing the way the slope does");
+var ridge = Split(new[]{ new float[]{0,0,0}, new float[]{0,0,4}, new float[]{1,1,4}, new float[]{1,1,0}, new float[]{2,0,4}, new float[]{2,0,0} }, new[]{ new[]{0,1,2,3}, new[]{3,2,4,5} });
+var ridgeNormals = SketchEdges.Planes(ridge.xyz, ridge.tris);
+Check(ridgeNormals[1] > 0.6 && ridgeNormals[0] < -0.6 && ridgeNormals[ridgeNormals.Length - 3] > 0.6, "A ridge keeps its two slopes apart");
+var boxNormals = SketchEdges.Planes(box.xyz, box.tris);
+Check(Enumerable.Range(0, boxNormals.Length / 3).All(i => Math.Abs(Math.Abs(boxNormals[3*i]) + Math.Abs(boxNormals[3*i+1]) + Math.Abs(boxNormals[3*i+2]) - 1) < 1e-5), "A box keeps its six square faces");
+var thin = SketchEdges.Strokes(new float[]{0,0,0, 3,0,0}, new[]{0,1}, width: 0.01);
+float thinSpread = Enumerable.Range(0, thin.xyz.Length / 3).Max(i => Math.Max(Math.Abs(thin.xyz[3*i+1]), Math.Abs(thin.xyz[3*i+2])));
+Check(thinSpread < spread, "A finer pen draws finer strokes");
+Reject(() => SketchEdges.Planes(new float[]{0,0,0}, new[]{0,0,1}), "Planes: a triangle naming a missing corner");
 Console.WriteLine($"Passed {checks} Hallwright sketch edge checks.");

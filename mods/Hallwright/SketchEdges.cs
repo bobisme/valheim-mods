@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Hallwright
 {
@@ -70,13 +71,55 @@ namespace Hallwright
             }
             return (points.ToArray(), lines.ToArray());
         }
+        // Normals that light a surface as its plain planes: faces within Crease degrees of each other share one direction (their
+        // area-weighted mean), and each corner takes the direction of the plane most of its faces lie in. A thatch roof's bumps then
+        // catch the sun as two clean slopes instead of crumpled paper. Returns three floats per corner, in xyz's order.
+        internal static float[] Planes(float[] xyz, int[] triangles, double crease = Crease)
+        {
+            if (xyz == null || triangles == null || xyz.Length % 3 != 0 || triangles.Length % 3 != 0) throw new ArgumentException("Corners come in threes.");
+            int corners = xyz.Length / 3;
+            var faces = new List<(int a, int b, int c, double[] n, double area)>();
+            for (int t = 0; t + 2 < triangles.Length; t += 3)
+            {
+                int a = triangles[t], b = triangles[t + 1], c = triangles[t + 2];
+                if (a < 0 || b < 0 || c < 0 || a >= corners || b >= corners || c >= corners) throw new ArgumentException("A triangle names a missing corner.");
+                double[] pa = { xyz[3 * a], xyz[3 * a + 1], xyz[3 * a + 2] }, pb = { xyz[3 * b], xyz[3 * b + 1], xyz[3 * b + 2] }, pc = { xyz[3 * c], xyz[3 * c + 1], xyz[3 * c + 2] };
+                double[] n = Cross(Sub(pb, pa), Sub(pc, pa)); double area = Math.Sqrt(Dot(n, n));
+                if (area < Area) continue;
+                faces.Add((a, b, c, Scale(n, 1 / area), area));
+            }
+            double cos = Math.Cos(crease * Math.PI / 180);
+            // The biggest faces found the planes; each face joins the first plane it lies within Crease of.
+            var planes = new List<double[]>(); var sums = new List<double[]>(); var member = new int[faces.Count];
+            foreach (int f in Enumerable.Range(0, faces.Count).OrderByDescending(i => faces[i].area))
+            {
+                int found = planes.FindIndex(p => Dot(p, faces[f].n) >= cos);
+                if (found < 0) { found = planes.Count; planes.Add(faces[f].n); sums.Add(new double[3]); }
+                member[f] = found; sums[found] = Add(sums[found], Scale(faces[f].n, faces[f].area));
+            }
+            var share = new Dictionary<int, double>[corners];
+            for (int f = 0; f < faces.Count; f++)
+                foreach (int corner in new[] { faces[f].a, faces[f].b, faces[f].c })
+                {
+                    var d = share[corner] ?? (share[corner] = new Dictionary<int, double>());
+                    d[member[f]] = (d.TryGetValue(member[f], out double w) ? w : 0) + faces[f].area;
+                }
+            var normals = new float[corners * 3];
+            for (int i = 0; i < corners; i++)
+            {
+                double[] n = share[i] == null ? new double[] { 0, 1, 0 } : sums[share[i].OrderByDescending(kv => kv.Value).First().Key];
+                double length = Math.Sqrt(Dot(n, n)); if (length < 1e-12) n = new double[] { 0, 1, 0 }; else n = Scale(n, 1 / length);
+                normals[3 * i] = (float)n[0]; normals[3 * i + 1] = (float)n[1]; normals[3 * i + 2] = (float)n[2];
+            }
+            return normals;
+        }
         // Pen strokes along the lines, for ink thicker than the one pixel Unity draws lines with: each stroke is a ribbon of two crossed
         // strips (seen edge-on from no side), Width wide in metres. Drawn by hand: strokes run past the corners (Overshoot), long ones
         // bend a little, widths vary, and some lines get a second, fainter pass beside the first. All of it follows from the line's own
         // ends, so the same piece is always drawn the same way and nothing shimmers. scale: the mesh's scale in its piece (the strokes
         // are made at that size, so a scaled part's ink stays as wide as everyone else's).
         internal const double Width = 0.034, Overshoot = 0.09;
-        internal static (float[] xyz, int[] triangles) Strokes(float[] points, int[] lines, float sx = 1, float sy = 1, float sz = 1)
+        internal static (float[] xyz, int[] triangles) Strokes(float[] points, int[] lines, float sx = 1, float sy = 1, float sz = 1, double width = Width)
         {
             if (points == null || lines == null || points.Length % 3 != 0 || lines.Length % 2 != 0) throw new ArgumentException("Points come in threes and lines in pairs.");
             var xyz = new List<float>(); var triangles = new List<int>();
@@ -88,9 +131,9 @@ namespace Hallwright
                 double length = Math.Sqrt(Dot(Sub(q, p), Sub(q, p)));
                 if (length < 1e-4) continue;
                 var random = new Random(Seed(p, q));
-                Stroke(xyz, triangles, p, q, length, random, Width * (0.8 + 0.4 * random.NextDouble()), 0);
+                Stroke(xyz, triangles, p, q, length, random, width * (0.8 + 0.4 * random.NextDouble()), 0);
                 // A second pass on about a third of the longer lines: a little off the first, finer, its own overshoot.
-                if (length > 0.3 && random.NextDouble() < 0.35) Stroke(xyz, triangles, p, q, length, random, Width * 0.55, Width * (0.6 + 0.5 * random.NextDouble()));
+                if (length > 0.3 && random.NextDouble() < 0.35) Stroke(xyz, triangles, p, q, length, random, width * 0.55, width * (0.6 + 0.5 * random.NextDouble()));
             }
             return (xyz.ToArray(), triangles.ToArray());
         }

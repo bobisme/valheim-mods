@@ -17,7 +17,7 @@ namespace Hallwright
     {
         public const string Guid = "cx.bob.hallwright";
         public const string Name = "Hallwright";
-        public const string Version = "0.10.0";
+        public const string Version = "0.11.0";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
@@ -207,7 +207,7 @@ namespace Hallwright
             try { Theme(); float scale=Mathf.Max(0.6f,Screen.height/1080f); GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1)); DrawHallDrawingProblem(scale); }
             finally { GUI.matrix=saved; }
         }
-        private void ClearVisuals() { DirtySharedPreview(); foreach (GameObject go in _visuals) if (go != null) Destroy(go); _visuals.Clear(); }
+        private void ClearVisuals() { DirtySharedPreview(); foreach (GameObject go in _visuals) if (go != null) Destroy(go); _visuals.Clear(); ClearSketchMarks(); }
         private void Stop()
         {
             SaveHallDraft(); _hallDraftWorld=_hallDraftPlayer=0; _hallDraftSubmitted=false; _hallDraftLast=null; _active = false; _hallViaStake = false;
