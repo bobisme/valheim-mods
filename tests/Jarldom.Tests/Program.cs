@@ -293,7 +293,13 @@ for (int i = 0; i < 20; i++)
     var said = Enumerable.Range(0, 3).Select(k => Stories.Gossip(new Random(i * 7 + k), "Astrid", news, 200, hallTold)).Select(g => g.Contains("Neck") ? "kill" : g.Contains("amber") ? "ask" : "brawl").ToList();
     Check(said.Distinct().Count() == 3 && said[0] != said[1] && said[1] != said[2], "A crowd doesn't all tell the same news at once: " + string.Join(",", said));
 }
-Check(Stories.Gossip(new Random(2), "Astrid", news.Skip(1).Take(1).ToList(), 200, hallTold) != null, "One bit of news can still be told again");
+Check(Enumerable.Range(0, 12).Any(k => Stories.Gossip(new Random(k), "Astrid", news.Skip(1).Take(1).ToList(), 200, hallTold) != null), "One bit of news can still be told again");
+Check(Enumerable.Range(0, 30).Count(k => Stories.Gossip(new Random(k), "Astrid", news.Skip(1).Take(1).ToList(), 200, hallTold) == null) > 10, "News all told already is mostly let lie");
+var shortPay = new List<LogEntry> { new LogEntry(100, 1, "unpaid", "", "290", ""), new LogEntry(101, 1, "unpaid", "", "290", ""), new LogEntry(102, 1, "unpaid", "", "290", "") };
+Check(Enumerable.Range(0, 20).All(k => { string g = Stories.Gossip(new Random(k), "Astrid", shortPay, 200); return g == null || g.Contains("short") || g.Contains("wages"); }), "A short payday is gossip");
+Check(Enumerable.Range(0, 20).All(k => Stories.Gossip(new Random(k), "Astrid", shortPay.Concat(new[] { new LogEntry(110, 1, "payday", "Bob", "870", "What was owed was paid.") }).ToList(), 200) == null), "Paid in full, a short payday is old news");
+var twice = new List<string>(); string g1 = Stories.Gossip(new Random(1), "Astrid", shortPay, 200, twice);
+Check(g1 != null && twice.Count == 1 && Enumerable.Range(0, 20).Count(k => Stories.Gossip(new Random(k), "Astrid", shortPay, 200, twice) != null) < 15, "Three short paydays are one bit of news");
 var view = new ColonyView { Population = 5, Troublemakers = { ("Ulf", 2, 0) }, MissedPaydays = 1, Beds = 3 };
 var pets = Petitions.Raise(new Random(1), view);
 Check(pets.Count == 3 && pets.All(p => !string.IsNullOrEmpty(p.Text)), "The Thing raises three petitions");

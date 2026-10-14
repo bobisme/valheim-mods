@@ -337,10 +337,13 @@ namespace Jarldom
         public static string Gossip(Random rng, string speaker, IEnumerable<LogEntry> log, double now, List<string> told = null)
         {
             var recent = log.Where(e => now - e.Time <= Clock.DayLength * 2 && Line(e) != null && e.A != speaker && e.Kind != "text" && e.Kind != "payday" && e.Kind != "verse" && e.Kind != "legend").ToList(); // (the verse was sung for all to hear: not passed on as news)
+            double paid = log.Where(e => e.Kind == "payday").Select(e => e.Time).DefaultIfEmpty(double.MinValue).Max();
+            recent = recent.Where(e => e.Kind != "unpaid" || e.Time > paid) // (a short payday since paid in full is old news)
+                .GroupBy(e => $"{e.Kind}|{e.A}|{e.B}").Select(g => g.Last()).ToList(); // (the same news twice is told as one)
             if (recent.Count == 0) return null;
             string Key(LogEntry x) => $"{x.Time:0.#}|{x.Kind}|{x.A}";
             var fresh = told == null ? recent : recent.Where(x => !told.Contains(Key(x))).ToList();
-            if (fresh.Count == 0) fresh = recent;
+            if (fresh.Count == 0) { if (rng.Next(3) != 0) return null; fresh = recent; } // (all of it told already: mostly, they let it lie)
             LogEntry e = fresh[rng.Next(fresh.Count)];
             if (told != null) { told.Remove(Key(e)); told.Add(Key(e)); while (told.Count > Math.Max(1, recent.Count - 1) || told.Count > 8) told.RemoveAt(0); }
             string line = Line(e);

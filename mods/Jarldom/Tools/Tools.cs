@@ -66,7 +66,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing", "corner", "dim", "lost", "valkyrie", "shipburial" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "move", "payfix", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing", "corner", "dim", "lost", "valkyrie", "shipburial" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or for a server admin with devcommands on"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -299,6 +299,7 @@ namespace Jarldom
                             case "seat": if (!Ui.JarlView.Active) Ui.JarlView.Test(); break;
                             case "memorial": Ui.MemorialPanel.Open(c, me.transform.position); break;
                             case "close": Ui.Windows.CloseAll(); Ui.JarlView.End(); break;
+                            case "scroll": foreach (UnityEngine.UI.ScrollRect sr in Object.FindObjectsOfType<UnityEngine.UI.ScrollRect>()) sr.verticalNormalizedPosition = 1f - F(a[3]); break; // ("ui scroll 0.5": the open window's list scrolled that far down)
                             default: error("ui colony|villager|room|zone|seat|close"); return;
                         }
                         output(new JObject { ["opened"] = what });
@@ -915,6 +916,26 @@ namespace Jarldom
                         output(new JObject { ["chest"] = V(ch.transform.position), ["put"] = put, ["holds"] = new JArray(ch.GetInventory().GetAllItems().Select(i => $"{Prefab(i)} x{i.m_stack}")) });
                     }
                     break;
+                case "move": // (test: move x1 z1 x2 z2 <prefab> [n]: items from the chest nearest one spot to the chest nearest another)
+                    {
+                        Container from = Stock.Chests(c, new Vector3(F(a[2]), 0, F(a[3]))).Select(x => x.chest).FirstOrDefault(), to = Stock.Chests(c, new Vector3(F(a[4]), 0, F(a[5]))).Select(x => x.chest).FirstOrDefault();
+                        GameObject prefab = Assets.Find(a[6]);
+                        if (from == null || to == null || from == to || prefab == null) { error("no chests or prefab"); return; }
+                        ContainerAccess.TakeOver(from); ContainerAccess.TakeOver(to);
+                        string name = prefab.GetComponent<ItemDrop>().m_itemData.m_shared.m_name;
+                        int want = a.Length > 7 ? int.Parse(a[7]) : int.MaxValue, moved = 0;
+                        while (moved < want)
+                        {
+                            int n = Math.Min(Math.Min(want - moved, from.GetInventory().CountItems(name)), prefab.GetComponent<ItemDrop>().m_itemData.m_shared.m_maxStackSize);
+                            if (n <= 0 || !to.GetInventory().CanAddItem(prefab, n)) break;
+                            from.GetInventory().RemoveItem(name, n); to.GetInventory().AddItem(prefab, n); moved += n;
+                        }
+                        output(new JObject { ["moved"] = moved, ["from"] = new JArray(from.GetInventory().GetAllItems().Select(i => $"{Prefab(i)} x{i.m_stack}")), ["to"] = new JArray(to.GetInventory().GetAllItems().Select(i => $"{Prefab(i)} x{i.m_stack}")) });
+                    }
+                    break;
+                case "payfix": // (test: payfix <missed> <last payday>: a test payday undone)
+                    c.R.MissedPaydays = int.Parse(a[2]); c.R.LastPayday = int.Parse(a[3]); c.MarkDirty();
+                    output(new JObject { ["missed"] = c.R.MissedPaydays, ["lastPayday"] = c.R.LastPayday, ["owed"] = c.Owed() }); break;
                 case "act": Net.Act(c, a[2], a.Length > 3 ? string.Join(" ", a.Skip(3)) : ""); output(new JObject { ["act"] = a[2] }); break;
                 case "level":
                     {

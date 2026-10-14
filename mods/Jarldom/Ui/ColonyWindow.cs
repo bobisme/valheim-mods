@@ -102,6 +102,12 @@ namespace Jarldom.Ui
             ((RectTransform)t.transform).sizeDelta = new Vector2(W - indent, h);
             return y + h + 6;
         }
+        // Where a chest stands, from the high seat: " (the chest 25 m south-east of the high seat)".
+        private static string Where(Vector3 at)
+        {
+            float d = Utils.DistanceXZ(at, _c.Position);
+            return d < 4f ? " (the chest by the high seat)" : $" (the chest {d:0} m {ScoutTask.Compass(at - _c.Position)} of the high seat)";
+        }
         private static float Heading(RectTransform list, string text, float y) => Text(list, text, y + 6, 22, GameUi.Warm);
 
         // What's holding the colony back, plainly: the first thing a jarl looks at.
@@ -332,7 +338,7 @@ namespace Jarldom.Ui
             if (r.Rank < Rank.Hold) { Rank next = r.Rank + 1; string miss = Ranks.Missing(next, _c.Population, _c.WorkingRooms()); y = Text(list, $"To become a {Tables.Of(next).Name.ToLower()}: {(miss == "" ? "ready at the next check" : miss)}.", y, 16, GameUi.Dim); }
             y = Heading(list, "The colony", y);
             Container treasury = Stock.Treasury(_c);
-            y = Text(list, $"Treasury: {(treasury == null ? "<color=#ff8c59>none chosen</color> (the hammer's \"Mark rooms and zones\": look at a chest, Shift+E)" : Stock.Coins(treasury) + " coins")}. Wages due every {Payroll.EveryDays} days: {Payroll.Due(Villagers.All.Where(b => b.S.Colony == _c.Id).Select(b => b.S), Payroll.EveryDays, _c.GuardExtra) * Plugin.Instance.WageScale.Value / 100} coins.{(r.MissedPaydays > 0 ? $" <color=#ff8c59>{r.MissedPaydays} missed paydays.</color>" : "")}", y);
+            y = Text(list, $"Treasury: {(treasury == null ? "<color=#ff8c59>none chosen</color> (the hammer's \"Mark rooms and zones\": look at a chest, Shift+E)" : Stock.Coins(treasury) + " coins" + Where(treasury.transform.position))}. Wages due every {Payroll.EveryDays} days: {Payroll.Due(Villagers.All.Where(b => b.S.Colony == _c.Id).Select(b => b.S), Payroll.EveryDays, _c.GuardExtra) * Plugin.Instance.WageScale.Value / 100} coins.{(r.MissedPaydays > 0 ? $" <color=#ff8c59>{r.MissedPaydays} missed paydays.</color>" : "")}", y);
             int owed = _c.Owed();
             if (owed > 0)
             {
