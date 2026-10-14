@@ -503,7 +503,7 @@ namespace Jarldom.Ui
             if (master != null) y = Text(list, $"A master of {Visitors.Skill(master.Value)} is in the hall today: {Visitors.TrainCost} coins teaches one of them +10 (Teach).", y, 16, GameUi.Good);
             foreach (RosterRow row in living)
             {
-                if (master != null) { string pupil = row.Vid; GameUi.Button(list, "Teach", new Vector2(W - 120, -y + 2), new Vector2(70, 30), () => Net.Act(_c, "train", pupil), true, 14); }
+                if (master != null) { string pupil = row.Vid; GameUi.Button(list, "Teach", new Vector2(W - 86 - 6 - 74, -y + 2), new Vector2(74, 30), () => Net.Act(_c, "train", pupil), true, 14); }
                 Humanoid h = Villagers.Body(row.Vid);
                 ZDO z = h?.GetComponent<ZNetView>()?.GetZDO();
                 string doing = z != null ? Villagers.Tags(z).GetString(Villagers.DoingKey, "") : "far away";
@@ -512,7 +512,7 @@ namespace Jarldom.Ui
                 GameUi.Line(list, row.Name + (fresh ? " <size=80%><color=#99e08c>new</color></size>" : ""), new Vector2(8, -y), 250, 18, GameUi.Warm);
                 GameUi.Line(list, Tables.Of(row.Prof).Name, new Vector2(262, -y), 130, 16, GameUi.Text);
                 GameUi.Line(list, doing, new Vector2(396, -y), 230, 15, GameUi.Dim);
-                GameUi.Line(list, $"mood {Windows.Signed(mood)}  worth {Mathf.RoundToInt(row.Worth)}{(string.IsNullOrEmpty(row.Bed) ? "  <color=#ff8c59>no bed</color>" : "")}", new Vector2(630, -y), W - 630 - 92, 15, mood < -30 ? GameUi.Warn : GameUi.Text);
+                GameUi.Line(list, $"mood {Windows.Signed(mood)}  worth {Mathf.RoundToInt(row.Worth)}{(string.IsNullOrEmpty(row.Bed) ? "  <color=#ff8c59>no bed</color>" : "")}", new Vector2(630, -y), W - 630 - (master != null ? 172 : 92), 15, mood < -30 ? GameUi.Warn : GameUi.Text);
                 string vid = row.Vid;
                 if (h != null) Tip(GameUi.Button(list, "Details", new Vector2(W - 86, -y + 2), new Vector2(86, 30), () => VillagerPanel.Open(h, true), true, 14), row.Name, "Their mood and why, needs, skills, gear and bag; choose their work and their bed.");
                 y += 36;
