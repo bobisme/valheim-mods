@@ -1,3 +1,5 @@
+0.1.9: Wayfinder.Api for other mods: NearestBeacon, LightBeacon, BeaconLit. Jarldom's watch lights your Beacon Fire when you sail home at night. Test tool: wayfinder beacon [light].
+
 0.1.8: No more stutter every two seconds in a big base: beacons and sea-marks are kept in a list as they come and go, instead of the whole scene being searched for them (20–25 ms).
 
 0.1.7: Test tool only: `wayfinder remove` can be given ship or piece names, to take away only those test objects.
