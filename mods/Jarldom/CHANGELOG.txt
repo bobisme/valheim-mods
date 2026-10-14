@@ -1,3 +1,5 @@
+0.1.108: A butcher's table or a mage table's parts aren't tables to sit at and play hnefatafl (or to count in a room): only real tables are.
+
 0.1.107: Burial grounds can be made: a grave marker is a cairn (the hammer's stone pile) or the memorial stone, and the Rooms tab says so; runed chairs, benches and tables no longer count as runestones and graves. The Mark rooms tool's description tells of Shift+E on chests and fires.
 
 0.1.106: A cook fills every empty slot of a cooking station in one trip from the stores, not one piece of meat or fish a walk.

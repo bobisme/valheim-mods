@@ -565,6 +565,13 @@ namespace Jarldom
                         output(new JObject { ["beacon"] = at.HasValue ? V(at.Value) : null, ["lit"] = lit, ["wayfinder"] = marked == null && at.HasValue, ["marked"] = marked != null ? Utils.GetPrefabName(marked.gameObject) : null });
                     }
                     break;
+                case "classify": // (test: what each piece in the hammer counts as for rooms, those that count as anything)
+                    {
+                        PieceTable t = ObjectDB.instance.GetItemPrefab("Hammer")?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces;
+                        output(new JObject { ["kinds"] = new JArray((t?.m_pieces ?? new List<GameObject>()).Where(g => g != null && g.GetComponent<Piece>() != null)
+                            .Select(g => (g.name, k: Colony.Kinds(g.GetComponent<Piece>()).Distinct().ToList())).Where(x => x.k.Count > 0).Select(x => $"{x.name}: {string.Join(",", x.k)}")) });
+                    }
+                    break;
                 case "goods": // (test: what GraveGoods says of the items lying within 5 m, through its Api)
                     output(new JObject { ["goods"] = new JArray(UnityEngine.Object.FindObjectsByType<ItemDrop>(FindObjectsSortMode.None).Where(d => d != null && Vector3.Distance(d.transform.position, me.transform.position) < 5f)
                         .Select(d => $"{Utils.GetPrefabName(d.gameObject)}: rarity {Compat.GoodsRarity(d.m_itemData)}, name '{Compat.GoodsName(d.m_itemData)}', worth x{Compat.GoodsWorth(d.m_itemData)}")) });

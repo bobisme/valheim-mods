@@ -29,7 +29,7 @@ namespace Jarldom
         public static bool IsHighSeat(Chair ch) { Piece p = ch != null ? ch.GetComponentInParent<Piece>() : null; return p != null && IsHighSeat(p.gameObject); }
         public static bool IsHighSeat(GameObject go) { string n = Utils.GetPrefabName(go).ToLowerInvariant(); return n.Contains("throne") || n == Pieces.GildedSeatName.ToLowerInvariant(); }
         // A table to eat at: not a crafting table, a map table or the food preparation table.
-        public static bool IsTable(Piece p) { string n = Utils.GetPrefabName(p.gameObject).ToLowerInvariant(); return n.Contains("table") && p.GetComponent<CraftingStation>() == null && p.GetComponent<MapTable>() == null && !n.Contains("prep"); }
+        public static bool IsTable(Piece p) { string n = Utils.GetPrefabName(p.gameObject).ToLowerInvariant(); return n.Contains("table") && p.GetComponent<CraftingStation>() == null && p.GetComponent<StationExtension>() == null && p.GetComponent<MapTable>() == null && !n.Contains("prep"); } // (not a butcher's or a mage's table: a station's own part)
         public static bool IsRug(string n) => n.Contains("rug") || n.Contains("carpet");
         public static bool IsShutter(GameObject go) => Utils.GetPrefabName(go).ToLowerInvariant().Contains("window");
         // The warming fire nearest a point (lit ones first), inside an outline if one is given.
