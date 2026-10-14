@@ -1,3 +1,5 @@
+0.1.128: the Lighthouse as Bob trimmed it: no ring log across the stair's landings (the back of each trestle ring left open), and no plank under the bonfire
+
 0.1.127: the Lighthouse's beacon is a bonfire, on a fire deck raised over the gallery on four logs (3 m of head room under it), 16 m up; a Lighthouse finished before it gets the deck as a plan of its own, and its bonfire becomes the beacon once it stands
 
 0.1.126: the Lighthouse's floors are open over each landing and the top of each ladder, so the stair can be climbed without bumping your head (the fire's cairn moved clear of the stairwell)

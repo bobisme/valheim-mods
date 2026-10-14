@@ -68,8 +68,8 @@ namespace Jarldom
                 // the trestle storey this flight climbs: leaning corner logs, a ring halfway and one on top
                 float lo = half[s - 1], hi = half[s], yb = deck + storey * s;
                 foreach (var (sx, sz) in Corners) parts.Add(Log("wood_pole_log_4", sx * lo, yb, sz * lo, sx * hi, yb + storey, sz * hi));
-                Ring(parts, "wood_wall_log_4x0.5", (lo + hi) / 2, yb + storey / 2);
-                Ring(parts, "wood_wall_log_4x0.5", hi, yb + storey + 0.27f);
+                Ring(parts, "wood_wall_log_4x0.5", (lo + hi) / 2, yb + storey / 2, open: true);
+                Ring(parts, "wood_wall_log_4x0.5", hi, yb + storey + 0.27f, open: true); // (no log at the back, over the landing below)
             }
             // the gallery on top: posts, a rail, torches; over it, on four logs, the fire deck with the beacon's bonfire (3 m of head room
             // under it, over the stairhead)
@@ -79,7 +79,7 @@ namespace Jarldom
             foreach (var (sx, sz) in Corners) { P("wood_pole_log", sx * 1.4f, onDeck + 1.11f, sz * 1.4f); P("wood_pole", sx * 1.4f, onDeck + 2.72f, sz * 1.4f); }
             float fireDeck = onDeck + 3.22f;
             Ring(parts, "wood_wall_log_4x0.5", 1.4f, fireDeck - 0.27f);
-            for (int x = -2; x <= 2; x += 2) for (int z = -2; z <= 2; z += 2) P("wood_floor", x, fireDeck - 0.08f, z);
+            for (int x = -2; x <= 2; x += 2) for (int z = -2; z <= 2; z += 2) if (x != 0 || z != 0) P("wood_floor", x, fireDeck - 0.08f, z); // (the bonfire sits in the middle)
             P("bonfire", 0, fireDeck + 0.5f, 0);
             return parts;
         }
@@ -88,9 +88,9 @@ namespace Jarldom
         public static bool Stairwell(float x, float z) => x < 0 && x > -1 && z > -1 && z < 1 || z < -1 && z > -2 && Math.Abs(x) < 1 || x > 0 && x < 1 && z > -1 && z < 0;
         private static readonly (int, int)[] Corners = { (1, 1), (1, -1), (-1, 1), (-1, -1) };
         // Four logs lying round a square (half its side out from the middle) at a height.
-        private static void Ring(List<Part> parts, string log, float half, float y)
+        private static void Ring(List<Part> parts, string log, float half, float y, bool open = false)
         {
-            parts.Add(new Part(log, 0, y, half, 0)); parts.Add(new Part(log, 0, y, -half, 0));
+            parts.Add(new Part(log, 0, y, half, 0)); if (!open) parts.Add(new Part(log, 0, y, -half, 0));
             parts.Add(new Part(log, half, y, 0, 90)); parts.Add(new Part(log, -half, y, 0, 90));
         }
         public const float Footing = 4f; // (half its footing, the gallery's overhang with it: the outline must hold this square)
