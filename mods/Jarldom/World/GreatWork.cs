@@ -54,7 +54,14 @@ namespace Jarldom
         }
         // Not begun yet (planned, nothing of it built): its site can still move.
         public static bool Movable(Colony c, string work) => GreatWorks.Stage(c.R.Flags, work) == GreatWorks.Laid && c.R.Flag(GreatWorks.BuiltKey(work)) == 0;
-        public static bool Choosable(Colony c, string work) => GreatWorks.Stage(c.R.Flags, work) == GreatWorks.Promised || Movable(c, work);
+        public static bool Choosable(Colony c, string work) => GreatWorks.Stage(c.R.Flags, work) == GreatWorks.Promised || Movable(c, work) || Fallen(c, work);
+        // Finished once, and since taken down (less than a quarter of it standing, where it's loaded here): it can be raised again.
+        public static bool Fallen(Colony c, string work)
+        {
+            if (GreatWorks.Stage(c.R.Flags, work) != GreatWorks.Done) return false;
+            int built = Built(c, work);
+            return built >= 0 && built < GreatWorks.Parts(work).Count / 4;
+        }
         // Its plan taken away (each plan BuildOrders keeps under its name: whoever laid it): how many ghosts went.
         public static int Plans(Colony c, string work) => PlanKeys(c, work).Count;
         private static HashSet<string> PlanKeys(Colony c, string work)
@@ -144,13 +151,14 @@ namespace Jarldom
             float F(string s) => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture);
             string work = f[0];
             bool moved = GreatWorks.Stage(c.R.Flags, work) == GreatWorks.Laid;
+            if (GreatWorks.Stage(c.R.Flags, work) == GreatWorks.Done) c.R.Flags[GreatWorks.AgainKey(work)] = 1;
             c.R.Flags[GreatWorks.Key(work)] = GreatWorks.Laid;
             c.R.Flags[GreatWorks.AtKey(work)] = TrueLegend.Pack(F(f[1]), F(f[3]));
             c.R.Flags[GreatWorks.YKey(work)] = Mathf.RoundToInt(F(f[2]) * 10f);
             c.R.Flags[GreatWorks.XKey(work)] = Mathf.RoundToInt(F(f[1]) * 10f); c.R.Flags[GreatWorks.ZKey(work)] = Mathf.RoundToInt(F(f[3]) * 10f);
             c.R.Flags[GreatWorks.YawKey(work)] = Mathf.RoundToInt(F(f[4]));
             c.R.Flags[GreatWorks.BuiltKey(work)] = 0;
-            c.Log("text", who, "", moved ? $"{who} moved {GreatWorks.Name(work)} to a new site before a stick of it was raised." : $"{who} chose where {GreatWorks.Name(work)} will stand, and the builders began.");
+            c.Log("text", who, "", moved ? $"{who} moved {GreatWorks.Name(work)} to a new site before a stick of it was raised." : c.R.Flag(GreatWorks.AgainKey(work)) != 0 ? $"{who} set the builders to raise {GreatWorks.Name(work)} again." : $"{who} chose where {GreatWorks.Name(work)} will stand, and the builders began.");
             c.MarkDirty();
         }
         public static Vector3 At(Colony c, string work, out float yaw)
@@ -198,7 +206,18 @@ namespace Jarldom
         public static void Finish(Colony c, string work)
         {
             Vector3 at = At(c, work, out _);
-            c.R.Flags[GreatWorks.Key(work)] = GreatWorks.Done; c.R.Flags[GreatWorks.DayKey(work)] = c.Day;
+            bool again = c.R.Flag(GreatWorks.AgainKey(work)) != 0;
+            c.R.Flags[GreatWorks.Key(work)] = GreatWorks.Done; c.R.Flags.Remove(GreatWorks.AgainKey(work));
+            if (again)
+            {
+                // (raised again: the beacon moves to its new fire, the saga hears of it, and the rest was had the first time)
+                c.Log("text", "", "", $"{GreatWorks.Title(work)} stands again, taller than before.");
+                Rekindle(c, work);
+                c.Tell($"{GreatWorks.Title(work)} stands again! Its fire is the colony's beacon.", true);
+                c.MarkDirty();
+                return;
+            }
+            c.R.Flags[GreatWorks.DayKey(work)] = c.Day;
             c.R.Deeds += GreatWorks.Renown;
             c.Log("greatwork", c.R.Name, GreatWorks.Name(work), $"{c.R.Name} raised {GreatWorks.Name(work)} on the shore. Every ship of ours comes home by its light.");
             foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) { Mood.Add(b.S, "greatwork", b.Now); if (b.S.Prof == Prof.Builder) Worth.Gain(b.S, "festival"); b.Dirty(); }

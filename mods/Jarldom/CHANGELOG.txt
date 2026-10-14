@@ -1,3 +1,5 @@
+0.1.130: a great work taken down can be raised again: outline a site and choose "Raise it again" (its fire becomes the beacon when it stands; the renown and the rest were had the first time)
+
 0.1.129: a taller, finer Lighthouse: an 8 m stone plinth with pillars and torches at its corners, two courses of stone round the keeper's hut and a banner by its door, four storeys of trestle up to a gallery 20 m up hung with red banners, and a fire deck with dragon heads at its corners and the bonfire 24 m up (a chopping block and tanning rack by its workbench, for the builders' reach)
 
 0.1.128: the Lighthouse as Bob trimmed it: no ring log across the stair's landings (the back of each trestle ring left open), and no plank under the bonfire

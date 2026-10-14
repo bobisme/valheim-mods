@@ -19,6 +19,7 @@ namespace Jarldom
         public static string YawKey(string work) => "gw:" + work + ":yaw";   // (degrees: its front, toward the sea)
         public static string BuiltKey(string work) => "gw:" + work + ":built";
         public static string DayKey(string work) => "gw:" + work + ":day";
+        public static string AgainKey(string work) => "gw:" + work + ":again"; // (raised again after it was taken down: no second reward)
         public static int Stage(IDictionary<string, int> flags, string work) => flags.TryGetValue(Key(work), out int s) ? s : 0;
 
         // (prefab, x, y, z from the foot of its middle, +z its front; yaw in degrees; Up: which way the piece's own up points, for a
