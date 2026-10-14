@@ -749,11 +749,14 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(fireDeck.Count == 8 && fireDeck.All(p => p.Y - gallery > 2.9f), "The bonfire's deck: 6 m square round the bonfire, 3 m of head room over the gallery");
     Check(parts.Count(p => p.Prefab.StartsWith("stone_")) >= 16 && parts.Where(p => p.Prefab.StartsWith("stone_")).All(p => p.Y < 2f), "A stone plinth and course under the timber");
         double Reach(GreatWorks.Part p, double x, double z) => Math.Sqrt(Math.Pow(p.X - x, 2) + p.Y * p.Y + Math.Pow(p.Z - z, 2));
+    Check(parts.Where(p => p.Prefab == "woodiron_pole").All(p => Reach(p, 0, -3.3) < 20), "Every iron-banded pole within the forge's reach");
+    var cores = parts.Where(p => p.Prefab == "woodiron_pole").ToList();
+    Check(Enumerable.Range(0, 5).All(s => cores.Count(p => Math.Abs(p.Y - (0.25 + 4 * s + 1)) < 0.05) == 4 && cores.Count(p => Math.Abs(p.Y - (0.25 + 4 * s + 3)) < 0.05) == 4), "An iron core in each corner, every storey, from the plinth to the gallery");
     Check(parts.Count(p => p.Prefab.StartsWith("piece_workbench_ext")) == 2 && parts.Where(p => !p.Prefab.StartsWith("stone_") && !p.Prefab.StartsWith("piece_") && p.Prefab != "bonfire" && p.Prefab != "hearth").All(p => Reach(p, 3.1, 0) + 3.5 < 28), "Every timber piece within its workbench's reach (two extensions: 28 m), with room to spare");
     Check(parts.Where(p => p.Prefab.StartsWith("stone_")).All(p => Reach(p, -3.05, 0) < 18), "Every stone piece within the stonecutter's reach");
     Check(parts.Count(p => p.Prefab == "wood_dragon1") == 4 && parts.Count(p => p.Prefab == "piece_banner03") == 5, "Dragon heads on the fire deck, banners on the gallery and by the door");
     var legs = parts.Where(p => p.Leans).ToList();
-    Check(legs.Count == 16 && legs.All(p => Math.Abs(Math.Abs(p.UpX) - 0.125f) < 0.01f && Math.Sign(p.UpX) == -Math.Sign(p.X)), "Its trestle legs lean inward, an eighth of a metre a storey, four storeys");
+    Check(legs.Count(p => p.Prefab == "wood_pole_log_4") == 16 && legs.Count(p => p.Prefab == "woodiron_pole") == 32 && legs.All(p => Math.Abs(Math.Abs(p.UpX) - (p.Prefab == "woodiron_pole" ? 0.0625f : 0.125f)) < 0.01f && Math.Sign(p.UpX) == -Math.Sign(p.X)), "Its trestle legs lean inward, an eighth of a metre a storey, four storeys");
     var spots = parts.Select(p => (p.Prefab, Math.Round(p.X, 2), Math.Round(p.Y, 2), Math.Round(p.Z, 2))).ToList();
     Check(spots.Distinct().Count() == spots.Count, "No two parts in the same place");
     // the way up: each ladder's top meets a floor or a landing, and nothing hangs over a ladder within head height
@@ -776,7 +779,7 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
         Check(!parts.Any(p => p.Prefab.StartsWith("wood_wall_log") && p.Yaw == 0 && Math.Abs(p.Z - land.Z) < 0.3 && p.Y > land.Y && p.Y - 0.27 < land.Y + 2.4), $"No log across the landing at {land.X},{land.Y}");
     }
     var needs = GreatWorks.Needs(GreatWorks.Lighthouse);
-    Check(needs["Stone"] > 50 && needs["Iron"] == 2 && needs["SurtlingCore"] == 1, "Its cost: " + GreatWorks.NeedsText(GreatWorks.Lighthouse));
+    Check(needs["Stone"] > 50 && needs["Iron"] == 42 && needs["SurtlingCore"] == 1, "Its cost: " + GreatWorks.NeedsText(GreatWorks.Lighthouse));
     var front = new GreatWorks.Part("stone_wall_4x2", 0, 1, 2, 0);
     var turned = GreatWorks.Place(front, 100, 30, 200, 90);
     Check(Math.Abs(turned.x - 102) < 0.01f && Math.Abs(turned.z - 200) < 0.01f && Math.Abs(turned.y - 31) < 0.01f && Math.Abs(turned.yaw - 90) < 0.01f, "A part turned with the work: its front wall faces where the work faces");

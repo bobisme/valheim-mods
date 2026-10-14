@@ -49,9 +49,10 @@ namespace Jarldom
             for (int x = -3; x <= 3; x += 2) for (int z = -3; z <= 3; z += 2) P("stone_floor_2x2", x, deck - 0.5f, z);
             foreach (var (sx, sz) in Corners) { P("stone_pillar", sx * 3.5f, deck + 1f, sz * 3.5f); P("piece_groundtorch_wood", sx * 3.5f, deck + 2.65f, sz * 3.5f); }
             P("piece_workbench", 3.1f, deck, 0, 90); P("piece_workbench_ext1", 3.2f, deck, 2.4f, 90); P("piece_workbench_ext2", 3.2f, deck, -2.4f, 90);
-            P("piece_stonecutter", -3.05f, deck, 0, 270);
+            P("piece_stonecutter", -3.05f, deck, 0, 270); P("forge", 0, deck, -3.3f, 180);
             // the hut: corner logs; two courses of stone, then planks (the door at the front right, planks over it); a banner by the door
-            foreach (var (sx, sz) in Corners) P("wood_pole_log_4", sx * 2f, deck + 2.22f, sz * 2f);
+            // (inside each corner log, all the way up, an iron-banded pole: timber alone loses its strength 20 m up, and these carry it)
+            foreach (var (sx, sz) in Corners) { P("wood_pole_log_4", sx * 2f, deck + 2.22f, sz * 2f); P("woodiron_pole", sx * 2f, deck + 1f, sz * 2f); P("woodiron_pole", sx * 2f, deck + 3f, sz * 2f); }
             P("stone_wall_2x1", -1, deck + 0.5f, 2); P("stone_wall_2x1", -1, deck + 1.5f, 2); P("woodwall", -1, deck + 3.01f, 2);
             P("wood_door", 1, deck + 1.01f, 2); P("woodwall", 1, deck + 3.01f, 2);
             P("piece_banner03", -1, deck + 3.9f, 2.3f, 90);
@@ -73,7 +74,12 @@ namespace Jarldom
                 if (s == 0) continue;
                 // the trestle storey this flight climbs: leaning corner logs, a ring halfway and one on top (open at the back, over the landing)
                 float lo = 2f - 0.125f * (s - 1), hi = lo - 0.125f, yb = deck + storey * s;
-                foreach (var (sx, sz) in Corners) parts.Add(Log("wood_pole_log_4", sx * lo, yb, sz * lo, sx * hi, yb + storey, sz * hi));
+                float mid = (lo + hi) / 2;
+                foreach (var (sx, sz) in Corners)
+                {
+                    parts.Add(Log("wood_pole_log_4", sx * lo, yb, sz * lo, sx * hi, yb + storey, sz * hi));
+                    parts.Add(Log("woodiron_pole", sx * lo, yb, sz * lo, sx * mid, yb + storey / 2, sz * mid)); parts.Add(Log("woodiron_pole", sx * mid, yb + storey / 2, sz * mid, sx * hi, yb + storey, sz * hi));
+                }
                 Ring(parts, "wood_wall_log_4x0.5", (lo + hi) / 2, yb + storey / 2, open: true);
                 Ring(parts, "wood_wall_log_4x0.5", hi, yb + storey + 0.27f, open: true);
             }
@@ -82,10 +88,10 @@ namespace Jarldom
             float onDeck = deck + storey * (Storeys + 1) + 0.08f;
             foreach (var (sx, sz) in Corners) { P("wood_pole", sx * 1.85f, onDeck + 0.5f, sz * 1.85f); P("piece_groundtorch_wood", sx * 1.85f, onDeck + 1.65f, sz * 1.85f); }
             Ring(parts, "wood_wall_log_4x0.5", 1.85f, onDeck + 0.8f);
-            P("piece_banner03", 2.15f, onDeck - 0.1f, 0); P("piece_banner03", -2.15f, onDeck - 0.1f, 0); P("piece_banner03", 0, onDeck - 0.1f, -2.15f, 90); P("piece_banner03", 0, onDeck - 0.1f, 2.15f, 90);
-            foreach (var (sx, sz) in Corners) { P("wood_pole_log", sx * 1.4f, onDeck + 1.11f, sz * 1.4f); P("wood_pole", sx * 1.4f, onDeck + 2.72f, sz * 1.4f); }
+            P("piece_banner03", 2.15f, onDeck + 1.05f, 0); P("piece_banner03", -2.15f, onDeck + 1.05f, 0); P("piece_banner03", 0, onDeck + 1.05f, -2.15f, 90); P("piece_banner03", 0, onDeck + 1.05f, 2.15f, 90); // (hung over the rail)
+            foreach (var (sx, sz) in Corners) { P("wood_pole_log", sx * 1.5f, onDeck + 1.11f, sz * 1.5f); P("wood_pole", sx * 1.5f, onDeck + 2.72f, sz * 1.5f); } // (on the iron poles' tops)
             float fireDeck = onDeck + 3.22f;
-            Ring(parts, "wood_wall_log_4x0.5", 1.4f, fireDeck - 0.27f);
+            Ring(parts, "wood_wall_log_4x0.5", 1.5f, fireDeck - 0.27f);
             for (int x = -2; x <= 2; x += 2) for (int z = -2; z <= 2; z += 2) if (x != 0 || z != 0) P("wood_floor", x, fireDeck - 0.08f, z); // (the bonfire sits in the middle)
             foreach (var (sx, sz) in Corners) P("wood_dragon1", sx * 2.6f, fireDeck, sz * 2.6f, (float)(Math.Atan2(sx, sz) * 180 / Math.PI));
             P("bonfire", 0, fireDeck + 0.5f, 0);
@@ -129,7 +135,7 @@ namespace Jarldom
             ["wood_door"] = new[] { ("Wood", 4) }, ["wood_stepladder"] = new[] { ("Wood", 2) }, ["wood_wall_log_4x0.5"] = new[] { ("RoundLog", 2) },
             ["stone_wall_1x1"] = new[] { ("Stone", 3) }, ["stone_wall_2x1"] = new[] { ("Stone", 4) }, ["stone_wall_4x2"] = new[] { ("Stone", 6) }, ["stone_floor_2x2"] = new[] { ("Stone", 6) }, ["stone_pillar"] = new[] { ("Stone", 5) },
             ["piece_workbench"] = new[] { ("Wood", 10) }, ["piece_stonecutter"] = new[] { ("Wood", 10), ("Iron", 2), ("Stone", 4) },
-            ["bonfire"] = new[] { ("SurtlingCore", 1), ("ElderBark", 5), ("FineWood", 5), ("RoundLog", 5) }, ["piece_groundtorch_wood"] = new[] { ("Wood", 2), ("Resin", 2) }, ["wood_pole_log"] = new[] { ("RoundLog", 1) }, ["stone_pillar"] = new[] { ("Stone", 5) }, ["piece_banner03"] = new[] { ("LeatherScraps", 6), ("FineWood", 2), ("Raspberry", 4) }, ["wood_dragon1"] = new[] { ("FineWood", 10) }, ["piece_workbench_ext1"] = new[] { ("Wood", 10), ("Flint", 10) }, ["piece_workbench_ext2"] = new[] { ("Wood", 10), ("Flint", 15), ("LeatherScraps", 20), ("DeerHide", 5) },
+            ["bonfire"] = new[] { ("SurtlingCore", 1), ("ElderBark", 5), ("FineWood", 5), ("RoundLog", 5) }, ["piece_groundtorch_wood"] = new[] { ("Wood", 2), ("Resin", 2) }, ["wood_pole_log"] = new[] { ("RoundLog", 1) }, ["woodiron_pole"] = new[] { ("Wood", 2), ("Iron", 1) }, ["forge"] = new[] { ("Stone", 4), ("Coal", 4), ("Wood", 10), ("Copper", 6) }, ["stone_pillar"] = new[] { ("Stone", 5) }, ["piece_banner03"] = new[] { ("LeatherScraps", 6), ("FineWood", 2), ("Raspberry", 4) }, ["wood_dragon1"] = new[] { ("FineWood", 10) }, ["piece_workbench_ext1"] = new[] { ("Wood", 10), ("Flint", 10) }, ["piece_workbench_ext2"] = new[] { ("Wood", 10), ("Flint", 15), ("LeatherScraps", 20), ("DeerHide", 5) },
         };
         public static Dictionary<string, int> Needs(string work)
         {

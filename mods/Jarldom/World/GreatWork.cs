@@ -64,6 +64,31 @@ namespace Jarldom
         }
         // Its plan taken away (each plan BuildOrders keeps under its name: whoever laid it): how many ghosts went.
         public static int Plans(Colony c, string work) => PlanKeys(c, work).Count;
+        // (test) BuildOrders' own reckoning of how its plan would stand: each ghost of it as "prefab height support/min", weakest first.
+        public static List<string> Stability(Colony c, string work, Vector3? near = null)
+        {
+            var bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public;
+            object bo = Compat.Find("com.quad.buildorders", "com.dhack.buildorders");
+            var orders = bo?.GetType().GetField("_orders", bf)?.GetValue(bo) as System.Collections.IDictionary;
+            var stab = bo?.GetType().GetField("_stability", bf)?.GetValue(bo) as System.Collections.IDictionary;
+            var compute = bo?.GetType().GetMethod("ComputeStability", bf);
+            if (orders == null || stab == null || compute == null) return new List<string> { "no BuildOrders" };
+            compute.Invoke(bo, new object[] { Player.m_localPlayer, null });
+            var keys = PlanKeys(c, work); Vector3 at = near ?? At(c, work, out _);
+            var rows = new List<(float s, string line)>();
+            foreach (System.Collections.DictionaryEntry e in orders)
+            {
+                object o = e.Value; var t = o.GetType();
+                if (!keys.Contains(t.GetField("By").GetValue(o) as string)) continue;
+                object st = stab.Contains(e.Key) ? stab[e.Key] : null;
+                if (st == null) continue;
+                var stt = st.GetType(); float sup = (float)stt.GetField("Support").GetValue(st), min = (float)stt.GetField("Min").GetValue(st);
+                Vector3 pos = (Vector3)t.GetField("Pos").GetValue(o);
+                if (Utils.DistanceXZ(pos, at) > 8f) continue;
+                rows.Add((sup - min, $"{t.GetField("Prefab").GetValue(o)} {pos.y - at.y:0.0} {sup:0}/{min:0}"));
+            }
+            return rows.OrderBy(r => r.s).Select(r => r.line).ToList();
+        }
         private static HashSet<string> PlanKeys(Colony c, string work)
         {
             object bo = Compat.Find("com.quad.buildorders", "com.dhack.buildorders");
@@ -105,7 +130,9 @@ namespace Jarldom
         public static int Amend(Colony c, string work)
         {
             Player me = Player.m_localPlayer;
-            if (me == null || GreatWorks.Stage(c.R.Flags, work) != GreatWorks.Done) return -1;
+            int stage = GreatWorks.Stage(c.R.Flags, work);
+            if (me == null || stage != GreatWorks.Done && stage != GreatWorks.Laid) return -1;
+            if (stage == GreatWorks.Laid) Unplan(c, work); // (being raised: its plan laid again, as the design is now)
             Vector3 at = At(c, work, out float yaw);
             var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 12f, 22f, near);
             var missing = GreatWorks.Parts(work).Where(p => { var w = GreatWorks.Place(p, at.x, at.y, at.z, yaw); Vector3 spot = new Vector3(w.x, w.y, w.z);
@@ -115,7 +142,7 @@ namespace Jarldom
             var method = bo?.GetType().GetMethod("TryCreateBuildingShell");
             if (method == null) return -1;
             var placed = missing.Select(p => GreatWorks.Place(p, at.x, at.y, at.z, yaw)).ToList();
-            object[] args = { me, GreatWorks.Proper(work, c.R.Name) + " (finished)", missing.Select(p => p.Prefab).ToArray(), placed.Select(p => new Vector3(p.x, p.y, p.z)).ToArray(), missing.Select(p => Turn(p, yaw)).ToArray(), null, null };
+            object[] args = { me, stage == GreatWorks.Done ? GreatWorks.Proper(work, c.R.Name) + " (finished)" : GreatWorks.Proper(work, c.R.Name), missing.Select(p => p.Prefab).ToArray(), placed.Select(p => new Vector3(p.x, p.y, p.z)).ToArray(), missing.Select(p => Turn(p, yaw)).ToArray(), null, null };
             try { if (!(bool)method.Invoke(bo, args)) { me.Message(MessageHud.MessageType.Center, $"The plan couldn't be laid out: {args[6]}"); return -1; } } catch { return -1; }
             return missing.Count;
         }
