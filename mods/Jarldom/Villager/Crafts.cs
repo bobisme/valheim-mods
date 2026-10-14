@@ -30,7 +30,7 @@ namespace Jarldom
         // A recipe by its own name (a fish prep: the game has one per kind of fish, all making the same raw fish).
         public static Recipe Named(string name) => ObjectDB.instance?.m_recipes.FirstOrDefault(r => r != null && r.name == name);
         public static bool IsFish(GameObject p) => p?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Fish;
-        public const int PrepKeep = 20; // (raw fish kept ready for the cooking station; past that, the catch waits whole)
+        public const int PrepKeep = 20, PrepBatch = 5; // (raw fish kept ready for the cooking station; past that, the catch waits whole)
         // A station of the recipe's kind in the colony, at the recipe's level (null if it needs one and the colony has none).
         public static CraftingStation StationFor(Colony c, Recipe r, Vector3 near)
         {
@@ -142,7 +142,7 @@ namespace Jarldom
             {
                 _prepOf = db; _prepCount = db.m_recipes.Count;
                 _prep = db.m_recipes.Where(r => r != null && r.m_enabled && r.m_item != null && r.m_craftingStation != null && r.m_resources.Length > 0
-                    && !IsFish(r.m_item.gameObject) && r.m_resources.Any(q => q.m_resItem != null && IsFish(q.m_resItem.gameObject))).ToList();
+                    && !IsFish(r.m_item.gameObject) && r.m_resources.All(q => q.m_resItem != null && IsFish(q.m_resItem.gameObject))).ToList(); // (cleaning a fish: nothing but fish in, not a dish or a hat that takes one)
             }
             return _prep;
         }
@@ -164,7 +164,9 @@ namespace Jarldom
         private readonly Order O; private Recipe _r; private CraftingStation _st; private int _phase, _beats; private float _next;
         private List<(string item, int amount)> _needs; private ItemDrop.ItemData _made; private Container _to;
         public CraftTask(Order o) { O = o; }
-        public override bool Interruptible => _phase == 0;
+        private int _batch = 1;
+        public override bool Interruptible => _phase == 0 && !_took; // (once something's been fetched for it, it's made: not carried back)
+        private bool _took;
         private int Have(Brain b, string item) => b.Body.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == item && !i.m_equipped).Sum(i => i.m_stack);
         public override void Start(Brain b)
         {
@@ -176,6 +178,14 @@ namespace Jarldom
             string why = Crafts.Unusable(_st);
             if (why != null) { Done = true; b.NoCraftUntil = Time.time + 30; if (b.Colony.IsOwner) b.Colony.Board.Block(O.Id, why); b.Idle(why); return; }
             _needs = Crafts.Needs(_r, b.Colony);
+            if (O.Target.StartsWith(Crafts.PrepPrefix) && _needs.Count == 1)
+            {
+                // (fish are cleaned a few at a time: one walk to the stores for each would be most of a day)
+                var (fish, each) = _needs[0];
+                int there = Stock.ChestsFor(b).Where(x => x.category != "treasury").Sum(x => x.chest.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == fish).Sum(i => i.m_stack)); // (in the chests they'll fetch from)
+                _batch = Mathf.Clamp(Mathf.Min(there / Mathf.Max(1, each), (Crafts.PrepKeep - Crafts.InStock(b.Colony, _r.m_item.name)) / Mathf.Max(1, _r.m_amount)), 1, Crafts.PrepBatch);
+                _needs = new List<(string, int)> { (fish, each * _batch) };
+            }
             Doing = O.Target.StartsWith(Crafts.PrepPrefix) ? "preparing fish" : "making " + Crafts.Name(prefab).ToLower();
         }
         private void Release(Brain b) { Done = true; if (b.Colony?.IsOwner == true) b.Colony.Board.Release(O.Id, b.S.Vid); }
@@ -199,7 +209,7 @@ namespace Jarldom
                 if (from == null) { Release(b); b.NoCraftUntil = Time.time + 20; return; }
                 if (Stock.WalkTo(b, from) != Stock.Walk.Reached) return; // (one out of reach is passed over: another is chosen next time round)
                 ItemDrop.ItemData stack = from.GetInventory().GetAllItems().First(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want);
-                if (Stock.Take(from, b.Body.GetInventory(), stack, count - Have(b, want)) == 0) { Release(b); b.NoCraftUntil = Time.time + 30; }
+                if (Stock.Take(from, b.Body.GetInventory(), stack, count - Have(b, want)) == 0) { Release(b); b.NoCraftUntil = Time.time + 30; } else _took = true;
                 return;
             }
             if (_phase == 1)
@@ -213,9 +223,9 @@ namespace Jarldom
                 Body_.Anim(b.Body)?.SetInt("crafting", _st.m_useAnimation);
                 if (_beats % 2 == 0 || !Greet.Quiet(b.Colony)) _st.m_craftItemEffects.Create(_st.transform.position, Quaternion.identity); // (a miserable colony works with half the noise)
                 if (Crafts.Unusable(_st) is string stop) { Release(b); b.Idle(stop); b.NoCraftUntil = Time.time + 30; return; }
-                ItemDrop.ItemData product = _r.m_item.m_itemData.Clone(); product.m_stack = _r.m_amount;
-                if (!b.Body.GetInventory().CanAddItem(product, _r.m_amount)) { Release(b); b.Idle("no room in the bag for what I'd make"); b.NoCraftUntil = Time.time + 30; b.NoStoreUntil = 0; return; } // (before anything is used up)
-                if (++_beats < 3) return;
+                ItemDrop.ItemData product = _r.m_item.m_itemData.Clone(); product.m_stack = _r.m_amount * _batch;
+                if (!b.Body.GetInventory().CanAddItem(product, _r.m_amount * _batch)) { Release(b); b.Idle("no room in the bag for what I'd make"); b.NoCraftUntil = Time.time + 30; b.NoStoreUntil = 0; return; } // (before anything is used up)
+                if (++_beats < 2 + _batch) return;
                 Body_.Anim(b.Body)?.SetInt("crafting", 0);
                 if (_needs.Any(n => Have(b, n.item) < n.amount)) { Release(b); return; }
                 Inventory bag = b.Body.GetInventory();
@@ -226,7 +236,7 @@ namespace Jarldom
                         if (st == null) break;
                         int n = Math.Min(left, st.m_stack); bag.RemoveItem(st, n); left -= n;
                     }
-                _made = bag.AddItem(_r.m_item.name, _r.m_amount, 1, 0, Colony.Hash(b.S.Vid), b.S.Name, new Vector2i(-1, -1), false, false, false) ?? bag.GetAllItems().LastOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == _r.m_item.name);
+                _made = bag.AddItem(_r.m_item.name, _r.m_amount * _batch, 1, 0, Colony.Hash(b.S.Vid), b.S.Name, new Vector2i(-1, -1), false, false, false) ?? bag.GetAllItems().LastOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == _r.m_item.name);
                 if (_made != null) b.Hauled.Add(_r.m_item.name); // (the colony's, not the smith's: to the stores even if this delivery fails)
                 _st.m_craftItemDoneEffects.Create(_st.transform.position, Quaternion.identity);
                 b.Body.RaiseSkill(Skills.SkillType.Crafting, 1f);

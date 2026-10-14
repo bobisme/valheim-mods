@@ -22,7 +22,8 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
   you raise (hammer → Misc), in the order they were raised.
 - **Work** comes from a job board of leases (no job taken twice): felling, clearing stumps and planting saplings (a tree to every
   30 m² of woodlot), mining, harvesting, hoeing, sowing and replanting, foraging, hauling to stockpiles (choose each chest's category in
-  the Rooms tab), guarding, hunting, fishing, feeding fires, smelters (fuel first) and cooking stations, brewing mead bases at the mead
+  the Rooms tab), guarding, hunting, fishing, cooks cleaning the catch at a food preparation table (under a roof; five fish a trip, up to 20 raw fish kept
+  ready), feeding fires, smelters (fuel first) and cooking stations, brewing mead bases at the mead
   ketill and keeping fermenters filled and tapped, **commissions** (Work tab: smiths at the forge and workbench, cooks at the cauldron,
   from the stores), healers tending the injured (twice as well in a healer's house), scouts ranging past the edge and filling in the
   map, herders feeding a pasture's tame beasts and culling the surplus (never named or young ones). Villagers fetch the tools of their
