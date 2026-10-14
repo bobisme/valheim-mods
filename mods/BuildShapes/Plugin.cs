@@ -15,12 +15,12 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.9.0";
+        public const string Version = "0.10.0";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
         private static readonly MethodInfo TakeInput = AccessTools.Method(typeof(Player), "TakeInput");
-        private enum Tool { None, Curve, Mirror, Repeat, Arch }   // (5 was Hallwright, now its own mod)
+        private enum Tool { None, Curve, Mirror, Repeat, Arch, Line=6 }   // (5 was Hallwright, now its own mod: kept for older BuildShapes' shared drafts)
         private Tool _tool;
         private ConfigEntry<bool> _enabled, _follow;
         private ConfigEntry<float> _spacing;
@@ -58,7 +58,7 @@ namespace BuildShapes
         internal bool ReservesHammer => ShapeActive && _enabled.Value && HoldingHammer(Player.m_localPlayer) && _planner.Available(Player.m_localPlayer) &&
             ((_tool!=Tool.Mirror && _tool!=Tool.Repeat) || _planner.Extended);
         internal static bool OptionsMenuOpen => Instance != null && (Instance._modeMenu || Instance._repeatMenu || Instance._archMenu) && Instance.ReservesHammer;
-        private int RequiredMarkers => _tool == Tool.Mirror || _tool == Tool.Arch ? 2 : 3;
+        private int RequiredMarkers => _tool == Tool.Mirror || _tool == Tool.Arch || _tool == Tool.Line ? 2 : 3;
         internal static bool ProbingInput => Instance?._probingInput == true;
         internal static bool ReservesEscape => _escapeFrame == Time.frameCount || _escapeFrame == Time.frameCount - 1 ||
             OptionsMenuOpen ||
@@ -67,9 +67,9 @@ namespace BuildShapes
         private void Awake()
         {
             Instance = this;ConfigureSharedPreviews();
-            _enabled = Config.Bind("General", "Enabled", true, "Enable the Curve, Arch, Mirror and Repeat tools.");
+            _enabled = Config.Bind("General", "Enabled", true, "Enable the Curve, Arch, Line, Mirror and Repeat tools.");
             // Keep the original config key so existing custom F4 bindings survive the update.
-            _toggle = Config.Bind("Controls", "ToggleCurve", KeyCode.F4, "Open/close the shape-mode picker: Curve, Arch, Mirror or Repeat.");
+            _toggle = Config.Bind("Controls", "ToggleCurve", KeyCode.F4, "Open/close the shape-mode picker: Curve, Arch, Line, Mirror or Repeat.");
             _modifier = Config.Bind("Controls", "MarkerModifier", KeyCode.LeftShift, "Hold with PlaceMarker to mark curve points, arch endpoints, or a mirror line.");
             _mark = Config.Bind("Controls", "PlaceMarker", KeyCode.Mouse0, "Mark points; Left Ctrl selects pieces in Mirror/Repeat.");
             _plan = Config.Bind("Controls", "PlanCurve", KeyCode.L, "Submit the current shape as shared BuildOrders ghosts.");
@@ -78,7 +78,7 @@ namespace BuildShapes
             _spacing = Config.Bind("Repeat", "Spacing", 2f, new ConfigDescription("Maximum repeat spacing in metres; adjusted evenly to meet both ends. [ and ] adjust by 0.25 m.", new AcceptableValueRange<float>(0.25f, 16f)));
             _follow = Config.Bind("Repeat", "FollowCurve", true, "Turn pieces around world up to follow the curve, keeping their original tilt. Home toggles this.");
             _harmony = new Harmony(Guid); _harmony.PatchAll(typeof(Plugin).Assembly);
-            Logger.LogInfo($"{Name} {Version} loaded; hammer + {_toggle.Value}: choose Curve, Arch, Mirror or Repeat from the mode picker.");
+            Logger.LogInfo($"{Name} {Version} loaded; hammer + {_toggle.Value}: choose Curve, Arch, Line, Mirror or Repeat from the mode picker.");
         }
 
         private static bool HoldingHammer(Player player) => player != null &&
@@ -171,7 +171,7 @@ namespace BuildShapes
             string name = piece != null ? Utils.GetPrefabName(piece.gameObject) : "";
             if (!UsablePrefab(name, out _)) return;
             _selected = name;
-            if ((requested == Tool.Curve || requested == Tool.Arch) && !SelectBeam(name)) return;
+            if ((requested == Tool.Curve || requested == Tool.Arch || requested == Tool.Line) && !SelectBeam(name)) return;
             if (requested == Tool.Repeat)
             {
                 GameObject ghost = PlacementGhost.GetValue(player) as GameObject;
@@ -181,7 +181,7 @@ namespace BuildShapes
             _tool = requested;
             Say(requested == Tool.Mirror ? "Mirror: Shift+click two points for the line; Ctrl+click pieces/ghosts to select." :
                 requested == Tool.Repeat ? "Repeat: Shift+click start, bend, end; [ / ] spacing; L plans." :
-                requested == Tool.Arch ? "Arch: Shift+click start and end, then adjust the center height." : "Curve: Shift+click start, bend, end; L plans.");
+                requested == Tool.Arch ? "Arch: Shift+click start and end, then adjust the center height." : requested == Tool.Line ? "Line: Shift+click start and end; L plans." : "Curve: Shift+click start, bend, end; L plans.");
         }
 
         private bool UsablePrefab(string name, out GameObject prefab)
@@ -273,10 +273,10 @@ namespace BuildShapes
             _previewSpacing = SafeSpacing(); _previewFollow = _follow.Value;
             try
             {
-                if ((_tool == Tool.Curve && _markers.Count == 3) || (_tool == Tool.Arch && _markers.Count == 2))
+                if ((_tool == Tool.Curve && _markers.Count == 3) || ((_tool == Tool.Arch || _tool == Tool.Line) && _markers.Count == 2))
                 {
                     V3 start = V(_markers[0]), end = V(_markers[_markers.Count-1]);
-                    V3 middle = _tool == Tool.Arch ? Arch.Middle(start, end, _archRise) : V(_markers[1]);
+                    V3 middle = _tool == Tool.Arch ? Arch.Middle(start, end, _archRise) : _tool == Tool.Line ? Curve.Midpoint(start, end) : V(_markers[1]);
                     if (_tool == Tool.Arch)
                     {
                         Vector3 center = V(middle), baseline = (_markers[0] + _markers[1]) * 0.5f;
@@ -328,7 +328,7 @@ namespace BuildShapes
                 }
             }
             catch (ArgumentException ex) { _output.Clear(); _previewError = ex.Message; Say(_previewError); }
-            if (_tool != Tool.Curve && _tool != Tool.Arch) foreach (PiecePose pose in _output) Box(pose, 0.045f);
+            if (_tool != Tool.Curve && _tool != Tool.Arch && _tool != Tool.Line) foreach (PiecePose pose in _output) Box(pose, 0.045f);
             foreach (PiecePose pose in _sources) Box(pose, 0.018f);
             if (_markers.Count > 1 && _tool != Tool.Mirror && _output.Count == 0) Line(_markers.ToArray(), 0.04f);
             foreach (Vector3 marker in _markers)
@@ -399,7 +399,7 @@ namespace BuildShapes
         }
         private void Submit(Player player)
         {
-            if (_output.Count == 0) { Say(_previewError ?? (_tool == Tool.Mirror ? "Mark a mirror line and Ctrl+click pieces first." : _tool == Tool.Arch ? "Mark start and end, then adjust the height." : "Mark start, bend, and end first.")); return; }
+            if (_output.Count == 0) { Say(_previewError ?? (_tool == Tool.Mirror ? "Mark a mirror line and Ctrl+click pieces first." : _tool == Tool.Arch ? "Mark start and end, then adjust the height." : _tool == Tool.Line ? "Mark start and end first." : "Mark start, bend, and end first.")); return; }
             if (!_planner.Create(player, _tool.ToString(), _output.Select(p => p.Prefab).ToArray(), _output.Select(p => p.Position).ToArray(),
                 _output.Select(p => p.Rotation).ToArray(), out string key, out string error)) { Say(error); return; }
             _lastPlan = key; Say($"{_tool} submitted. Build with E; {_undo.Value} removes unbuilt ghosts.");
@@ -413,7 +413,7 @@ namespace BuildShapes
             if (_repeatMenu) { DrawRepeatMenu(); return; }
             if (_archMenu) { DrawArchMenu(); return; }
             string detail = _tool == Tool.Mirror ? $"{_sources.Count} selected; Ctrl+click toggles pieces/ghosts; Ctrl+Backspace removes last selection." :
-                _tool == Tool.Repeat ? $"Spacing {SafeSpacing():0.##} m ([ / ]); yaw {_yaw:0}° (PgUp/PgDn); {(_follow.Value ? "follow curve" : "fixed orientation")} (Home); Ctrl+click copies a piece." : _tool == Tool.Arch ? "Two endpoints; L opens center-height options. Native-length beams; joints overlap." : "Native-length beams; joints overlap.";
+                _tool == Tool.Repeat ? $"Spacing {SafeSpacing():0.##} m ([ / ]); yaw {_yaw:0}° (PgUp/PgDn); {(_follow.Value ? "follow curve" : "fixed orientation")} (Home); Ctrl+click copies a piece." : _tool == Tool.Arch ? "Two endpoints; L opens center-height options. Native-length beams; joints overlap." : _tool == Tool.Line ? "Two endpoints, at any slope or upright. Native-length beams; joints overlap." : "Native-length beams; joints overlap.";
             string status = _previewError ?? (_output.Count > 0 ? $"{_output.Count} ghosts ready." : $"{_markers.Count}/{RequiredMarkers} markers.");
             string text = $"BuildShapes {_tool}: {_modifier.Value}+click: marker | {_plan.Value}: plan | {_undo.Value}: undo | {_back.Value}: remove marker | {_toggle.Value}: modes | Escape: exit\n{detail}\n{status}";
             Matrix4x4 saved = GUI.matrix;

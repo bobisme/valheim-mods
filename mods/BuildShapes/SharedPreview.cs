@@ -35,6 +35,7 @@ namespace BuildShapes
     internal static class SharedPreviewCodec
     {
         internal const int MaxBytes=256*1024,MaxLines=640,MaxPoints=12288,MaxPieces=2048,MaxPrefabs=256,MaxPeers=8;
+        internal const byte MaxTool=6; // (Curve 1, Mirror 2, Repeat 3, Arch 4, Hallwright 5 from BuildShapes before 0.9.0, Line 6)
         private const int Magic=0x42535031;
         private static readonly UTF8Encoding Utf8=new UTF8Encoding(false,true);
         internal static bool Finite(float x)=>!float.IsNaN(x)&&!float.IsInfinity(x);
@@ -45,7 +46,7 @@ namespace BuildShapes
         {float norm=g.X*g.X+g.Y*g.Y+g.Z*g.Z+g.W*g.W;if(!Finite(norm)||norm<0.25f||norm>4)throw new ArgumentException("Invalid preview rotation.");}
         internal static byte[] Encode(SharedPreview p)
         {
-            if(p==null||p.Revision<1||p.Tool>5||p.Lines.Count>MaxLines||p.Pieces.Count>MaxPieces||p.Pieces.Any(g=>g==null)||p.Tool==0&&(p.Lines.Count!=0||p.Pieces.Count!=0))throw new ArgumentException("Invalid preview bounds.");
+            if(p==null||p.Revision<1||p.Tool>MaxTool||p.Lines.Count>MaxLines||p.Pieces.Count>MaxPieces||p.Pieces.Any(g=>g==null)||p.Tool==0&&(p.Lines.Count!=0||p.Pieces.Count!=0))throw new ArgumentException("Invalid preview bounds.");
             var names=p.Pieces.Select(g=>g.Prefab).Distinct().ToArray();if(names.Length>MaxPrefabs||names.Any(s=>!Name(s)))throw new ArgumentException("Invalid preview prefabs.");
             using(var stream=new MemoryStream())using(var w=new BinaryWriter(stream,Utf8,true))
             {
@@ -69,7 +70,7 @@ namespace BuildShapes
             {
                 if(r.ReadInt32()!=Magic)throw new ArgumentException("Unsupported preview protocol.");
                 var p=new SharedPreview{World=r.ReadInt64(),Revision=r.ReadInt64(),Tool=r.ReadByte(),Center=Point(r)};
-                if(p.World!=world||p.Revision<1||p.Tool>5)throw new ArgumentException("Invalid preview header.");
+                if(p.World!=world||p.Revision<1||p.Tool>MaxTool)throw new ArgumentException("Invalid preview header.");
                 int count=r.ReadUInt16();if(count>MaxPrefabs)throw new ArgumentException("Too many preview prefabs.");
                 var names=new string[count];
                 for(int i=0;i<count;i++){int length=r.ReadUInt16();if(length<1||length>128||length>stream.Length-stream.Position)throw new ArgumentException("Invalid prefab length.");names[i]=Utf8.GetString(r.ReadBytes(length));if(!Name(names[i]))throw new ArgumentException("Invalid prefab name.");}

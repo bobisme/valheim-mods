@@ -1,3 +1,5 @@
+0.10.0: Line: a straight run of native-length beams or poles between two Shift+clicked points, at any slope or upright (F4 → Line, then L). The outer beams meet both markers; the overlaps are spread evenly. Line drafts are shared live with players on BuildShapes 0.10.0.
+
 0.9.0: Hallwright is its own mod now (Hallwright 0.9.0, in the F7 list): the stake, timber halls, longhouses and stave temples moved there, and F4 lists only Curve, Arch, Mirror and Repeat. Install Hallwright to keep building halls; your saved drafts, ground records and Hallwright settings carry over to it. Players on older BuildShapes still see your Curve/Arch/Mirror/Repeat drafts, and you still see their hall drafts.
 
 0.8.10: The Hallwright stake has its own model (made in Blender) instead of a thin pole with an orange flag: a square hewn setting-out peg pointed at its foot, two bands of ochre survey paint, a little roof truss on its head with rafters crossing into curled horns, and a carpenter's iron square hung on a peg on its front.

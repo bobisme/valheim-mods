@@ -35,6 +35,8 @@ namespace BuildShapes
             V3 control = middle * 2 - (start + end) * 0.5;
             return start * ((1 - t) * (1 - t)) + control * (2 * t * (1 - t)) + end * (t * t);
         }
+        // Line: a straight run is the curve whose bend marker sits halfway between its ends.
+        internal static V3 Midpoint(V3 start, V3 end) => (start + end) * 0.5;
         internal static List<Segment> Plan(V3 start, V3 middle, V3 end, double length)
         {
             if (!start.Finite || !middle.Finite || !end.Finite || double.IsNaN(length) || double.IsInfinity(length) || length < 0.25 || length > 8.1)

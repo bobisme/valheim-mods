@@ -164,6 +164,18 @@ Reject(()=>Curve.Repeat(new V3(),new V3(100,0,0),new V3(200,0,0),2),"Repeat path
 Reject(()=>Curve.Repeat(new V3(),new V3(1,0,0),new V3(2,0,0),double.NaN),"Repeat nonfinite spacing");
 Reject(()=>Curve.Repeat(new V3(),new V3(1,0,0),new V3(),2),"Repeat coincident ends");
 
+// Line: a straight run of native-length beams, its outer ends on the markers, at any slope or upright.
+foreach (var (from, to) in new[] { (new V3(0,1,0), new V3(7,1,0)), (new V3(2,0,3), new V3(2,6,3)), (new V3(-1,2,-1), new V3(4,5,6)) })
+{
+    var run = Curve.Plan(from, Curve.Midpoint(from, to), to, 2);
+    V3 axis = (to - from) * (1 / (to - from).Length);
+    Check(Near(run[0].Start, from) && Near(run[run.Count - 1].End, to), "A line's outer beams meet both markers");
+    Check(run.All(s => Math.Abs((s.End - s.Start).Length - 2) < 1e-6), "Line beams keep their native length");
+    Check(run.All(s => (s.Start - from - axis * V3.Dot(s.Start - from, axis)).Length < 1e-6 && (s.End - from - axis * V3.Dot(s.End - from, axis)).Length < 1e-6), "Every beam lies on the line");
+    Check(run.Count == (int)Math.Ceiling((to - from).Length / 2 - 1e-9), "A line uses the fewest beams that reach");
+}
+Reject(() => Curve.Plan(new V3(), Curve.Midpoint(new V3(), new V3(1,0,0)), new V3(1,0,0), 2), "A line shorter than one beam asks for a shorter beam");
+
 // Exercise the real reflection bridge through reloads, missing/old dependencies, and failure replies.
 var link = new Planner(); var player = new Player();
 Check(!link.Ready(), "Missing planner is harmless");

@@ -60,9 +60,10 @@ namespace BuildShapes
             }
             Mode(Tool.Curve, "Three points: start, bend, and end. Uses beams or poles.", beam);
             Mode(Tool.Arch, "Two endpoints, then adjust the center height. Uses beams or poles.", beam);
+            Mode(Tool.Line, "Two endpoints: a straight run at any slope, or upright. Uses beams or poles.", beam);
             Mode(Tool.Mirror, "Reflect a group of pieces across a marked line.", extended);
             Mode(Tool.Repeat, "Repeat a piece along a curve, with spacing and rotation controls.", extended);
-            if (!beam) GUILayout.Label("Select a beam or pole in the hammer to use Curve or Arch.", _menuHint);
+            if (!beam) GUILayout.Label("Select a beam or pole in the hammer to use Curve, Arch or Line.", _menuHint);
             if (!extended) GUILayout.Label("Update BuildOrders to enable Mirror and Repeat.", _menuWarning);
             GUILayout.EndScrollView();
             GUILayout.Space(8);

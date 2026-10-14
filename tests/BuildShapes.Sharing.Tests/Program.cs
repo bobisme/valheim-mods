@@ -10,6 +10,7 @@ SharedGhost Ghost(string name="wood",int i=0)=>new(){Prefab=name,At=new SharedPo
 byte[] Change(byte[] bytes,int offset,byte[] change){var copy=(byte[])bytes.Clone();Array.Copy(change,0,copy,offset,change.Length);return copy;}
 void Roundtrip(SharedPreview p){var bytes=SharedPreviewCodec.Encode(p);var q=SharedPreviewCodec.Decode(bytes,42);Check(q.World==p.World&&q.Revision==p.Revision&&q.Tool==p.Tool&&q.Center.Equals(p.Center),"header roundtrip");Check(q.Lines.Count==p.Lines.Count&&q.Pieces.Count==p.Pieces.Count,"counts roundtrip");for(int i=0;i<p.Lines.Count;i++)Check(q.Lines[i].Width==p.Lines[i].Width&&q.Lines[i].ThroughGround==p.Lines[i].ThroughGround&&q.Lines[i].Points.SequenceEqual(p.Lines[i].Points),"stroke roundtrip");for(int i=0;i<p.Pieces.Count;i++){var a=p.Pieces[i];var b=q.Pieces[i];Check(a.Prefab==b.Prefab&&a.At.Equals(b.At)&&a.X==b.X&&a.Y==b.Y&&a.Z==b.Z&&a.W==b.W,"pose roundtrip");}}
 
+Roundtrip(Frame(1,6));Bad(()=>SharedPreviewCodec.Encode(Frame(1,7)),"unknown tool rejected");
 var clear=Frame(1,0);Roundtrip(clear);var empty=SharedPreviewCodec.Encode(clear);Check(empty.Length==39,"clear wire length");
 var partial=Frame();partial.Lines.Add(Line());Roundtrip(partial);
 var single=Frame();single.Lines.Add(Line());single.Pieces.Add(Ghost());Roundtrip(single);
@@ -18,7 +19,7 @@ var large=Frame(99);for(int i=0;i<640;i++)large.Lines.Add(Line(i<87?128:i==87?48
 foreach(byte mode in new byte[]{1,2,3,4,5}){var p=Frame(2,mode);p.Pieces.Add(Ghost("modded_梁"));Roundtrip(p);}
 for(int length=0;length<packet.Length;length++)Bad(()=>SharedPreviewCodec.Decode(packet.Take(length).ToArray(),42),"truncated frame "+length);
 Bad(()=>SharedPreviewCodec.Decode(packet,43),"wrong world");Bad(()=>SharedPreviewCodec.Decode(packet.Concat(new byte[]{0}).ToArray(),42),"trailing bytes");Bad(()=>SharedPreviewCodec.Decode(new byte[SharedPreviewCodec.MaxBytes+1],42),"oversize payload");
-Bad(()=>SharedPreviewCodec.Decode(Change(empty,0,new byte[]{0}),42),"bad magic");Bad(()=>SharedPreviewCodec.Decode(Change(empty,12,BitConverter.GetBytes(0L)),42),"zero revision");Bad(()=>SharedPreviewCodec.Decode(Change(empty,20,new byte[]{6}),42),"unknown tool");
+Bad(()=>SharedPreviewCodec.Decode(Change(empty,0,new byte[]{0}),42),"bad magic");Bad(()=>SharedPreviewCodec.Decode(Change(empty,12,BitConverter.GetBytes(0L)),42),"zero revision");Bad(()=>SharedPreviewCodec.Decode(Change(empty,20,new byte[]{7}),42),"unknown tool");
 foreach(float invalid in new[]{float.NaN,float.PositiveInfinity,1000000f,-1000000f})Bad(()=>SharedPreviewCodec.Decode(Change(empty,21,BitConverter.GetBytes(invalid)),42),"invalid center");
 Bad(()=>SharedPreviewCodec.Decode(Change(empty,33,BitConverter.GetBytes((ushort)257)),42),"prefab count bound");Bad(()=>SharedPreviewCodec.Decode(Change(empty,35,BitConverter.GetBytes((ushort)641)),42),"line count bound");Bad(()=>SharedPreviewCodec.Decode(Change(empty,37,BitConverter.GetBytes((ushort)2049)),42),"piece count bound");
 // Single-pose packet layout: name length 35, name 37..40, line 43..73, pose 76..105.

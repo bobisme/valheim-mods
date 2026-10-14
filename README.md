@@ -972,17 +972,17 @@ The add-on reconnects to the live planner after F6 or individual reloads, withou
 
 Equip a **hammer**, select a building piece, and close the piece menu:
 
-Press **F4** to choose **Curve**, **Arch**, **Mirror**, or **Repeat** from one window. Press F4/Escape or × to close it.
+Press **F4** to choose **Curve**, **Arch**, **Line**, **Mirror**, or **Repeat** from one window. Press F4/Escape or × to close it.
 Choosing the current mode resumes your preview; choosing another clears only that local preview. Submitted ghosts and your last undo
-remain. Curve/Arch need a beam or pole selected; Mirror/Repeat need the extended planner API. Unavailable choices explain what is needed.
+remain. Curve/Arch/Line need a beam or pole selected; Mirror/Repeat need the extended planner API. Unavailable choices explain what is needed.
 The picker has a free cursor and an **Exit shape mode** button to return to normal building.
 
 | Controls | Action |
 | --- | --- |
-| **F4** | Open/close the mode picker: Curve, Arch, Mirror, or Repeat |
-| **Left Shift + left click** | Mark curve points, arch endpoints, or the mirror line |
+| **F4** | Open/close the mode picker: Curve, Arch, Line, Mirror, or Repeat |
+| **Left Shift + left click** | Mark curve points, arch or line endpoints, or the mirror line |
 | **Left Ctrl + left click** | Mirror: toggle a source piece/ghost; Repeat: copy a source piece/ghost and its orientation |
-| **L** | Curve/Mirror: submit ghosts; Arch/Repeat: open/confirm options |
+| **L** | Curve/Line/Mirror: submit ghosts; Arch/Repeat: open/confirm options |
 | **U** in any shape mode | Remove the last submitted shape's unbuilt ghosts |
 | **Backspace** | Remove the last marker |
 | **Left Ctrl + Backspace** | Mirror: remove the last source selection |
@@ -1003,6 +1003,10 @@ straight span and unequal endpoint heights work too. The gold guide marks the ce
 overlapping beams, whose center lines approximate the curve. Both outer endpoints stay fixed. Ends must be horizontally separated;
 shorter beams allow tighter arches. Center rise is limited to **0–32 m**, within the usual curve-length and piece-count limits.
 Arch uses the same original planning API as Curve.
+
+**Line:** select a beam/pole, press **F4**, and choose **Line**. Shift+click the **start and end**; **L** plans. Native-length
+beams run straight between your markers at any slope, or upright for a post of stacked poles; the first and last beams meet the
+markers and the overlaps are spread evenly between them. A line shorter than one beam asks for a shorter beam.
 
 **Mirror:** press F4 and choose **Mirror**. Mark **two points** to define a vertical mirror plane; only their horizontal direction matters. Ctrl+click
 built pieces or visible planner ghosts to select a group; click again to deselect. Thin wire boxes show the source selection, and heavier
@@ -1033,7 +1037,7 @@ Curves are bounded to 128 metres and all shapes to 256 output pieces. Markers an
 BuildOrders checks every output pose against its 80-metre reach, unlocks, wards, and no-build rules before accepting anything. Ghost
 selection uses visible ghost bounding boxes and respects nearer physical hits; it is approximate rather than precise mesh picking.
 Selections are pose snapshots: moving/removing a source afterward does not alter your preview. Scaled and terrain-operation pieces
-are excluded. Curve, Arch, Mirror and Repeat never alter terrain. Pieces build through the normal planner rules.
+are excluded. Curve, Arch, Line, Mirror and Repeat never alter terrain. Pieces build through the normal planner rules.
 
 Use **Exit shape mode** in the F4 picker, or press **Escape** outside the options, before selecting another hammer piece or building normally with **E**. Modes reserve normal hammer placement,
 and yield to planner blueprint/bridge placement and menus. The Plans window lists generated groups with Move/Level disabled.
