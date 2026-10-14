@@ -4,7 +4,9 @@ page (index.html) so Bob can listen and pick. Nothing here runs in the game; pic
   ~/.cache/jarldom-soundgen/venv/bin/python tools/soundgen/gen.py tools/soundgen/hall.json [--takes 4] [--only name,...]
   ~/.cache/jarldom-soundgen/tflux/bin/python tools/soundgen/gen.py tools/soundgen/hall.json --model tangoflux  (takes named <name>_tf_<n>)
 
-Licences: Stable Audio Open 1.0, Stability AI Community License (outputs usable). TangoFlux: non-commercial, research/academic only
+  ELEVENLABS_API_KEY=... python3-with-numpy tools/soundgen/gen.py <batch> --model eleven  (takes named <name>_el_<n>; costs credits)
+
+Licences: ElevenLabs, usable on paid plans. Stable Audio Open 1.0, Stability AI Community License (outputs usable). TangoFlux: non-commercial, research/academic only
 (WavCaps training data) - fine to audition, check before shipping its output.
 
 The batch file: {"out": "<dir under ~/jarldom-sounds>", "sounds": [{"name", "prompt", "negative"?, "seconds", "loop"?}]}.
@@ -33,15 +35,30 @@ def main():
     ap.add_argument("--takes", type=int, default=4)
     ap.add_argument("--only", default="")
     ap.add_argument("--steps", type=int, default=0)
-    ap.add_argument("--model", default="stable", choices=["stable", "tangoflux"])
+    ap.add_argument("--model", default="stable", choices=["stable", "tangoflux", "eleven"])
+    ap.add_argument("--influence", type=float, default=0.5)  # (eleven: how closely it follows the prompt, 0..1)
     a = ap.parse_args()
     batch = json.loads(Path(a.batch).read_text())
     out = ROOT / batch["out"]
     out.mkdir(parents=True, exist_ok=True)
     only = set(filter(None, a.only.split(",")))
 
-    import numpy as np, soundfile as sf, torch
-    if a.model == "tangoflux":
+    import numpy as np, soundfile as sf
+    if a.model == "eleven":
+        # ElevenLabs sound effects (paid; outputs usable commercially on paid plans). Key from ELEVENLABS_API_KEY.
+        import io, urllib.request
+        key = os.environ["ELEVENLABS_API_KEY"]
+        rate, tag = 44100, "_el"
+        def make(s, seed):
+            body = {"text": s["prompt"], "duration_seconds": min(30.0, float(s.get("seconds", 10))), "prompt_influence": a.influence,
+                    "model_id": "eleven_text_to_sound_v2", "loop": bool(s.get("loop"))}
+            req = urllib.request.Request("https://api.elevenlabs.io/v1/sound-generation?output_format=mp3_44100_192", data=json.dumps(body).encode(),
+                                         headers={"xi-api-key": key, "Content-Type": "application/json"})
+            mp3 = urllib.request.urlopen(req, timeout=180).read()
+            pcm = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", "-", "-ac", "2", "-ar", str(rate), "-f", "f32le", "-"], input=mp3, capture_output=True, check=True).stdout
+            return np.frombuffer(pcm, dtype=np.float32).reshape(-1, 2).T.copy()
+    elif a.model == "tangoflux":
+        import torch
         from tangoflux import TangoFluxInference
         tf = TangoFluxInference(name="declare-lab/TangoFlux")
         rate, tag, steps = 44100, "_tf", a.steps or 50
@@ -49,6 +66,7 @@ def main():
             torch.manual_seed(seed)
             return tf.generate(s["prompt"], steps=steps, duration=min(30, int(s.get("seconds", 20)))).float().cpu().numpy()
     else:
+        import torch
         from diffusers import StableAudioPipeline
         pipe = StableAudioPipeline.from_pretrained("stabilityai/stable-audio-open-1.0", torch_dtype=torch.float16).to("cuda")
         rate, tag, steps = pipe.vae.sampling_rate, "", a.steps or 150
@@ -67,7 +85,7 @@ def main():
             audio = make(s, 1000 * take + len(s["name"]))  # (channels, samples)
             if audio.ndim == 1:
                 audio = audio[None, :]
-            if s.get("loop"):
+            if s.get("loop") and a.model != "eleven":  # (ElevenLabs makes its own loops)
                 audio = crossfade_loop(audio, rate)
             peak = max(1e-6, float(np.abs(audio).max()))
             audio = audio * (0.9 / peak)
@@ -82,7 +100,7 @@ def main():
 def page(out, batch):
     rows = []
     for s in batch["sounds"]:
-        takes = sorted(out.glob(f"{s['name']}_[0-9]*.ogg")) + sorted(out.glob(f"{s['name']}_tf_*.ogg"))
+        takes = sorted(out.glob(f"{s['name']}_[0-9]*.ogg")) + sorted(out.glob(f"{s['name']}_tf_*.ogg")) + sorted(out.glob(f"{s['name']}_el_*.ogg"))
         if not takes:
             continue
         rows.append(f"<h2>{html.escape(s['name'])}</h2><p><i>{html.escape(s['prompt'])}</i>{' (loops)' if s.get('loop') else ''}</p>")
