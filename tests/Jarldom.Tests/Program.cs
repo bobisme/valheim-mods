@@ -744,13 +744,16 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
 {
     var parts = GreatWorks.LighthouseParts();
     Check(GreatWorks.Stairwell(-0.5f, -1.5f) && GreatWorks.Stairwell(0.5f, -0.5f) && !GreatWorks.Stairwell(0.5f, 0.5f) && !GreatWorks.Stairwell(-0.5f, 1.5f), "The stairwell: open over the landing and the ladders' tops, floor where they come out");
-    Check(parts.Count(p => p.Prefab == "bonfire") == 1 && parts.Count(p => p.Prefab == "wood_door") == 1 && parts.Count(p => p.Prefab == "wood_stepladder") == 6 && parts.Max(p => p.Y) > 15.5f, "The Lighthouse: a door, six ladders up, the bonfire 16 m up: " + parts.Count + " parts");
+    Check(parts.Count(p => p.Prefab == "bonfire") == 1 && parts.Count(p => p.Prefab == "wood_door") == 1 && parts.Count(p => p.Prefab == "wood_stepladder") == 10 && GreatWorks.FireHeight(GreatWorks.Lighthouse) > 23.5f, "The Lighthouse: a door, ten ladders up, the bonfire 24 m up: " + parts.Count + " parts");
     var fireDeck = parts.Where(p => p.Prefab == "wood_floor" && p.Y > 14).ToList(); var gallery = parts.Where(p => p.Prefab == "wood_floor_1x1").Max(p => p.Y);
     Check(fireDeck.Count == 8 && fireDeck.All(p => p.Y - gallery > 2.9f), "The bonfire's deck: 6 m square round the bonfire, 3 m of head room over the gallery");
-    Check(parts.Count(p => p.Prefab.StartsWith("stone_")) >= 16 && parts.Where(p => p.Prefab.StartsWith("stone_")).All(p => p.Y < 1f), "A stone plinth and course under the timber");
-    Check(parts.Where(p => p.Prefab != "piece_workbench" && p.Prefab != "piece_stonecutter").All(p => Math.Sqrt(Math.Pow(p.X - 2.95, 2) + p.Y * p.Y + p.Z * p.Z) < 20 && Math.Sqrt(Math.Pow(p.X + 3.05, 2) + p.Y * p.Y + p.Z * p.Z) < 20), "Every piece within its workbench's and stonecutter's reach");
+    Check(parts.Count(p => p.Prefab.StartsWith("stone_")) >= 16 && parts.Where(p => p.Prefab.StartsWith("stone_")).All(p => p.Y < 2f), "A stone plinth and course under the timber");
+        double Reach(GreatWorks.Part p, double x, double z) => Math.Sqrt(Math.Pow(p.X - x, 2) + p.Y * p.Y + Math.Pow(p.Z - z, 2));
+    Check(parts.Count(p => p.Prefab.StartsWith("piece_workbench_ext")) == 2 && parts.Where(p => !p.Prefab.StartsWith("stone_") && !p.Prefab.StartsWith("piece_") && p.Prefab != "bonfire" && p.Prefab != "hearth").All(p => Reach(p, 3.1, 0) + 3.5 < 28), "Every timber piece within its workbench's reach (two extensions: 28 m), with room to spare");
+    Check(parts.Where(p => p.Prefab.StartsWith("stone_")).All(p => Reach(p, -3.05, 0) < 18), "Every stone piece within the stonecutter's reach");
+    Check(parts.Count(p => p.Prefab == "wood_dragon1") == 4 && parts.Count(p => p.Prefab == "piece_banner03") == 5, "Dragon heads on the fire deck, banners on the gallery and by the door");
     var legs = parts.Where(p => p.Leans).ToList();
-    Check(legs.Count == 8 && legs.All(p => Math.Abs(Math.Abs(p.UpX) - 0.25f) < 0.01f && Math.Sign(p.UpX) == -Math.Sign(p.X)), "Its trestle legs lean inward, a quarter metre a storey");
+    Check(legs.Count == 16 && legs.All(p => Math.Abs(Math.Abs(p.UpX) - 0.125f) < 0.01f && Math.Sign(p.UpX) == -Math.Sign(p.X)), "Its trestle legs lean inward, an eighth of a metre a storey, four storeys");
     var spots = parts.Select(p => (p.Prefab, Math.Round(p.X, 2), Math.Round(p.Y, 2), Math.Round(p.Z, 2))).ToList();
     Check(spots.Distinct().Count() == spots.Count, "No two parts in the same place");
     // the way up: each ladder's top meets a floor or a landing, and nothing hangs over a ladder within head height
@@ -783,7 +786,7 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(!Petitions.Raise(new Random(1), gview, 10).Any(p => p.Id == "greatwork"), "Not once one's begun, or away from the sea");
     var gf = new Dictionary<string, int> { [GreatWorks.Key(GreatWorks.Lighthouse)] = GreatWorks.Laid };
     Check(GreatWorks.Stage(gf, GreatWorks.Lighthouse) == GreatWorks.Laid && GreatWorks.Proper(GreatWorks.Lighthouse, "Shithole") == "Lighthouse of Shithole", "Its stage and its name on the map");
-    var site = new List<float> { 9, 9, 19, 9, 19, 19, 9, 19 };
+    var site = new List<float> { 8, 8, 20, 8, 20, 20, 8, 20 };
     Check(GreatWorks.Site(site, out float sx, out float sz) == "" && Math.Abs(sx - 14) < 0.01f && Math.Abs(sz - 14) < 0.01f, "A work stands in the middle of the outline drawn for it");
     Check(GreatWorks.Site(new List<float> { 0, 0, 6, 0, 6, 6, 0, 6 }, out _, out _).Contains("too small") && GreatWorks.Site(new List<float> { 0, 0, 4, 0 }, out _, out _) != "", "Not in an outline too small for its footing, or not an outline");
     Check(Verse.Make(new List<LogEntry> { new LogEntry(5, 3, "greatwork", "Shithole", "the Lighthouse", "") }, 2, p => p).Any(l => l.Contains("Lighthouse")), "The skald sings it");

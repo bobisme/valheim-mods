@@ -39,7 +39,7 @@ namespace Jarldom
             float sea = ZoneSystem.instance.m_waterLevel;
             if (ground < sea + 0.3f) return "that's in the water: step back onto dry ground";
             float lo = ground, hi = ground;
-            for (int i = 0; i < 8; i++) { float a = i * Mathf.PI / 4f; if (ZoneSystem.instance.GetSolidHeight(at + new Vector3(Mathf.Sin(a) * 3.5f, 0, Mathf.Cos(a) * 3.5f), out float h)) { lo = Mathf.Min(lo, h); hi = Mathf.Max(hi, h); } }
+            for (int i = 0; i < 8; i++) { float a = i * Mathf.PI / 4f; if (ZoneSystem.instance.GetSolidHeight(at + new Vector3(Mathf.Sin(a) * 4f, 0, Mathf.Cos(a) * 4f), out float h)) { lo = Mathf.Min(lo, h); hi = Mathf.Max(hi, h); } }
             if (hi - lo > Steep) return $"the ground's too steep there ({hi - lo:0.0} m across its footing): level it with the hoe, or find flatter ground";
             if (work == GreatWorks.Lighthouse)
             {
@@ -100,7 +100,7 @@ namespace Jarldom
             Player me = Player.m_localPlayer;
             if (me == null || GreatWorks.Stage(c.R.Flags, work) != GreatWorks.Done) return -1;
             Vector3 at = At(c, work, out float yaw);
-            var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 9f, 16f, near);
+            var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 12f, 22f, near);
             var missing = GreatWorks.Parts(work).Where(p => { var w = GreatWorks.Place(p, at.x, at.y, at.z, yaw); Vector3 spot = new Vector3(w.x, w.y, w.z);
                 return !near.Any(x => x != null && Utils.GetPrefabName(x.gameObject) == p.Prefab && Vector3.Distance(x.transform.position, spot) < 0.5f); }).ToList();
             if (missing.Count == 0) return 0;
@@ -165,7 +165,7 @@ namespace Jarldom
         {
             Vector3 at = At(c, work, out float yaw);
             if (!ZNetScene.instance.IsAreaReady(at)) return -1;
-            var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 9f, 16f, near);
+            var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 12f, 22f, near);
             int n = 0;
             foreach (var p in GreatWorks.Parts(work))
             {
@@ -179,7 +179,7 @@ namespace Jarldom
         public static List<string> Missing(Colony c, string work)
         {
             Vector3 at = At(c, work, out float yaw);
-            var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 9f, 16f, near);
+            var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 12f, 22f, near);
             return GreatWorks.Parts(work).Where(p => { var w = GreatWorks.Place(p, at.x, at.y, at.z, yaw); Vector3 spot = new Vector3(w.x, w.y, w.z);
                 return !near.Any(x => x != null && Utils.GetPrefabName(x.gameObject) == p.Prefab && Vector3.Distance(x.transform.position, spot) < 0.5f); }).Select(p => $"{p.Prefab} {p.X} {p.Y:0.##} {p.Z}").ToList();
         }
@@ -204,7 +204,7 @@ namespace Jarldom
             foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) { Mood.Add(b.S, "greatwork", b.Now); if (b.S.Prof == Prof.Builder) Worth.Gain(b.S, "festival"); b.Dirty(); }
             if (work == GreatWorks.Lighthouse)
             {
-                var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 15.5f, 5f, near);
+                var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * GreatWorks.FireHeight(work), 5f, near);
                 Fireplace hearth = near.Where(p => p != null && Utils.GetPrefabName(p.gameObject) == "bonfire").Select(p => p.GetComponent<Fireplace>()).FirstOrDefault(f => f != null);
                 if (hearth != null && !Beacon.IsMarked(c, hearth)) Beacon.Mark(c, Colony.IdOf(hearth.GetComponent<ZNetView>()));
             }
@@ -218,7 +218,7 @@ namespace Jarldom
             if (work != GreatWorks.Lighthouse) return;
             Vector3 at = At(c, work, out _);
             if (!ZNetScene.instance.IsAreaReady(at)) return;
-            var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 15.5f, 5f, near);
+            var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * GreatWorks.FireHeight(work), 5f, near);
             Fireplace fire = near.Where(p => p != null && Utils.GetPrefabName(p.gameObject) == "bonfire").Select(p => p.GetComponent<Fireplace>()).FirstOrDefault(f => f != null);
             if (fire != null && !Beacon.IsMarked(c, fire)) Beacon.Mark(c, Colony.IdOf(fire.GetComponent<ZNetView>()));
         }
