@@ -25,7 +25,7 @@ namespace Demolisher
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name,"demolisher",
-                    "demolisher strike [metres]: Thor's lightning as a demolition calls it, on the ground that many metres (default 12) in front of the player, removing nothing; reports the player's health (it should do no harm: check again with status). It returns at once, so a shot can follow.",
+                    "demolisher strike [metres]: Thor's lightning as a demolition calls it (the buildup, then the bolt), on the ground that many metres (default 12) in front of the player, removing nothing; reports the player's health (it should do no harm: check again with status). It returns as the bolt strikes, so a shot can follow.",
                     (Func<string[],Action<JObject>,Action<string>,IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: demolisher command added");
             }
@@ -46,6 +46,8 @@ namespace Demolisher
             Vector3 forward=me.transform.forward;forward.y=0;forward.Normalize();
             Vector3 at=me.transform.position+forward*metres;
             at.y=ZoneSystem.instance!=null?ZoneSystem.instance.GetGroundHeight(at):at.y;
+            if(!Plugin.Buildup(at)){error("no vfx_lever prefab");yield break;}
+            yield return new WaitForSeconds(Plugin.Instance!=null?Plugin.Instance.LightningDelay:3);
             if(!Plugin.Bolt(at)){error("no lightningAOE prefab");yield break;}
             output(new JObject{["at"]=new JArray(Math.Round(at.x,1),Math.Round(at.y,1),Math.Round(at.z,1)),["health"]=Math.Round(me.GetHealth(),1)});
         }

@@ -16,6 +16,8 @@ namespace Demolisher
         private float _nextScan;
         private bool _asking;
         private int _removed,_kept;
+        private readonly List<Vector3> _bolts=new List<Vector3>();
+        private float _strikeAt;
         private static readonly int ColorId=Shader.PropertyToID("_Color"),EmissionId=Shader.PropertyToID("_EmissionColor");
         private static readonly Color DoomedColor=new Color(1f,0.3f,0.25f);
 
@@ -95,14 +97,23 @@ namespace Demolisher
             Player player=Player.m_localPlayer;
             if(player==null || !_closed)return;
             Scan(player);   // what's there now, not when the question was asked
-            foreach(Piece piece in _doomed.OrderByDescending(p=>p.transform.position.y))_queue.Enqueue(piece);
+            // Workshops last: pieces needing a crafting station near are only removed while it stands.
+            foreach(Piece piece in _doomed.OrderBy(p=>p.GetComponent<CraftingStation>()!=null?1:0).ThenByDescending(p=>p.transform.position.y))_queue.Enqueue(piece);
             _removed=_kept=0;
-            if(_lightning.Value)Strike(_doomed);
-            Untint();
+            _bolts.Clear();
+            _strikeAt=0;
+            if(_lightning.Value && _doomed.Count>0)
+            {
+                _bolts.AddRange(BoltPoints(_doomed));
+                Buildup(_bolts[0]);
+                _strikeAt=Time.time+_lightningDelay.Value;
+            }
+            else Untint();
         }
-        // Thor's lightning, the Obliterator's own (lightningAOE), down on the tops of what comes down: one bolt per 12 m or so, at most six.
-        // The bolt is a network object, so everyone sees and hears it; its damage (400 lightning, dealt only by its owner) is taken off here.
-        private static void Strike(List<Piece> doomed)
+        // Thor's lightning, as the Obliterator calls it: its lever effect first (distant thunder, sparks), then its bolt (lightningAOE)
+        // on the tops of what comes down, one per 12 m or so, at most six, and the building goes as they hit. Both are network objects,
+        // so everyone near sees and hears them; the bolt's damage (400 lightning, dealt only by its owner) is taken off here.
+        private static List<Vector3> BoltPoints(List<Piece> doomed)
         {
             var points=new List<Vector3>();
             foreach(Piece piece in doomed.Where(p=>p!=null).OrderByDescending(p=>p.transform.position.y))
@@ -112,19 +123,34 @@ namespace Demolisher
                 points.Add(at);
                 if(points.Count==6)break;
             }
-            foreach(Vector3 at in points)Bolt(at);
+            return points;
         }
+        internal static bool Buildup(Vector3 at)=>Spawn("vfx_lever",at)!=null;
         internal static bool Bolt(Vector3 at)
         {
-            GameObject prefab=ZNetScene.instance!=null?ZNetScene.instance.GetPrefab("lightningAOE"):null;
-            if(prefab==null)return false;
-            GameObject bolt=Object.Instantiate(prefab,at,Quaternion.identity);
+            GameObject bolt=Spawn("lightningAOE",at);
+            if(bolt==null)return false;
             foreach(Aoe aoe in bolt.GetComponentsInChildren<Aoe>(true))Object.DestroyImmediate(aoe);
             return true;
+        }
+        // Louder for us: full volume three times as far out (the clips already play at full volume).
+        private static GameObject Spawn(string name,Vector3 at)
+        {
+            GameObject prefab=ZNetScene.instance!=null?ZNetScene.instance.GetPrefab(name):null;
+            if(prefab==null)return null;
+            GameObject made=Object.Instantiate(prefab,at,Quaternion.identity);
+            foreach(AudioSource audio in made.GetComponentsInChildren<AudioSource>(true))
+            {
+                audio.minDistance*=3;
+                audio.maxDistance=Mathf.Max(audio.maxDistance,audio.minDistance*2);
+            }
+            return made;
         }
         private void RunQueue(Player player)
         {
             if(_queue.Count==0)return;
+            if(Time.time<_strikeAt)return;   // the buildup
+            if(_bolts.Count>0){foreach(Vector3 at in _bolts)Bolt(at);_bolts.Clear();Untint();}
             for(int i=0;i<_perFrame.Value && _queue.Count>0;i++)
             {
                 Piece piece=_queue.Dequeue();

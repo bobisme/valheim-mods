@@ -15,11 +15,12 @@ namespace Demolisher
     {
         public const string Guid="com.bobisme.demolisher";
         public const string Name="Demolisher";
-        public const string Version="0.1.3";
+        public const string Version="0.1.4";
         internal static Plugin Instance;
         private ConfigEntry<bool> _enabled;
         private ConfigEntry<int> _perFrame;
         private ConfigEntry<bool> _lightning;
+        private ConfigEntry<float> _lightningDelay;
         private Harmony _harmony;
         private ZNet _session;
         private readonly List<Vector3> _corners=new List<Vector3>();
@@ -31,6 +32,7 @@ namespace Demolisher
             _enabled=Config.Bind("General","Enabled",true,"Put the demolition stake in the hammer's build menu (Misc).");
             _perFrame=Config.Bind("General","PerFrame",8,new ConfigDescription("Structures removed each frame while demolishing.",new AcceptableValueRange<int>(1,50)));
             _lightning=Config.Bind("General","Lightning",true,"Thor's lightning strikes the building as it comes down.");
+            _lightningDelay=Config.Bind("General","LightningDelay",3f,new ConfigDescription("Seconds of rumbling buildup before the lightning strikes and the building comes down.",new AcceptableValueRange<float>(0,8)));
             _harmony=new Harmony(Guid);_harmony.PatchAll(typeof(Plugin).Assembly);
             Logger.LogInfo($"{Name} {Version} loaded: pick the demolition stake from the hammer's Misc tab.");
         }
@@ -52,7 +54,7 @@ namespace Demolisher
         {
             EnsureStake();
             Player player=Player.m_localPlayer;
-            if(_session!=ZNet.instance || player==null){_session=ZNet.instance;if(_corners.Count>0 || _queue.Count>0)ClearOutline();_queue.Clear();return;}
+            if(_session!=ZNet.instance || player==null){_session=ZNet.instance;if(_corners.Count>0 || _queue.Count>0)ClearOutline();_queue.Clear();_bolts.Clear();return;}
             RunQueue(player);
             bool holding=_enabled.Value && StakeSelected(player) && !player.IsDead();
             if(!holding){ShowOutline(false);Untint();return;}
@@ -137,6 +139,7 @@ namespace Demolisher
             RedrawOutline();
             player.Message(MessageHud.MessageType.Center,_corners.Count==0?"Outline cleared":$"{_corners.Count} corners");
         }
+        internal float LightningDelay=>_lightningDelay.Value;
         internal static void Log(string text)=>Instance?.Logger.LogInfo(text);
         private void ClearOutline()
         {

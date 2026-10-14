@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><AssemblyName>Demolisher</AssemblyName><RootNamespace>Demolisher</RootNamespace></PropertyGroup>
   <ItemGroup>
+    <Reference Include="UnityEngine.AudioModule"><HintPath>$(ManagedDir)/UnityEngine.AudioModule.dll</HintPath><Private>false</Private></Reference>
     <EmbeddedResource Include="Models/stake/*.json.gz" LogicalName="Demolisher.%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>
