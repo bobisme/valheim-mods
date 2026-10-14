@@ -1,1 +1,3 @@
+0.1.1: GraveGoods.Api for other mods: Rarity(item) and Name(item). Jarldom's villagers marvel at heirlooms and saga weapons, and a pyre honours them.
+
 0.1.0: First Grave Goods. Treasure chests hold buried weapons, armour and shields of five rarities (Plain, Fine, Runed, Heirloom, Saga) with powers: damage, elements, stamina, stagger, sneak attacks, blood-drinking, skills, armour, block, health, stamina, eitr, regeneration, speed, carry weight, wards, durability and weight. Twenty saga items with their lore, each found once a world. Coloured names, powers at the top of tooltips, tinted slots, a glow on the ground, and a message when a chest holds something rare.

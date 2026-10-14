@@ -764,6 +764,8 @@ First playtest:
 3. Fight with a blood-drinking or elemental weapon. Take fire or poison with a ward on.
 4. Find an Heirloom (purple) and, with luck, a Saga item.
 
+Other mods ask through `GraveGoods.Api` (Rarity, Name): [Jarldom](#jarldom) villagers marvel at heirlooms and saga weapons, and a pyre honours them.
+
 ## Delivery
 
 Hot food, brought to you, a little goofy. An **Errand Horn** (workbench: 4 wood, 2 leather scraps, 1 resin) opens a menu of

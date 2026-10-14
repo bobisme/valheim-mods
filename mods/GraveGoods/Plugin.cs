@@ -14,7 +14,7 @@ namespace GraveGoods
     {
         public const string Guid="com.bobisme.gravegoods";
         public const string Name="Grave Goods";
-        public const string Version="0.1.0";
+        public const string Version="0.1.1";
         internal static Plugin Instance;
         internal static ConfigEntry<float> ChestChance;
         internal static ConfigEntry<string> RarityWeights;
