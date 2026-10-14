@@ -52,6 +52,38 @@ namespace Jarldom
             if (kind == "tafl" || kind == "glima") { task.Seeking = true; Seeking[c.Id] = task; }
             return task;
         }
+        // A new job (open, of their trade, or a fire to feed) that this one is the nearest at leisure to take. The jobs open when they
+        // sat down, and those already left to someone nearer, are seen: not a reason to get up.
+        public static bool CalledAway(Brain b, ref HashSet<int> seen)
+        {
+            Colony c = b.Colony;
+            bool For(Brain o, Order x) => x.Prof == o.S.Prof && o.S.Prof != Prof.Hauler || x.Kind == "fuel"; // (a hauler's carrying comes and goes all day: only a fire calls them)
+            var open = c.Board.All.Where(x => x.State == OrderState.Open && For(b, x)).ToList();
+            if (seen == null) { seen = new HashSet<int>(open.Select(x => x.Id)); return false; }
+            var idle = Villagers.All.Where(o => o != b && o.Alive && o.S.Colony == c.Id && o.Task is LeisureTask).ToList();
+            foreach (Order x in open)
+            {
+                if (seen.Contains(x.Id)) continue;
+                seen.Add(x.Id);
+                Vector3 at = new Vector3(x.X, x.Y, x.Z);
+                float mine = Vector3.Distance(b.Pos, at);
+                if (!idle.Any(o => For(o, x) && Vector3.Distance(o.Pos, at) < mine)) return true;
+            }
+            return false;
+        }
+        // A spot for sport or a walk out of doors (the pillars may stand in the hall: not stones lifted at the table).
+        public static Vector3? Outdoors(Colony c, Vector3 near, float radius)
+        {
+            Vector3? any = null;
+            for (int i = 0; i < 6; i++)
+            {
+                Vector3? at = Colony.Spot(near, radius);
+                if (at == null) continue;
+                if (c.RoomAt(at.Value) == null) return at;
+                any = any ?? at;
+            }
+            return any;
+        }
         public static Piece Find(Colony c, string prefab) => c.PiecesIn(c.Radius).FirstOrDefault(p => Utils.GetPrefabName(p.gameObject) == prefab);
         // A table in a room with two free seats at it.
         public static bool TaflTable(Colony c, out Chair a, out Chair b2)
@@ -94,7 +126,7 @@ namespace Jarldom
         public override void Start(Brain b)
         {
             Owner = b;
-            _until = Time.time + Random.Range(50f, 90f);
+            _until = Time.time + (Kind == "hall" ? Random.Range(180f, 360f) : Random.Range(50f, 90f)); // (a seat in the hall is kept a while: not up and off to another every minute)
             _seekUntil = Time.time + 20f;
             switch (Kind)
             {
@@ -102,8 +134,8 @@ namespace Jarldom
                 case "glima": Doing = Partner == null ? "looking for someone to wrestle" : $"wrestling with {Partner.S.Name}"; break;
                 case "dummy": _thing = Leisure.Find(b.Colony, "piece_TrainingDummy"); Doing = "sparring at the training dummy"; break;
                 case "archery": _thing = Leisure.Find(b.Colony, "piece_ArcheryTarget"); Doing = "shooting at the archery target"; break;
-                case "stones": Doing = "lifting stones"; _spot = Colony.Spot(b.Colony.Position, 14f) ?? b.Pos; break;
-                case "stroll": Doing = "taking a walk"; _spot = Colony.Spot(b.Colony.Position, b.Colony.Radius * 0.6f) ?? b.Pos; break;
+                case "stones": Doing = "lifting stones"; _spot = Leisure.Outdoors(b.Colony, b.Colony.Position, 14f) ?? b.Pos; break;
+                case "stroll": Doing = "taking a walk"; _spot = Leisure.Outdoors(b.Colony, b.Colony.Position, b.Colony.Radius * 0.6f) ?? b.Pos; break;
                 default:
                     Room hall = b.Colony.Best(RoomType.GreatHall);
                     if (hall != null) { _seat = Seats.Free(b, hall, b.Colony); _spot = _seat != null ? _seat.transform.position : Colony.Spot(b.Colony.Centre(hall), 3f) ?? b.Colony.Centre(hall); } // (a spot on the floor: the navmesh covers table tops too)
@@ -122,7 +154,7 @@ namespace Jarldom
             Vector3 d = b.Pos - _thing.transform.position; d.y = 0; if (d.sqrMagnitude < 0.01f) d = Vector3.forward;
             return _thing.transform.position + d.normalized * 1.4f;
         }
-        private float _nextWork, _nextSip; private int _openAtStart = -1;
+        private float _nextWork, _nextSip; private HashSet<int> _seen;
         // A place to shoot from: in front of the target's face, as far as 15 m, with nothing between (a fence, a wall, a hill).
         private Vector3? _range;
         private static int _sightMask = -1;
@@ -146,12 +178,12 @@ namespace Jarldom
         public override void Tick(Brain b)
         {
             if (Time.time > _until) { Finish(b); return; }
-            // (work of their own trade turned up, or a fire or torch to feed, which anyone idle does: back to it)
+            // (work of their own trade turned up, or a fire or torch to feed, which anyone idle does: back to it; for each new job only the
+            // nearest of those at their leisure, not all of them up at once and back to some other pastime)
             if (Time.time > _nextWork && b.Colony.IsOwner)
             {
                 _nextWork = Time.time + 8f;
-                int open = b.Colony.Board.All.Count(o => o.State == OrderState.Open && (o.Prof == b.S.Prof && b.S.Prof != Prof.Hauler || o.Kind == "fuel")); // (a hauler's carrying comes and goes all day: only a fire calls them) // (more than when they sat down: something new)
-                if (_openAtStart < 0) _openAtStart = open; else if (open > _openAtStart) { Done = true; return; }
+                if (Leisure.CalledAway(b, ref _seen)) { Done = true; return; }
             }
             if (Seeking)
             {
@@ -168,7 +200,7 @@ namespace Jarldom
                 case "dummy": Spar(b); break;
                 case "archery": Shoot(b); break;
                 case "stones": Stones(b); break;
-                case "stroll": if (!b.Move.Moving) { if (Time.time > _next) { _next = Time.time + Random.Range(8f, 15f); Vector3? to = Colony.Spot(b.Colony.Position, b.Colony.Radius * 0.6f); if (to != null) b.Move.To(to.Value, 1.5f); } } break;
+                case "stroll": if (!b.Move.Moving) { if (Time.time > _next) { _next = Time.time + Random.Range(8f, 15f); Vector3? to = Leisure.Outdoors(b.Colony, b.Colony.Position, b.Colony.Radius * 0.6f); if (to != null) b.Move.To(to.Value, 1.5f); } } break;
                 default: Hall(b); break;
             }
         }

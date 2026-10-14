@@ -164,7 +164,7 @@ namespace Jarldom
     internal sealed class HallTask : Task
     {
         public bool Shelter;
-        private Chair _chair; private Vector3 _stand; private bool _there, _counted, _drank; private float _nextTalk, _nextSip;
+        private Chair _chair; private Vector3 _stand; private bool _there, _counted, _drank; private float _nextTalk, _nextSip; private int _tries;
         public override void Start(Brain b)
         {
             Room hall = b.Colony.Best(RoomType.GreatHall);
@@ -181,9 +181,22 @@ namespace Jarldom
         {
             if (!_there)
             {
-                if (b.Move.Failed) { _there = true; return; }
-                if (b.Move.Moving) return;
-                if (!b.Move.Arrived && Utils.DistanceXZ(b.Pos, _stand) > 2.5f) { b.Move.To(_stand, _chair != null ? 1.2f : 2f); return; } // stopped by a fight
+                // (beside the seat is near enough to sit: a bench's seats are inside its collider, and walking onto one fails)
+                Vector3? seat = _chair != null && _chair.m_attachPoint != null ? _chair.m_attachPoint.position : (Vector3?)null;
+                float d = seat.HasValue ? Utils.DistanceXZ(b.Pos, seat.Value) : 99f;
+                bool beside = seat.HasValue && (d < 2.2f && Mathf.Abs(b.Pos.y - seat.Value.y) < 1.5f || b.Move.Failed && d < 4f) && b.Colony.RoomAt(b.Pos) == b.Colony.RoomAt(seat.Value); // (not through the wall)
+                if (beside) b.Move.Stop();
+                else if (b.Move.Failed && _chair != null && ++_tries <= 2 && b.Colony.Best(RoomType.GreatHall) is Room hall)
+                {
+                    // (that seat can't be got to: another, else a place on the floor)
+                    _chair = Seats.Free(b, hall, b.Colony);
+                    _stand = _chair != null ? _chair.transform.position : Colony.Spot(b.Colony.Centre(hall), 3f) ?? b.Colony.Centre(hall);
+                    b.Move.To(_stand, _chair != null ? 1.2f : 2f);
+                    return;
+                }
+                else if (b.Move.Failed) { Seats.Free(b); _chair = null; _there = true; Doing = "keeping company"; return; }
+                else if (b.Move.Moving) return;
+                if (!beside && !b.Move.Arrived && Utils.DistanceXZ(b.Pos, _stand) > 2.5f) { b.Move.To(_stand, _chair != null ? 1.2f : 2f); return; } // stopped by a fight
                 _there = true;
                 if (_chair != null && _chair.m_attachPoint != null) b.Sit(_chair.m_attachPoint, string.IsNullOrEmpty(_chair.m_attachAnimation) ? "attach_chair" : _chair.m_attachAnimation, Vector3.zero);
                 Doing = Shelter ? "sheltering" : _chair != null ? "in the hall" : "keeping company";
