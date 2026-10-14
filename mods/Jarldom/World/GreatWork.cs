@@ -52,6 +52,31 @@ namespace Jarldom
             yaw = f.sqrMagnitude > 0.01f ? Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg : 0f;
             return "";
         }
+        // Not begun yet (planned, nothing of it built): its site can still move.
+        public static bool Movable(Colony c, string work) => GreatWorks.Stage(c.R.Flags, work) == GreatWorks.Laid && c.R.Flag(GreatWorks.BuiltKey(work)) == 0;
+        public static bool Choosable(Colony c, string work) => GreatWorks.Stage(c.R.Flags, work) == GreatWorks.Promised || Movable(c, work);
+        // Its plan taken away (each plan BuildOrders keeps under its name: whoever laid it): how many ghosts went.
+        public static int Plans(Colony c, string work) => PlanKeys(c, work).Count;
+        private static HashSet<string> PlanKeys(Colony c, string work)
+        {
+            object bo = Compat.Find("com.quad.buildorders", "com.dhack.buildorders");
+            var orders = bo?.GetType().GetField("_orders", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.GetValue(bo) as System.Collections.IDictionary;
+            var keys = new HashSet<string>();
+            if (orders == null) return keys;
+            string head = "Blueprint: Addon " + GreatWorks.Proper(work, c.R.Name) + " [";
+            foreach (object o in orders.Values) { string by = o?.GetType().GetField("By")?.GetValue(o) as string; if (by != null && by.StartsWith(head)) keys.Add(by); }
+            return keys;
+        }
+        public static int Unplan(Colony c, string work)
+        {
+            object bo = Compat.Find("com.quad.buildorders", "com.dhack.buildorders");
+            var remove = bo?.GetType().GetMethod("TryRemoveGhostPlan");
+            if (remove == null) return 0;
+            var keys = PlanKeys(c, work);
+            int n = 0;
+            foreach (string key in keys) { object[] args = { Player.m_localPlayer, key, 0, null }; try { if ((bool)remove.Invoke(bo, args)) n += (int)args[2]; } catch { } }
+            return n;
+        }
         // The site from an outline: planned in its middle, or why not (said to the player). True if it's planned.
         public static bool RaiseIn(Colony c, string work, IList<float> xz)
         {
@@ -60,6 +85,12 @@ namespace Jarldom
             if (site != "") { me?.Message(MessageHud.MessageType.Center, $"Not here: {site}."); return false; }
             Vector3 spot = new Vector3(x, 0, z);
             ZoneSystem.instance.GetSolidHeight(spot, out float gy); spot.y = gy;
+            if (Movable(c, work))
+            {
+                string why = Why(c, work, me, spot, out _, out _);
+                if (why != "") { me?.Message(MessageHud.MessageType.Center, $"Not here: {why}."); return false; }
+                Unplan(c, work); // (moved: the old plan goes, the new one is laid)
+            }
             return RaiseHere(c, work, spot);
         }
         public static bool RaiseHere(Colony c, string work, Vector3 spot)
@@ -90,16 +121,17 @@ namespace Jarldom
         public static void Laid(Colony c, string who, string arg)
         {
             string[] f = arg.Split('|');
-            if (f.Length < 5 || GreatWorks.Stage(c.R.Flags, f[0]) != GreatWorks.Promised) return;
+            if (f.Length < 5 || !Choosable(c, f[0])) return;
             float F(string s) => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture);
             string work = f[0];
+            bool moved = GreatWorks.Stage(c.R.Flags, work) == GreatWorks.Laid;
             c.R.Flags[GreatWorks.Key(work)] = GreatWorks.Laid;
             c.R.Flags[GreatWorks.AtKey(work)] = TrueLegend.Pack(F(f[1]), F(f[3]));
             c.R.Flags[GreatWorks.YKey(work)] = Mathf.RoundToInt(F(f[2]) * 10f);
             c.R.Flags[GreatWorks.XKey(work)] = Mathf.RoundToInt(F(f[1]) * 10f); c.R.Flags[GreatWorks.ZKey(work)] = Mathf.RoundToInt(F(f[3]) * 10f);
             c.R.Flags[GreatWorks.YawKey(work)] = Mathf.RoundToInt(F(f[4]));
             c.R.Flags[GreatWorks.BuiltKey(work)] = 0;
-            c.Log("text", who, "", $"{who} chose where {GreatWorks.Name(work)} will stand, and the builders began.");
+            c.Log("text", who, "", moved ? $"{who} moved {GreatWorks.Name(work)} to a new site before a stick of it was raised." : $"{who} chose where {GreatWorks.Name(work)} will stand, and the builders began.");
             c.MarkDirty();
         }
         public static Vector3 At(Colony c, string work, out float yaw)

@@ -227,11 +227,12 @@ namespace Jarldom.Ui
             else
             {
                 // (a great work the Thing chose, not yet placed: this outline can be its site)
-                if (GreatWorks.Stage(_c.R.Flags, GreatWorks.Lighthouse) == GreatWorks.Promised)
+                if (GreatWork.Choosable(_c, GreatWorks.Lighthouse))
                 {
-                    GameUi.Line(_window, "Great work", new Vector2(30, -y), 300, 18, GameUi.Warm); y += 30;
+                    bool move = GreatWork.Movable(_c, GreatWorks.Lighthouse);
+                    GameUi.Line(_window, move ? "Great work (planned, not begun: move it here)" : "Great work", new Vector2(30, -y), 600, 18, GameUi.Warm); y += 30;
                     var outline = _xz;
-                    Place(GreatWorks.Title(GreatWorks.Lighthouse), ref x, ref y, () => { if (GreatWork.RaiseIn(_c, GreatWorks.Lighthouse, outline)) { Close(); Designate.Clear(); } });
+                    Place(move ? "Move it here" : GreatWorks.Title(GreatWorks.Lighthouse), ref x, ref y, () => { if (GreatWork.RaiseIn(_c, GreatWorks.Lighthouse, outline)) { Close(); Designate.Clear(); } });
                     x = 30; y += 52;
                 }
                 if (!_zonesOnly) { GameUi.Line(_window, "Rooms", new Vector2(30, -y), 300, 18, GameUi.Dim); y += 30; }

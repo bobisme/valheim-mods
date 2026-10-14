@@ -439,6 +439,7 @@ namespace Jarldom.Ui
             if (stage == GreatWorks.Laid)
             {
                 Vector3 at = GreatWork.At(_c, work, out _);
+                if (GreatWork.Movable(_c, work)) y = Text(list, "Not begun yet: outline another site with \"Mark rooms and zones\" and choose \"Move it here\" under Great work to move it.", y, 15, GameUi.Dim);
                 y = Text(list, $"{GreatWorks.Title(work)} is rising {Mathf.RoundToInt(Utils.DistanceXZ(at, _c.Position))} m to the {ScoutTask.Compass(at - _c.Position)} of the high seat: {built} of {all} parts stand. Builders raise it from the stores ({GreatWorks.NeedsText(work)} in all).", y);
                 return _c.R.Living.Any(r => r.Prof == Prof.Builder) ? y : Text(list, "No one is a builder: give someone the Builder trade (People tab).", y, 15, GameUi.Warn);
             }
