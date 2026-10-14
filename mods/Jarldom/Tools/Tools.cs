@@ -532,7 +532,7 @@ namespace Jarldom
                         // What the next festival wants and how readied it is; "hold <name>": keep it now (as at dusk on its day); "clear": no blessing.
                         if (a.Length > 3 && a[2] == "hold" && Enum.TryParse(a[3], true, out Festival hf)) FestivalDays.Hold(c, hf, c.Day);
                         if (a.Length > 3 && a[2] == "show" && Enum.TryParse(a[3], true, out Festival sf)) FestivalDays.Ceremony(c, sf); // (the ceremony alone: no goods, no blessing)
-                        if (a.Length > 2 && a[2] == "clear") { foreach (string k in c.R.Flags.Keys.Where(k => k.StartsWith("fest:")).ToList()) c.R.Flags.Remove(k); c.MarkDirty(); }
+                        if (a.Length > 2 && a[2] == "clear") { foreach (string k in c.R.Flags.Keys.Where(k => k.StartsWith("fest:") || k.StartsWith("yule:")).ToList()) c.R.Flags.Remove(k); c.MarkDirty(); }
                         var (nf, nd) = Calendar.Next(Year.Today()); var (af, ap) = Festivals.Active(c.R.Flags);
                         output(new JObject { ["next"] = Calendar.Name(nf), ["days"] = nd, ["readied"] = Mathf.RoundToInt(FestivalDays.Readied(c, nf) * 100), ["wants"] = FestivalDays.Wants(c, nf),
                             ["blessing"] = af == null ? "none" : $"{Calendar.Name(af.Value)} at {Mathf.RoundToInt(ap * 100)}%", ["neglected"] = Festivals.Neglected(c.R.Flags, c.Day) });
