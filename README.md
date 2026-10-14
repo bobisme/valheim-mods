@@ -702,7 +702,8 @@ override it.
 - **Beacon Fire** (12 wood, 12 stone, 6 resin): the game's bonfire lifted onto a timber tower. It burns wood, glows from afar
   (a distant ZDO with a distance-scaled glow and a long light), is named with Shift+E, and is pinned on the map for everyone
   who has seen it. With [Jarldom](#jarldom), it's the colony's beacon: the watch lights it when a jarl sails home at night
-  (other mods find it through `Wayfinder.Api`: NearestBeacon, LightBeacon, BeaconLit).
+  (other mods find it through `Wayfinder.Api`: NearestBeacon, LightBeacon, BeaconLit; and AddFeastDay/ClearFeastDays: the primstav
+  shows the next feast-day within a fortnight under its forecast, Jarldom's festivals among them).
 - **Sea-Mark** (4 wood, 2 resin): a water piece that bobs on the waves, with a lamp lit at night. Name it with E to pin it.
 
 Everything is in F7. The host and nearby players need the mod for the pieces, items on the ground and ship data. Checks cover

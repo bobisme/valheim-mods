@@ -170,6 +170,8 @@ namespace Wayfinder
             {
                 string f=Weather.Forecast(here);
                 if(f!="")sb.Append($"<color=#d8b880>Primstav</color> {f}\n");
+                string feast=Feasts.Next();
+                if(feast!="")sb.Append($"<size=85%><color=#b0a690>   feast-day: {feast}</color></size>\n");
                 if(Course.Active)
                 {
                     Vector3 at=Course.At(Course.Next);

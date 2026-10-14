@@ -179,6 +179,12 @@ namespace Wayfinder
                     output(new JObject{["beacon"]=b.HasValue?$"{b.Value.x:0},{b.Value.y:0},{b.Value.z:0}":"none",["lit"]=Api.BeaconLit(at,200f),["lightedNow"]=lit});
                     break;
                 }
+                case "feast": // ("wayfinder feast [name days]": a test feast day that many days on, under the source "test"; the primstav's line)
+                {
+                    if(args.Length>3){Api.ClearFeastDays("test");Api.AddFeastDay("test",EnvMan.instance.GetDay()+int.Parse(args[3]),args[2]);}
+                    output(new JObject{["next"]=Feasts.Next(),["days"]=new JArray(Feasts.Days.Select(d=>$"{d.source}: {d.name} on day {d.day}"))});
+                    break;
+                }
                 case "raven":
                     output(new JObject{["released"]=Raven.Release(me)});
                     break;
