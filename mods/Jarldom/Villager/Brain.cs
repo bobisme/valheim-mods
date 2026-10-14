@@ -368,6 +368,7 @@ namespace Jarldom
             if (Jarldom.Mood.Has(S, "inspired", Now)) mood *= 1.25f; // a day of their best work
             if (Time.time < SongUntil) mood *= WorkSongs.Pace; // (singing at the work with others)
             if (DimStage > 0) mood *= Dimming.Work(DimStage); // (fading: a tenth, then a fifth slower)
+            if (Colony != null) mood *= 1 + Festivals.Of(Colony.R.Flags, Festival.Midsummer, Festivals.MidsummerWork); // (Midsummer's blessing)
             return mood * Plugin.Instance.WorkRate.Value;
         }
 
@@ -438,6 +439,16 @@ namespace Jarldom
                         if (f.Length < 3 || Combat.Busy(this) || Task is SleepTask || Task is AscendTask || Follow.LeaderId(this) != 0) break;
                         if (!float.TryParse(f[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float fx) || !float.TryParse(f[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float fz)) break;
                         Task?.Stop(this); Task = new FarewellTask(new Vector3(fx, ZoneSystem.instance.GetGroundHeight(new Vector3(fx, 0, fz)), fz), f[2]); Task.Start(this);
+                    }
+                    break;
+                case "fest":
+                    {
+                        // (to the festival fire: anyone awake, not fighting, not out with the jarl)
+                        string[] f = arg.Split('|');
+                        if (f.Length < 4 || Combat.Busy(this) || Task is SleepTask || Task is AscendTask || Follow.LeaderId(this) != 0) break;
+                        var inv = System.Globalization.CultureInfo.InvariantCulture;
+                        if (!float.TryParse(f[0], System.Globalization.NumberStyles.Float, inv, out float x) || !float.TryParse(f[1], System.Globalization.NumberStyles.Float, inv, out float z)) break;
+                        Task?.Stop(this); Task = new FestTask(new Vector3(x, ZoneSystem.instance.GetGroundHeight(new Vector3(x, 0, z)), z), int.Parse(f[2]), int.Parse(f[3])); Task.Start(this);
                     }
                     break;
                 case "meet":

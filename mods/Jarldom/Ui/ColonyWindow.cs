@@ -282,6 +282,8 @@ namespace Jarldom.Ui
             }
             y = DogsPart(list, y);
             y = FirstSteps(list, y);
+            y = Heading(list, "The year", y);
+            y = Text(list, Calendar.Line(Year.Today()) + (Year.BySeasons ? " <color=#b8b0a0>(by the Seasons mod)</color>" : ""), y);
             y = Heading(list, "Odin's attention", y);
             y = Text(list, $"Renown <color=#ffd27a>{_c.Renown}</color> = wealth {_c.WealthPart} + comfort {_c.ComfortPart} + deeds {r.Deeds}", y);
             string why = Migration.Why(_c);

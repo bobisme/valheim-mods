@@ -356,6 +356,7 @@ namespace Jarldom
             if (Plugin.Instance.Payroll.Value && Payroll.IsPayday(day, R.LastPayday)) Payday(day);
             Migration.Dawn(this, day);
             Thing.CheckPromises(this, day);
+            Plugin.Guard(() => FestivalDays.Dawn(this, day));
             Tribute.Dawn(this, day);
             Saboteur.Dawn(this);
             Spirit.Dawn(this);
@@ -382,6 +383,7 @@ namespace Jarldom
             Tribute.Dusk(this, day);
             Warband.Dusk(this, day);
             Plugin.Guard(() => Lost.Dusk(this, day));
+            Plugin.Guard(() => FestivalDays.Dusk(this, day));
         }
 
         // ---- souls falling and rising ----

@@ -540,4 +540,39 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(mem2.Any(m => m.Unburied && m.Deed.Contains("burial ground")), "The stone says how to bring them home");
 }
 
+{
+    // The colony's year: ten-day seasons from the world's first day without the Seasons mod; its dates with it; a festival mid-season.
+    var d0 = Calendar.FromWorldDay(0);
+    Check(d0.Year == 1 && d0.Season == Season.Spring && d0.Day == 1 && d0.YearLength == 40, "World day 0: the first of spring, year 1, a 40-day year");
+    var d47 = Calendar.FromWorldDay(47);
+    Check(d47.Year == 2 && d47.Season == Season.Spring && d47.Day == 8, "Day 47: spring day 8 of year 2");
+    Check(Calendar.FromWorldDay(129).Season == Season.Spring && Calendar.FromWorldDay(129).Day == 10 && Calendar.FromWorldDay(130).Season == Season.Summer, "Seasons turn every ten days");
+    Check(Calendar.IsDay(Calendar.FromWorldDay(4), Festival.Sigrblot) && Calendar.IsDay(Calendar.FromWorldDay(14), Festival.Midsummer) && Calendar.IsDay(Calendar.FromWorldDay(24), Festival.WinterNights) && Calendar.IsDay(Calendar.FromWorldDay(34), Festival.Yule), "One festival a season, mid-season: Sigrblot, Midsummer, Winter Nights, Yule");
+    Check(Calendar.Next(Calendar.FromWorldDay(4)) == (Festival.Sigrblot, 0) && Calendar.Next(Calendar.FromWorldDay(5)) == (Festival.Midsummer, 9) && Calendar.Next(Calendar.FromWorldDay(35)) == (Festival.Sigrblot, 9), "The next festival and the days until it, round the turn of the year");
+    Check(Calendar.Preparing(Calendar.FromWorldDay(12), out Festival pf) && pf == Festival.Midsummer && Calendar.Preparing(Calendar.FromWorldDay(13), out _) && !Calendar.Preparing(Calendar.FromWorldDay(14), out _) && !Calendar.Preparing(Calendar.FromWorldDay(11), out _), "Readied in the two days before");
+    var odd = Calendar.FromSeasons(1, 7, new[] { 5, 20, 5, 30 }, 130);
+    Check(odd.Season == Season.Summer && odd.Day == 7 && odd.YearLength == 60 && odd.Year == 3 && Calendar.DayOf(Festival.Midsummer, odd.Lengths) == 10 && Calendar.DayOf(Festival.Yule, odd.Lengths) == 15, "With Seasons: its own lengths, the festival mid-season in each");
+    Check(Calendar.Next(odd) == (Festival.Midsummer, 3), "With Seasons: days to the next festival by its lengths");
+    var tiny = Calendar.FromWorldDay(0, 1);
+    Check(tiny.YearLength == 4 && Calendar.IsDay(tiny, Festival.Sigrblot), "One-day seasons still work");
+    Check(Calendar.Line(Calendar.FromWorldDay(12)) == "Summer, day 3 of 10, year 1. Midsummer in 2 days.", "A line for the window");
+}
+
+{
+    // Festivals: readied by what's in the hall, held at a quarter or more, a blessing as strong as the readying until the next; let slip below.
+    var mid = Festivals.Needs(Festival.Midsummer, 10);
+    Check(mid.Any(n => n.kind == "wood" && n.amount == 40) && mid.Any(n => n.kind == "food" && n.amount == 20), "Midsummer wants wood for the bonfire and food by the people");
+    Check(Festivals.Readied(mid, k => k == "wood" ? 40 : k == "dandelion" ? 10 : 20) == 1f && Math.Abs(Festivals.Readied(mid, k => k == "wood" ? 20 : 0) - 1f / 6) < 0.001f, "Readied: each want alike, met in part");
+    Check(Festivals.Needs(Festival.Sigrblot, 1).First(n => n.kind == "sacrifice").amount == 3 && Festivals.Needs(Festival.Yule, 12).First(n => n.kind == "mead").amount == 12, "Small colonies still want a little; Yule a mead each");
+    var ff = new Dictionary<string, int>();
+    Check(Festivals.Active(ff).festival == null, "No festival yet: no blessing");
+    Festivals.Hold(ff, Festival.Midsummer, 0.6f, 14);
+    Check(Festivals.Active(ff) == (Festival.Midsummer, 0.6f) && Math.Abs(Festivals.Of(ff, Festival.Midsummer, Festivals.MidsummerWork) - 0.03f) < 0.0001f && Festivals.Of(ff, Festival.Sigrblot, Festivals.SigrDamage) == 0, "Held: its blessing as strong as the readying, no other's");
+    Check(Festivals.Done(ff, 14) && !Festivals.Done(ff, 15), "Once a festival");
+    Festivals.Neglect(ff, Festival.WinterNights, 24);
+    Check(Festivals.Active(ff).festival == null && Festivals.Neglected(ff, 24) && Festivals.Neglected(ff, 25) && !Festivals.Neglected(ff, 26), "Let slip: the last blessing is gone, two unhappy days");
+    Festivals.Hold(ff, Festival.Yule, 1f, 34);
+    Check(Festivals.Active(ff) == (Festival.Yule, 1f) && !Festivals.Neglected(ff, 34), "The next one held: its blessing replaces, the neglect is over");
+}
+
 Console.WriteLine($"Jarldom: {checks} checks passed");

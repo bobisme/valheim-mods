@@ -156,6 +156,12 @@ namespace Jarldom
             M("dressed", "Dressed well", 4, 0),
             M("sport", "Had some sport", 4, 24),
             M("skal", "Toasted with the jarl", 6, 12),
+            M("midsummer", "Danced round the Midsummer fire", 14, 72),
+            M("sigrblot", "Blessed for victory at Sigrblot", 10, 72),
+            M("winternights", "Remembered the dead at Winter Nights", 10, 72),
+            M("yule", "Kept Yule together", 16, 96),
+            M("festblessed", "The festival's blessing", 4, 24),
+            M("festslip", "The festival was let slip", -8, 48),
         };
         private static MoodletInfo M(string id, string text, int value, double hours, Stack stack = Stack.Refresh, int max = 1) =>
             new MoodletInfo { Id = id, Text = text, Value = value, Hours = hours, Stack = stack, MaxStacks = max };

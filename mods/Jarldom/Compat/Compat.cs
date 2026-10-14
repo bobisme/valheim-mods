@@ -29,6 +29,7 @@ namespace Jarldom
             ("PartyHud", new[] { "com.quad.partyhud", "com.dhack.partyhud" }, "(not yet)"),
             ("LedgerChest", new[] { "com.quad.ledgerchest", "com.dhack.ledgerchest" }, "(not yet)"),
             ("ClaudeTools", new[] { "com.quad.claudetools", "com.dhack.claudetools" }, "the jarldom command"),
+            ("Seasons", new[] { "shudnal.Seasons" }, "the colony's year follows its seasons (festivals mid-season)"),
         };
         public static BaseUnityPlugin Find(params string[] guids)
         {
@@ -38,6 +39,35 @@ namespace Jarldom
         public static bool Has(string name) => Known.Where(k => k.name == name).Any(k => Find(k.guids) != null);
         public static IEnumerable<(string name, bool present, string version, string use)> Report() =>
             Known.Select(k => { BaseUnityPlugin p = Find(k.guids); return (k.name, p != null, p?.Info?.Metadata?.Version?.ToString() ?? "", k.use); });
+
+        // ---- Seasons (shudnal): the season, its day and each season's length, from its static state (reflection: no published API) ----
+        private static BaseUnityPlugin _seasonsPlugin; private static FieldInfo _seasonState; private static MethodInfo _season, _seasonDay, _seasonLength;
+        public static bool Seasons(out int season, out int day, out int[] lengths)
+        {
+            season = 0; day = 1; lengths = null;
+            BaseUnityPlugin p = Find("shudnal.Seasons");
+            if (p == null) return false;
+            try
+            {
+                if (p != _seasonsPlugin)
+                {
+                    _seasonsPlugin = p;
+                    Type t = p.GetType().Assembly.GetType("Seasons.Seasons");
+                    _seasonState = t?.GetField("seasonState", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+                    Type st = _seasonState?.FieldType;
+                    _season = st?.GetMethod("GetCurrentSeason", Type.EmptyTypes); _seasonDay = st?.GetMethod("GetCurrentDay", Type.EmptyTypes);
+                    _seasonLength = st?.GetMethods().FirstOrDefault(m => m.Name == "GetDaysInSeason" && m.GetParameters().Length == 1);
+                }
+                object state = _seasonState?.GetValue(null);
+                if (state == null || _season == null || _seasonDay == null || _seasonLength == null) return false;
+                object now = _season.Invoke(state, null);
+                season = Convert.ToInt32(now); day = (int)_seasonDay.Invoke(state, null);
+                Type e = now.GetType();
+                lengths = Enumerable.Range(0, 4).Select(i => (int)_seasonLength.Invoke(state, new[] { Enum.ToObject(e, i) })).ToArray();
+                return true;
+            }
+            catch (Exception ex) { Plugin.Trace("Jarldom: Seasons not read: " + ex.Message); return false; }
+        }
 
         // ---- Omens: one gods' favour per world; the great stag ----
         private static readonly ApiRef Omens = new ApiRef("Omens.Api", "com.bobisme.omens");

@@ -53,6 +53,13 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
   Hel. The **memorial stone** (hammer → Misc) lists the remembered. Villagers greet the jarl in Old Norse, sing at work, watch the
   northern lights (with Omens), keep a corner by their bed, and come down to the dock to meet a ship home; a tame wolf can be the
   village dog.
+- **The year** (from 0.1.80): four seasons, the dates of shudnal's [Seasons](https://thunderstore.io/c/valheim/p/shudnal/Seasons/) mod when it's
+  installed, else ten days each; the hall tab shows the date. One festival a season, mid-season: **Sigrblot** (spring), **Midsummer**,
+  **Winter Nights** (autumn), **Yule** (winter). Two dawns before, the colony is told what to bring to the great hall's chests (wood,
+  dandelions, food, mead, trophies or raw meat); at dusk on the day it's kept (the goods used), with a blessing as strong as the
+  readying until the next one: Sigrblot, fighters and the jarl's party strike up to a tenth harder and trade runs bring more;
+  Midsummer, work goes faster; Winter Nights, worth grows faster; Yule, good cheer. Readied less than a quarter, it's let slip and
+  the colony is downcast. At Midsummer a bonfire is lit on open ground by the hall and the colony dances round it.
 - **Raids** near the colony sound the war horn and grow with renown; fighters arm themselves and go out to the raiders, the rest run
   for the great hall. What's left of a draugr warband sinks back into the earth at dawn.
   **The Fulings** (hamlet and up) send a herald now and then: pay from the hall tab by dusk (more each time), or they raid; paying
@@ -148,6 +155,8 @@ first hour in a normal world, two players sharing a colony, following by ship, k
 22. `jarldom dim <name> 8` then `16`: paler, then grey-haired; their panel asks for a deed; doing it (or the gothi's rite) ends it.
 23. A villager lost (dies with no bed): their draugr is pinned by name; kill it, pick up the glowing remains, use them in a marked
     burial ground: the memorial stone (E) shows them resting with Hel.
+24. `jarldom calendar`, `jarldom festival`: the date and what the next festival wants; fill the hall's chests and wait for its dusk
+    (or `jarldom festival hold Midsummer`): the bonfire, the dance, the blessing (`jarldom festival show <name>`: the ceremony alone).
 
 ## Looking-Glass Portals
 

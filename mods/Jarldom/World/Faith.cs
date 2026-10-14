@@ -20,7 +20,11 @@ namespace Jarldom
             private static void Prefix(Character __instance, HitData hit)
             {
                 Character attacker = hit?.GetAttacker();
-                if (attacker == null || !VillagerPrefab.Is(attacker) || VillagerPrefab.Is(__instance) || __instance.IsPlayer()) return;
+                if (attacker == null || VillagerPrefab.Is(__instance) || __instance.IsPlayer() || Combat.Friendly(__instance)) return;
+                // Sigrblot: the colony's fighters and its jarl's party (players near it) strike harder.
+                Colony near = Colony.At(attacker.transform.position) ?? Colony.All.FirstOrDefault(c => c.Valid && Utils.DistanceXZ(c.Position, attacker.transform.position) < c.Radius * 3);
+                if (near != null && (VillagerPrefab.Is(attacker) || attacker.IsPlayer())) { float sigr = Festivals.Of(near.R.Flags, Festival.Sigrblot, Festivals.SigrDamage); if (sigr > 0) hit.m_damage.Modify(1 + sigr); }
+                if (!VillagerPrefab.Is(attacker)) return;
                 if (Blessed(Colony.At(attacker.transform.position), "thor")) hit.m_damage.Modify(1.1f);
             }
         }
@@ -49,7 +53,7 @@ namespace Jarldom
             foe.Damage(hit);
         }
         public static string FavourWord(int f) => f <= -60 ? "wrathful" : f < -10 ? "displeased" : f <= 10 ? "watching" : f < 60 ? "pleased" : "delighted";
-        public static float OdinWorthBonus(Colony c) => c != null && Odin(c) >= 30 ? 0.25f : 0;
+        public static float OdinWorthBonus(Colony c) => (c != null && Odin(c) >= 30 ? 0.25f : 0) + (c != null ? Festivals.Of(c.R.Flags, Festival.WinterNights, Festivals.WinterWorth) : 0); // (and Winter Nights' blessing)
         public static int Odin(Colony c) => Compat.OmensFate(out int fate) ? Favour.Clamp(fate * 20 + c.R.Flag("omenspool")) : c.FavourOf("odin"); // (with Omens: its fate in steps of 20, and what's put by toward the next)
 
         // A weapon for the war gods: not a bow, and not a tool that happens to be held two-handed (a pickaxe).

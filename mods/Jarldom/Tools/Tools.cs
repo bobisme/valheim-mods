@@ -527,6 +527,26 @@ namespace Jarldom
                 case "shipburial": { Vector3 at = new Vector3(F(a[2]), 0, F(a[3])); at.y = Ground(at); Quaternion rot = Quaternion.Euler(0, a.Length > 4 ? F(a[4]) : 0, 0); Vector3 dir = ShipBurial.Out(at, c.Position); Net.ShipBurial_(at, rot, dir, at - dir * 12f + Vector3.up * 1.5f); output(new JObject { ["from"] = V(at), ["out"] = V(dir), ["buildHere"] = Pieces.KarveWhy(at) }); } break; // (the last voyage, without an ascension; and whether a funeral ship could be built there)
                 case "music": { MusicMan mm = MusicMan.instance; if (mm == null) { error("no music"); return; } if (a.Length > 2) mm.TriggerMusic(a[2]); output(new JObject { ["tracks"] = new JArray(mm.m_music.Where(m => m != null).Select(m => $"{m.m_name} (loop {m.m_loop}, vol {m.m_volume:0.##})")) }); } break;
                 case "valkyrie": { Vector3 at = a.Length > 3 ? new Vector3(F(a[2]), 0, F(a[3])) : me.transform.position + me.transform.forward * 10f; at.y = Ground(at); Net.ValkyrieCircle(at); output(new JObject { ["circling"] = V(at) }); } break; // (the ascension's flight, without one)
+                case "festival":
+                    {
+                        // What the next festival wants and how readied it is; "hold <name>": keep it now (as at dusk on its day); "clear": no blessing.
+                        if (a.Length > 3 && a[2] == "hold" && Enum.TryParse(a[3], true, out Festival hf)) FestivalDays.Hold(c, hf, c.Day);
+                        if (a.Length > 3 && a[2] == "show" && Enum.TryParse(a[3], true, out Festival sf)) FestivalDays.Ceremony(c, sf); // (the ceremony alone: no goods, no blessing)
+                        if (a.Length > 2 && a[2] == "clear") { foreach (string k in c.R.Flags.Keys.Where(k => k.StartsWith("fest:")).ToList()) c.R.Flags.Remove(k); c.MarkDirty(); }
+                        var (nf, nd) = Calendar.Next(Year.Today()); var (af, ap) = Festivals.Active(c.R.Flags);
+                        output(new JObject { ["next"] = Calendar.Name(nf), ["days"] = nd, ["readied"] = Mathf.RoundToInt(FestivalDays.Readied(c, nf) * 100), ["wants"] = FestivalDays.Wants(c, nf),
+                            ["blessing"] = af == null ? "none" : $"{Calendar.Name(af.Value)} at {Mathf.RoundToInt(ap * 100)}%", ["neglected"] = Festivals.Neglected(c.R.Flags, c.Day) });
+                    }
+                    break;
+                case "calendar":
+                    {
+                        // Today in the colony's year, and (with a world day) that day: the festivals and the days until the next.
+                        Date d = a.Length > 2 ? Calendar.FromWorldDay(int.Parse(a[2])) : Year.Today();
+                        var (f, until) = Calendar.Next(d);
+                        output(new JObject { ["worldDay"] = Year.WorldDay, ["bySeasons"] = Year.BySeasons, ["date"] = d.ToString(), ["line"] = Calendar.Line(d), ["lengths"] = string.Join(",", d.Lengths), ["next"] = Calendar.Name(f), ["days"] = until,
+                            ["festivals"] = new JArray(Calendar.All.Select(x => $"{Calendar.Name(x)}: {Calendar.Name(Calendar.SeasonOf(x))} day {Calendar.DayOf(x, d.Lengths)}")) });
+                    }
+                    break;
                 case "matprops":
                     {
                         // A villager's body material: its shader's properties and values (for the look of the Dimming).
