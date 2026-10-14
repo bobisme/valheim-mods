@@ -104,7 +104,45 @@ namespace Jarldom
             c.MarkDirty();
             Ceremony(c, f);
         }
-        public static void Ceremony(Colony c, Festival f) { if (f == Festival.Midsummer) Plugin.Guard(() => Midsummer(c)); }
+        public static void Ceremony(Colony c, Festival f)
+        {
+            if (f == Festival.Midsummer) Plugin.Guard(() => Midsummer(c));
+            else if (f == Festival.Sigrblot) Plugin.Guard(() => Sigrblot(c));
+        }
+
+        // ---- Sigrblot: the sacrifice for victory ----
+        // At Odin's altar (or before the pillars, with none): the fighters in a line facing it, the rest behind; the gothi (or the
+        // skald, or the worthiest) calls on the Allfather and burns the sacrifice, blesses each fighter in turn (each answers with a
+        // war cry), and the colony shouts for victory; Odin answers with thunder. Timed from a start on the world's clock, so it plays
+        // in step on every game that runs one of them.
+        public const float SigrCall = 22f, SigrFire = 29f, SigrFirst = 36f, SigrEach = 5f;
+        public static float SigrEnd(int fighters) => SigrFirst + fighters * SigrEach + 3f;
+        private static void Sigrblot(Colony c)
+        {
+            Piece altar = Saboteur.OdinAltar(c);
+            Vector3 at = altar != null ? altar.transform.position : c.Position;
+            Vector3 fwd = altar != null ? altar.transform.forward : c.Seat.transform.forward; fwd.y = 0; fwd.Normalize();
+            var living = c.R.Living.ToList();
+            RosterRow priest = living.FirstOrDefault(r => r.Prof == Prof.Gothi) ?? living.FirstOrDefault(r => r.Prof == Prof.Skald) ?? living.OrderByDescending(r => r.Worth).FirstOrDefault();
+            var fighters = living.Where(r => r != priest && (r.Prof == Prof.Guard || r.Prof == Prof.Hunter)).Take(8).ToList();
+            var rest = living.Where(r => r != priest && !fighters.Contains(r)).ToList();
+            long start = ZNet.instance.GetTime().Ticks;
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            string Head(string role, int i, int n) => string.Join("|", start.ToString(inv), at.x.ToString(inv), at.y.ToString(inv), at.z.ToString(inv), fwd.x.ToString(inv), fwd.z.ToString(inv), role, i.ToString(inv), n.ToString(inv), fighters.Count.ToString(inv));
+            if (priest != null) Villagers.Command(priest.Vid, "sigr", Head("gothi", 0, 1) + "|" + string.Join(",", fighters.Select(r => r.Name)));
+            for (int i = 0; i < fighters.Count; i++) Villagers.Command(fighters[i].Vid, "sigr", Head("fighter", i, fighters.Count) + "|" + fighters[i].Name);
+            for (int i = 0; i < rest.Count; i++) Villagers.Command(rest[i].Vid, "sigr", Head("watch", i, rest.Count) + "|");
+            c.Tell($"Sigrblot: the colony gathers at {(altar != null ? "Odin's altar" : "the pillars")} to sacrifice for victory.", true);
+        }
+        // Where each stands: fighters in a line 3 m out from the altar, facing it; the rest in a half-ring behind them.
+        public static Vector3 SigrSpot(Vector3 altar, Vector3 fwd, string role, int i, int n)
+        {
+            Vector3 side = new Vector3(fwd.z, 0, -fwd.x);
+            if (role == "gothi") return altar + fwd * 1.1f;
+            if (role == "fighter") return altar + fwd * 3.2f + side * ((i - (n - 1) / 2f) * 1.1f);
+            float a = Mathf.PI * (0.15f + 0.7f * (n <= 1 ? 0.5f : i / (float)(n - 1)));
+            return altar + fwd * 6f + (side * Mathf.Cos(a) + fwd * Mathf.Sin(a)) * 2.5f;
+        }
 
         // ---- Midsummer: the bonfire ----
         private static void Midsummer(Colony c)
@@ -131,9 +169,24 @@ namespace Jarldom
             }
             return null;
         }
+        // Sigrblot's sacrifice burning on the altar, and Odin's answer: on every game near.
+        public static void SigrShow(int what, Vector3 at)
+        {
+            if (Player.m_localPlayer == null || Vector3.Distance(Player.m_localPlayer.transform.position, at) > 200) return;
+            if (what == 1) { Assets.Effect("fx_Lightning", at); return; }
+            GameObject bonfire = Assets.Find("bonfire"); if (bonfire == null) return;
+            var go = new GameObject("JarldomSigrFire"); go.transform.position = at + Vector3.up * 0.9f;
+            GameObject p = bonfire.transform.Find("_enabled_high/fx_BonfireFlames")?.gameObject;
+            if (p != null) { GameObject f = UnityEngine.Object.Instantiate(p, go.transform, false); f.SetActive(true); f.transform.localScale = Vector3.one * 0.35f; }
+            Light glow = new GameObject("glow").AddComponent<Light>(); glow.transform.SetParent(go.transform, false); glow.transform.localPosition = Vector3.up * 0.8f;
+            glow.type = LightType.Point; glow.color = new Color(1f, 0.5f, 0.2f); glow.range = 9f; glow.intensity = 2f;
+            Assets.Effect("vfx_FireAddFuel", at + Vector3.up);
+            UnityEngine.Object.Destroy(go, 70f);
+        }
         // On every game near: the fire itself (the bonfire's log heap, flames and crackle, no colliders, no fuel), dusk to dawn.
         public static void Show(int kind, Vector3 at)
         {
+            if (kind >= 100) { SigrShow(kind - 100, at); return; }
             if ((Festival)kind != Festival.Midsummer || Player.m_localPlayer == null || Vector3.Distance(Player.m_localPlayer.transform.position, at) > 300) return;
             GameObject bonfire = Assets.Find("bonfire");
             if (bonfire == null) return;
@@ -181,5 +234,68 @@ namespace Jarldom
             if (UnityEngine.Random.value < 0.25f) { string[] l = Calls[UnityEngine.Random.Range(0, Calls.Length)].Split(new[] { " / " }, StringSplitOptions.None); b.Say(Greetings.Show((l[0], l[1])), 5); }
         }
         public override void Stop(Brain b) { if (b.View != null && b.View.IsValid()) Body_.Anim(b.Body)?.SetTrigger("emote_stop"); }
+    }
+}
+
+namespace Jarldom
+{
+    // One part in Sigrblot: the gothi, a fighter, or one watching (FestivalDays.Sigrblot sets it; the beats go by the world's clock).
+    internal sealed class SigrTask : Task
+    {
+        private readonly long _start; private readonly Vector3 _altar, _fwd; private readonly string _role, _name; private readonly int _i, _n, _fighters; private readonly string[] _blessed;
+        private int _beat = -1; private Vector3 _spot;
+        private static readonly string[] Calls = { "Allföðr, Sigföðr! Heyr oss! / Allfather, Victory-father! Hear us!", "Óðinn, gef oss sigr! / Odin, give us victory!", "Hrafnaguð, sjá þitt fólk! / Raven-god, see your people!" };
+        private static readonly string[] Burns = { "Tak þessa fórn! / Take this sacrifice!", "Blóð ok eldr fyrir þik! / Blood and fire for you!", "Þiggðu, Óðinn! / Accept it, Odin!" };
+        private static readonly string[] Answers = { "Til sigrs! / To victory!", "Fyrir Óðin! / For Odin!", "Ek skal eigi flýja! / I shall not flee!", "Sverð mitt er þitt! / My sword is yours!", "Sigr eða Valhöll! / Victory or Valhalla!" };
+        public SigrTask(long start, Vector3 altar, Vector3 fwd, string role, int i, int n, int fighters, string extra)
+        {
+            _start = start; _altar = altar; _fwd = fwd; _role = role; _i = i; _n = n; _fighters = fighters;
+            _blessed = role == "gothi" ? extra.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries) : new string[0]; _name = extra;
+            Doing = role == "gothi" ? "leading the Sigrblot" : role == "fighter" ? "standing for the blessing at Sigrblot" : "watching the Sigrblot";
+        }
+        public override bool Interruptible => false;
+        private float T => (float)((ZNet.instance.GetTime().Ticks - _start) / (double)TimeSpan.TicksPerSecond);
+        public override void Start(Brain b) { _spot = Colony.Spot(FestivalDays.SigrSpot(_altar, _fwd, _role, _i, _n), 1.2f) ?? FestivalDays.SigrSpot(_altar, _fwd, _role, _i, _n); b.Move.To(_spot, 0.6f); }
+        private static void Say(Brain b, string[] lines) { string[] l = lines[UnityEngine.Random.Range(0, lines.Length)].Split(new[] { " / " }, StringSplitOptions.None); b.Say(Greetings.Show((l[0], l[1])), 6); }
+        private void Face(Brain b, Vector3 to) { Vector3 d = to - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized); }
+        public override void Tick(Brain b)
+        {
+            float t = T, end = FestivalDays.SigrEnd(_fighters);
+            if (t > end + 10f || b.Colony == null || b.Colony.RaidOn) { Done = true; return; }
+            if (b.Move.Moving && !b.Move.Failed) return;
+            if (_role == "gothi") { Gothi(b, t, end); return; }
+            Face(b, _altar);
+            if (_role == "fighter")
+            {
+                float mine = FestivalDays.SigrFirst + _i * FestivalDays.SigrEach + 1.5f;
+                if (_beat < 0 && t >= mine) { _beat = 0; Body_.Anim(b.Body)?.SetTrigger("emote_challenge"); Say(b, Answers); }
+            }
+            if (_beat < 1 && t >= end) { _beat = 1; Body_.Anim(b.Body)?.SetTrigger(UnityEngine.Random.value < 0.5f ? "emote_cheer" : "emote_roar"); if (UnityEngine.Random.value < 0.4f) b.Say(Greetings.Show(("Sigr!", "Victory!")), 4); }
+        }
+        private int _blessing = -1; private bool _point; // (the gothi: which fighter they're at, and the touch still to give)
+        private void Gothi(Brain b, float t, float end)
+        {
+            if (t < FestivalDays.SigrCall) { Face(b, _altar); return; }
+            if (_beat < 0) { _beat = 0; Face(b, _altar); Body_.Anim(b.Body)?.SetTrigger("emote_point"); Say(b, Calls); return; }
+            if (_beat == 0 && t >= FestivalDays.SigrFire) { _beat = 1; Face(b, _altar); Body_.Anim(b.Body)?.SetTrigger("emote_point"); Say(b, Burns); Net.Fest_(100, _altar); return; }
+            if (_beat < 1) return;
+            int k = Mathf.FloorToInt((t - FestivalDays.SigrFirst) / FestivalDays.SigrEach);
+            if (t >= FestivalDays.SigrFirst && k < _blessed.Length && k > _blessing)
+            {
+                // (to the next fighter, before them, with a word)
+                _blessing = k; _point = true;
+                b.Move.To(FestivalDays.SigrSpot(_altar, _fwd, "fighter", k, _fighters) - _fwd * 1.0f, 0.4f);
+                b.Say(Greetings.Show(($"Sigr fylgi þér, {_blessed[k]}!", $"Victory go with you, {_blessed[k]}!")), 5);
+                return;
+            }
+            if (_point && !b.Move.Moving) { _point = false; Face(b, FestivalDays.SigrSpot(_altar, _fwd, "fighter", _blessing, _fighters)); Body_.Anim(b.Body)?.SetTrigger("emote_point"); return; }
+            if (t >= end && _beat != 2)
+            {
+                _beat = 2; b.Move.To(_spot, 0.6f); Face(b, _altar);
+                Body_.Anim(b.Body)?.SetTrigger("emote_challenge");
+                b.Say(Greetings.Show(("Óðinn sá oss! Sigr!", "Odin has seen us! Victory!")), 6);
+                Net.Fest_(101, _altar + _fwd * 14f + new Vector3(_fwd.z, 0, -_fwd.x) * 6f); // (and he answers)
+            }
+        }
     }
 }
