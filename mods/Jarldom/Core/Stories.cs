@@ -137,6 +137,16 @@ namespace Jarldom
                         $"A feast was thrown in the hall{s}.",
                         $"The hall feasted{s}.");
                 }
+                case "slew": return Telling(e,
+                    $"{e.A} slew {e.B}.",
+                    $"{e.A} brought down {e.B}.",
+                    $"{e.A} made an end of {e.B}.");
+                case "home": return Telling(e,
+                    $"{e.A} came home after {e.B} days away.",
+                    $"{e.A} was home again, {e.B} days gone.",
+                    $"After {e.B} days away, {e.A} came home.");
+                case "fest": return $"The colony kept {e.B}{e.Text}.";
+                case "verse": return $"{e.A} sang: “{e.Text.Replace(" / ", " / ")}”";
                 case "byname": return Telling(e,
                     $"{e.A} was named {e.B}.",
                     $"{e.A} was given the name {e.B}.",

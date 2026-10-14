@@ -26,7 +26,7 @@ namespace Jarldom
             foreach (string d in arg.Split(';').Where(x => x != ""))
             {
                 string[] f = d.Split(':');
-                if (f[0] == "boss" && f.Length > 1) { Tally.Boss(c.R.Flags, who, f[1]); c.Log("text", "", "", $"{who} slew {Boss(f[1])}."); }
+                if (f[0] == "boss" && f.Length > 1) { Tally.Boss(c.R.Flags, who, f[1]); c.Log("slew", who, Boss(f[1])); }
             }
             Title(c, who); c.MarkDirty();
         }
@@ -50,7 +50,7 @@ namespace Jarldom
                 string who = p.GetPlayerName();
                 if (!c.AllowedName(who)) continue;
                 int away = Tally.Home(c.R.Flags, who, c.Day);
-                if (away > 0) Title(c, who);
+                if (away > 0) { c.Log("home", who, away.ToString()); Title(c, who); }
                 c.MarkDirty();
             }
         }

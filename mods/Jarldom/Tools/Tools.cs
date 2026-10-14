@@ -553,6 +553,18 @@ namespace Jarldom
                             ["blessing"] = af == null ? "none" : $"{Calendar.Name(af.Value)} at {Mathf.RoundToInt(ap * 100)}%", ["neglected"] = Festivals.Neglected(c.R.Flags, c.Day) });
                     }
                     break;
+                case "logdrop": // (test: saga entries a test left, by a piece of their text or names: "logdrop <words>")
+                    {
+                        string q = string.Join(" ", a.Skip(2));
+                        if (q.Length < 4 || !c.IsOwner) { error("logdrop <at least 4 characters>, on the owner"); return; }
+                        int n = c.R.Log.RemoveAll(e => $"{e.Kind} {e.A} {e.B} {e.Text}".Contains(q)); c.MarkDirty();
+                        output(new JObject { ["removed"] = n });
+                    }
+                    break;
+                case "verse": // ("verse": what the skald would sing tonight; "verse now": sung again this evening, from the deeds since the last)
+                    if (a.Length > 2 && a[2] == "now" && c.IsOwner) { c.R.Flags.Remove(HallTask.VerseKey); c.MarkDirty(); }
+                    output(new JObject { ["verse"] = new JArray(HallTask.TheVerse(c)), ["sung"] = c.R.Flag(HallTask.VerseKey), ["since"] = c.R.Flag(HallTask.VerseAtKey) });
+                    break;
                 case "tally":
                     {
                         // "tally": every jarl's tally and byname; "tally <player> <what> <n>" adds (on the owner); "tally <player> boss <prefab>"

@@ -614,4 +614,21 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Bynames.Tier("Fader") == 7 && Bynames.Tier("Troll") == 0, "Boss tiers");
 }
 
+{
+    // The skald's verse: the weightiest of the day's deeds, each kind once, 2-4 lines, alliterating, the same for the same seed.
+    var day = new List<LogEntry> {
+        new LogEntry(1, 5, "kill", "Ulf", "Greyling", ""), new LogEntry(2, 5, "slew", "Bob", "Bonemass", ""), new LogEntry(3, 5, "raidheld", "", "the Fulings", ""),
+        new LogEntry(4, 5, "starkill", "Ulf", "Troll", ""), new LogEntry(5, 5, "starkill", "Ase", "Draugr", ""), new LogEntry(6, 5, "ring", "Ulf", "Bob", ""), new LogEntry(7, 5, "payday", "", "", "") };
+    var verse = Verse.Make(day, 7, p => p == "Bob" ? "Bob Ring-giver" : p);
+    Check(verse.Count == 4 && verse[0].Contains("Bonemass") && verse[0].StartsWith("Bob Ring-giver"), "A boss slain is sung first, by the jarl's byname");
+    Check(verse.Count(l => l.Contains("mighty")) == 1 && verse.Any(l => l.Contains("Ase")) && !verse.Any(l => l.Contains("Greyling")), "Each kind once (its latest); plain kills and paydays aren't sung");
+    Check(Verse.Make(day, 7, null).SequenceEqual(Verse.Make(day, 7, null)), "Deterministic");
+    var one = Verse.Make(new[] { new LogEntry(1, 5, "arrive", "Gudrun", "", "") }, 1);
+    Check(one.Count == 2 && one[0].StartsWith("Gudrun"), "One deed: its line and a closing one");
+    Check(Verse.Make(new[] { new LogEntry(1, 5, "payday", "", "", "") }, 1).Count == 0, "Nothing worth singing: no verse");
+    var vrng = new Random(3);
+    Check(Verse.Alliter(vrng, new[] { "bold", "grim", "brave" }, "Bob").StartsWith("b") && Verse.Alliter(vrng, new[] { "bold" }, "Xavier") == "bold", "Alliteration on the name's first sound, else any word");
+    Check(Verse.Make(day, 11).All(l => !l.Contains("{") && l.Length > 10), "Lines are filled in");
+}
+
 Console.WriteLine($"Jarldom: {checks} checks passed");

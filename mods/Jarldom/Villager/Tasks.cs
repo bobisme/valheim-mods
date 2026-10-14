@@ -203,6 +203,7 @@ namespace Jarldom
             }
             Mood.Satisfy(b.S, Need.Social, (float)(b.GameDt / Clock.Hour) * (Shelter ? 6f : 12f)); // (huddled together in a raid is company too)
             if (Shelter) return;
+            if (b.S.Prof == Prof.Skald && b.Held == null && Recite(b)) return; // (the night's verse first)
             if (b.S.Prof == Prof.Skald && b.Held == null && Time.time > _nextSong) Sing(b);
             if (!_counted && b.Colony.RoomAt(b.Pos, RoomType.GreatHall) != null) { _counted = true; Mood.Add(b.S, "hall", b.Now); b.S.Bump("halls"); }
             if (_counted && !_drank) { _drank = true; Drink(b); }
@@ -230,6 +231,52 @@ namespace Jarldom
                 b.S.Bump("drinks"); b.Dirty();
                 return;
             }
+        }
+        // The night's verse: once an evening, the skald sings the day's deeds (Core/Verse.cs) a line at a time, to the hall and to the
+        // players in it, and the verse goes into the chronicle.
+        private List<string> _verse; private int _line; private float _nextLine, _thereAt;
+        public const string VerseKey = "verse:day", VerseAtKey = "verse:at";
+        private bool Recite(Brain b)
+        {
+            Colony c = b.Colony;
+            if (_verse == null)
+            {
+                // (a little after the skald has taken their place by the hall's hearth, whatever their hours)
+                Room at = c.Best(RoomType.GreatHall);
+                if (!c.IsOwner || !_there || Shelter || at == null || Utils.DistanceXZ(b.Pos, c.Centre(at)) > 25f || c.R.Flag(VerseKey) == c.Day) return false;
+                if (_thereAt == 0) _thereAt = Time.time;
+                if (Time.time - _thereAt < 20f) return false;
+                c.R.Flags[VerseKey] = c.Day; c.MarkDirty();
+                _verse = TheVerse(c);
+                _line = 0; _nextLine = Time.time + 2f;
+                if (_verse.Count == 0) return false;
+                c.R.Flags[VerseAtKey] = (int)c.Now;
+                Body_.Anim(b.Body)?.SetTrigger("emote_cheer");
+            }
+            if (_line >= _verse.Count) return false;
+            if (Time.time < _nextLine) return true;
+            _nextLine = Time.time + 6.5f;
+            string line = _verse[_line++];
+            if (!WorkEmotes.Sing(b, true)) Body_.Anim(b.Body)?.SetTrigger("emote_headbang");
+            Assets.Effect("sfx_wood_hit", b.Pos + Vector3.up);
+            b.Say(line, 6.5f);
+            Room hall = c.Best(RoomType.GreatHall);
+            foreach (Player p in Player.GetAllPlayers().Where(p => p != null && hall != null && (c.RoomAt(p.transform.position) == hall || Vector3.Distance(p.transform.position, b.Pos) < 12f)))
+                p.Message(MessageHud.MessageType.Center, $"<size=80%><i>{b.S.Name} sings: “{line}”</i></size>");
+            if (_line >= _verse.Count)
+            {
+                c.Log("verse", b.S.Name, "", string.Join(" / ", _verse));
+                foreach (Brain o in Villagers.All.Where(o => o.S.Colony == c.Id && Vector3.Distance(o.Pos, b.Pos) < 20)) { Mood.Satisfy(o.S, Need.Social, 8); if (!Mood.Has(o.S, "skald", o.Now)) Mood.Add(o.S, "skald", o.Now); o.Dirty(); }
+                b.S.Bump("verses");
+            }
+            return true;
+        }
+        // The deeds since the last verse (or today's), sung by the jarls' bynames.
+        public static List<string> TheVerse(Colony c)
+        {
+            int since = c.R.Flag(VerseAtKey);
+            var deeds = c.R.Log.Where(e => since > 0 ? e.Time > since : e.Day >= c.Day - 1).ToList();
+            return Verse.Make(deeds, c.Day ^ c.Id.GetStableHashCode(), p => JarlDeeds.Named(c, p));
         }
         // The skald plays: a verse, a cheer, and everyone in the hall feels it.
         private float _nextSong;

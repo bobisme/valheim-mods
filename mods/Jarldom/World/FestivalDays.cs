@@ -121,7 +121,7 @@ namespace Jarldom
             foreach (RosterRow r in c.R.Living) { Villagers.Command(r.Vid, "mood", mood); Villagers.Command(r.Vid, "gain", "festival"); } // (keeping the year's rites together is worthy)
             int pct = Mathf.RoundToInt(readied * 100);
             c.Tell($"{Calendar.Name(f)} is kept tonight{(pct < 100 ? $" ({pct}% readied)" : "")}! Until the next festival, {Festivals.Blessing(f)}.", true);
-            c.Log("text", "", "", $"The colony kept {Calendar.Name(f)}{(pct >= 100 ? " in full" : pct >= 60 ? "" : ", though thinly")}.");
+            c.Log("fest", "", Calendar.Name(f), pct >= 100 ? " in full" : pct >= 60 ? "" : ", though thinly");
             c.MarkDirty();
             Ceremony(c, f, true);
         }
