@@ -31,7 +31,7 @@ namespace WrongUniverse
         }
         internal static void Clear()
         {
-            foreach(AudioClip c in Made.Values)if(c!=null)Object.Destroy(c);
+            if(ZNetScene.instance==null)foreach(AudioClip c in Made.Values)if(c!=null)Object.Destroy(c);   // (in a world, loops still playing keep theirs)
             Made.Clear();_mixer=null;
         }
 

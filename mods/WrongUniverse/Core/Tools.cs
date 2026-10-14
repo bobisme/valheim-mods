@@ -26,7 +26,7 @@ namespace WrongUniverse
             if(found==null)return;
             try
             {
-                string help="wu list | give <prefab|all> | held"+string.Concat(Features.All.Where(f=>f.Command!=null).Select(f=>" | "+f.Command+" "+(f.Help??"")))+
+                string help="wu list | give <prefab|all> | held | icons"+string.Concat(Features.All.Where(f=>f.Command!=null).Select(f=>" | "+f.Command+" "+(f.Help??"")))+
                     ": check Wrong Universe. list shows the items, give puts one (or one of each) in the inventory, held says what's in hand.";
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name,"wu",help,
                     (Func<string[],Action<JObject>,Action<string>,IEnumerator>)Run});
@@ -66,6 +66,29 @@ namespace WrongUniverse
                         given.Add(d.Prefab+(item!=null?"":" (no room)"));
                     }
                     output(new JObject{["given"]=given});
+                    return null;
+                }
+                case "icons":
+                {
+                    // Draws every item's icon again (now, in the world) and saves each to claude/shots/wu-icon-<prefab>.png.
+                    string dir=System.IO.Path.Combine(Paths.BepInExRootPath,"claude","shots");
+                    var res=new JObject();
+                    foreach(ItemDef d in Things.All)
+                    {
+                        if(d.Built==null){res[d.Prefab]="not built";continue;}
+                        Sprite s=Icon.MakeItem(d.Built,d.Attach,d.IconLook);
+                        if(s==null)
+                        {
+                            string raw=System.IO.Path.Combine(dir,"wu-icon-"+d.Prefab+"-refused.png");
+                            if(Icon.LastTexture!=null)System.IO.File.WriteAllBytes(raw,ImageConversion.EncodeToPNG(Icon.LastTexture));
+                            res[d.Prefab]="refused: "+Icon.LastWhy;Icon.LastTexture=null;continue;
+                        }
+                        d.Shared.m_icons=new[]{s};
+                        string file=System.IO.Path.Combine(dir,"wu-icon-"+d.Prefab+".png");
+                        System.IO.File.WriteAllBytes(file,ImageConversion.EncodeToPNG(s.texture));
+                        res[d.Prefab]=file;
+                    }
+                    output(res);
                     return null;
                 }
                 case "held":

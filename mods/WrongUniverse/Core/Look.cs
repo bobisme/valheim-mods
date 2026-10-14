@@ -30,10 +30,12 @@ namespace WrongUniverse
             if(Base==null)Plugin.Warn("No Arbalest material: models will look plain");
             if(GlowBase==null)Plugin.Warn("No Arbalest bolt trail material: glows will be plain");
         }
+        // Unloading. Inside a world the materials stay: worn and held items, placed speeders and items on the ground still draw with
+        // them until they're remade (destroying them turns those magenta). At the main menu nothing uses them any more.
         internal static void Clear()
         {
-            foreach(Object o in Made)if(o!=null)Object.Destroy(o);
-            Made.Clear();Cache.Clear();
+            if(ZNetScene.instance==null)foreach(Object o in Made)if(o!=null)Object.Destroy(o);
+            Made.Clear();Cache.Clear();Base=null;GlowBase=null;
         }
         internal static T Own<T>(T o)where T:Object{Made.Add(o);return o;}
 

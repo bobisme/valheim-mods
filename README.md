@@ -1245,7 +1245,7 @@ Somebody's sci-fi kit fell through a crack into the tenth world (`cx.bob.wrongun
 
 Claude Tools gets a `wu` command: `list`, `give <prefab|all>`, `held`, and `laser`, `saber`, `jet`, `goggles`, `drone`,
 `ion`, `speeder`, `gadget` for each gadget's own checks. Code: `Core/` is shared (item registry, looks, icons, beams,
-damage, RPCs, sounds, gauges), one `Features/` class per gadget. Not yet played in the game.
+damage, RPCs, sounds, gauges), one `Features/` class per gadget. Played briefly in the game (0.1.1: items, icons, jetpack on the back, goggles view, speeder hover).
 
 ## Build with mise
 

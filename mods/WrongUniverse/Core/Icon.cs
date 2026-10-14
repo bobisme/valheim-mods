@@ -170,22 +170,32 @@ namespace WrongUniverse
                     if (!r.enabled || IsParticles(r)) continue;   // particles would throw the framing off
                     if (!any) { bounds = r.bounds; any = true; } else bounds.Encapsulate(r.bounds);
                 }
-                if (!any) return null;
+                if (!any) { LastWhy = "no renderers"; return null; }
 
                 cam = frame(stage, bounds);
                 cam.cullingMask = 1 << layer;
                 rt = RenderTexture.GetTemporary(Size * 2, Size * 2, 24, RenderTextureFormat.ARGB32);
                 cam.targetTexture = rt;
-                cam.Render();
-                RenderTexture.active = rt;
+                // (Wrong Universe) The game's lit shaders write any alpha they like (the Arbalest's writes none), so the see-through
+                // background comes from two pictures, on black and on white, as Quad's Guns GunIcon does: alpha = 1 - their difference.
+                cam.clearFlags = CameraClearFlags.SolidColor;
+                Color32[] onBlack = Take(cam, rt, Color.black), onWhite = Take(cam, rt, Color.white);
+                var px = new Color32[onBlack.Length];
+                for (int i = 0; i < px.Length; i++)
+                {
+                    float diff = ((onWhite[i].r - onBlack[i].r) + (onWhite[i].g - onBlack[i].g) + (onWhite[i].b - onBlack[i].b)) / (3f * 255f);
+                    float alpha = Mathf.Clamp01(1f - diff);
+                    px[i] = alpha < 0.02f ? new Color32(0, 0, 0, 0) : new Color32((byte)Mathf.Min(255f, onBlack[i].r / alpha), (byte)Mathf.Min(255f, onBlack[i].g / alpha), (byte)Mathf.Min(255f, onBlack[i].b / alpha), (byte)(alpha * 255f));
+                }
                 var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGBA32, false);
-                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                tex.SetPixels32(px);
                 tex.Apply();
+                LastTexture = tex;
                 if (LooksFine(tex, minCover))
                     return Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
-                Object.Destroy(tex);
                 return null;
             }
+            catch (Exception e) { LastWhy = e.GetType().Name + ": " + e.Message; throw; }
             finally
             {
                 ZNetView.m_forceDisableInit = oldInit;
@@ -273,7 +283,8 @@ namespace WrongUniverse
                 if (c.a > 40) { covered++; brightness += c.r + c.g + c.b; }
             }
             int sampled = pixels.Length / 7 + 1;
-            return covered > sampled * minCover && brightness / Math.Max(1, covered) > 60;
+            LastWhy = $"covered {covered}/{sampled} (need {minCover:P0}), brightness {brightness / Math.Max(1, covered)}";
+            return covered > sampled * minCover && brightness / Math.Max(1, covered) > 24;   // (Wrong Universe: 60 refused dark gunmetal models)
         }
 
         /// <summary>A layer no one has named, for the copy, the camera and the light alone (the highest free one; 31 if all are named).</summary>
@@ -293,6 +304,19 @@ namespace WrongUniverse
         private static int _layer = -1;
 
         /// <summary>No drawing on a dedicated server started without graphics: the fallback picture is used.</summary>
+        private static Color32[] Take(Camera cam, RenderTexture rt, Color background)
+        {
+            cam.backgroundColor = background;
+            cam.Render();
+            RenderTexture.active = rt;
+            var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGBA32, false);
+            tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+            Color32[] pixels = tex.GetPixels32();
+            Object.Destroy(tex);
+            return pixels;
+        }
+        internal static string LastWhy;          // (Wrong Universe test command: why the last picture was refused)
+        internal static Texture2D LastTexture;   // (and what it was)
         private static bool CanDraw => SystemInfo.graphicsDeviceType != UnityEngine.Rendering.GraphicsDeviceType.Null;
 
         private static string ModName => typeof(Icon).Assembly.GetName().Name;
