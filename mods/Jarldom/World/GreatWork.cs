@@ -93,6 +93,25 @@ namespace Jarldom
             }
             return RaiseHere(c, work, spot);
         }
+        // A finished work its design has grown since (the Lighthouse's fire deck): what's missing laid out as a plan of its own, for
+        // the builders. How many parts, or -1 if it couldn't be.
+        public static int Amend(Colony c, string work)
+        {
+            Player me = Player.m_localPlayer;
+            if (me == null || GreatWorks.Stage(c.R.Flags, work) != GreatWorks.Done) return -1;
+            Vector3 at = At(c, work, out float yaw);
+            var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 9f, 16f, near);
+            var missing = GreatWorks.Parts(work).Where(p => { var w = GreatWorks.Place(p, at.x, at.y, at.z, yaw); Vector3 spot = new Vector3(w.x, w.y, w.z);
+                return !near.Any(x => x != null && Utils.GetPrefabName(x.gameObject) == p.Prefab && Vector3.Distance(x.transform.position, spot) < 0.5f); }).ToList();
+            if (missing.Count == 0) return 0;
+            object bo = Compat.Find("com.quad.buildorders", "com.dhack.buildorders");
+            var method = bo?.GetType().GetMethod("TryCreateBuildingShell");
+            if (method == null) return -1;
+            var placed = missing.Select(p => GreatWorks.Place(p, at.x, at.y, at.z, yaw)).ToList();
+            object[] args = { me, GreatWorks.Proper(work, c.R.Name) + " (finished)", missing.Select(p => p.Prefab).ToArray(), placed.Select(p => new Vector3(p.x, p.y, p.z)).ToArray(), missing.Select(p => Turn(p, yaw)).ToArray(), null, null };
+            try { if (!(bool)method.Invoke(bo, args)) { me.Message(MessageHud.MessageType.Center, $"The plan couldn't be laid out: {args[6]}"); return -1; } } catch { return -1; }
+            return missing.Count;
+        }
         public static bool RaiseHere(Colony c, string work, Vector3 spot)
         {
             Player me = Player.m_localPlayer;
@@ -169,6 +188,7 @@ namespace Jarldom
             if (!c.IsOwner || Time.time < _next) return;
             _next = Time.time + 20f;
             string work = GreatWorks.Lighthouse;
+            if (GreatWorks.Stage(c.R.Flags, work) == GreatWorks.Done) { Rekindle(c, work); return; }
             if (GreatWorks.Stage(c.R.Flags, work) != GreatWorks.Laid) return;
             int built = Built(c, work), all = GreatWorks.Parts(work).Count;
             if (built < 0) return;
@@ -184,13 +204,23 @@ namespace Jarldom
             foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) { Mood.Add(b.S, "greatwork", b.Now); if (b.S.Prof == Prof.Builder) Worth.Gain(b.S, "festival"); b.Dirty(); }
             if (work == GreatWorks.Lighthouse)
             {
-                var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 13f, 4f, near);
-                Fireplace hearth = near.Where(p => p != null && Utils.GetPrefabName(p.gameObject) == "fire_pit").Select(p => p.GetComponent<Fireplace>()).FirstOrDefault(f => f != null);
+                var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 15.5f, 5f, near);
+                Fireplace hearth = near.Where(p => p != null && Utils.GetPrefabName(p.gameObject) == "bonfire").Select(p => p.GetComponent<Fireplace>()).FirstOrDefault(f => f != null);
                 if (hearth != null && !Beacon.IsMarked(c, hearth)) Beacon.Mark(c, Colony.IdOf(hearth.GetComponent<ZNetView>()));
             }
             Net.LegendPin(c, at, GreatWorks.Proper(work, c.R.Name));
             c.Tell($"{GreatWorks.Title(work)} stands! {GreatWorks.Gift(work)} (+{GreatWorks.Renown} renown)", true);
             c.MarkDirty();
+        }
+        // Its bonfire, once it stands (built since, on a Lighthouse finished before it had one), is the colony's beacon.
+        private static void Rekindle(Colony c, string work)
+        {
+            if (work != GreatWorks.Lighthouse) return;
+            Vector3 at = At(c, work, out _);
+            if (!ZNetScene.instance.IsAreaReady(at)) return;
+            var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 15.5f, 5f, near);
+            Fireplace fire = near.Where(p => p != null && Utils.GetPrefabName(p.gameObject) == "bonfire").Select(p => p.GetComponent<Fireplace>()).FirstOrDefault(f => f != null);
+            if (fire != null && !Beacon.IsMarked(c, fire)) Beacon.Mark(c, Colony.IdOf(fire.GetComponent<ZNetView>()));
         }
         public static bool Has(Colony c, string work) => c != null && GreatWorks.Stage(c.R.Flags, work) == GreatWorks.Done;
     }

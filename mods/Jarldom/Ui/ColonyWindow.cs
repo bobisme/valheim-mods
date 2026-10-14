@@ -433,7 +433,7 @@ namespace Jarldom.Ui
             if (stage == 0) return Text(list, GreatWork.Shore(_c) != null ? "None yet. A village by the sea may be asked at the Thing to raise a lighthouse: the whole colony's work, remembered for good." : "None yet: a village by the sea may be asked to raise a lighthouse.", y, 15, GameUi.Dim);
             if (stage == GreatWorks.Promised)
             {
-                return Text(list, $"The Thing chose to raise {GreatWorks.Name(work)}: a timber tower on a stone plinth, ladders inside up to a railed gallery and its beacon fire 14 m up ({GreatWorks.NeedsText(work)}). Show where it stands: with the hammer's \"Mark rooms and zones\", outline its site as you would a zone (fairly flat ground inside the colony near the sea, 8 × 8 m at least) and choose \"{GreatWorks.Title(work)}\" under Great work. It rises in the middle of the outline, its door toward the colony, and the builders raise it from the stores.", y);
+                return Text(list, $"The Thing chose to raise {GreatWorks.Name(work)}: a timber tower on a stone plinth, ladders inside up to a railed gallery, and the beacon's bonfire on a fire deck over it, 16 m up ({GreatWorks.NeedsText(work)}). Show where it stands: with the hammer's \"Mark rooms and zones\", outline its site as you would a zone (fairly flat ground inside the colony near the sea, 8 × 8 m at least) and choose \"{GreatWorks.Title(work)}\" under Great work. It rises in the middle of the outline, its door toward the colony, and the builders raise it from the stores.", y);
             }
             int all = GreatWorks.Parts(work).Count, built = _c.R.Flag(GreatWorks.BuiltKey(work));
             if (stage == GreatWorks.Laid)

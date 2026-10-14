@@ -744,8 +744,10 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
 {
     var parts = GreatWorks.LighthouseParts();
     Check(GreatWorks.Stairwell(-0.5f, -1.5f) && GreatWorks.Stairwell(0.5f, -0.5f) && !GreatWorks.Stairwell(0.5f, 0.5f) && !GreatWorks.Stairwell(-0.5f, 1.5f), "The stairwell: open over the landing and the ladders' tops, floor where they come out");
-    Check(parts.Count(p => p.Prefab == "fire_pit") == 1 && parts.Count(p => p.Prefab == "wood_door") == 1 && parts.Count(p => p.Prefab == "wood_stepladder") == 6 && parts.Max(p => p.Y) > 13.5f, "The Lighthouse: a door, six ladders up, the fire 14 m up: " + parts.Count + " parts");
-    Check(parts.Count(p => p.Prefab.StartsWith("stone_")) >= 16 && parts.Where(p => p.Prefab.StartsWith("stone_") && p.Prefab != "stone_pile").All(p => p.Y < 1f), "A stone plinth and course under the timber");
+    Check(parts.Count(p => p.Prefab == "bonfire") == 1 && parts.Count(p => p.Prefab == "wood_door") == 1 && parts.Count(p => p.Prefab == "wood_stepladder") == 6 && parts.Max(p => p.Y) > 15.5f, "The Lighthouse: a door, six ladders up, the bonfire 16 m up: " + parts.Count + " parts");
+    var fireDeck = parts.Where(p => p.Prefab == "wood_floor" && p.Y > 14).ToList(); var gallery = parts.Where(p => p.Prefab == "wood_floor_1x1").Max(p => p.Y);
+    Check(fireDeck.Count == 9 && fireDeck.All(p => p.Y - gallery > 2.9f), "The bonfire's deck: 6 m square, 3 m of head room over the gallery");
+    Check(parts.Count(p => p.Prefab.StartsWith("stone_")) >= 16 && parts.Where(p => p.Prefab.StartsWith("stone_")).All(p => p.Y < 1f), "A stone plinth and course under the timber");
     Check(parts.Where(p => p.Prefab != "piece_workbench" && p.Prefab != "piece_stonecutter").All(p => Math.Sqrt(Math.Pow(p.X - 2.95, 2) + p.Y * p.Y + p.Z * p.Z) < 20 && Math.Sqrt(Math.Pow(p.X + 3.05, 2) + p.Y * p.Y + p.Z * p.Z) < 20), "Every piece within its workbench's and stonecutter's reach");
     var legs = parts.Where(p => p.Leans).ToList();
     Check(legs.Count == 8 && legs.All(p => Math.Abs(Math.Abs(p.UpX) - 0.25f) < 0.01f && Math.Sign(p.UpX) == -Math.Sign(p.X)), "Its trestle legs lean inward, a quarter metre a storey");
@@ -768,7 +770,7 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     foreach (var land in floors.Where(f => Math.Abs(f.Z + 1.5) < 0.01 && Math.Abs(f.X) < 1 && floors.Count(g => Math.Abs(g.X - f.X) < 0.01 && Math.Abs(g.Z - f.Z) < 0.01) > 0 && (f.Y + 0.08) % 4 > 1.5))
         Check(!floors.Any(f => Math.Abs(f.X - land.X) < 0.01 && Math.Abs(f.Z - land.Z) < 0.01 && f.Y > land.Y + 0.3 && f.Y < land.Y + 2.4), $"Head room over the landing at {land.X},{land.Y}");
     var needs = GreatWorks.Needs(GreatWorks.Lighthouse);
-    Check(needs["Stone"] > 100 && needs["Iron"] == 2 && !needs.ContainsKey("SurtlingCore"), "Its cost: " + GreatWorks.NeedsText(GreatWorks.Lighthouse));
+    Check(needs["Stone"] > 50 && needs["Iron"] == 2 && needs["SurtlingCore"] == 1, "Its cost: " + GreatWorks.NeedsText(GreatWorks.Lighthouse));
     var front = new GreatWorks.Part("stone_wall_4x2", 0, 1, 2, 0);
     var turned = GreatWorks.Place(front, 100, 30, 200, 90);
     Check(Math.Abs(turned.x - 102) < 0.01f && Math.Abs(turned.z - 200) < 0.01f && Math.Abs(turned.y - 31) < 0.01f && Math.Abs(turned.yaw - 90) < 0.01f, "A part turned with the work: its front wall faces where the work faces");

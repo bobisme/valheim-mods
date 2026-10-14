@@ -71,12 +71,16 @@ namespace Jarldom
                 Ring(parts, "wood_wall_log_4x0.5", (lo + hi) / 2, yb + storey / 2);
                 Ring(parts, "wood_wall_log_4x0.5", hi, yb + storey + 0.27f);
             }
-            // the gallery on top: posts, a rail, torches, and the fire on its cairn (clear of the stairhead)
+            // the gallery on top: posts, a rail, torches; over it, on four logs, the fire deck with the beacon's bonfire (3 m of head room
+            // under it, over the stairhead)
             float onDeck = deck + storey * 3 + 0.08f;
             foreach (var (sx, sz) in Corners) { P("wood_pole", sx * 1.85f, onDeck + 0.5f, sz * 1.85f); P("piece_groundtorch_wood", sx * 1.85f, onDeck + 1.65f, sz * 1.85f); }
             Ring(parts, "wood_wall_log_4x0.5", 1.85f, onDeck + 0.8f);
-            P("stone_pile", 1, onDeck + 0.09f, 1);
-            P("fire_pit", 1, onDeck + 0.9f, 1);
+            foreach (var (sx, sz) in Corners) { P("wood_pole_log", sx * 1.4f, onDeck + 1.11f, sz * 1.4f); P("wood_pole", sx * 1.4f, onDeck + 2.72f, sz * 1.4f); }
+            float fireDeck = onDeck + 3.22f;
+            Ring(parts, "wood_wall_log_4x0.5", 1.4f, fireDeck - 0.27f);
+            for (int x = -2; x <= 2; x += 2) for (int z = -2; z <= 2; z += 2) P("wood_floor", x, fireDeck - 0.08f, z);
+            P("bonfire", 0, fireDeck + 0.5f, 0);
             return parts;
         }
         // Where each floor is open for the stair (cells of a metre, by their middles): over the second ladder, over the landing, and over the
@@ -116,7 +120,7 @@ namespace Jarldom
             ["wood_door"] = new[] { ("Wood", 4) }, ["wood_stepladder"] = new[] { ("Wood", 2) }, ["wood_wall_log_4x0.5"] = new[] { ("RoundLog", 2) },
             ["stone_wall_1x1"] = new[] { ("Stone", 3) }, ["stone_wall_2x1"] = new[] { ("Stone", 4) }, ["stone_wall_4x2"] = new[] { ("Stone", 6) }, ["stone_floor_2x2"] = new[] { ("Stone", 6) }, ["stone_pillar"] = new[] { ("Stone", 5) },
             ["piece_workbench"] = new[] { ("Wood", 10) }, ["piece_stonecutter"] = new[] { ("Wood", 10), ("Iron", 2), ("Stone", 4) },
-            ["bonfire"] = new[] { ("SurtlingCore", 1), ("ElderBark", 5), ("FineWood", 5), ("RoundLog", 5) }, ["piece_groundtorch_wood"] = new[] { ("Wood", 2), ("Resin", 2) },
+            ["bonfire"] = new[] { ("SurtlingCore", 1), ("ElderBark", 5), ("FineWood", 5), ("RoundLog", 5) }, ["piece_groundtorch_wood"] = new[] { ("Wood", 2), ("Resin", 2) }, ["wood_pole_log"] = new[] { ("RoundLog", 1) },
         };
         public static Dictionary<string, int> Needs(string work)
         {

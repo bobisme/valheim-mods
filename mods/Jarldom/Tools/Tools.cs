@@ -966,6 +966,7 @@ namespace Jarldom
                         if (sub == "clear") { foreach (string k in c.R.Flags.Keys.Where(k => k.StartsWith("gw:")).ToList()) c.R.Flags.Remove(k); }
                         if (sub == "place") { Vector3 spot = new Vector3(F(a[3]), 0, F(a[4])); ZoneSystem.instance.GetSolidHeight(spot, out float gh); spot.y = gh; GreatWork.RaiseHere(c, w, spot); }
                         if (sub == "finish") GreatWork.Finish(c, w);
+                        if (sub == "amend") { output(new JObject { ["amended"] = GreatWork.Amend(c, w) }); }
                         if (sub == "set") { c.R.Flags[GreatWorks.Key(w)] = GreatWorks.Laid; c.R.Flags[GreatWorks.AtKey(w)] = TrueLegend.Pack(F(a[3]), F(a[4])); c.R.Flags[GreatWorks.YKey(w)] = Mathf.RoundToInt(F(a[5]) * 10f); c.R.Flags[GreatWorks.YawKey(w)] = Mathf.RoundToInt(F(a[6])); c.R.Flags[GreatWorks.BuiltKey(w)] = 0; c.R.Flags[GreatWorks.XKey(w)] = Mathf.RoundToInt(F(a[3]) * 10f); c.R.Flags[GreatWorks.ZKey(w)] = Mathf.RoundToInt(F(a[4]) * 10f); } // (test: "set x z y yaw", a site put back)
                         if (sub == "outline" || sub == "picker") { float cx = F(a[3]), cz = F(a[4]), hh = a.Length > 5 ? F(a[5]) : 4f; var xz = new List<float> { cx - hh, cz - hh, cx + hh, cz - hh, cx + hh, cz + hh, cx - hh, cz + hh };
                             if (sub == "picker") { ZoneSystem.instance.GetSolidHeight(new Vector3(cx, 0, cz), out float fy); Ui.RoomPicker.Open(c, xz, fy); } else output(new JObject { ["planned"] = GreatWork.RaiseIn(c, w, xz) }); }
