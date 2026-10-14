@@ -170,7 +170,7 @@ namespace BuildShapes
             {CloseRepeatMenu();if(_markers.Count>0)_markers.RemoveAt(_markers.Count-1);Preview();}
             if(GUILayout.Button("Cancel",_menuButton,GUILayout.Height(34)))Stop();
             GUILayout.EndHorizontal();
-            GUILayout.Label("Esc: close options · L: reopen · F4: modes",_menuHint);
+            GUILayout.Label($"Esc or {_options.Value}: close options · {_plan.Value}: plan",_menuHint);
             GUILayout.EndArea();
             GUI.DragWindow(new Rect(0,0,_repeatRect.width-60,50));
         }
@@ -196,7 +196,7 @@ namespace BuildShapes
     [HarmonyPatch(typeof(ZInput),"GetMouseScrollWheel")]
     internal static class RepeatScroll
     {
-        private static void Postfix(ref float __result) {if(Plugin.OptionsMenuOpen)__result=0;}
+        private static void Postfix(ref float __result) {if(Plugin.OptionsMenuOpen || Plugin.ShapeTakesScroll)__result=0;}
     }
     [HarmonyPatch(typeof(Humanoid),nameof(Humanoid.StartAttack))]
     internal static class RepeatAttack

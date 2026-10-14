@@ -43,7 +43,16 @@ namespace BuildShapes
                 throw new ArgumentException("Invalid curve or beam length.");
             if ((start - end).Length < 0.1 || (start - middle).Length > 128 || (middle - end).Length > 128)
                 throw new ArgumentException("Place distinct ends within 128 metres of the bend.");
-            var arc = new Arc(start, middle, end);
+            return Plan(t => At(start, middle, end, t), length);
+        }
+        // Native-length beams along any path from path(0) to path(1) (Arch's and Arc's shapes as well as Curve's).
+        internal static List<Segment> Plan(Func<double, V3> path, double length)
+        {
+            if (double.IsNaN(length) || double.IsInfinity(length) || length < 0.25 || length > 8.1) throw new ArgumentException("Invalid curve or beam length.");
+            V3 start = path(0), end = path(1);
+            if (!start.Finite || !end.Finite) throw new ArgumentException("Invalid curve.");
+            if ((start - end).Length < 0.1) throw new ArgumentException("Place distinct ends.");
+            var arc = new Arc(path);
             double total = arc.Total;
             if (total < length - 0.0001) throw new ArgumentException("Choose a shorter beam or mark a longer curve.");
             if (total > 128 || total / length > MaximumPieces) throw new ArgumentException("Curve exceeds 128 metres or 256 pieces.");
@@ -83,7 +92,7 @@ namespace BuildShapes
                 throw new ArgumentException("Choose spacing from 0.25 to 16 metres.");
             if ((start-end).Length < 0.1 || (start-middle).Length > 128 || (middle-end).Length > 128)
                 throw new ArgumentException("Place distinct ends within 128 metres of the bend.");
-            var arc = new Arc(start, middle, end);
+            var arc = new Arc(t => At(start, middle, end, t));
             if (arc.Total > 128 || arc.Total < 0.1 || Math.Ceiling(arc.Total / spacing) + 1 > MaximumPieces)
                 throw new ArgumentException("Repeat exceeds 128 metres or 256 pieces. Increase spacing.");
             int intervals = Math.Max(1, (int)Math.Ceiling(arc.Total / spacing));
@@ -106,11 +115,15 @@ namespace BuildShapes
             private readonly V3[] _points = new V3[Samples+1];
             private readonly double[] _distance = new double[Samples+1];
             internal double Total => _distance[Samples];
-            internal Arc(V3 start, V3 middle, V3 end)
+            internal Arc(Func<double, V3> path)
             {
-                _points[0] = start;
+                _points[0] = path(0);
                 for (int i=1; i<=Samples; i++)
-                { _points[i]=At(start,middle,end,(double)i/Samples); _distance[i]=_distance[i-1]+(_points[i]-_points[i-1]).Length; }
+                {
+                    _points[i]=path((double)i/Samples);
+                    if (!_points[i].Finite) throw new ArgumentException("Invalid curve.");
+                    _distance[i]=_distance[i-1]+(_points[i]-_points[i-1]).Length;
+                }
             }
             internal double Parameter(double d)
             {

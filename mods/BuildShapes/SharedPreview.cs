@@ -35,7 +35,7 @@ namespace BuildShapes
     internal static class SharedPreviewCodec
     {
         internal const int MaxBytes=256*1024,MaxLines=640,MaxPoints=12288,MaxPieces=2048,MaxPrefabs=256,MaxPeers=8;
-        internal const byte MaxTool=6; // (Curve 1, Mirror 2, Repeat 3, Arch 4, Hallwright 5 from BuildShapes before 0.9.0, Line 6)
+        internal const byte MaxTool=7; // (Curve 1, Mirror 2, Repeat 3, Arch 4, Hallwright 5 from BuildShapes before 0.9.0, Line 6, Arc 7)
         private const int Magic=0x42535031;
         private static readonly UTF8Encoding Utf8=new UTF8Encoding(false,true);
         internal static bool Finite(float x)=>!float.IsNaN(x)&&!float.IsInfinity(x);

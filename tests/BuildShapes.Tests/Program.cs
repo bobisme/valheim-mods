@@ -176,6 +176,34 @@ foreach (var (from, to) in new[] { (new V3(0,1,0), new V3(7,1,0)), (new V3(2,0,3
 }
 Reject(() => Curve.Plan(new V3(), Curve.Midpoint(new V3(), new V3(1,0,0)), new V3(1,0,0), 2), "A line shorter than one beam asks for a shorter beam");
 
+// Arch rises straight skyward from its ends (a half-ellipse); Arc is the circle through its ends and top, ends leaning as it has them.
+V3 skyward = new V3(0, 1, 0);
+foreach (var (from, to, rise) in new[] { (new V3(0,0,0), new V3(6,0,0), 3.0), (new V3(0,0,0), new V3(8,0,2), 1.5), (new V3(0,1,0), new V3(6,3,0), 4.0) })
+{
+    var arch = Arch.Upright(from, to, rise, 1);
+    Check(Near(arch(0), from) && Near(arch(1), to) && Near(arch(0.5), Arch.Middle(from, to, rise)), "An arch meets both ends and its top");
+    var archBeams = Curve.Plan(arch, 1);
+    V3 firstBeam = archBeams[0].End - archBeams[0].Start, lastBeam = archBeams[archBeams.Count - 1].End - archBeams[archBeams.Count - 1].Start;
+    if (rise * 0.75 >= 1) Check(V3.Dot(firstBeam * (1 / firstBeam.Length), skyward) > 0.9999 && V3.Dot(lastBeam * (1 / lastBeam.Length), skyward) < -0.9999, "An arch's end beams stand plumb");
+    Check(Near(archBeams[0].Start, from) && Near(archBeams[archBeams.Count - 1].End, to), "An arch's outer beams meet its ends");
+    var arc = Arch.Circular(from, to, rise);
+    Check(Near(arc(0), from) && Near(arc(1), to), "An arc meets both ends");
+    // Equally far from one centre all the way round: fit the circle through three of its points and check the rest.
+    V3 a = arc(0), b = arc(0.37), c = arc(0.81), ab = b - a, ac = c - a, n = V3.Cross(ab, ac);
+    V3 centre = a + (V3.Cross(n, ab) * V3.Dot(ac, ac) + V3.Cross(ac, n) * V3.Dot(ab, ab)) * (1 / (2 * V3.Dot(n, n)));
+    double radius = (a - centre).Length;
+    Check(Enumerable.Range(0, 41).All(i => Math.Abs((arc(i / 40.0) - centre).Length - radius) < 1e-6), "An arc is part of one circle");
+    V3 top = Arch.Middle(from, to, rise);
+    Check(Enumerable.Range(0, 2001).Min(i => (arc(i / 2000.0) - top).Length) < 0.01, "An arc passes through its top");
+}
+var shallow = Curve.Plan(Arch.Circular(new V3(), new V3(8,0,0), 1.5), 1); V3 lean = shallow[0].End - shallow[0].Start;
+Check(V3.Dot(lean * (1 / lean.Length), skyward) < 0.8, "A shallow arc's ends lean");
+var half = Curve.Plan(Arch.Circular(new V3(), new V3(6,0,0), 3), 0.5); V3 stand = half[0].End - half[0].Start;
+Check(V3.Dot(stand * (1 / stand.Length), skyward) > 0.95, "A semicircular arc stands skyward at its ends, as an arch does");
+var flat = Arch.Circular(new V3(), new V3(4,0,0), 0); Check(Near(flat(0.5), new V3(2,0,0)), "An arc with no height is straight");
+Reject(() => Arch.Upright(new V3(), new V3(0,3,0), 1, 1), "An arch needs its ends apart horizontally");
+var low = Arch.Upright(new V3(), new V3(6,0,0), 1, 2); Check(Near(low(0.5), new V3(3,1,0)) && Enumerable.Range(0, 101).All(i => low(i / 100.0).Y <= 1 + 1e-9), "A low arch's legs never rise past its top");
+
 // Exercise the real reflection bridge through reloads, missing/old dependencies, and failure replies.
 var link = new Planner(); var player = new Player();
 Check(!link.Ready(), "Missing planner is harmless");

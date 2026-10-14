@@ -965,81 +965,84 @@ wording, plus the game methods it calls. Not yet tried in the game. First playte
 
 Hallwright (timber halls, longhouses and stave temples) is [its own mod](#hallwright) since BuildShapes 0.9.0.
 
-Curve, Arch, Mirror, and Repeat tools for **BuildOrders**, using normal pieces, materials, and support rules. The original Curve API has been
+Curve, Arch, Arc, Line, Mirror, and Repeat tools for **BuildOrders**, using normal pieces, materials, and support rules. The original Curve API has been
 merged upstream. Mirror/Repeat also need the new ghost-selection/input API; use the patched planner from [upstream PR #3](https://github.com/HardHeadHackerHead/valheim-mods/pull/3) until it merges. Curve still works with the original API release (BuildOrders 1.9.3 or newer). BuildShapes finds BuildOrders under its new id
 (`com.quad.buildorders`, from 1.12.1) or the old `com.dhack.buildorders`.
 The add-on reconnects to the live planner after F6 or individual reloads, without referencing its assembly.
 
-Equip a **hammer**, select a building piece, and close the piece menu:
+Equip a **hammer** and pick a building piece as usual, then **hold Left Ctrl** (about a third of a second, without clicking or
+scrolling) for the **shape radial**: flick towards **Curve**, **Arch**, **Arc**, **Line**, **Mirror** or **Repeat** and let go, or
+click. It looks like the game's own radial (and borrows its gold crest and arc); shapes that need something you haven't got are
+greyed out and say what in the middle, and **Build** leaves the shape tool. Letting go in the middle or **Escape** closes it.
+Choosing the shape you're in, with the same piece, keeps your markers; anything else starts afresh (submitted ghosts stay).
 
-Press **F4** to choose **Curve**, **Arch**, **Line**, **Mirror**, or **Repeat** from one window. Press F4/Escape or × to close it.
-Choosing the current mode resumes your preview; choosing another clears only that local preview. Submitted ghosts and your last undo
-remain. Curve/Arch/Line need a beam or pole selected; Mirror/Repeat need the extended planner API. Unavailable choices explain what is needed.
-The picker has a free cursor and an **Exit shape mode** button to return to normal building.
-
-| Controls | Action |
+| Controls (in a shape tool) | Action |
 | --- | --- |
-| **F4** | Open/close the mode picker: Curve, Arch, Line, Mirror, or Repeat |
-| **Left Shift + left click** | Mark curve points, arch or line endpoints, or the mirror line |
+| **Hold Left Ctrl** | The shape radial |
+| **Left click** | Place a marker |
+| **Scroll** | Turn the pieces (Curve, Arch, Arc, Line: about their length; Repeat: each piece), 22.5° a notch |
+| **Ctrl + scroll** | Arch/Arc: height; Repeat: spacing (hold Shift too for fine steps) |
 | **Left Ctrl + left click** | Mirror: toggle a source piece/ghost; Repeat: copy a source piece/ghost and its orientation |
-| **L** | Curve/Line/Mirror: submit ghosts; Arch/Repeat: open/confirm options |
-| **U** in any shape mode | Remove the last submitted shape's unbuilt ghosts |
-| **Backspace** | Remove the last marker |
-| **Left Ctrl + Backspace** | Mirror: remove the last source selection |
-| **Exit shape mode** in the picker | Return to normal hammer building |
-| **Escape** | Close options first, or exit the shape mode |
+| **E** | Plan the shape as shared ghosts (what you're looking at isn't used then) |
+| **Delete** | Clear the shape and keep the tool |
+| **Backspace** | Remove the last marker (Left Ctrl + Backspace: Mirror's last selection) |
+| **O** | Repeat: open/close the full options |
+| **U** | Remove the last submitted shape's unbuilt ghosts |
+| **Escape** | Close the radial or options first, or leave the shape tool |
 
-**Curve:** select a beam/pole, press F4, and choose **Curve**. Mark **start, bend, end**; the curve passes through the bend marker and works in 3D,
-including vertical arches. The turquoise strokes show piece center lines. Pieces keep their native lengths with overlapping joints;
-the first/last endpoints meet your markers. Shorter beams follow tighter bends. Beams/poles need exactly two endpoint snap points,
-original prefab scale, and a span of 0.25–8 metres. Tight or degenerate bends are rejected before planning.
+Once a shape's markers are down, its **real pieces** show (local only: no colliders, no cost), so what you see is what E plans.
+A slow Ctrl+click or Ctrl+scroll that opens the radial, with the pointer still in its middle, closes it and does what it would have done.
+The camera doesn't zoom while a shape is ready to turn. Keys are in F7 under Controls: `ShapeMenu`, `ConfirmShape`, `RepeatOptions`.
 
-**Arch:** select a beam/pole, press **F4**, and choose **Arch**. Shift+click **start and end**; the center-height panel opens
-beside the preview. Set the **center rise** with the slider, or type an exact height and press **Enter/Apply**. The ± buttons
-step by **0.05 m**, or **0.01 m** while holding Shift. Rise is measured above the line between your endpoints, so 0 m gives a
-straight span and unequal endpoint heights work too. The gold guide marks the center; the preview updates as you adjust it.
-**Confirm** applies pending edits and submits normal ghosts. **Edit end** replaces the second endpoint while keeping the rise;
-**Escape** closes the panel and **L** reopens it. **Cancel** exits; **F4** opens the mode picker. The arch is a vertical parabolic curve with native-length
-overlapping beams, whose center lines approximate the curve. Both outer endpoints stay fixed. Ends must be horizontally separated;
-shorter beams allow tighter arches. Center rise is limited to **0–32 m**, within the usual curve-length and piece-count limits.
-Arch uses the same original planning API as Curve.
+**Curve:** select a beam/pole and click **start, bend, end**; the curve passes through the bend marker and works in 3D.
+Pieces keep their native lengths with overlapping joints; the first/last endpoints meet your markers. Shorter beams follow tighter
+bends. Beams/poles need exactly two endpoint snap points, original prefab scale, and a span of 0.25–8 metres. Tight or degenerate
+bends are rejected before planning.
 
-**Line:** select a beam/pole, press **F4**, and choose **Line**. Shift+click the **start and end**; **L** plans. Native-length
-beams run straight between your markers at any slope, or upright for a post of stacked poles; the first and last beams meet the
-markers and the overlaps are spread evenly between them. A line shorter than one beam asks for a shorter beam.
+**Arch:** select a beam/pole and click **both ends**. The arch **rises straight up** from them: an upright leg one beam long at each
+end (three quarters of the height on a low arch), so the end beams stand plumb, then a half-ellipse between the legs' tops, a
+semicircle when it's half as high as it's wide. **Ctrl+scroll** sets the height above the middle of the line between the ends
+(0–32 m, 0.25 m a notch, 0.05 m with Shift); the gold guide marks the top. It starts as a semicircle. Unequal end heights work;
+the ends must be apart horizontally.
 
-**Mirror:** press F4 and choose **Mirror**. Mark **two points** to define a vertical mirror plane; only their horizontal direction matters. Ctrl+click
-built pieces or visible planner ghosts to select a group; click again to deselect. Thin wire boxes show the source selection, and heavier
-boxes preview the copies. L submits the mirrored group; original pieces/ghosts stay intact. You can mark the line and select pieces in
-either order. The reflection axis and pivot compensation are chosen from each piece's native snap layout, with mesh bounds as a fallback.
-Triangular under-roof walls and sloped beams use their thickness axis; ordinary roofs keep their width axis, so wedge slopes and roof
-pitches mirror correctly. Asymmetric carvings, lettering, or handed decorations
-remain their original meshes: inspect the resulting ghosts before building those.
+**Arc:** the same clicks and height, but the **circle** through both ends and the top: the ends lean as the circle has them (a
+shallow arc leans a lot; a half-circle stands up at its ends).
 
-**Repeat:** select a post, decoration, or other building piece, press F4, and choose **Repeat**. Mark **start, bend, end** for its path. After the third
-point, an options panel opens beside the wire preview with a free mouse cursor. Choose a **Path anchor** (piece origin, visual center, or
-a named native snap point such as Bottom/Top), then adjust **spacing**, **yaw**, **pitch**, **roll**, and whether
-pieces **turn with the curve**; the preview updates immediately. Use sliders for broad changes, or type an exact value and press **Enter**
-or **Apply**. The ± buttons adjust spacing by **0.05 m** and rotation by **1°**; hold **Shift** for **0.01 m / 0.1°** steps.
-**Confirm** also applies any unfinished numeric entries before submitting shared ghosts. **Edit path** lets you replace the end
-point, and **Cancel** exits. Escape closes the options while keeping the path; L reopens them. F4 opens the mode picker.
+**Line:** select a beam/pole and click the **start and end**. Native-length beams run straight between your markers at any slope,
+or upright for a post of stacked poles; the first and last beams meet the markers and the overlaps are spread evenly between them.
+A line shorter than one beam asks for a shorter beam.
+
+**Mirror:** click **two points** to define a vertical mirror plane; only their horizontal direction matters. Ctrl+click
+built pieces or visible planner ghosts to select a group; click again to deselect. Thin wire boxes show the source selection, and
+the mirrored copies show as real pieces. E plans them; original pieces/ghosts stay intact. You can mark the line and select pieces
+in either order. The reflection axis and pivot compensation are chosen from each piece's native snap layout, with mesh bounds as a
+fallback. Triangular under-roof walls and sloped beams use their thickness axis; ordinary roofs keep their width axis, so wedge
+slopes and roof pitches mirror correctly. Asymmetric carvings, lettering, or handed decorations remain their original meshes:
+inspect the resulting ghosts before building those.
+
+**Repeat:** select a post, decoration, or other building piece and click **start, bend, end** for its path. **Scroll** turns each
+piece, **Ctrl+scroll** sets the spacing, **Home** switches turning with the curve, and Ctrl+click copies a built piece/visible
+ghost and its orientation. **O** opens the full options beside the preview with a free cursor: a **Path anchor** (piece origin,
+visual center, or a named native snap point such as Bottom/Top), **spacing**, **yaw**, **pitch** and **roll**. Use sliders for
+broad changes, or type an exact value and press **Enter** or **Apply**; the ± buttons adjust spacing by **0.05 m** and rotation by
+**1°**, with **Shift** for **0.01 m / 0.1°**. **E** plans from the panel too (applying unfinished entries first); **O** or Escape
+closes it, keeping the path.
 
 Spacing is a maximum, adjusted evenly along the curve to include both endpoints. Curve-following applies the change in horizontal
 heading relative to the first point; seed tilt and initial heading are preserved, then the chosen yaw/pitch/roll offsets are applied.
 An upright post stays upright with zero tilt offsets. A vertical tangent keeps the previous heading. The chosen anchor sits on the path
 after the final rotation, so a Bottom snap follows the path at the base of a post, or an end snap at the end of a beam. Gold crosses mark
 the anchor positions. Piece origin preserves the previous behavior; Visual center uses the mesh bounds. Sampling the same piece type
-keeps your anchor choice; choosing a different type resets it to Piece origin. This does not align pieces to terrain automatically. The keyboard shortcuts **[ / ]**, **Page Up / Down**, and **Home** still work outside the panel.
-Ctrl+click a built piece/visible ghost outside the panel to copy its prefab and orientation; completed paths reopen the options afterward.
+keeps your anchor choice; choosing a different type resets it to Piece origin. This does not align pieces to terrain automatically.
 Mark a horizontal curve for a palisade, or an arch to repeat ribs/decorations in three dimensions.
 
 Curves are bounded to 128 metres and all shapes to 256 output pieces. Markers and selected source origins must be within 40 metres;
 BuildOrders checks every output pose against its 80-metre reach, unlocks, wards, and no-build rules before accepting anything. Ghost
 selection uses visible ghost bounding boxes and respects nearer physical hits; it is approximate rather than precise mesh picking.
 Selections are pose snapshots: moving/removing a source afterward does not alter your preview. Scaled and terrain-operation pieces
-are excluded. Curve, Arch, Line, Mirror and Repeat never alter terrain. Pieces build through the normal planner rules.
+are excluded. Curve, Arch, Arc, Line, Mirror and Repeat never alter terrain. Pieces build through the normal planner rules.
 
-Use **Exit shape mode** in the F4 picker, or press **Escape** outside the options, before selecting another hammer piece or building normally with **E**. Modes reserve normal hammer placement,
+Choose **Build** in the radial, or press **Escape** outside the options, before building normally. Shape tools reserve normal hammer placement,
 and yield to planner blueprint/bridge placement and menus. The Plans window lists generated groups with Move/Level disabled.
 Only the designer needs BuildShapes for submitted plans; live draft sharing requires BuildShapes on designer and viewer. Participating builders should use the updated BuildOrders and chosen piece prefabs. Older planners
 can receive/build ghosts but still expose terrain actions on add-on groups.
@@ -1052,17 +1055,17 @@ Automated checks cover two-endpoint arch height/symmetry, curve/station geometry
 bounds and vertical heading, plus reflection dispatch across original/extended/missing/reloaded planners. Shared-preview checks cover full-size packets, malformed data, revision ordering, clear/expiry/rejoin behavior, peer bounds and update cadence. The upstream API has separate
 batch, ghost-ray, input-conflict, undo, and world tests. Rendering, multiplayer delivery, and fresh-launch behavior still need playtests:
 
-Open the F4 picker with no mode active and during each tool. Try resuming, switching, Escape/F4/×, Exit shape mode, changing hammer piece, opening another menu, and F6. Picker clicks must never place/attack/mark; switching clears the local preview while submitted ghosts and undo remain.
+Open the shape radial (hold Left Ctrl) with no tool active and during each tool. Try flicking to each shape, letting go in the middle, Escape, Build, a quick Ctrl+click and a slow Ctrl+scroll, changing hammer piece, opening another menu, and F6. Radial clicks must never place/attack/mark.
 
 1. Curve a 1m/2m wood beam horizontally and vertically; compare center lines to submitted ghosts and normal support/material costs.
-2. Arch two level and two unequal-height endpoints. Adjust the slider, fractional height, and Shift ± buttons; check endpoints stay fixed. Try Edit end, invalid heights, Enter/Apply, Confirm with a pending edit, Escape/L, and F6 with the panel open. Menu clicks must not move/look/attack/place.
+2. Arch and Arc between two level and two unequal-height endpoints. Ctrl+scroll the height (with and without Shift); check the endpoints stay fixed, the Arch's end beams stand plumb and the Arc's lean. Scroll to turn the beams; E plans; Delete clears.
 3. Mirror a roof wing, triangular under-roof wall (including inverted variants), sloped beam, and offset-pivot beam across an oblique
    line. Check native snaps, wedge slopes, roof pitch, and copied versus original pieces.
-4. Repeat upright posts along a curve. Confirm the options open automatically, cursor is free, spacing/yaw/pitch/roll/follow change the
+4. Repeat upright posts along a curve. Scroll and Ctrl+scroll; press O and confirm the cursor is free and spacing/yaw/pitch/roll/follow change the
    preview, and slider clicks never move/look/attack/place. Enter fractional spacing/angles, use ± with/without Shift, and check that
    sliders keep the precise value until dragged. Try invalid/out-of-range entries, Enter/Apply, and Confirm with a pending edit.
    Choose a Bottom/Top/end snap and check that it stays on the path while
-   changing pitch/roll/yaw. Try Edit path, Escape/L, Cancel, the F4 picker, then F6 with the panel open.
+   changing pitch/roll/yaw. Try Edit path, Escape/O, Cancel, E from the panel, then F6 with the panel open.
 5. Build one output piece, then U: only its remaining ghosts disappear. Try protected, distant, scaled, and terrain-operation pieces.
 6. F6, reload the planner independently, switch worlds, open inventory/F11, or begin a blueprint/bridge. Check input/preview cleanup.
 7. Have another player view/build shapes with the updated planner alone. Save/restart and confirm ghosts persist.

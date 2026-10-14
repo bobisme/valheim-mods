@@ -15,16 +15,16 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.10.0";
+        public const string Version = "0.11.0";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
         private static readonly MethodInfo TakeInput = AccessTools.Method(typeof(Player), "TakeInput");
-        private enum Tool { None, Curve, Mirror, Repeat, Arch, Line=6 }   // (5 was Hallwright, now its own mod: kept for older BuildShapes' shared drafts)
+        private enum Tool { None, Curve, Mirror, Repeat, Arch, Line=6, Arc=7 }   // (5 was Hallwright, now its own mod: kept for older BuildShapes' shared drafts)
         private Tool _tool;
         private ConfigEntry<bool> _enabled, _follow;
         private ConfigEntry<float> _spacing;
-        private ConfigEntry<KeyCode> _toggle, _modifier, _mark, _plan, _undo, _back;
+        private ConfigEntry<KeyCode> _radialKey, _mark, _plan, _undo, _back, _options;
         private Harmony _harmony;
         private readonly Planner _planner = new Planner();
         private readonly List<Vector3> _markers = new List<Vector3>();
@@ -54,11 +54,11 @@ namespace BuildShapes
             internal PiecePose(string id, string prefab, Vector3 position, Quaternion rotation)
             { Id = id; Prefab = prefab; Position = position; Rotation = rotation; }
         }
-        private bool ShapeActive => _tool != Tool.None || _modeMenu;
+        private bool ShapeActive => _tool != Tool.None || _radial;
         internal bool ReservesHammer => ShapeActive && _enabled.Value && HoldingHammer(Player.m_localPlayer) && _planner.Available(Player.m_localPlayer) &&
             ((_tool!=Tool.Mirror && _tool!=Tool.Repeat) || _planner.Extended);
-        internal static bool OptionsMenuOpen => Instance != null && (Instance._modeMenu || Instance._repeatMenu || Instance._archMenu) && Instance.ReservesHammer;
-        private int RequiredMarkers => _tool == Tool.Mirror || _tool == Tool.Arch || _tool == Tool.Line ? 2 : 3;
+        internal static bool OptionsMenuOpen => Instance != null && (Instance._radial || Instance._repeatMenu) && Instance.ReservesHammer;
+        private int RequiredMarkers => _tool == Tool.Mirror || _tool == Tool.Arch || _tool == Tool.Arc || _tool == Tool.Line ? 2 : 3;
         internal static bool ProbingInput => Instance?._probingInput == true;
         internal static bool ReservesEscape => _escapeFrame == Time.frameCount || _escapeFrame == Time.frameCount - 1 ||
             OptionsMenuOpen ||
@@ -68,17 +68,16 @@ namespace BuildShapes
         {
             Instance = this;ConfigureSharedPreviews();
             _enabled = Config.Bind("General", "Enabled", true, "Enable the Curve, Arch, Line, Mirror and Repeat tools.");
-            // Keep the original config key so existing custom F4 bindings survive the update.
-            _toggle = Config.Bind("Controls", "ToggleCurve", KeyCode.F4, "Open/close the shape-mode picker: Curve, Arch, Line, Mirror or Repeat.");
-            _modifier = Config.Bind("Controls", "MarkerModifier", KeyCode.LeftShift, "Hold with PlaceMarker to mark curve points, arch endpoints, or a mirror line.");
-            _mark = Config.Bind("Controls", "PlaceMarker", KeyCode.Mouse0, "Mark points; Left Ctrl selects pieces in Mirror/Repeat.");
-            _plan = Config.Bind("Controls", "PlanCurve", KeyCode.L, "Submit the current shape as shared BuildOrders ghosts.");
+            _radialKey = Config.Bind("Controls", "ShapeMenu", KeyCode.LeftControl, "Hold (a third of a second, without clicking or scrolling) with the hammer for the shape radial: flick towards Curve, Arch, Arc, Line, Mirror or Repeat and let go.");
+            _mark = Config.Bind("Controls", "PlaceMarker", KeyCode.Mouse0, "Click to place markers in a shape tool; Left Ctrl+click selects pieces in Mirror and Repeat.");
+            _plan = Config.Bind("Controls", "ConfirmShape", KeyCode.E, "Plan the shape as shared BuildOrders ghosts once its pieces show (what you look at isn't used then).");
+            _options = Config.Bind("Controls", "RepeatOptions", KeyCode.O, "Open Repeat's full options: path anchor, pitch, roll and exact values.");
             _undo = Config.Bind("Controls", "UndoCurve", KeyCode.U, "Remove the last shape's unbuilt ghosts in this session. Built pieces stay.");
             _back = Config.Bind("Controls", "RemoveMarker", KeyCode.Backspace, "Remove last marker; Left Ctrl also removes the last Mirror selection.");
             _spacing = Config.Bind("Repeat", "Spacing", 2f, new ConfigDescription("Maximum repeat spacing in metres; adjusted evenly to meet both ends. [ and ] adjust by 0.25 m.", new AcceptableValueRange<float>(0.25f, 16f)));
             _follow = Config.Bind("Repeat", "FollowCurve", true, "Turn pieces around world up to follow the curve, keeping their original tilt. Home toggles this.");
             _harmony = new Harmony(Guid); _harmony.PatchAll(typeof(Plugin).Assembly);
-            Logger.LogInfo($"{Name} {Version} loaded; hammer + {_toggle.Value}: choose Curve, Arch, Line, Mirror or Repeat from the mode picker.");
+            Logger.LogInfo($"{Name} {Version} loaded; with the hammer, hold {_radialKey.Value} for the shape radial.");
         }
 
         private static bool HoldingHammer(Player player) => player != null &&
@@ -97,33 +96,24 @@ namespace BuildShapes
             long world = ZNet.World?.m_uid ?? 0;
             if (_player != player || _session != ZNet.instance || _world != world)
             { Stop(); _lastPlan = null; _bounds.Clear(); _player = player; _session = ZNet.instance; _world = world; }
-            UpdateSharedPreviews();
+            UpdateSharedPreviews(); UpdateShapeCommands();
             if (!_enabled.Value || !HoldingHammer(player) || player.IsDead())
             { if (ShapeActive) Stop(); if (player != null && player.IsDead()) _lastPlan = null; return; }
             if (!_planner.Ready() || ((_tool == Tool.Mirror || _tool == Tool.Repeat) && !_planner.Extended) || !_planner.Available(player))
-            { CloseModeMenu(); CloseRepeatMenu(); CloseArchMenu(); return; }
-            if (!Ready(player)) { CloseModeMenu(); CloseRepeatMenu(); CloseArchMenu(); return; }
-            if (Input.GetKeyDown(_toggle.Value))
-            {
-                if (_modeMenu) CloseModeMenu(); else OpenModeMenu();
-                return;
-            }
-            if (_modeMenu)
-            {
-                if (Input.GetKeyDown(KeyCode.Escape)) { _escapeFrame = Time.frameCount; CloseModeMenu(); }
-                return; // Picker clicks and keys must never mark, select, or submit a shape.
-            }
+            { CloseRadial(); CloseRepeatMenu(); return; }
+            if (!Ready(player)) { CloseRadial(); CloseRepeatMenu(); return; }
+            if (UpdateRadial(player)) return; // Radial clicks and keys must never mark, select, or submit a shape.
             if (_tool == Tool.None) return;
             if (Input.GetKeyDown(KeyCode.Escape))
-            { _escapeFrame = Time.frameCount; if (_repeatMenu) CloseRepeatMenu(); else if (_archMenu) CloseArchMenu(); else Stop(); return; }
+            { _escapeFrame = Time.frameCount; if (_repeatMenu) CloseRepeatMenu(); else Stop(); return; }
             Piece selected = player.GetSelectedPiece();
             if (selected == null || Utils.GetPrefabName(selected.gameObject) != _selected)
             { Stop(); Say("Shape canceled: hammer selection changed."); return; }
             if (_tool==Tool.Repeat && (_previewSpacing!=SafeSpacing() || _previewFollow!=_follow.Value)) Preview();
-            if (_repeatMenu || _archMenu)
+            if (_repeatMenu)
             {
-                if (!_editingNumber && Time.frameCount > _menuOpenedFrame+1 && Input.GetKeyDown(_plan.Value))
-                { if (_archMenu) ConfirmArch(player); else ConfirmRepeat(player); }
+                if (!_editingNumber && Time.frameCount > _menuOpenedFrame+1 && Input.GetKeyDown(_plan.Value)) { _enterFrame = Time.frameCount; _confirmHeld = true; ConfirmRepeat(player); }
+                else if (!_editingNumber && Time.frameCount > _menuOpenedFrame+1 && Input.GetKeyDown(_options.Value)) CloseRepeatMenu();
                 else if (!_editingNumber && Time.unscaledTime-_lastAction>0.5f && Input.GetKeyDown(_undo.Value))
                 {_lastAction=Time.unscaledTime;UndoShape(player);}
                 return; // Menu mouse/keyboard input must never select pieces or mark the world.
@@ -138,6 +128,7 @@ namespace BuildShapes
                 if (Input.GetKeyDown(KeyCode.Home)) { _follow.Value = !_follow.Value; changed = true; }
                 if (changed) Preview();
             }
+            if (UpdateShapeKeys(player)) return;
             if (Input.GetKeyDown(_back.Value))
             {
                 if (_tool == Tool.Mirror && Input.GetKey(KeyCode.LeftControl) && _sources.Count > 0) _sources.RemoveAt(_sources.Count - 1);
@@ -145,9 +136,7 @@ namespace BuildShapes
                 Preview();
             }
             else if ((_tool == Tool.Mirror || _tool == Tool.Repeat) && Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(_mark.Value)) SelectSource(player);
-            else if (Input.GetKey(_modifier.Value) && Input.GetKeyDown(_mark.Value)) Mark(player);
-            else if (Time.unscaledTime - _lastAction > 0.5f && Input.GetKeyDown(_plan.Value))
-            { _lastAction = Time.unscaledTime; if (_tool==Tool.Repeat && _markers.Count==3) OpenRepeatMenu(); else if (_tool==Tool.Arch && _markers.Count==2) OpenArchMenu(); else Submit(player); }
+            else if (!Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(_mark.Value)) Mark(player);
             else if (Time.unscaledTime - _lastAction > 0.5f && Input.GetKeyDown(_undo.Value))
             {
                 _lastAction = Time.unscaledTime;
@@ -171,7 +160,7 @@ namespace BuildShapes
             string name = piece != null ? Utils.GetPrefabName(piece.gameObject) : "";
             if (!UsablePrefab(name, out _)) return;
             _selected = name;
-            if ((requested == Tool.Curve || requested == Tool.Arch || requested == Tool.Line) && !SelectBeam(name)) return;
+            if ((requested == Tool.Curve || requested == Tool.Arch || requested == Tool.Arc || requested == Tool.Line) && !SelectBeam(name)) return;
             if (requested == Tool.Repeat)
             {
                 GameObject ghost = PlacementGhost.GetValue(player) as GameObject;
@@ -179,9 +168,11 @@ namespace BuildShapes
                 SetRepeatAnchors(name);
             }
             _tool = requested;
-            Say(requested == Tool.Mirror ? "Mirror: Shift+click two points for the line; Ctrl+click pieces/ghosts to select." :
-                requested == Tool.Repeat ? "Repeat: Shift+click start, bend, end; [ / ] spacing; L plans." :
-                requested == Tool.Arch ? "Arch: Shift+click start and end, then adjust the center height." : requested == Tool.Line ? "Line: Shift+click start and end; L plans." : "Curve: Shift+click start, bend, end; L plans.");
+            Say(requested == Tool.Mirror ? "Mirror: click two points for the line; Ctrl+click pieces/ghosts to select; " + _plan.Value + " plans." :
+                requested == Tool.Repeat ? "Repeat: click start, bend, end; scroll turns, Ctrl+scroll spaces; " + _plan.Value + " plans." :
+                requested == Tool.Arch ? "Arch: click start and end; it rises straight up from them. Ctrl+scroll sets the height, scroll turns; " + _plan.Value + " plans." :
+                requested == Tool.Arc ? "Arc: click start and end; a circle through them and its top. Ctrl+scroll sets the height, scroll turns; " + _plan.Value + " plans." :
+                requested == Tool.Line ? "Line: click start and end; scroll turns the pieces; " + _plan.Value + " plans; Delete clears." : "Curve: click start, bend, end; scroll turns the pieces; " + _plan.Value + " plans.");
         }
 
         private bool UsablePrefab(string name, out GameObject prefab)
@@ -239,12 +230,11 @@ namespace BuildShapes
                 else { Say("Select at most 256 pieces."); return; }
             }
             Preview();
-            if (_tool==Tool.Repeat && _markers.Count==3) OpenRepeatMenu();
         }
         private void Mark(Player player)
         {
             int needed = RequiredMarkers;
-            if (_markers.Count == needed) { Say($"Markers set. {_plan.Value} plans; {_back.Value} changes the last point."); return; }
+            if (_markers.Count == needed) { Say($"Markers set. {_plan.Value} plans; {_back.Value} changes the last point; Delete clears."); return; }
             if (!CameraRay(out Ray ray) || !Physics.Raycast(ray, out RaycastHit hit, 80f, BuildLayers, QueryTriggerInteraction.Ignore)) return;
             Vector3 point = hit.point;
             Piece piece = hit.collider.GetComponentInParent<Piece>();
@@ -257,11 +247,9 @@ namespace BuildShapes
             if (Vector3.Distance(point, player.transform.position) > 40f) { Say("Move within 40 metres of that point."); return; }
             if (_markers.Any(p => Vector3.Distance(p, point) < 0.1f)) { Say("Place distinct markers."); return; }
             _markers.Add(point);
-            if (_tool == Tool.Arch && _markers.Count == 2 && !_archRiseSet)
+            if ((_tool == Tool.Arch || _tool == Tool.Arc) && _markers.Count == 2 && !_archRiseSet)
             { _archRise = (float)Arch.DefaultRise(V(_markers[0]), V(_markers[1])); _archRiseSet = true; }
             Preview();
-            if (_tool==Tool.Repeat && _markers.Count==3) OpenRepeatMenu();
-            else if (_tool==Tool.Arch && _markers.Count==2) OpenArchMenu();
         }
         private static V3 V(Vector3 p) => new V3(p.x, p.y, p.z);
         private static Vector3 V(V3 p) => new Vector3((float)p.X, (float)p.Y, (float)p.Z);
@@ -273,22 +261,28 @@ namespace BuildShapes
             _previewSpacing = SafeSpacing(); _previewFollow = _follow.Value;
             try
             {
-                if ((_tool == Tool.Curve && _markers.Count == 3) || ((_tool == Tool.Arch || _tool == Tool.Line) && _markers.Count == 2))
+                if ((_tool == Tool.Curve && _markers.Count == 3) || ((_tool == Tool.Arch || _tool == Tool.Arc || _tool == Tool.Line) && _markers.Count == 2))
                 {
                     V3 start = V(_markers[0]), end = V(_markers[_markers.Count-1]);
-                    V3 middle = _tool == Tool.Arch ? Arch.Middle(start, end, _archRise) : _tool == Tool.Line ? Curve.Midpoint(start, end) : V(_markers[1]);
-                    if (_tool == Tool.Arch)
+                    bool arched = _tool == Tool.Arch || _tool == Tool.Arc;
+                    V3 middle = arched ? Arch.Middle(start, end, _archRise) : _tool == Tool.Line ? Curve.Midpoint(start, end) : V(_markers[1]);
+                    // Arch rises straight up from its ends; Arc is the circle through its ends and top; Curve and Line the 3-point curve.
+                    Func<double, V3> path = _tool == Tool.Arch ? Arch.Upright(start, end, _archRise, (_localEnd - _localStart).magnitude) : _tool == Tool.Arc ? Arch.Circular(start, end, _archRise) : null;
+                    if (arched)
                     {
+                        // The gold guide: the centre's height above the line between the ends (Ctrl+scroll).
                         Vector3 center = V(middle), baseline = (_markers[0] + _markers[1]) * 0.5f;
                         Line(new[] { baseline, center }, 0.035f, true);
                         Line(new[] { center-Vector3.right*0.15f, center+Vector3.right*0.15f, center,
                             center-Vector3.forward*0.15f, center+Vector3.forward*0.15f }, 0.055f, true);
                     }
-                    foreach (Segment segment in Curve.Plan(start, middle, end, (_localEnd - _localStart).magnitude))
+                    foreach (Segment segment in path != null ? Curve.Plan(path, (_localEnd - _localStart).magnitude) : Curve.Plan(start, middle, end, (_localEnd - _localStart).magnitude))
                     {
-                        Quaternion rotation = Quaternion.FromToRotation(_localEnd - _localStart, V(segment.End - segment.Start));
+                        Vector3 along = V(segment.End - segment.Start);
+                        Quaternion rotation = Quaternion.FromToRotation(_localEnd - _localStart, along);
+                        // The scroll wheel turns each beam about its own length, through its end snaps.
+                        rotation = Quaternion.AngleAxis(_shapeRoll, along.normalized) * rotation;
                         _output.Add(new PiecePose(null, _selected, V(segment.Start) - rotation * _localStart, rotation));
-                        Line(new[] { V(segment.Start), V(segment.End) }, 0.12f);
                     }
                 }
                 else if (_tool == Tool.Mirror && _markers.Count == 2)
@@ -328,7 +322,7 @@ namespace BuildShapes
                 }
             }
             catch (ArgumentException ex) { _output.Clear(); _previewError = ex.Message; Say(_previewError); }
-            if (_tool != Tool.Curve && _tool != Tool.Arch && _tool != Tool.Line) foreach (PiecePose pose in _output) Box(pose, 0.045f);
+            ShowPieces();
             foreach (PiecePose pose in _sources) Box(pose, 0.018f);
             if (_markers.Count > 1 && _tool != Tool.Mirror && _output.Count == 0) Line(_markers.ToArray(), 0.04f);
             foreach (Vector3 marker in _markers)
@@ -399,7 +393,7 @@ namespace BuildShapes
         }
         private void Submit(Player player)
         {
-            if (_output.Count == 0) { Say(_previewError ?? (_tool == Tool.Mirror ? "Mark a mirror line and Ctrl+click pieces first." : _tool == Tool.Arch ? "Mark start and end, then adjust the height." : _tool == Tool.Line ? "Mark start and end first." : "Mark start, bend, and end first.")); return; }
+            if (_output.Count == 0) { Say(_previewError ?? (_tool == Tool.Mirror ? "Mark a mirror line and Ctrl+click pieces first." : _tool == Tool.Arch || _tool == Tool.Arc ? "Mark start and end; Ctrl+scroll sets the height." : _tool == Tool.Line ? "Mark start and end first." : "Mark start, bend, and end first.")); return; }
             if (!_planner.Create(player, _tool.ToString(), _output.Select(p => p.Prefab).ToArray(), _output.Select(p => p.Position).ToArray(),
                 _output.Select(p => p.Rotation).ToArray(), out string key, out string error)) { Say(error); return; }
             _lastPlan = key; Say($"{_tool} submitted. Build with E; {_undo.Value} removes unbuilt ghosts.");
@@ -409,13 +403,16 @@ namespace BuildShapes
         {
             DrawSharedLabels();
             if (!ShapeActive || !Ready(Player.m_localPlayer) || !_planner.Available(Player.m_localPlayer)) return;
-            if (_modeMenu) { DrawModeMenu(); return; }
+            if (_radial) { DrawRadial(); return; }
             if (_repeatMenu) { DrawRepeatMenu(); return; }
-            if (_archMenu) { DrawArchMenu(); return; }
-            string detail = _tool == Tool.Mirror ? $"{_sources.Count} selected; Ctrl+click toggles pieces/ghosts; Ctrl+Backspace removes last selection." :
-                _tool == Tool.Repeat ? $"Spacing {SafeSpacing():0.##} m ([ / ]); yaw {_yaw:0}° (PgUp/PgDn); {(_follow.Value ? "follow curve" : "fixed orientation")} (Home); Ctrl+click copies a piece." : _tool == Tool.Arch ? "Two endpoints; L opens center-height options. Native-length beams; joints overlap." : _tool == Tool.Line ? "Two endpoints, at any slope or upright. Native-length beams; joints overlap." : "Native-length beams; joints overlap.";
-            string status = _previewError ?? (_output.Count > 0 ? $"{_output.Count} ghosts ready." : $"{_markers.Count}/{RequiredMarkers} markers.");
-            string text = $"BuildShapes {_tool}: {_modifier.Value}+click: marker | {_plan.Value}: plan | {_undo.Value}: undo | {_back.Value}: remove marker | {_toggle.Value}: modes | Escape: exit\n{detail}\n{status}";
+            string turn = $"scroll: turn ({_shapeRoll:0.#}°)";
+            string detail = _tool == Tool.Mirror ? $"{_sources.Count} selected; Ctrl+click toggles pieces/ghosts; Ctrl+Backspace removes the last selection." :
+                _tool == Tool.Repeat ? $"Scroll: turn ({_yaw:0.#}°); Ctrl+scroll: spacing {SafeSpacing():0.##} m (Shift: fine); {_options.Value}: anchor, pitch, roll; Home: {(_follow.Value ? "follow curve" : "fixed orientation")}; Ctrl+click copies a piece." :
+                _tool == Tool.Arch ? $"Start and end, rising straight up; {turn}; Ctrl+scroll: height {_archRise:0.##} m (Shift: fine)." :
+                _tool == Tool.Arc ? $"Start and end, a circle through its top; {turn}; Ctrl+scroll: height {_archRise:0.##} m (Shift: fine)." :
+                _tool == Tool.Line ? $"Start and end, at any slope or upright; {turn}." : $"Start, bend, end; {turn}.";
+            string status = _previewError ?? (_output.Count > 0 ? $"{_output.Count} pieces ready: {_plan.Value} plans them." : $"{_markers.Count}/{RequiredMarkers} markers.");
+            string text = $"BuildShapes {_tool}: click: marker | {_plan.Value}: plan | Delete: clear | {_back.Value}: last marker | {_undo.Value}: undo | hold {_radialKey.Value}: shapes | Escape: exit\n{detail}\n{status}";
             Matrix4x4 saved = GUI.matrix;
             try
             {
@@ -428,14 +425,14 @@ namespace BuildShapes
             finally { GUI.matrix = saved; }
         }
         private void ClearVisuals() { DirtySharedPreview(); foreach (GameObject go in _visuals) if (go != null) Destroy(go); _visuals.Clear(); }
-        private void ClearShape() { CloseModeMenu(); CloseRepeatMenu(); CloseArchMenu(); _archRiseSet = false; _markers.Clear(); _sources.Clear(); _output.Clear(); _previewError = null; ClearVisuals(); }
-        private void Stop() { _tool = Tool.None; _yaw = _pitch = _roll = 0; _seed = default; ResetRepeatAnchors(); _bounds.Clear(); _mirrorProfiles.Clear(); ClearShape(); }
+        private void ClearShape() { CloseRadial(); CloseRepeatMenu(); _archRiseSet = false; _markers.Clear(); _sources.Clear(); _output.Clear(); _previewError = null; ClearVisuals(); }
+        private void Stop() { _tool = Tool.None; _yaw = _pitch = _roll = _shapeRoll = 0; _seed = default; ResetRepeatAnchors(); _bounds.Clear(); _mirrorProfiles.Clear(); ClearShape(); }
         private static void Say(string text) { Player.m_localPlayer?.Message(MessageHud.MessageType.Center, "BuildShapes: " + (text ?? "Planner unavailable.")); }
         private void OnDestroy()
         {
             DestroySharedPreviews();Stop(); _harmony?.UnpatchSelf(); if (_material != null) Destroy(_material);
             if(_anchorMaterial!=null)Destroy(_anchorMaterial);
-            DestroyTheme();
+            DestroyRadial(); UnregisterShapeCommands(); DestroyTheme();
             if (Instance == this) Instance = null;
         }
     }
