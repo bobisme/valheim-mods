@@ -70,6 +70,7 @@ namespace Jarldom
                 case "beacon": Beacon.Called(this, who); break;
                 case "beaconlit": if (Beacon.Light(this)) Beacon.Lit(this, Get(a, 0), Get(a, 1)); break;
                 case "beaconmark": Beacon.Mark(this, Get(a, 0)); break;
+                case "marvel": JarlDeeds.Marvel(this, who, arg); break;
                 case "summon": Villagers.Command(a[0], "summon", ""); break;
                 case "asked": Asks.Logged(this, a); break;
                 case "follow": Villagers.Command(a[0], "follow", Get(a, 1) + "|" + who); break;

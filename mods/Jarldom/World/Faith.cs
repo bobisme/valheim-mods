@@ -184,11 +184,13 @@ namespace Jarldom
             if (goods != null)
             {
                 ContainerAccess.TakeOver(goods);
-                foreach (ItemDrop.ItemData item in goods.GetInventory().GetAllItems().ToList()) value += (int)(Faith.Value(item) * item.m_stack);
+                foreach (ItemDrop.ItemData item in goods.GetInventory().GetAllItems().ToList()) { value += (int)(Faith.Value(item) * item.m_stack * Compat.GoodsWorth(item)); Named(item); }
                 goods.GetInventory().RemoveAll();
             }
             Inventory bag = b.Body.GetInventory();
-            foreach (ItemDrop.ItemData item in bag.GetAllItems().ToList()) value += (int)(Faith.Value(item) * item.m_stack); // they take what they carry
+            foreach (ItemDrop.ItemData item in bag.GetAllItems().ToList()) { value += (int)(Faith.Value(item) * item.m_stack * Compat.GoodsWorth(item)); Named(item); } // they take what they carry
+            // (an heirloom or saga weapon on the pyre: the saga and the verse name it)
+            void Named(ItemDrop.ItemData item) { string n = Compat.GoodsRarity(item) >= 3 ? Compat.GoodsName(item) : ""; if (n != "") c.Log("graveitem", s.Name, n); }
             c.Z.Set(Einherjar.GearKey + s.Vid, Returning.Gear(bag.GetEquippedItems().Select(i => (i.m_dropPrefab != null ? i.m_dropPrefab.name : "", i.m_quality)))); // (what they'd come back in)
             bool sworn = !string.IsNullOrEmpty(s.Sworn) && Villagers.ByVid(s.Sworn)?.Task is AscendTask;
             c.R.Deeds += (int)(Worth.AscensionDeeds(value, sworn) * (ship ? 1.5f : 1f)); // (by ship: the greater honour)

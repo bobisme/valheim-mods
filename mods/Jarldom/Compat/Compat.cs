@@ -131,6 +131,13 @@ namespace Jarldom
             try { muster(home, clear, from, text, spawn); return true; } catch (Exception e) { Plugin.Warn("Respite muster failed: " + e.Message); return false; }
         }
 
+        // ---- GraveGoods: heirlooms and saga weapons, marvelled at and worth more on a pyre ----
+        private static readonly ApiRef GraveGoods = new ApiRef("GraveGoods.Api", "com.bobisme.gravegoods");
+        public static int GoodsRarity(ItemDrop.ItemData item) { var f = GraveGoods.Bind<Func<ItemDrop.ItemData, int>>("Rarity", 1); try { return f != null ? f(item) : -1; } catch { return -1; } }
+        public static string GoodsName(ItemDrop.ItemData item) { var f = GraveGoods.Bind<Func<ItemDrop.ItemData, string>>("Name", 1); try { return f?.Invoke(item) ?? ""; } catch { return ""; } }
+        // (a heirloom counts three times its worth as grave goods, a saga weapon ten)
+        public static float GoodsWorth(ItemDrop.ItemData item) { int r = GoodsRarity(item); return r == 4 ? 10f : r == 3 ? 3f : 1f; }
+
         // ---- Wayfinder: its Beacon Fire is the colony's beacon ----
         private static readonly ApiRef Wayfinder = new ApiRef("Wayfinder.Api", "com.bobisme.wayfinder");
         public static Vector3? WayfinderBeacon(Vector3 at, float radius) { var f = Wayfinder.Bind<Func<Vector3, float, Vector3?>>("NearestBeacon", 1); try { return f?.Invoke(at, radius); } catch { return null; } }

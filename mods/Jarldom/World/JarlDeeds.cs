@@ -162,6 +162,47 @@ namespace Jarldom
             }
             me.m_customData[FirstsKey] = string.Join(";", carried);
         }
+        // ---- GraveGoods: an heirloom or saga weapon brought into the colony is marvelled at, once each ----
+        private static float _nextMarvel; private static readonly HashSet<string> Shown = new HashSet<string>();
+        public static string MarvelKey(string name) => "gg:" + name.GetStableHashCode();
+        public static void Marvels()
+        {
+            Player me = Player.m_localPlayer;
+            if (me == null || me.IsDead() || Time.time < _nextMarvel) return;
+            _nextMarvel = Time.time + 5f;
+            Colony c = Colony.At(me.transform.position);
+            if (c == null || !c.Valid || !c.AllowedName(me.GetPlayerName())) return;
+            if (!Villagers.Bodies().Any(h => h != null && !h.IsDead() && Vector3.Distance(h.transform.position, me.transform.position) < 12f)) return; // (someone there to see it)
+            foreach (ItemDrop.ItemData item in me.GetInventory().GetAllItems())
+            {
+                int r = Compat.GoodsRarity(item);
+                if (r < 3) continue;
+                string name = Compat.GoodsName(item);
+                if (name == "") name = Localization.instance.Localize(item.m_shared.m_name);
+                if (c.R.Flag(MarvelKey(name)) != 0 || !Shown.Add(c.Id + "|" + name)) continue;
+                Net.Act(c, "marvel", name + "|" + r);
+                return; // (one at a time)
+            }
+        }
+        // On the colony's owner: the nearest villager says so, and those near are lifted.
+        public static void Marvel(Colony c, string who, string arg)
+        {
+            string[] f = arg.Split('|');
+            if (f.Length < 2 || c.R.Flag(MarvelKey(f[0])) != 0) return;
+            c.R.Flags[MarvelKey(f[0])] = c.Day; c.MarkDirty();
+            bool saga = f[1] == "4";
+            c.Log("marvel", who, f[0]);
+            Player p = Player.GetAllPlayers().FirstOrDefault(x => x != null && x.GetPlayerName() == who);
+            if (p == null) return;
+            var near = c.R.Living.Select(r => (r, body: Villagers.Body(r.Vid))).Where(x => x.body != null && Vector3.Distance(x.body.transform.position, p.transform.position) < 15f)
+                .OrderBy(x => Vector3.Distance(x.body.transform.position, p.transform.position)).ToList();
+            if (near.Count == 0) return;
+            string line = saga
+                ? new[] { $"By the gods... is that {f[0]}? The one from the old songs?", $"{f[0]}! My grandmother sang of that blade.", $"That's {f[0]}. I never thought to see it with my own eyes." }[UnityEngine.Random.Range(0, 3)]
+                : new[] { $"That's no common thing, jarl. {f[0]}, isn't it?", $"{f[0]}... an heirloom of some great house.", $"Look at the work on that. They'll remember {f[0]} here." }[UnityEngine.Random.Range(0, 3)];
+            Villagers.Command(near[0].r.Vid, "say", line);
+            foreach (var x in near) Villagers.Command(x.r.Vid, "mood", "marvel");
+        }
         public static void Carry(Player me, string deed)
         {
             me.m_customData.TryGetValue(PendingKey, out string had);

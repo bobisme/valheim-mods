@@ -565,6 +565,10 @@ namespace Jarldom
                         output(new JObject { ["beacon"] = at.HasValue ? V(at.Value) : null, ["lit"] = lit, ["wayfinder"] = marked == null && at.HasValue, ["marked"] = marked != null ? Utils.GetPrefabName(marked.gameObject) : null });
                     }
                     break;
+                case "goods": // (test: what GraveGoods says of the items lying within 5 m, through its Api)
+                    output(new JObject { ["goods"] = new JArray(UnityEngine.Object.FindObjectsByType<ItemDrop>(FindObjectsSortMode.None).Where(d => d != null && Vector3.Distance(d.transform.position, me.transform.position) < 5f)
+                        .Select(d => $"{Utils.GetPrefabName(d.gameObject)}: rarity {Compat.GoodsRarity(d.m_itemData)}, name '{Compat.GoodsName(d.m_itemData)}', worth x{Compat.GoodsWorth(d.m_itemData)}")) });
+                    break;
                 case "legend": // ("legend": the legend the colony has to tell; "legend tell": told now (in the great hall); "legend reset": a new one asked for)
                     {
                         if (a.Length > 2 && a[2] == "reset") { c.R.Flags.Remove(TrueLegend.Cur); c.R.Flags.Remove(TrueLegend.KindKey); c.R.Flags.Remove(TrueLegend.Heard); c.MarkDirty(); }

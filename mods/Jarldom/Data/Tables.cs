@@ -152,6 +152,7 @@ namespace Jarldom
             M("belovedjarl", "Follows a jarl they love", 4, 24),
             M("unjust", "An innocent was cast out", -6, 72),
             M("tavern", "A drink in the hall", 5, 12),
+            M("marvel", "Saw a blade out of the old songs", 6, 24),
             M("expedition", "Went out with the jarl", 8, 48),
             M("dressed", "Dressed well", 4, 0),
             M("sport", "Had some sport", 4, 24),
