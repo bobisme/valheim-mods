@@ -39,7 +39,7 @@ namespace Jarldom
             float sea = ZoneSystem.instance.m_waterLevel;
             if (ground < sea + 0.3f) return "that's in the water: step back onto dry ground";
             float lo = ground, hi = ground;
-            for (int i = 0; i < 8; i++) { float a = i * Mathf.PI / 4f; if (ZoneSystem.instance.GetSolidHeight(at + new Vector3(Mathf.Sin(a) * 4.5f, 0, Mathf.Cos(a) * 4.5f), out float h)) { lo = Mathf.Min(lo, h); hi = Mathf.Max(hi, h); } }
+            for (int i = 0; i < 8; i++) { float a = i * Mathf.PI / 4f; if (ZoneSystem.instance.GetSolidHeight(at + new Vector3(Mathf.Sin(a) * 3.5f, 0, Mathf.Cos(a) * 3.5f), out float h)) { lo = Mathf.Min(lo, h); hi = Mathf.Max(hi, h); } }
             if (hi - lo > Steep) return $"the ground's too steep there ({hi - lo:0.0} m across its footing): level it with the hoe, or find flatter ground";
             if (work == GreatWorks.Lighthouse)
             {
@@ -176,8 +176,8 @@ namespace Jarldom
             foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) { Mood.Add(b.S, "greatwork", b.Now); if (b.S.Prof == Prof.Builder) Worth.Gain(b.S, "festival"); b.Dirty(); }
             if (work == GreatWorks.Lighthouse)
             {
-                var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 16.5f, 4f, near);
-                Fireplace hearth = near.Where(p => p != null && Utils.GetPrefabName(p.gameObject) == "bonfire").Select(p => p.GetComponent<Fireplace>()).FirstOrDefault(f => f != null);
+                var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 13f, 4f, near);
+                Fireplace hearth = near.Where(p => p != null && Utils.GetPrefabName(p.gameObject) == "fire_pit").Select(p => p.GetComponent<Fireplace>()).FirstOrDefault(f => f != null);
                 if (hearth != null && !Beacon.IsMarked(c, hearth)) Beacon.Mark(c, Colony.IdOf(hearth.GetComponent<ZNetView>()));
             }
             Net.LegendPin(c, at, GreatWorks.Proper(work, c.R.Name));

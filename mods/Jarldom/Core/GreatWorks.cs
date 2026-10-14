@@ -33,59 +33,50 @@ namespace Jarldom
         private static Part Log(string prefab, float x0, float y0, float z0, float x1, float y1, float z1) =>
             new Part(prefab, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, 0) { UpX = x1 - x0, UpY = y1 - y0, UpZ = z1 - z0 };
 
-        // The Lighthouse: a stone base 8 m square and 8 m high (buttressed corners rising as turrets, battlements, a door at the front
-        // right), its workbench and stonecutter on the ground floor (so every piece up to the fire is in their reach); inside, ladders in
-        // switchbacks by a plank floor to its roof; on the roof a stone shaft 4 m square and 8 m high, a wooden stair winding up its
-        // outside to a braced, railed gallery with torches at its corners; and the bonfire on top, 17 m up.
+        // The Lighthouse: a timber tower on a stone plinth. A keeper's hut of logs and planks on a course of stone, with a door; above it
+        // two storeys of log trestle, narrowing a little as they rise, with a plank floor at each; ladders in switchbacks inside all the
+        // way up (a landing at each turn); a railed gallery with torches at its corners and the beacon fire on a cairn of stones, 14 m
+        // up. Its workbench and stonecutter stand on the plinth beside the hut, so the builders reach every piece.
         public static List<Part> LighthouseParts()
         {
             var parts = new List<Part>();
             void P(string prefab, float x, float y, float z, float yaw = 0) => parts.Add(new Part(prefab, x, y, z, yaw));
-            // the base: its stone floor, four storeys of wall (the door's corner below), buttresses, battlements
-            for (int x = -2; x <= 2; x += 2) for (int z = -2; z <= 2; z += 2) P("stone_floor_2x2", x, -0.5f, z);
-            for (int row = 0; row < 4; row++)
+            const float deck = 0.25f, storey = 4f; // (the plinth's top; each floor above the last)
+            for (int x = -2; x <= 2; x += 2) for (int z = -2; z <= 2; z += 2) P("stone_floor_2x2", x, deck - 0.5f, z);
+            P("piece_workbench", 2.95f, deck, 0, 90); P("piece_stonecutter", -3.05f, deck, 0, 270);
+            // the hut: corner logs; a course of stone, planks, a half wall (the door at the front right, planks over it)
+            foreach (var (sx, sz) in Corners) P("wood_pole_log_4", sx * 2f, deck + 2.22f, sz * 2f);
+            P("stone_wall_2x1", -1, deck + 0.5f, 2); P("woodwall", -1, deck + 2.01f, 2); P("wood_wall_half", -1, deck + 3.5f, 2);
+            P("wood_door", 1, deck + 1.01f, 2); P("woodwall", 1, deck + 3.01f, 2);
+            foreach (float a in new[] { -1f, 1f })
             {
-                float y = 1f + 2f * row;
-                P("stone_wall_4x2", -2, y, 3.5f); if (row > 0) P("stone_wall_4x2", 2, y, 3.5f);
-                P("stone_wall_4x2", -2, y, -3.5f); P("stone_wall_4x2", 2, y, -3.5f);
-                foreach (float side in new[] { -3.5f, 3.5f }) { P("stone_wall_4x2", side, y, -2, 90); P("stone_wall_4x2", side, y, 2, 90); }
+                P("stone_wall_2x1", a, deck + 0.5f, -2); P("woodwall", a, deck + 2.01f, -2); P("wood_wall_half", a, deck + 3.5f, -2);
+                foreach (float side in new[] { -2f, 2f }) { P("stone_wall_2x1", side, deck + 0.5f, a, 90); P("woodwall", side, deck + 2.01f, a, 90); P("wood_wall_half", side, deck + 3.5f, a, 90); }
             }
-            P("wood_door", 1, 1, 3.5f); P("stone_wall_2x1", 3, 0.5f, 3.5f); P("stone_wall_2x1", 3, 1.5f, 3.5f);
-            foreach (var (sx, sz) in Corners) for (int k = 0; k < 5; k++) P("stone_pillar", sx * 4f, 1f + 2f * k, sz * 4f);
-            foreach (float a in new[] { -3f, -1f, 1f, 3f }) { P("stone_wall_1x1", a, 8.5f, 3.5f); P("stone_wall_1x1", a, 8.5f, -3.5f); P("stone_wall_1x1", 3.5f, 8.5f, a, 90); P("stone_wall_1x1", -3.5f, 8.5f, a, 90); }
-            // the keeper's workshop: what the builders need within reach of every piece
-            P("piece_workbench", -0.5f, 0, -2.3f); P("piece_stonecutter", 2.2f, 0, 0.2f, 90);
-            // inside: ladders up the left wall to a plank floor, then along the back wall to the roof
-            P("wood_stepladder", -2.5f, 0, 1); P("wood_stepladder", -2.5f, 2, -1);
-            for (int x = 0; x <= 2; x += 2) for (int z = -2; z <= 2; z += 2) P("wood_floor", x, 3.92f, z);
-            for (float z = -2.5f; z <= 2.5f; z += 1f) P("wood_floor_1x1", -1.5f, 3.92f, z);
-            P("wood_floor_1x1", -2.5f, 3.92f, -2.5f);
-            P("wood_stepladder", -1, 4, -2.5f, 270); P("wood_stepladder", 1, 6, -2.5f, 270);
-            // the roof: stone under the shaft, planks round it (open where the ladders come up)
-            foreach (var (sx, sz) in Corners) P("stone_floor_2x2", sx, 7.5f, sz);
-            for (float x = -2.5f; x <= 2.5f; x += 1f) for (float z = -2.5f; z <= 2.5f; z += 1f)
+            Ring(parts, "wood_wall_log_4x0.5", 2f, deck + storey + 0.27f);
+            // three flights of two ladders, one over another: up toward the back, a landing, back up toward the front; a floor at each
+            // storey, open over the second ladder
+            float[] half = { 2f, 1.75f, 1.5f };
+            for (int s = 0; s < 3; s++)
             {
-                bool ring = Math.Abs(x) > 2 || Math.Abs(z) > 2, well = z < -2 && x > -2 && x < 2;
-                if (ring && !well) P("wood_floor_1x1", x, 7.92f, z);
+                float y0 = deck + storey * s;
+                P("wood_stepladder", 0.5f, y0, 0); P("wood_stepladder", -0.5f, y0 + 2, 0, 180);
+                P("wood_floor_1x1", -0.5f, y0 + 1.92f, -1.5f); P("wood_floor_1x1", 0.5f, y0 + 1.92f, -1.5f);
+                for (float x = -1.5f; x <= 1.5f; x += 1f) for (float z = -1.5f; z <= 1.5f; z += 1f)
+                    if (!(x < 0 && x > -1 && z > -1 && z < 1)) P("wood_floor_1x1", x, y0 + storey - 0.08f, z);
+                if (s == 0) continue;
+                // the trestle storey this flight climbs: leaning corner logs, a ring halfway and one on top
+                float lo = half[s - 1], hi = half[s], yb = deck + storey * s;
+                foreach (var (sx, sz) in Corners) parts.Add(Log("wood_pole_log_4", sx * lo, yb, sz * lo, sx * hi, yb + storey, sz * hi));
+                Ring(parts, "wood_wall_log_4x0.5", (lo + hi) / 2, yb + storey / 2);
+                Ring(parts, "wood_wall_log_4x0.5", hi, yb + storey + 0.27f);
             }
-            // the shaft, and the stair round its outside: up the right side, a landing, along the front
-            for (int row = 0; row < 4; row++) { float y = 9f + 2f * row; P("stone_wall_4x2", 0, y, 1.5f); P("stone_wall_4x2", 0, y, -1.5f); P("stone_wall_4x2", 1.5f, y, 0, 90); P("stone_wall_4x2", -1.5f, y, 0, 90); }
-            P("stone_floor_2x2", 0, 15.5f, 0);
-            P("wood_stepladder", 2.5f, 8, -1, 180); P("wood_stepladder", 2.5f, 10, 1, 180);
-            P("wood_floor_1x1", 2.5f, 11.92f, 2.5f);
-            P("wood_stepladder", 1, 12, 2.5f, 90); P("wood_stepladder", -1, 14, 2.5f, 90);
-            // the gallery round the top (open where the stair comes up), braced from the shaft, railed, a torch at each corner
-            for (float x = -3.5f; x <= 3.5f; x += 1f) for (float z = -3.5f; z <= 3.5f; z += 1f)
-            {
-                bool ring = Math.Abs(x) > 2 || Math.Abs(z) > 2, hole = z > 2 && z < 3 && x > -2 && x < 0;
-                if (ring && !hole) P("wood_floor_1x1", x, 15.92f, z);
-            }
-            foreach (float a in new[] { -1f, 1f }) { P("wood_beam_45", 3, 15, a); P("wood_beam_45", -3, 15, a, 180); P("wood_beam_45", a, 15, -3, 90); }
-            foreach (var (sx, sz) in Corners) { P("wood_pole", sx * 3.75f, 16.5f, sz * 3.75f); P("piece_groundtorch_wood", sx * 3.75f, 17.65f, sz * 3.75f); }
-            foreach (float a in new[] { -3.75f, 3.75f }) { P("wood_pole", 0, 16.5f, a); P("wood_pole", a, 16.5f, 0); }
-            foreach (float a in new[] { -1.9f, 1.9f }) { P("wood_wall_log_4x0.5", a, 16.8f, 3.75f); P("wood_wall_log_4x0.5", a, 16.8f, -3.75f); P("wood_wall_log_4x0.5", 3.75f, 16.8f, a, 90); P("wood_wall_log_4x0.5", -3.75f, 16.8f, a, 90); }
-            // the beacon
-            P("bonfire", 0, 16.45f, 0);
+            // the gallery on top: posts, a rail, torches, and the fire on its cairn (clear of the stairhead)
+            float onDeck = deck + storey * 3 + 0.08f;
+            foreach (var (sx, sz) in Corners) { P("wood_pole", sx * 1.85f, onDeck + 0.5f, sz * 1.85f); P("piece_groundtorch_wood", sx * 1.85f, onDeck + 1.65f, sz * 1.85f); }
+            Ring(parts, "wood_wall_log_4x0.5", 1.85f, onDeck + 0.8f);
+            P("stone_pile", 1, onDeck + 0.09f, 0);
+            P("fire_pit", 1, onDeck + 0.9f, 0);
             return parts;
         }
         private static readonly (int, int)[] Corners = { (1, 1), (1, -1), (-1, 1), (-1, -1) };
@@ -95,7 +86,7 @@ namespace Jarldom
             parts.Add(new Part(log, 0, y, half, 0)); parts.Add(new Part(log, 0, y, -half, 0));
             parts.Add(new Part(log, half, y, 0, 90)); parts.Add(new Part(log, -half, y, 0, 90));
         }
-        public const float Footing = 4.5f; // (half its footing, the gallery's overhang with it: the outline must hold this square)
+        public const float Footing = 4f; // (half its footing, the gallery's overhang with it: the outline must hold this square)
         // Where a work stands in an outline drawn for it: the middle of the outline, if its footing fits inside ("" or why not).
         public static string Site(IList<float> xz, out float x, out float z)
         {
@@ -118,7 +109,7 @@ namespace Jarldom
         // What it takes from the stores, by material (what each piece costs the game's way).
         private static readonly Dictionary<string, (string item, int n)[]> Cost = new Dictionary<string, (string, int)[]>
         {
-            ["wood_floor_1x1"] = new[] { ("Wood", 1) }, ["wood_floor"] = new[] { ("Wood", 2) }, ["wood_pole"] = new[] { ("Wood", 1) }, ["wood_beam_45"] = new[] { ("Wood", 2) },
+            ["wood_floor_1x1"] = new[] { ("Wood", 1) }, ["wood_wall_half"] = new[] { ("Wood", 1) }, ["stone_pile"] = new[] { ("Stone", 50) }, ["fire_pit"] = new[] { ("Stone", 5), ("Wood", 2) }, ["wood_floor"] = new[] { ("Wood", 2) }, ["wood_pole"] = new[] { ("Wood", 1) }, ["wood_beam_45"] = new[] { ("Wood", 2) },
             ["wood_door"] = new[] { ("Wood", 4) }, ["wood_stepladder"] = new[] { ("Wood", 2) }, ["wood_wall_log_4x0.5"] = new[] { ("RoundLog", 2) },
             ["stone_wall_1x1"] = new[] { ("Stone", 3) }, ["stone_wall_2x1"] = new[] { ("Stone", 4) }, ["stone_wall_4x2"] = new[] { ("Stone", 6) }, ["stone_floor_2x2"] = new[] { ("Stone", 6) }, ["stone_pillar"] = new[] { ("Stone", 5) },
             ["piece_workbench"] = new[] { ("Wood", 10) }, ["piece_stonecutter"] = new[] { ("Wood", 10), ("Iron", 2), ("Stone", 4) },
@@ -135,7 +126,7 @@ namespace Jarldom
         public static string Name(string work) => work == Lighthouse ? "the Lighthouse" : work;
         public static string Title(string work) => work == Lighthouse ? "The Lighthouse" : work; // (to start a sentence)
         public static string Proper(string work, string colony) => (work == Lighthouse ? "Lighthouse" : work) + " of " + colony; // (its name on the map)
-        public static string Gift(string work) => work == Lighthouse ? "Its bonfire is the colony's beacon, and ships on the colony's trade runs are lost half as often." : "";
+        public static string Gift(string work) => work == Lighthouse ? "Its fire is the colony's beacon, and ships on the colony's trade runs are lost half as often." : "";
         public const float LossAtSea = 0.5f; // (the Lighthouse: trade runs at sea lost this much as often)
         public const int Renown = 40;
     }

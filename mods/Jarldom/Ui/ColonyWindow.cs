@@ -146,7 +146,7 @@ namespace Jarldom.Ui
         {
             var list = new List<string>();
             var people = c.R.Living.ToList();
-            if (GreatWorks.Stage(c.R.Flags, GreatWorks.Lighthouse) == GreatWorks.Promised) list.Add($"The Thing chose to raise {GreatWorks.Name(GreatWorks.Lighthouse)}: with the hammer's \"Mark rooms and zones\", outline its site on flat ground near the sea (9 × 9 m at least) and choose \"{GreatWorks.Title(GreatWorks.Lighthouse)}\" under Great work.");
+            if (GreatWorks.Stage(c.R.Flags, GreatWorks.Lighthouse) == GreatWorks.Promised) list.Add($"The Thing chose to raise {GreatWorks.Name(GreatWorks.Lighthouse)}: with the hammer's \"Mark rooms and zones\", outline its site on flat ground near the sea (8 × 8 m at least) and choose \"{GreatWorks.Title(GreatWorks.Lighthouse)}\" under Great work.");
             if (GreatWorks.Stage(c.R.Flags, GreatWorks.Lighthouse) == GreatWorks.Laid && !people.Any(p => p.Prof == Prof.Builder)) list.Add($"{GreatWorks.Title(GreatWorks.Lighthouse)} waits for builders: give someone the Builder trade (People tab).");
             int homeless = people.Count(p => string.IsNullOrEmpty(p.Bed));
             if (homeless > 0) list.Add($"{homeless} {(homeless == 1 ? "has" : "have")} no bed and sleep by the hall fire: build beds in a marked longhouse (or by the pillars).");
@@ -433,7 +433,7 @@ namespace Jarldom.Ui
             if (stage == 0) return Text(list, GreatWork.Shore(_c) != null ? "None yet. A village by the sea may be asked at the Thing to raise a lighthouse: the whole colony's work, remembered for good." : "None yet: a village by the sea may be asked to raise a lighthouse.", y, 15, GameUi.Dim);
             if (stage == GreatWorks.Promised)
             {
-                return Text(list, $"The Thing chose to raise {GreatWorks.Name(work)}: a stone tower 8 m across with the keeper's workshop inside, a stair winding to its gallery and a bonfire 17 m up ({GreatWorks.NeedsText(work)}). Show where it stands: with the hammer's \"Mark rooms and zones\", outline its site as you would a zone (fairly flat ground inside the colony near the sea, 9 × 9 m at least) and choose \"{GreatWorks.Title(work)}\" under Great work. It rises in the middle of the outline, its door toward the colony, and the builders raise it from the stores.", y);
+                return Text(list, $"The Thing chose to raise {GreatWorks.Name(work)}: a timber tower on a stone plinth, ladders inside up to a railed gallery and its beacon fire 14 m up ({GreatWorks.NeedsText(work)}). Show where it stands: with the hammer's \"Mark rooms and zones\", outline its site as you would a zone (fairly flat ground inside the colony near the sea, 8 × 8 m at least) and choose \"{GreatWorks.Title(work)}\" under Great work. It rises in the middle of the outline, its door toward the colony, and the builders raise it from the stores.", y);
             }
             int all = GreatWorks.Parts(work).Count, built = _c.R.Flag(GreatWorks.BuiltKey(work));
             if (stage == GreatWorks.Laid)
