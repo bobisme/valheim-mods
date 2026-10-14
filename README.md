@@ -56,8 +56,8 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
   the **Einherjar** (the worthiest gone to Valhalla, once each) to fight for 90 s, glowing, in the gear they went up in. A soul whose
   worth hasn't risen in 8 days **dims** (paler, slower; at 16 days grey-haired and restless): a deed, a request done or the gothi's
   rite at Odin's shrine brings them back. The **lost** walk as draugr marked on the map by name, and come back by night now and then
-  while unburied; their remains (a pale glow where they fall) laid to rest in a **burial ground** end their friends' grief and please
-  Hel. The **memorial stone** (hammer → Misc) lists the remembered. Villagers greet the jarl in Old Norse, sing at work, watch the
+  while unburied; their remains (a pale glow where they fall) laid to rest in a **burial ground** (a marked room with three grave markers:
+  cairns - the hammer's stone pile - or the memorial stone) end their friends' grief and please Hel. The **memorial stone** (hammer → Misc) lists the remembered. Villagers greet the jarl in Old Norse, sing at work, watch the
   northern lights (with Omens), keep a corner by their bed, and come down to the dock to meet a ship home; a tame wolf can be the
   village dog.
 - **The year** (from 0.1.80): four seasons, the dates of shudnal's [Seasons](https://thunderstore.io/c/valheim/p/shudnal/Seasons/) mod when it's

@@ -321,8 +321,11 @@ namespace Jarldom
             if (n.Contains("raven")) { yield return "raven"; yield return "carving"; }
             else if (n.Contains("carving") || n.Contains("darkwood_wolf") || n.Contains("dragon") || n.Contains("statue")) yield return "carving";
             if (Classes.IsRug(n)) yield return "rug";
-            if (n.Contains("rune")) { yield return "runestone"; yield return "grave"; }
-            if (n.Contains("grave") || n.Contains("tomb")) yield return "grave";
+            // (a runestone, the colony's memorial stone; graves: a cairn - the game's stone pile - or any grave or tomb piece. Not runed
+            // chairs and tables: they're furniture)
+            bool memorial = n == Pieces.MemorialName.ToLowerInvariant();
+            if (n.Contains("runestone") || memorial) yield return "runestone";
+            if (n.Contains("grave") || n.Contains("tomb") || n == "stone_pile" || n.Contains("cairn") || memorial) yield return "grave";
             if (n.StartsWith(Pieces.AltarPrefix.ToLowerInvariant())) yield return "altar_" + n.Substring(Pieces.AltarPrefix.Length);
             if (n.Contains("forge") && p.GetComponent<CraftingStation>() != null) yield return "forge";
             if (n.Contains("workbench") && p.GetComponent<CraftingStation>() != null) yield return "workbench";

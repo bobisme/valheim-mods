@@ -50,7 +50,7 @@ namespace Jarldom
             if (info.Seats > 0 && f.C("seat") < info.Seats) v.Failures.Add($"{f.C("seat")} of {info.Seats} seats");
             if (info.Tables > 0 && f.C("table") < info.Tables) v.Failures.Add($"{f.C("table")} of {info.Tables} tables");
             if (info.Chests > 0 && f.C("chest") < info.Chests) v.Failures.Add($"{f.C("chest")} of {info.Chests} chests");
-            if (info.Graves > 0 && f.C("grave") < info.Graves) v.Failures.Add($"{f.C("grave")} of {info.Graves} grave markers");
+            if (info.Graves > 0 && f.C("grave") < info.Graves) v.Failures.Add($"{f.C("grave")} of {info.Graves} grave markers (a cairn - the hammer's stone pile - or the memorial stone)");
             if (info.MinArea > 0 && f.Area < info.MinArea) v.Failures.Add($"{Math.Round(f.Area)} of {info.MinArea} m²");
             if (info.MinFloor > 0 && f.FloorHeight < info.MinFloor) v.Failures.Add($"its floor is {Math.Round(f.FloorHeight, 1)} m up (needs {info.MinFloor})");
             if (info.Brew && f.C("cauldron") == 0 && f.C("fermenter") == 0) v.Failures.Add("no cauldron or fermenter");
