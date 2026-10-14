@@ -354,8 +354,8 @@ namespace Jarldom
             {
                 if (DimStage >= 0 && Colony != null)
                 {
-                    if (stage > DimStage) Colony.Log("text", S.Name, "", stage == 1 ? $"{S.FullName} has done nothing worthy in {Dimming.First} days, and begins to dim." : $"{S.FullName} is fading: {Dimming.Second} days with nothing worthy. They grow restless.");
-                    else if (stage == 0) Colony.Log("text", S.Name, "", $"{S.FullName} is dimming no longer.");
+                    if (stage > DimStage) DimNews.Add(Colony, stage, S.Name, S.FullName);
+                    else if (stage == 0) DimNews.Add(Colony, 0, S.Name, S.FullName);
                 }
                 DimStage = stage; Villagers.Tint(this, stage);
             }
@@ -542,5 +542,33 @@ namespace Jarldom
         {
             if (level % 5 == 0) b.Say(new[] { $"I'm getting better at {skill.ToString().ToLower()}!", $"My {skill.ToString().ToLower()} is coming along!", $"Getting the hang of {skill.ToString().ToLower()}!", $"I'm getting better at {skill.ToString().ToLower()}, at last!", $"My {skill.ToString().ToLower()} is improving!" }[UnityEngine.Random.Range(0, 5)], 4);
         }
+    }
+
+    // News of the Dimming, gathered for a few seconds so a festival that lifts it from all of them is one line in the saga, not fourteen.
+    internal static class DimNews
+    {
+        private static readonly Dictionary<(string colony, int stage), (float at, List<(string name, string full)> who)> Waiting = new Dictionary<(string, int), (float, List<(string, string)>)>();
+        public static void Add(Colony c, int stage, string name, string full)
+        {
+            var key = (c.Id, stage);
+            if (!Waiting.TryGetValue(key, out var w)) Waiting[key] = w = (Time.time, new List<(string, string)>());
+            w.who.Add((name, full));
+        }
+        public static void Tick()
+        {
+            foreach (var key in Waiting.Keys.Where(k => Time.time - Waiting[k].at > 4f).ToList())
+            {
+                var who = Waiting[key].who; Waiting.Remove(key);
+                Colony c = Colony.Of(key.colony);
+                if (c == null || who.Count == 0) continue;
+                string one = who[0].full, names = who.Count == 1 ? one : who.Count <= 3 ? string.Join(", ", who.Take(who.Count - 1).Select(x => x.full)) + " and " + who.Last().full : $"{who[0].full}, {who[1].full} and {who.Count - 2} others";
+                bool many = who.Count > 1;
+                string text = key.stage == 0 ? $"{names} {(many ? "are" : "is")} dimming no longer."
+                    : key.stage == 1 ? $"{names} {(many ? "have" : "has")} done nothing worthy in {Dimming.First} days, and {(many ? "begin" : "begins")} to dim."
+                    : $"{names} {(many ? "are" : "is")} fading: {Dimming.Second} days with nothing worthy. They grow restless.";
+                c.Log("text", many ? "" : who[0].name, "", text);
+            }
+        }
+        public static void Forget() => Waiting.Clear();
     }
 }
