@@ -631,4 +631,17 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Verse.Make(day, 11).All(l => !l.Contains("{") && l.Length > 10), "Lines are filled in");
 }
 
+{
+    // Coming home by sea at night: within 250 m of the colony's edge, under way, heading in, once a return.
+    Check(Return.Detect(0, 300, 0, -4, 0, 0, 80, true, 1000, 0), "Heading in from 220 m off the edge at night");
+    Check(!Return.Detect(0, 300, 0, 4, 0, 0, 80, true, 1000, 0), "Heading out: no");
+    Check(!Return.Detect(0, 300, 4, 0, 0, 0, 80, true, 1000, 0), "Sailing past: no");
+    Check(!Return.Detect(0, 340, 0, -4, 0, 0, 80, true, 1000, 0) && Return.Detect(0, 329, 0, -4, 0, 0, 80, true, 1000, 0), "The 250 m boundary past the edge");
+    Check(!Return.Detect(0, 300, 0, -4, 0, 0, 80, false, 1000, 0), "By day: no");
+    Check(!Return.Detect(0, 300, 0, -0.5f, 0, 0, 80, true, 1000, 0), "Drifting: no");
+    Check(!Return.Detect(0, 300, 0, -4, 0, 0, 80, true, 1000, 800) && Return.Detect(0, 300, 0, -4, 0, 0, 80, true, 1500, 800), "Ten minutes between returns");
+    Check(!Return.Detect(0, 30, 0, -4, 0, 0, 80, true, 1000, 0), "Already in: no");
+    Check(Return.Night(19) && Return.Night(3) && !Return.Night(12), "Night is dusk to dawn");
+}
+
 Console.WriteLine($"Jarldom: {checks} checks passed");

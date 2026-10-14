@@ -480,6 +480,16 @@ namespace Jarldom
                         Task?.Stop(this); Task = new SigrTask(long.Parse(f[0], inv), new Vector3(P(1), P(2), P(3)), new Vector3(P(4), 0, P(5)), f[6], int.Parse(f[7], inv), int.Parse(f[8], inv), int.Parse(f[9], inv), f[10]); Task.Start(this);
                     }
                     break;
+                case "beacon":
+                    {
+                        // (a guard to light the beacon for a jarl's ship coming in: up out of bed if need be, unless fighting)
+                        string[] f = arg.Split('|');
+                        if (f.Length < 3 || Combat.Busy(this) || Task is AscendTask || Task is BeaconTask) break;
+                        if (!float.TryParse(f[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float x) || !float.TryParse(f[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float z)) break;
+                        ZoneSystem.instance.GetSolidHeight(new Vector3(x, 0, z), out float y);
+                        Task?.Stop(this); Task = new BeaconTask(new Vector3(x, y, z), f[2]); Task.Start(this);
+                    }
+                    break;
                 case "meet":
                     {
                         // (to the dock to meet a player coming home by sea: only if nothing pressing, awake, and not in a fight)

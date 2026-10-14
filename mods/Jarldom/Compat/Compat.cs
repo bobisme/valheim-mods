@@ -131,6 +131,12 @@ namespace Jarldom
             try { muster(home, clear, from, text, spawn); return true; } catch (Exception e) { Plugin.Warn("Respite muster failed: " + e.Message); return false; }
         }
 
+        // ---- Wayfinder: its Beacon Fire is the colony's beacon ----
+        private static readonly ApiRef Wayfinder = new ApiRef("Wayfinder.Api", "com.bobisme.wayfinder");
+        public static Vector3? WayfinderBeacon(Vector3 at, float radius) { var f = Wayfinder.Bind<Func<Vector3, float, Vector3?>>("NearestBeacon", 1); try { return f?.Invoke(at, radius); } catch { return null; } }
+        public static bool WayfinderLight(Vector3 at, float radius) { var f = Wayfinder.Bind<Func<Vector3, float, bool>>("LightBeacon", 1); try { return f != null && f(at, radius); } catch { return false; } }
+        public static bool WayfinderLit(Vector3 at, float radius) { var f = Wayfinder.Bind<Func<Vector3, float, bool>>("BeaconLit", 1); try { return f != null && f(at, radius); } catch { return false; } }
+
         // ---- Shieldwall: a siege at the colony's Warstone is a raid ----
         private static readonly ApiRef Shieldwall = new ApiRef("Shieldwall.Api", "com.bobisme.shieldwall");
         public static bool Siege(Vector3 at, float radius, out Vector3 stone)

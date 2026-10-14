@@ -171,6 +171,14 @@ namespace Wayfinder
                     output(new JObject{["ship"]=Ships.NameOf(ship)});
                     break;
                 }
+                case "beacon": // ("wayfinder beacon [light]": the nearest Beacon Fire within 200 m, through the Api other mods use)
+                {
+                    Vector3 at=me.transform.position;
+                    bool lit=args.Length>2&&args[2]=="light"&&Api.LightBeacon(at,200f);
+                    Vector3? b=Api.NearestBeacon(at,200f);
+                    output(new JObject{["beacon"]=b.HasValue?$"{b.Value.x:0},{b.Value.y:0},{b.Value.z:0}":"none",["lit"]=Api.BeaconLit(at,200f),["lightedNow"]=lit});
+                    break;
+                }
                 case "raven":
                     output(new JObject{["released"]=Raven.Release(me)});
                     break;

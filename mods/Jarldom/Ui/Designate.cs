@@ -29,14 +29,24 @@ namespace Jarldom
         public static void Tick()
         {
             if (_leakUntil > 0 && Time.time > _leakUntil && Corners.Count == 0) { _leakUntil = 0; Draw(); } // (the red post where a found room leaked, gone after a while)
-            if (!Active) { if (Corners.Count > 0 && !Ui.RoomPicker.IsOpen) Clear(); Ui.ChestPicker.Hint(null); return; }
+            if (!Active) { if (Corners.Count > 0 && !Ui.RoomPicker.IsOpen) Clear(); Ui.ChestPicker.Hint(null); Ui.ChestPicker.FireHint(null); return; }
             // A chest under the crosshair: what it's for, and Shift+E to choose.
             Container looked = Corners.Count == 0 && !Ui.Windows.AnyOpen && Player.m_localPlayer is Player lp ? Ui.ChestPicker.Looked(lp) : null;
             Ui.ChestPicker.Hint(looked);
             if (looked != null)
             {
+                Ui.ChestPicker.FireHint(null);
                 if (!GameUi.Typing && ZInput.GetButtonDown("Use") && (ZInput.GetButton("AltPlace") || Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))) Ui.ChestPicker.Open(looked);
                 return; // (E on a chest isn't E on the room it stands in)
+            }
+            // A fire under the crosshair: Shift+E makes it the colony's beacon (or not).
+            Fireplace fire = Corners.Count == 0 && !Ui.Windows.AnyOpen && Player.m_localPlayer is Player fp ? Ui.ChestPicker.LookedFire(fp) : null;
+            Ui.ChestPicker.FireHint(fire);
+            if (fire != null)
+            {
+                if (!GameUi.Typing && ZInput.GetButtonDown("Use") && (ZInput.GetButton("AltPlace") || Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && Colony.Nearest(fire.transform.position, Renown.ZoneReach + 20) is Colony fc)
+                    Net.Act(fc, "beaconmark", Colony.IdOf(fire.GetComponent<ZNetView>()));
+                return;
             }
             if (Input.GetKeyDown(KeyCode.Backspace) && Corners.Count > 0 && !GameUi.Typing) { Corners.RemoveAt(Corners.Count - 1); Draw(); }
             // E on a marked room or zone (no outline being drawn): what it is, and change or remove it.

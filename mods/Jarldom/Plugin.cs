@@ -14,7 +14,7 @@ namespace Jarldom
     {
         public const string Guid = "com.bobisme.jarldom";
         public const string Name = "Jarldom";
-        public const string Version = "0.1.98";
+        public const string Version = "0.1.99";
         public const int DataVersion = 1; // raised whenever what's saved changes shape: games of different data versions mustn't write each other's colonies
         internal static Plugin Instance;
         internal ServerSettings Synced;
@@ -98,6 +98,7 @@ namespace Jarldom
             Guard(DimNews.Tick);
             Guard(Among.Tick);
             Guard(JarlDeeds.PlayerTick);
+            Guard(Beacon.PlayerTick);
             Guard(Landing.Tick);
             Guard(Lost.Tick);
         }
@@ -128,6 +129,7 @@ namespace Jarldom
             Guard(HallSound.Forget);
             Guard(DimNews.Forget);
             Guard(Landing.Forget);
+            Guard(Beacon.Forget);
             Guard(Lost.Forget);
             Guard(StairLinks.Clear);
             Guard(Doors.Clear);

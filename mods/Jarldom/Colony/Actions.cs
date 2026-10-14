@@ -9,7 +9,7 @@ namespace Jarldom
     // What players ask of the colony (through the window, the hammer, the altars), carried out by the colony owner.
     internal sealed partial class Colony
     {
-        private static readonly HashSet<string> Open = new HashSet<string> { "offer", "horn", "bogpaid", "gone", "away", "log", "heraldslain", "rescue", "jarlslain", "ruin", "unruin", "thingspoke", "asked", "rest" }; // anyone may pray or blow the horn (and anyone's game may own a villager who was answered)
+        private static readonly HashSet<string> Open = new HashSet<string> { "offer", "horn", "bogpaid", "gone", "away", "log", "heraldslain", "rescue", "jarlslain", "ruin", "unruin", "thingspoke", "asked", "rest", "beaconlit" }; // anyone may pray or blow the horn (and anyone's game may own a villager who was answered)
         private bool FounderSays(string who) => string.IsNullOrEmpty(who) || R.Founder == 0 || who == R.FounderName;
         public bool AllowedName(string who) => string.IsNullOrEmpty(who) || R.Founder == 0 || who == R.FounderName || R.Allowed.Contains(who) || R.Allowed.Contains("*");
 
@@ -67,6 +67,9 @@ namespace Jarldom
                 case "swear": Society.Swear(this, Get(a, 0), Get(a, 1)); break;
                 case "ring": Villagers.Command(a[0], "ring", who); Log("ring", Villagers.ByVid(a[0])?.S.Name ?? a[0], who); JarlDeeds.Add(this, who, Tally.Rings); break;
                 case "tally": JarlDeeds.Delivered(this, who, arg); break;
+                case "beacon": Beacon.Called(this, who); break;
+                case "beaconlit": if (Beacon.Light(this)) Beacon.Lit(this, Get(a, 0), Get(a, 1)); break;
+                case "beaconmark": Beacon.Mark(this, Get(a, 0)); break;
                 case "summon": Villagers.Command(a[0], "summon", ""); break;
                 case "asked": Asks.Logged(this, a); break;
                 case "follow": Villagers.Command(a[0], "follow", Get(a, 1) + "|" + who); break;
@@ -91,7 +94,7 @@ namespace Jarldom
         private static int Int(string[] a, int i) => a.Length > i && int.TryParse(a[i], out int v) ? v : 0;
         private static string Get(string[] a, int i) => a.Length > i ? a[i] : "";
         private static float Flt(string s) => float.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out float v) ? v : 0;
-        private void TellPlayer(string who, string text)
+        public void TellPlayer(string who, string text)
         {
             Player p = Player.GetAllPlayers().FirstOrDefault(x => x.GetPlayerName() == who);
             p?.Message(MessageHud.MessageType.Center, text);

@@ -81,6 +81,11 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
   after Bonemass a draugr jarl's barrow rises in a swamp and sends warbands until he's cut down. A gothi makes a daily offering at each
   temple; Thor's villagers strike harder (and his lightning finds raiders), Freyja's crops grow faster; a feast with a temple is a
   festival. A skald needs a **drum** (workbench: 2 deer hide, 4 wood). SkalTavern's drinks are drunk in the hall from its chests.
+  **The jarl's return**: each colony keeps what its jarls did for it (bosses slain anywhere, arm rings given, raids fought at home,
+  ascensions overseen, feasts, days away) and names them for it: a boss's "-bane", Ring-giver, Shield of the hall, Soul-guide,
+  Feast-giver, the Absent (the hall tab lists the jarls; greetings use the name). After dusk the skald sings the day's deeds in two
+  to four alliterative lines, shown to the players in the hall and kept in the saga. Sail home at night and the watch lights the
+  **beacon** (Wayfinder's Beacon Fire, or any fire: Shift+E on it with the Mark rooms tool), getting out of bed to do it.
   Inspired villagers work faster for a day; a jarl most of the colony loves lifts their followers. After the first boss, one newcomer
   in twelve may be **Forsaken-touched**: watch the mischief, and name them at the Thing. Roads (paved ground, stone floors): a sixth
   faster. **While you were away**: a colony that was unloaded makes up the time at the rates it showed live (goods, meals, wages, raids).
@@ -687,7 +692,8 @@ override it.
 - **Weather Vane** (1 bronze, 2 fine wood): swings to the wind. Hover it for the wind and the forecast.
 - **Beacon Fire** (12 wood, 12 stone, 6 resin): the game's bonfire lifted onto a timber tower. It burns wood, glows from afar
   (a distant ZDO with a distance-scaled glow and a long light), is named with Shift+E, and is pinned on the map for everyone
-  who has seen it.
+  who has seen it. With [Jarldom](#jarldom), it's the colony's beacon: the watch lights it when a jarl sails home at night
+  (other mods find it through `Wayfinder.Api`: NearestBeacon, LightBeacon, BeaconLit).
 - **Sea-Mark** (4 wood, 2 resin): a water piece that bobs on the waves, with a lamp lit at night. Name it with E to pin it.
 
 Everything is in F7. The host and nearby players need the mod for the pieces, items on the ground and ship data. Checks cover

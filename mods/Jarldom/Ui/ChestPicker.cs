@@ -45,6 +45,30 @@ namespace Jarldom.Ui
             foreach (Collider col in chest.GetComponentsInChildren<Collider>()) if (!col.isTrigger) top.y = Mathf.Max(top.y, col.bounds.max.y + 0.5f);
             _label = Overlay_.Label(top, text, new Color(1f, 0.85f, 0.45f, 1f), 2.4f);
         }
+        // A fire under the crosshair, within reach: the colony's beacon, or one that could be.
+        public static Fireplace LookedFire(Player p)
+        {
+            if (GameCamera.instance == null) return null;
+            if (_mask == -1) _mask = LayerMask.GetMask("piece", "piece_nonsolid", "Default", "static_solid", "terrain", "vehicle");
+            Transform cam = GameCamera.instance.transform;
+            if (!Physics.Raycast(cam.position, cam.forward, out RaycastHit hit, 50f, _mask, QueryTriggerInteraction.Ignore)) return null;
+            if (Vector3.Distance(p.m_eye.position, hit.point) > 8f) return null;
+            Fireplace f = hit.collider.GetComponentInParent<Fireplace>();
+            return f != null && f.GetComponent<ZNetView>() != null && Colony.Nearest(f.transform.position, Renown.ZoneReach + 20) != null ? f : null;
+        }
+        private static GameObject _fireLabel; private static Fireplace _fireLabelled; private static string _fireText = "";
+        public static void FireHint(Fireplace fire)
+        {
+            Colony c = fire != null ? Colony.Nearest(fire.transform.position, Renown.ZoneReach + 20) : null;
+            string text = c == null ? "" : Beacon.IsMarked(c, fire) ? "the colony's beacon\n<size=70%>lit when a jarl sails home at night. Shift+E: not any more</size>" : "<size=70%>Shift+E: make it the colony's beacon</size>";
+            if (fire == _fireLabelled && text == _fireText && (_fireLabel != null) == (text != "")) return;
+            if (_fireLabel != null) Object.Destroy(_fireLabel);
+            _fireLabel = null; _fireLabelled = fire; _fireText = text;
+            if (text == "") return;
+            Vector3 top = fire.transform.position + Vector3.up * 1.6f;
+            foreach (Collider col in fire.GetComponentsInChildren<Collider>()) if (!col.isTrigger) top.y = Mathf.Max(top.y, col.bounds.max.y + 0.5f);
+            _fireLabel = Overlay_.Label(top, text, new Color(1f, 0.7f, 0.35f, 1f), 2.4f);
+        }
         // The colony this chest is a store of (and its id and what it holds now), or why not.
         public static bool Of(Container chest, out Colony c, out string id, out string category)
         {

@@ -553,6 +553,17 @@ namespace Jarldom
                             ["blessing"] = af == null ? "none" : $"{Calendar.Name(af.Value)} at {Mathf.RoundToInt(ap * 100)}%", ["neglected"] = Festivals.Neglected(c.R.Flags, c.Day) });
                     }
                     break;
+                case "beacon": // ("beacon": where it is and whether it burns; "beacon mark x z": the fire nearest there marked (or not); "beacon douse":
+                               // put out (test); "beacon test": as if a jarl's ship were seen coming in at night)
+                    {
+                        string sub = a.Length > 2 ? a[2] : "";
+                        if (sub == "mark") { Vector3 q = new Vector3(F(a[3]), 0, F(a[4])); Fireplace f = c.PiecesIn<Fireplace>(c.Radius + 60).OrderBy(x => Utils.DistanceXZ(x.transform.position, q)).FirstOrDefault(); if (f == null) { error("no fire"); return; } Net.Act(c, "beaconmark", Colony.IdOf(f.GetComponent<ZNetView>())); }
+                        if (sub == "douse") { Vector3? w = Beacon.Where(c, out _, out Fireplace mf); if (mf != null) mf.GetComponent<ZNetView>().InvokeRPC("RPC_SetFuelAmount", 0f); }
+                        if (sub == "test") Net.Act(c, "beacon", "");
+                        Vector3? at = Beacon.Where(c, out bool lit, out Fireplace marked);
+                        output(new JObject { ["beacon"] = at.HasValue ? V(at.Value) : null, ["lit"] = lit, ["wayfinder"] = marked == null && at.HasValue, ["marked"] = marked != null ? Utils.GetPrefabName(marked.gameObject) : null });
+                    }
+                    break;
                 case "logdrop": // (test: saga entries a test left, by a piece of their text or names: "logdrop <words>")
                     {
                         string q = string.Join(" ", a.Skip(2));
