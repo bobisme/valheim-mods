@@ -1,3 +1,5 @@
+0.1.116: the villager window grows to fit what it holds (an ask, the cleansing rite, a ring to give), and short buttons share a row: nothing spills past its bottom edge
+
 0.1.115: the hall tab says where the treasury chest stands; a short payday paid in full is no longer gossip, and the same news isn't told by the whole hall at once
 
 0.1.114: A storm sends in those who work outdoors, but the healer, gothi, weaver, smith and cook go on with their work under a roof.

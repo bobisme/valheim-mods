@@ -105,12 +105,13 @@ namespace Jarldom.Ui
                 if (c.R.Living.Any(r => r.Prof == Prof.Gothi) && Saboteur.OdinAltar(c) != null && c.AllowedName(Player.m_localPlayer.GetPlayerName()))
                 {
                     string why = Saboteur.CleanseWhy(c, vid);
-                    ry += 44; bx = 10;
-                    Small(right, why == "" ? $"Cleansing rite ({Saboteur.CleansePrice} coins)" : "Cleansing rite", ref bx, ry, () => { if (Saboteur.CleanseWhy(c, vid) == "") { Net.Act(c, "cleanse", vid); Close(); } else Player.m_localPlayer.Message(MessageHud.MessageType.Center, "Not now: " + Saboteur.CleanseWhy(c, vid) + "."); },
+                    string rite = why == "" ? $"Cleansing rite ({Saboteur.CleansePrice} coins)" : "Cleansing rite";
+                    if (bx + W(rite) > 410) { ry += 44; bx = 10; }
+                    Small(right, rite, ref bx, ry, () => { if (Saboteur.CleanseWhy(c, vid) == "") { Net.Act(c, "cleanse", vid); Close(); } else Player.m_localPlayer.Message(MessageHud.MessageType.Center, "Not now: " + Saboteur.CleanseWhy(c, vid) + "."); },
                         why == "" ? $"The gothi takes {Saboteur.CleansePrice} coins from the treasury to Odin and holds a rite at his altar. If the Forsaken's mark is on them, Odin may burn it out (more likely the more he favours the colony); if not, they're found clean and the suspicion on them lifts. For a disgraced soul it's their atonement: if Odin hears it, the shame is washed out. The coins are spent either way." : "Not now: " + why + ".");
                 }
                 ItemDrop.ItemData ring = Player.m_localPlayer.GetInventory().GetAllItems().FirstOrDefault(Items.IsRing);
-                if (ring != null && c.AllowedName(Player.m_localPlayer.GetPlayerName())) { ry += 44; bx = 10; Small(right, "Give an arm ring", ref bx, ry, () => { Player me = Player.m_localPlayer; ItemDrop.ItemData r = me.GetInventory().GetAllItems().FirstOrDefault(Items.IsRing); if (r == null) return; me.GetInventory().RemoveItem(r, 1); Net.Act(c, "ring", vid); }); }
+                if (ring != null && c.AllowedName(Player.m_localPlayer.GetPlayerName())) { if (bx + W("Give an arm ring") > 410) { ry += 44; bx = 10; } Small(right, "Give an arm ring", ref bx, ry, () => { Player me = Player.m_localPlayer; ItemDrop.ItemData r = me.GetInventory().GetAllItems().FirstOrDefault(Items.IsRing); if (r == null) return; me.GetInventory().RemoveItem(r, 1); Net.Act(c, "ring", vid); }); }
                 ry += 48;
                 ry = Text(right, "Work", ry, 18, GameUi.Warm);
                 float px = 10;
@@ -123,6 +124,13 @@ namespace Jarldom.Ui
                 }
                 ry += 40;
                 ry = Text(right, $"{Tables.Of(s.Prof).Name}: {Tables.Of(s.Prof).Does}{(Tables.Of(s.Prof).Needs != "" ? " (needs " + Tables.Of(s.Prof).Needs + ")" : "")}. Wage {Tables.Wage(s.Prof, s.Has("greedy"))} a day.", ry, 14, GameUi.Dim);
+            }
+            // Taller than the boxes (a long ask, the rite, a ring to give): the window grows to fit, rather than spill over its edge.
+            float need = Mathf.Max(y, ry) + 12;
+            if (need > Size.y - 156)
+            {
+                left.sizeDelta = new Vector2(left.sizeDelta.x, need); right.sizeDelta = new Vector2(right.sizeDelta.x, need);
+                _window.sizeDelta = new Vector2(Size.x, need + 156);
             }
         }
         // What they ask of the jarl, why, how long it stands, and the one button that moves it on.
@@ -170,9 +178,10 @@ namespace Jarldom.Ui
             ((RectTransform)t.transform).sizeDelta = new Vector2(400, h);
             return y + h + 6;
         }
+        private static float W(string text) => Mathf.Max(120, text.Length * 9f + 24); // (a small button's width)
         private static Button Small(RectTransform box, string text, ref float x, float y, Action click, string tip = null)
         {
-            float w = Mathf.Max(120, text.Length * 9f + 24);
+            float w = W(text);
             Button b = GameUi.Button(box, text, new Vector2(x, -y), new Vector2(w, 38), click, true, 15);
             if (tip != null) GameUi.Tip(b, text, tip);
             x += w + 6;
