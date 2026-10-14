@@ -97,7 +97,30 @@ namespace Demolisher
             Scan(player);   // what's there now, not when the question was asked
             foreach(Piece piece in _doomed.OrderByDescending(p=>p.transform.position.y))_queue.Enqueue(piece);
             _removed=_kept=0;
+            if(_lightning.Value)Strike(_doomed);
             Untint();
+        }
+        // Thor's lightning, the Obliterator's own (lightningAOE), down on the tops of what comes down: one bolt per 12 m or so, at most six.
+        // The bolt is a network object, so everyone sees and hears it; its damage (400 lightning, dealt only by its owner) is taken off here.
+        private static void Strike(List<Piece> doomed)
+        {
+            var points=new List<Vector3>();
+            foreach(Piece piece in doomed.Where(p=>p!=null).OrderByDescending(p=>p.transform.position.y))
+            {
+                Vector3 at=piece.transform.position;
+                if(points.Any(q=>new Vector2(q.x-at.x,q.z-at.z).sqrMagnitude<12*12))continue;
+                points.Add(at);
+                if(points.Count==6)break;
+            }
+            foreach(Vector3 at in points)Bolt(at);
+        }
+        internal static bool Bolt(Vector3 at)
+        {
+            GameObject prefab=ZNetScene.instance!=null?ZNetScene.instance.GetPrefab("lightningAOE"):null;
+            if(prefab==null)return false;
+            GameObject bolt=Object.Instantiate(prefab,at,Quaternion.identity);
+            foreach(Aoe aoe in bolt.GetComponentsInChildren<Aoe>(true))Object.DestroyImmediate(aoe);
+            return true;
         }
         private void RunQueue(Player player)
         {

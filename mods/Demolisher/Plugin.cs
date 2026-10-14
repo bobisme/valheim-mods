@@ -15,10 +15,11 @@ namespace Demolisher
     {
         public const string Guid="com.bobisme.demolisher";
         public const string Name="Demolisher";
-        public const string Version="0.1.1";
+        public const string Version="0.1.3";
         internal static Plugin Instance;
         private ConfigEntry<bool> _enabled;
         private ConfigEntry<int> _perFrame;
+        private ConfigEntry<bool> _lightning;
         private Harmony _harmony;
         private ZNet _session;
         private readonly List<Vector3> _corners=new List<Vector3>();
@@ -29,11 +30,13 @@ namespace Demolisher
             Instance=this;
             _enabled=Config.Bind("General","Enabled",true,"Put the demolition stake in the hammer's build menu (Misc).");
             _perFrame=Config.Bind("General","PerFrame",8,new ConfigDescription("Structures removed each frame while demolishing.",new AcceptableValueRange<int>(1,50)));
+            _lightning=Config.Bind("General","Lightning",true,"Thor's lightning strikes the building as it comes down.");
             _harmony=new Harmony(Guid);_harmony.PatchAll(typeof(Plugin).Assembly);
             Logger.LogInfo($"{Name} {Version} loaded: pick the demolition stake from the hammer's Misc tab.");
         }
         private void OnDestroy()
         {
+            Tools.Stop();
             _harmony?.UnpatchSelf();
             if(_asking && UnifiedPopup.IsVisible())UnifiedPopup.Pop();
             Untint();DestroyOutline();DestroyStake();
@@ -43,6 +46,7 @@ namespace Demolisher
         {
             try{Tick();}
             catch(Exception e){Logger.LogError(e);ClearOutline();}
+            try{Tools.Tick();}catch(Exception e){Logger.LogError("Demolisher tools: "+e);}
         }
         private void Tick()
         {
@@ -133,6 +137,7 @@ namespace Demolisher
             RedrawOutline();
             player.Message(MessageHud.MessageType.Center,_corners.Count==0?"Outline cleared":$"{_corners.Count} corners");
         }
+        internal static void Log(string text)=>Instance?.Logger.LogInfo(text);
         private void ClearOutline()
         {
             _corners.Clear();_closed=false;_doomed.Clear();_skipped.Clear();Untint();RedrawOutline();
