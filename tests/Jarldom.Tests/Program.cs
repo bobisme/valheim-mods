@@ -683,4 +683,13 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Wanderer.Tell("biome:BlackForest", "Bob") == "Bob was the first of the hall to set foot in the Black Forest." && Wanderer.Tell("dungeon:Crypt4", "Ann").Contains("burial chamber"), "Told in the saga");
 }
 
+{
+    // The verse sings the Einherjar, the barrow jarl, the beacon and the hall's champions too; the saga keeps their words as written.
+    var ev = new List<LogEntry> { new LogEntry(1, 5, "einherjar", "Ingrid", "", "In the colony's need, Ingrid came back from Valhalla to fight."), new LogEntry(2, 5, "barrowjarl", "", "Draugr jarl Hrolf", "x"),
+        new LogEntry(3, 5, "beacon", "the watch", "Bob", "y"), new LogEntry(4, 5, "champion", "Ottar", "hnefatafl", "z") };
+    var vv = Verse.Make(ev, 3, p => p == "Bob" ? "Bob Ring-giver" : p);
+    Check(vv.Count == 4 && vv[0].Contains("Hrolf") && vv[1].StartsWith("Ingrid") && vv.Any(l => l.Contains("beacon for Bob Ring-giver")) && vv.Any(l => l.Contains("no match at hnefatafl")), "Each sung, the weightiest first");
+    Check(Stories.Line(ev[0]) == "In the colony's need, Ingrid came back from Valhalla to fight.", "The saga's words unchanged");
+}
+
 Console.WriteLine($"Jarldom: {checks} checks passed");

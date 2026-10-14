@@ -12,7 +12,7 @@ namespace Jarldom
         private static readonly Dictionary<string, int> Weight = new Dictionary<string, int>
         {
             ["slew"] = 10, ["home"] = 9, ["raidheld"] = 8, ["ascend"] = 8, ["lost"] = 7, ["death"] = 7, ["rest"] = 6, ["arrive"] = 6,
-            ["byname"] = 5, ["feast"] = 5, ["fest"] = 6, ["lore"] = 4, ["first"] = 7, ["graveitem"] = 8, ["marvel"] = 5, ["starkill"] = 4, ["ring"] = 4, ["worthy"] = 3,
+            ["byname"] = 5, ["feast"] = 5, ["fest"] = 6, ["lore"] = 4, ["first"] = 7, ["graveitem"] = 8, ["marvel"] = 5, ["einherjar"] = 9, ["barrowjarl"] = 10, ["beacon"] = 6, ["champion"] = 4, ["starkill"] = 4, ["ring"] = 4, ["worthy"] = 3,
         };
         public static bool Sings(string kind) => Weight.ContainsKey(kind);
 
@@ -31,7 +31,7 @@ namespace Jarldom
         {
             named = named ?? (s => s);
             var rng = new Random(seed);
-            var picked = today.Where(e => e != null && Sings(e.Kind) && (e.A != "" || e.Kind == "raidheld" || e.Kind == "feast" || e.Kind == "fest"))
+            var picked = today.Where(e => e != null && Sings(e.Kind) && (e.A != "" || e.Kind == "raidheld" || e.Kind == "feast" || e.Kind == "fest" || e.Kind == "barrowjarl"))
                 .GroupBy(e => e.Kind).Select(g => g.OrderByDescending(e => e.Time).First()) // (each kind once: its latest)
                 .OrderByDescending(e => Weight[e.Kind]).ThenBy(e => e.Time).Take(4).ToList();
             var lines = picked.Select(e => Line(e, rng, named)).Where(l => !string.IsNullOrEmpty(l)).ToList();
@@ -57,6 +57,10 @@ namespace Jarldom
                 case "starkill": return $"{a} the {Alliter(rng, Bold, a)} {Alliter(rng, Felled, b)} a mighty {b}.";
                 case "ring": return $"{named(b)} gave gold to {a} the {Alliter(rng, Bold, a)}.";
                 case "worthy": return $"{a} is worthy of Odin's hall.";
+                case "einherjar": return $"{a} rode down from Valhalla when the hall had need, {Alliter(rng, Bold, a)} as ever.";
+                case "barrowjarl": return $"{b} lies cut down in his barrow; the dead keep their own now.";
+                case "beacon": return a == "the watch" ? $"The watch lit the beacon for {named(b)}, and the dark gave way." : $"{a} saw the sail and lit the beacon for {named(b)}.";
+                case "champion": return $"{a} the {Alliter(rng, Bold, a)} has no match at {b} in this hall.";
                 case "graveitem": return $"{a} took {b} to Odin's hall, and the Allfather smiled.";
                 case "marvel": return $"{named(a)} brought home {b}, and the hall fell silent to see it.";
                 case "first": return $"{named(a)} the {Alliter(rng, Bold, a)} went where none of us had gone.";

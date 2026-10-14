@@ -77,9 +77,9 @@ namespace Jarldom
             if (lit) { Waiting.Remove(c.Id); return; }
             if (Time.time < w.at) return;
             Waiting.Remove(c.Id);
-            if (Light(c)) c.Log("text", "", "", $"The watch saw {w.who}'s sail in the dark and lit the beacon.");
+            if (Light(c)) c.Log("beacon", "the watch", w.who, $"The watch saw {w.who}'s sail in the dark and lit the beacon.");
         }
-        public static void Lit(Colony c, string by, string who) { Waiting.Remove(c.Id); c.Log("text", by, "", $"{by} saw {who}'s sail and lit the beacon."); }
+        public static void Lit(Colony c, string by, string who) { Waiting.Remove(c.Id); c.Log("beacon", by, who, $"{by} saw {who}'s sail and lit the beacon."); }
         // Shift+E on a fire with the Mark rooms tool: the colony's beacon, or not any more.
         public static void Mark(Colony c, string id)
         {

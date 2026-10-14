@@ -1,3 +1,5 @@
+0.1.109: The skald sings more of the colony's great moments: an Einherjar riding down from Valhalla to fight, the draugr jarl cut down in his barrow, the beacon lit for a jarl coming home, the hall's hnefatafl and glíma champions.
+
 0.1.108: A butcher's table or a mage table's parts aren't tables to sit at and play hnefatafl (or to count in a room): only real tables are.
 
 0.1.107: Burial grounds can be made: a grave marker is a cairn (the hammer's stone pile) or the memorial stone, and the Rooms tab says so; runed chairs, benches and tables no longer count as runestones and graves. The Mark rooms tool's description tells of Shift+E on chests and fires.

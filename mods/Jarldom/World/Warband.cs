@@ -161,7 +161,7 @@ namespace Jarldom
             ZoneSystem.instance?.RemoveGlobalKey(SlainKey(c.Id));
             c.R.Deeds += Renown.Deed("raidheld") * 3;
             Net.Pin(PinKey(c), Barrow(c), "", false);
-            c.Log("text", "", "", $"{JarlName(c)} is cut down in his barrow. His warbands will trouble {c.R.Name} no more.");
+            c.Log("barrowjarl", "", JarlName(c), $"{JarlName(c)} is cut down in his barrow. His warbands will trouble {c.R.Name} no more.");
             c.MarkDirty();
         }
     }

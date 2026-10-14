@@ -135,7 +135,7 @@ namespace Jarldom
             go.GetComponent<MonsterAI>()?.SetPatrolPoint();
             Assets.Effect("vfx_odin_despawn", at); Assets.Effect("fx_Fader_Roar", at);
             Say(z, new[] { "Valhöll sendir mik! / Valhalla sends me!", "Enn em ek hér! / I'm here still!", "Fyrir Óðin ok fyrir yðr! / For Odin and for you!", "Upp, bræðr! / Up, brothers!" }[Random.Range(0, 4)]);
-            c.Log("text", "", "", $"In the colony's need, {name} came back from Valhalla to fight.");
+            c.Log("einherjar", name, "", $"In the colony's need, {name} came back from Valhalla to fight.");
             foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id && Vector3.Distance(b.Pos, at) < 40f).OrderBy(b => Vector3.Distance(b.Pos, at)).Take(2))
                 Greet.Say(b, Greeting.Return, null, urgent: true, about: name.Split(' ')[0]);
             Plugin.Log($"Jarldom: {name} came back from Valhalla at {at}");

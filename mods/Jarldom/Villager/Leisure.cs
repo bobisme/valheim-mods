@@ -284,7 +284,7 @@ namespace Jarldom
                 Bonds(x, x == a ? c : a, 3);
                 x.Dirty();
             }
-            if (win.S.Count(key + "wins") == 10) win.Colony?.Log("text", win.S.Name, "", key == "glima" ? $"{win.S.FullName} has thrown ten at glíma: none in the colony wrestles better." : $"{win.S.FullName} has won ten games of hnefatafl: the hall's best player.");
+            if (win.S.Count(key + "wins") == 10) win.Colony?.Log("champion", win.S.Name, key == "glima" ? "glíma" : "hnefatafl", key == "glima" ? $"{win.S.FullName} has thrown ten at glíma: none in the colony wrestles better." : $"{win.S.FullName} has won ten games of hnefatafl: the hall's best player.");
         }
         private static void Bonds(Brain x, Brain y, int by) => x.S.Bonds[y.S.Vid] = Mathf.Clamp((x.S.Bonds.TryGetValue(y.S.Vid, out int v) ? v : 0) + by, -100, 100);
         private void Spar(Brain b)
