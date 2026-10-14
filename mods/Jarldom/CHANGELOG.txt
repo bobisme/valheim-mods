@@ -1,3 +1,5 @@
+0.1.124: the Lighthouse is grander: a stone base 8 m square with buttressed corners and battlements, its workbench and stonecutter inside, ladders up through it, a stone shaft with a stair winding round its outside to a braced, railed gallery, and a bonfire 17 m up (outline 9 × 9 m)
+
 0.1.123: a great work planned but not begun can be moved: outline another site and choose "Move it here" under Great work (its old plan goes)
 
 0.1.122: a great work's site is outlined like a zone (Mark rooms and zones) and chosen under Great work in the picker, its door toward the colony (no more Shift+E); the picker grows to fit; its site kept to a tenth of a metre, so a finished work is always seen as finished
