@@ -199,8 +199,9 @@ namespace Jarldom
             {
                 if (x.category == "treasury" || ContainerAccess.InUse(x.chest)) continue;
                 if (c.RoomAt(x.chest.transform.position, RoomType.Brewhouse) != null) continue; // the brewer's honey and berries aren't for eating
+                bool hall = c.RoomAt(x.chest.transform.position, RoomType.GreatHall) != null;
                 foreach (ItemDrop.ItemData item in x.chest.GetInventory().GetAllItems())
-                    if (Edible(item)) yield return (x.chest, item);
+                    if (Edible(item) && !(hall && FestivalDays.SetAside(c, item))) yield return (x.chest, item);
             }
         }
         public static bool Edible(ItemDrop.ItemData item) => item != null && item.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Consumable && item.m_shared.m_food > 0;

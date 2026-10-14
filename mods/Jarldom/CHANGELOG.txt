@@ -1,3 +1,5 @@
+0.1.89: What a coming festival wants in the great hall's chests is set aside in the days before it: villagers eat only what's over, and the gothi doesn't offer it.
+
 0.1.88: Thor's altar: Mjölnir remade, its head chamfered with flared faces and gold bands right round it, a wooden haft with a banded leather grip; a real goat's skull on the post's head, its horns ridged and swept back. The altars' stone no longer has a busy repeating moss tile on its tops, and their gold shows in a dark hall.
 
 0.1.87: The made-up hall murmur is muted (it sounded wrong; real recordings are coming), the laughs stay. A dawn missed because the colony loaded after noon now comes late, before dusk. Two days before a festival, the saga says what it wants. Keeping a festival is a worthy deed: each villager's worth rises, which also lifts the Dimming.

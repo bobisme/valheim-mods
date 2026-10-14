@@ -59,7 +59,8 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
 - **The year** (from 0.1.80): four seasons, the dates of shudnal's [Seasons](https://thunderstore.io/c/valheim/p/shudnal/Seasons/) mod when it's
   installed, else ten days each; the hall tab shows the date. One festival a season, mid-season: **Sigrblot** (spring), **Midsummer**,
   **Winter Nights** (autumn), **Yule** (winter). Two dawns before, the colony is told what to bring to the great hall's chests (wood,
-  dandelions, food, mead, trophies or raw meat); at dusk on the day it's kept (the goods used), with a blessing as strong as the
+  dandelions, food, mead, trophies or raw meat; kept there for it, not eaten or offered); at dusk on the day it's kept (the goods used, and
+  each villager's worth rises, which ends the Dimming), with a blessing as strong as the
   readying until the next one: Sigrblot, fighters and the jarl's party strike up to a tenth harder and trade runs bring more;
   Midsummer, work goes faster; Winter Nights, worth grows faster; Yule, good cheer. Readied less than a quarter, it's let slip and
   the colony is downcast. At Midsummer a bonfire is lit on open ground by the hall and the colony dances round it. At Sigrblot the colony gathers at Odin's

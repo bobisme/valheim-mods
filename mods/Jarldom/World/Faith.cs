@@ -487,7 +487,8 @@ namespace Jarldom
             if (_altar == null) { Skip(b, "the temple has no altar"); return; }
             string god = _god = Utils.GetPrefabName(_altar.gameObject).Substring(Pieces.AltarPrefix.Length);
             var gifts = Stock.Chests(c, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest))
-                .SelectMany(x => x.chest.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && !Items.IsRing(i) && Faith.Wants(god, i) && Faith.Value(i) > 0).Select(i => (x.chest, i)))
+                .SelectMany(x => x.chest.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && !Items.IsRing(i) && Faith.Wants(god, i) && Faith.Value(i) > 0
+                    && !(c.RoomAt(x.chest.transform.position, RoomType.GreatHall) != null && FestivalDays.SetAside(c, i))).Select(i => (x.chest, i))) // (not what's kept for a festival)
                 .OrderBy(g => Faith.Value(g.i)).ToList();
             if (gifts.Count == 0) { Skip(b, $"the stores hold nothing {Tables.God(god)?.Name} wants ({Tables.God(god)?.Offerings}{(Tables.God(god)?.OfferingItems?.Contains("Coins") == true ? "; the treasury's coins aren't the gothi's to give: put some in a stockpile chest" : "")})"); return; }
             _from = gifts[0].chest; _gift = gifts[0].i.m_dropPrefab.name;

@@ -35,6 +35,20 @@ namespace Jarldom
                 default: return false;
             }
         }
+        // In the days before a festival and on its day, what it wants in the hall's chests is set aside: only what's over is eaten.
+        private static readonly Dictionary<string, (float at, HashSet<string> kinds)> Aside = new Dictionary<string, (float, HashSet<string>)>();
+        public static bool SetAside(Colony c, ItemDrop.ItemData item)
+        {
+            if (!Aside.TryGetValue(c.Id, out var a) || Time.time - a.at > 5f)
+            {
+                var kinds = new HashSet<string>();
+                var (f, until) = Calendar.Next(Year.Today());
+                if (until <= Calendar.PrepDays && !Festivals.Done(c.R.Flags, c.Day))
+                    foreach (var n in Festivals.Needs(f, c.Population)) if (Have(c, n.kind) <= n.amount) kinds.Add(n.kind);
+                Aside[c.Id] = a = (Time.time, kinds);
+            }
+            return a.kinds.Count > 0 && a.kinds.Any(k => Is(k, item));
+        }
         public static int Have(Colony c, string kind) => HallGoods(c).Where(x => Is(kind, x.item)).Sum(x => x.item.m_stack);
         public static float Readied(Colony c, Festival f) => c.Best(RoomType.GreatHall) == null ? 0 : Festivals.Readied(Festivals.Needs(f, c.Population), k => Have(c, k));
         public static string Wants(Colony c, Festival f) => string.Join(", ", Festivals.Needs(f, c.Population).Select(n => $"{n.amount} {n.label} ({Math.Min(n.amount, Have(c, n.kind))} there)"));
@@ -48,7 +62,7 @@ namespace Jarldom
             if (c.Best(RoomType.GreatHall) == null) { c.Tell($"{Calendar.Name(f)} {(until == 0 ? "is tonight" : $"in {until} {(until == 1 ? "day" : "days")}")}, but there's no great hall to keep it in.", true); return; }
             c.Tell(until == 0
                 ? $"{Calendar.Name(f)} is tonight, at dusk. Readied {Mathf.RoundToInt(Readied(c, f) * 100)}%: {Wants(c, f)}."
-                : $"{Calendar.Name(f)} in {until} {(until == 1 ? "day" : "days")}. Bring to the great hall's chests: {Wants(c, f)}.", true);
+                : $"{Calendar.Name(f)} in {until} {(until == 1 ? "day" : "days")}. Bring to the great hall's chests (it's kept there for the day, not eaten): {Wants(c, f)}.", true);
             if (until == Calendar.PrepDays) c.Log("text", "", "", $"{Calendar.Name(f)} is coming in {until} days: it wants {Wants(c, f)} in the great hall's chests."); // (in the saga and the while-you-were-gone, for a jarl who's away)
             Blessing(c);
         }

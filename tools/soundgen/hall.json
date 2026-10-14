@@ -1,0 +1,21 @@
+{
+  "out": "jarldom-hall",
+  "sounds": [
+    {"name": "murmur_calm", "seconds": 30, "loop": true,
+     "prompt": "Indoor ambience of a crowded medieval tavern, many people talking quietly, indistinct murmur of voices, wooden hall, fire crackling softly, no music"},
+    {"name": "murmur_lively", "seconds": 30, "loop": true,
+     "prompt": "Busy medieval mead hall at night, lively crowd of men and women chatting and laughing, indistinct voices, cups clinking on wooden tables, crackling hearth, no music"},
+    {"name": "murmur_far", "seconds": 30, "loop": true,
+     "prompt": "Muffled crowd murmur heard from outside a wooden longhouse, indistinct voices talking inside, distant, low, no music"},
+    {"name": "feast_roar", "seconds": 30, "loop": true,
+     "prompt": "Rowdy viking feast in a great hall, loud crowd cheering, laughing and shouting, tankards banging on tables, boisterous, no music"},
+    {"name": "laugh", "seconds": 4,
+     "prompt": "A single hearty man laughing heartily in a tavern, short belly laugh, close"},
+    {"name": "laugh_group", "seconds": 5,
+     "prompt": "A small group of people bursting into laughter in a tavern, short"},
+    {"name": "cheer", "seconds": 5,
+     "prompt": "A crowd in a hall raising a cheer and banging cups on tables, short toast, hurrah"},
+    {"name": "clink", "seconds": 3,
+     "prompt": "Wooden and pewter tankards clinking together in a toast, close, short"}
+  ]
+}
