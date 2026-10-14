@@ -1132,3 +1132,13 @@
 1791959722553597	claude-jarldom	itc:AQ		item.comment	bn-1oxx	{"body":"0.1.97: live chain verified Fish1 -> FishRaw (prep table in the brewhouse, 5 a trip) -> FishCooked. Test table left in the brewhouse at 326.5,1124.6 (tagged test piece)."}	blake3:PKru43InUVbENKe3BthsGdauBSYIUbqRKszcFTfZ5nA
 1791960526593070	claude-jarldom	itc:AQ		item.comment	bn-2fcm	{"body":"Done live in Creative: day 162 two-days-before saga line; Sigrblot held d164 (rite, altar fire, gothi blessings) at 90% because the cook took a sacrifice meat - fixed 0.1.98 (Stock.Kept); Midsummer d174 held at exactly the stocked 90%, goods untouched until dusk. Found+fixed: dawns jumped over by time skips skipped paydays (0.1.98)."}	blake3:iC4cIqpiEfjcUK9o_L1Ai6wrovbrbBfCekVDP069xmo
 1791960526612650	claude-jarldom	itc:AQ		item.move	bn-2fcm	{"state":"done"}	blake3:g37D8Lk1aptiTcqquWCHxV4uqRi1v6KFIKBNoBQClfI
+1791961679559757	claude-jarldom	itc:AQ		item.move	bn-1u6	{"state":"done"}	blake3:nDt1E_92Zi-eRFmZOx8PfvBIz0B-09rZBTuSAD-qsGc
+1791961679587349	claude-jarldom	itc:AQ		item.move	bn-2ro	{"state":"done"}	blake3:tlEC1makyw6Ye2M-3Hj31DOZrndHECcZsH1saBOVhUM
+1791961679607079	claude-jarldom	itc:AQ		item.move	bn-gka4	{"state":"done"}	blake3:i7y6jBWp2X0yQldH0XgYHfqO_M5HVG6sYY19KRQ9OfQ
+1791961679625470	claude-jarldom	itc:AQ		item.move	bn-2rib	{"state":"done"}	blake3:uFrSnH6emgp5yDnGbGfmesTdAgx1_clvyugGL8HHxvw
+1791961679643966	claude-jarldom	itc:AQ		item.move	bn-1rp	{"state":"done"}	blake3:JHcfEc97LCUDQRcv6h09W-VCv1s3nIvU_cJEf9Cl7YU
+1791961679663684	claude-jarldom	itc:AQ		item.comment	bn-sqa	{"body":"Wayfinder 0.1.9 released with Api (NearestBeacon/LightBeacon/BeaconLit) + 'wayfinder beacon [light]'. Not hot-reloaded (item mod): check after Bob's restart that 'wayfinder beacon light' lights a Beacon Fire and Jarldom's 'jarldom beacon' finds it."}	blake3:FjZWNB5H2ITzD70LHvDIUeFBwZ8NAIHQVkKFTB4eurk
+1791961679683883	claude-jarldom	itc:AQ		item.update	bn-sqa	{"field":"labels","value":{"action":"add","label":"needs-player"}}	blake3:YFaRoNxjvA2BguV80P8iZ5fLuAOKOavgrjeou3x4r-Y
+1791961679703181	claude-jarldom	itc:AQ		item.comment	bn-3a9	{"body":"0.1.99: marked-fire path live-tested (guard woke, ran, lit in ~20 s; 25 s fallback lit when the guard didn't come). Wayfinder path needs a restart (bn-sqa). Real night sail = bn-35xu (needs-player)."}	blake3:QJblGYa7dFDTv5yZ2MgQf0eoMfkg65AKxEftMesmTRA
+1791961679720001	claude-jarldom	itc:AQ		item.move	bn-3a9	{"state":"done"}	blake3:X3JdMtPjoZ2wQIHpf8OxnueDMNv8n2OdsnEWFfLMAkk
+1791961679740329	claude-jarldom	itc:AQ		item.update	bn-35xu	{"field":"labels","value":{"action":"add","label":"needs-player"}}	blake3:F5gYZfecmpC89HqaEfDzZc5iEB16lC7yd5osNF9fLM4
