@@ -1,3 +1,5 @@
+0.1.90: The Yule log lies on its side across the hearth, 1.7 m long, with smaller flames along it (it stood upright and huge). A log left behind by an earlier load of the mod is cleared.
+
 0.1.89: What a coming festival wants in the great hall's chests is set aside in the days before it: villagers eat only what's over, and the gothi doesn't offer it.
 
 0.1.88: Thor's altar: Mjölnir remade, its head chamfered with flared faces and gold bands right round it, a wooden haft with a banded leather grip; a real goat's skull on the post's head, its horns ridged and swept back. The altars' stone no longer has a busy repeating moss tile on its tops, and their gold shows in a dark hall.

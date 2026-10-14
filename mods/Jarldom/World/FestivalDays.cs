@@ -158,11 +158,12 @@ namespace Jarldom
         public static bool YuleBurning(Colony c) => c.R.Flag("yule:until") >= c.Day;
         // On each game, every few seconds: the log in the hearth of every colony keeping Yule near this player.
         private static readonly Dictionary<string, GameObject> Logs = new Dictionary<string, GameObject>();
-        private static float _nextLog;
+        private static float _nextLog; private static bool _swept;
         public static void Tick()
         {
             if (Time.time < _nextLog || Player.m_localPlayer == null) return;
             _nextLog = Time.time + 5f;
+            if (!_swept) { _swept = true; foreach (GameObject g in Resources.FindObjectsOfTypeAll<GameObject>().Where(g => g.name == "JarldomYuleLog" && g.scene.IsValid() && !Logs.ContainsValue(g)).ToList()) UnityEngine.Object.Destroy(g); } // (once: any left by an earlier load of the mod)
             foreach (Colony c in Colony.All.ToList())
             {
                 bool want = YuleBurning(c) && Vector3.Distance(Player.m_localPlayer.transform.position, c.Position) < c.Radius + 150;
@@ -175,11 +176,33 @@ namespace Jarldom
         // The log: a great round log across the hearth, flames along it, a warm glow, and warmth for those beside it.
         private static GameObject YuleLog(Vector3 at)
         {
-            var go = new GameObject("JarldomYuleLog"); go.transform.position = at + Vector3.up * 0.25f;
+            var go = new GameObject("JarldomYuleLog"); go.transform.position = at + Vector3.up * 0.05f;
+            float r = 0.3f; // (the log's radius, once it's laid)
             GameObject wood = Assets.Find("RoundLog");
-            if (wood != null) Assets.Model(wood, go.transform, Vector3.zero, Quaternion.Euler(0, 35, 90), 2.2f);
+            GameObject log = wood != null ? Assets.Model(wood, go.transform, Vector3.zero, Quaternion.identity) : null;
+            if (log != null)
+            {
+                // Laid on its side across the hearth, whichever way the model stands: its longest side made 1.7 m and turned level.
+                var bounds = new Bounds(); bool first = true;
+                foreach (MeshFilter f in log.GetComponentsInChildren<MeshFilter>())
+                {
+                    Bounds mb = f.sharedMesh.bounds;
+                    for (int i = 0; i < 8; i++)
+                    {
+                        Vector3 corner = log.transform.InverseTransformPoint(f.transform.TransformPoint(mb.center + Vector3.Scale(mb.extents, new Vector3(i & 1, (i >> 1) & 1, (i >> 2) & 1) * 2 - Vector3.one)));
+                        if (first) { bounds = new Bounds(corner, Vector3.zero); first = false; } else bounds.Encapsulate(corner);
+                    }
+                }
+                Vector3 size = bounds.size; int axis = size.x >= size.y && size.x >= size.z ? 0 : size.y >= size.z ? 1 : 2;
+                Vector3 along = axis == 0 ? Vector3.right : axis == 1 ? Vector3.up : Vector3.forward;
+                float scale = 1.7f / Mathf.Max(0.01f, size[axis]);
+                r = Mathf.Clamp(scale * Mathf.Min(axis == 0 ? size.y : size.x, axis == 2 ? size.y : size.z) / 2f, 0.15f, 0.4f);
+                Quaternion turn = Quaternion.Euler(0, 35, 0) * Quaternion.FromToRotation(along, Vector3.right);
+                log.transform.localScale = Vector3.one * scale; log.transform.localRotation = turn;
+                log.transform.localPosition = Vector3.up * r - turn * (bounds.center * scale);
+            }
             GameObject flames = Assets.Find("bonfire")?.transform.Find("_enabled_high/fx_BonfireFlames")?.gameObject;
-            if (flames != null) for (int k = -1; k <= 1; k++) { GameObject f = UnityEngine.Object.Instantiate(flames, go.transform, false); f.SetActive(true); f.transform.localPosition = Quaternion.Euler(0, 35, 0) * new Vector3(k * 0.45f, 0.2f, 0); f.transform.localScale = Vector3.one * 0.45f; }
+            if (flames != null) for (int k = -1; k <= 1; k++) { GameObject f = UnityEngine.Object.Instantiate(flames, go.transform, false); f.SetActive(true); f.transform.localPosition = Quaternion.Euler(0, 35, 0) * new Vector3(k * 0.5f, r * 1.3f, 0); f.transform.localScale = Vector3.one * 0.2f; }
             Light glow = new GameObject("glow").AddComponent<Light>(); glow.transform.SetParent(go.transform, false); glow.transform.localPosition = Vector3.up * 1.2f;
             glow.type = LightType.Point; glow.color = new Color(1f, 0.62f, 0.3f); glow.range = 12f; glow.intensity = 1.8f;
             var heat = new GameObject("heat") { layer = LayerMask.NameToLayer("character_trigger") }; heat.transform.SetParent(go.transform, false);
