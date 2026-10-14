@@ -13,6 +13,7 @@ namespace Jarldom
         private static readonly Dictionary<string, Hall> Halls = new Dictionary<string, Hall>();
         private static AudioClip _talk, _roar;
         private static float _next;
+        public static bool Muted = true;
         public static string Last = ""; // (for jarldom hall sound)
         public static float? Forced; public static bool ForceRoar; public static double? ForcedMood; // (jarldom hallsound <volume> | roar | mood <n>: on this game only)
 
@@ -49,7 +50,7 @@ namespace Jarldom
             if (Forced is float f) { level.Volume = f; level.Sparse = 0; }
             // Broken up when they're low: now and then the talk dies down for a while.
             if (Time.time >= h.NextGate) { h.Gate = Random.value < level.Sparse * 0.6f ? 0.2f : 1f; h.NextGate = Time.time + Random.Range(1.5f, 4f); }
-            h.Want = level.Volume * h.Gate; h.WantRoar = level.Roar ? level.Volume : 0;
+            h.Want = Muted ? 0 : level.Volume * h.Gate; h.WantRoar = Muted || !level.Roar ? 0 : level.Volume; // (muted: the made-up babble sounded wrong; real recordings coming)
             if (inHall.Count > 0 && level.LaughsPerMinute > 0 && Random.value < level.LaughsPerMinute / 30f)
                 Laugh(inHall[Random.Range(0, inHall.Count)].body.transform.position + Vector3.up * 1.6f, level.Roar);
             Last = $"{c.R.Name}: {inHall.Count} in the hall of {c.Population}, mood {mood:0}, {(feasting ? "feasting" : night ? "evening" : "day")}: volume {level.Volume:0.00}, sparse {level.Sparse:0.00}, laughs {level.LaughsPerMinute:0.0}/min{(Soundscape.Miserable(mood) ? " (miserable: the hall is quiet)" : "")}";

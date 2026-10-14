@@ -49,6 +49,7 @@ namespace Jarldom
             c.Tell(until == 0
                 ? $"{Calendar.Name(f)} is tonight, at dusk. Readied {Mathf.RoundToInt(Readied(c, f) * 100)}%: {Wants(c, f)}."
                 : $"{Calendar.Name(f)} in {until} {(until == 1 ? "day" : "days")}. Bring to the great hall's chests: {Wants(c, f)}.", true);
+            if (until == Calendar.PrepDays) c.Log("text", "", "", $"{Calendar.Name(f)} is coming in {until} days: it wants {Wants(c, f)} in the great hall's chests."); // (in the saga and the while-you-were-gone, for a jarl who's away)
             Blessing(c);
         }
         // While a festival's blessing lasts, a little cheer each day.
@@ -97,7 +98,7 @@ namespace Jarldom
             Faith.Add(c, god, 3 + Mathf.RoundToInt(readied * 7), "kept " + Calendar.Name(f));
             c.R.Deeds += Renown.Deed("festival");
             string mood = f == Festival.Sigrblot ? "sigrblot" : f == Festival.Midsummer ? "midsummer" : f == Festival.WinterNights ? "winternights" : "yule";
-            foreach (RosterRow r in c.R.Living) Villagers.Command(r.Vid, "mood", mood);
+            foreach (RosterRow r in c.R.Living) { Villagers.Command(r.Vid, "mood", mood); Villagers.Command(r.Vid, "gain", "festival"); } // (keeping the year's rites together is worthy)
             int pct = Mathf.RoundToInt(readied * 100);
             c.Tell($"{Calendar.Name(f)} is kept tonight{(pct < 100 ? $" ({pct}% readied)" : "")}! Until the next festival, {Festivals.Blessing(f)}.", true);
             c.Log("text", "", "", $"The colony kept {Calendar.Name(f)}{(pct >= 100 ? " in full" : pct >= 60 ? "" : ", though thinly")}.");
