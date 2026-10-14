@@ -1028,7 +1028,7 @@ namespace Jarldom
                     {
                         // Test villagers gone without a trace (their rags with them): by name, or "tagged" for every one spawned with tag.
                         int n = 0;
-                        foreach (Brain b in Villagers.All.Where(b => a.Length > 2 && (b.S.Name == a[2] || a[2] == "tagged" && b.S.Count("testspawn") > 0)).ToList())
+                        foreach (Brain b in Villagers.All.Where(b => a.Length > 2 && (b.S.Name == a[2].Replace('_', ' ') || a[2] == "tagged" && b.S.Count("testspawn") > 0)).ToList())
                         {
                             b.Release(); c.ReleaseBed(b.S.Vid);
                             c.R.Roster.RemoveAll(r => r.Vid == b.S.Vid);
