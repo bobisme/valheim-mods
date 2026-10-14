@@ -1,0 +1,1 @@
+0.1.0: First version. Laser pistol, laser rifle, laser sword, jetpack, infrared goggles, combat drones, orbital uplink (low orbit ion cannon), hover speeder, gravity gun, displacer, stim pack and recall beacon. Not yet played in the game: expect rough edges in how things sit in the hand and on the body, the tuning, and the look of the glows.

@@ -1221,6 +1221,32 @@ clips are made in Blender over a skeleton captured from the game (`mods/BobsAnim
 Tried in game on seated Jarldom villagers (men and women), single player: every clip but `sit_board_move` (checked only in Blender against
 a measured table), and a clip fading out when its villager got up. Not yet tried: a second game watching (the sync).
 
+## Wrong Universe
+
+Somebody's sci-fi kit fell through a crack into the tenth world (`cx.bob.wronguniverse`). Everything is made at the forge
+(the speeder with the hammer), and every number and cost is a setting (`9 - Costs` takes "Item:amount, Item:amount").
+
+- **Laser Pistol** (one-handed, red bolts, one per click, overheats) and **Laser Rifle** (two-handed; hold to charge, release
+  to fire up to 260 m; a full charge pierces four bodies; block zooms). Hitscan beams everyone sees; a miss never hurts buildings.
+- **Laser Sword**: the iron sword's swings, a glowing blade (seven colours) that ignites, hums with its speed and trails; chops and mines.
+- **Jetpack** (utility slot): hold Jump in the air to fly, move keys steer, Run boosts; fuel refills on the ground; no fall
+  damage. Others see the flames (one tiny value on the player's ZDO, written only when it changes).
+- **Infrared Goggles** (helmet): a camera command buffer dims the world blue and draws every living character within 80 m
+  white-hot through walls; ambient light raised for night sight. H toggles.
+- **Combat Drone**: use to launch, use again to recall. A networked, non-persistent drone circles you and zaps alerted
+  enemies; its battery lives on the item.
+- **Orbital Uplink**: paint a spot up to 300 m off; after 3 s an ion cannon strike (600 over 12 m, chop and mine, fire, a
+  4 m crater through the game's own terrain ops). 60 s cooldown. No building damage, and no crater near wards or builds,
+  unless allowed.
+- **Hover Speeder**: a saved piece (cloned from the raft) that hovers 0.9 m over land and water, banks into turns, hops,
+  rams enemies, with a pillion seat. The rider's game owns it and runs the physics, as Quad's vehicles do.
+- **Gravity Gun** (lift, carry and fling creatures and loose objects), **Displacer** (60 m blink), **Stim Pack** (full heal
+  and 30 s of fast regeneration and speed), **Recall Beacon** (one use, home to your bed with ore).
+
+Claude Tools gets a `wu` command: `list`, `give <prefab|all>`, `held`, and `laser`, `saber`, `jet`, `goggles`, `drone`,
+`ion`, `speeder`, `gadget` for each gadget's own checks. Code: `Core/` is shared (item registry, looks, icons, beams,
+damage, RPCs, sounds, gauges), one `Features/` class per gadget. Not yet played in the game.
+
 ## Build with mise
 
 Install [mise](https://mise.jdx.dev/) and run:

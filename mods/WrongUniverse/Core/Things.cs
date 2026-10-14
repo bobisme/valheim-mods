@@ -119,6 +119,8 @@ namespace WrongUniverse
             foreach(LODGroup lod in go.GetComponentsInChildren<LODGroup>(true))Object.DestroyImmediate(lod);
             for(int i=go.transform.childCount-1;i>=0;i--)Object.DestroyImmediate(go.transform.GetChild(i).gameObject);
             foreach(Collider c in go.GetComponents<Collider>())Object.DestroyImmediate(c);
+            foreach(ParticleSystem ps in go.GetComponents<ParticleSystem>())Object.DestroyImmediate(ps);   // (before its renderer: it depends on it)
+            foreach(Light l in go.GetComponents<Light>())Object.DestroyImmediate(l);
             foreach(Renderer r in go.GetComponents<Renderer>())Object.DestroyImmediate(r);
             foreach(MeshFilter m in go.GetComponents<MeshFilter>())Object.DestroyImmediate(m);
 
