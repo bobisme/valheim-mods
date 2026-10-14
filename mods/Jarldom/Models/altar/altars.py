@@ -377,7 +377,7 @@ def frigg():
     st = table_stone('step', 1.04, 0.66, 0.22, Vector((0, 0.02, 0)))
     # the chest
     Z0, Z1, W, D = 0.22, 0.8, 0.88, 0.5
-    box('chest', (0, 0, (Z0 + Z1) / 2), (W, D, Z1 - Z0), WOOD)
+    box('chest', (0, 0, (Z0 + Z1 - 0.12) / 2), (W, D, Z1 - 0.12 - Z0), WOOD)   # (up to the lid: their tops would fight)
     box('lid', (0, 0, Z1 - 0.06), (W + 0.03, D + 0.03, 0.12), DARK)
     for x in (-0.3, 0.3):
         box('strap', (x, D / 2 + 0.008, (Z0 + Z1 - 0.12) / 2), (0.05, 0.016, Z1 - Z0 - 0.12), IRON)
