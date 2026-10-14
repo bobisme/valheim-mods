@@ -148,6 +148,10 @@ namespace Jarldom.Ui
             var people = c.R.Living.ToList();
             if (GreatWorks.Stage(c.R.Flags, GreatWorks.Lighthouse) == GreatWorks.Promised) list.Add($"The Thing chose to raise {GreatWorks.Name(GreatWorks.Lighthouse)}: with the hammer's \"Mark rooms and zones\", outline its site on flat ground near the sea (9 × 9 m at least) and choose \"{GreatWorks.Title(GreatWorks.Lighthouse)}\" under Great work.");
             if (GreatWorks.Stage(c.R.Flags, GreatWorks.Lighthouse) == GreatWorks.Laid && !people.Any(p => p.Prof == Prof.Builder)) list.Add($"{GreatWorks.Title(GreatWorks.Lighthouse)} waits for builders: give someone the Builder trade (People tab).");
+            // (a crop chosen for the season with no seeds for it: the farmers sow whatever else there is)
+            foreach (Zone z in c.R.Zones.Where(z => z.Type == ZoneType.Fields))
+                if (Work.ChosenNow(c, z) is var ch && ch != null && !Work.HaveInStock(c, ch.Value.seed))
+                    list.Add($"The fields {(Utils.DistanceXZ(Zones.Centre(z), c.Position) is float far && far < 6 ? "by the pillars" : $"{Mathf.RoundToInt(far)} m {ScoutTask.Compass(Zones.Centre(z) - c.Position)}")} are to be sown with {Work.CropName(ch.Value.sapling.name).ToLower()} this {Calendar.Name(Year.Today().Season)}, but the stores hold no {Localization.instance.Localize(ObjectDB.instance.GetItemPrefab(ch.Value.seed)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name ?? ch.Value.seed).ToLower()}: farmers sow what there is until some come in.");
             int homeless = people.Count(p => string.IsNullOrEmpty(p.Bed));
             if (homeless > 0) list.Add($"{homeless} {(homeless == 1 ? "has" : "have")} no bed and sleep by the hall fire: build beds in a marked longhouse (or by the pillars).");
             int meals = Stock.Food(c, c.Position).Sum(f => f.item.m_stack);
@@ -544,7 +548,8 @@ namespace Jarldom.Ui
             foreach (Zone z in _c.R.Zones)
             {
                 GameUi.Line(list, Tables.Of(z.Type).Name, new Vector2(8, -y), 260, 18, GameUi.Warm);
-                GameUi.Line(list, $"{Math.Round(Geometry.Area(z.Xz))} m², {Where(z.Xz, z.Floor)}: {Tables.Of(z.Type).Text}", new Vector2(272, -y), W - 272 - 104, 15, GameUi.Dim);
+                string sows = z.Type == ZoneType.Fields ? Work.CropLine(_c, z) : "";
+                GameUi.Line(list, $"{Math.Round(Geometry.Area(z.Xz))} m², {Where(z.Xz, z.Floor)}: {(sows != "" ? sows : Tables.Of(z.Type).Text)}", new Vector2(272, -y), W - 272 - 104, 15, GameUi.Dim);
                 string id = z.Id;
                 GameUi.Button(list, "Remove", new Vector2(W - 96, -y + 2), new Vector2(96, 30), () => Net.Act(_c, "unroom", id), true, 15);
                 y += 34;

@@ -1,3 +1,5 @@
+0.1.134: choose what each fields zone is sown with, season by season: E on the zone with the zone banner, then ‹ › per season (or Same all year); farmers sow it while the stores hold its seeds, else whatever seeds there are (Needs you says which are missing); the zone's label and the Work tab show it. Removing a zone drops its open work too. Compat lists Hallwright under its own mod.
+
 0.1.133: the Lighthouse's trestle rings are whole again on the stair side: the back log of each ring lies outside the legs, clear of the landings
 
 0.1.132: test tools for great works (BuildOrders' stability of a plan, what's missing, building one ghost)

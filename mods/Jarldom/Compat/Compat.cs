@@ -18,7 +18,7 @@ namespace Jarldom
             ("Gary", new[] { "com.bobisme.gary" }, "villagers pet Gary the Greydwarf"),
             ("QualityOfLife", new[] { "com.quad.qualityoflife", "com.dhack.qualityoflife" }, "chest rules as stockpile categories"),
             ("BuildOrders", new[] { "com.quad.buildorders", "com.dhack.buildorders" }, "builders build its planned ghosts from the stores"),
-            ("BuildShapes", new[] { "com.bobisme.buildshapes" }, "Hallwright outlines as rooms (not yet)"),
+            ("Hallwright", new[] { "cx.bob.hallwright" }, "Hallwright outlines as rooms (not yet)"),
             ("FeedFromChests", new[] { "com.quad.feedfromchests", "com.dhack.feedfromchests" }, "smelters fed from chests"),
             ("Farmhand", new[] { "com.bobisme.farmhand" }, "rows and batches (not yet)"),
             ("Omens", new[] { "com.bobisme.omens" }, "Odin's favour is the gods' Fate"),

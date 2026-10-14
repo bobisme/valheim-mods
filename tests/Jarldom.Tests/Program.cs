@@ -712,6 +712,25 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(!Petitions.Raise(new Random(1), new ColonyView { Population = 5, HasBeautyRoom = true, HasShrine = true, GuardWage = 9, Beds = 5 }, 10).Any(p => p.Id == "beacon" || p.Id == "burial"), "Not when there's no need");
 }
 
+// ---- Fields: the crop chosen per season ----
+{
+    var cf = new Dictionary<string, int>();
+    var crops = new List<string> { "sapling_barley", "sapling_carrot", "sapling_flax" };
+    Check(CropChoice.Chosen(cf, "z1", Season.Summer, crops) == null, "Nothing chosen: anything");
+    CropChoice.Set(cf, "z1", Season.Summer, "sapling_carrot");
+    CropChoice.Set(cf, "z2", Season.Summer, "sapling_flax");
+    Check(CropChoice.Chosen(cf, "z1", Season.Summer, crops) == "sapling_carrot" && CropChoice.Chosen(cf, "z1", Season.Winter, crops) == null, "A crop for one season only");
+    Check(CropChoice.Chosen(cf, "z1", Season.Summer, new[] { "sapling_barley" }) == null, "A crop no longer known (its mod gone): anything");
+    Check(CropChoice.Hash("sapling_carrot") == CropChoice.Hash("sapling_carrot") && CropChoice.Hash("sapling_carrot") != CropChoice.Hash("sapling_turnip") && CropChoice.Hash("") != 0, "A stable hash, never 0");
+    Check(CropChoice.Cycle(crops, null, 1) == "sapling_barley" && CropChoice.Cycle(crops, "sapling_flax", 1) == null && CropChoice.Cycle(crops, null, -1) == "sapling_flax" && CropChoice.Cycle(crops, "sapling_barley", -1) == null, "Cycling through the crops and back to anything");
+    Check(CropChoice.Cycle(crops, "sapling_gone", 1) == "sapling_barley", "Cycling from a crop no longer known starts over");
+    CropChoice.Set(cf, "z1", Season.Summer, null);
+    Check(!cf.ContainsKey(CropChoice.Key("z1", Season.Summer)), "Anything again: the flag gone");
+    CropChoice.Set(cf, "z1", Season.Spring, "sapling_barley");
+    CropChoice.Forget(cf, "z1");
+    Check(cf.Count == 1 && cf.ContainsKey(CropChoice.Key("z2", Season.Summer)), "A zone removed: its choices only");
+}
+
 // ---- Quad's Arena: wagers on the jarl, and the Champion ----
 {
     var wrng = new Random(3);

@@ -66,6 +66,7 @@ namespace Jarldom
             var sb = new System.Text.StringBuilder(c.Id);
             foreach (Room r in c.R.Rooms) sb.Append('|').Append(r.Id).Append(r.Type).Append(r.Ok).Append(r.Grade).Append(r.OpenEdges).Append(r.Floor).Append(string.Join(",", r.Xz));
             foreach (Zone z in c.R.Zones) sb.Append('|').Append(z.Id).Append(z.Type).Append(string.Join(",", z.Xz));
+            sb.Append('|').Append((int)Year.Today().Season); foreach (var kv in c.R.Flags) if (kv.Key.StartsWith(CropChoice.Prefix)) sb.Append('|').Append(kv.Key).Append(kv.Value); // (the season's crop on each fields label)
             return sb.ToString();
         }
         public static void Clear() { Corners.Clear(); Draw(); }
@@ -206,7 +207,7 @@ namespace Jarldom
                 l.SetPositions(pts.ToArray());
                 Drawn.Add(l.gameObject);
                 Vector3 centre = Zones.Centre(z); centre.y = ZoneSystem.instance.GetGroundHeight(centre) + 2f;
-                Drawn.Add(Label(centre, Tables.Of(z.Type).Name, new Color(0.55f, 0.75f, 1f, 0.9f)));
+                Drawn.Add(Label(centre, Tables.Of(z.Type).Name + (Work.ChosenNow(c, z) is var ch && ch != null ? "\n" + Work.CropName(ch.Value.sapling.name).ToLower() : ""), new Color(0.55f, 0.75f, 1f, 0.9f)));
             }
         }
         private static string Sig(Colony c)
@@ -214,6 +215,7 @@ namespace Jarldom
             var sb = new System.Text.StringBuilder(c.Id);
             foreach (Room r in c.R.Rooms) sb.Append('|').Append(r.Id).Append(r.Type).Append(r.Ok).Append(r.Grade).Append(r.OpenEdges).Append(r.Floor).Append(string.Join(",", r.Xz));
             foreach (Zone z in c.R.Zones) sb.Append('|').Append(z.Id).Append(z.Type).Append(string.Join(",", z.Xz));
+            sb.Append('|').Append((int)Year.Today().Season); foreach (var kv in c.R.Flags) if (kv.Key.StartsWith(CropChoice.Prefix)) sb.Append('|').Append(kv.Key).Append(kv.Value); // (the season's crop on each fields label)
             return sb.ToString();
         }
         public static void Clear() { foreach (GameObject g in Drawn) if (g != null) Object.Destroy(g); Drawn.Clear(); _shown = ""; }

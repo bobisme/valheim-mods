@@ -38,7 +38,13 @@ namespace Jarldom
                 case "treasury": R.Treasury = a[0]; R.Stockpiles.Remove(a[0]); Log("text", "", "", "A chest was chosen to be the treasury."); break;
                 case "room": AddRoom(a, who); break;
                 case "zone": AddZone(a, who); break;
-                case "unroom": R.Rooms.RemoveAll(r => r.Id == a[0]); R.Zones.RemoveAll(z => z.Id == a[0]); R.Flags.Remove("offered:" + a[0]); Rerank(); break;
+                case "unroom": R.Rooms.RemoveAll(r => r.Id == a[0]); R.Zones.RemoveAll(z => z.Id == a[0]); R.Flags.Remove("offered:" + a[0]); CropChoice.Forget(R.Flags, a[0]); foreach (Order o in Board.All.Where(o => o.Zone == a[0] && o.State != OrderState.Done && o.State != OrderState.Cancelled).ToList()) Board.Cancel(o.Id); Rerank(); break; // (and its work with it)
+                case "crop": // (zone|season 0-3, or "all"|sapling, "" for anything)
+                    if (R.Zones.Any(z => z.Id == Get(a, 0) && z.Type == ZoneType.Fields))
+                        foreach (Season s in Get(a, 1) == "all" ? new[] { Season.Spring, Season.Summer, Season.Autumn, Season.Winter } : int.TryParse(Get(a, 1), out int si) && si >= 0 && si < 4 ? new[] { (Season)si } : new Season[0])
+                            CropChoice.Set(R.Flags, a[0], s, Get(a, 2));
+                    foreach (Order o in Board.All.Where(o => o.Kind == "sow" && o.Zone == a[0] && o.State != OrderState.Done && o.State != OrderState.Cancelled && o.Vid == "").ToList()) Board.Cancel(o.Id); // (what was to be sown there before: sown afresh)
+                    break;
                 case "check": CheckRoomSoon(a[0]); break;
                 case "feast": Feast.Call(this, who); break;
                 case "horn": HornUntil = a[0] == "on" ? Time.time + 300 : 0; if (a[0] == "on") { Assets.Effect("sfx_fader_bell", Position); Tell("The war horn sounds!", true); } else Tell("The all-clear."); break;

@@ -392,6 +392,15 @@ namespace Jarldom
                         output(new JObject { ["added"] = a[2] });
                     }
                     break;
+                case "sowspots": // (test: "sowspots <zone n>": the season's chosen crop and where the next crops would go)
+                    {
+                        Zone z = c.R.Zones[int.Parse(a[2])]; Vector3 centre = Zones.Centre(z);
+                        var ch = Work.ChosenNow(c, z);
+                        output(new JObject { ["season"] = Year.Today().Season.ToString(), ["chosen"] = ch?.sapling.name, ["seedsIn"] = ch != null && Work.HaveInStock(c, ch.Value.seed), ["line"] = Work.CropLine(c, z),
+                            ["options"] = new JArray(Work.CropsFor(z).Select(r => r.sapling.name)), ["spots"] = new JArray(Work.SowSpots(c, z, centre, Zones.Reach(z) + 2, 10).Select(sp => $"{sp.sapling.name}@{sp.at.x:0.0},{sp.at.z:0.0}")),
+                            ["growing"] = new JArray(Work.Things(centre, Zones.Reach(z) + 2).Where(go => (go.GetComponent<Plant>() != null || go.GetComponent<Pickable>() != null) && Zones.Inside(z, go.transform.position)).Select(go => $"{Utils.GetPrefabName(go)} {go.transform.position.x:0.00} {go.transform.position.y:0.00} {go.transform.position.z:0.00}")) });
+                    }
+                    break;
                 case "board":
                     output(new JObject { ["completed"] = c.Board.CompletedCount, ["orders"] = new JArray(c.Board.All.Where(o => o.State != OrderState.Done && o.State != OrderState.Cancelled).OrderByDescending(o => o.Priority).Take(60).Select(o => new JObject { ["id"] = o.Id, ["kind"] = o.Kind, ["prof"] = o.Prof.ToString(), ["state"] = o.State.ToString(), ["by"] = o.By, ["who"] = o.Vid, ["blocked"] = o.Blocked, ["prio"] = o.Priority, ["at"] = new JArray(Math.Round(o.X), Math.Round(o.Y), Math.Round(o.Z)) })) });
                     break;
