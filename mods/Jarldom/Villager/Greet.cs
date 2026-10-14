@@ -48,7 +48,7 @@ namespace Jarldom
             if (c == null) return false;
             if (Gloom.TryGetValue(c.Id, out var g) && Time.time - g.at < 10f) return g.quiet;
             var mine = Villagers.All.Where(o => o.S.Colony == c.Id).ToList();
-            bool quiet = mine.Count > 0 && mine.Average(o => (double)Mood.Of(o.S, o.Now)) < -40;
+            bool quiet = HallSound.ForcedMood is double forced ? Soundscape.Miserable(forced) : mine.Count > 0 && Soundscape.Miserable(mine.Average(o => (double)Mood.Of(o.S, o.Now)));
             Gloom[c.Id] = (quiet, Time.time);
             Player me = Player.m_localPlayer;
             if (quiet && me != null && Time.time - _toldQuiet > 600f && c.RoomAt(me.transform.position, RoomType.GreatHall) != null)

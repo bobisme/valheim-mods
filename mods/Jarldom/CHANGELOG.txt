@@ -1,3 +1,5 @@
+The great hall murmurs with talk as it fills, laughs when glad, roars on feast and festival nights; a miserable colony's hall is quiet (no talk, half the work noise, and the people tab says so).
+
 0.1.84: The festival clear tool also puts out a Yule log.
 
 0.1.83: Yule. A great Yule log is laid in the great hall's hearth and burns for three days. It warms anyone standing by it, and every player sees it, even after logging out. At dusk the colony gathers round it for the three cups, as of old: Odin's for victory, Njord's and Freyr's for a good year and peace ("Til árs ok friðar!"), and the memory of the kin in their mounds. Then they feast.

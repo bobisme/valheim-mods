@@ -175,7 +175,7 @@ namespace Jarldom
                 if (Time.time < _next) return;
                 _next = Time.time + 1.5f / Mathf.Max(0.4f, b.Productivity());
                 Body_.Anim(b.Body)?.SetInt("crafting", _st.m_useAnimation);
-                _st.m_craftItemEffects.Create(_st.transform.position, Quaternion.identity);
+                if (_beats % 2 == 0 || !Greet.Quiet(b.Colony)) _st.m_craftItemEffects.Create(_st.transform.position, Quaternion.identity); // (a miserable colony works with half the noise)
                 if (Crafts.Unusable(_st) is string stop) { Release(b); b.Idle(stop); b.NoCraftUntil = Time.time + 30; return; }
                 ItemDrop.ItemData product = _r.m_item.m_itemData.Clone(); product.m_stack = _r.m_amount;
                 if (!b.Body.GetInventory().CanAddItem(product, _r.m_amount)) { Release(b); b.Idle("no room in the bag for what I'd make"); b.NoCraftUntil = Time.time + 30; b.NoStoreUntil = 0; return; } // (before anything is used up)

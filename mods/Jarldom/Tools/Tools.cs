@@ -16,7 +16,7 @@ namespace Jarldom
     internal static class Tools
     {
         private static BaseUnityPlugin _tools; private static float _next;
-        private const string Usage = "jarldom status | roster | smite <prefab|stag> | feed <name> | greetings | dogs | dog adopt|release | corner <name> [stand] | dim <name> <days> | lost [raise <name>] | villager <name|vid> | needs <name> | renown | rooms | room check <n> | board | log [n] | saga | compat | " +
+        private const string Usage = "jarldom status | hallsound [<volume>|roar|mood <n>|auto] | roster | smite <prefab|stag> | feed <name> | greetings | dogs | dog adopt|release | corner <name> [stand] | dim <name> <days> | lost [raise <name>] | villager <name|vid> | needs <name> | renown | rooms | room check <n> | board | log [n] | saga | compat | " +
             "[cheats:] place pillars [metres] | spawn [profession] [traits..] | migrate [now|dusk] | accept [i|all] | room <type> <x1> <z1> <x2> <z2> [god] | zone <type> <x1> <z1> <x2> <z2> | " +
             "prof <name> <profession> | mood <name> <moodlet> | worth <name> <n> | need <name> <need>=<n> | give <name> <prefab> [n] | bed <name> | goto <name> <x> <z> | time <hours> | pay | " +
             "favour <god> <n> | feast | thing now | ascend <name> | kill <name> | raid <event> | horn | treasury [x z] | stockpile <category> [x z] | tp <name> | remove | " +
@@ -536,6 +536,13 @@ namespace Jarldom
                         var (nf, nd) = Calendar.Next(Year.Today()); var (af, ap) = Festivals.Active(c.R.Flags);
                         output(new JObject { ["next"] = Calendar.Name(nf), ["days"] = nd, ["readied"] = Mathf.RoundToInt(FestivalDays.Readied(c, nf) * 100), ["wants"] = FestivalDays.Wants(c, nf),
                             ["blessing"] = af == null ? "none" : $"{Calendar.Name(af.Value)} at {Mathf.RoundToInt(ap * 100)}%", ["neglected"] = Festivals.Neglected(c.R.Flags, c.Day) });
+                    }
+                    break;
+                case "hallsound":
+                    {
+                        // What the great hall sounds like on this game now; a volume or roar holds it there (for a listen), auto lets it go.
+                        if (a.Length > 3 && a[2] == "mood") HallSound.ForcedMood = double.Parse(a[3], System.Globalization.CultureInfo.InvariantCulture); else if (a.Length > 2) { if (a[2] == "auto") { HallSound.Forced = null; HallSound.ForceRoar = false; HallSound.ForcedMood = null; } else if (a[2] == "roar") HallSound.ForceRoar = true; else HallSound.Forced = float.Parse(a[2], System.Globalization.CultureInfo.InvariantCulture); }
+                        output(new JObject { ["hall"] = HallSound.Last, ["sources"] = HallSound.Sources(), ["forced"] = HallSound.Forced?.ToString() ?? "no", ["mood"] = HallSound.ForcedMood?.ToString() ?? "theirs", ["roar"] = HallSound.ForceRoar });
                     }
                     break;
                 case "calendar":

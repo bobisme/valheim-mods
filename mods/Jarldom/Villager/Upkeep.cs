@@ -213,7 +213,7 @@ namespace Jarldom
             if (hammer == null) { Done = true; return; }
             if (!b.Body.IsItemEquiped(hammer)) b.Body.EquipItem(hammer, false);
             Body_.Anim(b.Body)?.SetTrigger("swing_hammer");
-            Assets.Effect(HammerSound(Wnt != null ? Wnt.m_materialType : Prefab?.GetComponent<WearNTear>()?.m_materialType ?? WearNTear.MaterialType.Wood), At); // (the hammer heard, as a player's is)
+            if (_beats % 2 == 0 || !Greet.Quiet(b.Colony)) Assets.Effect(HammerSound(Wnt != null ? Wnt.m_materialType : Prefab?.GetComponent<WearNTear>()?.m_materialType ?? WearNTear.MaterialType.Wood), At); // (the hammer heard, as a player's is)
             if (++_beats < 3) return;
             Colony c = b.Colony;
             switch (Kind)

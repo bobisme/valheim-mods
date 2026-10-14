@@ -412,6 +412,9 @@ namespace Jarldom.Ui
             var living = _c.R.Roster.Where(r => r.State == SoulState.Active).OrderBy(r => r.Name).ToList();
             if (living.Count == 0) return Text(list, "No one lives here yet. Raise renown (build, beds with comfort, deeds) and Odin will send the fallen.", y, 16, GameUi.Dim);
             y = Text(list, "Details shows why each feels as they do and lets you choose their work. Mood sets how fast they work.", y, 15, GameUi.Dim);
+            var moods = living.Select(r => Villagers.Body(r.Vid)?.GetComponent<ZNetView>()?.GetZDO()).Where(z => z != null).Select(z => (double)z.GetInt(Villagers.MoodKey, 0)).ToList();
+            if (HallSound.ForcedMood is double forced ? Soundscape.Miserable(forced) : moods.Count > 0 && Soundscape.Miserable(moods.Average()))
+                y = Text(list, "The hall is quiet. They are too miserable for talk or songs, and work with half a heart. See Details for what they lack.", y, 16, GameUi.Warn);
             foreach (var held in Captives.Held(_c).ToList())
             {
                 string vid = held.vid;
