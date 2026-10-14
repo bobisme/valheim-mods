@@ -1,0 +1,142 @@
+using System.Collections.Generic;
+using UnityEngine;
+using Object=UnityEngine.Object;
+
+namespace WrongUniverse
+{
+    // What everything is made of: the game's own lit material (from the Arbalest; a new Material on Unity's default shader is pink in
+    // Valheim) painted in flat colours, and the Arbalest bolt's additive trail material for things that glow (beams, blades, jets, lenses).
+    // The Builder puts models together from plain shapes; it is Quad's Guns Model.Builder (HardHeadHackerHead/valheim-mods), trimmed.
+    internal static class Look
+    {
+        internal static readonly Color Gunmetal=new Color(0.16f,0.17f,0.19f),Black=new Color(0.05f,0.05f,0.06f),White=new Color(0.86f,0.87f,0.88f),
+            Chrome=new Color(0.72f,0.74f,0.78f),Hazard=new Color(0.95f,0.62f,0.08f),Red=new Color(1f,0.12f,0.08f),Blue=new Color(0.2f,0.55f,1f),
+            Green=new Color(0.25f,1f,0.3f),Cyan=new Color(0.2f,0.95f,1f),Violet=new Color(0.7f,0.25f,1f),Lens=new Color(0.12f,0.28f,0.42f);
+
+        internal static Material Base,GlowBase;
+        private static readonly Dictionary<string,Material> Cache=new Dictionary<string,Material>();
+        private static readonly List<Object> Made=new List<Object>();
+        internal static bool Ready=>Base!=null;
+
+        internal static void Init(ZNetScene scene)
+        {
+            if(Base!=null&&GlowBase!=null)return;
+            GameObject arbalest=scene.GetPrefab("CrossbowArbalest");
+            Renderer r=arbalest!=null?arbalest.GetComponentInChildren<MeshRenderer>(true):null;
+            if(r!=null)Base=r.sharedMaterial;
+            GameObject bolt=scene.GetPrefab("arbalest_projectile_iron");
+            if(bolt!=null)foreach(ParticleSystemRenderer pr in bolt.GetComponentsInChildren<ParticleSystemRenderer>(true))
+                if(pr.sharedMaterial!=null){GlowBase=pr.sharedMaterial;break;}
+            if(Base==null)Plugin.Warn("No Arbalest material: models will look plain");
+            if(GlowBase==null)Plugin.Warn("No Arbalest bolt trail material: glows will be plain");
+        }
+        internal static void Clear()
+        {
+            foreach(Object o in Made)if(o!=null)Object.Destroy(o);
+            Made.Clear();Cache.Clear();
+        }
+        internal static T Own<T>(T o)where T:Object{Made.Add(o);return o;}
+
+        // A painted surface. emit > 0 makes it glow by itself (in the dark too), lit as the rest.
+        internal static Material Paint(Color color,float metal=0.4f,float gloss=0.45f,float emit=0f)
+        {
+            string key=$"p{color.r:F3}/{color.g:F3}/{color.b:F3}/{metal:F2}/{gloss:F2}/{emit:F2}";
+            if(Cache.TryGetValue(key,out Material m)&&m!=null)return m;
+            m=Own(Base!=null?new Material(Base):new Material(Shader.Find("Standard")));
+            m.mainTexture=null;
+            if(m.HasProperty("_Color"))m.SetColor("_Color",color);
+            if(m.HasProperty("_Metallic"))m.SetFloat("_Metallic",metal);
+            if(m.HasProperty("_Glossiness"))m.SetFloat("_Glossiness",gloss);
+            if(emit>0f&&m.HasProperty("_EmissionColor")){m.EnableKeyword("_EMISSION");m.SetColor("_EmissionColor",color*emit);}
+            Cache[key]=m;
+            return m;
+        }
+        // Light itself, added on top of what is behind (a beam, a blade's core, a jet's flame). alpha: how strong.
+        internal static Material Glow(Color color,float alpha=1f)
+        {
+            string key=$"g{color.r:F3}/{color.g:F3}/{color.b:F3}/{alpha:F2}";
+            if(Cache.TryGetValue(key,out Material m)&&m!=null)return m;
+            if(GlowBase==null)return Paint(color,0,0,3f);
+            m=Own(new Material(GlowBase));
+            m.mainTexture=null;
+            var c=new Color(color.r,color.g,color.b,alpha);
+            if(m.HasProperty("_TintColor"))m.SetColor("_TintColor",c);
+            if(m.HasProperty("_Color"))m.SetColor("_Color",c);
+            if(m.HasProperty("_EmissionColor"))m.SetColor("_EmissionColor",c);
+            Cache[key]=m;
+            return m;
+        }
+
+        // The box around every renderer under root, in space's own coordinates.
+        internal static Bounds Bounds(Transform root,Transform space)
+        {
+            bool any=false;var b=new Bounds();
+            foreach(Renderer r in root.GetComponentsInChildren<Renderer>(true))
+            {
+                if(r is ParticleSystemRenderer)continue;
+                MeshFilter f=r.GetComponent<MeshFilter>();
+                if(f==null||f.sharedMesh==null)continue;
+                Bounds mb=f.sharedMesh.bounds;
+                for(int i=0;i<8;i++)
+                {
+                    Vector3 corner=mb.center+Vector3.Scale(mb.extents,new Vector3((i&1)==0?-1:1,(i&2)==0?-1:1,(i&4)==0?-1:1));
+                    Vector3 p=space.InverseTransformPoint(r.transform.TransformPoint(corner));
+                    if(!any){b=new Bounds(p,Vector3.zero);any=true;}else b.Encapsulate(p);
+                }
+            }
+            return any?b:new Bounds(Vector3.zero,Vector3.one*0.2f);
+        }
+
+        // A shape with no collider, under parent: a primitive at a place, size and turn, painted.
+        internal static GameObject Shape(PrimitiveType type,Transform parent,string name,Vector3 at,Vector3 size,Material material,Vector3 euler=default)
+        {
+            GameObject p=GameObject.CreatePrimitive(type);
+            Object.DestroyImmediate(p.GetComponent<Collider>());
+            p.name=name;p.layer=parent.gameObject.layer;
+            p.transform.SetParent(parent,false);
+            p.transform.localPosition=at;p.transform.localRotation=Quaternion.Euler(euler);p.transform.localScale=size;
+            Renderer r=p.GetComponent<Renderer>();
+            r.sharedMaterial=material;
+            if(material!=null&&material==GlowBase||IsGlow(material))r.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
+            return p;
+        }
+        private static bool IsGlow(Material m)=>m!=null&&GlowBase!=null&&m.shader==GlowBase.shader;
+
+        // Puts a model together: parts by position (in the model's space), size and colour. Cylinders lie along the axis given.
+        internal sealed class Builder
+        {
+            internal readonly Transform Root;
+            internal Builder(Transform root){Root=root;}
+            internal Builder Group(string name,Vector3 at,Vector3 euler=default)
+            {
+                var go=new GameObject(name){layer=Root.gameObject.layer};
+                go.transform.SetParent(Root,false);
+                go.transform.localPosition=at;go.transform.localRotation=Quaternion.Euler(euler);
+                return new Builder(go.transform);
+            }
+            internal Transform Point(string name,Vector3 at,Vector3 euler=default)=>Group(name,at,euler).Root;
+            internal GameObject Box(string name,Vector3 at,Vector3 size,Material m,Vector3 euler=default)=>Shape(PrimitiveType.Cube,Root,name,at,size,m,euler);
+            internal GameObject Ball(string name,Vector3 at,Vector3 size,Material m)=>Shape(PrimitiveType.Sphere,Root,name,at,size,m);
+            internal GameObject Tube(string name,Vector3 at,float diameter,float length,Material m,char axis='z',Vector3 extraEuler=default)
+            {
+                Vector3 euler=axis=='z'?new Vector3(90,0,0):axis=='x'?new Vector3(0,0,90):Vector3.zero;
+                return Shape(PrimitiveType.Cylinder,Root,name,at,new Vector3(diameter,length*0.5f,diameter),m,euler+extraEuler);
+            }
+            internal GameObject Capsule(string name,Vector3 at,float diameter,float length,Material m,char axis='z')
+            {
+                Vector3 euler=axis=='z'?new Vector3(90,0,0):axis=='x'?new Vector3(0,0,90):Vector3.zero;
+                return Shape(PrimitiveType.Capsule,Root,name,at,new Vector3(diameter,length*0.5f,diameter),m,euler);
+            }
+        }
+
+        // A light that comes with a part (a blade, a muzzle flash, a jet): no shadows, cheap.
+        internal static Light AddLight(Transform parent,Color color,float range,float intensity,Vector3 at=default)
+        {
+            var go=new GameObject("light"){layer=parent.gameObject.layer};
+            go.transform.SetParent(parent,false);go.transform.localPosition=at;
+            Light l=go.AddComponent<Light>();
+            l.type=LightType.Point;l.color=color;l.range=range;l.intensity=intensity;l.shadows=LightShadows.None;
+            return l;
+        }
+    }
+}
