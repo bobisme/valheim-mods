@@ -1,3 +1,5 @@
+0.1.105: With Wayfinder 0.1.10: the colony's next festival is burnt into the primstav (under its forecast, within a fortnight).
+
 0.1.104: With Grave Goods: an heirloom or saga weapon carried into the colony is marvelled at by the villagers who see it (once each, a lift to their mood), and on a pyre counts three (heirloom) or ten (saga) times its worth toward the ascension's deeds; the saga and the skald's verse name it.
 
 0.1.103: Odin the Wanderer: the jarls' firsts out in the world - a land first set foot in, a landmark first found, a dungeon first entered, 1, 2, 4 and 8 km from home - are carried home and become the colony's saga: told in the saga and the skald's verse, and a 'saga' part of renown (the hall tab shows it).

@@ -142,6 +142,12 @@ namespace Jarldom
         private static readonly ApiRef Wayfinder = new ApiRef("Wayfinder.Api", "com.bobisme.wayfinder");
         public static Vector3? WayfinderBeacon(Vector3 at, float radius) { var f = Wayfinder.Bind<Func<Vector3, float, Vector3?>>("NearestBeacon", 1); try { return f?.Invoke(at, radius); } catch { return null; } }
         public static bool WayfinderLight(Vector3 at, float radius) { var f = Wayfinder.Bind<Func<Vector3, float, bool>>("LightBeacon", 1); try { return f != null && f(at, radius); } catch { return false; } }
+        // (v2: the next festival on Wayfinder's primstav)
+        public static void WayfinderFeast(int day, string name)
+        {
+            var clear = Wayfinder.Bind<Action<string>>("ClearFeastDays", 2); var add = Wayfinder.Bind<Action<string, int, string>>("AddFeastDay", 2);
+            try { clear?.Invoke("Jarldom"); add?.Invoke("Jarldom", day, name); } catch { }
+        }
         public static bool WayfinderLit(Vector3 at, float radius) { var f = Wayfinder.Bind<Func<Vector3, float, bool>>("BeaconLit", 1); try { return f != null && f(at, radius); } catch { return false; } }
 
         // ---- Shieldwall: a siege at the colony's Warstone is a raid ----

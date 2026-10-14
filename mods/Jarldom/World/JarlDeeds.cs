@@ -162,6 +162,15 @@ namespace Jarldom
             }
             me.m_customData[FirstsKey] = string.Join(";", carried);
         }
+        // ---- Wayfinder's primstav: the next festival burnt into it, once a minute ----
+        private static float _nextFeast;
+        public static void Primstav()
+        {
+            if (Time.time < _nextFeast || EnvMan.instance == null || Player.m_localPlayer == null) return;
+            _nextFeast = Time.time + 60f;
+            var (f, until) = Calendar.Next(Year.Today());
+            Compat.WayfinderFeast(EnvMan.instance.GetDay() + until, Calendar.Name(f));
+        }
         // ---- GraveGoods: an heirloom or saga weapon brought into the colony is marvelled at, once each ----
         private static float _nextMarvel; private static readonly HashSet<string> Shown = new HashSet<string>();
         public static string MarvelKey(string name) => "gg:" + name.GetStableHashCode();
