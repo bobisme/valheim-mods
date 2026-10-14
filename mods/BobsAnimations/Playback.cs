@@ -54,7 +54,7 @@ namespace BobsAnimations
         {
             public Character Body;public ZNetView View;public Clip Clip;public string Key;public long At;public bool Loop;
             public Animator Animator;public string[] Seats;public float NextSeatCheck;public long Stood; // (seated or still clips: when it was seen getting up or walking off)
-            public string Item;public Vector3[] LastPos,BasePos;public bool[] Moved;public float Weight; // (test: the weight last applied)
+            public string Item;public Vector3[] LastPos,BasePos;public bool[] Moved;public float Weight;public float StillSince=-1; // (test: the weight last applied)
             public Dictionary<Transform,Quaternion> From;public Dictionary<Transform,Vector3> FromPos; // (the pose the clip before left: blended in from there)
             public Transform[] Bones;public Quaternion[] LastOut,LastBase;public bool[] Wrote;
             public readonly Dictionary<Clip.Prop,GameObject> Props=new Dictionary<Clip.Prop,GameObject>();
@@ -141,6 +141,8 @@ namespace BobsAnimations
                     bool sitting=st.Animator!=null&&st.Seats.Any(n=>st.Animator.GetBool(n));
                     bool up=st.Clip.Seated?st.Seats.Length>0&&!sitting:sitting;
                     bool off=st.Clip.Still&&st.Body.GetVelocity().sqrMagnitude>0.6f*0.6f;
+                    // (a clip for walking, stood still for over a second and a half: done with)
+                    if(st.Clip.Moving){bool still=st.Body.GetVelocity().sqrMagnitude<0.2f*0.2f;st.StillSince=still?(st.StillSince<0?Time.time:st.StillSince):-1;if(still&&Time.time-st.StillSince>1.5f)off=true;}
                     if(up||off){st.Stood=now;if(st.View.IsOwner())Anim.Stop(st.Body);}
                 }
                 if(st.Stood!=0&&(end==0||st.Stood<end))end=st.Stood;

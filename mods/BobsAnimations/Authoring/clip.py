@@ -174,7 +174,7 @@ class Clip:
             bpy.context.view_layer.update()
 
     # ---- writing it out: the game's local rotation of each bone per frame; turned bones as turns from the captured pose ----
-    def export(self, out, add=None, sets=None, loop=False, blend_in=0.5, blend_out=0.5, seated=True, still=False):
+    def export(self, out, add=None, sets=None, loop=False, blend_in=0.5, blend_out=0.5, seated=True, still=False, moving=False):
         arm, sc = self.arm, bpy.context.scene
         if add is None: add = sorted(self.turned)
         if sets is None:
@@ -205,7 +205,7 @@ class Clip:
                 if n in add: q = base[n].inverted() @ q
                 row.append([round(q.x, 5), round(q.y, 5), round(q.z, 5), round(q.w, 5)])  # Unity order x, y, z, w
             rot.append(row)
-        d = {'name': self.name, 'fps': self.fps, 'loop': loop, 'blendIn': blend_in, 'blendOut': blend_out, 'seated': seated, 'still': still, 'bones': names,
+        d = {'name': self.name, 'fps': self.fps, 'loop': loop, 'blendIn': blend_in, 'blendOut': blend_out, 'seated': seated, 'still': still, 'moving': moving, 'bones': names,
              'add': [n in add for n in names], 'rot': rot, 'props': [{k: v for k, v in p.items() if v is not None} for p in self.props]}
         if self.hip_moves: d['pos'] = {'Hips': hips}
         gzip.open(os.path.join(out, self.name + '.json.gz'), 'wt').write(json.dumps(d, separators=(',', ':')))

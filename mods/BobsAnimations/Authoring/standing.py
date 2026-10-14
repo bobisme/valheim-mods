@@ -201,7 +201,7 @@ c = Clip(name, rig_path)
 CLIPS[name](c)
 c.bake()
 loop = name in LOOPS
-c.export(out, loop=loop, blend_in=0.4 if name != 'walk_carry' else 0.3, blend_out=0.4, seated=False, still=name != 'walk_carry')
+c.export(out, loop=loop, blend_in=0.4 if name != 'walk_carry' else 0.3, blend_out=0.4, seated=False, still=name != 'walk_carry', moving=name == 'walk_carry')
 if 'render' in argv:
     c.render(out, PREVIEW.get(name, [1]), views=('front', 'three', 'side'),
              stand_ins=[('LeftHand', DRUM, (0.12, 0.18))] if name == 'stand_drum' else ())
