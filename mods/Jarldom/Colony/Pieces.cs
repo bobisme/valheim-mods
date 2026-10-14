@@ -326,18 +326,24 @@ namespace Jarldom
             Material stone = Plain(hewn, new Color(0.45f, 0.44f, 0.42f)), cut = Plain(hewn, new Color(0.08f, 0.075f, 0.07f));
             if (rock != null)
             {
-                stone = new Material(rock) { name = "JarldomAltarStone", hideFlags = HideFlags.HideAndDontSave }; stone.mainTextureScale = Vector2.one * 0.4f; stone.color *= new Color(0.85f, 0.85f, 0.86f);
-                // (kept clean, no moss on the offering table: this shader lays its moss on every upward face whatever its alpha, so its moss is the rock)
-                stone.SetFloat("_AddSnow", 0f); stone.DisableKeyword("_ADDSNOW_ON"); stone.SetTexture("_MossTex", rock.mainTexture); stone.SetColor("_MossColor", new Color(0.85f, 0.85f, 0.86f)); Assets.Owned.Add(stone);
-                // (the carving, and Hel's black stone, in the rock's own shader: in any other the rock is drawn over it where the face slopes away)
-                cut = new Material(rock) { name = "JarldomAltarCut", hideFlags = HideFlags.HideAndDontSave, color = new Color(0.08f, 0.075f, 0.07f) };
-                cut.SetFloat("_AddSnow", 0f); cut.DisableKeyword("_ADDSNOW_ON"); cut.SetFloat("_MossAlpha", 0f); cut.SetFloat("_Glossiness", 0.1f);
-                cut.mainTextureScale = Vector2.one * 0.4f; Assets.Owned.Add(cut);
+                // The rock's own textures in the pieces' shader: the rock shader lays its moss (a small, busy tile) on every upward face
+                // whatever its settings. The carving, and Hel's black stone, in the same shader, so the stone is never drawn over them.
+                Material Rock(string n, Color c)
+                {
+                    var m = new Material(hewn) { name = n, hideFlags = HideFlags.HideAndDontSave, mainTexture = rock.mainTexture, color = c };
+                    m.mainTextureScale = Vector2.one * 0.4f;
+                    if (m.HasProperty("_BumpMap") && rock.HasProperty("_BumpMap")) { m.SetTexture("_BumpMap", rock.GetTexture("_BumpMap")); m.SetTextureScale("_BumpMap", Vector2.one * 0.4f); }
+                    foreach (string k in new[] { "_Glossiness", "_Metallic", "_Smoothness" }) if (m.HasProperty(k)) m.SetFloat(k, 0.05f);
+                    Assets.Owned.Add(m);
+                    return m;
+                }
+                stone = Rock("JarldomAltarStone", new Color(0.85f, 0.85f, 0.86f));
+                cut = Rock("JarldomAltarCut", new Color(0.08f, 0.075f, 0.07f));
             }
             Material Matte(Color c) { Material m = Plain(hewn, c); foreach (string k in new[] { "_Glossiness", "_Metallic", "_Smoothness" }) if (m.HasProperty(k)) m.SetFloat(k, 0); return m; }
-            Material gold = Plain(hewn, new Color(0.8f, 0.58f, 0.2f));
-            if (gold.HasProperty("_Metallic")) gold.SetFloat("_Metallic", 0.6f);
-            if (gold.HasProperty("_Glossiness")) gold.SetFloat("_Glossiness", 0.55f);
+            Material gold = Plain(hewn, new Color(0.9f, 0.66f, 0.24f)); // (barely metallic: a mirror of gold shows the dark hall, black)
+            if (gold.HasProperty("_Metallic")) gold.SetFloat("_Metallic", 0.2f);
+            if (gold.HasProperty("_Glossiness")) gold.SetFloat("_Glossiness", 0.4f);
             Material glow = Plain(hewn, new Color(1f, 0.78f, 0.42f));
             if (glow.HasProperty("_EmissionColor")) { glow.EnableKeyword("_EMISSION"); glow.SetColor("_EmissionColor", new Color(1f, 0.6f, 0.22f) * 1.6f); }
             var m_ = new GameObject("altar"); m_.transform.SetParent(look, false);
@@ -345,7 +351,7 @@ namespace Jarldom
             // (stone, cut, wood, dark, iron, gold, bone, cloth, rope, glow, leaf, bloom, paint, hide: as the model's materials are numbered)
             m_.AddComponent<MeshRenderer>().sharedMaterials = new[]
             {
-                stone, cut, grain, Plain(hewn, new Color(0.07f, 0.07f, 0.075f)), Plain(hewn, new Color(0.17f, 0.165f, 0.16f)), gold,
+                stone, cut, grain, Matte(new Color(0.09f, 0.085f, 0.085f)), Plain(hewn, new Color(0.2f, 0.195f, 0.19f)), gold,
                 Matte(new Color(0.66f, 0.63f, 0.56f)), Matte(own.cloth), Matte(new Color(0.55f, 0.46f, 0.3f)), glow, Matte(new Color(0.2f, 0.36f, 0.12f)),
                 Matte(own.bloom), Matte(own.paint), Matte(new Color(0.42f, 0.3f, 0.19f)),
             };

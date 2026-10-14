@@ -155,31 +155,55 @@ def thor():
     hull('stump', pts, WOOD, 2)
     roots(R, 6, WOOD, reach=0.16, high=0.2)
     for z in (0.2, 0.62): tube('band', ring(z, R * 1.03, 28), 0.014, IRON, cyclic=True)
-    # Mjölnir: the head on the stump, a short haft up, wrapped in leather, an iron pommel and a loop
-    K = 1.45; C = Vector((0, 0.02, H + 0.088 * K))
-    def sect(x, hy, hz): return [C + Vector((x * K, y * K, z * K)) for y in (-hy, hy) for z in (-hz, hz)]
-    hull('mjolnir', sect(-0.18, 0.08, 0.09) + sect(-0.11, 0.066, 0.074) + sect(0.11, 0.066, 0.074) + sect(0.18, 0.08, 0.09), IRON, 1)
-    for x in (-0.135, 0.135): hull('mjolnir', sect(x - 0.012, 0.08, 0.088) + sect(x + 0.012, 0.08, 0.088), GOLD, 1)
-    a, b = C + Vector((0, 0, 0.08 * K)), C + Vector((0, 0, 0.5))
-    cyl('haft', a, b, 0.032, DARK, n=10, smooth=True)
-    tube('wrap', [a + Vector((0.035 * math.cos(t), 0.035 * math.sin(t), 0.02 + 0.28 * t / (2 * math.pi * 9))) for t in [i * 0.4 for i in range(int(2 * math.pi * 9 / 0.4))]], 0.006, HIDE)
-    ball('pommel', b + Vector((0, 0, 0.015)), 0.045, IRON, squash=(1, 1, 0.8), n=10)
-    tube('loop', [b + Vector((0.02 + 0.05 * math.sin(t), 0, 0.03 - 0.06 * (1 - math.cos(t)))) for t in [i * math.pi / 8 for i in range(17)]], 0.006, HIDE, cyclic=True)
-    # the post behind, its red bands stacked between the wood (never painted over it)
-    PY = -0.55; segs = ((0, 0.95, WOOD), (0.95, 1.03, PAINT), (1.03, 1.1, WOOD), (1.1, 1.18, PAINT), (1.18, 1.86, WOOD))
-    for z0, z1, m in segs: box('post', (0, PY, (z0 + z1) / 2), (0.22, 0.2, z1 - z0), m)
-    hull('post', [Vector((x, PY + y, 1.86)) for x in (-0.11, 0.11) for y in (-0.1, 0.1)] + [Vector((0, PY, 2.0))], WOOD, 1)
-    # the goat's skull and horns at its head
-    S = Vector((0, PY + 0.15, 1.66))
-    ball('goat', S, 0.075, BONE, squash=(0.9, 0.9, 1.0), n=10)
-    hull('goat', [S + Vector((x, y, z)) for x in (-0.04, 0.04) for y, z in ((0.02, 0.0), (0.06, -0.16), (0.03, -0.17), (0.0, -0.05))], BONE, 2)
+    # Mjölnir: the head on the stump (chamfered, its striking faces flared, gold bands right round it), a short wooden haft up with a
+    # banded leather grip, an iron pommel with a gold collar, a leather loop
+    C = Vector((0, 0.02, H + 0.105))
+    def octo(x, hy, hz, c=0.022): return [C + Vector((x, y, z)) for y, z in ((hy - c, hz), (hy, hz - c), (hy, -hz + c), (hy - c, -hz), (-hy + c, -hz), (-hy, -hz + c), (-hy, hz - c), (-hy + c, hz))]
+    hull('mjolnir', octo(-0.12, 0.08, 0.092) + octo(0.12, 0.08, 0.092), IRON, 1)
     for sx in (-1, 1):
-        ball('eye', S + Vector((sx * 0.04, 0.055, -0.01)), 0.015, DARK, squash=(1, 0.6, 1))
-        base = S + Vector((sx * 0.04, -0.01, 0.06)); pts = []
+        hull('mjolnir', octo(sx * 0.12, 0.087, 0.099, 0.024) + octo(sx * 0.143, 0.087, 0.099, 0.024), GOLD, 1)
+        hull('mjolnir', octo(sx * 0.143, 0.09, 0.102, 0.026) + octo(sx * 0.19, 0.1, 0.112, 0.03), IRON, 1)
+        hull('mjolnir', octo(sx * 0.19, 0.1, 0.112, 0.03) + octo(sx * 0.198, 0.092, 0.104, 0.03), IRON, 1)   # (the face's bevel)
+    a = C + Vector((0, 0, 0.09))
+    segs = [(0.0, 0.07, WOOD, 0.03)]
+    z = 0.07
+    for k in range(5):
+        segs += [(z, z + 0.045, HIDE, 0.036), (z + 0.045, z + 0.055, DARK, 0.038)]; z += 0.055
+    segs += [(z, z + 0.02, WOOD, 0.03), (z + 0.02, z + 0.035, GOLD, 0.04), (z + 0.035, z + 0.075, IRON, 0.042)]
+    for z0, z1, m, r in segs: cyl('haft', a + Vector((0, 0, z0)), a + Vector((0, 0, z1)), r, m, n=12, smooth=True)
+    top = a + Vector((0, 0, z + 0.075))
+    ball('pommel', top, 0.042, IRON, squash=(1, 1, 0.45), n=12)
+    tube('loop', [top + Vector((0.035 + 0.06 * math.sin(t), 0.01 * math.sin(t), -0.03 - 0.1 * (1 - math.cos(t)))) for t in [i * math.pi / 8 for i in range(17)]], 0.007, HIDE, cyclic=True)
+    # the post behind, its red bands stacked between the wood (never painted over it), its head flat with an iron cap for the skull
+    PY = -0.55; TOP = 1.74
+    segs = ((0, 0.95, WOOD), (0.95, 1.03, PAINT), (1.03, 1.1, WOOD), (1.1, 1.18, PAINT), (1.18, TOP - 0.03, WOOD))
+    for z0, z1, m in segs: box('post', (0, PY, (z0 + z1) / 2), (0.22, 0.2, z1 - z0), m)
+    box('cap', (0, PY, TOP - 0.015), (0.24, 0.22, 0.03), IRON)
+    # the goat's skull on it, looking out over the altar, a little down; its horns rising and sweeping back, ridged
+    q = Matrix.Rotation(math.radians(-14), 3, 'X')
+    O = Vector((0, PY - 0.09, TOP))
+    SK = 1.4
+    def P(x, y, z): return O + q @ (Vector((x, y, z)) * SK)
+    sk = []
+    for y, hx, z0, z1 in ((0.0, 0.05, 0.01, 0.08), (0.04, 0.062, 0.0, 0.11), (0.09, 0.058, 0.0, 0.1), (0.14, 0.045, 0.0, 0.075), (0.22, 0.034, -0.005, 0.05), (0.29, 0.026, -0.01, 0.03), (0.31, 0.02, 0.0, 0.022)):
+        sk += [P(x, y, z) for x in (-hx, hx) for z in (z0, z1)] + [P(0, y, z1 + 0.012)]
+    hull('goat', sk, BONE, 1)
+    hull('goat', [P(x, y, z) for x in (-0.03, 0.03) for y, z in ((0.07, 0.0), (0.14, -0.02), (0.25, -0.02), (0.28, 0.0))] + [P(0, 0.3, -0.004)], BONE, 1)  # (the jaw)
+    for sx in (-1, 1):
+        E = P(sx * 0.064, 0.115, 0.075)
+        tube('orbit', [E + q @ (Vector((sx * 0.006 * math.sin(t), 0.024 * math.cos(t), 0.022 * math.sin(t))) * SK) for t in [i * 2 * math.pi / 12 for i in range(12)]], 0.01, BONE, cyclic=True)
+        ball('eye', E + q @ Vector((sx * -0.005, 0, 0)), 0.028, DARK, squash=(0.55, 1.1, 1.0), n=8)
+        hull('nose', [P(sx * x, 0.305, z) for x, z in ((0.004, 0.03), (0.017, 0.022), (0.012, 0.01), (0.003, 0.012))] + [P(sx * 0.008, 0.29, 0.02)], DARK, 1)
+        base = P(sx * 0.03, 0.065, 0.1); R_ = 0.2; pts = []
         for i in range(25):
-            t = i / 24; th = t * 1.45 * math.pi; rho = 0.27 * (1 - 0.5 * t)
-            pts.append(base + Vector((sx * (0.32 * t), -rho * math.sin(th) * 0.9, rho * (1 - math.cos(th)) * 0.8)))
-        tube('horn', pts, 0.045, BONE, taper=lambda t: 1 - 0.8 * t)
+            t = i / 24; th = t * 0.82 * math.pi
+            pts.append(base + q @ Vector((sx * (0.012 + 0.16 * t ** 1.3), -R_ * (1 - math.cos(th)), R_ * math.sin(th))))
+        rad = lambda t: 1 - 0.85 * t
+        tube('horn', pts, 0.04, HIDE, taper=rad)
+        for i in range(2, 21, 2):   # its ridges
+            t = i / 24; d = (pts[i + 1] - pts[i - 1]).normalized(); u = d.cross(Vector((1, 0, 0))).normalized(); w = d.cross(u).normalized()
+            r = 0.04 * rad(t) * 1.06
+            tube('horn', [pts[i] + (u * math.cos(a) + w * math.sin(a)) * r for a in [k * 2 * math.pi / 10 for k in range(10)]], 0.0045 * (1 - 0.6 * t), HIDE, cyclic=True, res=1)
     # the oath ring on its peg
     peg = Vector((0, PY + 0.1, 1.38))
     cyl('peg', peg, peg + Vector((0, 0.08, 0.01)), 0.012, IRON, n=6)
