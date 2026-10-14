@@ -392,6 +392,29 @@ namespace Jarldom
                         output(new JObject { ["added"] = a[2] });
                     }
                     break;
+                case "smith": // (test: what the smith would make and why, what's on the board for them, the colony's worn gear)
+                    {
+                        var wants = Smithing.Wants(c);
+                        output(new JObject { ["hasSmith"] = Smithing.HasSmith(c), ["wants"] = new JArray(wants.Select(w => $"{w.recipe.m_item.name}: {w.why}")),
+                            ["orders"] = new JArray(c.Board.All.Where(o => o.Kind == "craft" && o.Target.StartsWith(Smithing.Prefix)).Select(o => $"{o.Target} {o.State} {o.Vid} {o.Blocked}")),
+                            ["worn"] = new JArray(Villagers.All.Where(b => b.S.Colony == c.Id && b.Body != null).SelectMany(b => RepairTask.Worn(b).Select(i => $"{b.S.Name}: {i.m_dropPrefab?.name} {i.m_durability:0}/{i.GetMaxDurability():0}"))),
+                            ["where"] = new JArray((a.Length > 2 ? a.Skip(2) : c.Board.All.Where(o => o.Kind == "craft" && o.Target.StartsWith(Smithing.Prefix)).Select(o => o.Target.Substring(Smithing.Prefix.Length))).Distinct()
+                                .Select(p => p + ": " + string.Join(", ", Stock.Chests(c).Where(x => x.chest.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == p)).Select(x => $"chest '{x.category}' at {x.chest.transform.position.x:0},{x.chest.transform.position.z:0}"))
+                                    + " | bags: " + string.Join(", ", Villagers.All.Where(b => b.Body != null && b.Body.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == p)).Select(b => b.S.Name)))),
+                            ["reach"] = new JArray(Villagers.All.Where(b => b.S.Colony == c.Id && b.Body != null && Smithing.Kind(b.S.Prof) != null && Gear.Lacks(b, b.S.Prof) != null)
+                                .Select(b => $"{b.S.Name}: reaches {string.Join(", ", Stock.ChestsFor(b).Select(x => $"'{x.category}'@{x.chest.transform.position.x:0},{x.chest.transform.position.z:0}"))} | noGear in {b.NoGearUntil - Time.time:0}s")),
+                            ["lacking"] = new JArray(Villagers.All.Where(b => b.S.Colony == c.Id && b.Body != null && Smithing.Kind(b.S.Prof) != null && Gear.Lacks(b, b.S.Prof) != null).Select(b => $"{b.S.Name} ({b.S.Prof}): {Gear.Lacks(b, b.S.Prof)}")) });
+                    }
+                    break;
+                case "wear": // (test: "wear <name> <prefab> <fraction>": that villager's item worn down to a fraction of its durability)
+                    {
+                        Brain b = Who(a[2]); if (b == null) { error("who?"); return; }
+                        ItemDrop.ItemData it = b.Body.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == a[3]);
+                        if (it == null) { error("no " + a[3]); return; }
+                        it.m_durability = it.GetMaxDurability() * float.Parse(a[4], CultureInfo.InvariantCulture); b.Body.GetInventory().m_onChanged?.Invoke();
+                        output(new JObject { ["worn"] = $"{a[3]} {it.m_durability:0}/{it.GetMaxDurability():0}" });
+                    }
+                    break;
                 case "sowspots": // (test: "sowspots <zone n>": the season's chosen crop and where the next crops would go)
                     {
                         Zone z = c.R.Zones[int.Parse(a[2])]; Vector3 centre = Zones.Centre(z);

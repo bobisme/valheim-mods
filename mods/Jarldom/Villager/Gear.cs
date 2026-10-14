@@ -52,6 +52,8 @@ namespace Jarldom
                 default: return null;
             }
         }
+        // A guard's weapon from the stores: anything to fight with but a one-handed axe, which is a woodcutter's tool.
+        public static bool GuardWeapon(ItemDrop.ItemData i) => IsWeapon(i) && !(i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.OneHandedWeapon && i.m_shared.m_skillType == Skills.SkillType.Axes);
         public static ItemDrop.ItemData Weapon(Brain b) => Items(b).Where(IsWeapon)
             .OrderByDescending(i => i.GetDamage().m_slash + i.GetDamage().m_pierce + i.GetDamage().m_blunt + i.GetDamage().m_fire + i.GetDamage().m_frost + i.GetDamage().m_poison + i.GetDamage().m_lightning + i.GetDamage().m_spirit).FirstOrDefault();
         public static ItemDrop.ItemData Shield(Brain b) => Items(b).Where(i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Shield).OrderByDescending(i => i.m_shared.m_blockPower).FirstOrDefault();

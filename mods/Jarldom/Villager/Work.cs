@@ -482,7 +482,7 @@ namespace Jarldom
                 case Prof.Smelter: return "no ore or fuel for the smelters";
                 case Prof.Miner: return Claims.Of(c).Any(x => x.Ore > 0) ? "waiting to go out to a claim" : "nothing to dig: mark a quarry, or stake an ore claim beside a deposit (hammer → Misc)";
                 case Prof.Cook: return "nothing to cook or brew";
-                case Prof.Smith: return "no commissions (mark some in the colony window)";
+                case Prof.Smith: return "nothing to make or mend (commission things in the Work tab; the smith also makes missing tools, arrows and the guards' upgrades when the stores allow)";
                 case Prof.Builder: return Gear.Tool(b, "hammer") == null ? "needs a hammer to build, mend and pave" : "nothing to build, mend, rebuild or pave";
                 case Prof.Hauler: return "nothing to carry, and every fire and torch is fed";
                 case Prof.Skald: return "resting until the evening's songs";
@@ -503,7 +503,8 @@ namespace Jarldom
                 if (b.Body.GetInventory().GetAllItems().Where(i => Stores(b, i)).Any(i => Stock.Destination(c, i, b.Pos) != null)) return new DepositTask();
                 b.NoStoreUntil = Time.time + 30; b.Say(new[] { "Where do I put all this? (no stockpile for it)", "My arms are full. Where does it go? (no stockpile for it)", "Nowhere to stack this. (no stockpile for it)", "The hall has no shelf for all this. (no stockpile for it)", "Too much to carry and nowhere to put it. (no stockpile for it)" }[UnityEngine.Random.Range(0, 5)], 5);
             }
-            if (Time.time > b.NoRepairUntil && RepairTask.Worn(b).Count > 0) return new RepairTask();
+            // (worn gear: to a station to mend it, unless there's a smith to do it, and nothing's quite broken yet)
+            if (Time.time > b.NoRepairUntil && RepairTask.Worn(b) is var worn && worn.Count > 0 && (b.S.Prof == Prof.Smith || !Smithing.HasSmith(c) || worn.Any(i => i.m_durability <= 0))) return new RepairTask();
             Task grave = GraveTask.Next(b); if (grave != null) return grave;
             Task outfit = OutfitTask.Next(b); if (outfit != null) return outfit;
             Task corner = CornerTask.Next(b); if (corner != null) return corner;
@@ -513,6 +514,7 @@ namespace Jarldom
             if (prof == Prof.Scout && Time.time > b.NoScoutUntil) return new ScoutTask();
             if (prof == Prof.Gothi) { Task rite = GothiTask.Next(b); if (rite != null) return rite; }
             if (prof == Prof.Carter) { Task cart = Carts.Next(b); if (cart != null) return cart; }
+            if (prof == Prof.Smith && c.IsOwner) { Task mend = MendTask.Next(b); if (mend != null) return mend; } // (everyone's worn gear, before new work)
             if (prof == Prof.Builder && c.IsOwner && Compat.GhostCount(c.Position, c.Radius) > 0 && Gear.Tool(b, "hammer") != null && Time.time > b.NoBuildUntil) return new BuildTask();
             if (prof == Prof.Builder) { Task up = Upkeep.Next(b); if (up != null) return up; } // (nothing planned: mend, rebuild, pave)
             if (prof == Prof.Miner) { Task trip = Claims.Next(b); if (trip != null) return trip; } // (ore claims out in the wilds first)

@@ -657,6 +657,19 @@ namespace Jarldom.Ui
                 GameUi.Button(list, "−1", new Vector2(W - 60, -y + 2), new Vector2(54, 28), () => Net.Act(_c, "craft", prefab + "|-1"), true, 14);
                 y += 30;
             }
+            // (the smith's own work: what's on the board for them, and why)
+            var own = _c.Board.All.Where(o => o.Kind == "craft" && o.Target.StartsWith(Smithing.Prefix) && o.State != OrderState.Done && o.State != OrderState.Cancelled).ToList();
+            if (own.Count > 0)
+            {
+                y = Text(list, "The smith's own work:", y + 4, 15, GameUi.Dim);
+                foreach (Order o in own)
+                {
+                    string prefab = o.Target.Substring(Smithing.Prefix.Length), why = Smithing.Reason(_c, prefab);
+                    GameUi.Line(list, Crafts.Name(prefab), new Vector2(24, -y), 300, 16, GameUi.Text);
+                    GameUi.Line(list, o.State == OrderState.Blocked && o.Blocked != "" ? $"<color=#ffd27a>{o.Blocked}</color>" : why, new Vector2(330, -y), W - 340, 15, GameUi.Dim);
+                    y += 26;
+                }
+            }
             var offered = Crafts.Offered(_c, Player.m_localPlayer);
             y = Text(list, offered.Count == 0 ? "Build a workbench, forge or cauldron in the colony to commission things." : "Commission one (what you know how to make, at the stations here):", y + 4, 15, GameUi.Dim);
             float bx = 8; int shown = 0;

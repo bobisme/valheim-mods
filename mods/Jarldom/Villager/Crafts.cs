@@ -34,7 +34,9 @@ namespace Jarldom
         // A station of the recipe's kind in the colony, at the recipe's level (null if it needs one and the colony has none).
         public static CraftingStation StationFor(Colony c, Recipe r, Vector3 near)
         {
-            if (r == null || r.m_craftingStation == null) return null;
+            if (r == null) return null;
+            // (made by hand, as a hammer or a club is: at the nearest workbench that works, the smith's place to work)
+            if (r.m_craftingStation == null) return c.PiecesIn<CraftingStation>(c.Radius).Where(st => st != null && Utils.GetPrefabName(st.gameObject) == "piece_workbench").OrderBy(st => Unusable(st) == null ? 0 : 1).ThenBy(st => Vector3.Distance(st.transform.position, near)).FirstOrDefault();
             return c.PiecesIn<CraftingStation>(c.Radius)
                 .Where(st => st != null && st.m_name == r.m_craftingStation.m_name && st.GetLevel() >= r.m_minStationLevel)
                 .OrderBy(st => Unusable(st) == null ? 0 : 1).ThenBy(st => Vector3.Distance(st.transform.position, near)).FirstOrDefault(); // (one that works first)
@@ -131,6 +133,7 @@ namespace Jarldom
                 c.Board.Post("craft", BrewPrefix + brew.m_item.name, Prof.Cook, 3, st.transform.position.x, st.transform.position.y, st.transform.position.z, now, "", "fermenter");
                 break; // one at a time
             }
+            Smithing.Scan(c, now); // (the smith's own work: missing tools, arrows, the guards' upgrades)
         }
         // The game's recipes that take a whole fish and make something else of it (raw fish, chiefly). Kept until the recipe list changes.
         private static List<Recipe> _prep; private static ObjectDB _prepOf; private static int _prepCount;
@@ -241,7 +244,7 @@ namespace Jarldom
                 _st.m_craftItemDoneEffects.Create(_st.transform.position, Quaternion.identity);
                 b.Body.RaiseSkill(Skills.SkillType.Crafting, 1f);
                 b.S.Bump("made");
-                if (b.Colony.IsOwner) { if (b.Colony.Board.Complete(O.Id, b.S.Vid)) { b.S.Bump("orders"); Crafts.Made(b.Colony, O.Target, b.S.Name); } }
+                if (b.Colony.IsOwner) { if (b.Colony.Board.Complete(O.Id, b.S.Vid)) { b.S.Bump("orders"); Crafts.Made(b.Colony, O.Target, b.S.Name); Smithing.Made(b.Colony, O.Target); } }
                 b.Dirty();
                 if (_made == null) { Done = true; return; } // (a full bag: it dropped at their feet, and the haulers will see it)
                 if (_r.m_item.name == Weaving.Thread && b.S.Prof == Prof.Weaver) { b.Hauled.Remove(_r.m_item.name); Done = true; return; } // (spun thread stays with the weaver, for the loom)

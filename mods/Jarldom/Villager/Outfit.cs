@@ -12,20 +12,20 @@ namespace Jarldom
     internal sealed class OutfitTask : Task
     {
         private const int LowArrows = 10, Arrows = 50;
-        private readonly Container _chest; private readonly string _prefab; private readonly int _count;
+        private readonly Container _chest; private readonly string _prefab; private readonly int _count; private bool _swap; // (an upgrade: the old one goes back to the chest)
         private OutfitTask(Container chest, string prefab, int count) { _chest = chest; _prefab = prefab; _count = count; }
 
         public static Task Next(Brain b)
         {
             Colony c = b.Colony;
             if (c == null || Time.time < b.NoGearUntil || b.Body.GetInventory().GetEmptySlots() < 1) return null;
-            foreach (string kind in Kinds(b.S.Prof).Concat(new[] { "clothes", "hat" }))
+            foreach (string kind in Kinds(b.S.Prof).Concat(new[] { "clothes", "hat" }).Concat(b.S.Prof == Prof.Guard ? new[] { "upgrade" } : new string[0]))
             {
                 Func<ItemDrop.ItemData, bool> want = Wanted(b, kind, out int count);
                 if (want == null) continue;
                 var found = Stock.ChestsFor(b).Where(x => x.category != "" && x.category != "treasury" && !ContainerAccess.InUse(x.chest))
                     .SelectMany(x => x.chest.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && want(i)).Select(i => (x.chest, i))).FirstOrDefault();
-                if (found.chest != null) return new OutfitTask(found.chest, found.i.m_dropPrefab.name, count);
+                if (found.chest != null) return new OutfitTask(found.chest, found.i.m_dropPrefab.name, count) { _swap = kind == "upgrade" };
                 // (a hunter with no bow or arrows in the stores makes their own: a crude bow, flint arrows if there's flint, else wooden)
                 if (kind == "bow")
                 {
@@ -57,7 +57,8 @@ namespace Jarldom
                     if (string.IsNullOrEmpty(ammo) || Gear.Items(b).Where(i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Ammo && i.m_shared.m_ammoType == ammo).Sum(i => i.m_stack) >= LowArrows) return null;
                     count = Arrows;
                     return i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Ammo && i.m_shared.m_ammoType == ammo;
-                case "weapon": return Gear.CanFight(b) ? null : (Func<ItemDrop.ItemData, bool>)Gear.IsWeapon;
+                case "weapon": return Gear.CanFight(b) ? null : (Func<ItemDrop.ItemData, bool>)Gear.GuardWeapon;
+                case "upgrade": return Smithing.GuardUpgrade(b); // (a guard: a clearly better weapon or armour the smith made)
                 case "clothes": return Weaving.InRags(b) && !Gear.Items(b).Any(i => Weaving.IsClothes(i) && i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Chest) ? (Func<ItemDrop.ItemData, bool>)(i => Weaving.IsClothes(i) && i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Chest) : null;
                 case "hat": return Weaving.Hatless(b) ? (Func<ItemDrop.ItemData, bool>)(i => Weaving.IsClothes(i) && i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Helmet) : null;
                 case "bait":
@@ -78,6 +79,12 @@ namespace Jarldom
             if (w == Stock.Walk.Walking) return;
             ItemDrop.ItemData item = _chest.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == _prefab);
             int got = item == null ? 0 : Stock.Take(_chest, b.Body.GetInventory(), item, Math.Min(_count, item.m_stack));
+            if (got > 0 && _swap)
+            {
+                ItemDrop.ItemData now = b.Body.GetInventory().GetAllItems().LastOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == _prefab);
+                ItemDrop.ItemData old = now != null ? Smithing.Replaced(b, now) : null;
+                if (old != null) { if (b.Body.IsItemEquiped(old)) b.Body.UnequipItem(old, false); Stock.Put(b.Body.GetInventory(), _chest, old); }
+            }
             if (got > 0) { string took = $"{(got > 1 ? got + " " : "the ")}{Localization.instance.Localize(item.m_shared.m_name).ToLower()}"; b.Say(new[] { $"I'll take {took} for the work.", $"I'll carry {took} for the work.", $"Right, {took} it is, for the work.", $"I'll take {took} along.", $"Off with {took}, for the work." }[UnityEngine.Random.Range(0, 5)], 4); b.Dirty(); }
             else b.NoGearUntil = Time.time + 60;
             Done = true;
