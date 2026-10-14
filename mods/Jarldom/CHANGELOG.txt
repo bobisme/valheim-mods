@@ -1,3 +1,5 @@
+0.1.106: A cook fills every empty slot of a cooking station in one trip from the stores, not one piece of meat or fish a walk.
+
 0.1.105: With Wayfinder 0.1.10: the colony's next festival is burnt into the primstav (under its forecast, within a fortnight).
 
 0.1.104: With Grave Goods: an heirloom or saga weapon carried into the colony is marvelled at by the villagers who see it (once each, a lift to their mood), and on a pyre counts three (heirloom) or ten (saga) times its worth toward the ascension's deeds; the saga and the skald's verse name it.

@@ -198,6 +198,8 @@ namespace Jarldom
         public static string FermentStatus(Fermenter f) { try { return FermentStatusMethod.Invoke(f, null).ToString(); } catch { return ""; } }
         public static bool Cook(CookingStation s, string method) { try { return (bool)AccessTools.Method(typeof(CookingStation), method).Invoke(s, null); } catch { return false; } }
         public static bool CookLit(CookingStation s) => s.m_useFuel ? s.GetComponent<ZNetView>().GetZDO().GetFloat(ZDOVars.s_fuel) > 0f : Cook(s, "IsFireLit");
+        // (how many slots stand empty: what one trip from the stores can fill)
+        public static int CookFreeCount(CookingStation s) { ZNetView v = s != null ? s.GetComponent<ZNetView>() : null; if (v == null || !v.IsValid() || s.m_slots == null) return 0; int n = 0; for (int i = 0; i < s.m_slots.Length; i++) if (v.GetZDO().GetString("slot" + i) == "") n++; return n; }
         public static bool CookFree(CookingStation s) { try { return (int)AccessTools.Method(typeof(CookingStation), "GetFreeSlot").Invoke(s, null) >= 0; } catch { return false; } }
         private static readonly System.Reflection.MethodInfo QueueMethod = AccessTools.Method(typeof(Smelter), "GetQueueSize");
         public static int QueueSize(Smelter s) { try { return (int)QueueMethod.Invoke(s, null); } catch { return 99; } }
@@ -1149,7 +1151,8 @@ namespace Jarldom
                 else if (oven != null && oven.m_useFuel && oven.m_fuelItem != null && oven.m_fuelItem.name == _carry) room = Mathf.Clamp(Mathf.FloorToInt(oven.m_maxFuel - tv.GetZDO().GetFloat(ZDOVars.s_fuel)), 0, 5);
                 else if (sm != null && sm.m_fuelItem != null && sm.m_fuelItem.name == _carry) room = Mathf.Clamp(Mathf.FloorToInt(sm.m_maxFuel - tv.GetZDO().GetFloat(ZDOVars.s_fuel)), 0, 5);
                 else if (sm != null) room = Mathf.Clamp(sm.m_maxOre - Work.QueueSize(sm), 0, 5);
-                else if (_target.GetComponent<CookingStation>() != null || _target.GetComponent<Fermenter>() != null) room = 1;
+                else if (oven != null) room = Mathf.Clamp(Work.CookFreeCount(oven), 1, 5); // (a spit's empty slots, filled in one trip)
+                else if (_target.GetComponent<Fermenter>() != null) room = 1;
                 _fetched = have != null && room > 0 ? Stock.Take(_source, bag, have, room) : 0;
                 if (_fetched == 0) { Finish(b, false); return; }
                 _phase = 2; b.Move.To(Approach(b), 1.4f);
