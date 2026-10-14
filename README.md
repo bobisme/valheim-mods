@@ -33,7 +33,7 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
 - **Daily life**: work by day, the great hall at dusk (a seat, food, gossip about things that really happened), their own bed at night
   (or the hall fire, unhappily: anyone without a bed takes a free one at dusk). Upper storeys are fine: villagers climb stairs to them
   (Jarldom links stairs and upper floors across the game's 32 m navmesh tiles, which otherwise never join there). Seven needs and many moodlets make a mood (-100 to +100) that sets how fast they work (60% to 130%).
-  The great hall murmurs with talk as it fills (made by the mod, no sound files), with laughter when they're glad; quieter and broken
+  The great hall murmurs with talk as it fills (recorded crowds, CC0), with laughter when they're glad; quieter and broken
   up when they're low, a roar on a feast or festival night. Below -40 on average the colony is miserable: the hall is quiet (no talk,
   no greetings, no songs, work makes half the noise) and the people tab says so.
 - **Death**: rising at their bed after 30 s with their own gear (armour, weapons, tools); the rest goes to a tombstone they walk back

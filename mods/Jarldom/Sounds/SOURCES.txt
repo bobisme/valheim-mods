@@ -1,0 +1,7 @@
+The great hall's crowd loops: recordings from freesound.org, all Creative Commons 0 (public domain, no attribution required).
+Each was cut to a seamless loop (its end crossfaded into its start), made mono 22050 Hz and evened in loudness.
+
+hall_small.ogg   Breviceps, "Busy Room Ambience / Small crowd / People talking in background"  https://freesound.org/people/Breviceps/sounds/457043/
+hall_big.ogg     Breviceps, "Busy Room Ambience / People talking in background #2"             https://freesound.org/people/Breviceps/sounds/465699/
+hall_bar.ogg     EpicWizard, "Bar Crowd in Belgrade"                                           https://freesound.org/people/EpicWizard/sounds/394290/
+hall_walla.ogg   IENBA, "Small Crowd Walla" (4 s cut from each end)                             https://freesound.org/people/IENBA/sounds/653920/

@@ -1,5 +1,10 @@
 # Third-party notices
 
+## Jarldom's great hall crowd recordings
+
+`mods/Jarldom/Sounds/*.ogg` are cut from recordings on [freesound.org](https://freesound.org) released under Creative Commons 0
+(public domain): Breviceps (457043, 465699), EpicWizard (394290) and IENBA (653920). Details in `mods/Jarldom/Sounds/SOURCES.txt`.
+
 ## Quad’s Claude Tools server settings template
 
 `mods/LocalPortals/ServerSettings.cs` is Claude Tools' `templates/ServerSettings.cs` from

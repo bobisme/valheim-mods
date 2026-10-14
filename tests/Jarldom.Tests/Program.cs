@@ -475,18 +475,7 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     var roar = Soundscape.HallLevel(10, 10, 20, true);
     Check(roar.Roar && roar.Volume > hFull.Volume && roar.LaughsPerMinute > hFull.LaughsPerMinute, "A feast is a roar, with more laughter");
     Check(Soundscape.HallLevel(10, 10, -30, false).LaughsPerMinute == 0, "No laughing in a low hall");
-    var babble = Soundscape.Babble(1, 8000, 4f, 6);
-    Check(babble.Length == 32000 && babble.Max(Math.Abs) <= 0.801f && babble.Max(Math.Abs) > 0.79f, "The babble is the length asked, peak 0.8");
-    float Rms(int from, int to) { double s = 0; for (int i = from; i < to; i++) s += babble[i] * babble[i]; return (float)Math.Sqrt(s / (to - from)); }
-    Check(Enumerable.Range(0, 8).All(k => Rms(k * 4000, k * 4000 + 4000) > 0.02f), "The babble never falls silent for half a second");
-    Check(Math.Abs(babble[0] - babble[babble.Length - 1]) < 0.15f, "The babble loops without a click");
-    Check(Soundscape.Babble(1, 8000, 1f, 3).SequenceEqual(Soundscape.Babble(1, 8000, 1f, 3)) && !Soundscape.Babble(2, 8000, 1f, 3).SequenceEqual(Soundscape.Babble(1, 8000, 1f, 3)), "Each seed makes its own babble, the same each time");
-    if (Environment.GetEnvironmentVariable("JARLDOM_BABBLE_WAV") is string wav)
-    {
-        var bb = Soundscape.Babble(1); using var f = new System.IO.BinaryWriter(System.IO.File.Create(wav));
-        f.Write("RIFF"u8.ToArray()); f.Write(36 + bb.Length * 2); f.Write("WAVEfmt "u8.ToArray()); f.Write(16); f.Write((short)1); f.Write((short)1); f.Write(22050); f.Write(44100); f.Write((short)2); f.Write((short)16);
-        f.Write("data"u8.ToArray()); f.Write(bb.Length * 2); foreach (float x in bb) f.Write((short)(x * 32000));
-    }
+    Check(Soundscape.HallLevel(3, 12, 20, false).Full < 0.3f && Soundscape.HallLevel(12, 12, 20, false).Full == 1f, "A few in the hall is a small crowd; all of them, a full hall");
 }
 
 {

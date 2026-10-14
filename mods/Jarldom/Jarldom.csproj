@@ -5,6 +5,7 @@
     <Reference Include="UnityEngine.AnimationModule"><HintPath>$(ManagedDir)/UnityEngine.AnimationModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.ImageConversionModule"><HintPath>$(ManagedDir)/UnityEngine.ImageConversionModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.ParticleSystemModule"><HintPath>$(ManagedDir)/UnityEngine.ParticleSystemModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UnityWebRequestAudioModule"><HintPath>$(ManagedDir)/UnityEngine.UnityWebRequestAudioModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.AudioModule"><HintPath>$(ManagedDir)/UnityEngine.AudioModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="netstandard"><HintPath>$(ManagedDir)/netstandard.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="assembly_googleanalytics" Condition="Exists('$(ManagedDir)/assembly_googleanalytics.dll')"><HintPath>$(ManagedDir)/assembly_googleanalytics.dll</HintPath><Private>false</Private></Reference>
@@ -12,6 +13,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Models/carve/*.json.gz" LogicalName="Jarldom.carve.%(Filename)%(Extension)" />
     <EmbeddedResource Include="Models/marker/*.json.gz" LogicalName="Jarldom.marker.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Sounds/*.ogg" LogicalName="Jarldom.sound.%(Filename)%(Extension)" />
     <EmbeddedResource Include="Models/altar/*.json.gz" LogicalName="Jarldom.altar.%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>
