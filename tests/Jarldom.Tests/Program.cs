@@ -492,7 +492,13 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Dimming.Stage(20, 20, false) == 0, "A rise in worth today ends it");
     Check(Dimming.Work(0) == 1f && Dimming.Work(1) == 0.9f && Dimming.Work(2) == 0.8f, "A tenth, then a fifth slower at work");
     var skin = (0.8f, 0.6f, 0.5f); var t1 = Dimming.Tint(skin, 1); var t2 = Dimming.Tint(skin, 2);
-    Check(Dimming.Tint(skin, 0) == skin && t1 != skin && t2 != t1 && t2.Item1 + t2.Item2 + t2.Item3 < t1.Item1 + t1.Item2 + t1.Item3, "Stage 2 looks darker than stage 1, and stage 0 is their own skin");
+        float Sat((float, float, float) c) => Math.Max(c.Item1, Math.Max(c.Item2, c.Item3)) - Math.Min(c.Item1, Math.Min(c.Item2, c.Item3));
+    foreach (var own in new[] { skin, (0.97f, 0.96f, 0.96f), (0.53f, 0.47f, 0.42f) })
+    {
+        var d0 = Dimming.Drawn(own); var d1 = Dimming.Drawn(Dimming.Tint(own, 1)); var d2 = Dimming.Drawn(Dimming.Tint(own, 2));
+        Check(Dimming.Tint(own, 0) == own && Sat(d1) < Sat(d0) * 0.7f && Sat(d2) < Sat(d0) * 0.3f && Math.Abs(Dimming.Luma(d1) - Dimming.Luma(d0)) < 0.01f && Math.Abs(Dimming.Luma(d2) - Dimming.Luma(d0)) < 0.01f,
+            $"The Dimming greys the face as drawn (stage 2 near ashen), no darker; stage 0 is their own skin: {own} -> {d0} {d1} {d2}");
+    }
     Check(t1.Item1 / skin.Item1 < t1.Item2 / skin.Item2 && t2.Item1 / skin.Item1 < t2.Item3 / skin.Item3, "The warmth goes first (red drawn out most)");
     var hair = (0.4f, 0.25f, 0.1f);
     Check(Dimming.Hair(hair, 1) == hair && Dimming.Hair(hair, 0) == hair && Dimming.Hair(hair, 2).Item3 > hair.Item3 && Math.Abs(Dimming.Hair(hair, 2).Item1 - Dimming.Hair(hair, 2).Item3) < Math.Abs(hair.Item1 - hair.Item3), "At stage 2 the hair goes toward grey");

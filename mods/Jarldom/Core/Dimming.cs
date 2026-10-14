@@ -20,13 +20,22 @@ namespace Jarldom
         public static float Work(int stage) => stage >= 2 ? 0.8f : stage == 1 ? 0.9f : 1f;
         public static string Why(int today, int lastRise) => $"Hasn't done anything worthy in {today - lastRise} days";
         // The skin, faded toward a draugr's: the warmth drawn out of their own colour (the game multiplies the face by it, and the face is
-        // ruddy, so the red goes most): a little at stage 1, pallid and darker at stage 2 (red, green, blue, 0..1 each).
+        // ruddy, so the red goes most): greyed a little at stage 1, near ashen at stage 2, no darker (red, green, blue, 0..1 each).
         public static (float r, float g, float b) Tint((float r, float g, float b) skin, int stage)
         {
             if (stage <= 0) return skin;
-            (float r, float g, float b) k = stage >= 2 ? (0.5f, 0.66f, 0.64f) : (0.74f, 0.88f, 0.86f);
-            return (skin.r * k.r, skin.g * k.g, skin.b * k.b);
+            // (greyed, not darkened. The game multiplies the face's own ruddy texture by this, so their colour is first drawn toward its grey,
+            // then the texture's warmth is cancelled (more red taken than blue), and all brought back to the brightness it was drawn at)
+            float s = stage >= 2 ? 0.9f : 0.6f;
+            (float r, float g, float b) cancel = stage >= 2 ? (0.58f, 0.82f, 1f) : (0.68f, 0.87f, 1f); // (stage 2: the texture's colour cancelled outright, ash grey)
+            float luma = Luma(skin);
+            (float r, float g, float b) t = ((skin.r + (luma - skin.r) * s) * cancel.r, (skin.g + (luma - skin.g) * s) * cancel.g, (skin.b + (luma - skin.b) * s) * cancel.b);
+            float drawn = Luma(Drawn(t)), k = drawn > 0.001f ? Luma(Drawn(skin)) / drawn : 1f;
+            return (t.r * k, t.g * k, t.b * k);
         }
+        public static readonly (float r, float g, float b) Face = (0.8f, 0.56f, 0.46f); // (about the skin texture's own colour)
+        public static (float r, float g, float b) Drawn((float r, float g, float b) c) => (c.r * Face.r, c.g * Face.g, c.b * Face.b); // (as the face is drawn)
+        public static float Luma((float r, float g, float b) c) => 0.299f * c.r + 0.587f * c.g + 0.114f * c.b;
         // At stage 2 the hair goes grey, as a draugr's (their own hair colour toward ash).
         public static (float r, float g, float b) Hair((float r, float g, float b) hair, int stage)
         {
