@@ -11,7 +11,7 @@ namespace BuildShapes
 
         private void OpenModeMenu()
         {
-            CloseRepeatMenu(); CloseArchMenu(); CloseHallMenu();
+            CloseRepeatMenu(); CloseArchMenu();
             _modeMenu = true; _menuOpenedFrame = Time.frameCount;
             Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
         }
@@ -24,22 +24,13 @@ namespace BuildShapes
             Piece piece = player.GetSelectedPiece();
             string selected = piece != null ? Utils.GetPrefabName(piece.gameObject) : "";
             // Choosing the current mode resumes its path; switching discards only the local preview.
-            if (requested == _tool && (requested == Tool.Hall || selected == _selected))
+            if (requested == _tool && selected == _selected)
             {
                 CloseModeMenu();
                 if (_tool == Tool.Arch && _markers.Count == 2) OpenArchMenu();
                 else if (_tool == Tool.Repeat && _markers.Count == 3) OpenRepeatMenu();
-                else if (_tool == Tool.Hall && (_markers.Count >= 3 || System.IO.File.Exists(HallGroundFile))) OpenHallMenu();
             }
             else Begin(player, requested);
-        }
-        private void ChooseHallStyle(int style)
-        {
-            if(_tool!=Tool.Hall)Begin(Player.m_localPlayer,Tool.Hall);
-            CloseModeMenu();
-            SetHallStyle(style);
-            if(_markers.Count>=3){BuildHallPreview();OpenHallMenu();}
-            Say(style==2?"Stave temple: Shift+click its floor plan, then L for chamber height, tower crowns and galleries.":style==1?"Longhouse: Shift+click its floor plan, then L for its depth, hearths and platforms.":"Hallwright: Shift+click its floor plan, then L for options.");
         }
         private void ModeContents(int id)
         {
@@ -56,26 +47,17 @@ namespace BuildShapes
             bool beam = selected.Contains("beam") || selected.Contains("pole");
             bool extended = _planner.Extended;
             bool enabled = GUI.enabled;
-            Tool chosen = Tool.None;int? hallStyle=null;
+            Tool chosen = Tool.None;
             _modeScroll = GUILayout.BeginScrollView(_modeScroll);
             void Mode(Tool tool, string detail, bool available)
             {
                 GUI.enabled = enabled && available && piece != null;
-                string label = (tool==Tool.Hall?"Hallwright":tool.ToString()) + (_tool == tool ? "  ·  active" : "");
+                string label = tool.ToString() + (_tool == tool ? "  ·  active" : "");
                 if (GUILayout.Button(label, _tool == tool ? _menuSelected : _menuButton, GUILayout.Height(36))) chosen = tool;
                 GUI.enabled = enabled;
                 GUILayout.Label(detail, _menuHint);
                 GUILayout.Space(10);
             }
-            GUI.enabled=enabled && piece!=null;
-            int current=_tool!=Tool.Hall?-1:HallStyle;
-            if(GUILayout.Button("Hallwright · timber hall"+(current==0?" · active":""),current==0?_menuSelected:_menuButton,GUILayout.Height(36)))hallStyle=0;
-            GUILayout.Label("Draw a floor plan; solve a complete timber hall with live roofs, storeys and intricacy.",_menuHint);GUILayout.Space(10);
-            if(GUILayout.Button("Longhouse"+(current==1?" · active":""),current==1?_menuSelected:_menuButton,GUILayout.Height(36)))hallStyle=1;
-            GUILayout.Label("A Norse longhouse dug into the ground: a stone fence footing, a long hearth down the middle and raised platforms along the walls.",_menuHint);GUILayout.Space(10);
-            if(GUILayout.Button("Stave temple"+(current==2?" · active":""),current==2?_menuSelected:_menuButton,GUILayout.Height(36)))hallStyle=2;
-            GUI.enabled=enabled;GUILayout.Label("A tall open chamber, surrounding galleries and narrowing tower roofs, fitted to your floor plan.",_menuHint);GUILayout.Space(10);
-            if(System.IO.File.Exists(CurrentHallDraftPath) && GUILayout.Button("Resume saved Hallwright draft",_menuButton,GUILayout.Height(36)))ResumeHallDraft();
             Mode(Tool.Curve, "Three points: start, bend, and end. Uses beams or poles.", beam);
             Mode(Tool.Arch, "Two endpoints, then adjust the center height. Uses beams or poles.", beam);
             Mode(Tool.Mirror, "Reflect a group of pieces across a marked line.", extended);
@@ -94,8 +76,7 @@ namespace BuildShapes
             GUILayout.EndArea();
             GUI.DragWindow(new Rect(0, 0, _modeRect.width-60, 50));
             // Defer switching until the current IMGUI layout is balanced.
-            if(hallStyle.HasValue)ChooseHallStyle(hallStyle.Value);
-            else if (chosen != Tool.None) ChooseMode(chosen);
+            if (chosen != Tool.None) ChooseMode(chosen);
         }
     }
 }

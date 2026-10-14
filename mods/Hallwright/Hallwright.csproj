@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>Hallwright</AssemblyName><RootNamespace>Hallwright</RootNamespace></PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Models/stake/*.json.gz" LogicalName="Hallwright.%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

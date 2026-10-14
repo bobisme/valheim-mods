@@ -1,4 +1,4 @@
-using BuildShapes;
+using Hallwright;
 int checks=0;
 void Check(bool ok,string label){checks++;if(!ok)throw new Exception(label);}
 void Reject(Action action,string label){try{action();}catch(ArgumentException){checks++;return;}throw new Exception("Accepted: "+label);}

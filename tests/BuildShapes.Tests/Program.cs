@@ -190,29 +190,9 @@ extended.InputAvailable=false;Check(!link.Available(player),"Concurrent planner 
 extended.InputAvailable=true;Check(link.Available(player),"Input resumes after planner placement ends");
 Chainloader.PluginInfos[Planner.Guid].Instance=new MockPlanner();
 Check(link.Ready()&&!link.Extended&&link.Available(player)&&!link.AtRay(player,new Vector3(),new Vector3(),out _,out _,out _,out _,out _),"Original v1 planner retains Curve support without stale extended calls");
-var legacy=(MockPlanner)Chainloader.PluginInfos[Planner.Guid].Instance;
-Check(link.CreateShell(player,"Hall",new string[256],new Vector3[256],new Quaternion[256],out _,out _)&&legacy.Creates==1,"Small shell uses original API in one call");
-Check(!link.CreateShell(player,"Hall",new string[257],new Vector3[257],new Quaternion[257],out _,out error)&&legacy.Creates==1&&error.Contains("whole-building"),"Large shell cannot be partially submitted to old planner");
-Check(!link.CanCreateShell(1772,out error)&&error.Contains("1.10.1")&&error.Contains("draft stays open")&&legacy.Creates==1,"Preflight reports the loaded version and missing capability without creating partial ghosts");
-var shells=new ShellPlanner();Chainloader.PluginInfos[Planner.Guid].Instance=shells;
-Check(link.CanCreateShell(1772,out _)&&shells.Shells==0,"Planner-only replacement rebinds the capability without submitting the existing draft");
-Check(link.CreateShell(player,"Hall",new string[600],new Vector3[600],new Quaternion[600],out key,out _)&&key=="shell"&&shells.Shells==1&&shells.Creates==0,"Large shell uses optional whole-building method once");
-var limited=new LimitedShellPlanner();Chainloader.PluginInfos[Planner.Guid].Instance=limited;
-Check(!link.CanCreateShell(1772,out error)&&error.Contains("1024")&&limited.Shells==0,"Older whole-building capacity is rejected before excavation or native submission");
-Chainloader.PluginInfos[Planner.Guid].Instance=legacy;
-Check(!link.CreateShell(player,"Hall",new string[600],new Vector3[600],new Quaternion[600],out _,out _)&&shells.Shells==1,"Independent downgrade clears stale shell method");
 Console.WriteLine($"Passed {checks} curve geometry and planner reload/dependency checks.");
 
 class OldPlanner : BepInEx.BaseUnityPlugin { }
-class ShellPlanner : MockPlanner
-{
- public new const int PlanningApiVersion=1;
- public const int MaximumShellPieces=2048;
- public int Shells;
- public bool TryCreateBuildingShell(Player p,string title,string[] names,Vector3[] poses,Quaternion[] rotations,out string key,out string error)
- {Shells++;key="shell";error=null;return true;}
-}
-class LimitedShellPlanner : ShellPlanner { public new const int PlanningApiVersion=1; public new const int MaximumShellPieces=1024; }
 class WrongSchemaPlanner : BepInEx.BaseUnityPlugin { public const int PlanningApiVersion = 1; }
 class MockPlanner : BepInEx.BaseUnityPlugin
 {

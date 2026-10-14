@@ -7,7 +7,7 @@
     <ValheimDir Condition="'$(ValheimDir)' == ''">$(HOME)/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Valheim</ValheimDir>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../../mods/BuildShapes/HallDraft.cs" Link="HallDraft.cs" />
+    <Compile Include="../../mods/Hallwright/HallDraft.cs" Link="HallDraft.cs" />
     <Reference Include="Newtonsoft.Json"><HintPath>$(ValheimDir)/valheim_Data/Managed/Newtonsoft.Json.dll</HintPath></Reference>
   </ItemGroup>
 </Project>

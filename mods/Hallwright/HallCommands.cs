@@ -7,7 +7,7 @@ using BepInEx;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
-namespace BuildShapes
+namespace Hallwright
 {
     public sealed partial class Plugin
     {
@@ -31,7 +31,7 @@ namespace BuildShapes
         {if(_hallClaude!=null)try{_hallClaude.GetType().GetMethod("UnregisterAll",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Name});}catch(Exception){} _hallClaude=null;}
         private float[] HallFrame(string name)
         {
-            if(name!="hallpreview" || _tool!=Tool.Hall || _hallDesign==null || _hallDesign.Cells.Count==0)return null;
+            if(name!="hallpreview" || !_active || _hallDesign==null || _hallDesign.Cells.Count==0)return null;
             double x=_hallDesign.Cells.Average(c=>c.X*2+1),z=_hallDesign.Cells.Average(c=>c.Z*2+1);
             Vector3 center=HallWorld(new V3(x,0,z));return new[]{center.x,center.y,center.z,_hallFrame.eulerAngles.y};
         }
@@ -42,7 +42,7 @@ namespace BuildShapes
             ["dug"]=_hallGroundJob.Count(c=>c.Target<c.Displayed-0.01f),["heaped"]=_hallGroundJob.Count(c=>c.Target>c.Displayed+0.01f),["innerEntrances"]=_hallDesign?.InnerEntrances.Count,["chamberHeight"]=_staveHeight,["crowns"]=_staveCrowns,["gallery"]=_staveGallery,["roofHeight"]=_hallDesign?.RoofHeight,
             ["chamber"]=_hallDesign?.Sanctum==null?null:new JArray(_hallDesign.Sanctum.Width*2,_hallDesign.Sanctum.Length*2),
             ["sharing"]=new JObject{["send"]=_shareDrafts.Value,["receive"]=_showSharedDrafts.Value,["connectedViewers"]=_sharedParticipants.Count,["receivedDrafts"]=_sharedDraftSet.Entries.Count,["packetBytes"]=_sharedPacket?.Length??0},
-            ["wholeBuildingApi"]=_planner.WholeShell,["savedDraft"]=System.IO.File.Exists(CurrentHallDraftPath),["mode"]=_tool.ToString(),["corners"]=_markers.Count,["pieces"]=_output.Count,["floorY"]=_hallFloorY,
+            ["wholeBuildingApi"]=_planner.WholeShell,["savedDraft"]=System.IO.File.Exists(CurrentHallDraftPath),["mode"]=_active?"Hall":"None",["corners"]=_markers.Count,["pieces"]=_output.Count,["floorY"]=_hallFloorY,
             ["entrances"]=new JArray((_hallDesign?.Entrances??new System.Collections.Generic.List<HallDoors.Entrance>()).Select(d=>new JObject{["x"]=d.At.X,["z"]=d.At.Z,["yaw"]=d.Yaw,["edge"]=d.Edge})),["entranceMarkers"]=_hallDoorPoints.Count,["preview"]=_hallGuideOnly?"Layout":_hallSolid?"Materials":"Ghosts",
             ["area"]=_hallDesign?.Cells.Count*4,["porchArea"]=_hallDesign?.PorchFloors.Count*4,["wings"]=_hallDesign?.Wings.Count,["height"]=_hallHeight,["storeys"]=_hallStoreys,["basement"]=_hallBasement,["groundVertices"]=_hallGroundJob.Count,["stairHoles"]=_hallDesign?.StairHoles.Count,["pitch"]=_hallRoof45?45:26,
             ["overhang"]=_hallOverhang,["porch"]=_hallPorch,["shutters"]=_hallShutters,["windowShutters"]=_hallDesign?.Parts.Count(p=>p.Role=="window shutter")??0,["chimneys"]=new JArray((_hallDesign?.Chimneys??new System.Collections.Generic.HashSet<HallLayout.Cell>()).Select(c=>new JObject{["x"]=c.X*2+1,["z"]=c.Z*2+1})),["chimneyPieces"]=_hallDesign?.Parts.Count(p=>p.Role=="chimney")??0,["labels"]=new JArray(_hallLabels.Select(l=>new JObject{["text"]=l.text,["live"]=l.live,["at"]=new JArray(Math.Round(l.at.x,2),Math.Round(l.at.y,2),Math.Round(l.at.z,2))})),["sweep"]=_hallSweep,["crest"]=new[]{"Auto","None","Dragon","Raven"}[_hallCrestMode],["detail"]=_hallDetail,["roof"]=_hallTiered?"Tiered":"Gabled",["tieredWings"]=_hallDesign?.TieredWings,["entrance"]=_hallEntranceMode==0?"Auto":_hallEntranceMode==1?"Door":"Gate",["opening"]=_hallKit?.Door,["materials"]=HallMaterials[_hallMaterialMode],["addedSupports"]=_hallAddedPosts,["wouldFall"]=_hallFalls,
@@ -130,7 +130,7 @@ namespace BuildShapes
                     output(new JObject{["prefab"]=args[2],["drawn"]=new JArray(ReadHallMeshes(prefab).Select(m=>new JObject{["path"]=m.Path,["materials"]=new JArray(m.Materials.Where(x=>x!=null).Select(x=>new JObject{["name"]=x.name,["shader"]=x.shader.name,["keywords"]=new JArray(x.shaderKeywords),["queue"]=x.renderQueue,
                         ["floats"]=new JObject(Enumerable.Range(0,x.shader.GetPropertyCount()).Where(i=>x.shader.GetPropertyType(i)==UnityEngine.Rendering.ShaderPropertyType.Float || x.shader.GetPropertyType(i)==UnityEngine.Rendering.ShaderPropertyType.Range).Select(i=>new JProperty(x.shader.GetPropertyName(i),x.GetFloat(x.shader.GetPropertyName(i)))))}))}))});return null;
                 }
-                if(action=="clear"){if(_tool==Tool.Hall)Stop();output(new JObject{["cleared"]=true});return null;}
+                if(action=="clear"){if(_active)Stop();output(new JObject{["cleared"]=true});return null;}
                 if(action=="reload")return ReloadHallScripts(output,error);
                 if(action=="restoreground" || action=="keepground")
                 {int skipped=RestoreHallGround(action=="keepground");output(new JObject{["ground"]=action=="keepground"?"kept":"restored",["leftAlone"]=skipped});return null;}
@@ -159,12 +159,12 @@ namespace BuildShapes
                     HallLayout.Footprint(local); // Validate before replacing the player's existing local preview.
                     float distance=action=="rectangle" && args.Length>4?HallFloat(args[4]):10;
                     if(distance<2 || distance>24)throw new ArgumentException("Preview distance must be 2–24 metres.");
-                    Stop();_tool=Tool.Hall;_hallFrame=HallYaw(player.transform.eulerAngles.y);
+                    Stop();_active=true;_hallFrame=HallYaw(player.transform.eulerAngles.y);
                     _hallOrigin=player.transform.position+_hallFrame*new Vector3(-4,0,distance);
                     foreach(V3 v in local)_markers.Add(HallMarkerGround(_hallOrigin+_hallFrame*V(v)));
                     BuildHallPreview();output(HallReadout());return null;
                 }
-                if(_tool!=Tool.Hall)throw new ArgumentException("Start Hallwright from F4 or use hall rectangle first.");
+                if(!_active)throw new ArgumentException("Pick the Hallwright stake or use hall rectangle first.");
                 if(action=="doors")
                 {
                     var points=args.Skip(2).ToArray();

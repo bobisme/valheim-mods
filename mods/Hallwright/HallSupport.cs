@@ -6,7 +6,7 @@ using System.Linq;
 using HarmonyLib;
 using UnityEngine;
 
-namespace BuildShapes
+namespace Hallwright
 {
     /// <summary>
     /// How stable the planned structure would be, worked out as the game itself does it for real pieces (WearNTear.UpdateSupport): each

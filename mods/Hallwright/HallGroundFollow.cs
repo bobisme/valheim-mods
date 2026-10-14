@@ -5,7 +5,7 @@ using HarmonyLib;
 using Newtonsoft.Json;
 using UnityEngine;
 
-namespace BuildShapes
+namespace Hallwright
 {
     // When the plan a Hallwright hall dug its ground for is removed (BuildOrders' Plans window, its blueprint commands, or U here), the
     // ground goes back by itself, as Restore ground does: once the ground is loaded near you, and only if nothing of the hall is built on
@@ -68,7 +68,7 @@ namespace BuildShapes
             try
             {
                 int skipped=RestoreHallGround();_groundPending=false;
-                if(_tool==Tool.Hall)QueueHallPreview();
+                if(_active)QueueHallPreview();
                 Say(skipped==0?"The hall's plan was removed: its ground is put back.":$"The hall's plan was removed: its ground is put back, except {skipped} points changed since.");
             }
             catch(Exception ex)

@@ -3,7 +3,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace BuildShapes
+namespace Hallwright
 {
     public sealed partial class Plugin
     {

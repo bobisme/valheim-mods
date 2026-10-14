@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using Newtonsoft.Json;
 
-namespace BuildShapes
+namespace Hallwright
 {
     internal sealed class HallDraft
     {

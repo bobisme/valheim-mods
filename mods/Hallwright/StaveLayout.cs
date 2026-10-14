@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace BuildShapes
+namespace Hallwright
 {
     // Tall sanctum, low aisles and nested pierced roofs on the native two-metre grid.
     internal static class StaveLayout

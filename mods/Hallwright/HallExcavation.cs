@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 
-namespace BuildShapes
+namespace Hallwright
 {
     internal static class HallExcavation
     {

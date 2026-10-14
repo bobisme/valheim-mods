@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace BuildShapes
+namespace Hallwright
 {
     // Fit the requested entrances together, rather than letting an early snap consume a later opening.
     internal static class HallDoors

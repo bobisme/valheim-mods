@@ -4,7 +4,7 @@ using System.Linq;
 using BepInEx;
 using UnityEngine;
 
-namespace BuildShapes
+namespace Hallwright
 {
     public sealed partial class Plugin
     {
@@ -19,7 +19,7 @@ namespace BuildShapes
         {_hallDraftWorld=ZNet.instance.GetWorldUID();_hallDraftPlayer=Player.m_localPlayer.GetPlayerID();_hallDraftLast=null;_hallDraftSubmitted=false;}
         private void SaveHallDraft()
         {
-            if(_tool!=Tool.Hall || _markers.Count==0 || _hallDraftSubmitted)return;
+            if(!_active || _markers.Count==0 || _hallDraftSubmitted)return;
             if(_hallDraftWorld==0)StartHallDraft();
             var draft=new HallDraft{World=_hallDraftWorld,Player=_hallDraftPlayer,Origin=DraftPoint(_hallOrigin),Yaw=_hallFrame.eulerAngles.y,
                 Corners=_markers.Select(DraftPoint).ToArray(),Doors=_hallDoorPoints.Select(p=>DraftPoint(V(p))).ToArray(),Chimneys=_hallChimneyPoints.Select(p=>DraftPoint(V(p))).ToArray(),Raise=_hallRaise,
@@ -36,7 +36,7 @@ namespace BuildShapes
             try
             {
                 var draft=HallDraftStore.Read(CurrentHallDraftPath,ZNet.instance.GetWorldUID(),Player.m_localPlayer.GetPlayerID());
-                Stop();_tool=Tool.Hall;StartHallDraft();_hallOrigin=DraftVector(draft.Origin);_hallFrame=Quaternion.Euler(0,draft.Yaw,0);
+                Stop();_active=true;StartHallDraft();_hallOrigin=DraftVector(draft.Origin);_hallFrame=Quaternion.Euler(0,draft.Yaw,0);
                 _markers.AddRange(draft.Corners.Select(DraftVector));_hallDoorPoints.AddRange(draft.Doors.Select(p=>V(DraftVector(p))));if(draft.Chimneys!=null)_hallChimneyPoints.AddRange(draft.Chimneys.Select(p=>V(DraftVector(p))));
                 _staveTemple=draft.StaveTemple;_staveGallery=draft.StaveGallery;_staveHeight=draft.StaveHeight;_staveCrowns=draft.StaveCrowns;
                 _hallRaise=draft.Raise;_hallHeight=draft.Height;_hallDetail=draft.Detail;_hallEntrance=draft.Entrance;_hallMaterialMode=draft.Material;

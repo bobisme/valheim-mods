@@ -1,6 +1,6 @@
 using System;
 
-namespace BuildShapes
+namespace Hallwright
 {
     internal static class HallTerrainGeometry
     {

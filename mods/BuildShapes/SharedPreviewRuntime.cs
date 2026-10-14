@@ -18,13 +18,13 @@ namespace BuildShapes
         private int _sharedAwakeFrame;
         private float _sharedNextRoster,_sharedNextHello;
         private SharedPreviewCadence _sharedCadence=new SharedPreviewCadence();
-        private bool _sharedDirty=true,_sharedLastPieces,_sharedLastRoof,_sharedLastLayout,_sharedLastEnabled;
+        private bool _sharedDirty=true,_sharedLastPieces,_sharedLastEnabled;
         private byte[] _sharedPacket;
         private readonly HashSet<long> _sharedParticipants=new HashSet<long>();
         private readonly Dictionary<long,string> _sharedOnline=new Dictionary<long,string>();
         private SharedPreviewSet _sharedDraftSet=new SharedPreviewSet();
         private readonly Dictionary<long,List<GameObject>> _sharedLines=new Dictionary<long,List<GameObject>>();
-        private readonly Dictionary<string,List<HallMesh>> _sharedMeshes=new Dictionary<string,List<HallMesh>>();
+        private readonly Dictionary<string,List<SharedMesh>> _sharedMeshes=new Dictionary<string,List<SharedMesh>>();
         private readonly Dictionary<Material,Material> _sharedMaterials=new Dictionary<Material,Material>();
         private Material _sharedLineMaterial,_sharedPostMaterial,_sharedFallbackMaterial;
         private readonly MaterialPropertyBlock _sharedTint=new MaterialPropertyBlock();
@@ -33,7 +33,7 @@ namespace BuildShapes
         {
             _shareDrafts=Config.Bind("Shared drafts","ShareMyDraft",true,"Show your live corner posts, outlines and shape previews to other players with BuildShapes. Visuals only; no terrain or pieces are placed.");
             _showSharedDrafts=Config.Bind("Shared drafts","ShowOthersDrafts",true,"Show nearby players' live drafts. Requires BuildShapes on designer and viewer.");
-            _shareDraftPieces=Config.Bind("Shared drafts","SharePiecePreviews",true,"Include native piece meshes in your shared draft, except Hallwright Layout mode. Roof visibility is respected.");
+            _shareDraftPieces=Config.Bind("Shared drafts","SharePiecePreviews",true,"Include native piece meshes in your shared draft.");
             _showSharedPieces=Config.Bind("Shared drafts","ShowPiecePreviews",true,"Draw other players' draft meshes as cyan ghosts. Turn off for outlines/posts only. At most 4,096 nearby shared pieces render at once.");
             _sharedAwakeFrame=Time.frameCount;
         }
@@ -73,8 +73,8 @@ namespace BuildShapes
             if(now>=_sharedNextHello)
             {_sharedNextHello=now+15;foreach(long id in _sharedOnline.Keys.Where(id=>!_sharedParticipants.Contains(id)))SendSharedHello(id);}
             bool active=_enabled.Value&&_shareDrafts.Value&&_tool!=Tool.None&&_markers.Count>0;
-            if(active!=_sharedLastEnabled||_shareDraftPieces.Value!=_sharedLastPieces||_hallShowRoof!=_sharedLastRoof||_hallGuideOnly!=_sharedLastLayout)
-            {_sharedDirty=true;_sharedLastEnabled=active;_sharedLastPieces=_shareDraftPieces.Value;_sharedLastRoof=_hallShowRoof;_sharedLastLayout=_hallGuideOnly;}
+            if(active!=_sharedLastEnabled||_shareDraftPieces.Value!=_sharedLastPieces)
+            {_sharedDirty=true;_sharedLastEnabled=active;_sharedLastPieces=_shareDraftPieces.Value;}
             if(!_sharedCadence.Due(now,_sharedDirty))return;
             // A changed draft goes out whole; an unchanged one only says it is still there (a few bytes, not the whole draft every
             // four seconds), and whoever lacks it asks for it with a hello.
@@ -97,19 +97,18 @@ namespace BuildShapes
             var p=new SharedPreview{World=_sharedWorld,Revision=++_sharedRevision,Tool=active?(byte)_tool:(byte)0,Center=SharePoint(Vector3.zero)};
             if(!active)return p;
             Vector3 center=(_markers.Aggregate(Vector3.zero,(a,b)=>a+b))/_markers.Count;
-            center.y=_tool==Tool.Hall&&_hallGuideHasFloor?_hallFloorY+(_staveTemple?(float)(_hallDesign?.RoofHeight??_staveHeight):_hallHeight*_hallStoreys)+1.5f:_markers.Max(v=>v.y)+3;
+            center.y=_markers.Max(v=>v.y)+3;
             p.Center=SharePoint(center);int points=0;
             foreach(var go in _visuals)
             {
                 var line=go==null?null:go.GetComponent<LineRenderer>();if(line==null||line.positionCount<2||line.positionCount>128)continue;
                 if(p.Lines.Count>=SharedPreviewCodec.MaxLines||points+line.positionCount>SharedPreviewCodec.MaxPoints)break;
                 var positions=new Vector3[line.positionCount];line.GetPositions(positions);points+=positions.Length;
-                p.Lines.Add(new SharedStroke{Width=line.startWidth,ThroughGround=line.sharedMaterial==_hallMarkerMaterial,Points=positions.Select(SharePoint).ToArray()});
+                p.Lines.Add(new SharedStroke{Width=line.startWidth,ThroughGround=false,Points=positions.Select(SharePoint).ToArray()});
             }
-            if(_shareDraftPieces.Value&&(_tool!=Tool.Hall||!_hallGuideOnly))
+            if(_shareDraftPieces.Value)
             for(int i=0;i<_output.Count&&p.Pieces.Count<SharedPreviewCodec.MaxPieces;i++)
             {
-                if(_tool==Tool.Hall&&!_hallShowRoof&&_hallRoles[i].EndsWith("roof",StringComparison.Ordinal))continue;
                 var g=_output[i];p.Pieces.Add(new SharedGhost{Prefab=g.Prefab,At=SharePoint(g.Position),X=g.Rotation.x,Y=g.Rotation.y,Z=g.Rotation.z,W=g.Rotation.w});
             }
             return p;
@@ -166,12 +165,33 @@ namespace BuildShapes
                 line.startWidth=line.endWidth=stroke.Width;line.positionCount=stroke.Points.Length;line.SetPositions(stroke.Points.Select(ShareVector).ToArray());line.shadowCastingMode=ShadowCastingMode.Off;line.receiveShadows=false;lines.Add(go);
             }
         }
-        private List<HallMesh> SharedMeshes(string name)
+        private sealed class SharedMesh { internal Mesh Mesh; internal Matrix4x4 Local; internal Material[] Materials; }
+        private List<SharedMesh> SharedMeshes(string name)
         {
             if(_sharedMeshes.TryGetValue(name,out var cached))return cached;
             var prefab=ZNetScene.instance?.GetPrefab(name);var piece=prefab==null?null:prefab.GetComponent<Piece>();
             if(_sharedMeshes.Count>=1024)_sharedMeshes.Clear();
-            return _sharedMeshes[name]=piece==null||prefab.GetComponentInChildren<TerrainOp>(true)!=null||prefab.GetComponentInChildren<TerrainModifier>(true)!=null?new List<HallMesh>():ReadHallMeshes(prefab);
+            return _sharedMeshes[name]=piece==null||prefab.GetComponentInChildren<TerrainOp>(true)!=null||prefab.GetComponentInChildren<TerrainModifier>(true)!=null?new List<SharedMesh>():ReadSharedMeshes(prefab);
+        }
+        private static List<SharedMesh> ReadSharedMeshes(GameObject prefab)
+        {
+            var list=new List<SharedMesh>();
+            // A piece keeps its distant, simpler models (flat planes) beside the close one in a level-of-detail group;
+            // drawing them all at once made overlapping planes flicker. Under a group, draw only its closest level.
+            var nearest=new Dictionary<LODGroup,HashSet<Renderer>>();
+            foreach(LODGroup group in prefab.GetComponentsInChildren<LODGroup>(true))
+            {LOD[] levels=group.GetLODs();nearest[group]=new HashSet<Renderer>(levels.Length>0?levels[0].renderers.Where(r=>r!=null):Enumerable.Empty<Renderer>());}
+            foreach(MeshFilter filter in prefab.GetComponentsInChildren<MeshFilter>(true))
+            {
+                MeshRenderer renderer=filter.GetComponent<MeshRenderer>();
+                if(filter.sharedMesh==null || renderer==null || !renderer.enabled)continue;
+                bool hidden=false;for(Transform t=filter.transform;t!=prefab.transform;t=t.parent)if(!t.gameObject.activeSelf || t.name=="_GhostOnly")hidden=true;
+                if(hidden)continue;
+                LODGroup owner=filter.GetComponentInParent<LODGroup>(true);
+                if(owner!=null && nearest.TryGetValue(owner,out var close) && close.Count>0 && !close.Contains(renderer))continue;
+                list.Add(new SharedMesh{Mesh=filter.sharedMesh,Local=prefab.transform.worldToLocalMatrix*filter.transform.localToWorldMatrix,Materials=renderer.sharedMaterials});
+            }
+            return list;
         }
         private Material SharedGhostMaterial(Material source)
         {
@@ -209,7 +229,7 @@ namespace BuildShapes
             {
                 if(!_sharedLines.TryGetValue(pair.Key,out var lines)||lines.Count==0||!lines[0].activeSelf)continue;
                 Vector3 screen=Camera.main.WorldToScreenPoint(ShareVector(pair.Value.Preview.Center));if(screen.z<=0)continue;
-                _sharedOnline.TryGetValue(pair.Key,out string name);GUI.Label(new Rect(screen.x-200,Screen.height-screen.y-18,400,28),(name??"Player")+" · "+((Tool)pair.Value.Preview.Tool)+" draft",_sharedLabel);
+                _sharedOnline.TryGetValue(pair.Key,out string name);GUI.Label(new Rect(screen.x-200,Screen.height-screen.y-18,400,28),(name??"Player")+" · "+(pair.Value.Preview.Tool==5?"Hallwright":((Tool)pair.Value.Preview.Tool).ToString())+" draft",_sharedLabel);
             }
         }
         private void ClearSharedMeshCache()

@@ -575,13 +575,13 @@ foreach (var entry in catalog.RootElement.GetProperty("mods").EnumerateArray())
     using var mod = AssemblyDefinition.ReadAssembly(Path.Combine(directory, entry.GetProperty("files").EnumerateArray().Select(f=>f.GetString()!).Single(f=>f.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))), new ReaderParameters { ReadSymbols = true, AssemblyResolver = resolver });
     if (!mod.MainModule.HasSymbols) throw new Exception("ScriptEngine symbols not readable: " + name);
     var attribute = mod.MainModule.Types.SelectMany(t => t.CustomAttributes).Single(a => a.AttributeType.FullName == "BepInEx.BepInPlugin");
-    if (name == "BuildShapes")
+    if (name == "BuildShapes" || name == "Hallwright")
     {
         if (mod.MainModule.AssemblyReferences.Any(r => r.Name.StartsWith("BuildOrders", StringComparison.Ordinal)))
-            throw new Exception("BuildShapes must not bind a hot-reloaded BuildOrders assembly identity.");
+            throw new Exception(name + " must not bind a hot-reloaded BuildOrders assembly identity.");
         if (!mod.MainModule.Types.SelectMany(t => t.CustomAttributes).Any(a => a.AttributeType.FullName == "BepInEx.BepInDependency" &&
             (string)a.ConstructorArguments[0].Value == "com.quad.buildorders"))
-            throw new Exception("BuildShapes planner dependency is missing.");
+            throw new Exception(name + " planner dependency is missing.");
     }
     if (entry.GetProperty("guid").GetString() == "com.bobisme.bobspipes")
     {

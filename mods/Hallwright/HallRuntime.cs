@@ -4,7 +4,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace BuildShapes
+namespace Hallwright
 {
     public sealed partial class Plugin
     {
@@ -212,7 +212,7 @@ namespace BuildShapes
             _hallProblem=null;_hallNote=null;_hallFalls=0;_hallAddedPosts=0;_hallDesign=null;_hallGroundJob.Clear();_hallTargetMaps.Clear();
             try
             {
-                if(_markers.Count<3)throw new ArgumentException(StakeMode?"Click the ground for each corner, then press E inside the outline for the hall settings.":"Draw the boundary with Shift+click, then L opens the hall settings.");
+                if(_markers.Count<3)throw new ArgumentException("Click the ground for each corner, then press E inside the outline for the hall settings.");
                 _hallKit=HallKit(Player.m_localPlayer);
                 var corners=_markers.Select(p=>{Vector3 v=Quaternion.Inverse(_hallFrame)*(p-_hallOrigin);return new V3(Math.Round(v.x/2)*2,0,Math.Round(v.z/2)*2);}).ToArray();
                 var details=HallDetailsKit();
@@ -349,7 +349,7 @@ namespace BuildShapes
         }
         private void MarkHallDoor(Player player)
         {
-            if(_markers.Count<3){Say("Draw the floor plan first, then Ctrl+click near an exterior wall to mark entrances.");return;}
+            if(_markers.Count<3){Say("Draw the floor plan first, then Shift+click near an exterior wall to mark entrances.");return;}
             if(!CameraRay(out Ray ray) || !Physics.Raycast(ray,out RaycastHit hit,80,BuildLayers,QueryTriggerInteraction.Ignore))return;
             if(Vector3.Distance(hit.point,player.transform.position)>40){Say("Move within 40 metres of the entrance.");return;}
             Vector3 local=Quaternion.Inverse(_hallFrame)*(hit.point-_hallOrigin);V3 point=new V3(local.x,0,local.z);
@@ -357,13 +357,13 @@ namespace BuildShapes
             if(remove<0 && _hallDesign!=null)remove=_hallDesign.Entrances.FindIndex(d=>(d.At-point).Length<0.8);
             if(remove>=0 && remove<_hallDoorPoints.Count)_hallDoorPoints.RemoveAt(remove);
             else if(_hallDoorPoints.Count<HallDoors.Maximum)_hallDoorPoints.Add(point);
-            else{Say("Mark at most eight entrances. Ctrl+click a marker to remove it.");return;}
-            BuildHallPreview(false);Say(_hallProblem??$"{_hallDoorPoints.Count} entrance markers; "+(StakeMode?"Shift":"Ctrl")+"+click again to remove, "+(StakeMode?"Shift":"Ctrl")+"+Backspace removes the last.");
+            else{Say("Mark at most eight entrances. Shift+click a marker to remove it.");return;}
+            BuildHallPreview(false);Say(_hallProblem??$"{_hallDoorPoints.Count} entrance markers; Shift+click again to remove, Shift+Backspace removes the last.");
         }
         private void MarkHallChimney(Player player)
         {
             if(_staveTemple){Say("Chimneys are for longhouses. Switch the style to Longhouse to mark one.");return;}
-            if(_markers.Count<3){Say("Draw the floor plan first, then Ctrl+Shift+click a floor tile to put a chimney above it.");return;}
+            if(_markers.Count<3){Say("Draw the floor plan first, then Ctrl+click a floor tile to put a chimney above it.");return;}
             if(!CameraRay(out Ray ray) || !Physics.Raycast(ray,out RaycastHit hit,80,BuildLayers,QueryTriggerInteraction.Ignore))return;
             if(Vector3.Distance(hit.point,player.transform.position)>40){Say("Move within 40 metres of the chimney spot.");return;}
             Vector3 local=Quaternion.Inverse(_hallFrame)*(hit.point-_hallOrigin);
@@ -371,8 +371,8 @@ namespace BuildShapes
             int remove=_hallChimneyPoints.FindIndex(p=>(p-tile).Length<0.5);
             if(remove>=0)_hallChimneyPoints.RemoveAt(remove);
             else if(_hallChimneyPoints.Count<HallLayout.MaximumChimneys)_hallChimneyPoints.Add(tile);
-            else{Say("Mark at most four chimneys. Ctrl+Shift+click one to remove it.");return;}
-            BuildHallPreview(false);Say(_hallProblem??$"{_hallChimneyPoints.Count} chimney"+(_hallChimneyPoints.Count==1?"":"s")+"; "+(StakeMode?"Ctrl":"Ctrl+Shift")+"+click the tile again to remove, "+(StakeMode?"Ctrl":"Ctrl+Shift")+"+Backspace removes the last.");
+            else{Say("Mark at most four chimneys. Ctrl+click one to remove it.");return;}
+            BuildHallPreview(false);Say(_hallProblem??$"{_hallChimneyPoints.Count} chimney"+(_hallChimneyPoints.Count==1?"":"s")+"; Ctrl+click the tile again to remove, Ctrl+Backspace removes the last.");
         }
         private void MarkHall(Player player)
         {
@@ -473,7 +473,7 @@ namespace BuildShapes
         private GameObject HallTemplate(string name)
         {
             if(_hallTemplates.TryGetValue(name,out var cached) && cached!=null)return cached;
-            if(_hallTemplateHolder==null){_hallTemplateHolder=new GameObject("BuildShapes hall templates");_hallTemplateHolder.SetActive(false);}
+            if(_hallTemplateHolder==null){_hallTemplateHolder=new GameObject("Hallwright templates");_hallTemplateHolder.SetActive(false);}
             var template=new GameObject(name);template.transform.SetParent(_hallTemplateHolder.transform,false);
             foreach(HallMesh mesh in HallMeshes(name))
             {
@@ -491,7 +491,7 @@ namespace BuildShapes
             if(key==_hallPieceKey)return;
             ClearHallPieces();_hallPieceKey=key;
             if(_hallGuideOnly || _output.Count==0)return;
-            _hallPieceRoot=new GameObject("BuildShapes hall preview");
+            _hallPieceRoot=new GameObject("Hallwright preview");
             for(int i=0;i<_output.Count;i++)
             {
                 var pose=_output[i];if(!_hallShowRoof && _hallRoles[i].EndsWith("roof",StringComparison.Ordinal))continue;

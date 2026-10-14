@@ -8,14 +8,14 @@ using Object=UnityEngine.Object;
 
 [assembly: AssemblyMetadata("ClaudeTools.Reload","world")]
 
-namespace BuildShapes
+namespace Hallwright
 {
     // The Hallwright stake: a builder's setting-out peg (Models/stake) in the hammer's build menu. Pick it and Hallwright is on; click the ground to set a
     // corner (Shift+click an entrance, Ctrl+click a smoke hole or chimney), press E inside the outline for the settings. The stake
     // itself is never built: its placement ghost stands where the next corner will go.
     public sealed partial class Plugin
     {
-        internal const string StakeName="BuildShapesHallStake";
+        internal const string StakeName="HallwrightStake";
         private static readonly MethodInfo UpdateKnownRecipes=AccessTools.Method(typeof(Player),"UpdateKnownRecipesList"),UpdateAvailablePieces=AccessTools.Method(typeof(Player),"UpdateAvailablePiecesList");
         private GameObject _stakePrefab,_stakeHolder;
         private readonly List<Object> _stakeOwned=new List<Object>();
@@ -25,7 +25,7 @@ namespace BuildShapes
         private static PieceTable HammerTable()=>ObjectDB.instance?.GetItemPrefab("Hammer")?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces;
         internal static bool IsStake(Piece piece)=>piece!=null && Utils.GetPrefabName(piece.gameObject)==StakeName;
         private static bool StakeSelected(Player player)=>player!=null && HoldingHammer(player) && IsStake(player.GetSelectedPiece());
-        private bool StakeMode=>_tool==Tool.Hall && StakeSelected(Player.m_localPlayer);
+        private bool StakeMode=>_active && StakeSelected(Player.m_localPlayer);
 
         // Once a second: the stake stays in the hammer's menu through world loads and reloads of this mod.
         private void EnsureStake()
@@ -49,7 +49,7 @@ namespace BuildShapes
         {
             GameObject pole=scene.GetPrefab("wood_pole");
             if(pole==null)return null;
-            if(_stakeHolder==null){_stakeHolder=new GameObject("BuildShapes stake");_stakeHolder.SetActive(false);DontDestroyOnLoad(_stakeHolder);}
+            if(_stakeHolder==null){_stakeHolder=new GameObject("Hallwright stake");_stakeHolder.SetActive(false);DontDestroyOnLoad(_stakeHolder);}
             GameObject stake=Instantiate(pole,_stakeHolder.transform,false);stake.name=StakeName;
             var snaps=stake.GetComponentsInChildren<Transform>(true).Where(t=>t.name.StartsWith("$hud_snappoint",StringComparison.Ordinal)).Select(t=>t.localPosition.y).ToList();
             float bottom=snaps.DefaultIfEmpty(0f).Min(),top=snaps.DefaultIfEmpty(1f).Max();
@@ -96,9 +96,9 @@ namespace BuildShapes
             Material cloth=null;
             if(wood!=null)
             {
-                var orange=new Texture2D(2,2,TextureFormat.RGBA32,false){name="BuildShapes stake flag"};
+                var orange=new Texture2D(2,2,TextureFormat.RGBA32,false){name="Hallwright stake flag"};
                 orange.SetPixels(Enumerable.Repeat(new Color(1f,0.32f,0.08f),4).ToArray());orange.Apply();_stakeOwned.Add(orange);
-                cloth=new Material(wood){name="BuildShapes stake flag",mainTexture=orange,color=Color.white};
+                cloth=new Material(wood){name="Hallwright stake flag",mainTexture=orange,color=Color.white};
                 if(cloth.HasProperty("_EmissionColor")){cloth.EnableKeyword("_EMISSION");cloth.SetColor("_EmissionColor",new Color(0.45f,0.12f,0.02f));}
                 _stakeOwned.Add(cloth);
             }
@@ -111,13 +111,13 @@ namespace BuildShapes
         private const float StakeGrain=0.6f; // (the wood texture repeats per metre)
         private Material Grain(Material wood,Color tint)
         {
-            var m=new Material(wood){name="BuildShapes stake wood",color=tint};m.mainTextureScale=Vector2.one*StakeGrain;
+            var m=new Material(wood){name="Hallwright stake wood",color=tint};m.mainTextureScale=Vector2.one*StakeGrain;
             _stakeOwned.Add(m);return m;
         }
         // The game's material in a plain colour (its texture taken away), matte: for the paint and iron.
         private Material Plain(Material wood,Color color)
         {
-            var m=new Material(wood){name="BuildShapes stake paint",color=color};
+            var m=new Material(wood){name="Hallwright stake paint",color=color};
             if(m.HasProperty("_MainTex"))m.SetTexture("_MainTex",null);
             if(m.HasProperty("_BumpMap"))m.SetTexture("_BumpMap",null);
             foreach(string k in new[]{"_Glossiness","_Metallic","_Smoothness"})if(m.HasProperty(k))m.SetFloat(k,0);
@@ -128,7 +128,7 @@ namespace BuildShapes
         {
             try
             {
-                using(var raw=typeof(Plugin).Assembly.GetManifestResourceStream("BuildShapes.hallstake.json.gz"))
+                using(var raw=typeof(Plugin).Assembly.GetManifestResourceStream("Hallwright.hallstake.json.gz"))
                 {
                     if(raw==null)return null;
                     using(var gz=new System.IO.Compression.GZipStream(raw,System.IO.Compression.CompressionMode.Decompress))
@@ -153,7 +153,7 @@ namespace BuildShapes
         }
         private Sprite StakeIcon(GameObject stake)
         {
-            var stage=new GameObject("BuildShapes icon stage");stage.transform.position=new Vector3(0,-3000,0);
+            var stage=new GameObject("Hallwright icon stage");stage.transform.position=new Vector3(0,-3000,0);
             try
             {
                 // As the game's own placement ghost: no network object, nothing in the world.
@@ -167,12 +167,12 @@ namespace BuildShapes
                 Renderer[] renderers=copy.GetComponentsInChildren<Renderer>().Where(r=>r.enabled && r.gameObject.activeInHierarchy).ToArray();
                 if(renderers.Length==0)return null;
                 Bounds bounds=renderers[0].bounds;foreach(Renderer r in renderers)bounds.Encapsulate(r.bounds);
-                var camera=new GameObject("BuildShapes icon camera").AddComponent<Camera>();camera.transform.SetParent(stage.transform,false);
+                var camera=new GameObject("Hallwright icon camera").AddComponent<Camera>();camera.transform.SetParent(stage.transform,false);
                 camera.enabled=false;camera.cullingMask=1<<layer;camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(0,0,0,0);
                 camera.fieldOfView=20;camera.nearClipPlane=0.05f;camera.farClipPlane=60;camera.allowHDR=false;camera.allowMSAA=false;
                 camera.transform.position=bounds.center+new Vector3(0.15f,0.2f,-1f).normalized*(bounds.extents.magnitude/Mathf.Sin(10*Mathf.Deg2Rad))*1.02f;
                 camera.transform.LookAt(bounds.center);
-                var light=new GameObject("BuildShapes icon light").AddComponent<Light>();light.transform.SetParent(stage.transform,false);
+                var light=new GameObject("Hallwright icon light").AddComponent<Light>();light.transform.SetParent(stage.transform,false);
                 light.transform.rotation=Quaternion.Euler(40,30,0);light.type=LightType.Directional;light.intensity=1.3f;light.shadows=LightShadows.None;light.cullingMask=1<<layer;
                 RenderTexture target=RenderTexture.GetTemporary(128,128,24,RenderTextureFormat.ARGB32),previous=RenderTexture.active;
                 try
@@ -198,7 +198,7 @@ namespace BuildShapes
         // A click with the stake: the corner, entrance or chimney Hallwright would mark with the hammer.
         private void StakeClick(Player player)
         {
-            if(_tool!=Tool.Hall || _hallMenu || _modeMenu)return;
+            if(!_active || _hallMenu)return;
             if(Input.GetKey(KeyCode.LeftControl))MarkHallChimney(player);
             else if(Input.GetKey(_modifier.Value))MarkHallDoor(player);
             else MarkHall(player);

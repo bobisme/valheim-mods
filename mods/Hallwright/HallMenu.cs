@@ -1,7 +1,7 @@
 using System.Linq;
 using UnityEngine;
 
-namespace BuildShapes
+namespace Hallwright
 {
     public sealed partial class Plugin
     {
@@ -91,7 +91,7 @@ namespace BuildShapes
             if(!_staveTemple)
             {
                 GUILayout.Label(_hallNorse?"Smoke holes":"Chimneys",_menuText);
-                GUILayout.Label(_hallNorse?"Ctrl+Shift+click a floor tile to leave the roof above it open, as the Norse let their smoke out. Up to four, besides the ones beside the hearths. Under a 45° roof each gets a lower 26° piece that keeps the rain off and leaves a slit for the smoke.":"Ctrl+Shift+click a floor tile to open the roof above it and raise a timber flue past the ridge; set your fire under it. Up to four. Upper floors leave a shaft for it.",_menuHint);
+                GUILayout.Label(_hallNorse?"Ctrl+click a floor tile to leave the roof above it open, as the Norse let their smoke out. Up to four, besides the ones beside the hearths. Under a 45° roof each gets a lower 26° piece that keeps the rain off and leaves a slit for the smoke.":"Ctrl+click a floor tile to open the roof above it and raise a timber flue past the ridge; set your fire under it. Up to four. Upper floors leave a shaft for it.",_menuHint);
                 for(int i=0;i<_hallChimneyPoints.Count;i++)
                 {
                     GUILayout.BeginHorizontal();GUILayout.Label($"Chimney {i+1}",_menuText);
@@ -119,7 +119,7 @@ namespace BuildShapes
                 if(GUILayout.Button("›",_menuButton,GUILayout.Width(42))){_hallEntrance=(_hallEntrance+1)%_markers.Count;changed=true;}
                 GUILayout.EndHorizontal();
             }
-            GUILayout.Label("Ctrl+click near exterior walls to mark up to eight entrances; click a marker again to remove it. The first marker gets the covered porch. Edit outline returns to the ground.",_menuHint);
+            GUILayout.Label("Shift+click near exterior walls to mark up to eight entrances; click a marker again to remove it. The first marker gets the covered porch. Edit outline returns to the ground.",_menuHint);
             for(int i=0;i<_hallDoorPoints.Count;i++)
             {
                 GUILayout.BeginHorizontal();GUILayout.Label($"Entrance {i+1}"+(i==0?" · main":""),_menuText);
@@ -143,7 +143,7 @@ namespace BuildShapes
             GUILayout.Label("Sharing",_menuText);
             _shareDrafts.Value=GUILayout.Toggle(_shareDrafts.Value,"Share my draft with other players");
             _shareDraftPieces.Value=GUILayout.Toggle(_shareDraftPieces.Value,"Include piece previews (Layout sends guides only)");
-            GUILayout.Label("Viewers need BuildShapes. Cyan drafts are visual only; Plan shell creates the buildable shared ghosts.",_menuHint);
+            GUILayout.Label("Viewers need Hallwright. Cyan drafts are visual only; Plan shell creates the buildable shared ghosts.",_menuHint);
             GUILayout.Space(10);GUILayout.Label("Preview",_menuText);
             int preview=GUILayout.SelectionGrid(_hallGuideOnly?2:_hallSolid?0:1,new[]{"Materials","Ghosts","Layout"},3,_menuButton,GUILayout.Height(34));
             _hallGuideOnly=preview==2;if(preview!=2)_hallSolid=preview==0;
@@ -171,7 +171,7 @@ namespace BuildShapes
             if(GUILayout.Button("Edit outline",_menuButton,GUILayout.Height(36)))CloseHallMenu();
             if(GUILayout.Button("Clear draft",_menuButton,GUILayout.Height(36))){ClearHallDraft();Say("Hallwright draft cleared.");}
             if(GUILayout.Button("Cancel",_menuButton,GUILayout.Height(36)))Stop();
-            GUILayout.EndHorizontal();GUILayout.Label("Esc: close options · L: reopen · F4: modes",_menuHint);
+            GUILayout.EndHorizontal();GUILayout.Label("Esc: close options · E inside the outline or L: reopen",_menuHint);
             GUILayout.EndArea();GUI.DragWindow(new Rect(0,0,_hallRect.width-60,50));
         }
     }

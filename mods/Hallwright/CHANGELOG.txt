@@ -1,0 +1,3 @@
+0.9.0: Hallwright on its own, split out of BuildShapes (it was BuildShapes 0.8.10's Hallwright). Pick the Hallwright stake in the hammer's build menu (Misc): click corners, Shift+click entrances, Ctrl+click smoke holes or chimneys, E inside the outline (or L) for the settings, where the style row picks Timber hall, Longhouse or Stave temple. There's no F4 entry any more. Saved drafts and ground records are the same files, and the first start takes your Hallwright, key and shared-draft settings from BuildShapes' config. Update BuildShapes to 0.9.0 too: older BuildShapes still has its own stake. Live hall drafts are shared between Hallwright players.
+
+Earlier history: see BuildShapes' changelog up to 0.8.10.

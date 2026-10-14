@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace BuildShapes
+namespace Hallwright
 {
     // The flight is kept wholly inside the cell union, with a 2 m landing at each end.
     // All levels align their top landing; an opening spans the full flight for headroom.

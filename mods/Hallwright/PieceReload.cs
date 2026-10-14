@@ -4,7 +4,7 @@ using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
 
-namespace BuildShapes
+namespace Hallwright
 {
     /// <summary>
     /// Lets a mod that adds build pieces be reloaded while you play (a mod maker's hot reload), with nothing deleted and nothing left

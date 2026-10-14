@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace BuildShapes
+namespace Hallwright
 {
     // While drawing a Hallwright outline: dotted lines laid on the ground between corners, a live line from the last corner
     // to where the next click would land (and on back to the first), and each line's length floating above it.
@@ -66,7 +66,7 @@ namespace BuildShapes
             GameObject go=reuse;
             if(go==null)
             {
-                go=new GameObject("BuildShapes hall dotted line"){layer=LayerMask.NameToLayer("Ignore Raycast")};
+                go=new GameObject("Hallwright dotted line"){layer=LayerMask.NameToLayer("Ignore Raycast")};
                 var made=go.AddComponent<LineRenderer>();made.useWorldSpace=true;made.sharedMaterial=dots;made.textureMode=LineTextureMode.Tile;
                 made.startWidth=made.endWidth=0.16f;made.shadowCastingMode=ShadowCastingMode.Off;made.receiveShadows=false;made.alignment=LineAlignment.View;
                 _visuals.Add(go);

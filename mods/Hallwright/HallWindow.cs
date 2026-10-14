@@ -5,7 +5,7 @@ using TMPro;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
-namespace BuildShapes
+namespace Hallwright
 {
     // The Hallwright settings in the game's own look (GameUi: the crafting panel's wood, its tabs and buttons, the game's fonts).
     // The window is a list of rows: the same list builds it and gives the signature that says when to build it again, so it is
@@ -103,7 +103,7 @@ namespace BuildShapes
             if(!_staveTemple)
             {
                 Gap();Head(_hallNorse?"Smoke holes":"Chimneys");
-                Hint(_hallNorse?(StakeMode?"Ctrl":"Ctrl+Shift")+"+click a floor tile to leave the roof above it open, as the Norse let their smoke out. Up to four, besides the ones beside the hearths. Under a 45° roof each gets a lower 26° piece that keeps the rain off and leaves a slit for the smoke.":(StakeMode?"Ctrl":"Ctrl+Shift")+"+click a floor tile to open the roof above it and raise a timber flue past the ridge; set your fire under it. Up to four. Upper floors leave a shaft for it.");
+                Hint(_hallNorse?"Ctrl+click a floor tile to leave the roof above it open, as the Norse let their smoke out. Up to four, besides the ones beside the hearths. Under a 45° roof each gets a lower 26° piece that keeps the rain off and leaves a slit for the smoke.":"Ctrl+click a floor tile to open the roof above it and raise a timber flue past the ridge; set your fire under it. Up to four. Upper floors leave a shaft for it.");
                 for(int i=0;i<_hallChimneyPoints.Count;i++){int index=i;Buttons(($"Remove {(_hallNorse?"smoke hole":"chimney")} {i+1}",true,(Action)(()=>{_hallChimneyPoints.RemoveAt(index);HallChanged();})));}
             }
             Gap();Head("Ridge ends");
@@ -117,7 +117,7 @@ namespace BuildShapes
             Hint("Auto chooses an unlocked gate at 3 m or taller, otherwise a door.");
             if(_markers.Count>0 && _hallDoorPoints.Count==0)
                 Buttons(("<",true,(Action)(()=>{_hallEntrance=(_hallEntrance+_markers.Count-1)%_markers.Count;HallChanged();})),($"Door on edge {_hallEntrance%_markers.Count+1} of {_markers.Count}",false,(Action)(()=>{})),(">",true,(Action)(()=>{_hallEntrance=(_hallEntrance+1)%_markers.Count;HallChanged();})));
-            Hint((StakeMode?"Shift":"Ctrl")+"+click near exterior walls to mark up to eight entrances; click a marker again to remove it. The first marker gets the covered porch.");
+            Hint("Shift+click near exterior walls to mark up to eight entrances; click a marker again to remove it. The first marker gets the covered porch.");
             for(int i=0;i<_hallDoorPoints.Count;i++){int index=i;Buttons(($"Remove entrance {i+1}"+(i==0?" · main":""),true,(Action)(()=>{_hallDoorPoints.RemoveAt(index);HallChanged();})));}
             if(_hallDoorPoints.Count>0)Buttons(("Clear entrance markers · use the edge selector",true,(Action)(()=>{_hallDoorPoints.Clear();HallChanged();})));
             if(!(_hallNorse && _hallSink>0))
@@ -137,7 +137,7 @@ namespace BuildShapes
             Gap();Head("Sharing");
             Toggle("Share my draft with other players",_shareDrafts.Value,()=>_shareDrafts.Value=!_shareDrafts.Value);
             Toggle("Include piece previews",_shareDraftPieces.Value,()=>_shareDraftPieces.Value=!_shareDraftPieces.Value);
-            Hint("Viewers need BuildShapes. Cyan drafts are visual only; Plan shell creates the buildable shared ghosts.");
+            Hint("Viewers need Hallwright. Cyan drafts are visual only; Plan shell creates the buildable shared ghosts.");
             Gap();Head("Preview");
             Tabs(new[]{"Materials","Ghosts","Layout"},_hallGuideOnly?2:_hallSolid?0:1,i=>{_hallGuideOnly=i==2;if(i!=2)_hallSolid=i==0;HallChanged();});
             Buttons((_hallShowRoof?"Hide roof":"Show roof",true,(Action)(()=>{_hallShowRoof=!_hallShowRoof;HallChanged();})),("Refresh unlocks and support",true,(Action)(()=>{_hallMeshes.Clear();foreach(var t in _hallTemplates.Values)if(t!=null)Object.Destroy(t);_hallTemplates.Clear();HallChanged();})));
@@ -179,7 +179,7 @@ namespace BuildShapes
             if(_hallWindow!=null)Object.Destroy(_hallWindow.gameObject);
             _hallWindowShown=shown;
             float height=Mathf.Min(960f,GameUi.ScreenSize.y-40f),w=HallWindowWidth;
-            _hallWindow=GameUi.Window("BuildShapesHallwright",new Vector2(w,height));
+            _hallWindow=GameUi.Window("Hallwright",new Vector2(w,height));
             // At the right of the screen, so the preview stays in view.
             _hallWindow.anchoredPosition=new Vector2(Mathf.Max(0,GameUi.ScreenSize.x/2-w/2-24),0);
             if(fresh)_hallWindowOpened=Time.unscaledTime;
@@ -235,7 +235,7 @@ namespace BuildShapes
             GameUi.Button(_hallWindow,"Edit outline",new Vector2(30+quarter+6,-(height-82)),new Vector2(quarter,44),()=>HallLater(CloseHallMenu),true,18);
             GameUi.Button(_hallWindow,"Clear draft",new Vector2(30+2*(quarter+6),-(height-82)),new Vector2(quarter,44),()=>HallLater(()=>{ClearHallDraft();Say("Hallwright draft cleared.");}),true,18);
             GameUi.Button(_hallWindow,"Cancel",new Vector2(30+3*(quarter+6),-(height-82)),new Vector2(quarter,44),()=>HallLater(Stop),true,18);
-            GameUi.Line(_hallWindow,"Esc or E: close"+(StakeMode?" · E inside the outline: open again":" · L: open again · F4: modes"),new Vector2(30,-(height-34)),w-60,14,GameUi.Dim);
+            GameUi.Line(_hallWindow,"Esc or E: close · E inside the outline: open again",new Vector2(30,-(height-34)),w-60,14,GameUi.Dim);
         }
         private void CloseHallWindow()
         {

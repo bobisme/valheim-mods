@@ -1,6 +1,6 @@
 using System;
 
-namespace BuildShapes
+namespace Hallwright
 {
     public sealed partial class Plugin
     {

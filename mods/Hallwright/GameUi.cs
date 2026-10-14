@@ -9,7 +9,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using Object = UnityEngine.Object;
 
-namespace BuildShapes
+namespace Hallwright
 {
     /// <summary>
     /// Windows in Valheim's own look, built from the game's own interface: the wood panel, the sunken list box, buttons, the braided line
@@ -23,7 +23,7 @@ namespace BuildShapes
     /// NoParse, Cell (the inventory's item cell), Chip (icon + amount), Icon, Picture (a texture: a Steam avatar), Bar, SetBar, LiveBar (a bar you
     /// update in place), Tag, Frame, ArrowSprite, Scroll (the game's scroll speed and scrollbar), ScreenSize, HudRoot, and the patches that keep the
     /// game quiet under a window (walking, the camera, the cursor, the wheel, Escape, Tab, chat and other mods' keys).
-    /// BuildShapes keeps its own input patches (RepeatMenu.cs, keyed on Plugin.OptionsMenuOpen), so the template's patch section is left out.
+    /// Hallwright keeps its own input patches (OptionsWindow.cs, keyed on Plugin.OptionsMenuOpen), so the template's patch section is left out.
     ///
     /// A window with it (see valheim-look for why each line is there):
     ///
@@ -74,7 +74,7 @@ namespace BuildShapes
     internal static class GameUi
     {
         /// <summary>Your canvas's name: change it to your mod's (a hot reload finds and removes the old copy's by this name).</summary>
-        private const string CanvasName = "BuildShapesCanvas";
+        private const string CanvasName = "HallwrightCanvas";
 
         /// <summary>Whether one of your windows is open: the input patches below act only while it is.</summary>
         internal static Func<bool> IsOpen = () => false;

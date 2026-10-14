@@ -8,7 +8,7 @@ using HarmonyLib;
 using Newtonsoft.Json;
 using UnityEngine;
 
-namespace BuildShapes
+namespace Hallwright
 {
     public sealed partial class Plugin
     {

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace BuildShapes
+namespace Hallwright
 {
     // Pure, bounded geometry. Coordinates are metres in the footprint's first-edge frame.
     internal static class HallLayout
@@ -258,7 +258,7 @@ namespace BuildShapes
                 foreach(V3 point in details.ChimneyPoints)
                 {
                     var cell=new Cell((int)Math.Floor(point.X/2),(int)Math.Floor(point.Z/2));
-                    if(!set.Contains(cell))throw new ArgumentException("A chimney marker is outside the floor plan. Ctrl+Shift+click a floor tile inside it.");
+                    if(!set.Contains(cell))throw new ArgumentException("A chimney marker is outside the floor plan. Ctrl+click a floor tile inside it with the stake.");
                     if(plan.StairHoles.Contains(cell) || plan.StairZone.Contains(cell))throw new ArgumentException("A chimney marker sits over the stairs. Move it to another tile.");
                     plan.Chimneys.Add(cell);
                 }
