@@ -24,6 +24,7 @@ namespace Jarldom
         {
             if (Time.time < _next || Minimap.instance == null) return;
             _next = Time.time + 5f;
+            var walking = new HashSet<string>();
             foreach (Character ch in Character.GetAllCharacters())
             {
                 if (ch == null || ch.IsDead() || ch.IsPlayer()) continue;
@@ -31,7 +32,7 @@ namespace Jarldom
                 if (name == "") continue;
                 string key = "lost:" + (z.GetString(VidKey, "") is string v && v != "" ? v : name);
                 Net.PinHere(key, ch.transform.position, Called(name), true);
-                Pinned.Add(key);
+                Pinned.Add(key); walking.Add(key); PinAt[key] = ch.transform.position;
             }
             // Their remains, lying where they fell: pinned until picked up (a pin whose remains are gone, seen from near, comes off).
             var seen = new HashSet<string>();
@@ -45,14 +46,15 @@ namespace Jarldom
                 if (v.IsOwner() && Buried(drop.transform.position) && Clear(drop.transform.position) is Vector3 free) Plugin.Guard(() => MoveTo(drop, free)); // (fell into a rock: out onto open ground)
             }
             Player me = Player.m_localPlayer;
-            foreach (string key in Pinned.Where(k => k.StartsWith("remains:") && !seen.Contains(k)).ToList())
+            // (and a draugr killed on another player's game: only that game hears of its death, so seen from near, gone, its pin comes off)
+            foreach (string key in Pinned.Where(k => k.StartsWith("remains:") && !seen.Contains(k) || k.StartsWith("lost:") && !walking.Contains(k)).ToList())
                 if (me != null && PinAt.TryGetValue(key, out Vector3 at) && Vector3.Distance(me.transform.position, at) < 40f) { Net.PinHere(key, Vector3.zero, "", false); Pinned.Remove(key); PinAt.Remove(key); }
         }
         public static void Unpin(ZDO z)
         {
             string name = Who(z); if (name == "") return;
             string key = "lost:" + (z.GetString(VidKey, "") is string v && v != "" ? v : name);
-            Net.PinHere(key, Vector3.zero, "", false); Pinned.Remove(key);
+            Net.PinHere(key, Vector3.zero, "", false); Pinned.Remove(key); PinAt.Remove(key);
         }
         public static void Forget() { Pinned.Clear(); PinAt.Clear(); }
         // (the game's own list of the items lying in the world: no search of the scene)
