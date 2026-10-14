@@ -11,7 +11,7 @@ public sealed class TerrainComp
     public T GetComponent<T>() where T:class=>View as T;
     private void CheckLoad(){View.Events.Add("load");Loads++;if(LoadedRevision!=DataRevision){Height=SavedHeight;LoadedRevision=DataRevision;}}
 }
-namespace BuildShapes
+namespace Hallwright
 {
     public sealed partial class Plugin
     {
