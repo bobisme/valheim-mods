@@ -773,6 +773,14 @@ namespace Jarldom
                 case "horn": Net.Act(c, "horn", c.HornUntil > Time.time ? "off" : "on"); output(new JObject { ["horn"] = c.HornUntil > Time.time }); break;
                 case "treasury": case "stockpile":
                     {
+                        // ("treasury": which chest it is, nothing changed; "treasury set [x z]" makes the chest nearest the treasury)
+                        if (cmd == "treasury" && (a.Length < 3 || a[2] != "set"))
+                        {
+                            Container tc = Stock.Chests(c).Where(x => x.category == "treasury").Select(x => x.chest).FirstOrDefault();
+                            output(new JObject { ["treasury"] = c.R.Treasury, ["chest"] = tc != null ? V(tc.transform.position) : null, ["coins"] = tc?.GetInventory().CountItems("$item_coins") ?? 0 });
+                            return;
+                        }
+                        if (cmd == "treasury") a = a.Where((x, i) => i != 2).ToArray();
                         int xi = cmd == "treasury" ? 2 : 3;
                         Vector3 from = a.Length > xi + 1 ? new Vector3(F(a[xi]), 0, F(a[xi + 1])) : me.transform.position;
                         Container ch = Stock.Chests(c, from).Select(x => x.chest).FirstOrDefault();

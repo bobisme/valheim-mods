@@ -193,6 +193,8 @@ namespace Jarldom
         }
 
         // Food the colony has for its villagers: the great hall's chests first, then any food stockpile.
+        // Kept in the great hall for a festival coming (FestivalDays.SetAside): not to be taken for a fire, a spit or a craft.
+        public static bool Kept(Colony c, Container chest, ItemDrop.ItemData item) => c.RoomAt(chest.transform.position, RoomType.GreatHall) != null && FestivalDays.SetAside(c, item);
         public static IEnumerable<(Container chest, ItemDrop.ItemData item)> Food(Colony c, Vector3 near)
         {
             foreach (var x in Chests(c, near))

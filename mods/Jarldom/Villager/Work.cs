@@ -953,12 +953,12 @@ namespace Jarldom
             {
                 if (_carrying) { Finish(b, true); return; }
                 if (_source == null) _source = Stock.ChestsFor(b).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).Select(x => x.chest)
-                    .FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && wants.Contains(i.m_dropPrefab.name)));
+                    .FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && wants.Contains(i.m_dropPrefab.name) && !Stock.Kept(b.Colony, ch, i)));
                 if (_source == null) { Block(b, "nothing in the stores it eats"); return; }
                 Stock.Walk w = Stock.WalkTo(b, _source);
                 if (w == Stock.Walk.Unreachable) { _source = null; return; } // (another chest with it, next time round)
                 if (w == Stock.Walk.Walking) { if (NoHeadway(b, _source.transform.position)) Block(b, "can't reach the stores"); return; }
-                ItemDrop.ItemData have = _source.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && wants.Contains(i.m_dropPrefab.name));
+                ItemDrop.ItemData have = _source.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && wants.Contains(i.m_dropPrefab.name) && !Stock.Kept(b.Colony, _source, i));
                 if (have == null || Stock.Take(_source, bag, have, 3) == 0) { Finish(b, false); return; }
                 _carrying = true;
                 return;
@@ -1128,7 +1128,7 @@ namespace Jarldom
                 var chests = Stock.ChestsFor(b).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).ToList();
                 foreach (string want in wants)
                 {
-                    _source = chests.Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want));
+                    _source = chests.Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want && !Stock.Kept(b.Colony, ch, i)));
                     if (_source != null) { _carry = want; break; }
                 }
                 // (nothing to bring in any stockpile: set aside a while, not handed straight back for the next to take up and put down, round
@@ -1141,7 +1141,7 @@ namespace Jarldom
                 Stock.Walk w = Stock.WalkTo(b, _source);
                 if (w == Stock.Walk.Unreachable) { _source = null; _phase = 0; return; } // (another chest with it, if there is one)
                 if (w == Stock.Walk.Walking) { if (NoHeadway(b, _source.transform.position)) Block(b, "can't reach the stores"); return; }
-                ItemDrop.ItemData have = _source.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == _carry);
+                ItemDrop.ItemData have = _source.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == _carry && !Stock.Kept(b.Colony, _source, i));
                 int room = 5;
                 ZNetView tv = _target.GetComponent<ZNetView>();
                 Fireplace fp = _target.GetComponent<Fireplace>(); Smelter sm = _target.GetComponent<Smelter>(); CookingStation oven = _target.GetComponent<CookingStation>();

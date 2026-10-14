@@ -548,18 +548,21 @@ namespace Jarldom
     // News of the Dimming, gathered for a few seconds so a festival that lifts it from all of them is one line in the saga, not fourteen.
     internal static class DimNews
     {
-        private static readonly Dictionary<(string colony, int stage), (float at, List<(string name, string full)> who)> Waiting = new Dictionary<(string, int), (float, List<(string, string)>)>();
+        // (written 4 s after the last one heard, or 20 s after the first: each villager's brain hears the festival in its own time)
+        private sealed class Batch { public float First, Last; public List<(string name, string full)> Who = new List<(string, string)>(); }
+        private static readonly Dictionary<(string colony, int stage), Batch> Waiting = new Dictionary<(string, int), Batch>();
         public static void Add(Colony c, int stage, string name, string full)
         {
             var key = (c.Id, stage);
-            if (!Waiting.TryGetValue(key, out var w)) Waiting[key] = w = (Time.time, new List<(string, string)>());
-            w.who.Add((name, full));
+            if (!Waiting.TryGetValue(key, out Batch w)) Waiting[key] = w = new Batch { First = Time.time };
+            w.Last = Time.time;
+            w.Who.Add((name, full));
         }
         public static void Tick()
         {
-            foreach (var key in Waiting.Keys.Where(k => Time.time - Waiting[k].at > 4f).ToList())
+            foreach (var key in Waiting.Keys.Where(k => Time.time - Waiting[k].Last > 4f || Time.time - Waiting[k].First > 20f).ToList())
             {
-                var who = Waiting[key].who; Waiting.Remove(key);
+                var who = Waiting[key].Who; Waiting.Remove(key);
                 Colony c = Colony.Of(key.colony);
                 if (c == null || who.Count == 0) continue;
                 string one = who[0].full, names = who.Count == 1 ? one : who.Count <= 3 ? string.Join(", ", who.Take(who.Count - 1).Select(x => x.full)) + " and " + who.Last().full : $"{who[0].full}, {who[1].full} and {who.Count - 2} others";

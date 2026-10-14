@@ -205,10 +205,10 @@ namespace Jarldom
                         Done = true; b.NoCraftUntil = Time.time + 30; return;
                     }
                 var (want, count) = missing[0];
-                Container from = chests.Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want));
+                Container from = chests.Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want && !Stock.Kept(b.Colony, ch, i)));
                 if (from == null) { Release(b); b.NoCraftUntil = Time.time + 20; return; }
                 if (Stock.WalkTo(b, from) != Stock.Walk.Reached) return; // (one out of reach is passed over: another is chosen next time round)
-                ItemDrop.ItemData stack = from.GetInventory().GetAllItems().First(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want);
+                ItemDrop.ItemData stack = from.GetInventory().GetAllItems().First(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want && !Stock.Kept(b.Colony, from, i));
                 if (Stock.Take(from, b.Body.GetInventory(), stack, count - Have(b, want)) == 0) { Release(b); b.NoCraftUntil = Time.time + 30; } else _took = true;
                 return;
             }

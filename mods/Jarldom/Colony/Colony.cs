@@ -285,7 +285,13 @@ namespace Jarldom
             bool settled = Time.time - _attachedAt > 8 && (Villagers.All.Any(b => b.S.Colony == R.Id) || Time.time - _attachedAt > 30);
             if (!settled) return;
             // (a late dawn if the colony only loaded after the morning: its word, tribute and Thing aren't skipped for that)
-            if (hour >= Schedule.WakeAt && hour < Schedule.HallAt && R.LastDawn != day) { R.LastDawn = day; _dirty = true; Plugin.Guard(() => Dawn(day)); }
+            // (and the time jumped past a morning, or whole days: the dawn still comes, late, and paydays in the days skipped still fall due)
+            if (hour >= Schedule.WakeAt && R.LastDawn != day)
+            {
+                int from = R.LastDawn >= 0 ? Mathf.Max(R.LastDawn + 1, day - 10) : day;
+                for (int d = from; d < day; d++) { int skipped = d; if (Plugin.Instance.Payroll.Value && Payroll.IsPayday(skipped, R.LastPayday)) Plugin.Guard(() => Payday(skipped)); foreach (string god in R.Favour.Keys.ToList()) R.Favour[god] = Favour.Decay(R.Favour[god], 1); }
+                R.LastDawn = day; _dirty = true; Plugin.Guard(() => Dawn(day));
+            }
             if (hour >= Schedule.HallAt && R.LastDusk != day) { R.LastDusk = day; _dirty = true; Plugin.Guard(() => Dusk(day)); }
             if (Time.time >= _nextSurvey) { _nextSurvey = Time.time + 300; Plugin.Guard(Survey); Plugin.Guard(Rerank); }
             if (Time.time >= _nextRooms) { _nextRooms = Time.time + 20; Plugin.Guard(RoomsDue); }
