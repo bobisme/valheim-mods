@@ -2,6 +2,10 @@
 page (index.html) so Bob can listen and pick. Nothing here runs in the game; picked files are copied into the mod by hand.
 
   ~/.cache/jarldom-soundgen/venv/bin/python tools/soundgen/gen.py tools/soundgen/hall.json [--takes 4] [--only name,...]
+  ~/.cache/jarldom-soundgen/tflux/bin/python tools/soundgen/gen.py tools/soundgen/hall.json --model tangoflux  (takes named <name>_tf_<n>)
+
+Licences: Stable Audio Open 1.0, Stability AI Community License (outputs usable). TangoFlux: non-commercial, research/academic only
+(WavCaps training data) - fine to audition, check before shipping its output.
 
 The batch file: {"out": "<dir under ~/jarldom-sounds>", "sounds": [{"name", "prompt", "negative"?, "seconds", "loop"?}]}.
 loop: the end is crossfaded into the start (2 s) so it can play on repeat. Also lists any recordings already in <out>/found/ on the page.
@@ -28,7 +32,8 @@ def main():
     ap.add_argument("batch")
     ap.add_argument("--takes", type=int, default=4)
     ap.add_argument("--only", default="")
-    ap.add_argument("--steps", type=int, default=150)
+    ap.add_argument("--steps", type=int, default=0)
+    ap.add_argument("--model", default="stable", choices=["stable", "tangoflux"])
     a = ap.parse_args()
     batch = json.loads(Path(a.batch).read_text())
     out = ROOT / batch["out"]
@@ -36,21 +41,32 @@ def main():
     only = set(filter(None, a.only.split(",")))
 
     import numpy as np, soundfile as sf, torch
-    from diffusers import StableAudioPipeline
-    pipe = StableAudioPipeline.from_pretrained("stabilityai/stable-audio-open-1.0", torch_dtype=torch.float16).to("cuda")
-    rate = pipe.vae.sampling_rate
+    if a.model == "tangoflux":
+        from tangoflux import TangoFluxInference
+        tf = TangoFluxInference(name="declare-lab/TangoFlux")
+        rate, tag, steps = 44100, "_tf", a.steps or 50
+        def make(s, seed):
+            torch.manual_seed(seed)
+            return tf.generate(s["prompt"], steps=steps, duration=min(30, int(s.get("seconds", 20)))).float().cpu().numpy()
+    else:
+        from diffusers import StableAudioPipeline
+        pipe = StableAudioPipeline.from_pretrained("stabilityai/stable-audio-open-1.0", torch_dtype=torch.float16).to("cuda")
+        rate, tag, steps = pipe.vae.sampling_rate, "", a.steps or 150
+        def make(s, seed):
+            g = torch.Generator("cuda").manual_seed(seed)
+            return pipe(s["prompt"], negative_prompt=s.get("negative", "music, singing, melody, instruments, modern, english speech, distortion"),
+                        num_inference_steps=steps, audio_end_in_s=float(s.get("seconds", 20)), num_waveforms_per_prompt=1, generator=g).audios[0].float().cpu().numpy()
 
     for s in batch["sounds"]:
         if only and s["name"] not in only:
             continue
         for take in range(1, a.takes + 1):
-            path = out / f"{s['name']}_{take}.ogg"
+            path = out / f"{s['name']}{tag}_{take}.ogg"
             if path.exists():
                 continue
-            g = torch.Generator("cuda").manual_seed(1000 * take + len(s["name"]))
-            audio = pipe(s["prompt"], negative_prompt=s.get("negative", "music, singing, melody, instruments, modern, english speech, distortion"),
-                         num_inference_steps=a.steps, audio_end_in_s=float(s.get("seconds", 20)), num_waveforms_per_prompt=1, generator=g).audios[0]
-            audio = audio.float().cpu().numpy()  # (channels, samples)
+            audio = make(s, 1000 * take + len(s["name"]))  # (channels, samples)
+            if audio.ndim == 1:
+                audio = audio[None, :]
             if s.get("loop"):
                 audio = crossfade_loop(audio, rate)
             peak = max(1e-6, float(np.abs(audio).max()))
@@ -66,7 +82,7 @@ def main():
 def page(out, batch):
     rows = []
     for s in batch["sounds"]:
-        takes = sorted(out.glob(f"{s['name']}_*.ogg"))
+        takes = sorted(out.glob(f"{s['name']}_[0-9]*.ogg")) + sorted(out.glob(f"{s['name']}_tf_*.ogg"))
         if not takes:
             continue
         rows.append(f"<h2>{html.escape(s['name'])}</h2><p><i>{html.escape(s['prompt'])}</i>{' (loops)' if s.get('loop') else ''}</p>")
