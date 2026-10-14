@@ -565,6 +565,15 @@ namespace Jarldom
                         output(new JObject { ["beacon"] = at.HasValue ? V(at.Value) : null, ["lit"] = lit, ["wayfinder"] = marked == null && at.HasValue, ["marked"] = marked != null ? Utils.GetPrefabName(marked.gameObject) : null });
                     }
                     break;
+                case "rune": // ("rune": the runestones loaded here; "rune read": the nearest read, as the player would; "rune <text key>": that tale carried home, as if read)
+                    {
+                        var stones = UnityEngine.Object.FindObjectsByType<RuneStone>(FindObjectsSortMode.None).OrderBy(r => Vector3.Distance(r.transform.position, me.transform.position)).ToList();
+                        if (a.Length > 2 && a[2] == "read" && stones.Count > 0) stones[0].Interact(me, false, false);
+                        else if (a.Length > 2 && a[2].StartsWith("$")) JarlDeeds.Carry(me, "lore:" + a[2]);
+                        output(new JObject { ["stones"] = new JArray(stones.Take(8).Select(r => $"{Utils.GetPrefabName(r.gameObject)} at {V(r.transform.position)} ({Vector3.Distance(r.transform.position, me.transform.position):0} m): {(r.m_randomTexts?.Count > 0 ? r.m_randomTexts.Count + " texts" : r.m_text)}")),
+                            ["learned"] = new JArray(c.R.Flags.Where(kv => kv.Key.StartsWith(Legends.Prefix)).Select(kv => $"{kv.Key} = {kv.Value}")) });
+                    }
+                    break;
                 case "logdrop": // (test: saga entries a test left, by a piece of their text or names: "logdrop <words>")
                     {
                         string q = string.Join(" ", a.Skip(2));

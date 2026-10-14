@@ -146,6 +146,8 @@ namespace Jarldom
                     $"{e.A} was home again, {e.B} days gone.",
                     $"After {e.B} days away, {e.A} came home.");
                 case "fest": return $"The colony kept {e.B}{e.Text}.";
+                case "lore": return Telling(e, $"{e.A} read a runestone, and brought its tale home.", $"{e.A} brought home a tale from an old runestone.", $"{e.A} learned the words of a runestone, and the hall learned them too.");
+                case "legend": return $"{e.A} told an old tale: “{e.Text}”";
                 case "verse": return $"{e.A} sang: “{e.Text.Replace(" / ", " / ")}”";
                 case "byname": return Telling(e,
                     $"{e.A} was named {e.B}.",
@@ -331,7 +333,7 @@ namespace Jarldom
         // told: what the hall has gossiped about lately (newest last), so a crowd doesn't all tell the same thing at once.
         public static string Gossip(Random rng, string speaker, IEnumerable<LogEntry> log, double now, List<string> told = null)
         {
-            var recent = log.Where(e => now - e.Time <= Clock.DayLength * 2 && Line(e) != null && e.A != speaker && e.Kind != "text" && e.Kind != "payday" && e.Kind != "verse").ToList(); // (the verse was sung for all to hear: not passed on as news)
+            var recent = log.Where(e => now - e.Time <= Clock.DayLength * 2 && Line(e) != null && e.A != speaker && e.Kind != "text" && e.Kind != "payday" && e.Kind != "verse" && e.Kind != "legend").ToList(); // (the verse was sung for all to hear: not passed on as news)
             if (recent.Count == 0) return null;
             string Key(LogEntry x) => $"{x.Time:0.#}|{x.Kind}|{x.A}";
             var fresh = told == null ? recent : recent.Where(x => !told.Contains(Key(x))).ToList();

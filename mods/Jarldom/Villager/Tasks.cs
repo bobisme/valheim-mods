@@ -273,7 +273,8 @@ namespace Jarldom
         }
         // The night's verse: once an evening, the skald sings the day's deeds (Core/Verse.cs) a line at a time, to the hall and to the
         // players in it, and the verse goes into the chronicle.
-        private List<string> _verse; private int _line; private float _nextLine, _thereAt;
+        private List<string> _verse; private int _line, _sung; private float _nextLine, _thereAt; private string _legend;
+        public override bool Interruptible => _verse == null || _line >= _verse.Count; // (the verse is sung to its end, past bedtime; a raid still breaks in)
         public const string VerseKey = "verse:day", VerseAtKey = "verse:at";
         private bool Recite(Brain b)
         {
@@ -286,7 +287,10 @@ namespace Jarldom
                 if (_thereAt == 0) _thereAt = Time.time;
                 if (Time.time - _thereAt < 20f) return false;
                 c.R.Flags[VerseKey] = c.Day; c.MarkDirty();
-                _verse = TheVerse(c);
+                _verse = TheVerse(c); _sung = _verse.Count;
+                // (then a tale read from a runestone, not yet told, as the colony's own)
+                _legend = Legends.Untold(c);
+                if (_legend != null) { var tale = Legends.Lines(_legend); if (tale.Count > 0) _verse.AddRange(tale); else { c.R.Flags[Legends.Prefix + _legend] = Legends.Told; _legend = null; } }
                 _line = 0; _nextLine = Time.time + 2f;
                 if (_verse.Count == 0) return false;
                 c.R.Flags[VerseAtKey] = (int)c.Now;
@@ -304,7 +308,8 @@ namespace Jarldom
                 p.Message(MessageHud.MessageType.Center, $"<size=80%><i>{b.S.Name} sings: “{line}”</i></size>");
             if (_line >= _verse.Count)
             {
-                c.Log("verse", b.S.Name, "", string.Join(" / ", _verse));
+                if (_sung > 0) c.Log("verse", b.S.Name, "", string.Join(" / ", _verse.Take(_sung)));
+                if (_legend != null) { c.R.Flags[Legends.Prefix + _legend] = Legends.Told; c.Log("legend", b.S.Name, "", string.Join(" ", _verse.Skip(_sung + 1))); c.MarkDirty(); }
                 foreach (Brain o in Villagers.All.Where(o => o.S.Colony == c.Id && Vector3.Distance(o.Pos, b.Pos) < 20)) { Mood.Satisfy(o.S, Need.Social, 8); if (!Mood.Has(o.S, "skald", o.Now)) Mood.Add(o.S, "skald", o.Now); o.Dirty(); }
                 b.S.Bump("verses");
             }

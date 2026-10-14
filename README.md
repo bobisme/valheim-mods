@@ -86,7 +86,8 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
   Feast-giver, the Absent (the hall tab lists the jarls; greetings use the name; with two named jarls, villagers compare them, the one
   they think better of getting the last word). After dusk the skald sings the day's deeds in two
   to four alliterative lines, shown to the players in the hall and kept in the saga. Sail home at night and the watch lights the
-  **beacon** (Wayfinder's Beacon Fire, or any fire: Shift+E on it with the Mark rooms tool), getting out of bed to do it.
+  **beacon** (Wayfinder's Beacon Fire, or any fire: Shift+E on it with the Mark rooms tool), getting out of bed to do it. Read a
+  runestone and its tale goes home with you: the colony learns it, and after the verse the skald tells it as the colony's own.
   Inspired villagers work faster for a day; a jarl most of the colony loves lifts their followers. After the first boss, one newcomer
   in twelve may be **Forsaken-touched**: watch the mischief, and name them at the Thing. Roads (paved ground, stone floors): a sixth
   faster. **While you were away**: a colony that was unloaded makes up the time at the rates it showed live (goods, meals, wages, raids).
