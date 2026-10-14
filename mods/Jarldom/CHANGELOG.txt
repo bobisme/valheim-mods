@@ -1,3 +1,5 @@
+0.1.92: Thor's goat skull remade: hollow, shadowed eye sockets instead of black eyes, a nasal slot down the muzzle and a row of molars.
+
 0.1.91: Hel's altar: the game's own bones now, a beast's ribcage rising behind her table like claws, skulls on it, a heap of bones and a skull at its foot. Odin's ravens remade: carved, sleek and heavy-billed, wings folded over their tails, gripping the stone, looking out.
 
 0.1.90: The Yule log lies on its side across the hearth, 1.7 m long, with smaller flames along it (it stood upright and huge). A log left behind by an earlier load of the mod is cleared.

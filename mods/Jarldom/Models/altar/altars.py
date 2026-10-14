@@ -188,15 +188,23 @@ def thor():
     SK = 1.4
     def P(x, y, z): return O + q @ (Vector((x, y, z)) * SK)
     sk = []
-    for y, hx, z0, z1 in ((0.0, 0.05, 0.01, 0.08), (0.04, 0.062, 0.0, 0.11), (0.09, 0.058, 0.0, 0.1), (0.14, 0.045, 0.0, 0.075), (0.22, 0.034, -0.005, 0.05), (0.29, 0.026, -0.01, 0.03), (0.31, 0.02, 0.0, 0.022)):
-        sk += [P(x, y, z) for x in (-hx, hx) for z in (z0, z1)] + [P(0, y, z1 + 0.012)]
-    hull('goat', sk, BONE, 1)
-    hull('goat', [P(x, y, z) for x in (-0.03, 0.03) for y, z in ((0.07, 0.0), (0.14, -0.02), (0.25, -0.02), (0.28, 0.0))] + [P(0, 0.3, -0.004)], BONE, 1)  # (the jaw)
+    for y, hx, z0, z1 in ((0.0, 0.042, 0.02, 0.075), (0.03, 0.056, 0.0, 0.104), (0.075, 0.062, -0.002, 0.11), (0.115, 0.05, 0.0, 0.088),
+                          (0.18, 0.037, 0.002, 0.06), (0.25, 0.027, 0.006, 0.04), (0.3, 0.016, 0.012, 0.028)):
+        sk += [P(x, y, z) for x in (-hx, hx) for z in (z0, z1)] + [P(x * 0.7, y, z1 + 0.012) for x in (-hx, hx)] + [P(x * 0.8, y, z0 - 0.006) for x in (-hx, hx)]
+    sk += [P(0, y, z + 0.014) for y, z in ((0.03, 0.104), (0.075, 0.11), (0.18, 0.06), (0.25, 0.04))]  # (the nasal ridge and the dome)
+    skull = hull('goat', sk, BONE, 1)
+    # its eye sockets, cut into its sides, and the nasal opening at the muzzle: hollows, dark within
+    bm = bmesh.new(); bm.from_mesh(skull.data); bmesh.ops.triangulate(bm, faces=bm.faces); bm.to_mesh(skull.data); bm.free()
+    for c, r in [((sx * 0.066, 0.088, 0.066), (0.024, 0.026, 0.021)) for sx in (-1, 1)] + [((0, 0.285, 0.045), (0.01, 0.05, 0.014))]:
+        cut = ball('socket', P(*c), 1.0 * SK, SHADE, squash=r, n=12, turn=q)
+        mod = skull.modifiers.new('cut', 'BOOLEAN'); mod.operation = 'DIFFERENCE'; mod.object = cut; mod.solver = 'EXACT'; mod.material_mode = 'TRANSFER'
+        me = bpy.data.meshes.new_from_object(skull.evaluated_get(bpy.context.evaluated_depsgraph_get()))
+        skull.modifiers.clear(); old = skull.data; skull.data = me; bpy.data.meshes.remove(old); bpy.data.objects.remove(cut)
     for sx in (-1, 1):
-        E = P(sx * 0.064, 0.115, 0.075)
-        tube('orbit', [E + q @ (Vector((sx * 0.006 * math.sin(t), 0.024 * math.cos(t), 0.022 * math.sin(t))) * SK) for t in [i * 2 * math.pi / 12 for i in range(12)]], 0.01, BONE, cyclic=True)
-        ball('eye', E + q @ Vector((sx * -0.005, 0, 0)), 0.028, DARK, squash=(0.55, 1.1, 1.0), n=8)
-        hull('nose', [P(sx * x, 0.305, z) for x, z in ((0.004, 0.03), (0.017, 0.022), (0.012, 0.01), (0.003, 0.012))] + [P(sx * 0.008, 0.29, 0.02)], DARK, 1)
+        for k in range(5):                                                                                                    # (the molars)
+            y = 0.12 + 0.024 * k; hx = 0.04 - 0.004 * k
+            hull('tooth', [P(sx * (hx + dx), y + dy, z) for dx in (-0.008, 0.002) for dy in (-0.009, 0.009) for z in (-0.002, -0.014)], BONE, 1)
+    for sx in (-1, 1):
         base = P(sx * 0.03, 0.065, 0.1); R_ = 0.2; pts = []
         for i in range(25):
             t = i / 24; th = t * 0.82 * math.pi

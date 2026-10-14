@@ -348,13 +348,13 @@ namespace Jarldom
             if (glow.HasProperty("_EmissionColor")) { glow.EnableKeyword("_EMISSION"); glow.SetColor("_EmissionColor", new Color(1f, 0.6f, 0.22f) * 1.6f); }
             var m_ = new GameObject("altar"); m_.transform.SetParent(look, false);
             m_.AddComponent<MeshFilter>().sharedMesh = model;
-            // (stone, cut, wood, dark, iron, gold, bone, cloth, rope, glow, leaf, bloom, paint, hide: as the model's materials are numbered)
+            // (stone, cut, wood, dark, iron, gold, bone, cloth, rope, glow, leaf, bloom, paint, hide, shade: as the model's materials are numbered)
             m_.AddComponent<MeshRenderer>().sharedMaterials = new[]
             {
                 stone, cut, grain, Matte(new Color(0.09f, 0.085f, 0.085f)), Plain(hewn, new Color(0.2f, 0.195f, 0.19f)), gold,
                 Matte(new Color(0.66f, 0.63f, 0.56f)), Matte(own.cloth), Matte(new Color(0.55f, 0.46f, 0.3f)), glow, Matte(new Color(0.2f, 0.36f, 0.12f)),
-                Matte(own.bloom), Matte(own.paint), Matte(new Color(0.42f, 0.3f, 0.19f)),
-            };
+                Matte(own.bloom), Matte(own.paint), Matte(new Color(0.42f, 0.3f, 0.19f)), Matte(new Color(0.24f, 0.21f, 0.17f)),
+            }.Take(model.subMeshCount).ToArray(); // (a model made before a slot was added has fewer)
             if (god == "hel") HelKit(look);
             return true;
         }

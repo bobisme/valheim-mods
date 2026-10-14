@@ -6,8 +6,8 @@ from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
 
 OUT = '/home/bob/.cache/jarldom-altars/'
-SLOTS = ('stone', 'cut', 'wood', 'dark', 'iron', 'gold', 'bone', 'cloth', 'rope', 'glow', 'leaf', 'bloom', 'paint', 'hide')
-(STONE, CUT, WOOD, DARK, IRON, GOLD, BONE, CLOTH, ROPE, GLOW, LEAF, BLOOM, PAINT, HIDE) = range(len(SLOTS))
+SLOTS = ('stone', 'cut', 'wood', 'dark', 'iron', 'gold', 'bone', 'cloth', 'rope', 'glow', 'leaf', 'bloom', 'paint', 'hide', 'shade')
+(STONE, CUT, WOOD, DARK, IRON, GOLD, BONE, CLOTH, ROPE, GLOW, LEAF, BLOOM, PAINT, HIDE, SHADE) = range(len(SLOTS))
 SMOOTH = set()   # names of objects drawn smooth (the rest keep hard facets)
 rng = random.Random(1)
 
@@ -262,7 +262,7 @@ def export(name):
 
 COLS = {'stone': (0.42, 0.41, 0.39), 'cut': (0.05, 0.05, 0.05), 'wood': (0.42, 0.29, 0.17), 'dark': (0.07, 0.07, 0.08), 'iron': (0.15, 0.15, 0.16),
         'gold': (0.85, 0.62, 0.22), 'bone': (0.8, 0.76, 0.64), 'cloth': (0.25, 0.3, 0.55), 'rope': (0.66, 0.55, 0.33), 'glow': (1.0, 0.7, 0.3),
-        'leaf': (0.2, 0.38, 0.12), 'bloom': (0.85, 0.35, 0.45), 'paint': (0.6, 0.12, 0.08), 'hide': (0.45, 0.32, 0.2)}
+        'leaf': (0.2, 0.38, 0.12), 'bloom': (0.85, 0.35, 0.45), 'paint': (0.6, 0.12, 0.08), 'hide': (0.45, 0.32, 0.2), 'shade': (0.22, 0.19, 0.15)}
 
 def preview(name, cloth=None, bloom=None, paint=None, views=None, height=1.0):
     over = {'cloth': cloth, 'bloom': bloom, 'paint': paint}
