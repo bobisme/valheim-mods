@@ -48,7 +48,7 @@ namespace BuildKit
         // hole: a smoke hole in its middle (a straight piece's), lined with boards, with a little hooded vent standing over it.
         public static TurfMesh Build(Shape s, bool steep, int seed = 7, int rough = 15, bool hole = false)
         {
-            var m = new TurfMesh { _hole = hole };
+            var m = new TurfMesh { _hole = hole, _hx = HoleAlong(s) };
             int cells = (int)Math.Round(2 / Step);
             // The sod's top, and the boards under it (seen from inside the house), on the same grid.
             int[,] top = new int[cells + 1, cells + 1], bottom = new int[cells + 1, cells + 1];
@@ -84,47 +84,79 @@ namespace BuildKit
         // hood on four posts, its little gabled cap high enough above the sod for the smoke to roll out under it (and over the fire
         // below, so the fire counts as under a roof in the rain).
         public const float HoleHalf = 0.5f, HoodClear = 0.92f, HoodHalf = 0.62f, HoodRise = 0.24f, PostHalf = 0.045f;
-        private bool _hole;
-        private bool InHole(float x, float z, float margin) => _hole && Math.Abs(x) < HoleHalf + margin && Math.Abs(z) < HoleHalf + margin;
+        private bool _hole; private float _hx = HoleHalf;
+        // How far the hole reaches along x each way: a ridge's vent is a slot its whole length (the smoke gathers all along a ridge),
+        // a straight piece's a square in its middle.
+        public static float HoleAlong(Shape s) => s == Shape.Ridge ? 1f : HoleHalf;
+        private bool InHole(float x, float z, float margin) => _hole && Math.Abs(x) < _hx + margin && Math.Abs(z) < HoleHalf + margin;
         // Where the cap's underside is, over the piece's origin (the same for the colliders in the game).
         public static float HoodBase(Shape s, bool steep)
         {
             float top = float.MinValue;
-            foreach (float x in new[] { -HoleHalf, HoleHalf }) foreach (float z in new[] { -HoleHalf, HoleHalf }) top = Math.Max(top, Roofs.Height(s, steep, x, z) + Thick);
+            foreach (float x in new[] { -HoleAlong(s), HoleAlong(s) }) foreach (float z in new[] { -HoleHalf, HoleHalf }) top = Math.Max(top, Roofs.Height(s, steep, x, z) + Thick);
             return top + HoodClear;
         }
         private void Vent(Shape s, bool steep, int seed)
         {
-            // (the lining: each side of the hole, board from under the boards to the grass, facing into the hole)
-            int n = (int)Math.Round(2 * HoleHalf / Step);
+            // (the lining: each side of the hole, board from under the boards to the grass, facing into the hole; a ridge's slot is open
+            // at its ends, where the next ridge piece goes on)
+            float hx = _hx;
             for (int side = 0; side < 4; side++)
+            {
+                if ((side == 1 || side == 3) && hx >= 1f) continue;
+                float span = side == 0 || side == 2 ? hx : HoleHalf;
+                int n = (int)Math.Round(2 * span / Step);
                 for (int k = 0; k < n; k++)
                 {
-                    float t0 = -HoleHalf + k * Step, t1 = t0 + Step;
-                    (float x, float z) p0 = side == 0 ? (t0, -HoleHalf) : side == 1 ? (HoleHalf, t0) : side == 2 ? (t0, HoleHalf) : (-HoleHalf, t0);
-                    (float x, float z) p1 = side == 0 ? (t1, -HoleHalf) : side == 1 ? (HoleHalf, t1) : side == 2 ? (t1, HoleHalf) : (-HoleHalf, t1);
+                    float t0 = -span + k * Step, t1 = t0 + Step;
+                    (float x, float z) p0 = side == 0 ? (t0, -HoleHalf) : side == 1 ? (hx, t0) : side == 2 ? (t0, HoleHalf) : (-hx, t0);
+                    (float x, float z) p1 = side == 0 ? (t1, -HoleHalf) : side == 1 ? (hx, t1) : side == 2 ? (t1, HoleHalf) : (-hx, t1);
                     float inx = side == 1 ? -1 : side == 3 ? 1 : 0, inz = side == 0 ? 1 : side == 2 ? -1 : 0;
                     float h0 = Roofs.Height(s, steep, p0.x, p0.z), h1 = Roofs.Height(s, steep, p1.x, p1.z);
                     int a = Add(p0.x, h0 - Under, p0.z, inx, 0, inz, t0, 0), b = Add(p1.x, h1 - Under, p1.z, inx, 0, inz, t1, 0);
                     int c = Add(p1.x, h1 + Sod(p1.x, p1.z, seed), p1.z, inx, 0, inz, t1, 0.3f), d = Add(p0.x, h0 + Sod(p0.x, p0.z, seed), p0.z, inx, 0, inz, t0, 0.3f);
                     QuadOut(Boards, a, b, c, d, inx, 0, inz);
                 }
+            }
             float baseY = HoodBase(s, steep);
             // Four posts from the sod up to the cap.
-            foreach (float x in new[] { -HoleHalf + PostHalf, HoleHalf - PostHalf })
+            foreach (float x in new[] { -hx + PostHalf, hx - PostHalf })
                 foreach (float z in new[] { -HoleHalf + PostHalf, HoleHalf - PostHalf })
-                    Box(Stick, x - PostHalf, Roofs.Height(s, steep, x, z) + Thick - 0.08f, z - PostHalf, x + PostHalf, baseY + 0.02f, z + PostHalf);
-            // A low rail between them on each side (the smoke goes out above it).
-            foreach (float z in new[] { -HoleHalf + PostHalf, HoleHalf - PostHalf })
+                    Box(Stick, x - PostHalf, Roofs.Height(s, steep, x, z) + Thick - 0.08f, z - PostHalf, x + PostHalf, baseY + 0.02f + (hx >= 1f ? MonoRise * (z + HoodHalf) / (2 * HoodHalf) : 0), z + PostHalf);
+            // A low rail between them on each side of a small vent (the smoke goes out above it); a ridge's long sides are left open.
+            if (hx < 1f)
+                foreach (float z in new[] { -HoleHalf + PostHalf, HoleHalf - PostHalf })
+                {
+                    float y = Math.Max(Roofs.Height(s, steep, 0, z) + Thick, Roofs.Height(s, steep, -HoleHalf, z) + Thick) + 0.06f;
+                    Box(Stick, -HoleHalf, y, z - 0.02f, HoleHalf, y + 0.1f, z + 0.02f);
+                }
+            // The cap. A small vent's: two boards meeting over the middle (smoke under it slides out of its open ends, 0.6 m away). A
+            // ridge vent's is a single pitch the piece's whole length, rising toward +z: smoke always pushes up, so under a gable as
+            // long as the ridge it would sit in the peak; under one slope it slides up and out over the high edge.
+            if (hx >= 1f) Mono(baseY, 1f);
+            else { Slope(baseY, -1, HoodHalf); Slope(baseY, 1, HoodHalf); }
+        }
+        public const float MonoRise = 0.32f;
+        // A single-pitch cap board: its underside from baseY at z = -HoodHalf up to baseY + MonoRise at +HoodHalf.
+        private void Mono(float baseY, float halfX)
+        {
+            const float thick = 0.04f;
+            float len = (float)Math.Sqrt(4 * HoodHalf * HoodHalf + MonoRise * MonoRise), ny = 2 * HoodHalf / len, nz = -MonoRise / len; // (its upward normal)
+            var c = new (float x, float y, float z)[8];
+            for (int i = 0; i < 8; i++)
             {
-                float y = Math.Max(Roofs.Height(s, steep, 0, z) + Thick, Roofs.Height(s, steep, -HoleHalf, z) + Thick) + 0.06f;
-                Box(Stick, -HoleHalf, y, z - 0.02f, HoleHalf, y + 0.1f, z + 0.02f);
+                float x = (i & 1) == 0 ? -halfX : halfX; bool far = (i & 2) != 0, up = (i & 4) != 0;
+                float y = far ? baseY + MonoRise : baseY, z = far ? HoodHalf : -HoodHalf;
+                if (up) { y += ny * thick; z += nz * thick; }
+                c[i] = (x, y, z);
             }
-            // The cap: two boards meeting over the middle, the ridge along x.
-            Slope(baseY, -1); Slope(baseY, 1);
+            void Face(int a, int b, int d, int e, float fx, float fy, float fz) => QuadOut(Stick, Add(c[a].x, c[a].y, c[a].z, fx, fy, fz, c[a].x, c[a].z), Add(c[b].x, c[b].y, c[b].z, fx, fy, fz, c[b].x, c[b].z), Add(c[d].x, c[d].y, c[d].z, fx, fy, fz, c[d].x, c[d].z), Add(c[e].x, c[e].y, c[e].z, fx, fy, fz, c[e].x, c[e].z), fx, fy, fz);
+            Face(4, 5, 7, 6, 0, ny, nz); Face(0, 1, 3, 2, 0, -ny, -nz);
+            Face(1, 3, 7, 5, 1, 0, 0); Face(0, 2, 6, 4, -1, 0, 0);
+            Face(2, 3, 7, 6, 0, -nz, ny); Face(0, 1, 5, 4, 0, nz, -ny);
         }
         // One board of the cap: from the ridge (z = 0, HoodRise up) down to its eave at z = side * HoodHalf.
-        private void Slope(float baseY, int side)
+        private void Slope(float baseY, int side, float halfX)
         {
             const float thick = 0.04f;
             float y0 = baseY + HoodRise, y1 = baseY, z1 = side * HoodHalf;
@@ -132,7 +164,7 @@ namespace BuildKit
             var c = new (float x, float y, float z)[8];
             for (int i = 0; i < 8; i++)
             {
-                float x = (i & 1) == 0 ? -HoodHalf : HoodHalf; bool far = (i & 2) != 0, up = (i & 4) != 0;
+                float x = (i & 1) == 0 ? -halfX : halfX; bool far = (i & 2) != 0, up = (i & 4) != 0;
                 float y = far ? y1 : y0, z = far ? z1 : 0;
                 if (up) { y += ny * thick; z += nz * thick; }
                 c[i] = (x, y, z);
@@ -225,6 +257,7 @@ namespace BuildKit
             for (int c = 0; c < cols; c++)
                 for (int r = 0; r < rows - 1; r++)
                 {
+                    { var (mx, mz) = Edge(side, (c + 0.5f) * EdgeStep); if (InHole(mx, mz, 0.01f)) continue; } // (a ridge vent's slot runs out through its ends)
                     // (facing out and, on the lip, up)
                     float up = r >= SoilRows + 1 && open ? 0.8f : 0;
                     QuadOut(r == 0 ? Bark : r >= SoilRows + 1 && open ? Top : Earth, grid[c, r], grid[c + 1, r], grid[c + 1, r + 1], grid[c, r + 1], ox, up, oz);
@@ -266,6 +299,7 @@ namespace BuildKit
                     float h = Roofs.Height(s, steep, x, z), y = h + R(BarkTop + 0.03f, Thick - Drop(side, at, seed) - 0.03f), poke = Out(side, at, seed) + R(0.04f, 0.1f), slant = R(-0.04f, 0.04f);
                     // (along the edge a little too, so they don't all point straight out)
                     float ex = oz * R(-0.08f, 0.08f), ez = -ox * R(-0.08f, 0.08f);
+                    if (InHole(x, z, 0.1f)) continue; // (not across a ridge vent's open end)
                     Prism((x - ox * 0.2f, y - slant, z - oz * 0.2f), (x + ox * poke + ex, y + slant, z + oz * poke + ez), R(0.01f, 0.02f), rng);
                 }
         }

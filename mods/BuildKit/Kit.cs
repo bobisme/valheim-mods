@@ -30,7 +30,11 @@ namespace BuildKit
             // Smoke holes: a straight piece with a vent over the hearth.
             Vent("BK_turf_roof_smoke", "wood_roof", false, "Turf roof smoke hole 26°"),
             Vent("BK_turf_roof_smoke_45", "wood_roof_45", true, "Turf roof smoke hole 45°"),
+            // Ridge vents: where a house's smoke gathers, all along under its ridge.
+            new Def { Name = "BK_turf_ridge_vent", From = "wood_roof_top", Shape = Shape.Ridge, Hole = true, Title = "Turf ridge smoke vent 26°", Text = RidgeText },
+            new Def { Name = "BK_turf_ridge_vent_45", From = "wood_roof_top_45", Shape = Shape.Ridge, Steep = true, Hole = true, Title = "Turf ridge smoke vent 45°", Text = RidgeText },
         };
+        private const string RidgeText = "A turf ridge with a slot open along its length and a long hood over it, as a longhouse let its hearth's smoke out at the top: the smoke that gathers under the ridge rises out and rolls away under the hood. Put it in the ridge right over the fire (two side by side for a long hall); the hood keeps the rain off the fire.";
         private static Def Vent(string name, string from, bool steep, string title) => new Def
         {
             Name = name, From = from, Shape = Shape.Straight, Steep = steep, Hole = true, Title = title,
@@ -135,6 +139,7 @@ namespace BuildKit
         // sloped boards (the fire under it is under a roof; the smoke slides off them and out).
         private static void HoleColliders(GameObject go, Def d)
         {
+            if (d.Shape == Shape.Ridge) { RidgeColliders(go, d); return; }
             BoxCollider roof = go.GetComponentsInChildren<BoxCollider>(true).OrderByDescending(b => b.size.x * b.transform.localScale.x * b.size.z * b.transform.localScale.z).FirstOrDefault();
             if (roof == null) { Plugin.Warn(d.Title + ": no roof collider to cut"); return; }
             Transform rt = roof.transform;
@@ -159,6 +164,31 @@ namespace BuildKit
                 cap.transform.localRotation = Quaternion.Euler(side * angle, 0, 0);
                 cap.AddComponent<BoxCollider>().size = new Vector3(reach * 2, 0.04f, len);
             }
+        }
+        // A ridge vent's: the ridge's own boxes go; one on each slope from the slot's edge down to the eave, and the hood's cap, the
+        // piece's whole length.
+        private static void RidgeColliders(GameObject go, Def d)
+        {
+            var old = go.GetComponentsInChildren<Collider>(true).Where(c => !c.isTrigger && c.gameObject.layer == LayerMask.NameToLayer("piece")).ToList();
+            int layer = old.Count > 0 ? old[0].gameObject.layer : LayerMask.NameToLayer("piece");
+            foreach (Collider c in old) Object.DestroyImmediate(c);
+            float k = d.Steep ? 1f : 0.5f, half = BuildKit.TurfMesh.HoleHalf, angle = Mathf.Atan(k) * Mathf.Rad2Deg;
+            foreach (int side in new[] { -1, 1 })
+            {
+                float zc = side * (half + 1f) / 2, run = 1f - half;
+                var slope = new GameObject("ridgevent collider"); slope.layer = layer;
+                slope.transform.SetParent(go.transform, false);
+                slope.transform.localPosition = new Vector3(0, Roofs.Height(Shape.Ridge, d.Steep, 0, zc) + 0.02f, zc);
+                slope.transform.localRotation = Quaternion.Euler(side * angle, 0, 0);
+                slope.AddComponent<BoxCollider>().size = new Vector3(2f, 0.14f, run / Mathf.Cos(angle * Mathf.Deg2Rad));
+            }
+            // (the cap: one board rising toward +z, so smoke under it slides up and out over its high edge)
+            float baseY = BuildKit.TurfMesh.HoodBase(d.Shape, d.Steep), rise = BuildKit.TurfMesh.MonoRise, reach = BuildKit.TurfMesh.HoodHalf;
+            var cap = new GameObject("ridgevent cap"); cap.layer = layer;
+            cap.transform.SetParent(go.transform, false);
+            cap.transform.localPosition = new Vector3(0, baseY + rise / 2 + 0.02f, 0);
+            cap.transform.localRotation = Quaternion.Euler(-Mathf.Atan2(rise, 2 * reach) * Mathf.Rad2Deg, 0, 0);
+            cap.AddComponent<BoxCollider>().size = new Vector3(2f, 0.04f, Mathf.Sqrt(4 * reach * reach + rise * rise));
         }
         private static Piece.Requirement[] Cost(params (string item, int n)[] items)
         {

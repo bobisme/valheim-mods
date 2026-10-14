@@ -67,10 +67,12 @@ foreach (Shape shape in Enum.GetValues<Shape>())
     }
 
 // ---- The smoke hole: open through the middle, a hood standing clear over it ----
+foreach (Shape vs in new[] { Shape.Straight, Shape.Ridge })
 foreach (bool steep in new[] { false, true })
 {
-    var m = TurfMesh.Build(Shape.Straight, steep, 7, 15, hole: true);
-    var plain = TurfMesh.Build(Shape.Straight, steep, 7, 15);
+    var m = TurfMesh.Build(vs, steep, 7, 15, hole: true);
+    var plain = TurfMesh.Build(vs, steep, 7, 15);
+    float hx = TurfMesh.HoleAlong(vs);
     Check(m.T[TurfMesh.Top].Count < plain.T[TurfMesh.Top].Count, "The hole takes sod away");
     // (nothing of the sod or the boards over the hole's middle)
     bool covered = false;
@@ -78,10 +80,10 @@ foreach (bool steep in new[] { false, true })
         for (int i = 0; i < m.T[slot].Count; i += 3)
         {
             float cx = 0, cz = 0; for (int k = 0; k < 3; k++) { cx += m.V[3 * m.T[slot][i + k]] / 3; cz += m.V[3 * m.T[slot][i + k] + 2] / 3; }
-            if (Math.Abs(cx) < TurfMesh.HoleHalf - 0.05f && Math.Abs(cz) < TurfMesh.HoleHalf - 0.05f) covered = true;
+            if (Math.Abs(cx) < hx - 0.05f && Math.Abs(cz) < TurfMesh.HoleHalf - 0.05f) covered = true;
         }
-    Check(!covered, "Nothing over the smoke hole but the hood");
-    float clear = TurfMesh.HoodBase(Shape.Straight, steep) - (Roofs.Height(Shape.Straight, steep, 0, -TurfMesh.HoleHalf) + TurfMesh.Thick);
+    Check(!covered, vs + ": nothing over the smoke hole but the hood");
+    float clear = TurfMesh.HoodBase(vs, steep) - (Roofs.Height(vs, steep, 0, -TurfMesh.HoleHalf) + TurfMesh.Thick);
     Check(clear >= 0.84f, $"A smoke ball (0.84 m) rolls out under the cap: {clear:0.00} m clear");
     int bad = 0; var t = m.T[TurfMesh.Stick];
     for (int i = 0; i < t.Count; i += 3)
