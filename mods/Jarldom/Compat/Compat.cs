@@ -150,6 +150,33 @@ namespace Jarldom
         }
         public static bool WayfinderLit(Vector3 at, float radius) { var f = Wayfinder.Bind<Func<Vector3, float, bool>>("BeaconLit", 1); try { return f != null && f(at, radius); } catch { return false; } }
 
+        // ---- Arena (Quad's): a jarl's fights in the ring, watched from the stands and wagered on (Api v1, Arena 0.4.4 and later) ----
+        private static readonly ApiRef Arena = new ApiRef("Arena.Api", "com.quad.arena", "com.dhack.arena");
+        private delegate bool ContestFn(out string fighter, out string kind);
+        private delegate bool CentreFn(out Vector3 centre);
+        private delegate bool ResultFn(out string fighter, out string kind, out string outcome, out bool won, out bool crowned, out int coins, out double when);
+        public static bool ArenaContest(out string fighter, out string kind)
+        {
+            fighter = kind = "";
+            var f = Arena.Bind<ContestFn>("IsContestRunning", 1);
+            try { return f != null && f(out fighter, out kind); } catch { return false; }
+        }
+        public static bool ArenaCentre(out Vector3 centre)
+        {
+            centre = Vector3.zero;
+            var f = Arena.Bind<CentreFn>("ArenaAt", 1);
+            try { return f != null && f(out centre); } catch { return false; }
+        }
+        public static Vector3[] ArenaStands(int max) { var f = Arena.Bind<Func<int, Vector3[]>>("StandSpots", 1); try { return f?.Invoke(max) ?? new Vector3[0]; } catch { return new Vector3[0]; } }
+        public static int ArenaResults() { var f = Arena.Bind<Func<int>>("get_ResultCount", 1); try { return f != null ? f() : 0; } catch { return 0; } }
+        public static bool ArenaLast(out string fighter, out string kind, out string outcome, out bool won, out bool crowned, out int coins)
+        {
+            fighter = kind = outcome = ""; won = crowned = false; coins = 0;
+            var f = Arena.Bind<ResultFn>("LastResult", 1);
+            try { return f != null && f(out fighter, out kind, out outcome, out won, out crowned, out coins, out _); } catch { return false; }
+        }
+        public static bool ArenaPresent => Arena.Present && Arena.Version >= 1;
+
         // ---- Shieldwall: a siege at the colony's Warstone is a raid ----
         private static readonly ApiRef Shieldwall = new ApiRef("Shieldwall.Api", "com.bobisme.shieldwall");
         public static bool Siege(Vector3 at, float radius, out Vector3 stone)

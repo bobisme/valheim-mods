@@ -1,3 +1,5 @@
+0.1.117: Quad's Arena (0.4.4 and later): your fights are carried home and the colony's folk wager their hoards on you (a tenth at most, even money); followers watch from the stands and cheer, not join in; three contests won or a place in the Hall of Champions make you "the Champion"; the skald sings an arena win. Newcomers start in the work they want. The People tab lists the newest first, marked new.
+
 0.1.116: the villager window grows to fit what it holds (an ask, the cleansing rite, a ring to give), and short buttons share a row: nothing spills past its bottom edge
 
 0.1.115: the hall tab says where the treasury chest stands; a short payday paid in full is no longer gossip, and the same news isn't told by the whole hall at once

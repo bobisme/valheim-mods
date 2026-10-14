@@ -44,7 +44,7 @@ namespace Jarldom
             var v = new VillagerState
             {
                 Vid = vid, Colony = colony, Name = n.Name, Female = n.Female, Story = n.Story, Group = n.Group,
-                Traits = n.Traits.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).ToList(), Prof = Prof.Hauler, Wants = n.Prof, Arrived = now,
+                Traits = n.Traits.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).ToList(), Prof = n.Prof, Wants = n.Prof, Arrived = now, // (straight to the work they want)
             };
             Mood.Add(v, "arrived", now);
             return v;
@@ -146,7 +146,7 @@ namespace Jarldom
                     $"{e.A} was home again, {e.B} days gone.",
                     $"After {e.B} days away, {e.A} came home.");
                 case "fest": return $"The colony kept {e.B}{e.Text}.";
-                case "first": case "einherjar": case "barrowjarl": case "beacon": case "champion": return e.Text;
+                case "first": case "arena": case "arenawin": case "einherjar": case "barrowjarl": case "beacon": case "champion": return e.Text;
                 case "graveitem": return Telling(e, $"{e.A} went to Valhalla with {e.B}.", $"{e.B} burned with {e.A} on the pyre, and went with them to Odin's hall.", $"{e.A} took {e.B} to Valhalla.");
                 case "marvel": return $"The hall marvelled at {e.B}, brought home by {e.A}.";
                 case "lore": return Telling(e, $"{e.A} read a runestone, and brought its tale home.", $"{e.A} brought home a tale from an old runestone.", $"{e.A} learned the words of a runestone, and the hall learned them too.");

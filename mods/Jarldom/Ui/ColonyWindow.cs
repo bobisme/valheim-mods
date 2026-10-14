@@ -450,12 +450,22 @@ namespace Jarldom.Ui
             return y;
         }
 
+        // The living, the newest first so a newcomer is easy to find: by when they came, else by their place on the roster (which grows as
+        // they come).
+        public static List<RosterRow> Newest(Colony c, out Dictionary<string, double> came)
+        {
+            came = Villagers.All.Where(b => b.S.Colony == c.Id).GroupBy(b => b.S.Vid).ToDictionary(g => g.Key, g => g.First().S.Arrived);
+            var order = c.R.Roster.Select((r, i) => (r.Vid, i)).GroupBy(x => x.Vid).ToDictionary(g => g.Key, g => g.Last().i);
+            var when = came;
+            return c.R.Roster.Where(r => r.State == SoulState.Active).OrderByDescending(r => when.TryGetValue(r.Vid, out double t) ? t : -1).ThenByDescending(r => order[r.Vid]).ToList();
+        }
         private static float People(RectTransform list)
         {
             float y = 4;
-            var living = _c.R.Roster.Where(r => r.State == SoulState.Active).OrderBy(r => r.Name).ToList();
+            var living = Newest(_c, out var came);
+            int today = Clock.Day(ZNet.instance.GetTimeSeconds());
             if (living.Count == 0) return Text(list, "No one lives here yet. Raise renown (build, beds with comfort, deeds) and Odin will send the fallen.", y, 16, GameUi.Dim);
-            y = Text(list, "Details shows why each feels as they do and lets you choose their work. Mood sets how fast they work.", y, 15, GameUi.Dim);
+            y = Text(list, "The newest first. Details shows why each feels as they do and lets you choose their work. Mood sets how fast they work.", y, 15, GameUi.Dim);
             var moods = living.Select(r => Villagers.Body(r.Vid)?.GetComponent<ZNetView>()?.GetZDO()).Where(z => z != null).Select(z => (double)z.GetInt(Villagers.MoodKey, 0)).ToList();
             if (HallSound.ForcedMood is double forced ? Soundscape.Miserable(forced) : moods.Count > 0 && Soundscape.Miserable(moods.Average()))
                 y = Text(list, "The hall is quiet. They are too miserable for talk or songs, and work with half a heart. See Details for what they lack.", y, 16, GameUi.Warn);
@@ -475,7 +485,8 @@ namespace Jarldom.Ui
                 ZDO z = h?.GetComponent<ZNetView>()?.GetZDO();
                 string doing = z != null ? Villagers.Tags(z).GetString(Villagers.DoingKey, "") : "far away";
                 int mood = z?.GetInt(Villagers.MoodKey, 0) ?? 0;
-                GameUi.Line(list, row.Name, new Vector2(8, -y), 250, 18, GameUi.Warm);
+                bool fresh = came.TryGetValue(row.Vid, out double arrived) && arrived > 0 && today - Clock.Day(arrived) < 2;
+                GameUi.Line(list, row.Name + (fresh ? " <size=80%><color=#99e08c>new</color></size>" : ""), new Vector2(8, -y), 250, 18, GameUi.Warm);
                 GameUi.Line(list, Tables.Of(row.Prof).Name, new Vector2(262, -y), 130, 16, GameUi.Text);
                 GameUi.Line(list, doing, new Vector2(396, -y), 230, 15, GameUi.Dim);
                 GameUi.Line(list, $"mood {Windows.Signed(mood)}  worth {Mathf.RoundToInt(row.Worth)}{(string.IsNullOrEmpty(row.Bed) ? "  <color=#ff8c59>no bed</color>" : "")}", new Vector2(630, -y), W - 630 - 92, 15, mood < -30 ? GameUi.Warn : GameUi.Text);

@@ -11,7 +11,7 @@ namespace Jarldom
     {
         public const string Prefix = "tally:";
         public const string Bosses = "bosses", Rings = "rings", Raids = "raids", Ascensions = "ascensions", Feasts = "feasts", Away = "away",
-            LastAway = "lastaway", Seen = "seen", Back = "back", Bane = "bane", Title = "title";
+            LastAway = "lastaway", Seen = "seen", Back = "back", Bane = "bane", Title = "title", ArenaWins = "arenawins", Crowned = "crowned";
         public const int AbsentFades = 10;
         public static string Key(string player, string what) => Prefix + player + "|" + what;
         public static int Get(IDictionary<string, int> flags, string player, string what) => flags.TryGetValue(Key(player, what), out int n) ? n : 0;
@@ -56,7 +56,7 @@ namespace Jarldom
         // The bosses in the order the world gives them (a "-bane" for the mightiest slain).
         public static readonly (string prefab, string name)[] Bosses = { ("Eikthyr", "Eikthyr"), ("gd_king", "Elder"), ("Bonemass", "Bonemass"), ("Dragon", "Moder"), ("GoblinKing", "Yagluth"), ("SeekerQueen", "Queen"), ("Fader", "Fader") };
         public static int Tier(string prefab) { int i = Array.FindIndex(Bosses, b => b.prefab.Equals(prefab, StringComparison.OrdinalIgnoreCase)); return i + 1; } // (0: not a boss we know)
-        public const int Rings = 5, Raids = 5, Ascensions = 3, Feasts = 5, Absent = 20, NotableBane = 3; // (Bonemass and on outrank the rest)
+        public const int Rings = 5, Raids = 5, Ascensions = 3, Feasts = 5, Absent = 20, NotableBane = 3, ArenaWins = 3; // (Bonemass and on outrank the rest)
 
         // (id, title, kind): the id is kept in the tally to notice a change; the kind keys the co-jarl comparisons.
         public static (int id, string title, string kind) For(IDictionary<string, int> t)
@@ -64,6 +64,7 @@ namespace Jarldom
             int Get(string k) => t.TryGetValue(k, out int v) ? v : 0;
             int bane = Get(Tally.Bane);
             if (bane >= NotableBane && bane <= Bosses.Length) return (10 + bane, Bosses[bane - 1].name + "-bane", "bane");
+            if (Get(Tally.Crowned) >= 1 || Get(Tally.ArenaWins) >= ArenaWins) return (6, "the Champion", "arena"); // (Quad's Arena: in the Hall of Champions, or three contests won)
             if (Get(Tally.Rings) >= Rings) return (2, "Ring-giver", "rings");
             if (Get(Tally.Raids) >= Raids) return (3, "Shield of the hall", "raids");
             if (Get(Tally.Ascensions) >= Ascensions) return (4, "Soul-guide", "ascensions");
@@ -83,6 +84,7 @@ namespace Jarldom
                 case "ascensions": return "sends our dead to Valhalla";
                 case "feasts": return "fills the hall with feasts";
                 case "away": return "is never home";
+                case "arena": return "wins in the arena";
                 default: return "";
             }
         }

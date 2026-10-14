@@ -23,7 +23,7 @@ namespace Jarldom
         public static bool Near(Brain b, Vector3 p, float extra)
         {
             Player l = Leader(b);
-            if (l != null) return Utils.DistanceXZ(p, l.transform.position) < Reach + extra * 0.4f;
+            if (l != null) return Utils.DistanceXZ(p, l.transform.position) < Reach + extra * 0.4f && !ArenaWatch.InRing(b, p); // (the jarl's fight in the arena is theirs alone)
             return b.Colony == null || !b.Colony.Valid || Utils.DistanceXZ(p, b.Colony.Position) < b.Colony.Radius + extra;
         }
         public static void Start(Brain b, long id, string name)
@@ -114,12 +114,38 @@ namespace Jarldom
 
     internal sealed class FollowTask : Task
     {
-        private float _nextHungry;
+        private float _nextHungry, _nextCheer; private bool _watching; private Vector3? _seat;
         public override void Start(Brain b) { Doing = "following the jarl"; }
+        // The jarl fighting in Quad's Arena: up to the stands beside a seat, to watch, wager and cheer (not into the ring).
+        private void Watch(Brain b, Player l, Vector3 ring)
+        {
+            if (!_watching)
+            {
+                _watching = true;
+                Vector3[] stands = Compat.ArenaStands(24);
+                if (stands.Length > 0)
+                {
+                    Vector3 s = stands[(b.S.Vid.GetStableHashCode() & 0x7fffffff) % stands.Length], side = Vector3.Cross(Vector3.up, ring - s); side.y = 0;
+                    _seat = s + (side.sqrMagnitude > 0.01f ? side.normalized * 0.8f : Vector3.zero); // (beside a seat: the crowd's figures sit on them)
+                    b.Move.To(_seat.Value, 1.2f);
+                }
+                ArenaWatch.Wager(b, l.GetPlayerName());
+                Mood.Add(b.S, "arenawatch", b.Now); b.Dirty();
+            }
+            Doing = $"watching {l.GetPlayerName()} fight in the arena";
+            if (b.Move.Moving && !b.Move.Failed) return;
+            Vector3 d = ring - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized);
+            if (Time.time < _nextCheer) return;
+            _nextCheer = Time.time + UnityEngine.Random.Range(6f, 14f);
+            Body_.Anim(b.Body)?.SetTrigger(UnityEngine.Random.value < 0.75f ? "emote_cheer" : "emote_point");
+            if (UnityEngine.Random.value < 0.3f) b.Say(new[] { $"Get up, {l.GetPlayerName()}!", "Behind you, jarl!", "Hit it again!", "That's our jarl!", "Skål!", "Make them bleed!", "Odin sees you, jarl!" }[UnityEngine.Random.Range(0, 7)], 4);
+        }
         public override void Tick(Brain b)
         {
             Player l = Follow.Leader(b);
             if (l == null) { Done = true; return; }
+            if (ArenaWatch.On(l, out Vector3 ring) && Utils.DistanceXZ(b.Pos, ring) < ArenaWatch.Near) { Watch(b, l, ring); return; }
+            if (_watching) { _watching = false; _seat = null; b.Move.Stop(); }
             Vector3 to = l.transform.position;
             float d = Vector3.Distance(b.Pos, to);
             Doing = $"following {l.GetPlayerName()}";

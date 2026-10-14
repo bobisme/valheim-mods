@@ -47,6 +47,7 @@ namespace Jarldom
             if (!c.AllowedName(who)) return;
             foreach (string d in arg.Split(';').Where(x => x != ""))
             {
+                if (d.StartsWith(Wagers.Prefix)) { ArenaWatch.Heard(c, who, d); continue; } // (a fight in Quad's Arena)
                 string[] f = d.Split(':');
                 if (f[0] == "boss" && f.Length > 1) { Tally.Boss(c.R.Flags, who, f[1]); c.Log("slew", who, Boss(f[1])); }
                 if (f[0] == "first" && f.Length > 2) { string what = string.Join(":", f.Skip(1)); if (!Wanderer.Known(c.R.Flags, what) && Wanderer.Points(what) > 0) { c.R.Flags[Wanderer.Prefix + what] = c.Day; c.Log("first", who, "", Wanderer.Tell(what, who)); } }

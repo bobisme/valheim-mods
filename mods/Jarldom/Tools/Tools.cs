@@ -66,7 +66,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "move", "payfix", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing", "corner", "dim", "lost", "valkyrie", "shipburial" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "move", "payfix", "arena", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing", "corner", "dim", "lost", "valkyrie", "shipburial" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or for a server admin with devcommands on"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -298,6 +298,7 @@ namespace Jarldom
                             case "zone": Ui.RoomEditor.Open(c, null, c.R.Zones[int.Parse(a[3])]); break;
                             case "seat": if (!Ui.JarlView.Active) Ui.JarlView.Test(); break;
                             case "memorial": Ui.MemorialPanel.Open(c, me.transform.position); break;
+                            case "order": output(new JObject { ["people"] = new JArray(Ui.ColonyWindow.Newest(c, out var came).Select(r => $"{r.Name} day {(came.TryGetValue(r.Vid, out double t) ? Clock.Day(t) : -1)}")) }); return; // (the People tab's order)
                             case "close": Ui.Windows.CloseAll(); Ui.JarlView.End(); break;
                             case "scroll": foreach (UnityEngine.UI.ScrollRect sr in Object.FindObjectsOfType<UnityEngine.UI.ScrollRect>()) sr.verticalNormalizedPosition = 1f - F(a[3]); break; // ("ui scroll 0.5": the open window's list scrolled that far down)
                             default: error("ui colony|villager|room|zone|seat|close"); return;
@@ -931,6 +932,29 @@ namespace Jarldom
                             from.GetInventory().RemoveItem(name, n); to.GetInventory().AddItem(prefab, n); moved += n;
                         }
                         output(new JObject { ["moved"] = moved, ["from"] = new JArray(from.GetInventory().GetAllItems().Select(i => $"{Prefab(i)} x{i.m_stack}")), ["to"] = new JArray(to.GetInventory().GetAllItems().Select(i => $"{Prefab(i)} x{i.m_stack}")) });
+                    }
+                    break;
+                case "arena": // (test: "arena": what Quad's Arena tells; "arena fight [seconds]": as if this player's fight were on (followers watch);
+                              // "arena result <outcome> [kind] [crowned] [coins]": a fight's end, heard through Arena's own Api)
+                    {
+                        string sub = a.Length > 2 ? a[2] : "";
+                        if (sub == "hoard") { Brain hb = Who(a[3]); if (hb == null) { error("who?"); return; } hb.S.Hoard = int.Parse(a[4]); hb.Dirty(); } // (a test's wager undone)
+                        if (sub == "fight") { ArenaWatch.TestFighter = me.GetPlayerName(); ArenaWatch.TestUntil = Time.time + (a.Length > 3 ? F(a[3]) : 90f); }
+                        if (sub == "result")
+                        {
+                            System.Type api = Compat.Find("com.quad.arena")?.GetType().Assembly.GetType("Arena.Api");
+                            var heard = api?.GetMethod("Heard", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+                            if (heard == null) { error("no Arena.Api.Heard"); return; }
+                            ArenaWatch.TestUntil = 0;
+                            heard.Invoke(null, new object[] { me.GetPlayerName(), $"{(a.Length > 4 ? a[4] : "champion")};{a[3]};{(a.Length > 5 && a[5] == "crowned" ? 1 : 0)};{(a.Length > 6 ? a[6] : "0")}" });
+                        }
+                        bool on = Compat.ArenaContest(out string fighter, out string kind); bool at = Compat.ArenaCentre(out Vector3 ring);
+                        Compat.ArenaLast(out string lf, out string lk, out string lo, out bool lw, out bool lc, out int lcoins);
+                        output(new JObject { ["present"] = Compat.ArenaPresent, ["contest"] = on ? $"{fighter} ({kind})" : "", ["test"] = Time.time < ArenaWatch.TestUntil, ["ring"] = at ? V(ring) : null,
+                            ["stands"] = Compat.ArenaStands(24).Length, ["results"] = Compat.ArenaResults(), ["last"] = $"{lf} {lk} {lo} won={lw} crowned={lc} coins={lcoins}",
+                            ["watchers"] = new JArray(Villagers.All.Where(b => Follow.LeaderId(b) == me.GetPlayerID()).Select(b => $"{b.S.Name}: {b.Task?.Doing} stake {b.View.GetZDO().GetInt(ArenaWatch.StakeKey, 0)} hoard {b.S.Hoard}")),
+                            ["hoards"] = string.Join(" ", Villagers.All.Where(b => b.S.Colony == c.Id).Select(b => $"{b.S.Name}={b.S.Hoard}")),
+                            ["carried"] = me.m_customData.TryGetValue(JarlDeeds.PendingKey, out string pend) ? pend : "" });
                     }
                     break;
                 case "payfix": // (test: payfix <missed> <last payday>: a test payday undone)

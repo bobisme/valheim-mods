@@ -274,7 +274,7 @@ for (int seed = 0; seed < 500; seed++)
 var grp = Souls.Group(new Random(3), 3);
 Check(grp.Count >= 1 && grp.Count <= 3 && grp.Select(x => x.Group).Distinct().Count() == 1 && grp.Select(x => x.Name).Distinct().Count() == grp.Count, "A group shares a battle and not a name");
 Check(Souls.Group(new Random(3), 1).Count == 1, "Group size capped by free beds");
-var vs = Souls.Become(grp[0], "vx", "c1", 10); Check(vs.Traits.Count == 2 && vs.Prof == Prof.Hauler && vs.Wants == grp[0].Prof && Mood.Has(vs, "arrived", 10), "Becoming a villager");
+var vs = Souls.Become(grp[0], "vx", "c1", 10); Check(vs.Traits.Count == 2 && vs.Prof == grp[0].Prof && vs.Wants == grp[0].Prof && Mood.Has(vs, "arrived", 10), "Becoming a villager");
 var log = new List<LogEntry> { new LogEntry(0, 0, "found", "Bob", "", ""), new LogEntry(10, 0, "arrive", "Ulf", "", ""), new LogEntry(20, 0, "kill", "Ulf", "Neck", ""), new LogEntry(1900, 1, "starkill", "Ulf", "Troll", "") };
 var saga = Stories.Chronicle(log);
 Check(saga.Count == 2 && saga[0].StartsWith("Day 0:") && saga[0].Contains("Ulf came") && saga[0].Contains("One foe") && saga[1].Contains("mighty Troll"), "The chronicle tells the days");
@@ -704,6 +704,34 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     var raised = Petitions.Raise(new Random(1), cv, 10);
     Check(raised.Any(p => p.Id == "beacon") && raised.Any(p => p.Id == "burial"), "A beacon and a burial ground asked for");
     Check(!Petitions.Raise(new Random(1), new ColonyView { Population = 5, HasBeautyRoom = true, HasShrine = true, GuardWage = 9, Beds = 5 }, 10).Any(p => p.Id == "beacon" || p.Id == "burial"), "Not when there's no need");
+}
+
+// ---- Quad's Arena: wagers on the jarl, and the Champion ----
+{
+    var wrng = new Random(3);
+    Check(Wagers.Stake(5, 50, wrng) == 0, "Too little hoard to wager");
+    for (int i = 0; i < 30; i++) { int st = Wagers.Stake(200, 30, wrng); Check(st >= 8 && st <= 20, "A tenth of the hoard at most, on the jarl: " + st); }
+    Check(Wagers.Stake(200, -40, wrng) < 0, "One who thinks little of the jarl wagers against");
+    Check(Wagers.Settle(10, true) == 10 && Wagers.Settle(10, false) == -10 && Wagers.Settle(-10, true) == -10 && Wagers.Settle(-10, false) == 10 && Wagers.Settle(0, true) == 0, "Even money, either way");
+    string deed = Wagers.Pack("champion", "win", true, 340, new[] { "v1", "v2" });
+    Check(Wagers.Unpack(deed, out string k, out string o, out bool cr, out int co, out var set) && k == "champion" && o == "win" && cr && co == 340 && set.SetEquals(new[] { "v1", "v2" }), "The fight carried home, read back: " + deed);
+    Check(!deed.Contains(";") && Wagers.Unpack(Wagers.Pack("road", "died", false, 0, null), out _, out string o2, out _, out _, out var wnone) && o2 == "died" && wnone.Count == 0, "A loss carried home, wnone wagered in the stands");
+    var wfolk = Enumerable.Range(0, 10).Select(i => ($"v{i}", i * 20, 0)).ToList();
+    var bets = Wagers.Bettors(wfolk, new HashSet<string> { "v9" }, new Random(1));
+    Check(bets.Count == Wagers.MaxBettors && !bets.Any(b => b.vid == "v9") && bets[0].vid == "v8" && !bets.Any(b => b.vid == "v0"), "The richest few wager, not those who did in the stands, nor the penniless");
+    Check(Wagers.Kind("road") == "the Long Road" && Wagers.Ended("died") == "fell in the ring", "The arena's words");
+    var af = new Dictionary<string, int>();
+    Tally.Add(af, "Bob", Tally.ArenaWins, 2);
+    Check(Bynames.For(Tally.Of(af, "Bob")).id == 0, "Two wins aren't a name yet");
+    Tally.Add(af, "Bob", Tally.ArenaWins);
+    Check(Bynames.Named("Bob", Tally.Of(af, "Bob")) == "Bob the Champion", "Three contests won: the Champion");
+    var cf = new Dictionary<string, int>(); Tally.Add(cf, "Bob", Tally.Crowned); Tally.Add(cf, "Bob", Tally.Rings, 5);
+    Check(Bynames.For(Tally.Of(cf, "Bob")).title == "the Champion", "In the Hall of Champions: outranks Ring-giver");
+    Tally.Set(cf, "Bob", Tally.Bane, 4);
+    Check(Bynames.For(Tally.Of(cf, "Bob")).title == "Moder-bane", "A great boss slain still comes first");
+    var aday = new List<LogEntry> { new LogEntry(10, 5, "arenawin", "Bob", "a Champion Bout", "Bob won a Champion Bout in the arena.") };
+    Check(Verse.Make(aday, 1, p => p).Any(l => l.Contains("Bob")), "The skald sings an arena win");
+    Check(Stories.Gossip(new Random(1), "Astrid", aday, 12) == null || Stories.Gossip(new Random(1), "Astrid", aday, 12).Contains("Champion Bout"), "Gossip tells it");
 }
 
 Console.WriteLine($"Jarldom: {checks} checks passed");
