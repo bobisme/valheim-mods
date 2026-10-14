@@ -108,6 +108,43 @@ namespace Jarldom
         {
             if (f == Festival.Midsummer) Plugin.Guard(() => Midsummer(c));
             else if (f == Festival.Sigrblot) Plugin.Guard(() => Sigrblot(c));
+            else if (f == Festival.WinterNights) Plugin.Guard(() => WinterNights(c));
+        }
+
+        // ---- Winter Nights: the dead remembered ----
+        // At the memorial stone (or the burial ground, or the hall): the stones glow, and the skald (or the gothi, or the worthiest)
+        // reads the names of the remembered, those gone to Valhalla and the lost who rest with Hel; the colony answers each.
+        public const float WinterOpen = 18f, WinterFirst = 26f, WinterEach = 7f;
+        public const string WinterMusic = "location_deepnorth_memorialsite";
+        public static float WinterEnd(int names) => WinterFirst + names * WinterEach + 2f;
+        private static void WinterNights(Colony c)
+        {
+            Piece stone = c.PiecesIn(c.Radius).FirstOrDefault(p => p != null && Utils.GetPrefabName(p.gameObject) == Pieces.MemorialName);
+            Room ground = c.Best(RoomType.BurialGround), hall = c.Best(RoomType.GreatHall);
+            Vector3 at = stone != null ? stone.transform.position : ground != null ? c.Centre(ground) : hall != null ? c.Centre(hall) : c.Position;
+            Vector3 fwd = stone != null ? -stone.transform.forward : (c.Position - at).sqrMagnitude > 1f ? (c.Position - at).normalized : c.Seat.transform.forward; fwd.y = 0; fwd.Normalize();
+            var names = Memorial.From(c.R.Roster, c.R.Flags, c.R.Log).Where(r => !r.Unburied).Take(12).Select(r => r.Name + "~" + (r.Hel ? "hel" : "odin")).ToList();
+            var living = c.R.Living.ToList();
+            RosterRow reader = living.FirstOrDefault(r => r.Prof == Prof.Skald) ?? living.FirstOrDefault(r => r.Prof == Prof.Gothi) ?? living.OrderByDescending(r => r.Worth).FirstOrDefault();
+            var rest = living.Where(r => r != reader).ToList();
+            long start = ZNet.instance.GetTime().Ticks;
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            string Head(string role, int i, int n) => string.Join("|", start.ToString(inv), at.x.ToString(inv), at.y.ToString(inv), at.z.ToString(inv), fwd.x.ToString(inv), fwd.z.ToString(inv), role, i.ToString(inv), n.ToString(inv), names.Count.ToString(inv));
+            if (reader != null) Villagers.Command(reader.Vid, "winter", Head("reader", 0, 1) + "|" + string.Join(";", names));
+            for (int i = 0; i < rest.Count; i++) Villagers.Command(rest[i].Vid, "winter", Head("watch", i, rest.Count) + "|");
+            foreach (Piece p in c.PiecesIn(c.Radius).Where(p => p != null && Utils.GetPrefabName(p.gameObject) == Pieces.MemorialName)) Net.Fest_(200, p.transform.position);
+            Net.Fest_(201, at); // (the music, for those near)
+            Faith.Add(c, "odin", 3, "the ascended remembered at Winter Nights");
+            c.Tell($"Winter Nights: the colony gathers at {(stone != null ? "the memorial stone" : ground != null ? "the burial ground" : "the hall")} to remember its dead.", true);
+        }
+        // Where each stands: the reader beside the stone facing out, the rest in a half-ring before it.
+        public static Vector3 WinterSpot(Vector3 at, Vector3 fwd, string role, int i, int n)
+        {
+            Vector3 side = new Vector3(fwd.z, 0, -fwd.x);
+            if (role == "reader") return at + fwd * 1.3f + side * 1.2f;
+            float a = Mathf.PI * (0.1f + 0.8f * (n <= 1 ? 0.5f : i / (float)(n - 1)));
+            float r = 4f + (n > 10 ? (i % 2) * 1.3f : 0);
+            return at + (side * Mathf.Cos(a) + fwd * Mathf.Sin(a)) * r;
         }
 
         // ---- Sigrblot: the sacrifice for victory ----
@@ -169,6 +206,19 @@ namespace Jarldom
             }
             return null;
         }
+        // Winter Nights on every game near: a memorial stone's pale glow (and candles at its foot), or the music.
+        public static void WinterShow(int what, Vector3 at)
+        {
+            if (Player.m_localPlayer == null || Vector3.Distance(Player.m_localPlayer.transform.position, at) > 200) return;
+            if (what == 1) { if (Vector3.Distance(Player.m_localPlayer.transform.position, at) < 120) MusicMan.instance?.TriggerMusic(WinterMusic); return; }
+            var go = new GameObject("JarldomWinterGlow"); go.transform.position = at;
+            Light glow = new GameObject("glow").AddComponent<Light>(); glow.transform.SetParent(go.transform, false); glow.transform.localPosition = Vector3.up * 1.2f;
+            glow.type = LightType.Point; glow.color = new Color(0.6f, 0.75f, 1f); glow.range = 6f; glow.intensity = 2.4f;
+            GameObject candle = Assets.Find("Candle_resin") ?? Assets.Find("piece_candle"); // (the game's candles, lit, at the stone's foot)
+            if (candle != null) for (int k = 0; k < 3; k++) Assets.Model(candle, go.transform, new Vector3(-0.45f + k * 0.45f, 0, -0.55f), Quaternion.identity, 1f);
+            Assets.Effect("vfx_spawn_small", at + Vector3.up);
+            UnityEngine.Object.Destroy(go, 240f);
+        }
         // Sigrblot's sacrifice burning on the altar, and Odin's answer: on every game near.
         public static void SigrShow(int what, Vector3 at)
         {
@@ -186,6 +236,7 @@ namespace Jarldom
         // On every game near: the fire itself (the bonfire's log heap, flames and crackle, no colliders, no fuel), dusk to dawn.
         public static void Show(int kind, Vector3 at)
         {
+            if (kind >= 200) { WinterShow(kind - 200, at); return; }
             if (kind >= 100) { SigrShow(kind - 100, at); return; }
             if ((Festival)kind != Festival.Midsummer || Player.m_localPlayer == null || Vector3.Distance(Player.m_localPlayer.transform.position, at) > 300) return;
             GameObject bonfire = Assets.Find("bonfire");
@@ -296,6 +347,50 @@ namespace Jarldom
                 b.Say(Greetings.Show(("Óðinn sá oss! Sigr!", "Odin has seen us! Victory!")), 6);
                 Net.Fest_(101, _altar + _fwd * 14f + new Vector3(_fwd.z, 0, -_fwd.x) * 6f); // (and he answers)
             }
+        }
+    }
+}
+
+namespace Jarldom
+{
+    // One part in Winter Nights: the reader of the names, or one of those remembering (timed by the world's clock).
+    internal sealed class WinterTask : Task
+    {
+        private readonly long _start; private readonly Vector3 _at, _fwd; private readonly string _role; private readonly int _i, _n, _count;
+        private readonly List<(string name, bool hel)> _names = new List<(string, bool)>(); private int _read = -2; private bool _answered; private int _heard = -1; private Vector3 _spot;
+        public WinterTask(long start, Vector3 at, Vector3 fwd, string role, int i, int n, int count, string extra)
+        {
+            _start = start; _at = at; _fwd = fwd; _role = role; _i = i; _n = n; _count = count;
+            foreach (string e in extra.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)) { string[] p = e.Split('~'); _names.Add((p[0], p.Length > 1 && p[1] == "hel")); }
+            Doing = role == "reader" ? "reading the names of the dead at Winter Nights" : "remembering the dead at Winter Nights";
+        }
+        public override bool Interruptible => false;
+        private float T => (float)((ZNet.instance.GetTime().Ticks - _start) / (double)TimeSpan.TicksPerSecond);
+        public override void Start(Brain b) { Vector3 s = FestivalDays.WinterSpot(_at, _fwd, _role, _i, _n); _spot = Colony.Spot(s, 1.2f) ?? s; b.Move.To(_spot, 0.6f); }
+        public override void Tick(Brain b)
+        {
+            float t = T, end = FestivalDays.WinterEnd(_count);
+            if (t > end + 12f || b.Colony == null || b.Colony.RaidOn) { Done = true; return; }
+            if (b.Move.Moving && !b.Move.Failed) return;
+            Vector3 face = _role == "reader" ? _at + _fwd * 4f : _at; Vector3 d = face - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized);
+            if (_role == "reader") { Reader(b, t, end); return; }
+            // (the rest: a word after each name, now and then; all together at the end)
+            int k = Mathf.FloorToInt((t - FestivalDays.WinterFirst) / FestivalDays.WinterEach);
+            if (t >= FestivalDays.WinterFirst + 3f && k < _count && k > _heard) { _heard = k; if (UnityEngine.Random.value < 0.18f) b.Say(Greetings.Show(("Vér munum.", "We remember.")), 4); }
+            if (!_answered && t >= end) { _answered = true; Body_.Anim(b.Body)?.SetTrigger("emote_bow"); if (UnityEngine.Random.value < 0.35f) b.Say(Greetings.Show(("Vér munum þá.", "We remember them.")), 5); }
+        }
+        private void Reader(Brain b, float t, float end)
+        {
+            if (_read == -2 && t >= FestivalDays.WinterOpen) { _read = -1; b.Say(Greetings.Show(("Nú hefjask vetrnætr. Vér munum várra dauðra.", "Now the winter nights begin. We remember our dead.")), 7); return; }
+            int k = Mathf.FloorToInt((t - FestivalDays.WinterFirst) / FestivalDays.WinterEach);
+            if (t >= FestivalDays.WinterFirst && k < _names.Count && k > _read)
+            {
+                _read = k; var (name, hel) = _names[k];
+                b.Say(Greetings.Show(hel ? ($"{name}, er hvílir hjá Helju.", $"{name}, who rests with Hel.") : ($"{name}, er sitr í Valhöll.", $"{name}, who sits in Valhalla.")), 6);
+                Body_.Anim(b.Body)?.SetTrigger("emote_point");
+                return;
+            }
+            if (!_answered && t >= end) { _answered = true; Body_.Anim(b.Body)?.SetTrigger("emote_bow"); b.Say(Greetings.Show(_names.Count == 0 ? ("Engir enn. Megi svá lengi vera.", "None yet. Long may it be so.") : ("Drekki þeir með Óðni, ok hvílisk hjá Helju.", "May they drink with Odin, and rest with Hel.")), 7); }
         }
     }
 }

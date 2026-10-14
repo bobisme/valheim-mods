@@ -60,7 +60,8 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
   readying until the next one: Sigrblot, fighters and the jarl's party strike up to a tenth harder and trade runs bring more;
   Midsummer, work goes faster; Winter Nights, worth grows faster; Yule, good cheer. Readied less than a quarter, it's let slip and
   the colony is downcast. At Midsummer a bonfire is lit on open ground by the hall and the colony dances round it. At Sigrblot the colony gathers at Odin's
-  altar: the gothi burns the sacrifice, blesses each fighter in turn, and they all shout for victory; Odin answers with thunder.
+  altar: the gothi burns the sacrifice, blesses each fighter in turn, and they all shout for victory; Odin answers with thunder. At Winter Nights
+  the memorial stones glow with candles at their feet, the colony gathers before one, and the skald reads the names of the dead.
 - **Raids** near the colony sound the war horn and grow with renown; fighters arm themselves and go out to the raiders, the rest run
   for the great hall. What's left of a draugr warband sinks back into the earth at dawn.
   **The Fulings** (hamlet and up) send a herald now and then: pay from the hall tab by dusk (more each time), or they raid; paying
