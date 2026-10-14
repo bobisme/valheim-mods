@@ -48,6 +48,10 @@ namespace Jarldom
                     Net.Act(fc, "beaconmark", Colony.IdOf(fire.GetComponent<ZNetView>()));
                 return;
             }
+            // Shift+E on open ground, with a great work chosen at the Thing and not yet placed: it's planned there.
+            if (Corners.Count == 0 && !GameUi.Typing && !Ui.Windows.AnyOpen && ZInput.GetButtonDown("Use") && (ZInput.GetButton("AltPlace") || Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+                && Player.m_localPlayer is Player wp && Ghost(wp) is GameObject wg && Colony.Nearest(wg.transform.position, Renown.ZoneReach + 20) is Colony wc && GreatWorks.Stage(wc.R.Flags, GreatWorks.Lighthouse) == GreatWorks.Promised)
+            { GreatWork.RaiseHere(wc, GreatWorks.Lighthouse, wg.transform.position); return; }
             if (Input.GetKeyDown(KeyCode.Backspace) && Corners.Count > 0 && !GameUi.Typing) { Corners.RemoveAt(Corners.Count - 1); Draw(); }
             // E on a marked room or zone (no outline being drawn): what it is, and change or remove it.
             if (Corners.Count == 0 && !GameUi.Typing && !Ui.Windows.AnyOpen && ZInput.GetButtonDown("Use") && Player.m_localPlayer is Player p && Ghost(p) is GameObject g)

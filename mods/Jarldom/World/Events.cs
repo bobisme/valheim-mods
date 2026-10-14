@@ -141,6 +141,7 @@ namespace Jarldom
                 Hungry = Villagers.All.Count(b => b.S.Colony == c.Id && b.S.Needs[(int)Need.Food] < 30) > c.Population / 2,
                 GuardWage = Tables.Wage(Prof.Guard, false) + c.GuardExtra, // (raised at a Thing: not asked again)
                 DarkHome = c.R.Flag(Beacon.DarkKey) > 0 && day - c.R.Flag(Beacon.DarkKey) <= 10 && Beacon.Where(c, out _, out _) == null, // (withdrawn once there's a beacon)
+                GreatWork = c.R.Rank >= Rank.Village && GreatWorks.Stage(c.R.Flags, GreatWorks.Lighthouse) == 0 && GreatWork.Shore(c) != null,
                 UnburiedNoGround = c.R.Roster.Any(r => r.State == SoulState.Lost && !Lost.Rests(c, r.Vid)) && !c.R.Rooms.Any(r => r.Ok && r.Type == RoomType.BurialGround),
             };
             foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id))
@@ -309,6 +310,12 @@ namespace Jarldom
             if (yes && p.YesDeed != "") c.R.Deeds += Renown.Deed(p.YesDeed);
             if (yes && p.Id == "exile") { Brain b = Villagers.All.FirstOrDefault(x => x.S.Colony == c.Id && x.S.Name == p.About); if (b != null) { c.Log("exile", b.S.FullName, who); Villagers.Command(b.S.Vid, "dismiss", ""); } }
             if (yes && p.Id == "guardpay") c.R.Flags["guardraise"] = 1;
+            if (yes && p.Id == "greatwork" && GreatWorks.Stage(c.R.Flags, p.About) == 0)
+            {
+                c.R.Flags[GreatWorks.Key(p.About)] = GreatWorks.Promised;
+                foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) { Mood.Add(b.S, "greatpromise", b.Now); b.Dirty(); }
+                c.Tell($"{GreatWorks.Title(p.About)} is to be raised: stand where it should stand, by the shore, and press \"Raise it here\" on the hall tab of the pillars.", true);
+            }
             if (yes && p.Id == "accuse") Saboteur.CastOut(c, p.About, who);
             if (yes && Promises.Contains(p.Id)) c.R.Flags["promise:" + p.Id] = c.Day + 5; // to be kept within five days
             c.Log("text", who, "", $"At the Thing, {who} said {(yes ? p.Yes.ToLower() : p.No.ToLower())}: \"{p.Text}\"");

@@ -146,7 +146,7 @@ namespace Jarldom
                     $"{e.A} was home again, {e.B} days gone.",
                     $"After {e.B} days away, {e.A} came home.");
                 case "fest": return $"The colony kept {e.B}{e.Text}.";
-                case "first": case "arena": case "arenawin": case "einherjar": case "barrowjarl": case "beacon": case "champion": return e.Text;
+                case "first": case "greatwork": case "arena": case "arenawin": case "einherjar": case "barrowjarl": case "beacon": case "champion": return e.Text;
                 case "graveitem": return Telling(e, $"{e.A} went to Valhalla with {e.B}.", $"{e.B} burned with {e.A} on the pyre, and went with them to Odin's hall.", $"{e.A} took {e.B} to Valhalla.");
                 case "marvel": return $"The hall marvelled at {e.B}, brought home by {e.A}.";
                 case "lore": return Telling(e, $"{e.A} read a runestone, and brought its tale home.", $"{e.A} brought home a tale from an old runestone.", $"{e.A} learned the words of a runestone, and the hall learned them too.");
@@ -365,6 +365,7 @@ namespace Jarldom
         public int Population; public bool HasBeautyRoom, HasShrine; public int Treasury, Due; public List<(string name, int thefts, int brawls)> Troublemakers = new List<(string, int, int)>();
         public List<(string a, string b)> Feuds = new List<(string, string)>(); public int GuardWage; public int MissedPaydays; public bool Hungry; public int Beds;
         public List<(string name, int seen)> Suspects = new List<(string, int)>();
+        public bool GreatWork; // (a village by the sea, no great work begun: the Thing may ask for a lighthouse)
         public bool DarkHome, UnburiedNoGround; // (a jarl came home by night to a shore with no beacon; the lost lie unburied and there's nowhere to lay them)
     }
 
@@ -385,6 +386,7 @@ namespace Jarldom
             foreach (var s in c.Suspects.Where(s => s.seen >= 2).OrderByDescending(s => s.seen).Take(1))
                 all.Add(new Petition { Id = "accuse", About = s.name, Text = $"{s.name} has been seen near the mischief {s.seen} times. Cast them out?", Yes = "Cast them out", No = "Let it be", YesMood = 2, NoMood = -2 });
             if (c.DarkHome) all.Add(new Petition { Id = "beacon", Text = "Raise a beacon: the jarl came home in the dark, and the shore was black.", Yes = "Promise a beacon", No = "We know the way", YesMood = 2, NoMood = -1 });
+            if (c.GreatWork) all.Add(new Petition { Id = "greatwork", About = GreatWorks.Lighthouse, Text = "Let us raise a lighthouse on the shore: a great work, sung of long after us, and every ship of ours would find home.", Yes = "Let it be raised", No = "Not in our day", YesMood = 5, NoMood = -2 });
             if (c.UnburiedNoGround) all.Add(new Petition { Id = "burial", Text = "Make a burial ground: our lost walk unburied, and there's nowhere to lay them.", Yes = "Promise it", No = "Let them walk", YesMood = 4, NoMood = -4 });
             if (c.Beds < c.Population) all.Add(new Petition { Id = "beds", Text = "Build beds: some of us sleep on the hall floor.", Yes = "Promise beds", No = "Sleep by the fire", YesMood = 4, NoMood = -4 });
             return all.OrderBy(_ => rng.Next()).Take(max).ToList();

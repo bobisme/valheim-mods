@@ -12,7 +12,7 @@ namespace Jarldom
         private static readonly Dictionary<string, int> Weight = new Dictionary<string, int>
         {
             ["slew"] = 10, ["home"] = 9, ["raidheld"] = 8, ["ascend"] = 8, ["lost"] = 7, ["death"] = 7, ["rest"] = 6, ["arrive"] = 6,
-            ["byname"] = 5, ["feast"] = 5, ["fest"] = 6, ["lore"] = 4, ["first"] = 7, ["graveitem"] = 8, ["marvel"] = 5, ["einherjar"] = 9, ["barrowjarl"] = 10, ["beacon"] = 6, ["champion"] = 4, ["arenawin"] = 9, ["starkill"] = 4, ["ring"] = 4, ["worthy"] = 3,
+            ["byname"] = 5, ["feast"] = 5, ["fest"] = 6, ["lore"] = 4, ["first"] = 7, ["graveitem"] = 8, ["marvel"] = 5, ["einherjar"] = 9, ["barrowjarl"] = 10, ["beacon"] = 6, ["champion"] = 4, ["arenawin"] = 9, ["greatwork"] = 11, ["starkill"] = 4, ["ring"] = 4, ["worthy"] = 3,
         };
         public static bool Sings(string kind) => Weight.ContainsKey(kind);
 
@@ -66,6 +66,7 @@ namespace Jarldom
                 case "einherjar": return $"{a} rode down from Valhalla when the hall had need, {Alliter(rng, Bold, a)} as ever.";
                 case "barrowjarl": return $"{b} lies cut down in his barrow; the dead keep their own now.";
                 case "beacon": return a == "the watch" ? $"The watch lit the beacon for {named(b)}, and the dark gave way." : $"{a} saw the sail and lit the beacon for {named(b)}.";
+                case "greatwork": return Pick(rng, $"Stone on stone they raised {b}; long will it stand.", $"By the grey sea {b} stands, and the ships of {a} come home.");
                 case "arenawin": return Pick(rng, $"{named(a)} the {Alliter(rng, Bold, a)} won {b} while the stands roared.", $"In the ring of stone, {named(a)} {Alliter(rng, Felled, a)} all that came.");
                 case "champion": return $"{a} the {Alliter(rng, Bold, a)} has no match at {b} in this hall.";
                 case "graveitem": return $"{a} took {b} to Odin's hall, and the Allfather smiled.";

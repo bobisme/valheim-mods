@@ -146,6 +146,8 @@ namespace Jarldom.Ui
         {
             var list = new List<string>();
             var people = c.R.Living.ToList();
+            if (GreatWorks.Stage(c.R.Flags, GreatWorks.Lighthouse) == GreatWorks.Promised) list.Add($"The Thing chose to raise {GreatWorks.Name(GreatWorks.Lighthouse)}: with the hammer's \"Mark rooms and zones\", look at flat ground near the sea and press Shift+E.");
+            if (GreatWorks.Stage(c.R.Flags, GreatWorks.Lighthouse) == GreatWorks.Laid && !people.Any(p => p.Prof == Prof.Builder)) list.Add($"{GreatWorks.Title(GreatWorks.Lighthouse)} waits for builders: give someone the Builder trade (People tab).");
             int homeless = people.Count(p => string.IsNullOrEmpty(p.Bed));
             if (homeless > 0) list.Add($"{homeless} {(homeless == 1 ? "has" : "have")} no bed and sleep by the hall fire: build beds in a marked longhouse (or by the pillars).");
             int meals = Stock.Food(c, c.Position).Sum(f => f.item.m_stack);
@@ -336,6 +338,7 @@ namespace Jarldom.Ui
             y = Heading(list, "Rank", y);
             y = Text(list, $"A {Tables.Of(r.Rank).Name.ToLower()} of {_c.Population} {(_c.Population == 1 ? "soul" : "souls")}. Room for {_c.Cap} in all: as many as there are beds ({_c.Beds}), up to {Tables.Of(r.Rank).Cap} at this rank. Unlocked: {Tables.Of(r.Rank).Unlocks}.", y);
             if (r.Rank < Rank.Hold) { Rank next = r.Rank + 1; string miss = Ranks.Missing(next, _c.Population, _c.WorkingRooms()); y = Text(list, $"To become a {Tables.Of(next).Name.ToLower()}: {(miss == "" ? "ready at the next check" : miss)}.", y, 16, GameUi.Dim); }
+            y = GreatWorksSection(list, y);
             y = Heading(list, "The colony", y);
             Container treasury = Stock.Treasury(_c);
             y = Text(list, $"Treasury: {(treasury == null ? "<color=#ff8c59>none chosen</color> (the hammer's \"Mark rooms and zones\": look at a chest, Shift+E)" : Stock.Coins(treasury) + " coins" + Where(treasury.transform.position))}. Wages due every {Payroll.EveryDays} days: {Payroll.Due(Villagers.All.Where(b => b.S.Colony == _c.Id).Select(b => b.S), Payroll.EveryDays, _c.GuardExtra) * Plugin.Instance.WageScale.Value / 100} coins.{(r.MissedPaydays > 0 ? $" <color=#ff8c59>{r.MissedPaydays} missed paydays.</color>" : "")}", y);
@@ -421,6 +424,26 @@ namespace Jarldom.Ui
         }
         private static string _confirm = "", _rename; private static Colony _renameFor;
         private static void Confirm(string what) { _confirm = _confirm == what ? "" : what; Build(); }
+        // Great works (Core/GreatWorks.cs): what the Thing chose, where it stands and how far it's come.
+        private static float GreatWorksSection(RectTransform list, float y)
+        {
+            string work = GreatWorks.Lighthouse; int stage = GreatWorks.Stage(_c.R.Flags, work);
+            if (stage == 0 && _c.R.Rank < Rank.Village) return y;
+            y = Heading(list, "Great works", y);
+            if (stage == 0) return Text(list, GreatWork.Shore(_c) != null ? "None yet. A village by the sea may be asked at the Thing to raise a lighthouse: the whole colony's work, remembered for good." : "None yet: a village by the sea may be asked to raise a lighthouse.", y, 15, GameUi.Dim);
+            if (stage == GreatWorks.Promised)
+            {
+                return Text(list, $"The Thing chose to raise {GreatWorks.Name(work)}: a timber tower 4 m across with a keeper's hut at its foot, its fire 15 m up ({GreatWorks.NeedsText(work)}). Show where it stands: with the hammer's \"Mark rooms and zones\", look at fairly flat ground inside the colony near the sea and press Shift+E. The builders raise it from the stores.", y);
+            }
+            int all = GreatWorks.Parts(work).Count, built = _c.R.Flag(GreatWorks.BuiltKey(work));
+            if (stage == GreatWorks.Laid)
+            {
+                Vector3 at = GreatWork.At(_c, work, out _);
+                y = Text(list, $"{GreatWorks.Title(work)} is rising {Mathf.RoundToInt(Utils.DistanceXZ(at, _c.Position))} m to the {ScoutTask.Compass(at - _c.Position)} of the high seat: {built} of {all} parts stand. Builders raise it from the stores ({GreatWorks.NeedsText(work)} in all).", y);
+                return _c.R.Living.Any(r => r.Prof == Prof.Builder) ? y : Text(list, "No one is a builder: give someone the Builder trade (People tab).", y, 15, GameUi.Warn);
+            }
+            return Text(list, $"{GreatWorks.Title(work)}, raised on day {_c.R.Flag(GreatWorks.DayKey(work))}. {GreatWorks.Gift(work)}", y, 16, GameUi.Good);
+        }
         private static Button Btn(RectTransform list, string text, ref float x, float y, Action click, bool enabled = true)
         {
             float w = Mathf.Max(150, text.Length * 9.5f + 30);

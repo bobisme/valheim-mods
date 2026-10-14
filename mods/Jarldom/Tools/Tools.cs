@@ -66,7 +66,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "move", "payfix", "arena", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing", "corner", "dim", "lost", "valkyrie", "shipburial" };
+            string[] cheats = { "arrivals", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "move", "payfix", "arena", "greatwork", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing", "corner", "dim", "lost", "valkyrie", "shipburial" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or for a server admin with devcommands on"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -955,6 +955,21 @@ namespace Jarldom
                             ["watchers"] = new JArray(Villagers.All.Where(b => Follow.LeaderId(b) == me.GetPlayerID()).Select(b => $"{b.S.Name}: {b.Task?.Doing} stake {b.View.GetZDO().GetInt(ArenaWatch.StakeKey, 0)} hoard {b.S.Hoard}")),
                             ["hoards"] = string.Join(" ", Villagers.All.Where(b => b.S.Colony == c.Id).Select(b => $"{b.S.Name}={b.S.Hoard}")),
                             ["carried"] = me.m_customData.TryGetValue(JarlDeeds.PendingKey, out string pend) ? pend : "" });
+                    }
+                    break;
+                case "greatwork": // (test: "greatwork": its stage; "promise": as if the Thing chose it; "place x z": Shift+E there; "finish": done now; "clear": none)
+                    {
+                        string w = GreatWorks.Lighthouse, sub = a.Length > 2 ? a[2] : "";
+                        if (sub == "promise") c.R.Flags[GreatWorks.Key(w)] = GreatWorks.Promised;
+                        if (sub == "clear") { foreach (string k in c.R.Flags.Keys.Where(k => k.StartsWith("gw:")).ToList()) c.R.Flags.Remove(k); }
+                        if (sub == "place") { Vector3 spot = new Vector3(F(a[3]), 0, F(a[4])); ZoneSystem.instance.GetSolidHeight(spot, out float gh); spot.y = gh; GreatWork.RaiseHere(c, w, spot); }
+                        if (sub == "finish") GreatWork.Finish(c, w);
+                        if (sub == "unplan") { object bo = Compat.Find("com.quad.buildorders", "com.dhack.buildorders"); object[] args = { me, string.Join(" ", a.Skip(3)), 0, null }; bool ok = (bool)bo.GetType().GetMethod("TryRemoveGhostPlan").Invoke(bo, args); output(new JObject { ["unplanned"] = ok, ["removed"] = (int)args[2], ["error"] = (string)args[3] }); }
+                        if (sub == "why") { Vector3 spot = new Vector3(F(a[3]), 0, F(a[4])); ZoneSystem.instance.GetSolidHeight(spot, out float gh); spot.y = gh; output(new JObject { ["why"] = GreatWork.Why(c, w, me, spot, out _, out _) }); }
+                        c.MarkDirty();
+                        int st = GreatWorks.Stage(c.R.Flags, w);
+                        output(new JObject { ["stage"] = st, ["shore"] = GreatWork.Shore(c) is Vector3 sh ? V(sh) : null, ["parts"] = GreatWorks.Parts(w).Count, ["needs"] = GreatWorks.NeedsText(w),
+                            ["built"] = st >= GreatWorks.Laid ? GreatWork.Built(c, w) : 0, ["at"] = st >= GreatWorks.Laid ? V(GreatWork.At(c, w, out _)) : null, ["ghosts"] = Compat.GhostCount(c.Position, c.Radius) });
                     }
                     break;
                 case "payfix": // (test: payfix <missed> <last payday>: a test payday undone)

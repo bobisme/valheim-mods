@@ -116,6 +116,8 @@ namespace Jarldom
             M("skald", "Heard the skald", 4, 24),
             M("feast", "Feasted", 20, 48),
             M("wonbet", "Won a wager on the jarl", 8, 24),
+            M("greatwork", "Raised a great work together", 15, 96),
+            M("greatpromise", "A great work is to be raised", 5, 72),
             M("lostbet", "Lost a wager on the jarl", -5, 24),
             M("arenawatch", "Watched the jarl fight in the arena", 10, 48),
             M("ownbed", "Slept in their own bed", 8, 24),

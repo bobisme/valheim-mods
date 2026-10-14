@@ -1,3 +1,5 @@
+0.1.119: Great Works, the first a Lighthouse. A village by the sea may be asked at the Thing to raise one; agreed, a jarl shows where with the hammer's Mark rooms and zones (Shift+E on flat ground near the water), and the builders raise it from the stores (Quad's BuildOrders lays out its plan): a keeper's hut, a tapering log tower and a gallery with the beacon fire 15 m up. Done, it's in the saga and on the jarls' maps, +40 renown, its fire is the colony's beacon, and trade runs at sea are lost half as often.
+
 0.1.118: the Dimming greys a villager's skin rather than darkening it: most of the colour gone at the first stage, ash grey at the second, as bright as before
 
 0.1.117: Quad's Arena (0.4.4 and later): your fights are carried home and the colony's folk wager their hoards on you (a tenth at most, even money); followers watch from the stands and cheer, not join in; three contests won or a place in the Hall of Champions make you "the Champion"; the skald sings an arena win. Newcomers start in the work they want. The People tab lists the newest first, marked new.

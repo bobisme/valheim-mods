@@ -26,6 +26,7 @@ namespace Jarldom
                 case "bed": Villagers.Command(a[0], "bed", Get(a, 1)); break;
                 case "autobeds": AutoBeds(); break;
                 case "backpay": BackPay(who); break;
+                case "greatwork": GreatWork.Laid(this, who, arg); break;
                 case "tryreach": TryReachAgain(); break;
                 case "cleanse": Saboteur.AskCleanse(this, Get(a, 0), who); break;
                 case "ruin": Upkeep.Add(this, string.Join("|", a)); break;

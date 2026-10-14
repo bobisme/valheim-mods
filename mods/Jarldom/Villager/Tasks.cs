@@ -548,7 +548,7 @@ namespace Jarldom
             coins = coins * Trading.PricePercent(way) / 100;
             if (temple && njord > 0) coins = coins * 110 / 100;
             coins = Mathf.RoundToInt(coins * (1 + Festivals.Of(c.R.Flags, Festival.Sigrblot, Festivals.SigrTrade))); // (Sigrblot's blessing)
-            bool lost = UnityEngine.Random.value < Trading.LossChance(way, njord, temple);
+            bool lost = UnityEngine.Random.value < Trading.LossChance(way, njord, temple) * (Trading.AtSea(way) && GreatWork.Has(c, GreatWorks.Lighthouse) ? GreatWorks.LossAtSea : 1f); // (the Lighthouse brings them home)
             b.S.Bump("trades");
             string how = way == TradeWay.Foot ? "set out on foot to trade" : way == TradeWay.Cart ? "took the cart to the traders with" : way == TradeWay.Karve ? "sailed the karve to the markets down the coast with" : "sailed the longship to the far markets with";
             c.Log("text", b.S.Name, "", $"{b.S.Name} {how} {lots} lots worth {coins} coins.");

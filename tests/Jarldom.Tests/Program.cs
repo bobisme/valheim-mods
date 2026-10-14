@@ -740,4 +740,24 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Stories.Gossip(new Random(1), "Astrid", aday, 12) == null || Stories.Gossip(new Random(1), "Astrid", aday, 12).Contains("Champion Bout"), "Gossip tells it");
 }
 
+// ---- Great Works: the Lighthouse ----
+{
+    var parts = GreatWorks.LighthouseParts();
+    Check(parts.Count == 70 && parts.Count(p => p.Prefab == "fire_pit") == 1 && parts.Count(p => p.Prefab == "wood_door") == 1 && parts.Max(p => p.Y) > 14.5f, "The Lighthouse: 70 parts, a door, the fire on top 15 m up: " + parts.Count);
+    var legs = parts.Where(p => p.Leans).ToList();
+    Check(legs.Count == 8 && legs.All(p => Math.Abs(p.UpY - 4.4f) < 0.01f && Math.Abs(Math.Abs(p.UpX) - 0.5f) < 0.01f && Math.Sign(p.UpX) == -Math.Sign(p.X)), "Its upper legs lean inward, half a metre a storey");
+    var needs = GreatWorks.Needs(GreatWorks.Lighthouse);
+    Check(needs["RoundLog"] == 64 && needs["Wood"] == 64 && needs["Stone"] == 55 && needs["Resin"] == 8 && !needs.ContainsKey("Iron"), "Its cost: core wood, wood, stone and resin, nothing past a workbench: " + GreatWorks.NeedsText(GreatWorks.Lighthouse));
+    var front = new GreatWorks.Part("stone_wall_4x2", 0, 1, 2, 0);
+    var turned = GreatWorks.Place(front, 100, 30, 200, 90);
+    Check(Math.Abs(turned.x - 102) < 0.01f && Math.Abs(turned.z - 200) < 0.01f && Math.Abs(turned.y - 31) < 0.01f && Math.Abs(turned.yaw - 90) < 0.01f, "A part turned with the work: its front wall faces where the work faces");
+    var gview = new ColonyView { Population = 6, HasBeautyRoom = true, HasShrine = true, GuardWage = 9, Beds = 6, GreatWork = true };
+    Check(Petitions.Raise(new Random(1), gview, 10).Any(p => p.Id == "greatwork" && p.About == GreatWorks.Lighthouse), "The Thing may ask for a lighthouse");
+    gview.GreatWork = false;
+    Check(!Petitions.Raise(new Random(1), gview, 10).Any(p => p.Id == "greatwork"), "Not once one's begun, or away from the sea");
+    var gf = new Dictionary<string, int> { [GreatWorks.Key(GreatWorks.Lighthouse)] = GreatWorks.Laid };
+    Check(GreatWorks.Stage(gf, GreatWorks.Lighthouse) == GreatWorks.Laid && GreatWorks.Proper(GreatWorks.Lighthouse, "Shithole") == "Lighthouse of Shithole", "Its stage and its name on the map");
+    Check(Verse.Make(new List<LogEntry> { new LogEntry(5, 3, "greatwork", "Shithole", "the Lighthouse", "") }, 2, p => p).Any(l => l.Contains("Lighthouse")), "The skald sings it");
+}
+
 Console.WriteLine($"Jarldom: {checks} checks passed");
