@@ -105,7 +105,8 @@ namespace Jarldom
         // Four logs lying round a square (half its side out from the middle) at a height.
         private static void Ring(List<Part> parts, string log, float half, float y, bool open = false)
         {
-            parts.Add(new Part(log, 0, y, half, 0)); if (!open) parts.Add(new Part(log, 0, y, -half, 0));
+            parts.Add(new Part(log, 0, y, half, 0));
+            parts.Add(new Part(log, 0, y, open ? -(half + 0.53f) : -half, 0)); // (open: the back log outside the legs, clear of the landing inside)
             parts.Add(new Part(log, half, y, 0, 90)); parts.Add(new Part(log, -half, y, 0, 90));
         }
         public const float Footing = 4.5f; // (half its footing, the gallery's overhang with it: the outline must hold this square)

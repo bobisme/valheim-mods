@@ -754,6 +754,8 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Enumerable.Range(0, 5).All(s => cores.Count(p => Math.Abs(p.Y - (0.25 + 4 * s + 1)) < 0.05) == 4 && cores.Count(p => Math.Abs(p.Y - (0.25 + 4 * s + 3)) < 0.05) == 4), "An iron core in each corner, every storey, from the plinth to the gallery");
     Check(parts.Count(p => p.Prefab.StartsWith("piece_workbench_ext")) == 2 && parts.Where(p => !p.Prefab.StartsWith("stone_") && !p.Prefab.StartsWith("piece_") && p.Prefab != "bonfire" && p.Prefab != "hearth").All(p => Reach(p, 3.1, 0) + 3.5 < 28), "Every timber piece within its workbench's reach (two extensions: 28 m), with room to spare");
     Check(parts.Where(p => p.Prefab.StartsWith("stone_")).All(p => Reach(p, -3.05, 0) < 18), "Every stone piece within the stonecutter's reach");
+    var backs = parts.Where(p => p.Prefab == "wood_wall_log_4x0.5" && p.Yaw == 0 && p.Z < -1.9f && p.Y > 5).ToList();
+    Check(backs.Count == 8, "A log across the back of every trestle ring, outside the legs: " + backs.Count);
     Check(parts.Count(p => p.Prefab == "wood_dragon1") == 4 && parts.Count(p => p.Prefab == "piece_banner03") == 5, "Dragon heads on the fire deck, banners on the gallery and by the door");
     var legs = parts.Where(p => p.Leans).ToList();
     Check(legs.Count(p => p.Prefab == "wood_pole_log_4") == 16 && legs.Count(p => p.Prefab == "woodiron_pole") == 32 && legs.All(p => Math.Abs(Math.Abs(p.UpX) - (p.Prefab == "woodiron_pole" ? 0.0625f : 0.125f)) < 0.01f && Math.Sign(p.UpX) == -Math.Sign(p.X)), "Its trestle legs lean inward, an eighth of a metre a storey, four storeys");

@@ -127,7 +127,7 @@ namespace Jarldom
         }
         // A finished work its design has grown since (the Lighthouse's fire deck): what's missing laid out as a plan of its own, for
         // the builders. How many parts, or -1 if it couldn't be.
-        public static int Amend(Colony c, string work)
+        public static int Amend(Colony c, string work, string only = null)
         {
             Player me = Player.m_localPlayer;
             int stage = GreatWorks.Stage(c.R.Flags, work);
@@ -135,7 +135,7 @@ namespace Jarldom
             if (stage == GreatWorks.Laid) Unplan(c, work); // (being raised: its plan laid again, as the design is now)
             Vector3 at = At(c, work, out float yaw);
             var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 12f, 22f, near);
-            var missing = GreatWorks.Parts(work).Where(p => { var w = GreatWorks.Place(p, at.x, at.y, at.z, yaw); Vector3 spot = new Vector3(w.x, w.y, w.z);
+            var missing = GreatWorks.Parts(work).Where(p => only == null || p.Prefab == only).Where(p => { var w = GreatWorks.Place(p, at.x, at.y, at.z, yaw); Vector3 spot = new Vector3(w.x, w.y, w.z);
                 return !near.Any(x => x != null && Utils.GetPrefabName(x.gameObject) == p.Prefab && Vector3.Distance(x.transform.position, spot) < 0.5f); }).ToList();
             if (missing.Count == 0) return 0;
             object bo = Compat.Find("com.quad.buildorders", "com.dhack.buildorders");
