@@ -57,6 +57,13 @@ namespace Respite
             else _rpc?.InvokeRoutedRPC(Raided_,at,raid.Src);
         }
 
+        // Forgets the raids within radius of a place (the test command; host only). How many.
+        internal static int Forget(Vector3 at,float radius)
+        {
+            int n=_raids.RemoveAll(r=>Policy.Near(r,at.x,at.z,radius));
+            if(n>0){Save();Broadcast();}
+            return n;
+        }
         private static void Register()
         {
             _rpc=ZRoutedRpc.instance;if(_rpc==null)return;

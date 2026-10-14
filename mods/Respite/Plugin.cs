@@ -9,7 +9,7 @@ namespace Respite
     {
         public const string Guid="com.bobisme.respite";
         public const string Name="Respite";
-        public const string Version="0.1.0";
+        public const string Version="0.1.1";
         internal static Plugin Instance;
         internal ConfigEntry<float> CooldownDays,AreaRadius,WarningSeconds,Margin,LeastDistance;
         internal ConfigEntry<int> MaxPerWeek;
@@ -33,8 +33,9 @@ namespace Respite
         {
             try{Ledger.Tick();}catch(System.Exception e){Logger.LogError("Respite ledger: "+e);}
             try{Muster.Tick();}catch(System.Exception e){Logger.LogError("Respite muster: "+e);}
+            try{Tools.Tick();}catch(System.Exception e){Logger.LogError("Respite tools: "+e);}
         }
-        private void OnDestroy(){Muster.Clear();Ledger.Unregister();_harmony?.UnpatchSelf();if(Instance==this)Instance=null;}
+        private void OnDestroy(){Tools.Stop();Muster.Clear();Ledger.Unregister();_harmony?.UnpatchSelf();if(Instance==this)Instance=null;}
         internal static void Log(string text)=>Instance?.Logger.LogInfo(text);
     }
 }
