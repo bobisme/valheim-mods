@@ -46,7 +46,13 @@ namespace Jarldom
             {
                 case "slew": { string who = named(a); return $"{who}, {Alliter(rng, Bold, a)}, {Alliter(rng, Felled, b)} {b}."; }
                 case "home": return $"{named(a)} came home over {Pick(rng, Sea)}, {Alliter(rng, Bold, a)} and weary.";
-                case "raidheld": { string foe = b == "" ? "Raiders" : char.ToUpper(b[0]) + b.Substring(1); return Pick(rng, $"{foe} came, and the hall held fast.", $"{foe} came to the wall; the wall stood.", $"{foe} came; they found us waiting."); }
+                case "raidheld":
+                {
+                    // (a raid's name may be the game's own warning - "The forest is moving..." - so only a warband is named)
+                    if (b.StartsWith("a siege")) return Pick(rng, "They laid siege at the Warstone, and the Warstone stood.", "The siege at the Warstone was broken.");
+                    string foe = b.StartsWith("the warband of ") ? "The warband of " + b.Substring(15) : Pick(rng, "Raiders", "Foes", "The enemy");
+                    return Pick(rng, $"{foe} came, and the hall held fast.", $"{foe} came to the wall; the wall stood.", $"{foe} came; they found us waiting.");
+                }
                 case "ascend": return $"{a}, {Alliter(rng, Bold, a)}, rode the flame to Valhalla.";
                 case "lost": return $"{a} went down the road to Hel; {Pick(rng, "we will bring them home.", "Hel keeps them now.", "the dark took them.")}";
                 case "death": return $"{a} fell{(b == "" ? "" : " to " + b)}, {Alliter(rng, Bold, a)} to the last.";
