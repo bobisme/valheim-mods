@@ -179,6 +179,7 @@ namespace BuildShapes
         private void DrawRadial()
         {
             var items=RadialItems();
+            if(items.Count==0)return;
             if(_ringTexture==null || _ringCount!=items.Count)
             {
                 if(_ringTexture!=null)Destroy(_ringTexture);if(_ringHighlight!=null)Destroy(_ringHighlight);
@@ -213,19 +214,19 @@ namespace BuildShapes
                 }
                 for(int i=0;i<items.Count;i++)
                 {
-                    var item=items[i];bool hover=i==_radialHover,off=item.Reason!=null;
+                    var item=items[i];bool hover=i==_radialHover;
                     float angle=i*step*Mathf.Deg2Rad,mid=(RingInner+RingOuter)*0.5f+(hover?8:0);
                     Vector2 at=centre+new Vector2(Mathf.Sin(angle),-Mathf.Cos(angle))*mid;
                     float size=IconSize*(hover?1.1f:1);
                     var rect=new Rect(at.x-size*0.5f,at.y-size*0.5f,size,size);
-                    GUI.color=fade*(off?new Color(1,1,1,0.35f):hover?RadialGold:Color.white);
+                    GUI.color=fade*(hover?RadialGold:Color.white);
                     if(item.Exit && _radialHammer!=null)DrawSprite(new Rect(at.x-size*0.33f,at.y-size*0.5f,size*0.66f,size),_radialHammer);
                     else GUI.DrawTexture(rect,RadialIcon(item.Exit?"Build":item.Label));
                 }
                 GUI.color=fade;
                 RadialItem shown=_radialHover>=0?items[_radialHover]:null;
                 string name=shown==null?"Shapes":shown.Exit?"Build":shown.Label;
-                string text=shown==null?"Flick towards a shape, let go of "+_radialKey.Value+".":shown.Reason??shown.Detail;
+                string text=shown==null?"Flick towards a shape, let go of "+_radialKey.Value+".":shown.Detail;
                 GUI.Label(new Rect(centre.x-110,centre.y-34,220,44),name,_radialName);
                 GUI.Label(new Rect(centre.x-90,centre.y+10,180,54),text,_radialText);
             }

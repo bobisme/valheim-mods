@@ -21,7 +21,7 @@ namespace BuildShapes
         {
             Piece piece=Player.m_localPlayer?.GetSelectedPiece();
             string selected=piece!=null?Utils.GetPrefabName(piece.gameObject):"";
-            string beam=selected.Contains("beam") || selected.Contains("pole")?null:"Pick a beam or pole in the hammer for this.";
+            string beam=selected!="" && PieceEnds(selected,out _,out _,out string problem)?null:"no length";
             string extended=_planner.Extended?null:"Update BuildOrders for Mirror and Repeat.";
             var items=new List<RadialItem>
             {
@@ -32,6 +32,8 @@ namespace BuildShapes
                 new RadialItem{Tool=Tool.Mirror,Label="Mirror",Detail="Reflect pieces across a line.",Reason=extended},
                 new RadialItem{Tool=Tool.Repeat,Label="Repeat",Detail="This piece, again and again along a curve.",Reason=extended},
             };
+            // Only what works with the piece in hand.
+            items.RemoveAll(i=>i.Reason!=null);
             if(_tool!=Tool.None)items.Add(new RadialItem{Label="Normal building",Detail="Leave the shape tool.",Exit=true});
             return items;
         }
@@ -42,7 +44,7 @@ namespace BuildShapes
         {
             float scale=Mathf.Max(0.6f,Screen.height/1080f);
             Vector2 p=(Vector2)Input.mousePosition-new Vector2(Screen.width*0.5f,Screen.height*0.5f);
-            if(p.magnitude<RadialDeadzone*scale)return -1;
+            if(count==0 || p.magnitude<RadialDeadzone*scale)return -1;
             float angle=Mathf.Repeat(Mathf.Atan2(p.x,p.y)*Mathf.Rad2Deg,360); // (0 at the top, clockwise)
             return Mathf.RoundToInt(angle/(360f/count))%count;
         }
@@ -56,10 +58,16 @@ namespace BuildShapes
             {
                 if(held && (click || wheel!=0))_radialKeyUsed=true;
                 if(!held){_radialKeyAt=-1;return false;}
-                if(!_radialKeyUsed && _radialKeyAt>=0 && !_repeatMenu && Time.unscaledTime-_radialKeyAt>=RadialHold){OpenRadial();return true;}
+                if(!_radialKeyUsed && _radialKeyAt>=0 && !_repeatMenu && Time.unscaledTime-_radialKeyAt>=RadialHold)
+                {
+                    _radialKeyUsed=true;
+                    if(RadialItems().Count==0){Say("No shapes for this piece.");return true;}
+                    OpenRadial();return true;
+                }
                 return false;
             }
             var items=RadialItems();
+            if(items.Count==0){CloseRadial();return true;} // (the piece changed to one no shape takes)
             if(_radialPinned>-2){_radialHover=Mathf.Min(_radialPinned,items.Count-1);if(Input.GetKeyDown(KeyCode.Escape))CloseRadial();return true;}
             _radialHover=RadialHoverIndex(items.Count);
             if(Input.GetKeyDown(KeyCode.Escape)){_escapeFrame=Time.frameCount;CloseRadial();return true;}
@@ -71,7 +79,6 @@ namespace BuildShapes
                 if(pick<0)return true;
                 var item=items[pick];
                 if(item.Exit){Stop();Say("Back to normal building.");}
-                else if(item.Reason!=null)Say(item.Reason);
                 else ChooseMode(item.Tool);
                 return true;
             }

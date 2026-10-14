@@ -972,8 +972,8 @@ The add-on reconnects to the live planner after F6 or individual reloads, withou
 
 Equip a **hammer** and pick a building piece as usual, then **hold Left Ctrl** (about a third of a second, without clicking or
 scrolling) for the **shape radial**: flick towards **Curve**, **Arch**, **Arc**, **Line**, **Mirror** or **Repeat** and let go, or
-click. It looks like the game's own radial (and borrows its gold crest and arc); shapes that need something you haven't got are
-greyed out and say what in the middle, and **Build** leaves the shape tool. Letting go in the middle or **Escape** closes it.
+click. It looks like the game's own radial (and borrows its gold crest and arc); it shows only the shapes that work with the
+piece in your hand, and **Build** leaves the shape tool. Letting go in the middle or **Escape** closes it.
 Choosing the shape you're in, with the same piece, keeps your markers; anything else starts afresh (submitted ghosts stay).
 
 | Controls (in a shape tool) | Action |
@@ -994,12 +994,12 @@ Once a shape's markers are down, its **real pieces** show (local only: no collid
 A slow Ctrl+click or Ctrl+scroll that opens the radial, with the pointer still in its middle, closes it and does what it would have done.
 The camera doesn't zoom while a shape is ready to turn. Keys are in F7 under Controls: `ShapeMenu`, `ConfirmShape`, `RepeatOptions`.
 
-**Curve:** select a beam/pole and click **start, bend, end**; the curve passes through the bend marker and works in 3D.
+**Curve:** pick any piece with a length (a beam, pole, stone block, wall piece or pillar) and click **start, bend, end**; the curve passes through the bend marker and works in 3D.
 Pieces keep their native lengths with overlapping joints; the first/last endpoints meet your markers. Shorter beams follow tighter
-bends. Beams/poles need exactly two endpoint snap points, original prefab scale, and a span of 0.25–8 metres. Tight or degenerate
+bends. Pieces lie end to end along their own length (the axis their snap points spread furthest along: a stone block along the path, a pillar along its height; else the mesh's longest side), at original prefab scale and 0.25–8 metres long. Tight or degenerate
 bends are rejected before planning.
 
-**Arch:** select a beam/pole and click **both ends**. The arch **rises straight up** from them: an upright leg one beam long at each
+**Arch:** pick a piece with a length and click **both ends**. The arch **rises straight up** from them: an upright leg one beam long at each
 end (three quarters of the height on a low arch), so the end beams stand plumb, then a half-ellipse between the legs' tops, a
 semicircle when it's half as high as it's wide. **Ctrl+scroll** sets the height above the middle of the line between the ends
 (0–32 m, 0.25 m a notch, 0.05 m with Shift); the gold guide marks the top. It starts as a semicircle. Unequal end heights work;
@@ -1008,7 +1008,7 @@ the ends must be apart horizontally.
 **Arc:** the same clicks and height, but the **circle** through both ends and the top: the ends lean as the circle has them (a
 shallow arc leans a lot; a half-circle stands up at its ends).
 
-**Line:** select a beam/pole and click the **start and end**. Native-length beams run straight between your markers at any slope,
+**Line:** pick a piece with a length and click the **start and end**. Native-length beams run straight between your markers at any slope,
 or upright for a post of stacked poles; the first and last beams meet the markers and the overlaps are spread evenly between them.
 A line shorter than one beam asks for a shorter beam.
 

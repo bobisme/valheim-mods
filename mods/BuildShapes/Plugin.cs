@@ -15,7 +15,7 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.11.0";
+        public const string Version = "0.11.1";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
@@ -160,7 +160,7 @@ namespace BuildShapes
             string name = piece != null ? Utils.GetPrefabName(piece.gameObject) : "";
             if (!UsablePrefab(name, out _)) return;
             _selected = name;
-            if ((requested == Tool.Curve || requested == Tool.Arch || requested == Tool.Arc || requested == Tool.Line) && !SelectBeam(name)) return;
+            if ((requested == Tool.Curve || requested == Tool.Arch || requested == Tool.Arc || requested == Tool.Line) && !SelectLength(name)) return;
             if (requested == Tool.Repeat)
             {
                 GameObject ghost = PlacementGhost.GetValue(player) as GameObject;
@@ -185,18 +185,50 @@ namespace BuildShapes
             { Say("Choose a piece with its original prefab scale."); return false; }
             return true;
         }
-        private bool SelectBeam(string name)
+        // Curve, Arch, Arc and Line lay any piece with a length end to end: a beam or pole, a stone block, a wall piece, a pillar.
+        private bool SelectLength(string name)
         {
-            if (!name.Contains("beam") && !name.Contains("pole")) { Say("Select a beam or pole in the hammer first."); return false; }
-            Piece piece = ZNetScene.instance.GetPrefab(name).GetComponent<Piece>();
-            var snaps = new List<Transform>(); piece.GetSnapPoints(snaps);
-            if (snaps.Count != 2) { Say("Choose a beam or pole with two endpoint snap points."); return false; }
-            _localStart = piece.transform.InverseTransformPoint(snaps[0].position);
-            _localEnd = piece.transform.InverseTransformPoint(snaps[1].position);
-            float length = (_localEnd - _localStart).magnitude;
-            if (length < 0.25f || length > 8.1f) { Say("Choose a beam between 0.25 and 8 metres long."); return false; }
+            if (!PieceEnds(name, out _localStart, out _localEnd, out string problem)) { Say(problem); return false; }
             return true;
         }
+        // A piece's two ends along its length: its snap points spread furthest along one axis (X first on a cube, so a stone block
+        // lies along the path), each end the middle of the snaps at that extreme (a beam's two end snaps, a block's end faces).
+        // Without snaps, its mesh bounds' longest axis.
+        private readonly Dictionary<string, (bool ok, Vector3 start, Vector3 end, string problem)> _pieceEnds = new Dictionary<string, (bool, Vector3, Vector3, string)>();
+        private bool PieceEnds(string name, out Vector3 start, out Vector3 end, out string problem)
+        {
+            if (!_pieceEnds.TryGetValue(name, out var known))
+            {
+                known = (false, Vector3.zero, Vector3.zero, "Choose an ordinary building piece.");
+                Piece piece = ZNetScene.instance?.GetPrefab(name)?.GetComponent<Piece>();
+                if (piece != null)
+                {
+                    var snaps = new List<Transform>(); piece.GetSnapPoints(snaps);
+                    Vector3[] points = snaps.Where(s => s != null).Select(s => piece.transform.InverseTransformPoint(s.position)).ToArray();
+                    Vector3 a, b;
+                    if (points.Length >= 2)
+                    {
+                        float[] spread = { points.Max(p => p.x) - points.Min(p => p.x), points.Max(p => p.z) - points.Min(p => p.z), points.Max(p => p.y) - points.Min(p => p.y) };
+                        int[] axes = { 0, 2, 1 }; int axis = axes[0]; float best = spread[0];
+                        for (int i = 1; i < 3; i++) if (spread[i] > best + 0.001f) { best = spread[i]; axis = axes[i]; }
+                        float lo = points.Min(p => p[axis]), hi = points.Max(p => p[axis]);
+                        a = Mean(points.Where(p => Mathf.Abs(p[axis] - lo) < 0.001f)); b = Mean(points.Where(p => Mathf.Abs(p[axis] - hi) < 0.001f));
+                    }
+                    else
+                    {
+                        Bounds box = LocalBounds(name); Vector3 e = box.extents;
+                        Vector3 along = e.x >= e.y && e.x >= e.z ? Vector3.right * e.x : e.z >= e.y ? Vector3.forward * e.z : Vector3.up * e.y;
+                        a = box.center - along; b = box.center + along;
+                    }
+                    float length = (b - a).magnitude;
+                    known = length < 0.25f || length > 8.1f ? (false, a, b, "Choose a piece between 0.25 and 8 metres long for this shape.") : (true, a, b, null);
+                }
+                _pieceEnds[name] = known;
+            }
+            start = known.start; end = known.end; problem = known.problem;
+            return known.ok;
+        }
+        private static Vector3 Mean(IEnumerable<Vector3> points) { Vector3 sum = Vector3.zero; int n = 0; foreach (Vector3 p in points) { sum += p; n++; } return n > 0 ? sum / n : sum; }
         private static bool CameraRay(out Ray ray)
         {
             Transform camera = GameCamera.instance?.transform;
