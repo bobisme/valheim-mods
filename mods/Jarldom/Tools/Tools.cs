@@ -206,6 +206,7 @@ namespace Jarldom
                     ["east"] = Hit(chest, Vector3.right, 30), ["west"] = Hit(chest, Vector3.left, 30), ["north"] = Hit(chest, Vector3.forward, 30), ["south"] = Hit(chest, Vector3.back, 30) });
                 return;
             }
+            if (cmd == "stairs") { output(new JObject { ["stairs"] = new JArray(StairLinks.Near(new Vector3(F(a[2]), F(a[3]), F(a[4])), a.Length > 5 ? F(a[5]) : 10f)), ["links"] = StairLinks.Count, ["debug"] = StairLinks.Debug() }); return; }
             if (cmd == "storeys")
             {
                 // Floors near the player by height (read-only): each level's extent, for finding rooms in a house of storeys.
@@ -929,7 +930,7 @@ namespace Jarldom
                         float r = a.Length > 5 ? F(a[5]) : 1.5f;
                         bool ok = Nav.Valid(out Vector3 v, at, r);
                         var path = new List<Vector3>();
-                        bool p2 = a.Length > 8 && Pathfinding.instance.GetPath(at, new Vector3(F(a[6]), F(a[7]), F(a[8])), path, Pathfinding.AgentType.Humanoid);
+                        bool p2 = a.Length > 8 && Pathfinding.instance.GetPath(ok ? v : at, new Vector3(F(a[6]), F(a[7]), F(a[8])), path, Pathfinding.AgentType.Humanoid, requireFullPath: a.Length > 9 && a[9] == "full");
                         output(new JObject { ["valid"] = ok, ["point"] = ok ? V(v) : null, ["path"] = p2, ["corners"] = new JArray(path.Select(V)) });
                     }
                     break;

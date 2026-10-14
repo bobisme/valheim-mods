@@ -68,7 +68,7 @@ namespace Jarldom
     internal sealed class SleepTask : Task
     {
         public bool JustRest;
-        private Bed _bed; private Transform _spot; private GameObject _marker; private bool _down; private float _comfort; private double _since; private bool _own;
+        private Bed _bed; private Transform _spot; private GameObject _marker; private bool _down; private float _comfort; private double _since; private bool _own, _fireTried;
         public override bool Interruptible => false;
         public override void Start(Brain b)
         {
@@ -81,7 +81,16 @@ namespace Jarldom
                 Bed sick = b.Colony.AllBeds().FirstOrDefault(x => b.Colony.RoomAt(x.transform.position, RoomType.HealersHouse) != null && (Colony.BedOwner(x, out _) == "" || x == _bed));
                 if (sick != null) { _spot = sick.m_spawnPoint != null ? sick.m_spawnPoint : sick.transform; Doing = "resting at the healer's"; b.Move.To(_spot.position, 1.2f); _own = true; return; }
             }
-            if (_bed != null) { _own = true; _spot = _bed.m_spawnPoint != null ? _bed.m_spawnPoint : _bed.transform; b.Move.To(_spot.position, 1.2f); return; }
+            if (_bed != null) { _own = true; _spot = _bed.m_spawnPoint != null ? _bed.m_spawnPoint : _bed.transform; _approach = Approach(b, _spot.position); b.Move.To(_approach ?? _spot.position, 1.2f); return; }
+            ByTheFire(b);
+        }
+        // The floor nearest the bed inside its own room (the navmesh's nearest point may be outside the wall, beyond packed beds).
+        private Vector3? _approach;
+        // A place by the hall fire (no bed, or one that can't be got to).
+        private void ByTheFire(Brain b)
+        {
+            _own = false; _approach = null;
+            if (_marker != null) Object.Destroy(_marker);
             Room hall = b.Colony.Best(RoomType.GreatHall);
             Vector3 at = hall != null ? b.Colony.Centre(hall) : b.Colony.Position + b.Colony.Seat.transform.forward * 3;
             Fireplace fire = Classes.NearestFire(at, 12f, hall?.Xz);
@@ -93,14 +102,44 @@ namespace Jarldom
             _spot = _marker.transform;
             b.Move.To(spot, 1.2f);
         }
+        private static readonly List<Vector3> ApproachPath = new List<Vector3>();
+        private static Vector3? Approach(Brain b, Vector3 bed)
+        {
+            Room room = b.Colony.RoomAt(bed + Vector3.up * 0.3f);
+            if (room == null || Pathfinding.instance == null) return null;
+            var found = new List<(Vector3 v, float d)>();
+            for (float dx = -4f; dx <= 4f; dx += 0.5f)
+                for (float dz = -4f; dz <= 4f; dz += 0.5f)
+                {
+                    Vector3 p = bed + new Vector3(dx, 0, dz);
+                    if (!Nav.Valid(out Vector3 v, p, 0.35f) || Mathf.Abs(v.y - bed.y) > 1.2f || b.Colony.RoomAt(v + Vector3.up * 0.3f) != room) continue;
+                    found.Add((v, Utils.DistanceXZ(v, bed)));
+                }
+            // (the nearest that can be walked to: a pocket between a fire and the wall is floor too, but cut off)
+            foreach (var (v, _) in found.GroupBy(x => (Mathf.RoundToInt(x.v.x * 2), Mathf.RoundToInt(x.v.z * 2))).Select(g => g.First()).OrderBy(x => x.d).Take(20)) // (many sample points snap to one spot)
+                if (Pathfinding.instance.GetPath(b.Pos, v, ApproachPath, b.Ai.m_pathAgentType, requireFullPath: true)) return v;
+            return null;
+        }
         public override void Tick(Brain b)
         {
             if (_spot == null) { Done = true; return; }
             if (!JustRest && b.Colony.Hour >= Schedule.WakeAt && b.Colony.Hour < Schedule.HomeAt) { Done = true; return; } // morning
             if (!_down)
             {
-                if (b.Move.Failed) { Done = true; return; }
-                if (!b.Move.Arrived && Vector3.Distance(b.Pos, _spot.position) > 1.6f) { if (!b.Move.Moving) b.Move.To(_spot.position, 1.2f); return; }
+                // (beside the bed in its room is near enough: beds packed against walls and each other leave no floor to walk onto)
+                float d = Utils.DistanceXZ(b.Pos, _spot.position);
+                Room here = b.Colony.RoomAt(b.Pos + Vector3.up * 0.3f);
+                bool sameRoom = here != null && here == b.Colony.RoomAt(_spot.position + Vector3.up * 0.3f);
+                bool atApproach = _approach.HasValue && Utils.DistanceXZ(b.Pos, _approach.Value) < 1.3f;
+                bool beside = sameRoom && Mathf.Abs(b.Pos.y - _spot.position.y) < 1.5f && (d < 2.6f || (b.Move.Failed || atApproach) && d < 4.5f);
+                if (!beside && b.Move.Failed)
+                {
+                    // (a bed that can't be got to: by the hall fire tonight, not trying all night)
+                    if (_own && !_fireTried) { _fireTried = true; Doing = "can't get to my bed: sleeping by the hall fire"; ByTheFire(b); return; }
+                    Done = true; return;
+                }
+                if (!beside && !b.Move.Arrived && d > 1.6f) { if (!b.Move.Moving) b.Move.To(_approach ?? _spot.position, 1.2f); return; }
+                b.Move.Stop();
                 _down = true; _since = b.Now;
                 _comfort = Colony.ComfortAt(_spot.position);
                 b.Sit(_spot, "attach_bed", Vector3.zero);

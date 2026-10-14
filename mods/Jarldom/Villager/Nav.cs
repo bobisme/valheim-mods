@@ -46,6 +46,22 @@ namespace Jarldom
         private static readonly MethodInfo GetSettings = AccessTools.Method(typeof(Pathfinding), "GetSettings");
         private static float _next; private static Pathfinding _world;
         public static int Count => Links.Count;
+        private const int NoAgent = int.MinValue;
+        public static string Debug()
+        {
+            int agent = Agent();
+            string tryLink = "";
+            if (agent != NoAgent) { var l = NavMesh.AddLink(new NavMeshLinkData { startPosition = new Vector3(0, 0, 0), endPosition = new Vector3(1, 1, 0), width = 1f, bidirectional = true, agentTypeID = agent, costModifier = -1, area = 0 }); tryLink = l.valid ? "a test link is valid" : "a test link is INVALID"; if (l.valid) NavMesh.RemoveLink(l); }
+            return $"agent {agent}, world same {_world == Pathfinding.instance}, next in {_next - Time.time:0.0}s, colonies {Colony.All.Count()}, floor link sets {FloorLinks.Count} ({FloorLinks.Values.Sum(x => x.Count)}), {tryLink}";
+        }
+        // (test: the stairs near a point, each with its link or why none)
+        public static IEnumerable<string> Near(Vector3 at, float r)
+        {
+            var list = new List<Piece>(); Piece.GetAllPiecesInRadius(at, r, list);
+            foreach (Piece p in list.Where(p => p != null && Utils.GetPrefabName(p.gameObject).Contains("stair")))
+                yield return $"{Utils.GetPrefabName(p.gameObject)} at {p.transform.position.x:0.0},{p.transform.position.y:0.0},{p.transform.position.z:0.0}: " +
+                    (Links.TryGetValue(p.GetInstanceID(), out var l) ? $"linked ({(l.link.valid ? "valid" : "invalid")})" : Ends(p, out Vector3 f, out Vector3 t) ? $"no link yet (ends {f:F1} -> {t:F1})" : "no ends found");
+        }
 
         public static void Tick()
         {
@@ -54,7 +70,7 @@ namespace Jarldom
             if (_world != Pathfinding.instance) { Clear(); _world = Pathfinding.instance; } // (a new world: the old one's links went with it)
             foreach (int gone in Links.Where(kv => kv.Value.stair == null).Select(kv => kv.Key).ToList()) { NavMesh.RemoveLink(Links[gone].link); Links.Remove(gone); }
             int agent = Agent();
-            if (agent < 0) return;
+            if (agent == NoAgent) return; // (an agent type's id is any int, negative too: it's made anew each session)
             foreach (string gone in FloorLinks.Keys.Where(k => !Colony.All.Any(c => k.StartsWith(c.Id + "/"))).ToList()) { foreach (var l in FloorLinks[gone]) NavMesh.RemoveLink(l); FloorLinks.Remove(gone); } // (a colony unloaded)
             foreach (Colony c in Colony.All)
             {
@@ -130,9 +146,9 @@ namespace Jarldom
             {
                 object settings = GetSettings?.Invoke(Pathfinding.instance, new object[] { Pathfinding.AgentType.Humanoid });
                 object build = settings?.GetType().GetField("m_build").GetValue(settings);
-                return build is NavMeshBuildSettings b ? b.agentTypeID : -1;
+                return build is NavMeshBuildSettings b ? b.agentTypeID : NoAgent;
             }
-            catch { return -1; }
+            catch { return NoAgent; }
         }
     }
 }

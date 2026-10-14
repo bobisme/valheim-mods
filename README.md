@@ -83,7 +83,8 @@ worth, skills, bed, profession); **Shift+E** opens their bag.
   festival. A skald needs a **drum** (workbench: 2 deer hide, 4 wood). SkalTavern's drinks are drunk in the hall from its chests.
   **The jarl's return**: each colony keeps what its jarls did for it (bosses slain anywhere, arm rings given, raids fought at home,
   ascensions overseen, feasts, days away) and names them for it: a boss's "-bane", Ring-giver, Shield of the hall, Soul-guide,
-  Feast-giver, the Absent (the hall tab lists the jarls; greetings use the name). After dusk the skald sings the day's deeds in two
+  Feast-giver, the Absent (the hall tab lists the jarls; greetings use the name; with two named jarls, villagers compare them, the one
+  they think better of getting the last word). After dusk the skald sings the day's deeds in two
   to four alliterative lines, shown to the players in the hall and kept in the saga. Sail home at night and the watch lights the
   **beacon** (Wayfinder's Beacon Fire, or any fire: Shift+E on it with the Mark rooms tool), getting out of bed to do it.
   Inspired villagers work faster for a day; a jarl most of the colony loves lifts their followers. After the first boss, one newcomer
