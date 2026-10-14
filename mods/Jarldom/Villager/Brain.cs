@@ -451,6 +451,15 @@ namespace Jarldom
                         Task?.Stop(this); Task = new FestTask(new Vector3(x, ZoneSystem.instance.GetGroundHeight(new Vector3(x, 0, z)), z), int.Parse(f[2]), int.Parse(f[3])); Task.Start(this);
                     }
                     break;
+                case "yule":
+                    {
+                        // (round the Yule log for the cups: start|hearth x y z|host or guest|index|count)
+                        string[] f = arg.Split('|');
+                        if (f.Length < 7 || Combat.Busy(this) || Task is SleepTask || Task is AscendTask || Follow.LeaderId(this) != 0) break;
+                        var inv = System.Globalization.CultureInfo.InvariantCulture; float P(int i) => float.Parse(f[i], inv);
+                        Task?.Stop(this); Task = new YuleTask(long.Parse(f[0], inv), new Vector3(P(1), P(2), P(3)), f[4] == "host", int.Parse(f[5], inv), int.Parse(f[6], inv)); Task.Start(this);
+                    }
+                    break;
                 case "winter":
                     {
                         // (a part in Winter Nights: start|at x y z|forward x z|role|index|count|names|extra)

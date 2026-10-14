@@ -102,13 +102,75 @@ namespace Jarldom
             c.Tell($"{Calendar.Name(f)} is kept tonight{(pct < 100 ? $" ({pct}% readied)" : "")}! Until the next festival, {Festivals.Blessing(f)}.", true);
             c.Log("text", "", "", $"The colony kept {Calendar.Name(f)}{(pct >= 100 ? " in full" : pct >= 60 ? "" : ", though thinly")}.");
             c.MarkDirty();
-            Ceremony(c, f);
+            Ceremony(c, f, true);
         }
-        public static void Ceremony(Colony c, Festival f)
+        public static void Ceremony(Colony c, Festival f, bool real = false)
         {
             if (f == Festival.Midsummer) Plugin.Guard(() => Midsummer(c));
             else if (f == Festival.Sigrblot) Plugin.Guard(() => Sigrblot(c));
             else if (f == Festival.WinterNights) Plugin.Guard(() => WinterNights(c));
+            else if (f == Festival.Yule) Plugin.Guard(() => Yule(c, real));
+        }
+
+        // ---- Yule: the log and the toasts ----
+        // The Yule log laid in the great hall's hearth burns three days (drawn on every game from the colony's record: it outlasts a
+        // relog, and warms whoever stands by it). At dusk the colony gathers round it for the three cups: Odin's for victory, Njord's
+        // and Freyr's for a good year and peace, and the memory of the kin who are gone; then they feast.
+        public const int YuleDays = 3;
+        public const float YuleLight = 18f, YuleOdin = 24f, YuleFrey = 36f, YuleMinni = 48f, YuleEnd = 60f;
+        public static Vector3? Hearth(Colony c)
+        {
+            Room hall = c.Best(RoomType.GreatHall);
+            if (hall == null) return null;
+            Fireplace fire = Classes.NearestFire(c.Centre(hall), 15f, hall.Xz);
+            return fire != null ? fire.transform.position : c.Centre(hall);
+        }
+        private static void Yule(Colony c, bool real)
+        {
+            Vector3? hearth = Hearth(c);
+            if (hearth == null) return;
+            c.R.Flags["yule:until"] = c.Day + (real ? YuleDays : 0); c.MarkDirty(); // (shown alone: the log burns only today)
+            if (real) foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) { Mood.Add(b.S, "feast", b.Now); Mood.Satisfy(b.S, Need.Food, 100); Mood.Satisfy(b.S, Need.Social, 40); Mood.Satisfy(b.S, Need.Shelter, 40); b.Dirty(); }
+            var living = c.R.Living.ToList();
+            RosterRow host = living.FirstOrDefault(r => r.Prof == Prof.Skald) ?? living.FirstOrDefault(r => r.Prof == Prof.Gothi) ?? living.OrderByDescending(r => r.Worth).FirstOrDefault();
+            long start = ZNet.instance.GetTime().Ticks;
+            var inv = System.Globalization.CultureInfo.InvariantCulture; Vector3 h = hearth.Value;
+            int i = 0;
+            foreach (RosterRow r in living) Villagers.Command(r.Vid, "yule", string.Join("|", start.ToString(inv), h.x.ToString(inv), h.y.ToString(inv), h.z.ToString(inv), r == host ? "host" : "guest", (i++).ToString(inv), living.Count.ToString(inv)));
+            Compat.SkalToast(c);
+            c.Tell("Yule: the Yule log is laid in the hall's hearth, and the colony gathers for the cups.", true);
+        }
+        public static bool YuleBurning(Colony c) => c.R.Flag("yule:until") >= c.Day;
+        // On each game, every few seconds: the log in the hearth of every colony keeping Yule near this player.
+        private static readonly Dictionary<string, GameObject> Logs = new Dictionary<string, GameObject>();
+        private static float _nextLog;
+        public static void Tick()
+        {
+            if (Time.time < _nextLog || Player.m_localPlayer == null) return;
+            _nextLog = Time.time + 5f;
+            foreach (Colony c in Colony.All.ToList())
+            {
+                bool want = YuleBurning(c) && Vector3.Distance(Player.m_localPlayer.transform.position, c.Position) < c.Radius + 150;
+                Logs.TryGetValue(c.Id, out GameObject log);
+                if (!want) { if (log != null) UnityEngine.Object.Destroy(log); Logs.Remove(c.Id); continue; }
+                if (log == null && Hearth(c) is Vector3 at) Logs[c.Id] = YuleLog(at);
+            }
+        }
+        public static void Forget() { foreach (GameObject g in Logs.Values) if (g != null) UnityEngine.Object.Destroy(g); Logs.Clear(); }
+        // The log: a great round log across the hearth, flames along it, a warm glow, and warmth for those beside it.
+        private static GameObject YuleLog(Vector3 at)
+        {
+            var go = new GameObject("JarldomYuleLog"); go.transform.position = at + Vector3.up * 0.25f;
+            GameObject wood = Assets.Find("RoundLog");
+            if (wood != null) Assets.Model(wood, go.transform, Vector3.zero, Quaternion.Euler(0, 35, 90), 2.2f);
+            GameObject flames = Assets.Find("bonfire")?.transform.Find("_enabled_high/fx_BonfireFlames")?.gameObject;
+            if (flames != null) for (int k = -1; k <= 1; k++) { GameObject f = UnityEngine.Object.Instantiate(flames, go.transform, false); f.SetActive(true); f.transform.localPosition = Quaternion.Euler(0, 35, 0) * new Vector3(k * 0.45f, 0.2f, 0); f.transform.localScale = Vector3.one * 0.45f; }
+            Light glow = new GameObject("glow").AddComponent<Light>(); glow.transform.SetParent(go.transform, false); glow.transform.localPosition = Vector3.up * 1.2f;
+            glow.type = LightType.Point; glow.color = new Color(1f, 0.62f, 0.3f); glow.range = 12f; glow.intensity = 1.8f;
+            var heat = new GameObject("heat") { layer = LayerMask.NameToLayer("character_trigger") }; heat.transform.SetParent(go.transform, false);
+            heat.AddComponent<SphereCollider>().radius = 5f;
+            heat.AddComponent<EffectArea>().m_type = EffectArea.Type.Heat;
+            return go;
         }
 
         // ---- Winter Nights: the dead remembered ----
@@ -236,6 +298,7 @@ namespace Jarldom
         // On every game near: the fire itself (the bonfire's log heap, flames and crackle, no colliders, no fuel), dusk to dawn.
         public static void Show(int kind, Vector3 at)
         {
+            if (kind >= 300) { if (Player.m_localPlayer != null && Vector3.Distance(Player.m_localPlayer.transform.position, at) < 150) { Assets.Effect("vfx_FireAddFuel", at + Vector3.up * 0.5f); Assets.Effect("fx_fireball_staff_explosion", at + Vector3.up * 0.4f); } return; } // (the Yule log catches)
             if (kind >= 200) { WinterShow(kind - 200, at); return; }
             if (kind >= 100) { SigrShow(kind - 100, at); return; }
             if ((Festival)kind != Festival.Midsummer || Player.m_localPlayer == null || Vector3.Distance(Player.m_localPlayer.transform.position, at) > 300) return;
@@ -391,6 +454,63 @@ namespace Jarldom
                 return;
             }
             if (!_answered && t >= end) { _answered = true; Body_.Anim(b.Body)?.SetTrigger("emote_bow"); b.Say(Greetings.Show(_names.Count == 0 ? ("Engir enn. Megi svá lengi vera.", "None yet. Long may it be so.") : ("Drekki þeir með Óðni, ok hvílisk hjá Helju.", "May they drink with Odin, and rest with Hel.")), 7); }
+        }
+    }
+}
+
+namespace Jarldom
+{
+    // Round the Yule log for the three cups: the host calls each, everyone raises theirs; then the feast goes on (timed by the world's clock).
+    internal sealed class YuleTask : Task
+    {
+        private readonly long _start; private readonly Vector3 _hearth; private readonly bool _host; private readonly int _i, _n; private int _beat; private Vector3 _spot;
+        private static readonly (float at, string norse, string english, string answer, string answerEn)[] Cups =
+        {
+            (FestivalDays.YuleOdin, "Óðins full! Til sigrs ok ríkis!", "Odin's cup! For victory and power!", "Óðins full!", "Odin's cup!"),
+            (FestivalDays.YuleFrey, "Njarðar full ok Freys! Til árs ok friðar!", "Njord's cup and Freyr's! For a good year and peace!", "Til árs ok friðar!", "For a good year and peace!"),
+            (FestivalDays.YuleMinni, "Minni várra frænda, er heygðir eru.", "To the memory of our kin, who lie in their mounds.", "Minni þeira.", "To their memory."),
+        };
+        public YuleTask(long start, Vector3 hearth, bool host, int i, int n) { _start = start; _hearth = hearth; _host = host; _i = i; _n = Math.Max(1, n); Doing = "keeping Yule round the log"; }
+        public override bool Interruptible => false;
+        private float T => (float)((ZNet.instance.GetTime().Ticks - _start) / (double)TimeSpan.TicksPerSecond);
+        public override void Start(Brain b)
+        {
+            // (a place in the ring round the hearth, inside the hall: another angle, nearer or further, where the first falls past a wall)
+            Room hall = b.Colony?.Best(RoomType.GreatHall);
+            float a0 = 2 * Mathf.PI * _i / _n, r0 = 2.4f + (_n > 10 ? (_i % 2) * 1.0f : 0);
+            _spot = _hearth + Vector3.forward * 2f;
+            foreach (float r in new[] { r0, 2.0f, 3.2f, 4.2f })
+                for (int k = 0; k < 12; k++)
+                {
+                    float a = a0 + k * Mathf.PI / 6f * (k % 2 == 0 ? 1 : -1) * 0.5f;
+                    Vector3 s = _hearth + new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * r;
+                    if (hall != null && !Geometry.Inside(hall.Xz, s.x, s.z)) continue;
+                    _spot = Colony.Spot(s, 0.8f) ?? s; goto found;
+                }
+            found:
+            b.Move.To(_spot, 0.6f);
+        }
+        public override void Tick(Brain b)
+        {
+            float t = T;
+            if (t > FestivalDays.YuleEnd + 8f || b.Colony == null || b.Colony.RaidOn) { Done = true; return; }
+            if (b.Move.Moving && !b.Move.Failed) return;
+            Vector3 d = _hearth - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized);
+            if (_host && _beat == 0 && t >= FestivalDays.YuleLight) { _beat = 1; Net.Fest_(300, _hearth); b.Say(Greetings.Show(("Nú brenni jólaeldr!", "Now let the Yule fire burn!")), 6); Body_.Anim(b.Body)?.SetTrigger("emote_point"); return; }
+            if (_beat == 0 && t >= FestivalDays.YuleLight) _beat = 1;
+            for (int k = 0; k < Cups.Length; k++)
+            {
+                var c = Cups[k];
+                if (_host && _beat == 1 + k * 2 && t >= c.at) { _beat++; Body_.Anim(b.Body)?.SetTrigger("emote_toast"); b.Say(Greetings.Show((c.norse, c.english)), 6); return; }
+                if (!_host && _beat == 1 + k * 2 && t >= c.at) _beat++;
+                if (_beat == 2 + k * 2 && t >= c.at + 3f + (_host ? 0 : UnityEngine.Random.Range(0f, 1.5f)))
+                {
+                    _beat++; Body_.Anim(b.Body)?.SetTrigger(k == 2 ? "emote_bow" : "emote_toast");
+                    if (!_host && UnityEngine.Random.value < 0.3f) b.Say(Greetings.Show((c.answer, c.answerEn)), 4);
+                    return;
+                }
+            }
+            if (_beat == 7 && t >= FestivalDays.YuleEnd) { _beat = 8; Body_.Anim(b.Body)?.SetTrigger("emote_cheer"); if (_host || UnityEngine.Random.value < 0.3f) b.Say(Greetings.Show(("Drekkum jól!", "Let's drink Yule!")), 5); }
         }
     }
 }
