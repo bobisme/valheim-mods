@@ -14,7 +14,7 @@ namespace Jarldom
     {
         public const string Guid = "com.bobisme.jarldom";
         public const string Name = "Jarldom";
-        public const string Version = "0.1.144";
+        public const string Version = "0.1.145";
         public const int DataVersion = 1; // raised whenever what's saved changes shape: games of different data versions mustn't write each other's colonies
         internal static Plugin Instance;
         internal ServerSettings Synced;
@@ -53,6 +53,7 @@ namespace Jarldom
             Guard(Overlay_.SweepOld); // (lines an older copy of the mod left drawn)
             Colony.AttachAll();
             Villagers.AttachAll();
+            Guard(Leftovers.TakeOver); // (an older copy's assets: ours put in their place, the rest freed)
             Logger.LogInfo($"{Name} {Version} loaded.");
         }
         internal static void Log(string text) => Instance?.Logger.LogInfo(text);

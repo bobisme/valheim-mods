@@ -11,7 +11,7 @@ namespace Jarldom
     {
         private static readonly (string prefix, Type type)[] Kinds =
         {
-            (Pieces.PillarsName, typeof(HighSeat)), (Pieces.AltarPrefix, typeof(Altar)), (Pieces.HornName, typeof(WarHorn)), (Pieces.PyreName, typeof(Pyre)), (Pieces.WatchPostName, typeof(WatchPost)),
+            (Pieces.PillarsName, typeof(HighSeat)), (Pieces.AltarPrefix, typeof(Altar)), (Pieces.HornName, typeof(WarHorn)), (Pieces.PyreName, typeof(Pyre)), (Pieces.WatchPostName, typeof(WatchPost)), (Pieces.OreClaimName, typeof(OreClaim)), (Pieces.MemorialName, typeof(MemorialStone)),
         };
         public static void AttachAll()
         {

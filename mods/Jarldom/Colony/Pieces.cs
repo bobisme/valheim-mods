@@ -140,7 +140,7 @@ namespace Jarldom
                         var d = Newtonsoft.Json.Linq.JObject.Parse(text.ReadToEnd());
                         float[] v = d["v"].ToObject<float[]>(), n = d["n"].ToObject<float[]>(), uv = d["uv"].ToObject<float[]>();
                         int[][] t = d["t"].ToObject<int[][]>();
-                        var mesh = new Mesh { name = "Jarldom_" + name };
+                        var mesh = new Mesh { name = "Jarldom_" + name }; Assets.Owned.Add(mesh);
                         if (v.Length / 3 > 65000) mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
                         var verts = new Vector3[v.Length / 3]; var norms = new Vector3[v.Length / 3]; var uvs = new Vector2[v.Length / 3];
                         for (int i = 0; i < verts.Length; i++) { verts[i] = new Vector3(v[3 * i], v[3 * i + 1], v[3 * i + 2]); norms[i] = new Vector3(n[3 * i], n[3 * i + 1], n[3 * i + 2]); uvs[i] = new Vector2(uv[2 * i], uv[2 * i + 1]); }

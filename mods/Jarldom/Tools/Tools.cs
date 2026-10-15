@@ -1237,6 +1237,48 @@ namespace Jarldom
                 case "perf2":
                     output(new JObject { ["frames"] = Plugin.CostFrames, ["updateMsPerFrame"] = Math.Round(Plugin.CostMs / Math.Max(1, Plugin.CostFrames), 3), ["thinkMsPerFrame"] = Math.Round(Plugin.ThinkMs / Math.Max(1, Plugin.CostFrames), 3), ["villagers"] = Villagers.All.Count(), ["fps"] = Math.Round(1f / Time.smoothDeltaTime) });
                     break;
+                case "mem":
+                    {
+                        // What hot reloads leave: the managed heap, the mod's own assets of each kind (all copies), and components of older copies.
+                        var own = typeof(Plugin).Assembly;
+                        var kinds = new JObject();
+                        foreach (var t in new[] { typeof(Material), typeof(Texture2D), typeof(Sprite), typeof(Mesh), typeof(AudioClip) })
+                            kinds[t.Name] = Resources.FindObjectsOfTypeAll(t).Count(o => (o.hideFlags & HideFlags.DontSave) != 0 || o.name.StartsWith("Jarldom", StringComparison.Ordinal));
+                        var old = Resources.FindObjectsOfTypeAll<MonoBehaviour>().Where(m => m != null && m.GetType().Assembly != own && m.GetType().Assembly.GetName().Name.StartsWith("Jarldom", StringComparison.Ordinal)).ToList();
+                        output(new JObject
+                        {
+                            ["heapMB"] = Math.Round(GC.GetTotalMemory(a.Length > 2 && a[2] == "gc") / 1048576.0),
+                            ["monoUsedMB"] = Math.Round(UnityEngine.Profiling.Profiler.GetMonoUsedSizeLong() / 1048576.0),
+                            ["unityMB"] = Math.Round(UnityEngine.Profiling.Profiler.GetTotalAllocatedMemoryLong() / 1048576.0),
+                            ["dontSaveAssets"] = kinds,
+                            ["leftovers"] = $"{Leftovers.Freed} freed, {Leftovers.Kept} kept",
+                            ["brokenLooks"] = Pieces.All.Concat(VillagerPrefab.All).Where(g => g != null).SelectMany(g => Assets.Instances(g.name.GetStableHashCode())).Sum(v => v.GetComponentsInChildren<Renderer>(true).Count(r => !(r is ParticleSystemRenderer) && r.sharedMaterials.Any(m => m == null) || r.GetComponent<MeshFilter>() is MeshFilter f && f.sharedMesh == null)),
+                            ["pieceRenderers"] = Pieces.All.Where(g => g != null).SelectMany(g => Assets.Instances(g.name.GetStableHashCode())).Sum(v => v.GetComponentsInChildren<Renderer>(true).Length),
+                            ["holders"] = Resources.FindObjectsOfTypeAll<GameObject>().Count(g => g.name == "JarldomPrefabs"),
+                            ["oldCopyComponents"] = old.Count,
+                            ["oldCopyKinds"] = new JArray(old.GroupBy(m => m.GetType().Name).OrderByDescending(g => g.Count()).Take(12).Select(g => $"{g.Key} x{g.Count()}")),
+                            ["jarldomAssemblies"] = AppDomain.CurrentDomain.GetAssemblies().Count(x => x.GetName().Name.StartsWith("Jarldom", StringComparison.Ordinal)),
+                        });
+                    }
+                    break;
+                case "broken":
+                    {
+                        // Standing pieces drawn with a missing material or mesh (which, and where).
+                        var list = new JArray();
+                        foreach (ZNetView v in Pieces.All.Concat(VillagerPrefab.All).Where(g => g != null).SelectMany(g => Assets.Instances(g.name.GetStableHashCode())))
+                            foreach (Renderer r in v.GetComponentsInChildren<Renderer>(true).Where(r => !(r is ParticleSystemRenderer))) // (a particle's second, trail slot is empty in the game's own)
+                            {
+                                int nullMats = r.sharedMaterials.Count(m => m == null); bool noMesh = r.GetComponent<MeshFilter>() is MeshFilter f && f.sharedMesh == null;
+                                if (nullMats > 0 || noMesh) list.Add($"{Utils.GetPrefabName(v.gameObject)}/{r.name} ({r.GetType().Name}) mats {nullMats}/{r.sharedMaterials.Length} noMesh {noMesh} on {r.gameObject.activeInHierarchy}");
+                            }
+                        var at = new JObject(); foreach (ZNetView v in Pieces.All.Where(g => g != null).SelectMany(g => Assets.Instances(g.name.GetStableHashCode()))) { string pn = Utils.GetPrefabName(v.gameObject); if (at[pn] == null) at[pn] = $"{v.transform.position.x:0},{v.transform.position.y:0},{v.transform.position.z:0} yaw {v.transform.eulerAngles.y:0}"; }
+                        var items = Object.FindObjectsOfType<Humanoid>().Select(h => h.GetInventory()).Concat(Object.FindObjectsOfType<Container>().Select(c => c.GetInventory())).Where(i => i != null).SelectMany(i => i.GetAllItems()).ToList();
+                        int noIcon = items.Count(i => i.m_shared?.m_icons == null || i.m_shared.m_icons.Length == 0 || i.m_shared.m_icons.Any(x => x == null));
+                        at["itemsLoaded"] = items.Count; at["itemsWithoutIcon"] = noIcon;
+                        at["noIconKinds"] = string.Join(",", items.Where(i => i.m_shared?.m_icons == null || i.m_shared.m_icons.Length == 0 || i.m_shared.m_icons.Any(x => x == null)).Select(i => i.m_dropPrefab != null ? i.m_dropPrefab.name : i.m_shared?.m_name).Distinct().Take(10));
+                        output(new JObject { ["at"] = at, ["n"] = list.Count, ["list"] = new JArray(list.Select(x => (string)x).GroupBy(x => x).Select(g => g.Key + " x" + g.Count())) });
+                    }
+                    break;
                 case "drop":
                     {
                         // Put things from a villager's bag back on the ground where they stand (prefab names, or "all-but-own").

@@ -94,6 +94,7 @@ namespace Jarldom
                     if (named.TryGetValue(hash, out GameObject current) && current == prefab) named.Remove(hash); // only our own entry
                 }
             Registered.Clear();
+            Leftovers.HandOver(Owned); // (the next copy swaps in its own where these are in use, and frees the rest)
             Owned.Clear();
             Pieces.Forget(); VillagerPrefab.Forget(); Einherjar.Forget();
             if (_holder != null) Object.Destroy(_holder);
@@ -178,7 +179,7 @@ namespace Jarldom
         internal static void Icon(GameObject item, string name, Quaternion turn, Action<Sprite> set)
         {
             Sprite now = Icon(item, name, turn); if (now != null) set(now);
-            Redraws.Add(() => { Sprite later = Icon(item, name, turn); if (later != null) set(later); });
+            Redraws.Add(() => { Sprite later = Icon(item, name, turn); if (later != null) { set(later); if (now != null) { Leftovers.Retire(now); Leftovers.Retire(now.texture); } } });
         }
         private static readonly List<Action> Redraws = new List<Action>(); private static float _redrawAt = -1;
         internal static void Tick()
@@ -190,6 +191,7 @@ namespace Jarldom
             Action[] all = Redraws.ToArray(); Redraws.Clear(); _redrawAt = -1;
             foreach (Action a in all) { try { a(); } catch (Exception e) { Plugin.Warn("Jarldom: an icon: " + e.Message); } }
             Plugin.Log($"Jarldom: {all.Length} icons drawn again in the world's light");
+            Leftovers.Settle(); // (the first drawings, and an older copy's still waiting on these)
         }
         internal static bool IconLightKept = true; // (test: jarldom icon compares)
         internal static Sprite Icon(GameObject item, string name, Quaternion turn)
