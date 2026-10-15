@@ -152,6 +152,9 @@ namespace Jarldom.Ui
             foreach (Zone z in c.R.Zones.Where(z => z.Type == ZoneType.Fields))
                 if (Work.ChosenNow(c, z) is var ch && ch != null && !Work.HaveInStock(c, ch.Value.seed))
                     list.Add($"The fields {(Utils.DistanceXZ(Zones.Centre(z), c.Position) is float far && far < 6 ? "by the pillars" : $"{Mathf.RoundToInt(far)} m {ScoutTask.Compass(Zones.Centre(z) - c.Position)}")} are to be sown with {Work.CropName(ch.Value.sapling.name).ToLower()} this {Calendar.Name(Year.Today().Season)}, but the stores hold no {Localization.instance.Localize(ObjectDB.instance.GetItemPrefab(ch.Value.seed)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name ?? ch.Value.seed).ToLower()}: farmers sow what there is until some come in.");
+            // (a festival coming and the hall's chest out of the haulers' reach: the goods have nowhere to go)
+            if (Calendar.Next(Year.Today()) is var nf && nf.Item2 <= Calendar.PrepDays && FestHaulTask.HallOutOfReach(c))
+                list.Add($"{Calendar.Name(nf.Item1)} is coming, and the haulers can't get to the great hall's chest to ready it: put a chest in the hall where they can walk right up to it.");
             int homeless = people.Count(p => string.IsNullOrEmpty(p.Bed));
             if (homeless > 0) list.Add($"{homeless} {(homeless == 1 ? "has" : "have")} no bed and sleep by the hall fire: build beds in a marked longhouse (or by the pillars).");
             int meals = Stock.Food(c, c.Position).Sum(f => f.item.m_stack);

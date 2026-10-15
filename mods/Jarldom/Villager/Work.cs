@@ -535,6 +535,7 @@ namespace Jarldom
             if (prof == Prof.Scout && Time.time > b.NoScoutUntil) return new ScoutTask();
             if (prof == Prof.Gothi) { Task rite = GothiTask.Next(b); if (rite != null) return rite; }
             if (prof == Prof.Carter) { Task cart = Carts.Next(b); if (cart != null) return cart; }
+            if (prof == Prof.Hauler) { Task fest = FestHaulTask.Next(b); if (fest != null) return fest; } // (a festival coming: the hall readied)
             if (prof == Prof.Smith && c.IsOwner) { Task mend = MendTask.Next(b); if (mend != null) return mend; } // (everyone's worn gear, before new work)
             if (prof == Prof.Builder && c.IsOwner && Compat.GhostCount(c.Position, c.Radius) > 0 && Gear.Tool(b, "hammer") != null && Time.time > b.NoBuildUntil) return new BuildTask();
             if (prof == Prof.Builder) { Task up = Upkeep.Next(b); if (up != null) return up; } // (nothing planned: mend, rebuild, pave)

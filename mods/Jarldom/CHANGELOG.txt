@@ -1,3 +1,5 @@
+0.1.142: in the two days before a festival the haulers ready the great hall: what it still wants (food, mead, wood for the Yule log) is carried from the stores to the hall's chests, so a jarl away doesn't come home to a festival let slip. A hall chest they can't get to is passed over, and the hall tab (Needs you) and the festival's word say so.
+
 0.1.141: the hall's 'Asked of you' says a dimming villager's deed lifts their dimming (it called every deed a disgrace to wash out); ripe crops wait in the field while the stores have no room for them, instead of being picked to lie on the ground.
 
 0.1.140: a pickaxe carried by anyone but a miner goes to the stores (a miner without one takes it); haulers no longer try to climb to the beacon fire (it's lit when a jarl sails home); fewer hitches: where a load goes is found without asking every chest for room, and the pose check no longer copies every villager's animator settings each second; a villager's decision slower than 6 ms is named in the log.

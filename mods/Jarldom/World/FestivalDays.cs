@@ -53,6 +53,7 @@ namespace Jarldom
         private static string NoChest(Colony c)
         {
             Room hall = c.Best(RoomType.GreatHall);
+            if (hall != null && FestHaulTask.HallOutOfReach(c)) return " The haulers can't get to the great hall's chest: put one where they can walk right up to it.";
             return hall == null || Stock.Chests(c, c.Centre(hall)).Any(x => Geometry.Inside(hall.Xz, x.chest.transform.position.x, x.chest.transform.position.z)) ? "" : " The great hall has no chest yet: build one inside it.";
         }
         public static int Have(Colony c, string kind) => HallGoods(c).Where(x => Is(kind, x.item)).Sum(x => x.item.m_stack);
@@ -361,6 +362,78 @@ namespace Jarldom
             Assets.Effect("vfx_FireAddFuel", at + Vector3.up);
             if (Vector3.Distance(Player.m_localPlayer.transform.position, at) < 120) MusicMan.instance?.TriggerMusic(MidsummerMusic);
             UnityEngine.Object.Destroy(go, BonfireSeconds);
+        }
+    }
+
+    // Readying the hall: in the days before a festival, a hauler carries what it still wants from the stores to the great hall's chests
+    // (the food, the mead, the wood for the log), so a jarl away doesn't come home to a festival let slip.
+    internal sealed class FestHaulTask : Task
+    {
+        private readonly Container _from, _to; private readonly string _kind; private readonly int _want; private int _phase; private string _item;
+        private FestHaulTask(Container from, Container to, string kind, int want) { _from = from; _to = to; _kind = kind; _want = want; if (from == null) _phase = 1; }
+        // Hall chests no one could get to (in a nook, up on a shelf): passed over a while, not walked to again and again with a full bag.
+        private static readonly Dictionary<int, float> Unreachable = new Dictionary<int, float>();
+        // Every chest in the hall found out of reach (the festival's goods have nowhere to go): said in the Dawn word and under Needs you.
+        public static bool HallOutOfReach(Colony c)
+        {
+            Room hall = c.Best(RoomType.GreatHall);
+            if (hall == null) return false;
+            var inHall = Stock.Chests(c, c.Centre(hall)).Where(x => Geometry.Inside(hall.Xz, x.chest.transform.position.x, x.chest.transform.position.z)).ToList();
+            return inHall.Count > 0 && inHall.All(x => !Reachable(x.chest));
+        }
+        private static bool Reachable(Container ch) => !(Unreachable.TryGetValue(ch.GetInstanceID(), out float until) && Time.time < until);
+        public override string Debug(Brain b) => $"{_kind} x{_want} phase {_phase} from {(_from != null ? _from.transform.position.ToString("F1") : "-")} to {(_to != null ? _to.transform.position.ToString("F1") : "-")}";
+        public static Task Next(Brain b)
+        {
+            Colony c = b.Colony;
+            if (c == null || !c.IsOwner || b.S.Prof != Prof.Hauler || Time.time < b.NoFestUntil) return null;
+            b.NoFestUntil = Time.time + 30;
+            var (f, until) = Calendar.Next(Year.Today());
+            if (until > Calendar.PrepDays || Festivals.Done(c.R.Flags, c.Day)) return null;
+            Room hall = c.Best(RoomType.GreatHall);
+            if (hall == null) return null;
+            bool InHall(Container ch) => Geometry.Inside(hall.Xz, ch.transform.position.x, ch.transform.position.z);
+            var chests = Stock.Chests(c, c.Centre(hall)).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).ToList();
+            foreach (var n in Festivals.Needs(f, c.Population))
+            {
+                int short_ = n.amount - FestivalDays.Have(c, n.kind);
+                if (short_ <= 0) continue;
+                // (already carrying some, from a trip that fell short: straight to the hall with it)
+                ItemDrop.ItemData carried = b.Body.GetInventory().GetAllItems().FirstOrDefault(i => FestivalDays.Is(n.kind, i) && b.Hauled.Contains(Classes.Prefab(i)));
+                var from = carried != null ? null : chests.Where(x => !InHall(x.chest) && x.category != "").Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => FestivalDays.Is(n.kind, i)));
+                if (from == null && carried == null) continue;
+                ItemDrop.ItemData sample = carried ?? from.GetInventory().GetAllItems().First(i => FestivalDays.Is(n.kind, i));
+                var to = chests.Where(x => InHall(x.chest) && Reachable(x.chest)).Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().CanAddItem(sample, 1));
+                if (to == null) return null; // (no room in the hall, or none to be got at: the Dawn word says so)
+                return new FestHaulTask(from, to, n.kind, Math.Min(short_, 50)) { Doing = $"readying the hall for {Calendar.Name(f)}", _item = carried != null ? Classes.Prefab(carried) : null };
+            }
+            return null;
+        }
+        public override void Start(Brain b) => b.Move.To(_from.transform.position, 1.8f);
+        public override void Tick(Brain b)
+        {
+            if (_from == null || _to == null) { Done = true; return; }
+            Inventory bag = b.Body.GetInventory();
+            if (_phase == 0)
+            {
+                Stock.Walk w = Stock.WalkTo(b, _from);
+                if (w == Stock.Walk.Unreachable) { Done = true; return; }
+                if (w == Stock.Walk.Walking) return;
+                ItemDrop.ItemData stack = _from.GetInventory().GetAllItems().FirstOrDefault(i => FestivalDays.Is(_kind, i));
+                if (stack == null) { Done = true; return; }
+                _item = Classes.Prefab(stack);
+                if (Stock.Take(_from, bag, stack, Math.Min(_want, stack.m_stack)) == 0) { Done = true; return; }
+                b.Hauled.Add(_item); // (the colony's, for the hall: not theirs to eat or keep)
+                _phase = 1;
+                return;
+            }
+            Stock.Walk w2 = Stock.WalkTo(b, _to);
+            if (w2 == Stock.Walk.Unreachable) { Unreachable[_to.GetInstanceID()] = Time.time + 600f; Done = true; return; } // (left in the bag: it goes back to the stores the usual way)
+            if (w2 == Stock.Walk.Walking) return;
+            foreach (ItemDrop.ItemData i in bag.GetAllItems().Where(i => Classes.Prefab(i) == _item).ToList()) Stock.Put(bag, _to, i);
+            if (!bag.GetAllItems().Any(i => Classes.Prefab(i) == _item)) b.Hauled.Remove(_item);
+            b.Dirty();
+            Done = true;
         }
     }
 

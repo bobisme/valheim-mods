@@ -33,7 +33,7 @@ namespace Jarldom
             if (_body != null && _body.isKinematic) _body.isKinematic = false; // (a body left seated when ownership went elsewhere)
             Poses.Clear(h);
         }
-        public float NoRiteUntil, NoStoreUntil, NoFoodUntil, NoRepairUntil, NoBuildUntil, NoTradeUntil, NoCraftUntil, NoHealUntil, NoScoutUntil, NoOfferUntil, NextMischief, NoCartUntil, NoGearUntil, NoGraveUntil, LeaderGoneAt, NoUpkeepUntil, NoCatchUntil, NoClaimUntil, NoCornerUntil; public readonly HashSet<int> LampsTried = new HashSet<int>(); private float _nextStep; private bool _captureRolled; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f; public double GameDt; private double _lastWorld;
+        public float NoRiteUntil, NoStoreUntil, NoFoodUntil, NoRepairUntil, NoBuildUntil, NoTradeUntil, NoCraftUntil, NoHealUntil, NoScoutUntil, NoOfferUntil, NextMischief, NoCartUntil, NoGearUntil, NoGraveUntil, LeaderGoneAt, NoUpkeepUntil, NoCatchUntil, NoClaimUntil, NoCornerUntil, NoFestUntil; public readonly HashSet<int> LampsTried = new HashSet<int>(); private float _nextStep; private bool _captureRolled; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f; public double GameDt; private double _lastWorld;
         public bool Alive => Body != null && !Body.IsDead() && View != null && View.IsValid() && View.IsOwner() && S != null;
         public Vector3 Pos => Body.transform.position;
         public double Now => ZNet.instance.GetTimeSeconds();
