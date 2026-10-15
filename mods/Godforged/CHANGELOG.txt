@@ -1,3 +1,17 @@
+0.2.50: Gungnir's wind is real wind with a whoosh (layered pink noise whose cutoff opens and swells once a loop); WindSound 5, or 6 gentler.
+
+0.2.49: Gungnir's wind from pink noise (white noise was raspy however filtered), quieter, in four shapes to choose from (WindSound; gf sound wind1..4).
+
+0.2.47: Gungnir's wind whooshes: the same pitch with the highs cut away steeply (it was raspy).
+
+0.2.46: Gungnir's wind an octave higher, still soft.
+
+0.2.45: Gungnir's wind is softer and lower, wind rather than compressed air: low-passed, with a gentle rush past the blade.
+
+0.2.43: Gungnir's wind is a steady rush (it pulsed).
+
+0.2.42: Mjölnir and Gungnir are heard in flight (their sound was set where the game's copy of the projectile never saw it, so they flew silent). gf sound <hum|wind|thunder|crackle> plays one at the player.
+
 0.2.40: Every finger's first joint has the same curved iron plate as the middle finger's, so they match.
 
 0.2.39: The back-of-hand plate lies on the hand (fitted to its surface measured in the game; it stood up to 2 cm off). gf cuff backhand measures it.

@@ -18,7 +18,7 @@ namespace Godforged
     {
         public const string Guid="cx.bob.godforged";
         public const string Name="Godforged";
-        public const string Version="0.2.40";
+        public const string Version="0.2.50";
         internal static Plugin Instance;
         internal static ConfigEntry<float> Volume;
         private Harmony _harmony;

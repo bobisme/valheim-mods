@@ -5,6 +5,7 @@ using System.Reflection;
 using BepInEx;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
+using Object=UnityEngine.Object;
 
 namespace Godforged
 {
@@ -79,6 +80,24 @@ namespace Godforged
                     foreach(ItemDrop.ItemData i in me.GetInventory().GetAllItems())
                         if(Things.Of(i)!=null&&i.m_durability<i.GetMaxDurability()){i.m_durability=i.GetMaxDurability();mended.Add(i.m_shared.m_name);}
                     output(new JObject{["mended"]=mended});
+                    return null;
+                }
+                case "sound":
+                {
+                    // Plays a relic's sound at the player for a few seconds (gf sound hum|wind|thunder|crackle) and says what the audio is doing.
+                    string which=args.Length>2?args[2]:"hum";
+                    AudioClip clip=which.StartsWith("wind")&&which.Length==5?Gungnir.Wind(which[4]-'0'):which=="wind"?Gungnir.Wind():which=="thunder"?Bolt.Thunder():which=="crackle"?Bolt.Crackle():Mjolnir.Hum();
+                    AudioSource s=Sound.Play(clip,me.transform.position+Vector3.up,1f,1f,40f,me.transform);
+                    var prefabs=new JObject();
+                    foreach(ItemDef d in Things.All)
+                    {
+                        Transform m=Throws.FlyingModel(d);
+                        if(d.Returns)prefabs[d.Prefab]=m==null?"no projectile":m.GetComponent<FlightSound>()!=null?"has flight sound":"no flight sound";
+                    }
+                    output(new JObject{["clip"]=clip!=null?$"{clip.name} {clip.length:F1}s {clip.loadState}":"none",["playing"]=s!=null&&s.isPlaying,
+                        ["volume"]=s!=null?s.volume:0,["mixer"]=s?.outputAudioMixerGroup!=null?s.outputAudioMixerGroup.name:"none",
+                        ["listener"]=Object.FindObjectsByType<AudioListener>(FindObjectsSortMode.None).Length,["audioPaused"]=AudioListener.pause,
+                        ["listenerVolume"]=AudioListener.volume,["projectiles"]=prefabs});
                     return null;
                 }
                 case "icons":

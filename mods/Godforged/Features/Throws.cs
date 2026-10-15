@@ -41,7 +41,7 @@ namespace Godforged
 
         // The relic's projectile: a copy of a spear's (its flight, sounds and trail) with the relic's model in place of the spear's, put in
         // ZNetScene so everyone sees it fly, and set as the relic's throw. Called from the feature's Register: safe to call again.
-        internal static GameObject Projectile(ZNetScene scene,ItemDef d,string spear,Action<Transform> model,bool spin=false,Func<AudioClip> sound=null)
+        internal static GameObject Projectile(ZNetScene scene,ItemDef d,string spear,Action<Transform> model,bool spin=false,string sound=null)
         {
             if(d.Built==null)return null;
             string name=d.Prefab+"_projectile";
@@ -216,10 +216,13 @@ namespace Godforged
     // A relic's own sound while it flies (a loop on it, heard by everyone: the projectile is everyone's, and so is the flight home).
     internal sealed class FlightSound:MonoBehaviour
     {
-        internal Func<AudioClip> Clip;
+        // Which sound, by name: a plain public field, so it survives Instantiate (the game makes each projectile from the prefab, and the
+        // flight home is a copy of its model). 0.2.41: it was a delegate, which isn't copied, so nothing ever played.
+        public string Clip;
         private void Start()
         {
-            AudioSource s=Clip!=null?Sound.Loop(Clip(),transform,45f):null;
+            AudioClip clip=Clip=="hum"?Mjolnir.Hum():Clip=="wind"?Gungnir.Wind():null;
+            AudioSource s=clip!=null?Sound.Loop(clip,transform,45f):null;
             if(s==null)return;
             s.volume=0.85f*Plugin.Volume.Value;s.dopplerLevel=1.2f;
         }

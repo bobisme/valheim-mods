@@ -1258,13 +1258,13 @@ through `Godforged.Api` (`Relics`, `Relic(item)`, `Prefab(name)`, `SetCraftable(
   wearer's own hands as they're put on (`Features/Glove.cs`: the body mesh's hand and forearm skin, pushed out, bound to the same
   bones), with iron over every finger joint and a riveted plate on the back of each hand.
 - **Gungnir** (a copy of the Carapace Spear), a dwarf's work: a huge angular, almost-barbed head on an iron-bound shaft. Thrown,
-  with a rushing wind, it picks the foe nearest the crosshair (10°, 90 m, in sight) and turns in flight to reach it, then comes back.
+  with a whoosh of wind (WindSound: six to choose from, `gf sound wind1..6`), it picks the foe nearest the crosshair (10°, 90 m, in sight) and turns in flight to reach it, then comes back.
 - **Thor's kit**: with Mjölnir, Járngreipr and the game's own **Megingjord** worn, the strike leaps on to four more foes.
 
 A thrown relic never drops: the game hands the item to the projectile to drop where it lands, and Godforged takes it back at
 the first hit (or when the projectile goes any other way) and flies it home, into the bag and the empty hand, or onto the ground
 there if it can't get home. Everyone sees the throw, the flight home and the lightning. Claude Tools gets a `gf` command: `list`,
-`give <prefab|all>` and `repair` (cheats only), `held`, `icons`, `look`, `grip`, and `cuff` (`measure`, `hand`, `backhand`, `glove`: the wearer's arm and hand as measured from the body mesh; `scan`/`borrow`: try other armour's hand meshes) for fitting the gauntlets. Code: `Core/`
+`give <prefab|all>` and `repair` (cheats only), `sound <hum|wind|windN|thunder|crackle>`, `held`, `icons`, `look`, `grip`, and `cuff` (`measure`, `hand`, `backhand`, `glove`: the wearer's arm and hand as measured from the body mesh; `scan`/`borrow`: try other armour's hand meshes) for fitting the gauntlets. Code: `Core/`
 is Wrong Universe's; `Features/Throws.cs` is the throw that comes back; one class per relic. Models: `Models/<name>.py` (Blender,
 Wrong Universe's wulib); surfaces named `c_RRGGBB_..._f`/`_l` get forged-iron or leather grain made in the game (`Look.Grained`). Played in a test world through 0.2.40 (forced reloads; a full restart still to do).
 

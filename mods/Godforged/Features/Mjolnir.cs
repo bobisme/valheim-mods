@@ -54,7 +54,7 @@ namespace Godforged
             Sound.Play(Bolt.Crackle(),p.transform.position+Vector3.up,0.35f,Random.Range(1.2f,1.5f),15f,p.transform);
         }
         internal override void Start()=>Bolt.Start();
-        internal override void Register(ZNetScene scene)=>Throws.Projectile(scene,Hammer,"SpearBronze",t=>Meshes.AddAll(t,"mjolnir"),spin:true,sound:Hum);
+        internal override void Register(ZNetScene scene)=>Throws.Projectile(scene,Hammer,"SpearBronze",t=>Meshes.AddAll(t,"mjolnir"),spin:true,sound:"hum");
 
         // In flight: a deep throbbing hum, the hammer's charge, with a crackle now and then. Two seconds that loop clean (55 Hz and a 6 Hz
         // throb both fit it whole).
