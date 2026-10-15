@@ -1,3 +1,5 @@
+0.1.149: test command jarldom stockpile with no category only says what the nearest chest is; it marked that chest as an 'any' stockpile before.
+
 0.1.148: test command jarldom actas <player> <action> [arg], for the host: e.g. let another character of the founder run the colony in single player (actas Bob allow trash). The bag repair command is host-only too.
 
 0.1.147: the bag repair command (jarldom bags dump / restore) works on a server with nobody near the colony, so lost gear can be read out of a backup world.

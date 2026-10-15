@@ -974,6 +974,13 @@ namespace Jarldom
                             output(new JObject { ["treasury"] = c.R.Treasury, ["chest"] = tc != null ? V(tc.transform.position) : null, ["coins"] = tc?.GetInventory().CountItems("$item_coins") ?? 0 });
                             return;
                         }
+                        // ("stockpile" alone: the nearest chest's kind, nothing changed; it marked that chest "any" before, a chest of Bob's once)
+                        if (cmd == "stockpile" && a.Length < 3)
+                        {
+                            var near = Stock.Chests(c, me.transform.position).FirstOrDefault();
+                            output(new JObject { ["chest"] = near.chest != null ? V(near.chest.transform.position) : null, ["id"] = near.id, ["category"] = near.category, ["note"] = "stockpile <category> [x z] marks it" });
+                            return;
+                        }
                         if (cmd == "treasury") a = a.Where((x, i) => i != 2).ToArray();
                         int xi = cmd == "treasury" ? 2 : 3;
                         Vector3 from = a.Length > xi + 1 ? new Vector3(F(a[xi]), 0, F(a[xi + 1])) : me.transform.position;
