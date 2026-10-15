@@ -194,7 +194,8 @@ namespace Godforged
                 case "held":
                 {
                     ItemDef d=Things.Held(me,out ItemDrop.ItemData item);
-                    output(new JObject{["held"]=item?.m_shared.m_name,["ours"]=d?.Prefab,["equipped"]=new JArray(me.GetInventory().GetEquippedItems().Select(i=>i.m_shared.m_name))});
+                    output(new JObject{["held"]=item?.m_shared.m_name,["ours"]=d?.Prefab,["equipped"]=new JArray(me.GetInventory().GetEquippedItems().Select(i=>i.m_shared.m_name)),
+                        ["effects"]=new JArray(me.GetSEMan().GetStatusEffects().Select(e=>$"{e.name} {Math.Round(e.GetRemaningTime())}s"))});
                     return null;
                 }
             }

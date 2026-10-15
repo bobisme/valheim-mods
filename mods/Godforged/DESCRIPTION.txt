@@ -3,6 +3,9 @@ The gods' own treasures. Made at the forge; every cost is a setting.
 Mjölnir: Thor's hammer, one-handed, with lightning in every blow and a short handle (a fly bit the smith). Throw it (secondary attack) and it tumbles humming through the air, lightning strikes where it lands (and splits trees), and it flies back to your hand, hitting what's in its way. Only a hand in Járngreipr can throw it; bare, it burns.
 Járngreipr: Thor's iron gauntlets, worn in the trinket slot: splinted iron vambraces and iron-plated leather gloves, made to fit your own hands.
 Gungnir: Odin's spear, a dwarf's work with a huge angular head. Throw it and, with a rush of wind, it finds the foe you look at, turning in flight to reach it, then comes back to your hand.
+Draupnir: Odin's ring. Carry it, and every ninth dawn it drips eight rings' worth of coins.
+Brísingamen: Freyja's necklace. Carry it, and when you're healed, friends near you are healed too.
+Gjallarhorn: Heimdall's horn. Blow it, and everyone hears it and sees where you stand; those beside you take heart.
 Thor's kit: Mjölnir, Járngreipr and the game's own Megingjord together, and the lightning leaps from foe to foe.
 
 A thrown relic is never lost: if it can't come home (you fell, your bag is full) it drops where it is. Everyone sees the throw, the return and the lightning. Native Linux and Windows.

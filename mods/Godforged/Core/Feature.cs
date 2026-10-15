@@ -38,6 +38,9 @@ namespace Godforged
             new Mjolnir(),
             new Jarngreipr(),
             new Gungnir(),
+            new Draupnir(),
+            new Brisingamen(),
+            new Gjallarhorn(),
         };
     }
 }

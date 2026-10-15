@@ -1247,7 +1247,7 @@ Tested in the game: firing, the sword, jetpack flight, goggles, drone, ion strik
 
 The gods' own treasures, as weapons and gear (`cx.bob.godforged`). Made at the forge for now; every cost is a setting
 (`9 - Costs`). Fimbulwinter (valheim-ragnarok) builds on it: its Godforged tier hands these out as Ragnarök and trial rewards
-through `Godforged.Api` (`Relics`, `Relic(item)`, `Prefab(name)`, `SetCraftable(false)`).
+through `Godforged.Api` (`Relics`, `Relic(item)`, `Prefab(name)`, `SetCraftable(false)`; from Api 2, `OnDrip` for Glory and `OnHorn`).
 
 - **Mjölnir** (one-handed, a copy of Frostner): blunt and lightning, a little less reach (the short handle). The secondary
   attack throws it, tumbling end over end with a throbbing hum: lightning strikes where it lands (60 over 4 m, and it splits
@@ -1260,11 +1260,18 @@ through `Godforged.Api` (`Relics`, `Relic(item)`, `Prefab(name)`, `SetCraftable(
 - **Gungnir** (a copy of the Carapace Spear), a dwarf's work: a huge angular, almost-barbed head on an iron-bound shaft. Thrown,
   with a whoosh of wind (WindSound: six to choose from, `gf sound wind1..6`), it picks the foe nearest the crosshair (10°, 90 m, in sight) and turns in flight to reach it, then comes back.
 - **Thor's kit**: with Mjölnir, Járngreipr and the game's own **Megingjord** worn, the strike leaps on to four more foes.
+- **Draupnir** (Odin's ring, carried: the game has no ring slot): every ninth dawn after it's first carried it drips eight rings'
+  worth of coins (80); one per player; its last drip kept on the ring itself.
+- **Brísingamen** (Freyja's necklace, carried): when you're healed (a mead, an effect, someone's staff; not food regeneration),
+  friends and tames within 20 m are healed half as much, with a golden glint everyone sees. Heals that came over the network
+  are never shared again, so two bearers don't echo.
+- **Gjallarhorn** (Heimdall's horn, used, never used up): every player hears its call across the world, is told who blew it
+  and gets a map ping; friends within 30 m take **Heimdall's Watch** (a minute of stamina 1.5× as quick); it rests five minutes.
 
 A thrown relic never drops: the game hands the item to the projectile to drop where it lands, and Godforged takes it back at
 the first hit (or when the projectile goes any other way) and flies it home, into the bag and the empty hand, or onto the ground
 there if it can't get home. Everyone sees the throw, the flight home and the lightning. Claude Tools gets a `gf` command: `list`,
-`give <prefab|all>` and `repair` (cheats only), `sound <hum|wind|windN|thunder|crackle>`, `held`, `icons`, `look`, `grip`, and `cuff` (`measure`, `hand`, `backhand`, `glove`: the wearer's arm and hand as measured from the body mesh; `scan`/`borrow`: try other armour's hand meshes) for fitting the gauntlets. Code: `Core/`
+`give <prefab|all>`, `repair` and `drip` (cheats only), `sound <hum|wind|windN|thunder|crackle>`, `held`, `icons`, `look`, `grip`, and `cuff` (`measure`, `hand`, `backhand`, `glove`: the wearer's arm and hand as measured from the body mesh; `scan`/`borrow`: try other armour's hand meshes) for fitting the gauntlets. Code: `Core/`
 is Wrong Universe's; `Features/Throws.cs` is the throw that comes back; one class per relic. Models: `Models/<name>.py` (Blender,
 Wrong Universe's wulib); surfaces named `c_RRGGBB_..._f`/`_l` get forged-iron or leather grain made in the game (`Look.Grained`). Played in a test world through 0.2.40 (forced reloads; a full restart still to do).
 

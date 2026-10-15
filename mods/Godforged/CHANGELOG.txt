@@ -1,3 +1,5 @@
+0.3.2: Three more relics. Draupnir (Odin's ring, carried): every ninth dawn it drips eight rings' worth of coins. Brísingamen (Freyja's necklace, carried): when you're healed (not food regeneration), friends within 20 m are healed half as much, with a golden glint. Gjallarhorn (Heimdall's horn, used): everyone in the world hears it and sees a ping where you stand; friends within 30 m take Heimdall's Watch (a minute of quicker stamina); then it rests five minutes. Api 2: OnDrip, OnHorn.
+
 0.2.50: Gungnir's wind is real wind with a whoosh (layered pink noise whose cutoff opens and swells once a loop); WindSound 5, or 6 gentler.
 
 0.2.49: Gungnir's wind from pink noise (white noise was raspy however filtered), quieter, in four shapes to choose from (WindSound; gf sound wind1..4).
