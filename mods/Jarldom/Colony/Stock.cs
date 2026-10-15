@@ -9,6 +9,8 @@ namespace Jarldom
     internal static class Stock
     {
         public static readonly string[] Categories = { "any", "wood", "stone", "ore", "metal", "food", "rawfood", "hides", "seeds", "gear", "valuables" };
+        // A trade chest: what the jarl puts in it, a trader sells. Not one of the stores: no one takes from it, fills it or eats from it.
+        public const string TradeCategory = "trade";
 
         // A prefab's item as one in the world would be (its own data has no drop prefab set, so it wouldn't know what it is).
         public static ItemDrop.ItemData Of(GameObject prefab)
@@ -115,14 +117,16 @@ namespace Jarldom
         // The chests with their categories, worked out once a second (a work scan asks a hundred times over; a chest's category changes only
         // when the jarl marks it); each caller gets its own list.
         private static readonly Dictionary<string, (float at, List<(Container, string, string)> list)> Listed = new Dictionary<string, (float, List<(Container, string, string)>)>();
-        public static List<(Container chest, string id, string category)> Chests(Colony c, Vector3? near = null)
+        public static List<(Container chest, string id, string category)> Chests(Colony c, Vector3? near = null, bool withTrade = false)
         {
             if (!Listed.TryGetValue(c.Id, out var hit) || Time.time - hit.at > 1f) Listed[c.Id] = hit = (Time.time, Categorised(c));
             var list = new List<(Container chest, string id, string category)>(hit.list.Count);
-            foreach (var x in hit.list) if (x.Item1 != null) list.Add(x);
+            foreach (var x in hit.list) if (x.Item1 != null && (withTrade || x.Item3 != TradeCategory)) list.Add(x);
             Vector3 from = near ?? c.Position;
             return list.OrderBy(x => Utils.DistanceXZ(x.Item1.transform.position, from) + Mathf.Abs(x.Item1.transform.position.y - from.y) * (near.HasValue && near.Value.y == 0 ? 0 : 1)).ToList();
         }
+        // The trade chests, loaded here, nearest first.
+        public static List<Container> TradeChests(Colony c, Vector3? near = null) => Chests(c, near, true).Where(x => x.category == TradeCategory).Select(x => x.chest).ToList();
         // How many of an item the stores hold (not the treasury; with free, only chests no one has open), from a count made once a frame.
         private static readonly Dictionary<string, (int frame, Dictionary<string, int> all, Dictionary<string, int> free)> Counted = new Dictionary<string, (int, Dictionary<string, int>, Dictionary<string, int>)>();
         public static int Count(Colony c, string prefab, bool free = false)

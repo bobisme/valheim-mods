@@ -452,22 +452,33 @@ namespace Jarldom
     internal sealed class TradeTask : Task
     {
         private Vector3 _edge; private bool _packed; private TradeWay _way; private readonly TradeWay? _test;
+        private readonly List<Trade.Packed> _goods = new List<Trade.Packed>(); // (packed from the trade chests: sold whatever they are)
         public TradeTask(TradeWay? test = null) { _test = test; } // (a test: this way, whatever the rank)
         public override bool Interruptible => false;
         public override void Start(Brain b)
         {
             Colony c = b.Colony;
             var stores = Stock.Chests(c, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).ToList();
-            int lots = stores.Sum(x => x.chest.GetInventory().GetAllItems().Count(Trade.Sellable));
+            var trade = Stock.TradeChests(c, b.Pos).Where(ch => !ContainerAccess.InUse(ch)).ToList();
+            int lots = Trade.Lots(c);
             Component cart = Carts.CartNear(c), karve = Trade.Ship(c, false), longship = Trade.Ship(c, true);
             _way = _test ?? Trading.Choose(c.R.Rank, cart != null, karve != null, longship != null, lots);
             Doing = "packing for a trade run " + Trading.Names[(int)_way];
             Inventory bag = b.Body.GetInventory();
-            int room = Trading.Lots(_way);
+            int room = Trading.Lots(_way), packed = bag.GetAllItems().Count(Trade.Sellable);
+            // (the trade chests first, whatever is in them; then the stores' treasure)
+            foreach (Container ch in trade)
+                foreach (ItemDrop.ItemData item in ch.GetInventory().GetAllItems().Where(Trade.Goods).ToList())
+                {
+                    if (bag.GetEmptySlots() <= 1 || packed >= room) break;
+                    int price = Trade.Price(item), had = item.m_stack, moved = Stock.Take(ch, bag, item, item.m_stack);
+                    if (moved <= 0) continue;
+                    _goods.Add(new Trade.Packed { Name = item.m_shared.m_name, N = moved, Coins = price * moved / had }); packed++;
+                }
             foreach (var x in stores)
                 foreach (ItemDrop.ItemData item in x.chest.GetInventory().GetAllItems().Where(Trade.Sellable).ToList())
-                    if (bag.GetEmptySlots() > 1 && bag.GetAllItems().Count(Trade.Sellable) < room) Stock.Take(x.chest, bag, item, item.m_stack);
-            if (!bag.GetAllItems().Any(Trade.Sellable)) { Done = true; b.NoTradeUntil = Time.time + 60; return; }
+                    if (bag.GetEmptySlots() > 1 && packed < room && Stock.Take(x.chest, bag, item, item.m_stack) > 0) packed++;
+            if (!bag.GetAllItems().Any(Trade.Sellable) && _goods.Count == 0) { Done = true; b.NoTradeUntil = Time.time + 60; return; }
             // (by cart or ship: to it, and the rest is loaded there; on foot a little way down the road and gone: the world past a
             // player's own ground stands still, so a walk to the far edge could stall)
             Component by = _way == TradeWay.Cart ? cart : _way == TradeWay.Karve ? karve ?? longship : _way == TradeWay.Longship ? longship : null;
@@ -483,13 +494,19 @@ namespace Jarldom
             Doing = _way == TradeWay.Foot ? "off on a trade run" : Trading.AtSea(_way) ? "down to the ship for a trade run" : "off to the cart for a trade run";
             // (a fight or a flee stops the walk: walk on unless really there, or the way is lost)
             if (!b.Move.Failed && !b.Move.Arrived && b.Move.Distance > 6f) { if (!b.Move.Moving) b.Move.To(b.Move.Goal, 3f); return; }
-            Trade.Leave(b, _way);
+            Trade.Leave(b, _way, _goods);
             Done = true;
         }
     }
     internal static class Trade
     {
         public static bool Sellable(ItemDrop.ItemData i) => i != null && i.m_shared.m_value > 0 && !i.m_equipped && !(i.m_dropPrefab != null && i.m_dropPrefab.name == "Coins") && !Items.IsRing(i);
+        // In a trade chest: anything but coins and arm rings (given by the jarl, not sold).
+        public static bool Goods(ItemDrop.ItemData i) => i != null && !(i.m_dropPrefab != null && i.m_dropPrefab.name == "Coins") && !Items.IsRing(i);
+        public static int Price(ItemDrop.ItemData i) => Trading.GoodsPrice(i.m_dropPrefab != null ? i.m_dropPrefab.name : null, Stock.Category(i), i.m_shared.m_value, i.m_stack, i.m_quality);
+        // Lots waiting to be sold: everything in the trade chests, and the stores' treasure.
+        public static int Lots(Colony c) => Stock.TradeChests(c).Sum(ch => ch.GetInventory().GetAllItems().Count(Goods))
+            + Stock.Chests(c).Where(x => x.category != "treasury").Sum(x => x.chest.GetInventory().GetAllItems().Count(Sellable));
         // A ship of the colony's lying at its shore, no one aboard: a karve, or a longship (the drakkar too).
         public static Ship Ship(Colony c, bool longship) => c.PiecesIn(c.Radius + 40).Select(p => p.GetComponent<Ship>()).FirstOrDefault(s => s != null && !s.HasPlayerOnboard()
             && (longship ? Utils.GetPrefabName(s.gameObject).StartsWith("VikingShip") : Utils.GetPrefabName(s.gameObject) == "Karve"));
@@ -516,8 +533,9 @@ namespace Jarldom
             var lines = new List<string>();
             Rank rank = c.R.Rank;
             if (rank < Rank.Village) { lines.Add("Trade runs start at village rank: a trader takes amber, silver, gems and the like from the stores and comes back with coins."); return lines; }
+            if (Stock.TradeChests(c).Count == 0) lines.Add("To sell the colony's own goods (wood, crops, hides, ore, metal, food, gear), mark a chest for trade goods (Shift+E on it with the staff) and fill it: a trader sells what's in it. From the stores they take only treasure.");
             bool cart = Carts.CartNear(c) != null, karve = Ship(c, false) != null, longship = Ship(c, true) != null;
-            int lots = Stock.Chests(c).Where(x => x.category != "treasury").Sum(x => x.chest.GetInventory().GetAllItems().Count(Sellable));
+            int lots = Lots(c);
             TradeWay now = Trading.Choose(rank, cart, karve, longship, lots), most = Trading.Choose(rank, cart, karve, longship, int.MaxValue);
             string Way(TradeWay w) => $"{Trading.Names[(int)w]} ({Trading.Lots(w)} lots{(Trading.PricePercent(w) > 100 ? $", {Trading.PricePercent(w)}% of the price" : "")})";
             lines.Add($"{lots} lots for sale in the stores: a trader would go {Way(now)}." + (most != now ? $" With more to sell, {Way(most)}." : ""));
@@ -528,14 +546,34 @@ namespace Jarldom
             else if (rank >= Trading.MinRank(TradeWay.Longship) && !longship) lines.Add("Moor a longship or drakkar by the colony and they sail to the far markets: " + Way(TradeWay.Longship) + ".");
             return lines;
         }
-        public static void Leave(Brain b, TradeWay way)
+        // Goods packed from a trade chest: by name and how many (in the bag they may have joined a stack of the trader's own), and their price.
+        public sealed class Packed { public string Name; public int N, Coins; }
+        public static void Leave(Brain b, TradeWay way, List<Packed> packed = null)
         {
             Colony c = b.Colony;
             Inventory bag = b.Body.GetInventory();
-            var goods = bag.GetAllItems().Where(Sellable).Select(i => (value: i.m_shared.m_value * i.m_stack, item: i)).ToList();
-            int lots = goods.Count, coins = goods.Sum(g => g.value);
-            foreach (var g in goods) bag.RemoveItem(g.item);
-            // (a cart or a ship holds more than the trader's pack: the rest of what's for sale is loaded there)
+            var goods = bag.GetAllItems().Where(Sellable).ToList();
+            int lots = goods.Count, coins = goods.Sum(Price);
+            foreach (var g in goods) bag.RemoveItem(g);
+            foreach (Packed p in packed ?? new List<Packed>())
+            {
+                // (still in the bag, and never the trader's own worn gear of the same name)
+                int left = p.N, gone = 0;
+                foreach (ItemDrop.ItemData i in bag.GetAllItems().Where(i => i.m_shared.m_name == p.Name && !i.m_equipped).ToList())
+                {
+                    if (left <= 0) break;
+                    int n = Math.Min(left, i.m_stack); bag.RemoveItem(i, n); left -= n; gone += n;
+                }
+                if (gone > 0) { coins += p.Coins * gone / p.N; lots++; }
+            }
+            // (a cart or a ship holds more than the trader's pack: the rest of the trade chests and the stores' treasure is loaded there)
+            foreach (Container ch in Stock.TradeChests(c, b.Pos).Where(ch => !ContainerAccess.InUse(ch)))
+                foreach (ItemDrop.ItemData i in ch.GetInventory().GetAllItems().Where(Goods).ToList())
+                {
+                    if (lots >= Trading.Lots(way)) break;
+                    coins += Price(i); lots++;
+                    ContainerAccess.TakeOver(ch); ch.GetInventory().RemoveItem(i);
+                }
             foreach (var x in Stock.Chests(c, b.Pos).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)))
                 foreach (ItemDrop.ItemData i in x.chest.GetInventory().GetAllItems().Where(Sellable).ToList())
                 {

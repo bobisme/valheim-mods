@@ -1187,7 +1187,7 @@ namespace Jarldom
                     }
                     break;
                 case "chests":
-                    output(new JObject { ["treasury"] = c.R.Treasury, ["stockpiles"] = new JObject(c.R.Stockpiles.Select(kv => new JProperty(kv.Key, kv.Value))), ["chests"] = new JArray(Stock.Chests(c).Select(x => new JObject { ["at"] = V(x.chest.transform.position), ["id"] = x.id, ["category"] = x.category, ["items"] = new JArray(x.chest.GetInventory().GetAllItems().Select(i => $"{Prefab(i)} x{i.m_stack}")) })) });
+                    output(new JObject { ["treasury"] = c.R.Treasury, ["stockpiles"] = new JObject(c.R.Stockpiles.Select(kv => new JProperty(kv.Key, kv.Value))), ["chests"] = new JArray(Stock.Chests(c, null, true).Select(x => new JObject { ["at"] = V(x.chest.transform.position), ["id"] = x.id, ["category"] = x.category, ["items"] = new JArray(x.chest.GetInventory().GetAllItems().Select(i => $"{Prefab(i)} x{i.m_stack}")) })) });
                     break;
                 case "nav":
                     {

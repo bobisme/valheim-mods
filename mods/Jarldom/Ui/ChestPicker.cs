@@ -74,11 +74,11 @@ namespace Jarldom.Ui
         {
             id = category = ""; c = Colony.Nearest(chest.transform.position, Renown.ZoneReach + 20);
             if (c == null) return false;
-            foreach (var x in Stock.Chests(c)) if (x.chest == chest) { id = x.id; category = x.category; return true; }
+            foreach (var x in Stock.Chests(c, null, true)) if (x.chest == chest) { id = x.id; category = x.category; return true; }
             return false;
         }
         public static string Name(string category) =>
-            category == "treasury" ? "the treasury" : category == "any" ? "stores of anything" : category == "" ? "not a store" : category + " stores";
+            category == "treasury" ? "the treasury" : category == Stock.TradeCategory ? "trade goods (a trader sells them)" : category == "any" ? "stores of anything" : category == "" ? "not a store" : category + " stores";
         public static void Open(Container chest)
         {
             if (!GameUi.Ready()) return;
@@ -110,6 +110,7 @@ namespace Jarldom.Ui
                 string k = cat;
                 Choice(cat == "any" ? "anything" : cat, cat == "any" ? "Whatever has no stockpile of its own kind." : null, now == cat && _c.R.Stockpiles.ContainsKey(chestId), () => Net.Act(_c, "stockpile", chestId + "|" + k));
             }
+            Choice("trade goods", "What you put in it, a trader takes to market and sells, coins to the treasury: wood, crops, hides, ore, metal, food, gear, anything (the rest of the stores, they sell only treasure). No villager takes from it or fills it.", now == Stock.TradeCategory, () => Net.Act(_c, "stockpile", chestId + "|" + Stock.TradeCategory));
             Choice("nothing", "Not the colony's stores: villagers leave it alone unless it stands in a stockpile room.", now == "" || now == "any" && !_c.R.Stockpiles.ContainsKey(chestId), () => Net.Act(_c, "stockpile", chestId + "|"));
             GameUi.Button(_window, "Cancel", new Vector2(w - 180, -h + 64), new Vector2(150, 42), Close, true, 16);
         }

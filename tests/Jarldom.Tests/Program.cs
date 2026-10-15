@@ -74,6 +74,18 @@ Check(Trading.Choose(Rank.Village, true, false, false, 4) == TradeWay.Foot && Tr
 Check(Trading.Choose(Rank.Village, true, true, true, 50) == TradeWay.Cart, "Ships wait for their rank");
 Check(Trading.Choose(Rank.Jarldom, true, true, false, 25) == TradeWay.Karve && Trading.Choose(Rank.Jarldom, true, true, true, 100) == TradeWay.Karve, "A karve at jarldom rank, not yet the longship");
 Check(Trading.Choose(Rank.Hold, false, false, true, 100) == TradeWay.Longship && Trading.Choose(Rank.Hold, true, true, true, 15) == TradeWay.Cart, "A longship for a big load; a small load stays small");
+// Trade chests: goods the game gives no price, priced by kind; treasure at its own price
+Check(Trading.GoodsPrice("Amber", "valuables", 5, 3) == 15, "A valuable sells at the game's price");
+Check(Trading.GoodsPrice("Wood", "wood", 0, 50) == 5 && Trading.GoodsPrice("Carrot", "rawfood", 0, 50) == 10, "Wood a coin a ten, carrots two");
+Check(Trading.GoodsPrice("Wood", "wood", 0, 9) == 0 && Trading.GoodsPrice("Wood", "wood", 0, 0) == 0, "Less than a coin's worth fetches nothing");
+Check(Trading.GoodsPrice("Iron", "metal", 0, 10) == 50 && Trading.GoodsPrice("IronScrap", "ore", 0, 10) == 15, "Smelted metal pays far better than ore");
+Check(Trading.GoodsPrice("SwordBronze", "gear", 0, 1, 2) == 20 && Trading.GoodsPrice("SwordBronze", "gear", 0, 1, 1) == 10, "Gear by quality");
+Check(Trading.GoodsPrice("Mystery", null, 0, 10) == 2, "Anything unknown still sells, cheaply");
+{
+    // (a day's work in the Creative colony: 107 wood, 99 carrots, 32 flax, 13 copper ore = about half of twenty villagers' daily wages, 98)
+    int day = Trading.GoodsPrice("Wood", "wood", 0, 107) + Trading.GoodsPrice("Carrot", "rawfood", 0, 99) + Trading.GoodsPrice("Flax", "seeds", 0, 32) + Trading.GoodsPrice("CopperOre", "ore", 0, 13);
+    Check(day >= 35 && day <= 70, $"A day's raw work sells for about half the day's wages ({day} of 98)");
+}
 Check(Trading.Choose(Rank.Jarldom, false, false, true, 25) == TradeWay.Karve, "A longship sails as a karve before hold rank");
 Check(Trading.Lots(TradeWay.Foot) < Trading.Lots(TradeWay.Cart) && Trading.Lots(TradeWay.Cart) < Trading.Lots(TradeWay.Karve) && Trading.Lots(TradeWay.Karve) < Trading.Lots(TradeWay.Longship), "Each way carries more");
 Check(Trading.PricePercent(TradeWay.Longship) > Trading.PricePercent(TradeWay.Karve) && Trading.PricePercent(TradeWay.Karve) > Trading.PricePercent(TradeWay.Cart), "Further markets pay better");

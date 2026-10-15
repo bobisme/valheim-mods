@@ -73,6 +73,31 @@ namespace Jarldom
             foreach (TradeWay w in ways) if (Lots(w) >= lots) return w;
             return ways[ways.Count - 1];
         }
+        // What a trader gets for goods from a trade chest, in tenths of a coin each (the game prices only treasure: a valuable sells at
+        // its own price). By kind, with a few of a kind priced apart: a colony of twenty working steadily sells about half its wages'
+        // worth on foot, more by cart and ship; crafting and metal pay best.
+        private static readonly Dictionary<string, int> TenthsOf = new Dictionary<string, int>
+        {
+            ["FineWood"] = 3, ["RoundLog"] = 3, ["ElderBark"] = 5, ["Blackwood"] = 5, ["YggdrasilWood"] = 10,
+            ["Flint"] = 2, ["Grausten"] = 3, ["Obsidian"] = 5, ["BlackMarble"] = 8, ["Crystal"] = 10,
+            ["IronScrap"] = 15, ["IronOre"] = 15, ["SilverOre"] = 25, ["BlackMetalScrap"] = 40, ["FlametalOreNew"] = 60,
+            ["Copper"] = 25, ["Tin"] = 25, ["Bronze"] = 40, ["Iron"] = 50, ["Silver"] = 80, ["BlackMetal"] = 120, ["FlametalNew"] = 200, ["BronzeNails"] = 1, ["IronNails"] = 2,
+            ["LeatherScraps"] = 3, ["Feathers"] = 2, ["TrollHide"] = 30, ["WolfPelt"] = 25, ["LoxPelt"] = 50, ["Chitin"] = 10, ["ScaleHide"] = 40,
+            ["Barley"] = 2, ["Flax"] = 2, ["LinenThread"] = 15, ["Turnip"] = 3, ["Onion"] = 4, ["Honey"] = 5, ["Raspberry"] = 1, ["Blueberries"] = 1, ["Cloudberry"] = 2,
+        };
+        private static readonly Dictionary<string, int> TenthsByKind = new Dictionary<string, int>
+        {
+            ["wood"] = 1, ["stone"] = 1, ["ore"] = 10, ["metal"] = 25, ["hides"] = 8, ["seeds"] = 1, ["rawfood"] = 2, ["food"] = 10, ["gear"] = 100, ["any"] = 2,
+        };
+        // Coins for a stack: (valuable) its game price; else by prefab or kind, quality raising gear. Rounded down, a whole stack at once.
+        public static int GoodsPrice(string prefab, string kind, int gameValue, int stack, int quality = 1)
+        {
+            if (stack <= 0) return 0;
+            if (gameValue > 0) return gameValue * stack;
+            int tenths = prefab != null && TenthsOf.TryGetValue(prefab, out int t) ? t : kind != null && TenthsByKind.TryGetValue(kind, out int k) ? k : TenthsByKind["any"];
+            if (kind == "gear") tenths *= Math.Max(1, quality);
+            return tenths * stack / 10;
+        }
         // Encoded in the trader's away record: "trade:<coins>@<way>" (an old "trade:<coins>" is on foot).
         public static string Encode(int coins, TradeWay w) => "trade:" + coins + "@" + (int)w;
         public static bool Decode(string why, out int coins, out TradeWay w)
