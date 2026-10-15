@@ -87,7 +87,7 @@ namespace Jarldom
             foreach (ItemDrop.ItemData worn in new[] { h.RightItem, h.LeftItem }) if (worn != null && !inv.ContainsItem(worn)) h.UnequipItem(worn, false);
             foreach (var type in new[] { ItemDrop.ItemData.ItemType.Helmet, ItemDrop.ItemData.ItemType.Chest, ItemDrop.ItemData.ItemType.Legs, ItemDrop.ItemData.ItemType.Shoulder, ItemDrop.ItemData.ItemType.Utility })
             {
-                ItemDrop.ItemData best = inv.GetAllItems().Where(i => i.m_shared.m_itemType == type && (i.m_durability > 0 || !i.m_shared.m_useDurability)).OrderByDescending(i => i.GetArmor()).ThenBy(i => Weaving.IsRags(i) ? 1 : 0).ThenByDescending(i => i.m_quality).FirstOrDefault(); // (clothes over rags, armour over both)
+                ItemDrop.ItemData best = inv.GetAllItems().Where(i => i.m_shared.m_itemType == type && (i.m_durability > 0 || !i.m_shared.m_useDurability) && !b.Hauled.Contains(Classes.Prefab(i) ?? "")).OrderByDescending(i => i.GetArmor()).ThenBy(i => Weaving.IsRags(i) ? 1 : 0).ThenByDescending(i => i.m_quality).FirstOrDefault(); // (clothes over rags, armour over both; not what they carry for the stores)
                 if (best != null && !h.IsItemEquiped(best)) h.EquipItem(best, false);
                 // (one worn per slot: a flag left on the old one from a reload comes off)
                 foreach (ItemDrop.ItemData other in inv.GetAllItems().Where(i => i != best && i.m_equipped && i.m_shared.m_itemType == type).ToList()) { if (h.IsItemEquiped(other)) h.UnequipItem(other, false); other.m_equipped = false; }

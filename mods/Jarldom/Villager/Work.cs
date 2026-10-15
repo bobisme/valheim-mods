@@ -561,7 +561,20 @@ namespace Jarldom
         public static int Carrying(Brain b) => b.Body.GetInventory().GetAllItems().Count(i => Stores(b, i));
         // What goes to the stores from this villager's bag: loot, and gear they picked up off the ground for the colony (not theirs).
         // (a weaver keeps their spun thread by them)
-        public static bool Stores(Brain b, ItemDrop.ItemData i) => !CornerTask.Keepsake(i) && !(b.S.Prof == Prof.Weaver && Classes.Prefab(i) == Weaving.Thread && i.m_stack <= 20) && Loot(i) || !i.m_equipped && i.m_dropPrefab != null && (b.Hauled.Contains(i.m_dropPrefab.name) || Surplus(b, i));
+        public static bool Stores(Brain b, ItemDrop.ItemData i) => !CornerTask.Keepsake(i) && !(b.S.Prof == Prof.Weaver && Classes.Prefab(i) == Weaving.Thread && i.m_stack <= 20) && Loot(i) || !i.m_equipped && i.m_dropPrefab != null && (b.Hauled.Contains(i.m_dropPrefab.name) || Surplus(b, i) || Spare(b, i));
+        // A second of what they already have and use: a tankard past their one, a weaker bow, armour or clothes beaten by what they
+        // wear in that slot (for the stores, where someone in rags or with no bow will find it).
+        public static bool Spare(Brain b, ItemDrop.ItemData i)
+        {
+            if (i.m_equipped || CornerTask.Keepsake(i)) return false;
+            var bag = b.Body.GetInventory().GetAllItems();
+            if (Gear.IsTankard(i)) return bag.FirstOrDefault(t => Gear.IsTankard(t) && t.m_equipped) is ItemDrop.ItemData held ? held != i : bag.First(Gear.IsTankard) != i;
+            var t0 = i.m_shared.m_itemType;
+            if (t0 == ItemDrop.ItemData.ItemType.Bow) return bag.Any(o => o != i && o.m_shared.m_itemType == t0 && Gear.Usable(o) && o.GetDamage().GetTotalDamage() >= i.GetDamage().GetTotalDamage());
+            if (t0 == ItemDrop.ItemData.ItemType.Helmet || t0 == ItemDrop.ItemData.ItemType.Chest || t0 == ItemDrop.ItemData.ItemType.Legs || t0 == ItemDrop.ItemData.ItemType.Shoulder)
+                return bag.Any(o => o != i && o.m_equipped && o.m_shared.m_itemType == t0 && Gear.Usable(o) && o.GetArmor() >= i.GetArmor());
+            return false;
+        }
         // Food beyond what a villager keeps for themselves (a small stack of their best, five or fewer; a bigger one goes in whole and they
         // fetch a meal back when hungry): the colony's.
         private const int KeepFood = 5;

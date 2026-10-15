@@ -392,6 +392,21 @@ namespace Jarldom
                         output(new JObject { ["added"] = a[2] });
                     }
                     break;
+                case "tombs": // (test: every loaded tombstone: whose (a villager's id, if one), where, what's in it)
+                    output(new JObject { ["tombs"] = new JArray(Object.FindObjectsByType<TombStone>(FindObjectsSortMode.None).Select(t => $"{t.GetComponent<ZNetView>()?.GetZDO()?.GetString(Villagers.TombKey, "")} '{t.GetOwnerName()}' at {V(t.transform.position)}: {string.Join(", ", t.GetComponent<Container>().GetInventory().GetAllItems().Select(i => Prefab(i) + " x" + i.m_stack))}")) });
+                    break;
+                case "souls": // (test: every soul object this game has, by villager: more than one for a villager is a fault; each one's bag and revision)
+                    {
+                        int hash = SoulStore.PrefabName.GetStableHashCode();
+                        var all = ZDOMan.instance.GetType().GetField("m_objectsByID", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(ZDOMan.instance) as Dictionary<ZDOID, ZDO>;
+                        var souls = all.Values.Where(z => z.GetPrefab() == hash && z.GetString(Villagers.VidKey, "") != "").ToList();
+                        string Bag(ZDO z) { byte[] bb = z.GetByteArray(Body.BagKey); if (bb == null || bb.Length == 0) return "none"; var inv = new Inventory("", null, VillagerPrefab.BagWidth, VillagerPrefab.BagRows); inv.Load(new ZPackage(bb)); return string.Join(", ", inv.GetAllItems().Select(i => Prefab(i))); }
+                        string filter = a.Length > 2 ? a[2] : "";
+                        output(new JObject { ["count"] = souls.Count, ["villagers"] = souls.Select(z => z.GetString(Villagers.VidKey)).Distinct().Count(),
+                            ["souls"] = new JArray(souls.Where(z => filter == "" || z.GetString(Villagers.VidKey, "") == filter || souls.Count(o => o.GetString(Villagers.VidKey) == z.GetString(Villagers.VidKey)) > 1)
+                                .Select(z => $"{z.GetString(Villagers.VidKey)} {z.GetString(Villagers.NameKey, "?")} id {z.m_uid} rev {z.DataRevision} owner {z.GetOwner()} at {z.GetPosition().x:0},{z.GetPosition().z:0} | {(filter != "" ? Bag(z) : "")}")) });
+                    }
+                    break;
                 case "smith": // (test: what the smith would make and why, what's on the board for them, the colony's worn gear)
                     {
                         var wants = Smithing.Wants(c);
@@ -400,7 +415,7 @@ namespace Jarldom
                             ["worn"] = new JArray(Villagers.All.Where(b => b.S.Colony == c.Id && b.Body != null).SelectMany(b => RepairTask.Worn(b).Select(i => $"{b.S.Name}: {i.m_dropPrefab?.name} {i.m_durability:0}/{i.GetMaxDurability():0}"))),
                             ["where"] = new JArray((a.Length > 2 ? a.Skip(2) : c.Board.All.Where(o => o.Kind == "craft" && o.Target.StartsWith(Smithing.Prefix)).Select(o => o.Target.Substring(Smithing.Prefix.Length))).Distinct()
                                 .Select(p => p + ": " + string.Join(", ", Stock.Chests(c).Where(x => x.chest.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == p)).Select(x => $"chest '{x.category}' at {x.chest.transform.position.x:0},{x.chest.transform.position.z:0}"))
-                                    + " | bags: " + string.Join(", ", Villagers.All.Where(b => b.Body != null && b.Body.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == p)).Select(b => b.S.Name)))),
+                                    + " | bags: " + string.Join(", ", Villagers.Bodies().Where(h => h.GetInventory() != null && h.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == p)).Select(h => h.GetComponent<ZNetView>().GetZDO().GetString(Villagers.NameKey, "?").Split(' ')[0] + (Villagers.All.Any(b => b.Body == h) ? "" : " (not run here)"))))),
                             ["reach"] = new JArray(Villagers.All.Where(b => b.S.Colony == c.Id && b.Body != null && Smithing.Kind(b.S.Prof) != null && Gear.Lacks(b, b.S.Prof) != null)
                                 .Select(b => $"{b.S.Name}: reaches {string.Join(", ", Stock.ChestsFor(b).Select(x => $"'{x.category}'@{x.chest.transform.position.x:0},{x.chest.transform.position.z:0}"))} | noGear in {b.NoGearUntil - Time.time:0}s")),
                             ["lacking"] = new JArray(Villagers.All.Where(b => b.S.Colony == c.Id && b.Body != null && Smithing.Kind(b.S.Prof) != null && Gear.Lacks(b, b.S.Prof) != null).Select(b => $"{b.S.Name} ({b.S.Prof}): {Gear.Lacks(b, b.S.Prof)}")) });
@@ -1581,7 +1596,7 @@ namespace Jarldom
             ["reasons"] = new JArray(Mood.Reasons(b.S, b.Now).Select(r => $"{r.value:+0;-0} {r.text}")), ["meals"] = new JArray(b.Meals.Select(m => $"{m.Prefab} {m.Left:0}s")),
             ["bed"] = b.S.Bed, ["worth"] = b.S.Worth, ["skills"] = new JObject(b.S.Skills.Where(kv => !kv.Key.EndsWith("#")).Select(kv => new JProperty(kv.Key, Math.Round(kv.Value, 1)))),
             ["bag"] = new JArray(b.Body.GetInventory().GetAllItems().Select(i => $"{Prefab(i)} x{i.m_stack}{(i.m_equipped ? " (worn)" : "")}")), ["held"] = b.Held != null, ["fighting"] = b.Fighting, ["anim"] = AnimInfo(b.Body), ["lastAttacker"] = b.LastAttacker, ["foe"] = b.Foe != null ? b.Foe.m_name : "", ["combat"] = $"{b.CombatNote} swings {b.SwingsStarted}/{b.Swings} weapon {b.Body.GetCurrentWeapon()?.m_shared.m_name}",
-            ["counts"] = new JObject(b.S.Counts.Select(kv => new JProperty(kv.Key, kv.Value))), ["opinions"] = new JObject(b.S.Opinions.Select(kv => new JProperty(kv.Key, kv.Value))), ["moving"] = b.Move.Moving, ["goal"] = V(b.Move.Goal), ["taskDebug"] = b.Task?.Debug(b) ?? "", ["move"] = b.Move.Debug, ["velocity"] = Math.Round(b.Body.GetVelocity().magnitude, 2), ["moveDir"] = V(b.Body.GetMoveDir()),
+            ["deaths"] = b.S.Deaths, ["counts"] = new JObject(b.S.Counts.Select(kv => new JProperty(kv.Key, kv.Value))), ["opinions"] = new JObject(b.S.Opinions.Select(kv => new JProperty(kv.Key, kv.Value))), ["moving"] = b.Move.Moving, ["goal"] = V(b.Move.Goal), ["taskDebug"] = b.Task?.Debug(b) ?? "", ["move"] = b.Move.Debug, ["velocity"] = Math.Round(b.Body.GetVelocity().magnitude, 2), ["moveDir"] = V(b.Body.GetMoveDir()),
         };
     }
 }

@@ -48,6 +48,7 @@ namespace Jarldom
             onBody = !Blank(b);
             return onBody ? b : soul?.GetByteArray(BagKey);
         }
+        private static string Contents(Inventory inv) => inv == null ? "" : string.Join(", ", inv.GetAllItems().Select(i => (i.m_dropPrefab != null ? i.m_dropPrefab.name : i.m_shared.m_name) + (i.m_stack > 1 ? " x" + i.m_stack : "")).OrderBy(x => x));
         [HarmonyPatch(typeof(Container), "Save")]
         private static class SaveOnSoul
         {
@@ -95,7 +96,10 @@ namespace Jarldom
                 byte[] data = Saved(body, soul, out bool onBody);
                 if (data == null || data.Length == 0) return false;
                 Loading(__instance) = true;
+                string before = v.IsOwner() ? Contents(__instance.GetInventory()) : null;
                 try { __instance.GetInventory().Load(new ZPackage(data)); } finally { Loading(__instance) = false; }
+                if (before != null && before != "" && Contents(__instance.GetInventory()) is string after && after != before) // (what was in hand is replaced: said, so a lost thing can be traced)
+                    Plugin.Log($"Jarldom: {body.GetString(Villagers.NameKey, "?")}'s bag loaded from the {(onBody ? "body" : "soul")}: was [{before}], now [{after}]");
                 if (onBody && v.IsOwner() && soul != null) ToSoul(__instance); // (an old copy on the body: over to the soul at once)
                 else if (v.IsOwner() && body.GetByteArray(ZDOVars.s_items) is byte[] none && none.Length == 0) body.Set(ZDOVars.s_items, Empty); // (a blank from an earlier build)
                 __result = true;

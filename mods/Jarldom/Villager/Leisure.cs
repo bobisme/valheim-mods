@@ -58,7 +58,8 @@ namespace Jarldom
         {
             Colony c = b.Colony;
             bool For(Brain o, Order x) => x.Prof == o.S.Prof && o.S.Prof != Prof.Hauler || x.Kind == "fuel"; // (a hauler's carrying comes and goes all day: only a fire calls them)
-            var open = c.Board.All.Where(x => x.State == OrderState.Open && For(b, x)).ToList();
+            // (a craft they were kept from a while, one that fell through, isn't seen till they may try again: then it calls them back)
+            var open = c.Board.All.Where(x => x.State == OrderState.Open && For(b, x) && !(x.Kind == "craft" && Time.time < b.NoCraftUntil)).ToList();
             if (seen == null) { seen = new HashSet<int>(open.Select(x => x.Id)); return false; }
             var idle = Villagers.All.Where(o => o != b && o.Alive && o.S.Colony == c.Id && o.Task is LeisureTask).ToList();
             foreach (Order x in open)
@@ -436,6 +437,7 @@ namespace Jarldom
             Body_.Anim(b.Body)?.SetInt("crafting", 0);
             Inventory bag = b.Body.GetInventory();
             if (_needs.Any(n => Have(b, n.item) < n.amount)) { Done = true; return; }
+            if (_prefab == "Tankard" && Gear.Tool(b, "tankard") != null) { Done = true; return; } // (one came to them meanwhile: one each)
             foreach (var (item, n) in _needs)
                 for (int left = n; left > 0;) { ItemDrop.ItemData st = bag.GetAllItems().FirstOrDefault(i => Classes.Prefab(i) == item && !i.m_equipped); if (st == null) break; int k = System.Math.Min(left, st.m_stack); bag.RemoveItem(st, k); left -= k; }
             bag.AddItem(_prefab, _r.m_amount, 1, 0, Colony.Hash(b.S.Vid), b.S.Name, new Vector2i(-1, -1), false, false, false);
