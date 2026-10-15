@@ -31,6 +31,7 @@ namespace WrongUniverse
         private static int _sent=-1;
         private static float _sentAt,_forceUntil;
         private static bool _forceBoost;
+        private static bool _protectUntilGrounded;   // thrust was used since the last landing: no fall damage until down, pack or not
         internal static readonly int JetKey="wu_jet".GetStableHashCode();
         internal static Vector3 Offset=new Vector3(0f,0.02f,-0.15f);   // from Spine2, in the back's frame (up along the spine, -z behind)
 
@@ -55,8 +56,16 @@ namespace WrongUniverse
         }
 
         // Built under attach_Spine2: +z is the player's front, so the pack sits behind (-z), nozzles pointing down.
+        // The look is Models/jetpack.py (Blender): tanks, harness, core, manifold, chambers and bells in one "body" part. The flames are
+        // made here (they flicker and scale at runtime). Without the model file, the old primitive pack stands in.
         private static void Build(Transform root)
         {
+            if(Meshes.Has("jetpack"))
+            {
+                Meshes.AddAll(root,"jetpack");
+                Flames(new Look.Builder(root));
+                return;
+            }
             var b=new Look.Builder(root);
             Material body=Look.Paint(Look.White,0.3f,0.6f),dark=Look.Paint(Look.Gunmetal,0.7f,0.5f),hazard=Look.Paint(Look.Hazard,0.2f,0.4f),
                 chrome=Look.Paint(Look.Chrome,0.9f,0.8f),strap=Look.Paint(Look.Black,0.1f,0.2f),lamp=Look.Paint(Look.Cyan,0f,0.5f,2.5f);
@@ -73,7 +82,12 @@ namespace WrongUniverse
             }
             b.Box("valve",new Vector3(0,0.22f,-0.12f),new Vector3(0.07f,0.05f,0.07f),chrome);
             b.Ball("lamp",new Vector3(0,0.12f,-0.2f),new Vector3(0.035f,0.035f,0.035f),lamp);
-            // The flames: switched off in the item (so not on the ground or in the icon), lit by Tick on whoever thrusts.
+            Flames(b);
+        }
+        // The flames: switched off in the item (so not on the ground or in the icon), lit by LateTick on whoever thrusts. They start
+        // inside the bell nozzles (exits at y -0.355, x +-0.10, z -0.13).
+        private static void Flames(Look.Builder b)
+        {
             Look.Builder flames=b.Group("flames",Vector3.zero);
             flames.Root.gameObject.SetActive(false);
             for(int side=-1;side<=1;side+=2)
@@ -107,8 +121,12 @@ namespace WrongUniverse
         }
         private static void Step(Player p,float dt)
         {
-            if(!Wearing(p)){if(Thrust!=0)SetThrust(p,0);Fuel=Mathf.MoveTowards(Fuel,1f,dt/RefuelSeconds.Value);return;}
-            if(NoFallDamage.Value)MaxAir(p)=Mathf.Min(MaxAir(p),p.transform.position.y+3.5f);   // (the game hurts falls of more than 4 m)
+            // Fall protection outlives the pack: after any thrust it holds until you're down (on the ground, swimming or attached), so
+            // a pack taken off, swapped or moved mid-flight doesn't turn the rest of the fall lethal (it killed a test character).
+            bool wearing=Wearing(p);
+            if(p.IsOnGround()||p.IsSwimming()||p.IsAttached()||p.IsDead())_protectUntilGrounded=false;
+            if(NoFallDamage.Value&&(wearing||_protectUntilGrounded))MaxAir(p)=Mathf.Min(MaxAir(p),p.transform.position.y+3.5f);   // (the game hurts falls of more than 4 m)
+            if(!wearing){if(Thrust!=0)SetThrust(p,0);Fuel=Mathf.MoveTowards(Fuel,1f,dt/RefuelSeconds.Value);return;}
             bool forced=Time.time<_forceUntil;
             bool held=forced||InputFree()&&(ZInput.GetButton("Jump")||ZInput.GetButton("JoyJump"));
             bool boost=forced?_forceBoost:Run(p);
@@ -117,6 +135,7 @@ namespace WrongUniverse
             int want=held&&can&&(!p.IsOnGround()||forced)&&Fuel>0f?(boost?2:1):0;
             if(want!=Thrust)SetThrust(p,want);
             if(want==0)return;
+            _protectUntilGrounded=true;
             Fuel=Mathf.Max(0f,Fuel-dt/FuelSeconds.Value*(want==2?BoostBurn.Value:1f));
             Rigidbody rb=Body(p);
             if(rb==null)return;
@@ -252,12 +271,21 @@ namespace WrongUniverse
             if(map.TryGetValue(name,out Transform t)&&t!=null)return t;
             t=null;
             foreach(Transform b in skin.bones)if(b!=null&&b.name==name){t=b;break;}
+            if(t==null&&skin.rootBone!=null)t=Utils.FindChild(skin.rootBone,name);   // (a bone the body mesh isn't weighted to: still in its skeleton)
             map[name]=t;
             return t;
         }
         // At a bone, upright along upFrom -> upTo (a spine or neck's bend), facing the character's forward; offset in that frame (metres).
         internal static bool Place(VisEquipment vis,Transform item,string at,string upFrom,string upTo,Vector3 offset)
         {
+            // Back to metres first, whatever else fails: left at the joint's scale a worn thing comes out many times too big (the
+            // goggles showed as a huge halo round the head when this step was skipped).
+            Transform parent=item.parent;
+            if(parent!=null)
+            {
+                Vector3 s=parent.lossyScale;
+                if(Mathf.Abs(s.x)>1e-5f&&Mathf.Abs(s.y)>1e-5f&&Mathf.Abs(s.z)>1e-5f)item.localScale=new Vector3(1f/s.x,1f/s.y,1f/s.z);
+            }
             Transform a=Bone(vis,at),u0=Bone(vis,upFrom),u1=Bone(vis,upTo);
             if(a==null)return false;
             Vector3 up=u0!=null&&u1!=null?(u1.position-u0.position):vis.transform.up;
@@ -266,12 +294,6 @@ namespace WrongUniverse
             Vector3 fwd=Vector3.ProjectOnPlane(vis.transform.forward,up);
             if(fwd.sqrMagnitude<1e-6f)fwd=Vector3.ProjectOnPlane(vis.transform.up,up);
             Quaternion rot=Quaternion.LookRotation(fwd,up);
-            Transform parent=item.parent;
-            if(parent!=null)
-            {
-                Vector3 s=parent.lossyScale;
-                if(Mathf.Abs(s.x)>1e-5f&&Mathf.Abs(s.y)>1e-5f&&Mathf.Abs(s.z)>1e-5f)item.localScale=new Vector3(1f/s.x,1f/s.y,1f/s.z);
-            }
             item.SetPositionAndRotation(a.position+rot*offset,rot);
             return true;
         }

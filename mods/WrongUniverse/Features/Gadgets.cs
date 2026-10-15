@@ -329,9 +329,11 @@ namespace WrongUniverse
 
         // ---- models ---------------------------------------------------------------------------------------------------------
 
-        // An orange and black lifter: a squat body, a glowing core and three claws reaching forward around it.
+        // The models are Blender's (Models/gravitygun.py, displacer.py, stimpack.py, beacon.py → .json.gz); the plain shapes below are
+        // only a fallback for a build missing its model files.
         private static void GravityModel(Transform root)
         {
+            if(Meshes.AddAll(root,"gravitygun").Count>0){Look.AddLight(root,new Color(1f,0.6f,0.15f),1.2f,0.6f,new Vector3(0,0.06f,0.45f));return;}
             var b=new Look.Builder(root);
             Material orange=Look.Paint(Look.Hazard,0.3f,0.5f),dark=Look.Paint(Look.Gunmetal,0.6f,0.5f),black=Look.Paint(Look.Black,0.2f,0.3f);
             b.Box("body",new Vector3(0,0.06f,0.05f),new Vector3(0.16f,0.14f,0.42f),orange);
@@ -349,9 +351,9 @@ namespace WrongUniverse
             b.Box("stripe",new Vector3(0,0.135f,0.05f),new Vector3(0.12f,0.012f,0.3f),black);
             Look.AddLight(root,new Color(1f,0.6f,0.15f),1.2f,0.6f,new Vector3(0,0.06f,0.45f));
         }
-        // A slim chrome emitter wound with glowing violet coils.
         private static void DisplacerModel(Transform root)
         {
+            if(Meshes.AddAll(root,"displacer").Count>0)return;
             var b=new Look.Builder(root);
             Material chrome=Look.Paint(Look.Chrome,0.9f,0.8f),dark=Look.Paint(Look.Black,0.3f,0.4f);
             Material coil=Look.Glow(new Color(0.75f,0.35f,1f));
@@ -362,18 +364,18 @@ namespace WrongUniverse
             b.Ball("tip",new Vector3(0,0.05f,0.47f),new Vector3(0.06f,0.06f,0.06f),Look.Glow(Color.white));
             b.Box("fin",new Vector3(0,0.11f,-0.05f),new Vector3(0.012f,0.05f,0.14f),chrome);
         }
-        // An autoinjector: white barrel, a red window of something glowing, a needle cap.
         private static void StimModel(Transform root)
         {
+            if(Meshes.AddAll(root,"stimpack").Count>0)return;
             var b=new Look.Builder(root);
             b.Tube("barrel",new Vector3(0,0,0),0.045f,0.16f,Look.Paint(Look.White,0.1f,0.6f));
             b.Tube("dose",new Vector3(0,0,0.01f),0.048f,0.07f,Look.Glow(new Color(1f,0.15f,0.2f)));
             b.Tube("plunger",new Vector3(0,0,-0.1f),0.03f,0.05f,Look.Paint(Look.Hazard,0.2f,0.5f));
             b.Tube("cap",new Vector3(0,0,0.1f),0.03f,0.04f,Look.Paint(Look.Gunmetal,0.6f,0.5f));
         }
-        // A palm-sized puck with a glowing blue eye.
         private static void BeaconModel(Transform root)
         {
+            if(Meshes.AddAll(root,"beacon").Count>0)return;
             var b=new Look.Builder(root);
             b.Tube("puck",Vector3.zero,0.12f,0.05f,Look.Paint(Look.Gunmetal,0.7f,0.6f),'y');
             b.Tube("ring",new Vector3(0,0.026f,0),0.1f,0.008f,Look.Paint(Look.Hazard,0.3f,0.5f),'y');

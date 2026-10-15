@@ -18,7 +18,7 @@ namespace WrongUniverse
     {
         public const string Guid="cx.bob.wronguniverse";
         public const string Name="Wrong Universe";
-        public const string Version="0.1.1";
+        public const string Version="0.2.0";
         internal static Plugin Instance;
         internal static ConfigFile Cfg;
         internal static ConfigEntry<float> Volume;
@@ -64,7 +64,7 @@ namespace WrongUniverse
         }
         private void LateUpdate(){foreach(Feature f in Features.All)Step(f.Name+" late",f.LateTick);}
         private void FixedUpdate(){foreach(Feature f in Features.All)Step(f.Name+" physics",f.FixedTick);}
-        private void OnGUI(){Hud.Begin();foreach(Feature f in Features.All)Step(f.Name+" gui",f.Gui);}
+        private void OnGUI(){if(Event.current.type!=EventType.Repaint)return;Hud.Begin();foreach(Feature f in Features.All)Step(f.Name+" gui",f.Gui);}
         private void OnDestroy()
         {
             foreach(Feature f in Features.All)Safe(f.Name+" stop",f.Stop);

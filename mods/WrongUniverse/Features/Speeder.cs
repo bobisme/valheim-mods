@@ -123,12 +123,16 @@ namespace WrongUniverse
             go.transform.SetParent(parent,false);go.transform.localPosition=at;
         }
 
-        // The body: a long white hull with a nose and a windscreen, twin engine pods with glowing exhausts, four glowing repulsor pads
-        // underneath (their light on the ground), handlebars, a seat for two and a headlight. +z forward, the hull's underside at 0.
+        // The body, made in Blender (Models/speeder.py): a sculpted white fairing with a hazard nose band, side vents and seams, a curved
+        // windscreen, dash, bars and grips, a stitched saddle and pillion, twin nacelles with intakes, fins and glowing exhausts, swept
+        // vanes under the nose. Its parts: "body", one "repulsor" put under each pad probe (pad0..3: SpeederCraft measures the ground
+        // under them, so nothing else may be named pad*), and the "flame" under "thrust" (stretched with speed). Lights stay the game's.
+        // +z forward, the hull's underside near 0. Without the model file the plain one below is built.
         private static void Model(Transform root)
         {
             var model=new GameObject("Model"){layer=root.gameObject.layer};
             model.transform.SetParent(root,false);
+            if(Meshes.Has("speeder")){Sculpted(model.transform);return;}
             var b=new Look.Builder(model.transform);
             Material white=Look.Paint(Look.White,0.3f,0.7f),metal=Look.Paint(Look.Gunmetal,0.6f,0.5f),black=Look.Paint(Look.Black,0.1f,0.3f),
                 chrome=Look.Paint(Look.Chrome,0.9f,0.85f),hazard=Look.Paint(Look.Hazard,0.2f,0.5f),lens=Look.Paint(Look.Lens,0.1f,0.95f),glow=Look.Glow(Look.Cyan);
@@ -162,6 +166,26 @@ namespace WrongUniverse
             Light head=Look.AddLight(model.transform,new Color(1f,0.97f,0.9f),30f,1.2f,new Vector3(0f,0.5f,1.62f));
             head.name="headlight";head.type=LightType.Spot;head.spotAngle=55f;
             b.Ball("headlamp",new Vector3(0f,0.5f,1.6f),new Vector3(0.12f,0.08f,0.04f),Look.Glow(new Color(1f,0.95f,0.8f)));
+        }
+
+        private static void Sculpted(Transform model)
+        {
+            Meshes.Add(model,"speeder","body");
+            var thrust=new GameObject("thrust"){layer=model.gameObject.layer};
+            thrust.transform.SetParent(model,false);thrust.transform.localPosition=new Vector3(0f,0.45f,-1.3f);
+            GameObject flame=Meshes.Add(thrust.transform,"speeder","flame");
+            if(flame!=null)flame.transform.localPosition=new Vector3(0f,0f,0.08f);   // (starts at the tail's glowing core)
+            int i=0;
+            foreach(float x in new[]{-0.32f,0.32f})foreach(float z in new[]{-0.9f,0.9f})
+            {
+                var pad=new GameObject("pad"+i++){layer=model.gameObject.layer};
+                pad.transform.SetParent(model,false);pad.transform.localPosition=new Vector3(x,0.08f,z);
+                GameObject dish=Meshes.Add(pad.transform,"speeder","repulsor");
+                if(dish!=null)dish.transform.localPosition=Vector3.zero;
+            }
+            foreach(float z in new[]{-0.6f,0.6f})Look.AddLight(model,Look.Cyan,4f,1.5f,new Vector3(0f,-0.1f,z)).name="padlight";
+            Light head=Look.AddLight(model,new Color(1f,0.97f,0.9f),30f,1.2f,new Vector3(0f,0.47f,1.66f));
+            head.name="headlight";head.type=LightType.Spot;head.spotAngle=55f;
         }
 
         // The cost setting on the piece (again whenever it changed or the item list wasn't ready before). An unreadable one keeps the raft's.

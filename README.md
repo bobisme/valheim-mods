@@ -1245,7 +1245,11 @@ Somebody's sci-fi kit fell through a crack into the tenth world (`cx.bob.wrongun
 
 Claude Tools gets a `wu` command: `list`, `give <prefab|all>`, `held`, and `laser`, `saber`, `jet`, `goggles`, `drone`,
 `ion`, `speeder`, `gadget` for each gadget's own checks. Code: `Core/` is shared (item registry, looks, icons, beams,
-damage, RPCs, sounds, gauges), one `Features/` class per gadget. Played briefly in the game (0.1.1: items, icons, jetpack on the back, goggles view, speeder hover).
+damage, RPCs, sounds, gauges), one `Features/` class per gadget. Models (0.2.0) are made in Blender: `Models/<name>.py` with
+`Models/wulib.py` (lathe, extrude, booleans, palette-named material slots, Cycles previews) → `<name>.json.gz`, built into the DLL
+and loaded by `Core/Meshes.cs`; run `blender -b --python <absolute path>.py -- render` from a copy under `~` (the flatpak Blender
+can't read /tmp). `wu look <prefab>` renders a model in the game from four sides, `wu grip` tunes how it sits in the hand.
+Tested in the game: firing, the sword, jetpack flight, goggles, drone, ion strike, speeder ride, displacer, stim pack.
 
 ## Build with mise
 

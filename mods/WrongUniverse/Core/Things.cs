@@ -23,6 +23,9 @@ namespace WrongUniverse
         // (VisEquipment hangs an item's attach_<bone> children on that bone of every player wearing it: everyone sees it, no networking.)
         internal string Attach="attach";
         internal Vector3 AttachEuler,AttachPosition;
+        // How it sits in the hand: the game parents the attach child to the hand joint with no turn of its own, then applies an
+        // "equipoffset" child's position and rotation (so AttachEuler only turns it on the ground and in the icon).
+        internal Vector3? HandEuler,HandPosition;
         internal Action<Transform> Model;         // builds the model under the attach child (Look.Builder helps)
         internal Action<ItemDrop.ItemData.SharedData> Stats;   // damage, durability, block, item type: anything on the shared data
         internal Quaternion? IconLook;            // the icon camera's turn (null: automatic)
@@ -128,6 +131,12 @@ namespace WrongUniverse
             attach.transform.SetParent(go.transform,false);
             attach.transform.localPosition=d.AttachPosition;
             attach.transform.localRotation=Quaternion.Euler(d.AttachEuler);
+            if(d.HandEuler.HasValue||d.HandPosition.HasValue)
+            {
+                var grip=new GameObject("equipoffset"){layer=go.layer};
+                grip.transform.SetParent(go.transform,false);
+                grip.transform.localPosition=d.HandPosition??Vector3.zero;grip.transform.localRotation=Quaternion.Euler(d.HandEuler??Vector3.zero);
+            }
             try{d.Model?.Invoke(attach.transform);}
             catch(Exception e){Plugin.Warn($"Could not build the {d.Name}'s model: {e}");}
             foreach(Transform t in attach.GetComponentsInChildren<Transform>(true))t.gameObject.layer=go.layer;

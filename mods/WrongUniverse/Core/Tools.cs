@@ -106,6 +106,47 @@ namespace WrongUniverse
                     if(done==null)error("wu look: nothing to draw");else output(new JObject{["file"]=done});
                     return null;
                 }
+                case "mat":
+                {
+                    // What a palette slot's material really is: shader, keywords, colours (wu mat glow_red emit_red white)
+                    var o=new JObject();
+                    for(int i=2;i<args.Length;i++)
+                    {
+                        Material m=Look.Slot(args[i]);
+                        var props=new JObject();
+                        foreach(string c in new[]{"_Color","_TintColor","_EmissionColor"})if(m.HasProperty(c))props[c]=m.GetColor(c).ToString();
+                        foreach(string fl in new[]{"_Metallic","_Glossiness","_SrcBlend","_DstBlend","_ZWrite","_Cull"})if(m.HasProperty(fl))props[fl]=m.GetFloat(fl);
+                        o[args[i]]=new JObject{["shader"]=m.shader.name,["queue"]=m.renderQueue,["keywords"]=string.Join(" ",m.shaderKeywords),["props"]=props,
+                            ["textures"]=string.Join(" ",m.GetTexturePropertyNames())};
+                    }
+                    output(o);
+                    return null;
+                }
+                case "grip":
+                {
+                    // Tune how an item sits in the hand, live: wu grip <prefab> ex ey ez [px py pz]. Sets its equipoffset (for the next
+                    // equip) and turns the copy in the player's hand now. Put the numbers found into the item's HandEuler/HandPosition.
+                    ItemDef d=args.Length>2?Things.Find(args[2]):null;
+                    if(d==null||d.Built==null){error("wu grip <prefab> ex ey ez [px py pz]");return null;}
+                    var inv=System.Globalization.CultureInfo.InvariantCulture;
+                    float A(int i,float dflt)=>args.Length>i?float.Parse(args[i],inv):dflt;
+                    var e=new Vector3(A(3,0),A(4,0),A(5,0));var pos=new Vector3(A(6,0),A(7,0),A(8,0));
+                    Transform grip=d.Built.transform.Find("equipoffset");
+                    if(grip==null){grip=new GameObject("equipoffset").transform;grip.SetParent(d.Built.transform,false);}
+                    grip.localPosition=pos;grip.localRotation=Quaternion.Euler(e);
+                    d.HandEuler=e;d.HandPosition=pos;
+                    var vis=me.GetComponent<VisEquipment>();
+                    int turned=0;
+                    foreach(string field in new[]{"m_rightItemInstance","m_leftItemInstance"})
+                    {
+                        var inst=HarmonyLib.Traverse.Create(vis).Field(field).GetValue<GameObject>();
+                        if(inst==null||!inst.name.StartsWith("attach"))continue;
+                        if(Things.Of(me.GetCurrentWeapon())!=d)continue;
+                        inst.transform.localPosition=pos;inst.transform.localRotation=Quaternion.Euler(e);turned++;
+                    }
+                    output(new JObject{["euler"]=V(e),["position"]=V(pos),["turnedInHand"]=turned});
+                    return null;
+                }
                 case "bones":
                 {
                     // Where the hands, head and back are (for aiming `view world` at what the player holds and wears), and which way the player faces.

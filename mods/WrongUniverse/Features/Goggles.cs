@@ -27,7 +27,7 @@ namespace WrongUniverse
         internal static ConfigEntry<float> Range,Brighten,Dim;
         internal static ConfigEntry<bool> StartOn,ShowSelf;
         internal static bool On=true;
-        internal static Vector3 Offset=new Vector3(0f,0.1f,0.1f);   // from the Head bone (up the head, forward)
+        internal static Vector3 Offset=new Vector3(0f,0.26f,0.11f);   // from the Head bone (up the head, forward): lenses over the eyes, set in game
         internal static CameraEvent Stage=CameraEvent.AfterImageEffects;
 
         private static readonly AccessTools.FieldRef<Humanoid,ItemDrop.ItemData> Helmet=AccessTools.FieldRefAccess<Humanoid,ItemDrop.ItemData>("m_helmetItem");
@@ -47,8 +47,11 @@ namespace WrongUniverse
         }
 
         // Built under "attach" on the helmet joint; placed every frame by Wear.Place: +z forward, +y up the head.
+        // The look is Models/goggles.py (Blender): barrels, red lenses, battery, side dial, antenna and strap in one "body" part.
+        // Without the model file, the old primitive pair stands in.
         private static void Build(Transform root)
         {
+            if(Meshes.Has("goggles")){Meshes.AddAll(root,"goggles");return;}
             var b=new Look.Builder(root);
             Material frame=Look.Paint(Look.Gunmetal,0.7f,0.5f),strap=Look.Paint(Look.Black,0.1f,0.2f),lens=Look.Paint(new Color(0.9f,0.08f,0.05f),0.2f,0.95f,1.8f),
                 chrome=Look.Paint(Look.Chrome,0.9f,0.8f);
@@ -193,7 +196,7 @@ namespace WrongUniverse
                     Bodies[c]=body;
                 }
                 int kind=c.IsPlayer()?1:c.IsBoss()?2:c.m_faction==Character.Faction.Undead?3:0;
-                int level=Mathf.Clamp(Mathf.RoundToInt((1f-d/range)*7f),0,7);
+                int level=c==me?0:Mathf.Clamp(Mathf.RoundToInt((1f-d/range)*7f),0,7);   // (yourself only faintly: the camera is close, and full heat hid you and your gear)
                 Material m=HeatMat(kind,level);
                 foreach(Renderer r in body.Renderers)
                 {
@@ -241,7 +244,24 @@ namespace WrongUniverse
                 case "info":break;
                 default:error("wu goggles: "+Help);return null;
             }
-            output(new JObject{["wearing"]=Wearing(Player.m_localPlayer),["on"]=On,["active"]=Active,["shader"]=_shader!=null||Shader.Find("Hidden/Internal-Colored")!=null,
+            // Where the worn goggles really are (they once showed as a huge halo): the instance, its joint, the head bone, world scale.
+            var placed=new JObject();
+            Player me=Player.m_localPlayer;
+            VisEquipment vis=me!=null?me.GetComponent<VisEquipment>():null;
+            GameObject inst=vis!=null?HelmetInst(vis):null;
+            if(inst!=null)
+            {
+                Transform head=Wear.Bone(vis,"Head"),neck=Wear.Bone(vis,"Neck");
+                placed["joint"]=inst.transform.parent!=null?inst.transform.parent.name:null;
+                placed["jointScale"]=inst.transform.parent!=null?Tools.V(inst.transform.parent.lossyScale):null;
+                placed["worldScale"]=Tools.V(inst.transform.lossyScale);
+                placed["at"]=Tools.V(inst.transform.position);
+                placed["head"]=head!=null?Tools.V(head.position):null;
+                placed["neckFound"]=neck!=null;
+                placed["hashMatches"]=HelmetHash(vis)==Item.Prefab.GetStableHashCode();
+                placed["renderers"]=inst.GetComponentsInChildren<Renderer>(true).Length;
+            }
+            output(new JObject{["placed"]=placed,["wearing"]=Wearing(Player.m_localPlayer),["on"]=On,["active"]=Active,["shader"]=_shader!=null||Shader.Find("Hidden/Internal-Colored")!=null,
                 ["attached"]=_cam!=null,["stage"]=Stage.ToString(),["renderersDrawn"]=_drawn,["bodies"]=Bodies.Count,["offset"]=Tools.V(Offset),
                 ["ambient"]=RenderSettings.ambientLight.ToString()});
             return null;

@@ -23,7 +23,7 @@ namespace WrongUniverse
         private static ConfigEntry<int> RPierce;
         private static ConfigEntry<bool> Buildings;
 
-        internal static readonly ItemDef Pistol=new ItemDef{Prefab="WU_LaserPistol",Name="Laser Pistol",Base="CrossbowArbalest",
+        internal static readonly ItemDef Pistol=new ItemDef{Prefab="WU_LaserPistol",HandEuler=new Vector3(0,0,90),HandPosition=new Vector3(-0.06f,0,0),Name="Laser Pistol",Base="CrossbowArbalest",
             Description="A hand blaster from a universe with better ideas. Click to shoot a bolt of red light at whatever you point at. It runs hot: shoot too fast and it locks up until it cools. Leaves the off hand free for a shield.",
             Cost="Iron:8, SurtlingCore:2, Copper:4",Station="forge",Level=1,Weight=1.2f,AttachEuler=new Vector3(0,90,0),Model=PistolModel,Stats=PistolStats};
         internal static readonly ItemDef Rifle=new ItemDef{Prefab="WU_LaserRifle",Name="Laser Rifle",Base="CrossbowArbalest",
@@ -82,9 +82,11 @@ namespace WrongUniverse
         private static HitData.DamageTypes Damage(float total)=>new HitData.DamageTypes{m_pierce=total*0.6f,m_lightning=total*0.4f};
 
         // Models: barrel along +Z, up +Y, the grip hand at the origin (Guns' convention, turned into the hand by AttachEuler).
+        // The Blender models (Models/pistol.py, rifle.py) when they're built into the DLL; the plain shapes below otherwise.
         private static void PistolModel(Transform root)
         {
             var b=new Look.Builder(root);
+            if(Meshes.Has("pistol")){Meshes.AddAll(root,"pistol");b.Point("wu_muzzle",new Vector3(0,0.03f,0.245f));return;}
             Material white=Look.Paint(Look.White,0.2f,0.7f),black=Look.Paint(Look.Black,0.3f,0.4f),metal=Look.Paint(Look.Gunmetal,0.8f,0.6f),red=Look.Glow(Look.Red);
             b.Box("grip",new Vector3(0,-0.055f,-0.03f),new Vector3(0.034f,0.11f,0.048f),black,new Vector3(-14,0,0));
             b.Box("body",new Vector3(0,0.025f,0.05f),new Vector3(0.046f,0.058f,0.2f),white);
@@ -100,6 +102,7 @@ namespace WrongUniverse
         private static void RifleModel(Transform root)
         {
             var b=new Look.Builder(root);
+            if(Meshes.Has("rifle")){Meshes.AddAll(root,"rifle");b.Point("wu_muzzle",new Vector3(0,0.04f,0.775f));return;}
             Material white=Look.Paint(Look.White,0.2f,0.7f),black=Look.Paint(Look.Black,0.3f,0.4f),metal=Look.Paint(Look.Gunmetal,0.8f,0.6f),
                 blue=Look.Glow(Look.Blue),lens=Look.Paint(Look.Lens,0.9f,0.95f,1.2f);
             b.Box("grip",new Vector3(0,-0.06f,-0.02f),new Vector3(0.036f,0.12f,0.05f),black,new Vector3(-14,0,0));

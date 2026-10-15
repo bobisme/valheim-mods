@@ -166,8 +166,22 @@ namespace WrongUniverse
         private static AudioClip UpClip()=>Sound.Make("drone_up",0.6f,t=>
             Sound.Env(t,0.05f,0.6f)*(0.4f*Sound.Saw(Sound.SweepPhase(t,90f,260f,0.6f))+0.08f*Sound.Noise()));
 
-        // The model: a squat body with a red eye at the front (+z), four arms with spinning rotors, and skids. scale 1 = 0.5 m across.
+        // The model (Models/drone.py): a white-shelled quadcopter with a ball-turret eye under its nose (+z), four arms with motor pods,
+        // twisted two-blade props (parts rotor0..3, spun about their hubs by Update) and skids. scale 1 = 0.5 m across. The eye point
+        // and its light stay direct children of root (Awake finds "eye" there); a faint blur disc turns with each prop in flight.
         internal static void BuildModel(Transform root,float scale,bool flying)
+        {
+            if(!Meshes.Has("drone")){BuildPrimitive(root,scale,flying);return;}
+            var shape=new GameObject("shape"){layer=root.gameObject.layer};
+            shape.transform.SetParent(root,false);shape.transform.localScale=Vector3.one*scale;
+            foreach(var kv in Meshes.AddAll(shape.transform,"drone"))
+                if(flying&&kv.Key.StartsWith("rotor")&&kv.Value!=null)
+                    new Look.Builder(kv.Value.transform).Tube("blur",new Vector3(0,0.006f,0),0.2f,0.0015f,Look.Glow(Color.white,0.1f),'y');
+            Transform eye=new Look.Builder(root).Point("eye",new Vector3(0,-0.042f,0.185f)*scale);
+            if(flying)Look.AddLight(eye,Look.Red,2.5f,1.2f);
+        }
+        // The first look, from plain shapes: used only if the Blender model is missing from the build.
+        private static void BuildPrimitive(Transform root,float scale,bool flying)
         {
             var b=new Look.Builder(root);
             Material body=Look.Paint(Look.Gunmetal,0.6f,0.6f),dark=Look.Paint(Look.Black,0.3f,0.3f),stripe=Look.Paint(Look.Hazard,0.2f,0.5f);

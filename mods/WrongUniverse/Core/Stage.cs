@@ -35,7 +35,7 @@ namespace WrongUniverse
                 bool any=false;var b=new Bounds();
                 foreach(Renderer r in copy.GetComponentsInChildren<Renderer>())
                 {
-                    if(!r.enabled||r is ParticleSystemRenderer||r is LineRenderer)continue;
+                    if(!r.enabled||r is ParticleSystemRenderer||r is LineRenderer||r is TrailRenderer)continue;
                     if(!any){b=r.bounds;any=true;}else b.Encapsulate(r.bounds);
                 }
                 if(!any)return null;

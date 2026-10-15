@@ -87,6 +87,7 @@ namespace WrongUniverse
         }
         private static void Hilt(Transform root)
         {
+            if(Meshes.Has("saber")){Meshes.Add(root,"saber","hilt");return;}   // (Models/saber.py; the plain shapes below if it's missing)
             var b=new Look.Builder(root);
             Material chrome=Look.Paint(Look.Chrome,0.9f,0.8f),black=Look.Paint(Look.Black,0.3f,0.4f),metal=Look.Paint(Look.Gunmetal,0.8f,0.6f),red=Look.Glow(Look.Red);
             b.Tube("hilt",new Vector3(0,0.02f,0),0.038f,0.26f,chrome,'y');

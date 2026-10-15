@@ -49,7 +49,11 @@ namespace WrongUniverse
             if(m.HasProperty("_Color"))m.SetColor("_Color",color);
             if(m.HasProperty("_Metallic"))m.SetFloat("_Metallic",metal);
             if(m.HasProperty("_Glossiness"))m.SetFloat("_Glossiness",gloss);
-            if(emit>0f&&m.HasProperty("_EmissionColor")){m.EnableKeyword("_EMISSION");m.SetColor("_EmissionColor",color*emit);}
+            if(emit>0f&&m.HasProperty("_EmissionColor"))
+            {
+                m.EnableKeyword("_EMISSION");m.SetColor("_EmissionColor",color*emit);
+                if(m.HasProperty("_EmissionMap"))m.SetTexture("_EmissionMap",Texture2D.whiteTexture);   // (the game's shader multiplies emission by this map: none = no glow)
+            }
             Cache[key]=m;
             return m;
         }
@@ -94,8 +98,10 @@ namespace WrongUniverse
                 case "lens":return Paint(Lens,0.3f,0.95f);
                 case "glass":return Paint(new Color(0.08f,0.12f,0.16f),0.5f,0.95f);
             }
-            if(name.StartsWith("glow_"))return Glow(Named(name.Substring(5)));
-            if(name.StartsWith("emit_")){Color c=Named(name.Substring(5));return Paint(c,0f,0.6f,2.5f);}
+            // On a model, light-giving parts are drawn unlit in their full colour (the game's lit shader dims them, additive glow over a
+            // dark part reads grey): glow_ brighter and tinted towards white, emit_ (indicators, screens) as the plain colour.
+            if(name.StartsWith("glow_"))return Unlit(Color.Lerp(Named(name.Substring(5)),Color.white,0.35f));
+            if(name.StartsWith("emit_"))return Unlit(Named(name.Substring(5)));
             if(name.StartsWith("c_")&&name.Length>=8&&ColorUtility.TryParseHtmlString("#"+name.Substring(2,6),out Color hex))
             {
                 float metal=0.3f,gloss=0.5f,emit=0f;
@@ -117,6 +123,19 @@ namespace WrongUniverse
                 case "orange":return new Color(1f,0.45f,0.08f);case "yellow":return new Color(1f,0.85f,0.2f);case "white":return Color.white;
             }
             return Color.white;
+        }
+
+        // A flat colour that ignores light (Unity's sprite shader is in every build). Opaque by colour, drawn just after the opaque pass.
+        internal static Material Unlit(Color color)
+        {
+            string key=$"u{color.r:F3}/{color.g:F3}/{color.b:F3}";
+            if(Cache.TryGetValue(key,out Material m)&&m!=null)return m;
+            Shader sh=Shader.Find("Sprites/Default");
+            if(sh==null)return Paint(color,0f,0.6f,2.5f);
+            m=Own(new Material(sh));
+            m.color=new Color(color.r,color.g,color.b,1f);m.renderQueue=2460;
+            Cache[key]=m;
+            return m;
         }
 
         // The box around every renderer under root, in space's own coordinates.
