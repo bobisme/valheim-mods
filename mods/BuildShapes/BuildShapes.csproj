@@ -1,3 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><AssemblyName>BuildShapes</AssemblyName><RootNamespace>BuildShapes</RootNamespace></PropertyGroup>
+  <ItemGroup>
+    <!-- The sketch drawing shared with Hallwright, compiled into each mod (no runtime link between them). -->
+    <Compile Include="../Shared/Sketch/*.cs" Link="Shared/Sketch/%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

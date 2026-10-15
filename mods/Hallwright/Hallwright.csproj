@@ -2,5 +2,7 @@
   <PropertyGroup><AssemblyName>Hallwright</AssemblyName><RootNamespace>Hallwright</RootNamespace></PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Models/stake/*.json.gz" LogicalName="Hallwright.%(Filename)%(Extension)" />
+    <!-- The sketch drawing shared with BuildShapes, compiled into each mod (no runtime link between them). -->
+    <Compile Include="../Shared/Sketch/*.cs" Link="Shared/Sketch/%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

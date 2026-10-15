@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Hallwright
+namespace SharedSketch
 {
+    // (Shared by Hallwright and BuildShapes: mods/Shared/Sketch, compiled into each mod.)
     // The lines an architect would ink on a piece: where its surface folds (more than Crease degrees) and where it ends. Corners that
     // differ only in normals or texture coordinates are welded first, so a hard edge isn't drawn twice and a flat face isn't cut up.
     // A face behind another (a double-sided board) doesn't count as a fold: only faces on opposite sides of an edge make it smooth.

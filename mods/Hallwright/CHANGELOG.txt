@@ -1,3 +1,5 @@
+0.11.2: No change you can see: the sketch drawing now lives in a library shared with BuildShapes (which draws its shapes the same way from BuildShapes 0.12.0).
+
 0.11.1: Over a sketch, the markers and the outline's dashes are blue pencil instead of red chalk (red looked like an error).
 
 0.11.0: The sketch draws itself in: new pieces appear bottom up, ink first, then their colour washes in from the bare paper. The whole hall when the outline becomes valid or the draft opens; only the added pieces when a setting adds some. Faint construction lines carry the floor, wall tops, eaves and ridge a little past the corners and gables. Roofs light as clean slopes instead of crumpled paper. Over a sketch, the corner, door and chimney markers and the outline's dashes are red chalk and the live line is ink, instead of glowing amber and white. hall status reports the drawing-in (sketch).

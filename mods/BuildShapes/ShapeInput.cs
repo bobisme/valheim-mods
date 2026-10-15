@@ -1,5 +1,7 @@
+using System.Linq;
 using System.Reflection;
 using HarmonyLib;
+using SharedSketch;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -53,9 +55,18 @@ namespace BuildShapes
             if(Time.unscaledTime-_lastAction>0.5f && Input.GetKeyDown(_plan.Value)){_enterFrame=Time.frameCount;_confirmHeld=true;_lastAction=Time.unscaledTime;Submit(player);return true;}
             return false;
         }
-        // The pieces as they'll look: their own meshes and materials, no colliders, no cost, nothing in the world.
+        // The preview: as an architect's watercolour (mods/Shared/Sketch, as Hallwright drafts are), or the pieces as they'll look
+        // (PreviewStyle). Their own meshes either way: no colliders, no cost, nothing in the world. A shape draws itself in, along its
+        // pieces, when it's first complete; turning or reshaping it afterwards shows at once (an adjustment mid-drawing keeps the drawing going).
+        private SketchPainter _painter;
+        private SketchPainter Painter=>_painter??(_painter=new SketchPainter("BuildShapes",m=>Logger.LogDebug(m)));
+        private readonly SketchArrivals _arrivals=new SketchArrivals();
+        private float _drawnAt=-1; // (when the current shape was first complete; -1 while it isn't)
         private void ShowPieces()
         {
+            _arrivals.Clear();
+            if(_output.Count==0){_drawnAt=-1;return;}
+            if(_previewStyle.Value!="Pieces"){ShowSketch();return;}
             foreach(PiecePose pose in _output)
             {
                 var go=new GameObject("BuildShapes piece preview"){layer=LayerMask.NameToLayer("Ignore Raycast")};
@@ -68,6 +79,22 @@ namespace BuildShapes
                     var renderer=part.AddComponent<MeshRenderer>();renderer.sharedMaterials=mesh.Materials;renderer.shadowCastingMode=ShadowCastingMode.Off;
                 }
                 _visuals.Add(go);
+            }
+        }
+        private void ShowSketch()
+        {
+            float now=Time.unscaledTime;
+            if(_drawnAt<0)_drawnAt=now;
+            float span=SketchArrivals.Span(_output.Count);
+            bool drawing=now<_drawnAt+span+SketchArrivals.InkLead+SketchArrivals.WashIn;
+            for(int i=0;i<_output.Count;i++)
+            {
+                PiecePose pose=_output[i];
+                GameObject template=Painter.Template(pose.Prefab,SharedMeshes(pose.Prefab).Select(m=>new SketchPart{Mesh=m.Mesh,Local=m.Local,Materials=m.Materials,Path="part"}),pose.Prefab.Contains("roof"));
+                var copy=Instantiate(template,pose.Position,pose.Rotation);copy.layer=LayerMask.NameToLayer("Ignore Raycast");
+                Painter.Mix(copy,pose.Position);
+                if(drawing)_arrivals.Schedule(copy,_drawnAt+span*i/Mathf.Max(1,_output.Count-1),false);
+                _visuals.Add(copy);
             }
         }
     }

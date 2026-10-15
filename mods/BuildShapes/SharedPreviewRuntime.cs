@@ -202,6 +202,7 @@ namespace BuildShapes
         }
         private void LateUpdate()
         {
+            UpdateShapeHints();
             if(Player.m_localPlayer==null)return;
             bool show=_enabled.Value&&_showSharedDrafts.Value;int groups=0,pieces=4096;
             foreach(var pair in _sharedDraftSet.Entries.OrderBy(p=>(ShareVector(p.Value.Preview.Center)-Player.m_localPlayer.transform.position).sqrMagnitude))

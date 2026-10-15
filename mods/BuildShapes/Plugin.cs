@@ -15,7 +15,7 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.11.1";
+        public const string Version = "0.12.0";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
@@ -25,6 +25,7 @@ namespace BuildShapes
         private ConfigEntry<bool> _enabled, _follow;
         private ConfigEntry<float> _spacing;
         private ConfigEntry<KeyCode> _radialKey, _mark, _plan, _undo, _back, _options;
+        private ConfigEntry<string> _previewStyle;
         private Harmony _harmony;
         private readonly Planner _planner = new Planner();
         private readonly List<Vector3> _markers = new List<Vector3>();
@@ -71,6 +72,7 @@ namespace BuildShapes
             _radialKey = Config.Bind("Controls", "ShapeMenu", KeyCode.LeftControl, "Hold (a third of a second, without clicking or scrolling) with the hammer for the shape radial: flick towards Curve, Arch, Arc, Line, Mirror or Repeat and let go.");
             _mark = Config.Bind("Controls", "PlaceMarker", KeyCode.Mouse0, "Click to place markers in a shape tool; Left Ctrl+click selects pieces in Mirror and Repeat.");
             _plan = Config.Bind("Controls", "ConfirmShape", KeyCode.E, "Plan the shape as shared BuildOrders ghosts once its pieces show (what you look at isn't used then).");
+            _previewStyle = Config.Bind("General", "PreviewStyle", "Sketch", new ConfigDescription("How a shape's pieces show before you plan them: Sketch, drawn as an architect's watercolour (as Hallwright drafts are), or Pieces, as they'll look built.", new AcceptableValueList<string>("Sketch", "Pieces")));
             _options = Config.Bind("Controls", "RepeatOptions", KeyCode.O, "Open Repeat's full options: path anchor, pitch, roll and exact values.");
             _undo = Config.Bind("Controls", "UndoCurve", KeyCode.U, "Remove the last shape's unbuilt ghosts in this session. Built pieces stay.");
             _back = Config.Bind("Controls", "RemoveMarker", KeyCode.Backspace, "Remove last marker; Left Ctrl also removes the last Mirror selection.");
@@ -96,7 +98,7 @@ namespace BuildShapes
             long world = ZNet.World?.m_uid ?? 0;
             if (_player != player || _session != ZNet.instance || _world != world)
             { Stop(); _lastPlan = null; _bounds.Clear(); _player = player; _session = ZNet.instance; _world = world; }
-            UpdateSharedPreviews(); UpdateShapeCommands();
+            UpdateSharedPreviews(); UpdateShapeCommands(); _arrivals.Tick();
             if (!_enabled.Value || !HoldingHammer(player) || player.IsDead())
             { if (ShapeActive) Stop(); if (player != null && player.IsDead()) _lastPlan = null; return; }
             if (!_planner.Ready() || ((_tool == Tool.Mirror || _tool == Tool.Repeat) && !_planner.Extended) || !_planner.Available(player))
@@ -437,24 +439,7 @@ namespace BuildShapes
             if (!ShapeActive || !Ready(Player.m_localPlayer) || !_planner.Available(Player.m_localPlayer)) return;
             if (_radial) { DrawRadial(); return; }
             if (_repeatMenu) { DrawRepeatMenu(); return; }
-            string turn = $"scroll: turn ({_shapeRoll:0.#}°)";
-            string detail = _tool == Tool.Mirror ? $"{_sources.Count} selected; Ctrl+click toggles pieces/ghosts; Ctrl+Backspace removes the last selection." :
-                _tool == Tool.Repeat ? $"Scroll: turn ({_yaw:0.#}°); Ctrl+scroll: spacing {SafeSpacing():0.##} m (Shift: fine); {_options.Value}: anchor, pitch, roll; Home: {(_follow.Value ? "follow curve" : "fixed orientation")}; Ctrl+click copies a piece." :
-                _tool == Tool.Arch ? $"Start and end, rising straight up; {turn}; Ctrl+scroll: height {_archRise:0.##} m (Shift: fine)." :
-                _tool == Tool.Arc ? $"Start and end, a circle through its top; {turn}; Ctrl+scroll: height {_archRise:0.##} m (Shift: fine)." :
-                _tool == Tool.Line ? $"Start and end, at any slope or upright; {turn}." : $"Start, bend, end; {turn}.";
-            string status = _previewError ?? (_output.Count > 0 ? $"{_output.Count} pieces ready: {_plan.Value} plans them." : $"{_markers.Count}/{RequiredMarkers} markers.");
-            string text = $"BuildShapes {_tool}: click: marker | {_plan.Value}: plan | Delete: clear | {_back.Value}: last marker | {_undo.Value}: undo | hold {_radialKey.Value}: shapes | Escape: exit\n{detail}\n{status}";
-            Matrix4x4 saved = GUI.matrix;
-            try
-            {
-                Theme();
-                float scale = Mathf.Max(0.6f, Screen.height / 1080f);
-                GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1));
-                float width = Mathf.Min(980, Screen.width / scale - 40), height = _hud.CalcHeight(new GUIContent(text), width);
-                GUI.Box(new Rect(20, Screen.height / scale - 85 - height, width, height), text, _hud);
-            }
-            finally { GUI.matrix = saved; }
+            // (the keys and status: ShapeHints, in the game's own key-hint row)
         }
         private void ClearVisuals() { DirtySharedPreview(); foreach (GameObject go in _visuals) if (go != null) Destroy(go); _visuals.Clear(); }
         private void ClearShape() { CloseRadial(); CloseRepeatMenu(); _archRiseSet = false; _markers.Clear(); _sources.Clear(); _output.Clear(); _previewError = null; ClearVisuals(); }
@@ -464,7 +449,7 @@ namespace BuildShapes
         {
             DestroySharedPreviews();Stop(); _harmony?.UnpatchSelf(); if (_material != null) Destroy(_material);
             if(_anchorMaterial!=null)Destroy(_anchorMaterial);
-            DestroyRadial(); UnregisterShapeCommands(); DestroyTheme();
+            DestroyRadial(); HideShapeHints(); DestroyHintRow(); UnregisterShapeCommands(); _painter?.Destroy(); _painter = null; DestroyTheme();
             if (Instance == this) Instance = null;
         }
     }

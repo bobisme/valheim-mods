@@ -990,7 +990,8 @@ Choosing the shape you're in, with the same piece, keeps your markers; anything 
 | **U** | Remove the last submitted shape's unbuilt ghosts |
 | **Escape** | Close the radial or options first, or leave the shape tool |
 
-Once a shape's markers are down, its **real pieces** show (local only: no colliders, no cost), so what you see is what E plans.
+Once a shape's markers are down, it shows as an **architect's watercolour sketch** (drawn the way Hallwright drafts are: pen strokes along every edge over a wash of each piece's own colour, on watercolour-paper grain), and draws itself in along the shape, ink first, when it's first complete; turning or reshaping it afterwards shows at once. Set `PreviewStyle` (F7, General) to `Pieces` to see the real pieces instead. Either way it's local only (no colliders, no cost), and what you see is what E plans.
+While a shape tool is out, its keys replace the game's key hints along the bottom of the screen, in the same look (labels and key caps), with a line above them for the shape, its markers and its settings.
 A slow Ctrl+click or Ctrl+scroll that opens the radial, with the pointer still in its middle, closes it and does what it would have done.
 The camera doesn't zoom while a shape is ready to turn. Keys are in F7 under Controls: `ShapeMenu`, `ConfirmShape`, `RepeatOptions`.
 
