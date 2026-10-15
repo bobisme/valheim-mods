@@ -831,6 +831,28 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Fare.Wants(4).Contains("Plains") && Fare.Wants(4).Contains("bread") && Fare.Lands.Length == Fare.Examples.Length && Fare.Lands.Length == Fare.Keys.Length + 1, "It names the land and its dishes");
 }
 
+// ---- The land wears thin ----
+{
+    Check(Worn.Yield(0) == 1f && Worn.Yield(Worn.Threshold) == 1f && Worn.Yield(Worn.Full) == Worn.Least && Worn.Yield(10000) == Worn.Least, "Full yields up to the threshold, never below 0.7");
+    Check(Worn.Yield((Worn.Threshold + Worn.Full) / 2) is float mid && mid < 1f && mid > Worn.Least, "Falling evenly between");
+    var zones = new Dictionary<(int, int), Worn.Zone>(); var at = Worn.ZoneOf(100, -10);
+    Check(at == (1, -1), "Zones of 64 m, by where the use was");
+    for (int i = 0; i < 200; i++) Worn.Use(zones, at, "chop", 5.0 + i * 0.001);
+    Check(Worn.YieldAt(zones, at, 5.2) == Worn.Least, "Two hundred trees felled in a zone in a morning: it yields 70%");
+    Check(Worn.YieldAt(zones, at, 5.2 + Worn.RecoverDays) == 1f && Worn.Left(zones[at], 5.2 + Worn.RecoverDays) == 0, "Ten idle days and it's whole again");
+    Check(Worn.YieldAt(zones, at, 5.2 + Worn.RecoverDays / 2) > Worn.Least, "Half way, half recovered");
+    Check(Worn.YieldAt(zones, (9, 9), 5) == 1f, "A zone never used yields fully");
+    var picks = new Dictionary<(int, int), Worn.Zone>(); for (int i = 0; i < 160; i++) Worn.Use(picks, at, "pick", 1);
+    Check(Math.Abs(picks[at].Count - 40) < 0.01f && Worn.YieldAt(picks, at, 1) == 1f, "A wild plant picked weighs a quarter of a tree");
+    // (steady use: a woodcutter's ten trees a day in one zone settles where yields are down a fifth, not at the floor)
+    var steady = new Dictionary<(int, int), Worn.Zone>(); for (int d = 0; d < 60; d++) for (int t = 0; t < 10; t++) Worn.Use(steady, at, "chop", d + t * 0.05);
+    float y = Worn.YieldAt(steady, at, 60);
+    Check(y > 0.75f && y < 0.9f, $"Ten trees a day for two months settles at {y:0.00}: pressure, not ruin");
+    var kept = Worn.Load(Worn.Save(zones, 6));
+    Check(kept.Count == 1 && Math.Abs(kept[at].Count - zones[at].Count) < 0.01f && Worn.Save(zones, 5.2 + Worn.RecoverDays + 1) == "", "Kept compactly; recovered zones dropped");
+    Check(Worn.Load("junk;1,2,x,3;").Count == 0, "Bad record entries are skipped");
+}
+
 // ---- Prefab names: a save finds a thing again by its prefab's name; none shipped may go ----
 {
     var golden = File.ReadAllLines(Path.Combine(AppContext.BaseDirectory, "prefabs.txt")).Select(l => l.Trim()).Where(l => l != "").ToList();
