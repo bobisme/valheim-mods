@@ -1,3 +1,5 @@
+0.2.0: Shingle roofs in every shape, 26° and 45°: tarred wooden shingles with rounded tongues, as a stave church is roofed, lapping row over row (no seams between pieces), ridges capped with boards, hips and valleys lined with them. A shingle ridge end with a carved dragon's head reaching out from the gable, jaws open (26° and 45°).
+
 0.1.2: No more build-menu errors from a piece an older copy of the mod left behind in the hammer's list.
 
 0.1.1: Turf ridge smoke vents (26° and 45°): a ridge piece with a slot open its whole length and a single-pitch hood over it, where a house's smoke actually gathers. Put them in the ridge right over the hearth (two over a hearth that sits where two ridge pieces meet) and keep anything (a ridge log) out of the slot. The square smoke hole is for single-slope roofs. Hot reload no longer leaves turf pieces magenta.

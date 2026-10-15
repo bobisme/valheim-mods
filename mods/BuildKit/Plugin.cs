@@ -15,7 +15,7 @@ namespace BuildKit
     {
         public const string Guid = "com.bobisme.buildkit";
         public const string Name = "BuildKit";
-        public const string Version = "0.1.2";
+        public const string Version = "0.2.0";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled;
         private Harmony _harmony;

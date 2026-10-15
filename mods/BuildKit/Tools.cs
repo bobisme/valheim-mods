@@ -90,6 +90,27 @@ namespace BuildKit
                         output(new JObject { ["sod"] = Look.SodTexture, ["earth"] = Look.EarthTexture, ["bark"] = Look.BarkTexture, ["scale"] = Look.SodScale });
                     }
                     break;
+                case "stage": // (test: "stage <yaw> <pitch> <dist> <piece@x,y,z,yaw> ...": those pieces set out as ghosts far below the world, drawn to a PNG)
+                    {
+                        var parts = new System.Collections.Generic.List<(GameObject, Vector3, float)>();
+                        foreach (string spec in a.Skip(5))
+                        {
+                            string[] q = spec.Split('@'); string[] n = q[1].Split(',');
+                            GameObject prefab = scene.GetPrefab(q[0]); if (prefab == null) { error("no piece " + q[0]); yield break; }
+                            parts.Add((prefab, new Vector3(F(n[0]), F(n[1]), F(n[2])), n.Length > 3 ? F(n[3]) : 0));
+                        }
+                        string path = System.IO.Path.Combine(Paths.BepInExRootPath, "claude", "shots", $"stage-{DateTime.Now:HHmmss-fff}.png");
+                        output(new JObject { ["stage"] = Icons.Stage(parts, F(a[2]), F(a[3]), F(a[4]), path) });
+                    }
+                    break;
+                case "ground": // (test: "ground x0 z0 x1 z1 [step]": the ground's height on a grid, to find level ground for samples)
+                    {
+                        float x0 = F(a[2]), z0 = F(a[3]), x1 = F(a[4]), z1 = F(a[5]), st = a.Length > 6 ? F(a[6]) : 2;
+                        var rows = new JArray();
+                        for (float z = z0; z <= z1 + 0.01f; z += st) { var row = new System.Collections.Generic.List<string>(); for (float x = x0; x <= x1 + 0.01f; x += st) row.Add(ZoneSystem.instance.GetGroundHeight(new Vector3(x, 0, z)).ToString("0.0")); rows.Add($"z {z:0}: " + string.Join(" ", row)); }
+                        output(new JObject { ["x"] = $"{x0:0}..{x1:0} by {st}", ["rows"] = rows });
+                    }
+                    break;
                 case "place":
                     {
                         if (a.Length < 6) { error("kit place <piece> <x> <y> <z> [yaw]"); yield break; }

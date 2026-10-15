@@ -14,7 +14,7 @@ namespace BuildKit
     {
         internal sealed class Def
         {
-            public string Name, From, Title, Text; public Shape Shape; public bool Steep, Hole;
+            public string Name, From, Title, Text; public Shape Shape; public bool Steep, Hole, Shingled, Dragon;
         }
         // Turf roofs: one for each of the game's roof shapes, 26° and 45°.
         internal static readonly Def[] Defs =
@@ -33,6 +33,24 @@ namespace BuildKit
             // Ridge vents: where a house's smoke gathers, all along under its ridge.
             new Def { Name = "BK_turf_ridge_vent", From = "wood_roof_top", Shape = Shape.Ridge, Hole = true, Title = "Turf ridge smoke vent 26°", Text = RidgeText },
             new Def { Name = "BK_turf_ridge_vent_45", From = "wood_roof_top_45", Shape = Shape.Ridge, Steep = true, Hole = true, Title = "Turf ridge smoke vent 45°", Text = RidgeText },
+            // Shingle roofs (K2): a stave church's tarred wooden scales, in every roof shape, 26° and 45°.
+            Shingle("BK_shingle_roof", "wood_roof", Shape.Straight, false, "Shingle roof 26°"),
+            Shingle("BK_shingle_roof_top", "wood_roof_top", Shape.Ridge, false, "Shingle roof ridge 26°"),
+            Shingle("BK_shingle_roof_ocorner", "wood_roof_ocorner", Shape.OuterCorner, false, "Shingle roof outer corner 26°"),
+            Shingle("BK_shingle_roof_icorner", "wood_roof_icorner", Shape.InnerCorner, false, "Shingle roof inner corner 26°"),
+            Shingle("BK_shingle_roof_45", "wood_roof_45", Shape.Straight, true, "Shingle roof 45°"),
+            Shingle("BK_shingle_roof_top_45", "wood_roof_top_45", Shape.Ridge, true, "Shingle roof ridge 45°"),
+            Shingle("BK_shingle_roof_ocorner_45", "wood_roof_ocorner_45", Shape.OuterCorner, true, "Shingle roof outer corner 45°"),
+            Shingle("BK_shingle_roof_icorner_45", "wood_roof_icorner_45", Shape.InnerCorner, true, "Shingle roof inner corner 45°"),
+            // (a ridge's gable end, with a dragon's head carved rising from it)
+            new Def { Name = "BK_shingle_ridge_dragon", From = "wood_roof_top", Shape = Shape.Ridge, Shingled = true, Dragon = true, Title = "Shingle ridge with dragon head 26°", Text = DragonText },
+            new Def { Name = "BK_shingle_ridge_dragon_45", From = "wood_roof_top_45", Shape = Shape.Ridge, Steep = true, Shingled = true, Dragon = true, Title = "Shingle ridge with dragon head 45°", Text = DragonText },
+        };
+        private const string DragonText = "The end of a shingled ridge with a dragon's head carved rising from it, jaws open, as on a stave church's gables: put it last on the ridge, the head facing out.";
+        private static Def Shingle(string name, string from, Shape s, bool steep, string title) => new Def
+        {
+            Name = name, From = from, Shape = s, Steep = steep, Shingled = true, Title = title,
+            Text = "Rows of wooden shingles with rounded tongues, tarred dark, as a stave church is roofed: snaps with the game's roofs of the same pitch.",
         };
         private const string RidgeText = "A turf ridge with a slot open along its length and a long hood over it, as a longhouse let its hearth's smoke out at the top: the smoke that gathers under the ridge rises out and rolls away under the hood. Put it in the ridge right over the fire (two side by side for a long hall); the hood keeps the rain off the fire.";
         private static Def Vent(string name, string from, bool steep, string title) => new Def
@@ -113,8 +131,8 @@ namespace BuildKit
             }
             if (states.Count == 0) states.Add(go);
             if (wear != null) wear.m_fragmentRoots = new GameObject[0]; // (the game's broken bits were the old look's)
-            Mesh mesh = TurfMesh(d, 15, 0);
-            Material[] mats = TurfMaterials(scene, from);
+            Mesh mesh = d.Shingled ? ShingleMeshFor(d) : TurfMesh(d, 15, 0);
+            Material[] mats = d.Shingled ? ShingleMaterials(from) : TurfMaterials(scene, from);
             foreach (GameObject s in states)
             {
                 var look = new GameObject(TurfLook.LookName); look.transform.SetParent(s.transform, false);
@@ -125,10 +143,14 @@ namespace BuildKit
                 look.AddComponent<MeshRenderer>().sharedMaterials = mats;
             }
             Piece piece = go.GetComponent<Piece>();
-            go.AddComponent<TurfLook>(); // (its open sides torn, the rest left to meet their neighbours)
+            if (!d.Shingled) go.AddComponent<TurfLook>(); // (its open sides torn, the rest left to meet their neighbours)
             if (d.Hole) HoleColliders(go, d);
-            piece.m_resources = d.Hole ? Cost(("Wood", 4), ("FineWood", 1)) : Cost(("Wood", 2), ("FineWood", 1)); // (two wood for the boards, as a roof costs, and a fine wood: birch, its bark)
-            piece.m_comfort = 1; piece.m_comfortGroup = TurfGroup;
+            if (d.Shingled) piece.m_resources = d.Dragon ? Cost(("Wood", 2), ("FineWood", 4), ("Resin", 1)) : Cost(("Wood", 2), ("Resin", 1)); // (two wood, as a roof costs, and resin for the tar; fine wood for a carving)
+            else
+            {
+                piece.m_resources = d.Hole ? Cost(("Wood", 4), ("FineWood", 1)) : Cost(("Wood", 2), ("FineWood", 1)); // (two wood for the boards, as a roof costs, and a fine wood: birch, its bark)
+                piece.m_comfort = 1; piece.m_comfortGroup = TurfGroup;
+            }
             piece.m_name = d.Title;
             piece.m_description = d.Text;
             piece.m_enabled = true;
@@ -219,6 +241,33 @@ namespace BuildKit
             return mesh;
         }
 
+        // A shingle roof's mesh for its shape (one look: shingles don't tear at the edges as sod does).
+        internal static Mesh ShingleMeshFor(Def d)
+        {
+            if (Meshes.TryGetValue((d.Name, 0, 0), out Mesh have) && have != null) return have;
+            var t = ShingleMesh.Build(d.Shape, d.Steep, dragon: d.Dragon);
+            var mesh = new Mesh { name = d.Name };
+            var v = new Vector3[t.Count]; var n = new Vector3[t.Count]; var uv = new Vector2[t.Count]; var col = new Color[t.Count];
+            for (int i = 0; i < t.Count; i++) { v[i] = new Vector3(t.V[3 * i], t.V[3 * i + 1], t.V[3 * i + 2]); n[i] = new Vector3(t.N[3 * i], t.N[3 * i + 1], t.N[3 * i + 2]); uv[i] = new Vector2(t.Uv[2 * i], t.Uv[2 * i + 1]); col[i] = new Color(t.C[3 * i], t.C[3 * i + 1], t.C[3 * i + 2]); }
+            mesh.vertices = v; mesh.normals = n; mesh.uv = uv; mesh.colors = col; // (each shingle its own shade, by the vertex colour the game's shader reads)
+            mesh.subMeshCount = ShingleMesh.Slots;
+            for (int k = 0; k < ShingleMesh.Slots; k++) mesh.SetTriangles(t.T[k], k);
+            mesh.RecalculateBounds(); mesh.RecalculateTangents();
+            Owned.Add(mesh); Meshes[(d.Name, 0, 0)] = mesh;
+            return mesh;
+        }
+        // Tarred shingles: the game's own wood, near black-brown and a little glossy; the boards under them as the game's; the trim a
+        // shade lighter than the shingles.
+        internal static Material[] ShingleMaterials(GameObject roof)
+        {
+            Material[] game = roof.GetComponentsInChildren<Renderer>(true).SelectMany(r => r.sharedMaterials).Where(m => m != null).ToArray();
+            Material wood = game.FirstOrDefault(m => m.name.StartsWith("woodwall")) ?? game.First();
+            Material shingles = Mat("shingles", () => new Material(wood) { color = Look.ShingleTint });
+            Material boards = Mat("boards", () => new Material(wood) { name = "BuildKit boards" });
+            Material trim = Mat("trim", () => new Material(wood) { color = Look.TrimTint });
+            return new[] { shingles, boards, trim };
+        }
+
         // ---- materials: copies of the game's own, retextured and tinted ----
         private static readonly Dictionary<string, Material> Mats = new Dictionary<string, Material>();
         internal static Material[] TurfMaterials(ZNetScene scene, GameObject roof)
@@ -295,6 +344,7 @@ namespace BuildKit
     {
         public static string SodTexture = "", EarthTexture = "", BarkTexture = "BirchSeeds/birch_seeds";
         public static float SodScale = 0.9f;
+        public static Color ShingleTint = new Color(0.46f, 0.35f, 0.26f), TrimTint = new Color(0.5f, 0.38f, 0.27f);
         public static Color SodTint = Color.white, EarthTint = new Color(0.7f, 0.6f, 0.5f), BarkTint = new Color(0.42f, 0.34f, 0.27f), StickTint = new Color(0.6f, 0.6f, 0.58f);
     }
 }

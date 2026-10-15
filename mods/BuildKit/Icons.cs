@@ -43,5 +43,44 @@ namespace BuildKit
             }
             finally { Object.DestroyImmediate(stage); }
         }
+
+        // Pieces set out together far below the world, as ghosts (nothing saved, nothing in anyone's world), drawn from a yaw and pitch
+        // round their middle, to a PNG: a roof's corners judged as they'd be built.
+        public static string Stage(System.Collections.Generic.List<(GameObject prefab, Vector3 at, float yaw)> parts, float yaw, float pitch, float dist, string path, int w = 1200, int h = 800)
+        {
+            var stage = new GameObject("BuildKit stage"); stage.transform.position = new Vector3(0, -3000, 0);
+            try
+            {
+                int layer = 31; for (int l = 31; l > 8; l--) if (string.IsNullOrEmpty(LayerMask.LayerToName(l))) { layer = l; break; }
+                foreach (var (prefab, at, turn) in parts)
+                {
+                    GameObject copy; ZNetView.m_forceDisableInit = true;
+                    try { copy = Object.Instantiate(prefab, stage.transform); } finally { ZNetView.m_forceDisableInit = false; }
+                    copy.transform.localPosition = at; copy.transform.localRotation = Quaternion.Euler(0, turn, 0);
+                    foreach (var behaviour in copy.GetComponentsInChildren<MonoBehaviour>(true)) behaviour.enabled = false;
+                    copy.SetActive(true);
+                    foreach (Transform t in copy.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = layer;
+                }
+                Renderer[] renderers = stage.GetComponentsInChildren<Renderer>().Where(r => r.enabled && r.gameObject.activeInHierarchy).ToArray();
+                if (renderers.Length == 0) return null;
+                Bounds bounds = renderers[0].bounds; foreach (Renderer r in renderers) bounds.Encapsulate(r.bounds);
+                var camera = new GameObject("BuildKit stage camera").AddComponent<Camera>(); camera.transform.SetParent(stage.transform, false);
+                camera.enabled = false; camera.cullingMask = 1 << layer; camera.clearFlags = CameraClearFlags.SolidColor; camera.backgroundColor = new Color(0.55f, 0.66f, 0.78f, 1);
+                camera.fieldOfView = 40; camera.nearClipPlane = 0.05f; camera.farClipPlane = 200;
+                camera.transform.position = bounds.center + Quaternion.Euler(pitch, yaw, 0) * Vector3.back * dist; camera.transform.LookAt(bounds.center);
+                var light = new GameObject("BuildKit stage light").AddComponent<Light>(); light.transform.SetParent(stage.transform, false);
+                light.transform.rotation = Quaternion.Euler(45, yaw + 40, 0); light.type = LightType.Directional; light.intensity = 1.3f; light.shadows = LightShadows.Soft; light.cullingMask = 1 << layer;
+                RenderTexture target = RenderTexture.GetTemporary(w, h, 24, RenderTextureFormat.ARGB32), previous = RenderTexture.active;
+                try
+                {
+                    camera.targetTexture = target; camera.Render(); RenderTexture.active = target;
+                    var texture = new Texture2D(w, h, TextureFormat.RGBA32, false); texture.ReadPixels(new Rect(0, 0, w, h), 0, 0); texture.Apply();
+                    System.IO.File.WriteAllBytes(path, texture.EncodeToPNG()); Object.Destroy(texture);
+                    return path;
+                }
+                finally { RenderTexture.active = previous; camera.targetTexture = null; RenderTexture.ReleaseTemporary(target); }
+            }
+            finally { Object.DestroyImmediate(stage); }
+        }
     }
 }

@@ -6,4 +6,8 @@ Smoke-hole roofs (26° and 45°), for single-slope roofs: a turf roof with a met
 
 Turf ridge smoke vents (26° and 45°): a ridge piece with a slot open along its whole length and a single-pitch hood over it. A house's smoke gathers all along under its ridge, so put them in the ridge right over the hearth: the smoke rises out under the hood, the hood keeps the rain off the fire. Keep the slot clear (no ridge log over it). 4 wood and 1 fine wood.
 
+Shingle roofs (26° and 45°, every shape): rows of wooden shingles with rounded tongues, tarred dark, as a stave church is roofed, each row half a shingle along from the one below and lapping over its heads, so a long roof reads as one. Ridges are capped with two boards, hips with a pair down the hip, valleys lined with a pair. They snap, hold and wear like the wooden roofs. 2 wood and 1 resin (the tar).
+
+Shingle ridge with dragon head (26° and 45°): the end piece of a shingled ridge, with a carved dragon's head rising out of it and reaching out past the gable, jaws open, a crest down its neck: put it last on the ridge, the head facing out. 2 wood, 4 fine wood, 1 resin.
+
 Reloads in a world. Native Linux and Windows.
