@@ -94,7 +94,7 @@ namespace Factorheim
             Live<Machine>.Add(this);
             if(View!=null&&View.IsValid())Load();
             WearNTear wear=GetComponent<WearNTear>();
-            if(wear!=null)wear.m_onDestroyed+=Spill;
+            Hooks.OnDestroyed(wear,Spill);
         }
         // Torn down or broken: what it held falls on the ground (on the owner's game, who has the latest stores).
         private static readonly System.Reflection.MethodInfo SaveDrop=HarmonyLib.AccessTools.Method(typeof(ItemDrop),"Save");
@@ -127,6 +127,7 @@ namespace Factorheim
         protected virtual void OnDestroy()
         {
             if(_dirty&&Owner)Save();
+            Hooks.Remove(GetComponent<WearNTear>(),Spill);
             Live<Machine>.Remove(this);
         }
         protected void Dirty()=>_dirty=true;

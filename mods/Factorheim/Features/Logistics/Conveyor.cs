@@ -53,12 +53,13 @@ namespace Factorheim
             _line=new ILine[OutX.Length];_port=new IPort[OutX.Length];_lookAt=new float[OutX.Length];
             _pickAt=Time.time+0.5f*(_stagger++%8)/8f;
             Live<Conveyor>.Add(this);
-            if(Valid){Load();WearNTear wear=GetComponent<WearNTear>();if(wear!=null)wear.m_onDestroyed+=Spill;}
+            if(Valid){Load();Hooks.OnDestroyed(GetComponent<WearNTear>(),Spill);}
         }
         protected virtual void OnDestroy()
         {
             if(_dirty&&Owner)Save();
             foreach(Lane l in Lanes)l.Forget();   // (the pictures are children: they go with it)
+            Hooks.Remove(GetComponent<WearNTear>(),Spill);
             Live<Conveyor>.Remove(this);
         }
         // Unloading the mod: pictures back to the pool before it is emptied.

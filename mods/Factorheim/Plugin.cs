@@ -21,7 +21,7 @@ namespace Factorheim
     {
         public const string Guid="cx.bob.factorheim";
         public const string Name="Factorheim";
-        public const string Version="0.1.1";
+        public const string Version="0.1.2";
         internal static Plugin Instance;
         internal static ConfigFile Cfg;
         internal static ConfigEntry<float> Volume;

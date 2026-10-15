@@ -1,3 +1,5 @@
+0.1.2: Machines placed before an update can be taken down too (the old version's leftover hook threw and stopped the removal; the hammer only flashed them red).
+
 0.1.1: Machines can be taken down with the hammer again (dropping what they held threw an error, which stopped the removal); what they held falls on the ground.
 
 0.1.0: First version. Belts, inserters and splitters; burner and electric drills, woodcutter, assemblers, tar pumpjack and chemical plant; steam engines, power poles, accumulators, surtling generators and eitr reactors; rune science packs, rune labs and world research in six tiers; the rocket silo and the ride to Valhalla. Not yet played in the game: expect rough edges in model sizes, how deposits and tar pits are found, belt handoffs at corners, and the launch cinematic.
