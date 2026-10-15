@@ -32,8 +32,10 @@ namespace WrongUniverse
         internal static readonly Stance PistolStance=new Stance{Grip=new Vector3(0,-0.06f,0),Support=new Vector3(-0.03f,-0.085f,0.005f),Euler=new Vector3(0,0,90),
             Walk=new Vector3(-0.06f,0.34f,-0.22f),Aim=new Vector3(-0.06f,0.46f,-0.05f),Sprint=new Vector3(-0.10f,0.26f,-0.30f),One=new Vector3(0.0f,0.52f,-0.06f),
             Drop=40f,Kick=0.03f,Climb=9f};
-        internal static readonly Stance RifleStance=new Stance{Grip=new Vector3(0,-0.06f,0),Support=new Vector3(0,-0.035f,0.30f),Euler=new Vector3(0,0,90),
-            Walk=new Vector3(-0.10f,0.30f,-0.24f),Aim=new Vector3(-0.10f,0.20f,-0.10f),Sprint=new Vector3(-0.12f,0.26f,-0.30f),One=Vector3.zero,
+        // (the rifle's numbers tuned in the game with wu pose: the shoulder joint sits well back in the body, so the stock only reaches
+        // the front of the shoulder with the grip ~0.58 ahead of it; the left hand on the power cell, as far forward as the arm reaches)
+        internal static readonly Stance RifleStance=new Stance{Grip=new Vector3(0,-0.06f,0),Support=new Vector3(0,-0.04f,0.13f),Euler=new Vector3(0,0,90),
+            Walk=new Vector3(-0.12f,0.40f,-0.26f),Aim=new Vector3(-0.15f,0.58f,-0.05f),Sprint=new Vector3(-0.12f,0.26f,-0.30f),One=Vector3.zero,
             Drop=35f,Kick=0.045f,Climb=4f};
         internal static Stance Of(ItemDef d)=>d==Lasers.Pistol?PistolStance:d==Lasers.Rifle?RifleStance:null;
 
@@ -139,7 +141,7 @@ namespace WrongUniverse
                 c.Def=d;
                 if(d!=null&&!me.IsDead())
                 {
-                    c.Look=me.GetLookDir();
+                    c.Look=_hold!=null?Vector3.ProjectOnPlane(me.transform.forward,Vector3.up).normalized:me.GetLookDir();   // (a held test state looks level)
                     c.Aiming=Aiming||_hold=="aim";
                     c.Sprinting=me.IsRunning()||_hold=="sprint";
                     c.Vent=Lasers.Overheated||_hold=="vent";
@@ -301,9 +303,10 @@ namespace WrongUniverse
             }
             // the right hand on the grip, turned the way the pistol's grip was tuned; the gun where the hand ended up (if it couldn't reach)
             Arms.Place(ve.m_rightHand,grip,rot*Quaternion.Inverse(Quaternion.Euler(s.Euler)),side*0.6f+Vector3.down);
-            model.rotation=rot;
-            model.position=ve.m_rightHand.position-rot*s.Grip;
-            if(twoHands)Arms.Reach(ve.m_leftHand,model.position+rot*s.Support,-side*0.6f+Vector3.down);
+            Vector3 at=ve.m_rightHand.position-rot*s.Grip;
+            if(twoHands)Arms.Reach(ve.m_leftHand,at+rot*s.Support,-side*0.6f+Vector3.down);
+            model.rotation=rot;   // (last: the rifle, a bow to the game, hangs from the left hand, and bending that arm moved it)
+            model.position=at;
             Arms.Leave(ve.m_rightHand);Arms.Leave(ve.m_leftHand);
             Note(p,"want",grip);Note(p,"got",ve.m_rightHand.position);Note(p,"model",model.position);
         }
