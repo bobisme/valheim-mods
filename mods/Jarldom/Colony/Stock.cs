@@ -106,7 +106,7 @@ namespace Jarldom
                 if (box == null || !ContainerAccess.IsStorage(box)) continue;
                 Piece p = box.GetComponent<Piece>();
                 if (box.m_privacy == Container.PrivacySetting.Private) continue;
-                if (Utils.GetPrefabName(p.gameObject) == Pieces.PyreName) continue; // grave goods aren't the colony's
+                if (Colony.NameOf(p) == Pieces.PyreName) continue; // grave goods aren't the colony's
                 boxes.Add(box);
             }
             Cache[c.Id] = (Time.time, boxes);

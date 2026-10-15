@@ -226,7 +226,7 @@ namespace Jarldom
         public static float WinterEnd(int names) => WinterFirst + names * WinterEach + 2f;
         private static void WinterNights(Colony c)
         {
-            Piece stone = c.PiecesIn(c.Radius).FirstOrDefault(p => p != null && Utils.GetPrefabName(p.gameObject) == Pieces.MemorialName);
+            Piece stone = c.PiecesIn(c.Radius).FirstOrDefault(p => p != null && Colony.NameOf(p) == Pieces.MemorialName);
             Room ground = c.Best(RoomType.BurialGround), hall = c.Best(RoomType.GreatHall);
             Vector3 at = stone != null ? stone.transform.position : ground != null ? c.Centre(ground) : hall != null ? c.Centre(hall) : c.Position;
             Vector3 fwd = stone != null ? -stone.transform.forward : (c.Position - at).sqrMagnitude > 1f ? (c.Position - at).normalized : c.Seat.transform.forward; fwd.y = 0; fwd.Normalize();
@@ -239,7 +239,7 @@ namespace Jarldom
             string Head(string role, int i, int n) => string.Join("|", start.ToString(inv), at.x.ToString(inv), at.y.ToString(inv), at.z.ToString(inv), fwd.x.ToString(inv), fwd.z.ToString(inv), role, i.ToString(inv), n.ToString(inv), names.Count.ToString(inv));
             if (reader != null) Villagers.Command(reader.Vid, "winter", Head("reader", 0, 1) + "|" + string.Join(";", names));
             for (int i = 0; i < rest.Count; i++) Villagers.Command(rest[i].Vid, "winter", Head("watch", i, rest.Count) + "|");
-            foreach (Piece p in c.PiecesIn(c.Radius).Where(p => p != null && Utils.GetPrefabName(p.gameObject) == Pieces.MemorialName)) Net.Fest_(200, p.transform.position);
+            foreach (Piece p in c.PiecesIn(c.Radius).Where(p => p != null && Colony.NameOf(p) == Pieces.MemorialName)) Net.Fest_(200, p.transform.position);
             Net.Fest_(201, at); // (the music, for those near)
             Faith.Add(c, "odin", 3, "the ascended remembered at Winter Nights");
             c.Tell($"Winter Nights: the colony gathers at {(stone != null ? "the memorial stone" : ground != null ? "the burial ground" : "the hall")} to remember its dead.", true);

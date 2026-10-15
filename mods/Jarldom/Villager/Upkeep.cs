@@ -71,7 +71,7 @@ namespace Jarldom
                     Piece p = __instance.GetComponent<Piece>();
                     if (v == null || !v.IsValid() || !v.IsOwner() || p == null || p.GetCreator() == 0) return; // (a player's building, by the game that has it)
                     if (hitData != null && hitData.GetAttacker() is Character by && by.IsPlayer()) return; // (a player breaking their own on purpose)
-                    string name = Utils.GetPrefabName(p.gameObject);
+                    string name = Colony.NameOf(p);
                     if (name.StartsWith("Jarldom") || p.GetComponent<Plant>() != null || p.GetComponent<Ship>() != null || p.GetComponent<Vagon>() != null) return;
                     Vector3 at = p.transform.position;
                     Colony c = Colony.At(at);
@@ -227,7 +227,7 @@ namespace Jarldom
                     if (Needs.Any(n => Have(b, n.item) < n.amount)) { Done = true; return; }
                     // (one stands there again already: a player's rebuilt it)
                     var near = new List<Piece>(); Piece.GetAllPiecesInRadius(At, 0.6f, near);
-                    if (!near.Any(p => Utils.GetPrefabName(p.gameObject) == Ruin.Prefab))
+                    if (!near.Any(p => Colony.NameOf(p) == Ruin.Prefab))
                     {
                         GameObject made = Object.Instantiate(Prefab.gameObject, At, Ruin.Rot);
                         Piece piece = made.GetComponent<Piece>();

@@ -14,6 +14,25 @@ namespace Jarldom
         public static int PieceMask => _pieceMask != -1 ? _pieceMask : _pieceMask = LayerMask.GetMask("piece", "piece_nonsolid", "Default", "static_solid");
 
         public static string Prefab(GameObject go) => Utils.GetPrefabName(go).ToLowerInvariant();
+        // A piece's (or any component's) prefab name, kept by its instance: a scan of thousands of pieces asked it of every one, and
+        // each asking made a new string. (instance ids aren't reused in a session; the cache is let go when it grows large)
+        private static readonly Dictionary<int, string> _names = new Dictionary<int, string>();
+        public static string NameOf(Component c)
+        {
+            int id = c.GetInstanceID();
+            if (_names.TryGetValue(id, out string n)) return n;
+            if (_names.Count > 100000) _names.Clear();
+            return _names[id] = Utils.GetPrefabName(c.gameObject);
+        }
+        // (and which pieces have a component of a kind, the same way)
+        private static readonly Dictionary<(Type, int), Component> Comps = new Dictionary<(Type, int), Component>();
+        public static T CompOf<T>(Piece p) where T : Component
+        {
+            var key = (typeof(T), p.GetInstanceID());
+            if (Comps.TryGetValue(key, out Component c)) return (T)c;
+            if (Comps.Count > 200000) Comps.Clear();
+            T t = p.GetComponent<T>(); Comps[key] = t; return t;
+        }
 
         // Our own random id on a piece (never a ZDOID: those change every load).
         public static string IdOf(ZNetView v, bool create = true)
@@ -29,7 +48,7 @@ namespace Jarldom
 
         // (every piece in the loaded world is looked at to find these, and much asks: the answer is kept a few seconds; don't change the list)
         // Each radius asked, and each kind of piece (stations, beds, doors), is kept as long as the look itself: a work scan asks a hundred times.
-        private float _piecesAt = -1, _piecesRadius; private List<Piece> _pieces;
+        private float _piecesAt = -1, _piecesRadius; private List<Piece> _pieces; private readonly List<Vector3> _piecePos = new List<Vector3>(); // (where each was at the look: pieces stay put)
         private readonly Dictionary<float, List<Piece>> _within = new Dictionary<float, List<Piece>>();
         private readonly Dictionary<(System.Type, float), System.Collections.IList> _kinds = new Dictionary<(System.Type, float), System.Collections.IList>();
         private readonly Dictionary<float, int> _checkedFrame = new Dictionary<float, int>(); private readonly Dictionary<(System.Type, float), int> _kindChecked = new Dictionary<(System.Type, float), int>();
@@ -37,23 +56,47 @@ namespace Jarldom
         {
             if (_pieces == null || Time.time - _piecesAt >= 4f || radius > _piecesRadius) // (pieces come and go seldom; gone ones are left out below)
             {
+                long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
                 PieceBuffer.Clear();
                 _piecesRadius = Mathf.Max(radius, Radius + 40f); // (one wide look serves every nearer ask)
                 Piece.GetAllPiecesInRadius(Position, _piecesRadius, PieceBuffer);
                 _pieces = PieceBuffer.ToList(); _piecesAt = Time.time; _within.Clear(); _kinds.Clear();
+                _piecePos.Clear(); foreach (Piece p in _pieces) _piecePos.Add(p.transform.position);
+                Split.Add($"p.all{_pieces.Count}", t0);
             }
             // (a kept list is checked for pieces gone since at most once a frame: the check of every piece was most of a scan's time)
             if (_within.TryGetValue(radius, out var kept)) { if (_checkedFrame.TryGetValue(radius, out int f) && f == Time.frameCount || kept.All(p => p != null)) { _checkedFrame[radius] = Time.frameCount; return kept; } _within.Remove(radius); }
-            Vector3 at = Position;
-            return _within[radius] = _pieces.Where(p => p != null && Vector3.Distance(p.transform.position, at) < radius).ToList();
+            Vector3 at = Position; long t1 = System.Diagnostics.Stopwatch.GetTimestamp();
+            var near = new List<Piece>(); float r2 = radius * radius;
+            for (int i = 0; i < _pieces.Count; i++) if ((_piecePos[i] - at).sqrMagnitude < r2 && _pieces[i] != null) near.Add(_pieces[i]);
+            _within[radius] = near;
+            Split.Add($"p.r{radius:0}", t1);
+            return _within[radius];
+        }
+        // The pieces within r of a point, from a colony's kept look where it covers the point (each piece's place read once a look,
+        // not every piece in the loaded world asked where it is, as the game's own search does); else the game's search.
+        public static List<Piece> PiecesNear(Vector3 at, float r)
+        {
+            var into = new List<Piece>();
+            foreach (Colony c in ById.Values)
+            {
+                if (!c.Valid || Vector3.Distance(at, c.Position) + r >= c.Radius + 40f) continue;
+                c.PiecesIn(c.Radius); // (a fresh look, if the kept one is old)
+                float r2 = r * r;
+                for (int i = 0; i < c._pieces.Count; i++) if ((c._piecePos[i] - at).sqrMagnitude < r2 && c._pieces[i] != null) into.Add(c._pieces[i]);
+                return into;
+            }
+            Piece.GetAllPiecesInRadius(at, r, into);
+            return into;
         }
         // The pieces of one kind (their component) within the radius.
         public List<T> PiecesIn<T>(float radius) where T : Component
         {
             List<Piece> all = PiecesIn(radius);
             if (_kinds.TryGetValue((typeof(T), radius), out var kept)) { var l = (List<T>)kept; if (_kindChecked.TryGetValue((typeof(T), radius), out int f) && f == Time.frameCount || l.All(x => x != null)) { _kindChecked[(typeof(T), radius)] = Time.frameCount; return l; } }
-            var found = new List<T>(); foreach (Piece p in all) { T t = p.GetComponent<T>(); if (t != null) found.Add(t); }
-            _kinds[(typeof(T), radius)] = found; return found;
+            long t2 = System.Diagnostics.Stopwatch.GetTimestamp();
+            var found = new List<T>(); foreach (Piece p in all) { T t = CompOf<T>(p); if (t != null) found.Add(t); }
+            _kinds[(typeof(T), radius)] = found; Split.Add($"p.{typeof(T).Name}", t2); return found;
         }
 
         // ---- beds ----

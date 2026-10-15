@@ -104,7 +104,7 @@ namespace Jarldom
         public static Piece OdinAltar(Colony c)
         {
             var rooms = c.R.Rooms.Where(r => r.Ok && (r.Type == RoomType.OdinShrine || r.Type == RoomType.Temple && r.God == "odin")).ToList();
-            return c.PiecesIn(c.Radius).Where(p => p != null && Utils.GetPrefabName(p.gameObject) == Pieces.AltarPrefix + "odin" && rooms.Any(r => c.RoomAt(p.transform.position + Vector3.up * 0.3f) == r)).FirstOrDefault();
+            return c.PiecesIn(c.Radius).Where(p => p != null && Colony.NameOf(p) == Pieces.AltarPrefix + "odin" && rooms.Any(r => c.RoomAt(p.transform.position + Vector3.up * 0.3f) == r)).FirstOrDefault();
         }
         // On the owner (an action): the offering taken, the rite set for the gothi.
         public static void AskCleanse(Colony c, string vid, string who)

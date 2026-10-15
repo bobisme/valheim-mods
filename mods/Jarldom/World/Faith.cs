@@ -484,7 +484,7 @@ namespace Jarldom
         {
             Colony c = b.Colony;
             // (by its prefab's name, as the room's check finds it: altars from before a reload keep the old Altar component)
-            _altar = c.PiecesIn(c.Radius).Where(p => Utils.GetPrefabName(p.gameObject).StartsWith(Pieces.AltarPrefix) && c.RoomAt(p.transform.position + Vector3.up * 0.3f, _temple.Type) == _temple)
+            _altar = c.PiecesIn(c.Radius).Where(p => Colony.NameOf(p).StartsWith(Pieces.AltarPrefix) && c.RoomAt(p.transform.position + Vector3.up * 0.3f, _temple.Type) == _temple)
                 .OrderBy(p => Vector3.Distance(p.transform.position, c.Centre(_temple))).FirstOrDefault();
             if (_altar == null) { Skip(b, "the temple has no altar"); return; }
             string god = _god = Utils.GetPrefabName(_altar.gameObject).Substring(Pieces.AltarPrefix.Length);

@@ -53,7 +53,7 @@ namespace Jarldom
             if (hm != null && hm.GetPaintMask(me).b > 0.5f && Mathf.Abs(me.y - ZoneSystem.instance.GetGroundHeight(me)) < 0.4f) road = true;
             else if (Physics.RaycastNonAlloc(me + Vector3.up * 0.3f, Vector3.down, Downs, 0.8f, LayerMask.GetMask("piece"), QueryTriggerInteraction.Ignore) > 0)
             {
-                string n = Downs[0].collider.GetComponentInParent<Piece>() is Piece p ? Utils.GetPrefabName(p.gameObject) : "";
+                string n = Downs[0].collider.GetComponentInParent<Piece>() is Piece p ? Colony.NameOf(p) : "";
                 road = n.StartsWith("stone_floor") || n.Contains("road") || n.Contains("path");
             }
             if (road == _onRoad && _set) return;

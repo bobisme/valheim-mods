@@ -29,6 +29,7 @@ namespace Jarldom
             var kinds = new List<(string kind, int weight)>();
             // No tankard of their own: carve one at the workbench, from the stores (fine wood and resin).
             if (Gear.Tool(b, "tankard") == null && !MakeOwn.Resting(b) && MakeOwn.Can(c, "Tankard", b.Pos)) return new MakeOwn("Tankard");
+            Split.Mark("l.tankard");
             if (indoors)
             {
                 // (out of the storm: a game at a table, or the hall and its talk)
@@ -39,10 +40,12 @@ namespace Jarldom
             bool armed = Gear.Weapon(b) != null && Gear.Weapon(b).m_shared.m_itemType != ItemDrop.ItemData.ItemType.Bow;
             bool fighter = b.S.Prof == Prof.Guard || b.S.Prof == Prof.Hunter || b.S.Has("brave");
             if (TaflTable(c, out _, out _)) kinds.Add(("tafl", b.S.Has("lazy") ? 4 : 3));
+            Split.Mark("l.tafl");
             kinds.Add(("glima", b.S.Has("strong") || b.S.Has("brave") ? 4 : 2));
             if (armed && Find(c, "piece_TrainingDummy") != null) kinds.Add(("dummy", fighter ? 6 : 2));
             if (Gear.Tool(b, "bow") is ItemDrop.ItemData bow && Gear.Items(b).Where(i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Ammo && i.m_shared.m_ammoType == bow.m_shared.m_ammoType).Sum(i => i.m_stack) >= 20 && Find(c, "piece_ArcheryTarget") is Piece target && LeisureTask.Range(target) != null) // (only a target that can be shot at)
                 kinds.Add(("archery", b.S.Prof == Prof.Hunter ? 6 : 2));
+            Split.Mark("l.dummy/arch");
             kinds.Add(("stones", b.S.Has("strong") ? 3 : 1));
             kinds.Add(("stroll", 2));
             kinds.Add(("hall", 4));
@@ -85,15 +88,30 @@ namespace Jarldom
             }
             return any;
         }
-        public static Piece Find(Colony c, string prefab) => c.PiecesIn(c.Radius).FirstOrDefault(p => Utils.GetPrefabName(p.gameObject) == prefab);
+        public static Piece Find(Colony c, string prefab) => c.PiecesIn(c.Radius).FirstOrDefault(p => Colony.NameOf(p) == prefab);
         // A table in a room with two free seats at it.
+        // (the tables in rooms and the seats about each, looked up every half minute: not each time someone at leisure wonders)
+        private static readonly Dictionary<string, (float at, List<Chair[]> tables)> _tables = new Dictionary<string, (float, List<Chair[]>)>();
+        private static List<Chair[]> Tables(Colony c)
+        {
+            if (_tables.TryGetValue(c.Id, out var t) && Time.time - t.at < 30f) return t.tables;
+            var tables = new List<Chair[]>(); long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+            foreach (Piece p in c.PiecesIn(c.Radius).Where(p => Classes.IsTable(p) && c.RoomAt(p.transform.position + Vector3.up * 0.3f) != null))
+            {
+                var list = Colony.PiecesNear(p.transform.position, 2.6f);
+                Chair[] seats = list.SelectMany(Classes.SeatsOf).Where(ch => !Classes.IsHighSeat(ch)).ToArray();
+                if (seats.Length >= 2) tables.Add(seats);
+            }
+            _tables[c.Id] = (Time.time, tables);
+            Split.Add("l.tables", t0);
+            return tables;
+        }
         public static bool TaflTable(Colony c, out Chair a, out Chair b2)
         {
             a = b2 = null;
-            foreach (Piece t in c.PiecesIn(c.Radius).Where(p => Classes.IsTable(p) && c.RoomAt(p.transform.position + Vector3.up * 0.3f) != null))
+            foreach (Chair[] seats in Tables(c))
             {
-                var list = new List<Piece>(); Piece.GetAllPiecesInRadius(t.transform.position, 2.6f, list);
-                var chairs = list.SelectMany(Classes.SeatsOf).Where(ch => !Classes.IsHighSeat(ch) && Seats.IsFree(ch)).ToList();
+                var chairs = seats.Where(ch => ch != null && Seats.IsFree(ch)).ToList();
                 if (chairs.Count < 2) continue;
                 // (two facing each other across it, as near opposite as the seats allow)
                 var pair = chairs.SelectMany(x => chairs.Where(y => y != x).Select(y => (x, y))).OrderByDescending(p => Vector3.Distance(p.x.transform.position, p.y.transform.position)).First();
@@ -185,6 +203,7 @@ namespace Jarldom
             {
                 _nextWork = Time.time + 8f;
                 if (Leisure.CalledAway(b, ref _seen)) { Done = true; return; }
+                Split.Mark("l.called");
             }
             if (Seeking)
             {
@@ -219,7 +238,7 @@ namespace Jarldom
         private bool Near(Brain b, Chair seat)
         {
             Vector3 at = seat.m_attachPoint != null ? seat.m_attachPoint.position : seat.transform.position;
-            if (_approachFor != seat) { _approachFor = seat; _approach = Approaches.Inside(b, at); } // (from inside its room: see Approaches)
+            if (_approachFor != seat) { long t0 = System.Diagnostics.Stopwatch.GetTimestamp(); _approachFor = seat; _approach = Approaches.Inside(b, at); Split.Add("l.approach", t0); } // (from inside its room: see Approaches)
             float d = Utils.DistanceXZ(b.Pos, at);
             bool atApproach = _approach.HasValue && Utils.DistanceXZ(b.Pos, _approach.Value) < 1.3f;
             if (Mathf.Abs(b.Pos.y - at.y) < 1.5f && (d < 2.2f || atApproach && d < 4.5f)) { b.Move.Stop(); return true; }

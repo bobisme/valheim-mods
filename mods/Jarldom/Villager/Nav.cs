@@ -58,8 +58,8 @@ namespace Jarldom
         public static IEnumerable<string> Near(Vector3 at, float r)
         {
             var list = new List<Piece>(); Piece.GetAllPiecesInRadius(at, r, list);
-            foreach (Piece p in list.Where(p => p != null && Utils.GetPrefabName(p.gameObject).Contains("stair")))
-                yield return $"{Utils.GetPrefabName(p.gameObject)} at {p.transform.position.x:0.0},{p.transform.position.y:0.0},{p.transform.position.z:0.0}: " +
+            foreach (Piece p in list.Where(p => p != null && Colony.NameOf(p).Contains("stair")))
+                yield return $"{Colony.NameOf(p)} at {p.transform.position.x:0.0},{p.transform.position.y:0.0},{p.transform.position.z:0.0}: " +
                     (Links.TryGetValue(p.GetInstanceID(), out var l) ? $"linked ({(l.link.valid ? "valid" : "invalid")})" : Ends(p, out Vector3 f, out Vector3 t) ? $"no link yet (ends {f:F1} -> {t:F1})" : "no ends found");
         }
 
@@ -77,7 +77,7 @@ namespace Jarldom
                 Floors(c, agent);
                 foreach (Piece p in c.PiecesIn(c.Radius + 10))
                 {
-                    if (p == null || Links.ContainsKey(p.GetInstanceID()) || !Utils.GetPrefabName(p.gameObject).Contains("stair")) continue;
+                    if (p == null || Links.ContainsKey(p.GetInstanceID()) || !Colony.NameOf(p).Contains("stair")) continue;
                     if (!Ends(p, out Vector3 foot, out Vector3 top)) continue;
                     Vector3 up = top - foot; up.y = 0; up.Normalize();
                     var link = NavMesh.AddLink(new NavMeshLinkData { startPosition = foot - up * 0.4f, endPosition = top + up * 0.4f, width = 1.2f, bidirectional = true, agentTypeID = agent, costModifier = -1, area = 0 });

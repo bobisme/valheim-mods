@@ -14,7 +14,7 @@ namespace Jarldom
     {
         public const string Guid = "com.bobisme.jarldom";
         public const string Name = "Jarldom";
-        public const string Version = "0.1.143";
+        public const string Version = "0.1.144";
         public const int DataVersion = 1; // raised whenever what's saved changes shape: games of different data versions mustn't write each other's colonies
         internal static Plugin Instance;
         internal ServerSettings Synced;
@@ -123,9 +123,26 @@ namespace Jarldom
                 if (ms > SlowMs && (!SlowSaid.TryGetValue(a.Method, out float said) || UnityEngine.Time.unscaledTime - said > 30f))
                 {
                     SlowSaid[a.Method] = UnityEngine.Time.unscaledTime;
-                    Instance?.Logger.LogInfo($"Jarldom: slow step {a.Method.DeclaringType?.Name}.{a.Method.Name}: {ms:0.0} ms");
+                    Instance?.Logger.LogInfo($"Jarldom: slow step {StepName(a.Method)}: {ms:0.0} ms");
                 }
             }
+        }
+        // A step's name for the log: a lambda's own name says nothing ("<Tick>b__14"), so the methods it calls, read from its body.
+        private static string StepName(System.Reflection.MethodInfo m)
+        {
+            string own = $"{m.DeclaringType?.Name}.{m.Name}";
+            if (!m.Name.Contains("<")) return own;
+            try
+            {
+                byte[] il = m.GetMethodBody()?.GetILAsByteArray();
+                if (il == null) return own;
+                var calls = new System.Collections.Generic.List<string>();
+                for (int i = 0; i + 4 < il.Length; i++)
+                    if (il[i] == 0x28 || il[i] == 0x6F) // (call, callvirt: a method token follows; a stray match fails to resolve and is passed over)
+                        try { var c = m.Module.ResolveMethod(BitConverter.ToInt32(il, i + 1)); if (c != null && !calls.Contains(c.DeclaringType?.Name + "." + c.Name)) { calls.Add(c.DeclaringType?.Name + "." + c.Name); i += 4; } } catch { }
+                return calls.Count > 0 ? $"{own} ({string.Join(", ", calls)})" : own;
+            }
+            catch { return own; }
         }
         private static void GuardInner(Action a)
         {

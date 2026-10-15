@@ -1,3 +1,5 @@
+0.1.144: smoother in a big colony: the piece lists villagers look through are made once and kept (each piece's place, name, seats and parts read once, not by every villager every time), the hnefatafl tables and the way to each hall seat or bed are remembered, so the hitches when someone sits down, goes to bed or picks a pastime are gone. Early risers no longer get up and lie down again over and over from eight till nine in the evening.
+
 0.1.143: no error when a hauler readying the hall for a festival is already carrying the goods (they go straight to the hall).
 
 0.1.142: in the two days before a festival the haulers ready the great hall: what it still wants (food, mead, wood for the Yule log) is carried from the stores to the hall's chests, so a jarl away doesn't come home to a festival let slip. A hall chest they can't get to is passed over, and the hall tab (Needs you) and the festival's word say so.

@@ -106,7 +106,7 @@ namespace Jarldom
         public override void Tick(Brain b)
         {
             if (_spot == null) { Done = true; return; }
-            if (!JustRest && b.Colony.Hour >= Schedule.WakeAt && b.Colony.Hour < Schedule.HomeAt) { Done = true; return; } // morning
+            if (!JustRest && b.Colony.Hour >= Schedule.WakeAt && b.Colony.Hour < Schedule.HallAt) { Done = true; return; } // morning (not an early riser gone to bed at eight)
             if (!_down)
             {
                 // (beside the bed in its room is near enough: beds packed against walls and each other leave no floor to walk onto)
@@ -153,8 +153,8 @@ namespace Jarldom
         }
         public static T Nearest<T>(Vector3 at, float radius) where T : Component
         {
-            var list = new List<Piece>(); Piece.GetAllPiecesInRadius(at, radius, list);
-            return list.Select(p => p.GetComponent<T>()).Where(c => c != null).OrderBy(c => Vector3.Distance(c.transform.position, at)).FirstOrDefault();
+            var list = Colony.PiecesNear(at, radius);
+            return list.Select(p => Colony.CompOf<T>(p)).Where(c => c != null).OrderBy(c => Vector3.Distance(c.transform.position, at)).FirstOrDefault();
         }
     }
 
@@ -665,11 +665,23 @@ namespace Jarldom
             }
             return null;
         }
+        // (the answer for each bed or seat, kept ten minutes: the same for everyone coming from in the room, or from outside it, and
+        // finding it is a search of the floor round it and paths to each spot; the hall's seats were searched for each who sat)
+        private static readonly Dictionary<(int, int, int, bool), (float at, Vector3? v)> Kept = new Dictionary<(int, int, int, bool), (float, Vector3?)>();
         public static Vector3? Inside(Brain b, Vector3 bed)
         {
             Last = "";
             Room room = b.Colony.RoomAt(bed + Vector3.up * 0.3f);
             if (room == null || Pathfinding.instance == null) { Last = "no room there"; return null; }
+            var key = (Mathf.RoundToInt(bed.x * 2), Mathf.RoundToInt(bed.y * 2), Mathf.RoundToInt(bed.z * 2), b.Colony.RoomAt(b.Pos + Vector3.up * 0.3f) == room);
+            if (Kept.TryGetValue(key, out var kept) && Time.time - kept.at < 600f) { Last = "kept"; return kept.v; }
+            if (Kept.Count > 500) Kept.Clear();
+            Vector3? found = Search(b, bed, room);
+            Kept[key] = (Time.time, found);
+            return found;
+        }
+        private static Vector3? Search(Brain b, Vector3 bed, Room room)
+        {
             // (the plain way first: if it stays in the room and ends beside it, nothing more to find)
             if (Pathfinding.instance.GetPath(b.Pos, bed, Path, b.Ai.m_pathAgentType) && Path.Count > 0 && Utils.DistanceXZ(Path[Path.Count - 1], bed) < 2f && b.Colony.RoomAt(Path[Path.Count - 1] + Vector3.up * 0.3f) == room
                 && Path.All(q => b.Colony.RoomAt(q + Vector3.up * 0.3f) == room || Utils.DistanceXZ(q, b.Pos) < 1f || b.Colony.RoomAt(b.Pos + Vector3.up * 0.3f) != room && b.Colony.RoomAt(q + Vector3.up * 0.3f) == null)) { Last = "the plain way does"; return null; }
@@ -699,7 +711,7 @@ namespace Jarldom
         public static Chair Free(Brain b, Room hall, Colony c)
         {
             Free(b);
-            var list = new List<Piece>(); Piece.GetAllPiecesInRadius(c.Centre(hall), 30, list);
+            var list = Colony.PiecesNear(c.Centre(hall), 30);
             Chair best = list.SelectMany(Classes.SeatsOf).Where(ch => ch != null && !Classes.IsHighSeat(ch) && Geometry.Inside(hall.Xz, ch.m_attachPoint.position.x, ch.m_attachPoint.position.z) // (every seat of a bench; the high seat is the jarl's)
                 && !(Taken.TryGetValue(ch, out Brain o) && o.Alive && o != b) && Player.GetClosestPlayer(ch.m_attachPoint != null ? ch.m_attachPoint.position : ch.transform.position, 0.3f) == null)
                 .OrderBy(_ => UnityEngine.Random.value).FirstOrDefault();

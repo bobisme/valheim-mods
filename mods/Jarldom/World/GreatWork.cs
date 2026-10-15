@@ -136,7 +136,7 @@ namespace Jarldom
             Vector3 at = At(c, work, out float yaw);
             var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 12f, 22f, near);
             var missing = GreatWorks.Parts(work).Where(p => only == null || p.Prefab == only).Where(p => { var w = GreatWorks.Place(p, at.x, at.y, at.z, yaw); Vector3 spot = new Vector3(w.x, w.y, w.z);
-                return !near.Any(x => x != null && Utils.GetPrefabName(x.gameObject) == p.Prefab && Vector3.Distance(x.transform.position, spot) < 0.5f); }).ToList();
+                return !near.Any(x => x != null && Colony.NameOf(x) == p.Prefab && Vector3.Distance(x.transform.position, spot) < 0.5f); }).ToList();
             if (missing.Count == 0) return 0;
             object bo = Compat.Find("com.quad.buildorders", "com.dhack.buildorders");
             var method = bo?.GetType().GetMethod("TryCreateBuildingShell");
@@ -206,7 +206,7 @@ namespace Jarldom
             {
                 var w = GreatWorks.Place(p, at.x, at.y, at.z, yaw);
                 Vector3 spot = new Vector3(w.x, w.y, w.z);
-                if (near.Any(x => x != null && Utils.GetPrefabName(x.gameObject) == p.Prefab && Vector3.Distance(x.transform.position, spot) < 0.5f)) n++;
+                if (near.Any(x => x != null && Colony.NameOf(x) == p.Prefab && Vector3.Distance(x.transform.position, spot) < 0.5f)) n++;
             }
             return n;
         }
@@ -216,7 +216,7 @@ namespace Jarldom
             Vector3 at = At(c, work, out float yaw);
             var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 12f, 22f, near);
             return GreatWorks.Parts(work).Where(p => { var w = GreatWorks.Place(p, at.x, at.y, at.z, yaw); Vector3 spot = new Vector3(w.x, w.y, w.z);
-                return !near.Any(x => x != null && Utils.GetPrefabName(x.gameObject) == p.Prefab && Vector3.Distance(x.transform.position, spot) < 0.5f); }).Select(p => $"{p.Prefab} {p.X} {p.Y:0.##} {p.Z}").ToList();
+                return !near.Any(x => x != null && Colony.NameOf(x) == p.Prefab && Vector3.Distance(x.transform.position, spot) < 0.5f); }).Select(p => $"{p.Prefab} {p.X} {p.Y:0.##} {p.Z}").ToList();
         }
         public static void Tick(Colony c)
         {
@@ -251,7 +251,7 @@ namespace Jarldom
             if (work == GreatWorks.Lighthouse)
             {
                 var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * GreatWorks.FireHeight(work), 5f, near);
-                Fireplace hearth = near.Where(p => p != null && Utils.GetPrefabName(p.gameObject) == "bonfire").Select(p => p.GetComponent<Fireplace>()).FirstOrDefault(f => f != null);
+                Fireplace hearth = near.Where(p => p != null && Colony.NameOf(p) == "bonfire").Select(p => p.GetComponent<Fireplace>()).FirstOrDefault(f => f != null);
                 if (hearth != null && !Beacon.IsMarked(c, hearth)) Beacon.Mark(c, Colony.IdOf(hearth.GetComponent<ZNetView>()));
             }
             Net.LegendPin(c, at, GreatWorks.Proper(work, c.R.Name));
@@ -265,7 +265,7 @@ namespace Jarldom
             Vector3 at = At(c, work, out _);
             if (!ZNetScene.instance.IsAreaReady(at)) return;
             var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * GreatWorks.FireHeight(work), 5f, near);
-            Fireplace fire = near.Where(p => p != null && Utils.GetPrefabName(p.gameObject) == "bonfire").Select(p => p.GetComponent<Fireplace>()).FirstOrDefault(f => f != null);
+            Fireplace fire = near.Where(p => p != null && Colony.NameOf(p) == "bonfire").Select(p => p.GetComponent<Fireplace>()).FirstOrDefault(f => f != null);
             if (fire != null && !Beacon.IsMarked(c, fire)) Beacon.Mark(c, Colony.IdOf(fire.GetComponent<ZNetView>()));
         }
         public static bool Has(Colony c, string work) => c != null && GreatWorks.Stage(c.R.Flags, work) == GreatWorks.Done;

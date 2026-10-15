@@ -246,7 +246,7 @@ namespace Jarldom
             if (first.collider == null) return false;
             Piece p = first.collider.GetComponentInParent<Piece>();
             if (p == null) return false;
-            string name = Utils.GetPrefabName(p.gameObject).ToLowerInvariant();
+            string name = Colony.NameOf(p).ToLowerInvariant();
             return name.Contains("roof") || name.Contains("wall") || name.Contains("pole") || name.Contains("beam") || name.Contains("log");
         }
         private static bool IsRock(GameObject go)
@@ -509,7 +509,7 @@ namespace Jarldom
                 case Prof.Skald: return "resting until the evening's songs";
                 case Prof.Trader: return c.R.Rank < Rank.Village ? "trade runs wait for village rank" : "nothing to sell in the stores (amber, silver, gems)";
                 case Prof.Carter: return "no ore or metal at the outpost to cart";
-                case Prof.Weaver: return !c.PiecesIn(c.Radius).Any(x => Utils.GetPrefabName(x.gameObject) == "piece_workbench") ? "no workbench to weave at" : Crafts.InStock(c, Weaving.Thread) < 4 && Crafts.InStock(c, Weaving.Flax) < 2 ? "no flax or linen thread (farmers sow flax; a trader can buy seed)" : "everyone's dressed";
+                case Prof.Weaver: return !c.PiecesIn(c.Radius).Any(x => Colony.NameOf(x) == "piece_workbench") ? "no workbench to weave at" : Crafts.InStock(c, Weaving.Thread) < 4 && Crafts.InStock(c, Weaving.Flax) < 2 ? "no flax or linen thread (farmers sow flax; a trader can buy seed)" : "everyone's dressed";
                 default: return "idle";
             }
         }

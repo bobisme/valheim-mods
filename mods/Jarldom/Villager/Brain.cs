@@ -125,37 +125,39 @@ namespace Jarldom
             if (Colony == null || !Colony.Valid) { Colony = Colony.Of(S.Colony); if (Colony == null) { if (Follow.LeaderId(this) != 0) Away(); else Idle("waiting for the hall to load"); return; } }
             Follow.Told(this); // (a homecoming told while the hall was far away)
             double now = Now;
-            if (Time.time >= _nextNeeds) { _nextNeeds = Time.time + 5f; Needs(now); }
-            if (Time.time >= _nextGear) { _nextGear = Time.time + 1f; Gear.Maintain(this); }
-            if (Time.time >= _nextFoes) { _nextFoes = Time.time + 0.3f; Combat.Think(this); }
+            Split.Begin();
+            if (Time.time >= _nextNeeds) { _nextNeeds = Time.time + 5f; Needs(now); Split.Mark("needs"); }
+            if (Time.time >= _nextGear) { _nextGear = Time.time + 1f; Gear.Maintain(this); Split.Mark("gear"); }
+            if (Time.time >= _nextFoes) { _nextFoes = Time.time + 0.3f; Combat.Think(this); Split.Mark("foes"); }
             if (Time.time >= _nextMoodSync) { _nextMoodSync = Time.time + 2f; SyncHover(); }
-            if (Time.time >= _nextGreet) { _nextGreet = Time.time + 1.5f; Plugin.Guard(() => Greet.Near(this)); Plugin.Guard(() => Sky.Look(this)); Plugin.Guard(() => Songs.Tick(this)); }
-            if (Time.time >= _nextStep) { _nextStep = Time.time + 2f; Upkeep.Step(this); } // (where feet wear a path)
+            if (Time.time >= _nextGreet) { _nextGreet = Time.time + 1.5f; Plugin.Guard(() => Greet.Near(this)); Plugin.Guard(() => Sky.Look(this)); Plugin.Guard(() => Songs.Tick(this)); Split.Mark("greet"); }
+            if (Time.time >= _nextStep) { _nextStep = Time.time + 2f; Upkeep.Step(this); Split.Mark("step"); } // (where feet wear a path)
             if (_dirty && Time.time >= _nextSave) { _nextSave = Time.time + 30f; Save(); } // (the soul is sent to everyone when written: twice a minute is plenty; deaths and commands save at once)
             if (Combat.Busy(this)) return;
-            Activity want = Want();
+            Activity want = Want(); Split.Mark("want");
             // Sleep, a trade run, the road to Valhalla: carried on to the end unless a raid comes.
             // (the Thing called: the day's chores are put down at once; a trip, a cart, a boar on a rope are seen through)
             bool chore = Task is WorkTask || Task is UpkeepTask || Task is CraftTask || Task is DepositTask || Task is OutfitTask || Task is RepairTask || Task is BuildTask || Task is GothiTask || Task is HealTask || Task is EatTask;
-            if (Task != null && !Task.Done && !Task.Interruptible && want != Activity.Defend && !(want == Activity.Thing && chore)) { Task.Tick(this); if (Task != null && Alive) SetDoing(Task.Doing); return; }
+            if (Task != null && !Task.Done && !Task.Interruptible && want != Activity.Defend && !(want == Activity.Thing && chore)) { Task.Tick(this); Split.Mark("tick"); if (Task != null && Alive) SetDoing(Task.Doing); return; }
             if (want != Activity || Task == null || Task.Done)
             {
                 if (Task != null && (Task.Done || want != Activity)) { Task.Stop(this); Task = null; }
                 Activity = want;
-                Task = Choose(want);
-                Task?.Start(this);
+                Task = Choose(want); Split.Mark("choose");
+                Task?.Start(this); Split.Mark("start");
             }
-            Task?.Tick(this);
+            Task?.Tick(this); Split.Mark("tick");
             if (Task != null) SetDoing(Task.Doing);
             if (Activity == Activity.Work && Task != null && !(Task is WanderTask)) CatchUp.Work(this, (float)GameDt); // (working hours, for the rates kept while away)
         }
 
+        private bool Hurt => Body.GetHealthPercentage() < 0.1f || S.InjuredUntil > Now;
         private Activity Want()
         {
             if (Follow.Check(this)) return Activity.Follow; // (out with the jarl: a raid at home is the guards' to meet)
             if (Colony.RaidOn || Colony.HornUntil > Time.time) return Activity.Defend;
             if (Thing.Held(Colony) && Thing.Comes(this)) return Activity.Thing; // (everyone to the Thing)
-            if (Body.GetHealthPercentage() < 0.1f || S.InjuredUntil > Now) return S.Needs[(int)Need.Food] < Mood.EatBelow && Time.time > NoFoodUntil && Food.CanEat(this) ? Activity.Wake : Activity.Home;
+            if (Hurt) return S.Needs[(int)Need.Food] < Mood.EatBelow && Time.time > NoFoodUntil && Food.CanEat(this) ? Activity.Wake : Activity.Home;
             Activity a = Schedule.At(Colony.Hour, S.Traits, heavyRain: Storm(), outdoorTask: !Indoors(S.Prof), urgent: false); // (a storm sends in those who work outside; the healer, gothi, weaver, smith and cook work under a roof)
             if (a == Activity.Work || a == Activity.Wake) { if (S.Needs[(int)Need.Food] < Mood.EatBelow && Time.time > NoFoodUntil && Food.CanEat(this)) return Activity.Wake; }
             return a;
@@ -176,7 +178,7 @@ namespace Jarldom
             switch (a)
             {
                 case Activity.Sleep: return new SleepTask();
-                case Activity.Home: return new SleepTask { JustRest = Colony.Hour < 21 };
+                case Activity.Home: return new SleepTask { JustRest = Hurt && Colony.Hour < 21 }; // (an early riser home at eight is going to bed: a rest is for the hurt, and ends when they mend)
                 case Activity.Wake: return Food.CanEat(this) ? new EatTask() : (Task)new WanderTask(Colony.Position, 8, "getting up");
                 case Activity.Work:
                     {
@@ -185,9 +187,10 @@ namespace Jarldom
                         int load = Work.Carrying(this);
                         if (load == 0) LoadSince = 0; else if (LoadSince == 0) LoadSince = Time.time;
                         if (load > 0 && Time.time - LoadSince > 300f && Time.time > NoStoreUntil) { LoadSince = Time.time; return new DepositTask(); }
-                        Task work = Work.Next(this); if (work != null) { Leisure.Clean(this); return work; }
+                        Task work = Work.Next(this); Split.Mark("work.next"); if (work != null) { Leisure.Clean(this); return work; }
                         // (nothing to do: first whatever's in the bag to the stores, a light bag being a small body to send; then some sport, or the hall)
                         if (Time.time > NoStoreUntil && Work.Carrying(this) > 0 && Body.GetInventory().GetAllItems().Where(i => Work.Stores(this, i)).Any(i => Stock.Destination(Colony, i, Pos) != null)) return new DepositTask();
+                        Split.Mark("deposit?");
                         return Leisure.Next(this, Gear.Problem ?? Work.WhyIdle(this));
                     }
                 case Activity.Hall: return Work.Lamplight(this) ?? new HallTask(); // (the hauler sees to the fires and torches first)
@@ -232,11 +235,13 @@ namespace Jarldom
             Saboteur.Tick(this);
             Mood.Expire(S, now);
             Plugin.Guard(() => Dim(now));
+            Split.Mark("n.dim");
             // An ascension ordered and interrupted (a reload, the owner away): on again at dusk.
             if (Colony != null && S.Worthy && !(Task is AscendTask) && Ascensions.Pending(Colony.R.Flags, S.Vid) && Ascension.Why(Colony, S) == "") { Task?.Stop(this); Task = new AscendTask(Colony.Id); Task.Start(this); }
             // Shelter: dry and warm (under a roof, or by a fire).
             Cover.GetCoverForPoint(Body.GetCenterPoint(), out float cover, out bool roof);
             bool sheltered = cover >= 0.8f && roof, warm = EffectArea.IsPointInsideArea(Pos, EffectArea.Type.Heat) != null;
+            Split.Mark("n.cover");
             if (sheltered || warm) Jarldom.Mood.Satisfy(S, Need.Shelter, (float)hours * (warm && sheltered ? 6 : 3));
             else if (EnvMan.IsWet()) { Jarldom.Mood.Satisfy(S, Need.Shelter, -(float)hours * 4); if (!Jarldom.Mood.Has(S, "rain", now)) Jarldom.Mood.Add(S, "rain", now); }
             // Company: working or resting near someone of the colony keeps loneliness off a little (the evening in the hall does most).
@@ -250,6 +255,7 @@ namespace Jarldom
             // Faith: Odin's shrine and temples in the colony keep it up a little every day.
             int shrines = Colony.R.Rooms.Count(x => x.Ok && (x.Type == RoomType.OdinShrine || x.Type == RoomType.Temple));
             if (shrines > 0) Jarldom.Mood.Satisfy(S, Need.Faith, (float)hours * 0.6f * Mathf.Min(3, shrines));
+            Split.Mark("n.rooms");
             if (S.Has("pious") && shrines == 0) { if (!Jarldom.Mood.Has(S, "neglect", now)) Jarldom.Mood.Add(S, "neglect", now); } else Jarldom.Mood.Remove(S, "neglect");
             if (S.Needs[(int)Need.Food] < 15) { if (!Jarldom.Mood.Has(S, "hungry", now)) Jarldom.Mood.Add(S, "hungry", now); } else Jarldom.Mood.Remove(S, "hungry");
             if (S.Foods.Count >= 3 && S.Foods.Skip(S.Foods.Count - 3).Distinct().Count() == 1) { if (!Jarldom.Mood.Has(S, "samefood", now)) Jarldom.Mood.Add(S, "samefood", now); } else Jarldom.Mood.Remove(S, "samefood");

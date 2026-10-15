@@ -24,19 +24,32 @@ namespace Jarldom
         public static bool IsLight(Component c) => c != null && c.GetComponent<Fireplace>() != null && !Warms(c);
         public static bool Lit(Fireplace f) => f != null && (f.m_infiniteFuel || f.GetComponent<ZNetView>()?.GetZDO()?.GetFloat(ZDOVars.s_fuel) > 0f);
         // Seats on a piece: a chair has one, a bench three (on its parts, not the bench itself).
-        public static Chair[] SeatsOf(Piece p) => p == null ? new Chair[0] : p.GetComponentsInChildren<Chair>().Where(ch => ch.m_attachPoint != null).ToArray();
+        // (a piece's seats, kept by its instance: a hall's every piece was searched through, child by child, for each seat taken)
+        private static readonly Dictionary<int, Chair[]> _seats = new Dictionary<int, Chair[]>();
+        private static readonly Chair[] NoSeats = new Chair[0];
+        public static Chair[] SeatsOf(Piece p)
+        {
+            if (p == null) return NoSeats;
+            int id = p.GetInstanceID();
+            if (_seats.TryGetValue(id, out Chair[] kept)) return kept;
+            if (_seats.Count > 100000) _seats.Clear();
+            Chair[] found = p.GetComponentsInChildren<Chair>().Where(ch => ch.m_attachPoint != null).ToArray();
+            return _seats[id] = found.Length == 0 ? NoSeats : found;
+        }
         public static bool IsSeat(Piece p) => SeatsOf(p).Length > 0;
         public static bool IsHighSeat(Chair ch) { Piece p = ch != null ? ch.GetComponentInParent<Piece>() : null; return p != null && IsHighSeat(p.gameObject); }
         public static bool IsHighSeat(GameObject go) { string n = Utils.GetPrefabName(go).ToLowerInvariant(); return n.Contains("throne") || n == Pieces.GildedSeatName.ToLowerInvariant(); }
         // A table to eat at: not a crafting table, a map table or the food preparation table.
-        public static bool IsTable(Piece p) { string n = Utils.GetPrefabName(p.gameObject).ToLowerInvariant(); return n.Contains("table") && p.GetComponent<CraftingStation>() == null && p.GetComponent<StationExtension>() == null && p.GetComponent<MapTable>() == null && !n.Contains("prep"); } // (not a butcher's or a mage's table: a station's own part)
+        private static readonly Dictionary<int, bool> _isTable = new Dictionary<int, bool>();
+        public static bool IsTable(Piece p) { int id = p.GetInstanceID(); if (_isTable.TryGetValue(id, out bool t)) return t; if (_isTable.Count > 100000) _isTable.Clear(); return _isTable[id] = TableNow(p); }
+        private static bool TableNow(Piece p) { string n = Colony.NameOf(p).ToLowerInvariant(); return n.Contains("table") && p.GetComponent<CraftingStation>() == null && p.GetComponent<StationExtension>() == null && p.GetComponent<MapTable>() == null && !n.Contains("prep"); } // (not a butcher's or a mage's table: a station's own part)
         public static bool IsRug(string n) => n.Contains("rug") || n.Contains("carpet");
         public static bool IsShutter(GameObject go) => Utils.GetPrefabName(go).ToLowerInvariant().Contains("window");
         // The warming fire nearest a point (lit ones first), inside an outline if one is given.
         public static Fireplace NearestFire(Vector3 at, float radius, IList<float> inside = null)
         {
-            var list = new List<Piece>(); Piece.GetAllPiecesInRadius(at, radius, list);
-            return list.Select(p => p.GetComponent<Fireplace>()).Where(f => f != null && Warms(f) && (inside == null || Geometry.Inside(inside, f.transform.position.x, f.transform.position.z)))
+            var list = Colony.PiecesNear(at, radius);
+            return list.Select(p => Colony.CompOf<Fireplace>(p)).Where(f => f != null && Warms(f) && (inside == null || Geometry.Inside(inside, f.transform.position.x, f.transform.position.z)))
                 .OrderBy(f => Lit(f) ? 0 : 1).ThenBy(f => Vector3.Distance(f.transform.position, at)).FirstOrDefault();
         }
         // Mead: what a fermenter makes (vanilla meads and wines, and any mod's), learned from the fermenters themselves.

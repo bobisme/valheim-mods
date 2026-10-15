@@ -26,7 +26,7 @@ namespace Jarldom
             ItemDrop.ItemData keep = b.Body.GetInventory().GetAllItems().FirstOrDefault(Keepsake);
             Bed bed = keep != null ? c.BedById(b.S.Bed) : null;
             if (bed == null) return null;
-            var stands = c.PiecesIn(c.Radius).Where(p => p != null && Stands.Contains(Utils.GetPrefabName(p.gameObject)) && p.GetCreator() != 0 && Vector3.Distance(p.transform.position, bed.transform.position) < Reach)
+            var stands = c.PiecesIn(c.Radius).Where(p => p != null && Stands.Contains(Colony.NameOf(p)) && p.GetCreator() != 0 && Vector3.Distance(p.transform.position, bed.transform.position) < Reach)
                 .Select(p => p.GetComponent<ItemStand>()).Where(s => s != null && s.GetComponent<ZNetView>()?.GetZDO() != null).ToList();
             if (stands.Count(s => s.HaveAttachment() && s.GetComponent<ZNetView>().GetZDO().GetString(StandKey, "") == b.S.Vid) >= Most) return null;
             ItemStand free = stands.Where(s => !s.HaveAttachment() && Fits(s, keep)).OrderBy(s => Vector3.Distance(s.transform.position, bed.transform.position)).FirstOrDefault();
