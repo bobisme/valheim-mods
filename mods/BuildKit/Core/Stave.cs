@@ -144,7 +144,66 @@ namespace BuildKit
             return m;
         }
 
+        // ---- wattle: withies woven between stakes (a fence, 2 × 1 m), and wattle daubed with clay in a timber frame (a wall, 2 × 2 m) ----
+        public static ShingleMesh Wattle(int seed = 9)
+        {
+            var m = new ShingleMesh();
+            var rng = new Random(seed);
+            const int stakes = 7; float x0 = -0.9f, gap = 0.3f;
+            for (int i = 0; i < stakes; i++)
+            {
+                float x = x0 + i * gap + (float)(rng.NextDouble() - 0.5) * 0.03f, top = 0.55f + 0.1f * (float)rng.NextDouble();
+                Column(m, ShingleMesh.Shingles, x, 0, -0.5f, top, 0.035f, 0.03f, 7, 0.8f + 0.3f * (float)rng.NextDouble());
+            }
+            // (each withy in front of one stake and behind the next, the row above the other way round)
+            for (int row = 0; row < 20; row++)
+            {
+                float y = -0.45f + row * 0.0475f + (float)(rng.NextDouble() - 0.5) * 0.006f, phase = row % 2 == 0 ? 0 : (float)Math.PI;
+                var path = new List<(float x, float y, float z)>();
+                for (int k = 0; k <= 40; k++)
+                {
+                    float x = -1f + k * 0.05f, t = (x - x0) / gap * (float)Math.PI + phase;
+                    path.Add((x, y + 0.006f * (float)Math.Sin(k * 0.7 + row), 0.045f * (float)Math.Cos(t)));
+                }
+                float tone = 0.85f + 0.3f * (float)rng.NextDouble();
+                TubeTone(m, ShingleMesh.Trim, path, 0.024f, 6, tone);
+            }
+            return m;
+        }
+        public static ShingleMesh Daub(int seed = 11)
+        {
+            var m = new ShingleMesh();
+            var rng = new Random(seed);
+            // The frame: sill, wall plate, the posts at each end and in the middle, and a brace.
+            Box(m, ShingleMesh.Trim, -1, -1, -0.15f, 1, -0.84f, 0.15f, 0.8f);
+            Box(m, ShingleMesh.Trim, -1, 0.86f, -0.14f, 1, 1, 0.14f, 0.85f);
+            foreach (float x in new[] { -0.92f, 0f, 0.92f }) Box(m, ShingleMesh.Trim, x - 0.08f, -0.84f, -0.13f, x + 0.08f, 0.86f, 0.13f, 0.75f + 0.2f * (float)rng.NextDouble());
+            // The daub between: clay, lumpy, a little proud of the timbers' middle and well short of their faces.
+            foreach (float cx in new[] { -0.46f, 0.46f })
+                foreach (int face in new[] { -1, 1 })
+                {
+                    const int nx = 8, ny = 16; var grid = new int[nx + 1, ny + 1];
+                    for (int i = 0; i <= nx; i++)
+                        for (int j = 0; j <= ny; j++)
+                        {
+                            float x = cx - 0.38f + i * (0.76f / nx), y = -0.84f + j * (1.7f / ny);
+                            bool edge = i == 0 || j == 0 || i == nx || j == ny;
+                            float bump = edge ? 0 : 0.012f * (float)(Math.Sin(x * 23 + y * 7 + seed) + Math.Cos(y * 19 - x * 5)) / 2;
+                            float tone = 0.9f + 0.12f * (float)Math.Sin(x * 11 + y * 13);
+                            grid[i, j] = m.AddPoint(x, y, face * (0.09f + bump), 0, 0, face, x * 0.7f, y * 0.7f, tone, tone, tone);
+                        }
+                    for (int i = 0; i < nx; i++) for (int j = 0; j < ny; j++) m.QuadFacing(ShingleMesh.Shingles, grid[i, j], grid[i + 1, j], grid[i + 1, j + 1], grid[i, j + 1], 0, 0, face);
+                }
+            return m;
+        }
+
         // ---- helpers ----
+        private static void TubeTone(ShingleMesh m, int slot, List<(float x, float y, float z)> path, float r, int sides, float tone)
+        {
+            int first = m.Count;
+            Tube(m, slot, path, r, sides, 1);
+            for (int i = first; i < m.Count; i++) { m.C[3 * i] = tone; m.C[3 * i + 1] = tone * 0.97f; m.C[3 * i + 2] = tone * 0.9f; }
+        }
         public static void Box(ShingleMesh m, int slot, float x0, float y0, float z0, float x1, float y1, float z1, float tone)
         {
             var faces = new (float nx, float ny, float nz)[] { (1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1) };

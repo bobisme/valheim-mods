@@ -12,4 +12,6 @@ Shingle ridge with dragon head (26° and 45°): the end piece of a shingled ridg
 
 Stave church pieces: a stave wall (upright tarred planks standing in a sill under a wall plate; snaps and holds like the game's wooden wall; 4 wood, 1 resin), a stave post (a round tarred post with a carved band and a swelling capital, like the game's 2 m pole; 2 wood, 1 resin), and a carved portal door (the game's own door set in carved jambs wound with vines, a beast's head on each, and a carved arch over it standing proud of the wall above; 10 wood, 6 fine wood, 2 resin).
 
+Wattle: a wattle fence (withies woven between stakes, like the game's half wall; 2 wood) and a wattle and daub wall (clay daubed over wattle in a timber frame, like the game's wooden wall; 3 wood, 2 stone).
+
 Reloads in a world. Native Linux and Windows.

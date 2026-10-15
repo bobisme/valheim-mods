@@ -52,6 +52,8 @@ namespace BuildKit
         {
             new Def { Name = "BK_stave_wall", From = "woodwall", Shingled = true, Stave = "wall", Title = "Stave wall", Text = "Upright tarred planks standing in a sill under a wall plate, as a stave church's walls are made: snaps and holds like the game's wooden wall." },
             new Def { Name = "BK_stave_post", From = "wood_pole2", Shingled = true, Stave = "post", Title = "Stave post", Text = "A round tarred post with a carved band and a swelling capital: a stave church's corner post or a hall's pillar. Holds like the game's 2 m pole." },
+            new Def { Name = "BK_wattle_fence", From = "wood_wall_half", Shingled = true, Stave = "wattle", Title = "Wattle fence", Text = "Withies woven between stakes, a pen's or a yard's fence: snaps and holds like the game's half wall. 2 wood." },
+            new Def { Name = "BK_wattle_daub_wall", From = "woodwall", Shingled = true, Stave = "daub", Title = "Wattle and daub wall", Text = "Woven withies daubed with clay in a timber frame, as a farmstead's lesser buildings were walled: snaps and holds like the game's wooden wall. 3 wood, 2 stone (the daub)." },
             new Def { Name = "BK_stave_portal", From = "wood_door", Shingled = true, Stave = "portal", Title = "Carved portal door", Text = "The game's door in a carved portal: jambs wound with vines, a beast's head on each, an arch over it standing proud of the wall above. Snaps into a wall like the game's door." },
         };
         private const string DragonText = "The end of a shingled ridge with a dragon's head carved rising from it, jaws open, as on a stave church's gables: put it last on the ridge, the head facing out.";
@@ -143,7 +145,7 @@ namespace BuildKit
             if (states.Count == 0 || states.Any(st => st.transform.localRotation != Quaternion.identity || Mathf.Abs(st.transform.localScale.x - st.transform.localScale.y) > 0.001f || Mathf.Abs(st.transform.localScale.y - st.transform.localScale.z) > 0.001f)) { states.Clear(); states.Add(go); }
             if (wear != null) wear.m_fragmentRoots = new GameObject[0]; // (the game's broken bits were the old look's)
             Mesh mesh = d.Stave != null ? StaveMeshFor(d) : d.Shingled ? ShingleMeshFor(d) : TurfMesh(d, 15, 0);
-            Material[] mats = d.Shingled ? ShingleMaterials(from) : TurfMaterials(scene, from);
+            Material[] mats = d.Stave == "daub" ? DaubMaterials(scene, from) : d.Stave == "wattle" ? WattleMaterials(from) : d.Shingled ? ShingleMaterials(from) : TurfMaterials(scene, from);
             foreach (GameObject s in states)
             {
                 var look = new GameObject(TurfLook.LookName); look.transform.SetParent(s.transform, false);
@@ -156,7 +158,9 @@ namespace BuildKit
             Piece piece = go.GetComponent<Piece>();
             if (!d.Shingled) go.AddComponent<TurfLook>(); // (its open sides torn, the rest left to meet their neighbours)
             if (d.Hole) HoleColliders(go, d);
-            if (d.Stave != null) piece.m_resources = d.Stave == "portal" ? Cost(("Wood", 10), ("FineWood", 6), ("Resin", 2)) : d.Stave == "wall" ? Cost(("Wood", 4), ("Resin", 1)) : Cost(("Wood", 2), ("Resin", 1));
+            if (d.Stave == "wattle") piece.m_resources = Cost(("Wood", 2));
+            else if (d.Stave == "daub") piece.m_resources = Cost(("Wood", 3), ("Stone", 2));
+            else if (d.Stave != null) piece.m_resources = d.Stave == "portal" ? Cost(("Wood", 10), ("FineWood", 6), ("Resin", 2)) : d.Stave == "wall" ? Cost(("Wood", 4), ("Resin", 1)) : Cost(("Wood", 2), ("Resin", 1));
             else if (d.Shingled) piece.m_resources = d.Dragon ? Cost(("Wood", 2), ("FineWood", 4), ("Resin", 1)) : Cost(("Wood", 2), ("Resin", 1)); // (two wood, as a roof costs, and resin for the tar; fine wood for a carving)
             else
             {
@@ -272,7 +276,7 @@ namespace BuildKit
         internal static Mesh StaveMeshFor(Def d)
         {
             if (Meshes.TryGetValue((d.Name, 0, 0), out Mesh have) && have != null) return have;
-            var t = d.Stave == "wall" ? Stave.Wall() : d.Stave == "post" ? Stave.Post() : Stave.Portal();
+            var t = d.Stave == "wall" ? Stave.Wall() : d.Stave == "post" ? Stave.Post() : d.Stave == "wattle" ? Stave.Wattle() : d.Stave == "daub" ? Stave.Daub() : Stave.Portal();
             var mesh = new Mesh { name = d.Name };
             var v = new Vector3[t.Count]; var n = new Vector3[t.Count]; var uv = new Vector2[t.Count]; var col = new Color[t.Count];
             for (int i = 0; i < t.Count; i++) { v[i] = new Vector3(t.V[3 * i], t.V[3 * i + 1], t.V[3 * i + 2]); var nn = new Vector3(t.N[3 * i], t.N[3 * i + 1], t.N[3 * i + 2]); n[i] = nn.sqrMagnitude > 0 ? nn.normalized : Vector3.up; uv[i] = new Vector2(t.Uv[2 * i], t.Uv[2 * i + 1]); col[i] = new Color(t.C[3 * i], t.C[3 * i + 1], t.C[3 * i + 2]); }
@@ -293,6 +297,24 @@ namespace BuildKit
             Material boards = Mat("boards", () => new Material(wood) { name = "BuildKit boards" });
             Material trim = Mat("trim", () => new Material(wood) { color = Look.TrimTint });
             return new[] { shingles, boards, trim };
+        }
+
+        // Wattle: stakes and withies of plain (untarred) wood, greyed with weather.
+        internal static Material[] WattleMaterials(GameObject from)
+        {
+            Material[] game = from.GetComponentsInChildren<Renderer>(true).SelectMany(r => r.sharedMaterials).Where(m => m != null).ToArray();
+            Material wood = game.FirstOrDefault(m => m.name.StartsWith("woodwall")) ?? game.First();
+            return new[] { Mat("stakes", () => Matte(new Material(wood) { color = new Color(0.55f, 0.47f, 0.38f) })), Mat("boards", () => new Material(wood) { name = "BuildKit boards" }), Mat("withies", () => Matte(new Material(wood) { color = new Color(0.68f, 0.6f, 0.48f) })) };
+        }
+        // Daub: clay (the mud pile's soil, pale), the frame's timbers dark.
+        internal static Material[] DaubMaterials(ZNetScene scene, GameObject from)
+        {
+            Material[] game = from.GetComponentsInChildren<Renderer>(true).SelectMany(r => r.sharedMaterials).Where(m => m != null).ToArray();
+            Material wood = game.FirstOrDefault(m => m.name.StartsWith("woodwall")) ?? game.First();
+            Material mud = scene.GetPrefab("mudpile")?.GetComponentsInChildren<Renderer>(true).SelectMany(r => r.sharedMaterials).FirstOrDefault(m => m != null && m.name.StartsWith("mudpile"));
+            // (plain clay: the mud pile's texture has pebbles and sticks in it, and wood its grain; the lumps and tones are the mesh's)
+            Material clay = Mat("daub", () => { var m = Matte(new Material(wood) { color = Look.DaubTint }); m.SetTexture("_MainTex", Texture2D.whiteTexture); if (m.HasProperty("_BumpMap")) m.SetTexture("_BumpMap", null); return m; });
+            return new[] { clay, Mat("boards", () => new Material(wood) { name = "BuildKit boards" }), Mat("timbers", () => new Material(wood) { color = new Color(0.42f, 0.32f, 0.24f) }) };
         }
 
         // ---- materials: copies of the game's own, retextured and tinted ----
@@ -371,7 +393,7 @@ namespace BuildKit
     {
         public static string SodTexture = "", EarthTexture = "", BarkTexture = "BirchSeeds/birch_seeds";
         public static float SodScale = 0.9f;
-        public static Color ShingleTint = new Color(0.46f, 0.35f, 0.26f), TrimTint = new Color(0.5f, 0.38f, 0.27f);
+        public static Color ShingleTint = new Color(0.46f, 0.35f, 0.26f), TrimTint = new Color(0.5f, 0.38f, 0.27f), DaubTint = new Color(0.72f, 0.62f, 0.48f);
         public static Color SodTint = Color.white, EarthTint = new Color(0.7f, 0.6f, 0.5f), BarkTint = new Color(0.42f, 0.34f, 0.27f), StickTint = new Color(0.6f, 0.6f, 0.58f);
     }
 }

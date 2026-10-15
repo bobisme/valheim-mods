@@ -132,7 +132,7 @@ foreach (Shape sh in new[] { Shape.Straight, Shape.Ridge, Shape.OuterCorner, Sha
 }
 
 // ---- Stave church: walls, posts, the portal ----
-foreach (var (name, m, w, h, d) in new[] { ("wall", Stave.Wall(), 1.01f, 1.01f, 0.2f), ("post", Stave.Post(), 0.21f, 1.01f, 0.21f), ("portal", Stave.Portal(), 1.05f, 1.45f, 0.37f) })
+foreach (var (name, m, w, h, d) in new[] { ("wall", Stave.Wall(), 1.01f, 1.01f, 0.2f), ("post", Stave.Post(), 0.21f, 1.01f, 0.21f), ("portal", Stave.Portal(), 1.05f, 1.45f, 0.37f), ("wattle", Stave.Wattle(), 1.03f, 0.7f, 0.08f), ("daub", Stave.Daub(), 1.01f, 1.01f, 0.16f) })
 {
     Check(m.Count > 100 && m.T.All(t => t.All(i => i >= 0 && i < m.Count) && t.Count % 3 == 0), $"Stave {name}: a mesh with real corners");
     float mx = 0, my = 0, mz = 0; for (int i = 0; i < m.Count; i++) { mx = Math.Max(mx, Math.Abs(m.V[3 * i])); my = Math.Max(my, Math.Abs(m.V[3 * i + 1])); mz = Math.Max(mz, Math.Abs(m.V[3 * i + 2])); }
