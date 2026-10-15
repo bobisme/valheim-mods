@@ -455,6 +455,14 @@ namespace Jarldom
                         Task?.Stop(this); Task = new CampTask(new Vector3(cx, cy, cz), yaw); Task.Start(this);
                     }
                     break;
+                case "outpost": // ("<x>|<y>|<z>|<yaw>": raise high-seat pillars there, as one of the crew out with the jarl)
+                    {
+                        string[] f = arg.Split('|'); var ic = System.Globalization.CultureInfo.InvariantCulture; var fs = System.Globalization.NumberStyles.Float;
+                        if (f.Length < 4 || !Expedition.Out(this)) break;
+                        if (float.TryParse(f[0], fs, ic, out float ox) && float.TryParse(f[1], fs, ic, out float oy) && float.TryParse(f[2], fs, ic, out float oz) && float.TryParse(f[3], fs, ic, out float oyaw))
+                            Expedition.Raise(this, new Vector3(ox, oy, oz), oyaw);
+                    }
+                    break;
                 case "summon": Follow.End(this, new[] { "Coming.", "On my way.", "Coming, jarl.", "Right behind you.", "Coming now." }[UnityEngine.Random.Range(0, 5)]); if (Colony == null || !Colony.Valid) { Follow.HomeFrom(this); break; } Task?.Stop(this); Task = new SummonTask(Colony.Position + Colony.Seat.transform.forward * 2.5f); Task.Start(this); break;
                 case "dismiss": Dismiss(); return;
                 case "mood": Jarldom.Mood.Add(S, arg, Now); break;

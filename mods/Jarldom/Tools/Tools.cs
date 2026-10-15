@@ -268,7 +268,7 @@ namespace Jarldom
                 output(new JObject { ["relic"] = lines[1] });
                 return;
             }
-            if (c == null && cmd != "place" && cmd != "put" && cmd != "claims" && cmd != "find" && cmd != "profile" && cmd != "versions" && cmd != "env" && cmd != "overlay" && cmd != "icon" && cmd != "layers" && cmd != "compat" && cmd != "status" && cmd != "bags" && cmd != "expedition" && cmd != "villager") { error("no colony near (jarldom place pillars makes one)"); return; }
+            if (c == null && cmd != "place" && cmd != "put" && cmd != "claims" && cmd != "find" && cmd != "profile" && cmd != "versions" && cmd != "env" && cmd != "overlay" && cmd != "icon" && cmd != "layers" && cmd != "compat" && cmd != "status" && cmd != "bags" && cmd != "expedition" && cmd != "villager" && cmd != "give") { error("no colony near (jarldom place pillars makes one)"); return; }
             Player me = Player.m_localPlayer;
             switch (cmd)
             {
@@ -1141,6 +1141,15 @@ namespace Jarldom
                 case "expedition": // (test: "expedition <name>:<role> ..." sets out with them, as the Expedition tab does; "expedition home")
                     {
                         if (a.Length > 2 && a[2] == "home") { if (c != null) Net.Act(c, "expedition", "home|" + me.GetPlayerID()); else foreach (Brain m in Expedition.CrewOf(me.GetPlayerID())) Villagers.Command(m.S.Vid, "follow", "0"); output(new JObject { ["home"] = true }); break; }
+                        if (a.Length > 2 && a[2] == "outpost") // (test: why an outpost can or can't be raised where the player stands; "outpost raise": raise it 4 m ahead)
+                        {
+                            var crew1 = Expedition.CrewOf(me.GetPlayerID());
+                            Vector3 spot = me.transform.position + me.transform.forward * 4f;
+                            string why = Expedition.CantRaise(crew1, spot);
+                            if (a.Length > 3 && a[3] == "raise" && why == "") crew1.OrderBy(m => Expedition.RoleOf(m) == "carrier" ? 0 : 1).First().Command("outpost", $"{spot.x.ToString(CultureInfo.InvariantCulture)}|{spot.y.ToString(CultureInfo.InvariantCulture)}|{spot.z.ToString(CultureInfo.InvariantCulture)}|{(me.transform.eulerAngles.y + 180f).ToString(CultureInfo.InvariantCulture)}");
+                            output(new JObject { ["crew"] = crew1.Count, ["why"] = why, ["atCamp"] = Expedition.AtCamp(me, new Expedition.CampState()), ["cost"] = new JArray(Expedition.PillarsCost().Select(x => $"{x.n} {x.item.name}")), ["colonies"] = new JArray(Outposts.All().Select(x => $"{x.id} {Mathf.RoundToInt(Utils.DistanceXZ(x.at, spot))} m")) });
+                            break;
+                        }
                         if (a.Length > 2 && a[2] == "camp") // (test: why the crew can or can't camp where the player stands, the cost; "camp at x z": make it there)
                         {
                             var crew0 = Expedition.CrewOf(me.GetPlayerID());

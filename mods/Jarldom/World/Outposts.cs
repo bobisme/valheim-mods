@@ -59,6 +59,29 @@ namespace Jarldom
             string[] p = v.Split(',');
             return p.Length >= 2 && float.TryParse(p[0], NumberStyles.Float, CultureInfo.InvariantCulture, out float x) && float.TryParse(p[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float z) ? new Vector3(x, 0, z) : (Vector3?)null;
         }
+        // Every colony the world knows of (from the marks they leave): id → where.
+        public static List<(string id, Vector3 at)> All()
+        {
+            var list = new List<(string, Vector3)>();
+            if (Z == null) return list;
+            foreach (string line in Z.GetGlobalKeys().Where(l => l.StartsWith("jarldom_colony_")))
+            {
+                int space = line.IndexOf(' '); if (space < 0) continue;
+                string id = line.Substring("jarldom_colony_".Length, space - "jarldom_colony_".Length);
+                if (Where(id) is Vector3 at) list.Add((id, at));
+            }
+            return list;
+        }
+        // An outpost raised by an expedition: linked to the crew's home (or, if that's an outpost itself, to its main colony), whoever
+        // founded either: the jarl who led the crew out runs both.
+        public static void LinkFromExpedition(Colony c, string home, string who)
+        {
+            if (Z == null || string.IsNullOrEmpty(home) || home == c.Id) return;
+            string parent = Z.GetGlobalKey(LinkKey(home), out string up) && !string.IsNullOrEmpty(up) ? up : home;
+            if (!(Where(parent) is Vector3 at) || Utils.DistanceXZ(at, c.Position) < Renown.MinApart) return;
+            Z.SetGlobalKey(LinkKey(c.Id) + " " + parent);
+            c.Log("text", who, "", $"{c.R.Name} was raised by an expedition from the colony {Mathf.RoundToInt(Utils.DistanceXZ(at, c.Position))} m to the {ScoutTask.Compass(at - c.Position)}, and is its outpost: that colony's treasury meets the wages this one can't.");
+        }
         public static int OutpostsOf(Colony c) => Z == null ? 0 : Z.GetGlobalKeys().Count(l => l.StartsWith("jarldom_outpost_") && l.EndsWith(" " + c.Id));
 
         // On the owner: linked, or standing alone again.

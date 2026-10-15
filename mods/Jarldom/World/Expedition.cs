@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using HarmonyLib;
 using System.Linq;
 using UnityEngine;
 
@@ -43,8 +44,48 @@ namespace Jarldom
         {
             if (!Roles.Contains(role)) return;
             b.View.GetZDO().Set(RoleKey, role);
+            if (!Crews.TryGetValue(leader, out var ids)) Crews[leader] = ids = new List<ZDOID>();
+            if (!ids.Contains(b.View.GetZDO().m_uid)) ids.Add(b.View.GetZDO().m_uid);
             Follow.Start(b, leader, name);
             Pack(b, role);
+        }
+        // ---- left behind: a crew member in ground that isn't loaded (two jumps too quick, a portal's far end not loaded yet) runs no
+        // thinking there, so can't catch up: the jarl's game brings them to the jarl ----
+        private static readonly Dictionary<long, List<ZDOID>> Crews = new Dictionary<long, List<ZDOID>>(); // (leader -> crew bodies)
+        private static float _nextGather; private static bool _scanned;
+        public static void Forget() { Crews.Clear(); _scanned = false; }
+        public static void Tick()
+        {
+            Player me = Player.m_localPlayer;
+            if (me == null || ZNetScene.instance == null || Time.time < _nextGather) return;
+            _nextGather = Time.time + 5f;
+            // (crews this game sets out with, and any crew already loaded here following this jarl: after a reload the list is empty)
+            long id = me.GetPlayerID();
+            foreach (Brain b in Villagers.All) if (b.View != null && b.View.IsValid() && Follow.LeaderId(b) == id && RoleOf(b) != "")
+                { if (!Crews.TryGetValue(id, out var l)) Crews[id] = l = new List<ZDOID>(); if (!l.Contains(b.View.GetZDO().m_uid)) l.Add(b.View.GetZDO().m_uid); }
+            // (once a world, the saved world's followers of this jarl: a crew stranded before a restart or a reload is found too)
+            if (!_scanned)
+            {
+                _scanned = true;
+                int hash = VillagerPrefab.Name.GetStableHashCode();
+                var all = AccessTools.FieldRefAccess<ZDOMan, Dictionary<ZDOID, ZDO>>("m_objectsByID")(ZDOMan.instance);
+                foreach (ZDO z in all.Values)
+                    if (z.GetPrefab() == hash && z.GetLong(Follow.Key, 0L) == id && z.GetString(RoleKey, "") != "")
+                    { if (!Crews.TryGetValue(id, out var l)) Crews[id] = l = new List<ZDOID>(); if (!l.Contains(z.m_uid)) l.Add(z.m_uid); }
+            }
+            if (!Crews.TryGetValue(id, out var ids) || ids.Count == 0) return;
+            int k = 0;
+            foreach (ZDOID zid in ids.ToList())
+            {
+                ZDO z = ZDOMan.instance.GetZDO(zid);
+                if (z == null || z.GetLong(Follow.Key, 0L) != id) { ids.Remove(zid); continue; }
+                if (ZNetScene.instance.FindInstance(z) != null || Utils.DistanceXZ(z.GetPosition(), me.transform.position) < 60f) continue;
+                if (me.IsTeleporting() || me.IsAttachedToShip() || me.GetStandingOnShip() != null) continue; // (not while the jarl's between places or at sea)
+                float a = k++ * 2.1f;
+                Vector3 to = me.transform.position - me.transform.forward * 3f + new Vector3(Mathf.Sin(a) * 2.5f, 0.3f, Mathf.Cos(a) * 2.5f);
+                if (!z.IsOwner()) z.SetOwner(ZDOMan.GetSessionID());
+                z.SetPosition(to);
+            }
         }
         // Home: the role goes with the follow (what's left of the packing goes back to the stores as any carrying does).
         public static void Ended(Brain b) { if (b?.View != null && b.View.IsValid()) b.View.GetZDO().Set(RoleKey, ""); }
@@ -103,16 +144,96 @@ namespace Jarldom
                     if (r.m_resItem != null) cost[r.m_resItem] = (cost.TryGetValue(r.m_resItem, out int n) ? n : 0) + r.m_amount;
             return cost.Select(kv => (kv.Key, kv.Value)).ToList();
         }
+        // Under water there, or within a few metres (a camp's chest and bench stand out to each side).
+        public static bool Wet(Vector3 at, float around)
+        {
+            float sea = ZoneSystem.instance != null ? ZoneSystem.instance.m_waterLevel : 30f;
+            foreach (Vector3 o in new[] { Vector3.zero, Vector3.right * around, Vector3.left * around, Vector3.forward * around, Vector3.back * around })
+                if (ZoneSystem.instance.GetSolidHeight(at + o, out float h) && h < sea + 0.3f) return true;
+            return false;
+        }
         // Why the crew can't make camp here ("" if they can).
         public static string CantCamp(List<Brain> crew, Vector3 at)
         {
             if (crew.Count == 0) return "no crew is out with you";
             Colony home = crew[0].Colony;
             if (!TestAnywhere && Colony.All.Any(c => c.Valid && Utils.DistanceXZ(at, c.Position) < c.Radius + NoCampNearHome)) return "you're near a colony: no need for a camp here";
+            if (Wet(at, 3.5f)) return "the ground's under water here: find dry ground";
             var missing = CampCost().Where(x => crew.Sum(b => b.Body.GetInventory().CountItems(x.item.m_itemData.m_shared.m_name)) < x.n)
                 .Select(x => $"{x.n - crew.Sum(b => b.Body.GetInventory().CountItems(x.item.m_itemData.m_shared.m_name))} {Localization.instance.Localize(x.item.m_itemData.m_shared.m_name).ToLowerInvariant()}").ToList();
             if (missing.Count > 0) return "the crew carries too little: short " + string.Join(", ", missing) + " (a carrier packs a camp's makings)";
             return "";
+        }
+
+        // ---- an outpost raised at a camp: high-seat pillars beside it, paid from what the crew carries, linked to the crew's home ----
+        public static List<(ItemDrop item, int n)> PillarsCost()
+        {
+            var cost = new Dictionary<ItemDrop, int>();
+            foreach (Piece.Requirement r in Pieces.Get(Pieces.PillarsName)?.GetComponent<Piece>()?.m_resources ?? new Piece.Requirement[0])
+                if (r.m_resItem != null) cost[r.m_resItem] = (cost.TryGetValue(r.m_resItem, out int n) ? n : 0) + r.m_amount;
+            return cost.Select(kv => (kv.Key, kv.Value)).ToList();
+        }
+        // (what the crew carries, and what's in the camp chest if there's one)
+        private static int Have(List<Brain> crew, Container chest, string name) => crew.Sum(b => b.Body.GetInventory().CountItems(name)) + (chest != null ? chest.GetInventory().CountItems(name) : 0);
+        private static List<string> Short(List<Brain> crew, Container chest, List<(ItemDrop item, int n)> cost) => cost
+            .Where(x => Have(crew, chest, x.item.m_itemData.m_shared.m_name) < x.n)
+            .Select(x => $"{x.n - Have(crew, chest, x.item.m_itemData.m_shared.m_name)} {Localization.instance.Localize(x.item.m_itemData.m_shared.m_name).ToLowerInvariant()}").ToList();
+        private static Container CampChest(Player jarl) { var st = new CampState(); return jarl != null && AtCamp(jarl, st) ? st.Chest : null; }
+        public static string CantRaise(List<Brain> crew, Vector3 at)
+        {
+            Container chest = crew.Count > 0 ? CampChest(Follow.Leader(crew[0])) : null;
+            if (crew.Count == 0) return "no crew is out with you";
+            var near = Outposts.All().Where(x => Utils.DistanceXZ(x.at, at) < Renown.MinApart).OrderBy(x => Utils.DistanceXZ(x.at, at)).ToList();
+            if (near.Count > 0) return $"a colony stands {Mathf.RoundToInt(Utils.DistanceXZ(near[0].at, at))} m away: an outpost needs {Renown.MinApart:0} m from any other";
+            if (Wet(at, 2f)) return "the ground's under water here: find dry ground";
+            var missing = Short(crew, chest, PillarsCost());
+            if (missing.Count > 0) return "the crew carries too little for the high-seat pillars: short " + string.Join(", ", missing);
+            return "";
+        }
+        private static readonly List<(Vector3 at, string home, string who, float until)> Pending = new List<(Vector3, string, string, float)>();
+        // The crew member raising it: paid, pillars up (the new colony founds itself on this game), the link made once it has.
+        public static void Raise(Brain b, Vector3 at, float yaw)
+        {
+            var crew = CrewOf(Follow.LeaderId(b));
+            // (clear of the camp: six metres out from its fire, on the jarl's side)
+            Player lead = Follow.Leader(b); var cs = new CampState();
+            if (lead != null && AtCamp(lead, cs) && Utils.DistanceXZ(at, cs.Fire.transform.position) < 6f)
+            {
+                Vector3 away = lead.transform.position - cs.Fire.transform.position; away.y = 0;
+                if (away.sqrMagnitude < 1f) away = -lead.transform.forward;
+                at = cs.Fire.transform.position + away.normalized * 6f;
+            }
+            string why = CantRaise(crew, at);
+            if (why != "") { b.Say("We can't raise an outpost: " + why + ".", 6); return; }
+            Container chest = CampChest(Follow.Leader(b));
+            foreach (var (item, n) in PillarsCost())
+            {
+                int left = n; string name = item.m_itemData.m_shared.m_name;
+                foreach (Brain m in crew.OrderBy(m => RoleOf(m) == "carrier" ? 0 : 1)) { int take = Mathf.Min(left, m.Body.GetInventory().CountItems(name)); if (take > 0) { m.Body.GetInventory().RemoveItem(name, take); left -= take; } if (left <= 0) break; }
+                if (left > 0 && chest != null) { ContainerAccess.TakeOver(chest); int take = Mathf.Min(left, chest.GetInventory().CountItems(name)); chest.GetInventory().RemoveItem(name, take); left -= take; }
+            }
+            if (ZoneSystem.instance.GetSolidHeight(at, out float h)) at.y = h;
+            Player jarl = Follow.Leader(b);
+            GameObject go = Object.Instantiate(Pieces.Get(Pieces.PillarsName), at, Quaternion.Euler(0, yaw, 0));
+            Piece piece = go.GetComponent<Piece>();
+            piece?.SetCreator(jarl != null ? jarl.GetPlayerID() : 0L, Splatform.PlatformManager.DistributionPlatform.LocalUser.PlatformUserID);
+            piece?.m_placeEffect.Create(at, go.transform.rotation, go.transform);
+            go.GetComponent<WearNTear>()?.OnPlaced();
+            Pending.Add((at, b.S.Colony, jarl?.GetPlayerName() ?? "", Time.time + 300f)); // (a new colony settles in 30 s or so before it ticks)
+            b.Say(new[] { "The pillars stand. This is ours now, jarl.", "There: the high seat's pillars. Odin will see this place.", "An outpost, here. Let them come." }[Random.Range(0, 3)], 7);
+        }
+        // From every colony's tick on its owner: a colony just founded where an expedition raised pillars, linked to the crew's home.
+        public static void LinkPending(Colony c)
+        {
+            if (Pending.Count == 0) return;
+            for (int i = Pending.Count - 1; i >= 0; i--)
+            {
+                var p = Pending[i];
+                if (Time.time > p.until) { Pending.RemoveAt(i); continue; }
+                if (!c.IsOwner || c.R == null || Utils.DistanceXZ(c.Position, p.at) > 3f) continue;
+                Outposts.LinkFromExpedition(c, p.home, p.who);
+                Pending.RemoveAt(i);
+            }
         }
 
         // ---- at camp: the jarl near one of the camps the crew made, each to their role there ----

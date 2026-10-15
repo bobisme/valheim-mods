@@ -306,6 +306,7 @@ namespace Jarldom
             Plugin.Guard(() => TrueLegends.Tick(this));
             Plugin.Guard(() => GreatWork.Tick(this));
             Plugin.Guard(() => Thing.Tick(this));
+            Plugin.Guard(() => Expedition.LinkPending(this));
         }
         // Jobs done today, for the colony window (the board's own count starts again each time it loads).
         private int _doneSeen = -1;

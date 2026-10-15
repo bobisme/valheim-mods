@@ -110,6 +110,22 @@ namespace Jarldom.Ui
                 }, "A fire, a chest and a workbench, just ahead of you, paid from what the crew carries (a carrier packs a camp's makings). Not near a colony.");
                 Small(right, "Call the crew home", ref bx, ry, () => { foreach (Brain m in Expedition.CrewOf(mine)) Villagers.Command(m.S.Vid, "follow", "0"); Close(); }, "The whole crew stops following you and goes home.");
                 ry += 44; bx = 10;
+                // (at the crew's camp: raise it into an outpost of their home colony)
+                if (Expedition.AtCamp(Player.m_localPlayer, new Expedition.CampState()))
+                {
+                    Small(right, "Raise an outpost here", ref bx, ry, () =>
+                    {
+                        Player me = Player.m_localPlayer; var crew = Expedition.CrewOf(mine);
+                        Vector3 at = me.transform.position + me.transform.forward * 4f;
+                        string why = Expedition.CantRaise(crew, at);
+                        if (why != "") { me.Message(MessageHud.MessageType.Center, "Can't raise an outpost here: " + why + "."); return; }
+                        Brain maker = crew.OrderBy(m => Expedition.RoleOf(m) == "carrier" ? 0 : 1).First();
+                        var ic = System.Globalization.CultureInfo.InvariantCulture;
+                        Villagers.Command(maker.S.Vid, "outpost", $"{at.x.ToString(ic)}|{at.y.ToString(ic)}|{at.z.ToString(ic)}|{(me.transform.eulerAngles.y + 180f).ToString(ic)}");
+                        Close();
+                    }, $"The crew raises high-seat pillars just ahead of you, paid from what they carry: a new colony, and an outpost of theirs (its main colony meets the wages it can't). It needs {Renown.MinApart:0} m from any other colony.");
+                    ry += 44; bx = 10;
+                }
             }
             if (c != null)
             {
