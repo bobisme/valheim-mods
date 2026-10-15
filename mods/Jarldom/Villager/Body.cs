@@ -59,7 +59,15 @@ namespace Jarldom
         [HarmonyPatch(typeof(Container), "Save")]
         private static class SaveOnSoul
         {
-            private static bool Prefix(Container __instance) => !IsBag(__instance) || !ToSoul(__instance);
+            private static bool Prefix(Container __instance)
+            {
+                if (!IsBag(__instance)) return true;
+                // (the owner's bag not yet loaded from its soul: what's in hand is only the new body's empty bag, and written now it
+                // would go over the real one: Bergthora lost a whole bag that way. Saved once it's been loaded.)
+                ZNetView v = __instance.GetComponent<ZNetView>();
+                if (v != null && v.IsValid() && v.IsOwner() && !Loaded.Contains(__instance.GetInstanceID())) return false;
+                return !ToSoul(__instance);
+            }
         }
         // Written to the soul (false: no soul here yet, so on the body, as the game would).
         private static bool ToSoul(Container __instance)
@@ -77,6 +85,15 @@ namespace Jarldom
                 return true;
             }
         }
+        // A body just made and its bag filled here (gear given back, new clothes): that bag is the truth now, written to the soul at once.
+        private static readonly System.Reflection.MethodInfo SaveBag = AccessTools.Method(typeof(Container), "Save");
+        internal static void Given(Humanoid h)
+        {
+            Container bag = h != null ? h.GetComponent<Container>() : null;
+            if (!IsBag(bag)) return;
+            Loaded.Add(bag.GetInstanceID());
+            SaveBag?.Invoke(bag, null);
+        }
         // The owner loads once when it takes over and is the truth after that (or worn gear and wear would be replaced by old copies over
         // and over); another game loads again when the soul's copy changes.
         [HarmonyPatch(typeof(Container), "Load")]
@@ -90,7 +107,7 @@ namespace Jarldom
                 int id = __instance.GetInstanceID();
                 ZDO body = v.GetZDO(), soul = SoulStore.Of(body);
                 __result = false;
-                if (v.IsOwner()) { if (!Loaded.Add(id)) { LastRevision(__instance) = body.DataRevision; return false; } }
+                if (v.IsOwner()) { if (Loaded.Contains(id)) { LastRevision(__instance) = body.DataRevision; return false; } }
                 else
                 {
                     Loaded.Remove(id);
@@ -101,6 +118,9 @@ namespace Jarldom
                 }
                 LastRevision(__instance) = body.DataRevision;
                 byte[] data = Saved(body, soul, out bool onBody);
+                // (the owner: loaded once its soul is found (a soul with no bag yet is a new villager's: nothing to load); no soul found
+                // yet, not loaded: asked again at the next change, not taken as loaded with an empty bag in hand)
+                if (v.IsOwner()) { if (soul == null && !onBody) return false; Loaded.Add(id); }
                 if (data == null || data.Length == 0) return false;
                 Loading(__instance) = true;
                 string before = v.IsOwner() ? Contents(__instance.GetInventory()) : null;

@@ -1,3 +1,5 @@
+0.1.154: a villager's bag can no longer be emptied by a new body: when a villager's body loads before their saved record is found, it waits for the record instead of taking its own empty bag as loaded and later saving it over the real one (a whole bag lost that way once). Gear given back on a return or a rising is saved at once.
+
 0.1.153: a festival coming with no one in the Hauler trade is said, in the colony window's list of what needs you and in the festival's notice: only haulers carry its goods to the great hall.
 
 0.1.152: coins a villager brings home (a trader back from market) go to the treasury straight away, not after the next work hours; not in a storm, asleep or during a festival.

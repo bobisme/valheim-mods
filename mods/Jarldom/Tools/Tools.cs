@@ -1030,7 +1030,7 @@ namespace Jarldom
                 case "fill":
                     {
                         Vector3 at = new Vector3(F(a[2]), 0, F(a[3]));
-                        Container ch = Stock.Chests(c, at).Select(x => x.chest).FirstOrDefault();
+                        Container ch = Stock.Chests(c, at, true).Select(x => x.chest).FirstOrDefault();
                         GameObject prefab = Assets.Find(a[4]);
                         if (ch == null || prefab == null) { error("no chest or prefab"); return; }
                         ContainerAccess.TakeOver(ch);

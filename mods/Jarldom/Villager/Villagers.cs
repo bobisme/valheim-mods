@@ -149,6 +149,7 @@ namespace Jarldom
                     GameObject p = Assets.Find(item);
                     if (p != null) bag.AddItem(p, 1);
                 }
+            if (gear != null && gear.Length > 0 || dressNew) Jarldom.Body.Given(h);
             return h;
         }
 
