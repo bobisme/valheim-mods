@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using BepInEx;
@@ -413,6 +414,53 @@ namespace Jarldom
                         output(new JObject { ["count"] = bodies.Count, ["twice"] = new JArray(bodies.GroupBy(z => z.GetString(Villagers.VidKey, "?")).Where(g => g.Count() > 1).Select(g => g.Key)),
                             ["bodies"] = new JArray(bodies.Select(z => $"{z.GetString(Villagers.VidKey, "?")} {z.GetString(Villagers.NameKey, "?")} at {z.GetPosition().x:0},{z.GetPosition().y:0},{z.GetPosition().z:0} owner {z.GetOwner()} id {z.m_uid}")),
                             ["fallen"] = new JArray(c.R.Fallen.Select(f => $"{f.Vid} {f.Killer} at {f.At:0} gear {f.Gear?.Length ?? 0} B")) });
+                    }
+                    break;
+                case "bags": // (repair: "bags dump <file>" writes every soul's bag (vid and its saved bytes) to BepInEx/claude/<file>, from a backup world on a
+                             // test server; "bags restore <file>" gives each villager back the gear in that file they no longer have, by kind and quality: one
+                             // of a kind they now hold counts against one in the file. Gear only (what doesn't stack): food and materials used since stay used.)
+                    {
+                        string path = Path.Combine(BepInEx.Paths.BepInExRootPath, "claude", a.Length > 3 ? a[3] : "jarldom-bags.txt");
+                        int hash = SoulStore.PrefabName.GetStableHashCode();
+                        var all = ZDOMan.instance.GetType().GetField("m_objectsByID", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(ZDOMan.instance) as Dictionary<ZDOID, ZDO>;
+                        var souls = all.Values.Where(z => z.GetPrefab() == hash && z.GetString(Villagers.VidKey, "") != "").ToList();
+                        Inventory Read(byte[] bb) { var inv = new Inventory("", null, VillagerPrefab.BagWidth, VillagerPrefab.BagRows); if (bb != null && bb.Length > 0) inv.Load(new ZPackage(bb)); return inv; }
+                        string Kind(ItemDrop.ItemData i) => (i.m_dropPrefab != null ? i.m_dropPrefab.name : i.m_shared.m_name) + " q" + i.m_quality;
+                        if (a.Length > 2 && a[2] == "dump")
+                        {
+                            File.WriteAllLines(path, souls.Select(z => $"{z.GetString(Villagers.VidKey)} {Convert.ToBase64String(z.GetByteArray(Body.BagKey) ?? new byte[0])}"));
+                            output(new JObject { ["file"] = path, ["souls"] = souls.Count, ["bags"] = new JArray(souls.Select(z => $"{z.GetString(Villagers.VidKey)}: {string.Join(", ", Read(z.GetByteArray(Body.BagKey)).GetAllItems().Select(Kind))}")) });
+                            break;
+                        }
+                        if (a.Length > 2 && a[2] == "restore")
+                        {
+                            if (!File.Exists(path)) { error("no file " + path); break; }
+                            var given = new JArray();
+                            foreach (string line in File.ReadAllLines(path))
+                            {
+                                string[] f = line.Split(' ');
+                                if (f.Length != 2 || f[1] == "") continue;
+                                Inventory was = Read(Convert.FromBase64String(f[1]));
+                                Brain b = Villagers.All.FirstOrDefault(x => x.S.Vid == f[0] && x.Body != null);
+                                ZDO soul = souls.FirstOrDefault(z => z.GetString(Villagers.VidKey) == f[0]);
+                                if (b == null && soul == null) continue;
+                                Inventory now = b != null ? b.Body.GetInventory() : Read(soul.GetByteArray(Body.BagKey));
+                                var have = now.GetAllItems().GroupBy(Kind).ToDictionary(g => g.Key, g => g.Count());
+                                var back = new List<string>();
+                                foreach (ItemDrop.ItemData item in was.GetAllItems().Where(i => i.m_shared.m_maxStackSize <= 1))
+                                {
+                                    string k = Kind(item);
+                                    if (have.TryGetValue(k, out int n) && n > 0) { have[k] = n - 1; continue; }
+                                    ItemDrop.ItemData copy = item.Clone(); copy.m_equipped = false;
+                                    if (now.AddItem(copy)) back.Add(k); else back.Add(k + " (no room)");
+                                }
+                                if (b == null && back.Count > 0) { var pkg = new ZPackage(); now.Save(pkg); if (!soul.IsOwner()) soul.SetOwner(ZDOMan.GetSessionID()); soul.Set(Body.BagKey, pkg.GetArray()); }
+                                if (back.Count > 0) given.Add($"{(b != null ? b.S.Name : f[0])}: {string.Join(", ", back)}");
+                            }
+                            output(new JObject { ["given"] = given });
+                            break;
+                        }
+                        error("bags dump <file> | bags restore <file>");
                     }
                     break;
                 case "souls": // (test: every soul object this game has, by villager: more than one for a villager is a fault; each one's bag and revision)

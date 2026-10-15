@@ -1,3 +1,5 @@
+0.1.146: villagers keep their gear across Valheim's update to 1.0.20. The update writes an empty bag in a new way, and Jarldom took every villager's old empty spare as a newer bag and loaded it over their real one, so all their gear was gone. A bag is now empty when it holds no items, in either format. Update before your game or server takes Valheim 1.0.20.
+
 0.1.145: a hot reload (for mod makers) no longer leaves the old copy's materials, models, icons and sounds behind (about 35 MB each time): the new copy puts its own in their place on what's standing and in bags, and frees the rest. Memorial stones and ore claims run the new copy's code after a reload, like the other pieces. Item icons are no longer kept twice.
 
 0.1.144: smoother in a big colony: the piece lists villagers look through are made once and kept (each piece's place, name, seats and parts read once, not by every villager every time), the hnefatafl tables and the way to each hall seat or bed are remembered, so the hitches when someone sits down, goes to bed or picks a pastime are gone. Early risers no longer get up and lie down again over and over from eight till nine in the evening.

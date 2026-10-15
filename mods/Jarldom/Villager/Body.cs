@@ -41,7 +41,14 @@ namespace Jarldom
         // after an uninstall), not no bytes at all, which it can't read.
         private static byte[] _empty;
         private static byte[] Empty { get { if (_empty == null) { var pkg = new ZPackage(); new Inventory("", null, VillagerPrefab.BagWidth, VillagerPrefab.BagRows).Save(pkg); _empty = pkg.GetArray(); } return _empty; } }
-        private static bool Blank(byte[] b) => b == null || b.Length == 0 || b.Length == Empty.Length && b.SequenceEqual(Empty);
+        // No items in it, in any of the game's bag formats (not "the same bytes as an empty bag now": the game's update to 1.0.20 wrote an
+        // empty bag differently, so every body's old empty one read as a newer bag, was loaded over the soul's, and emptied every bag).
+        internal static bool Blank(byte[] b)
+        {
+            if (b == null || b.Length == 0) return true;
+            try { var p = new ZPackage(b); int version = p.ReadInt(); return (version >= (int)Version.Item.Smaller ? p.ReadUShort() : p.ReadInt()) == 0; }
+            catch { return false; }
+        }
         private static byte[] Saved(ZDO body, ZDO soul, out bool onBody)
         {
             byte[] b = body.GetByteArray(ZDOVars.s_items);
@@ -65,7 +72,7 @@ namespace Jarldom
                 var pkg = new ZPackage(); __instance.GetInventory().Save(pkg);
                 if (!soul.IsOwner()) soul.SetOwner(ZDOMan.GetSessionID());
                 soul.Set(BagKey, pkg.GetArray());
-                if (!(body.GetByteArray(ZDOVars.s_items) is byte[] had && had.Length == Empty.Length && had.SequenceEqual(Empty))) body.Set(ZDOVars.s_items, Empty);
+                if (!(body.GetByteArray(ZDOVars.s_items) is byte[] had && had.Length > 0 && Blank(had))) body.Set(ZDOVars.s_items, Empty);
                 LastRevision(__instance) = body.DataRevision; SoulSeen[__instance.GetInstanceID()] = soul.DataRevision;
                 return true;
             }
