@@ -1220,6 +1220,10 @@ Somebody's sci-fi kit fell through a crack into the tenth world (`cx.bob.wrongun
 
 - **Laser Pistol** (one-handed, red bolts, one per click, overheats) and **Laser Rifle** (two-handed; hold to charge, release
   to fire up to 260 m; a full charge pierces four bodies; block zooms). Hitscan beams everyone sees; a miss never hurts buildings.
+  Both are held in two hands the way Quad's Guns does it (`Features/GunPose.cs`, `Core/Arms.cs`: a two-bone arm solve after
+  the animation): chest carry, block aims (rifle shouldered, pistol at eye level), low ready sprinting, kick, charge tremble,
+  a venting pose when overheated; one-handed pistol with a shield. Arms start each frame from the animator's last real pose
+  (it skips frames, and re-bending our own pose twitched). Shared on the player's ZDO (state + pitch) for other players.
 - **Laser Sword**: the iron sword's swings, a glowing blade (seven colours) that ignites, hums with its speed and trails; chops and mines.
 - **Jetpack** (utility slot): hold Jump in the air to fly, move keys steer, Run boosts; fuel refills on the ground; no fall
   damage. Others see the flames (one tiny value on the player's ZDO, written only when it changes).
@@ -1240,7 +1244,8 @@ Claude Tools gets a `wu` command: `list`, `give <prefab|all>`, `held`, and `lase
 damage, RPCs, sounds, gauges), one `Features/` class per gadget. Models (0.2.0) are made in Blender: `Models/<name>.py` with
 `Models/wulib.py` (lathe, extrude, booleans, palette-named material slots, Cycles previews) → `<name>.json.gz`, built into the DLL
 and loaded by `Core/Meshes.cs`; run `blender -b --python <absolute path>.py -- render` from a copy under `~` (the flatpak Blender
-can't read /tmp). `wu look <prefab>` renders a model in the game from four sides, `wu grip` tunes how it sits in the hand.
+can't read /tmp). `wu look <prefab>` renders a model in the game from four sides, `wu grip` tunes how it sits in the hand, `wu pose`
+holds a gun state, tunes the stances live, traces the hand per frame and films the pose after it is applied.
 Tested in the game: firing, the sword, jetpack flight, goggles, drone, ion strike, speeder ride, displacer, stim pack.
 
 ## Godforged

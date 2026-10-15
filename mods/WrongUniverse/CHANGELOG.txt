@@ -1,3 +1,5 @@
+0.2.3: The laser pistol and rifle are held in both hands, as Quad's Guns holds its guns: the arms are bent to the gun every frame and it points where you look. Walking it's held at the chest; block aims (the rifle shouldered with its scope, the pistol out at eye level with a slight zoom); sprinting it drops to a low ready. Shots kick, a charging rifle trembles in the hands, and an overheated gun is lowered and tipped to vent. With a shield in the other hand the pistol is held in the right hand alone and block blocks. Your body faces where you aim. Other players with the mod see all of it. Setting PoseArms (off: the game's own crossbow carry). New test command: wu pose.
+
 0.2.2: The infrared goggles sit on the eyes and move with the face (they hung in front of it, and didn't nod or turn with the head): they now hang from the helmet joint as the game's own helmets do.
 
 0.2.1: The laser sword sits right in the hand: the hilt runs through the fist with the blade pointing forward (it stuck out sideways).

@@ -35,6 +35,7 @@ namespace WrongUniverse
         internal static readonly Feature[] All=
         {
             new Lasers(),
+            new GunPose(),
             new Saber(),
             new Jetpack(),
             new Goggles(),

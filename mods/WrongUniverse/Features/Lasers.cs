@@ -19,7 +19,7 @@ namespace WrongUniverse
         internal override string Name=>"Lasers";
         private const string ShotRpc="WU_LaserShot";
 
-        private static ConfigEntry<float> PDamage,PRange,PCooldown,PHeat,RDamage,RRange,RCooldown,RHeat,RCharge,RChargedX,RZoom,Cool;
+        private static ConfigEntry<float> PDamage,PRange,PCooldown,PHeat,RDamage,RRange,RCooldown,RHeat,RCharge,RChargedX,RZoom,PZoom,Cool;
         private static ConfigEntry<int> RPierce;
         private static ConfigEntry<bool> Buildings;
 
@@ -46,6 +46,7 @@ namespace WrongUniverse
             RChargedX=c.Bind(S,"RifleChargedMultiplier",2.5f,new ConfigDescription("Damage of a fully charged shot, times an uncharged one.",new AcceptableValueRange<float>(1,10)));
             RPierce=c.Bind(S,"RifleChargedPierce",4,new ConfigDescription("How many bodies a fully charged shot burns through.",new AcceptableValueRange<int>(1,20)));
             RZoom=c.Bind(S,"RifleZoom",3f,new ConfigDescription("How far the rifle's scope zooms in (hold block).",new AcceptableValueRange<float>(1,8)));
+            PZoom=c.Bind(S,"PistolZoom",1.3f,new ConfigDescription("How far the view zooms in while aiming the pistol (hold block, with nothing in the other hand; with a shield, block blocks).",new AcceptableValueRange<float>(1,4)));
             Cool=c.Bind(S,"CoolingPerSecond",0.45f,new ConfigDescription("How much heat both guns lose each second.",new AcceptableValueRange<float>(0.05f,5)));
             Buildings=c.Bind(S,"HitBuildings",false,"Laser shots also damage build pieces (walls, floors...). Off, they pass harmlessly over your own base.");
             Pistol.Primary=PistolTrigger;
@@ -154,6 +155,9 @@ namespace WrongUniverse
             return true;
         }
         internal static float Charge=>_chargeStart<0f?0f:Mathf.Clamp01((Time.time-_chargeStart)/RCharge.Value);
+        internal static bool Charging=>_chargeStart>=0f;
+        internal static bool Overheated=>_overheated;
+        internal static float ChargeSeconds=>RCharge!=null?RCharge.Value:1.2f;
 
         // One shot from the muzzle to whatever the crosshair is on. charge (rifle): 0..1.
         internal static void Shoot(Player p,ItemDef d,float charge)
@@ -179,6 +183,7 @@ namespace WrongUniverse
             _lastShot=Time.time;
             Flash(muzzle,color);
             int kind=rifle?(full?2:1):0;
+            GunPose.Kick(kind);
             Sound.Play(Clip(kind),from,kind==2?1f:0.75f,UnityEngine.Random.Range(0.95f,1.05f),kind==0?50f:90f);
             var pkg=new ZPackage();pkg.Write(from);pkg.Write(kind);
             Net.Others(ShotRpc,pkg);
@@ -261,6 +266,7 @@ namespace WrongUniverse
             Net.Register(ShotRpc,(sender,pkg)=>
             {
                 Vector3 at=pkg.ReadVector3();int kind=pkg.ReadInt();
+                GunPose.KickOther(sender,kind);
                 Player me=Player.m_localPlayer;
                 if(me==null||Vector3.Distance(me.transform.position,at)>(kind==0?60f:100f))return;
                 Sound.Play(Clip(kind),at,kind==2?1f:0.75f,UnityEngine.Random.Range(0.95f,1.05f),kind==0?50f:90f);
@@ -274,8 +280,13 @@ namespace WrongUniverse
             if(_overheated&&_heat<=0.3f){_overheated=false;if(p!=null)Sound.Play(Click(),p.transform.position+Vector3.up,0.5f);}
             ItemDef d=p!=null?Things.Held(p,out _):null;
             if(d!=Pistol&&d!=Rifle)d=null;
-            if(d!=_held){_held=d;_chargeStart=-1f;Zoom(false);}
+            if(d!=_held){_held=d;_chargeStart=-1f;Zoom(0f);}
+            GunPose.Aiming=false;
             if(d==null)return;
+            // block aims: the rifle's scope, the pistol out at arm's length (unless a shield in the other hand blocks)
+            bool aim=InputAllowed(p)&&(ZInput.GetButton("Block")||ZInput.GetButton("JoyBlock"))&&!p.IsDead()&&(d==Rifle||!GunPose.OffHandBusy(p));
+            GunPose.Aiming=aim;
+            Zoom(aim?(d==Rifle?RZoom.Value:PZoom.Value):0f);
             bool held=TriggerHeld(p);
             if(d==Rifle)
             {
@@ -284,19 +295,21 @@ namespace WrongUniverse
                     float charge=Charge;_chargeStart=-1f;
                     if(!_overheated&&CanShoot(p))Shoot(p,Rifle,charge);
                 }
-                Zoom(InputAllowed(p)&&(ZInput.GetButton("Block")||ZInput.GetButton("JoyBlock")));
             }
             if(!held)_released=true;
         }
 
-        private static bool _zoomed;
-        private static void Zoom(bool want)
+        private static float _zoom;
+        private static bool _zoomed=>_zoom>1f;
+        // Zoom the view this many times (1 or less: none).
+        private static void Zoom(float times)
         {
-            if(want==_zoomed)return;
-            _zoomed=want;
+            if(times<=1f)times=0f;
+            if(Mathf.Approximately(times,_zoom))return;
+            _zoom=times;
             GameCamera cam=GameCamera.instance;
             if(cam==null)return;
-            if(want)cam.SetTempFOV(cam.m_fov/Mathf.Max(1f,RZoom.Value),0.2f);else cam.ResetTempFOV();
+            if(times>1f)cam.SetTempFOV(cam.m_fov/times,0.2f);else cam.ResetTempFOV();
         }
 
         internal override void Gui()
@@ -308,7 +321,7 @@ namespace WrongUniverse
 
         internal override void Stop()
         {
-            Zoom(false);
+            Zoom(0f);
             if(_flash!=null)Object.Destroy(_flash.gameObject);
             _flash=null;_held=null;_chargeStart=-1f;
         }
