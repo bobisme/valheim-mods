@@ -268,7 +268,7 @@ namespace Jarldom
                 output(new JObject { ["relic"] = lines[1] });
                 return;
             }
-            if (c == null && cmd != "place" && cmd != "put" && cmd != "claims" && cmd != "find" && cmd != "profile" && cmd != "versions" && cmd != "env" && cmd != "overlay" && cmd != "icon" && cmd != "layers" && cmd != "compat" && cmd != "status" && cmd != "bags") { error("no colony near (jarldom place pillars makes one)"); return; }
+            if (c == null && cmd != "place" && cmd != "put" && cmd != "claims" && cmd != "find" && cmd != "profile" && cmd != "versions" && cmd != "env" && cmd != "overlay" && cmd != "icon" && cmd != "layers" && cmd != "compat" && cmd != "status" && cmd != "bags" && cmd != "expedition" && cmd != "villager") { error("no colony near (jarldom place pillars makes one)"); return; }
             Player me = Player.m_localPlayer;
             switch (cmd)
             {
@@ -1140,7 +1140,7 @@ namespace Jarldom
                     output(new JObject { ["missed"] = c.R.MissedPaydays, ["lastPayday"] = c.R.LastPayday, ["owed"] = c.Owed() }); break;
                 case "expedition": // (test: "expedition <name>:<role> ..." sets out with them, as the Expedition tab does; "expedition home")
                     {
-                        if (a.Length > 2 && a[2] == "home") { Net.Act(c, "expedition", "home|" + me.GetPlayerID()); output(new JObject { ["home"] = true }); break; }
+                        if (a.Length > 2 && a[2] == "home") { if (c != null) Net.Act(c, "expedition", "home|" + me.GetPlayerID()); else foreach (Brain m in Expedition.CrewOf(me.GetPlayerID())) Villagers.Command(m.S.Vid, "follow", "0"); output(new JObject { ["home"] = true }); break; }
                         if (a.Length > 2 && a[2] == "camp") // (test: why the crew can or can't camp where the player stands, the cost; "camp at x z": make it there)
                         {
                             var crew0 = Expedition.CrewOf(me.GetPlayerID());
@@ -1151,6 +1151,7 @@ namespace Jarldom
                             output(new JObject { ["crew"] = crew0.Count, ["why"] = why, ["cost"] = new JArray(Expedition.CampCost().Select(x => $"{x.n} {x.item.name}")) });
                             break;
                         }
+                        if (c == null) { error("set out from home (no colony near)"); return; }
                         var crew = new List<string>();
                         foreach (string m in a.Skip(2)) { string[] nr = m.Split(':'); Brain cb = nr.Length == 2 ? Who(nr[0]) : null; if (cb == null) { error("who? " + m); return; } crew.Add(cb.S.Vid + ":" + nr[1]); }
                         Net.Act(c, "expedition", $"start|{me.GetPlayerID()}|{string.Join(",", crew)}");

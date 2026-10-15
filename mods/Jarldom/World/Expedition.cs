@@ -115,6 +115,127 @@ namespace Jarldom
             return "";
         }
 
+        // ---- at camp: the jarl near one of the camps the crew made, each to their role there ----
+        public const float CampReach = 30f;
+        internal sealed class CampState
+        {
+            public Fireplace Fire; public Container Chest; public float NextLook, Next, Until; public int Phase; public Vector3 Goal; public ItemDrop Item;
+        }
+        private static readonly List<Piece> Found = new List<Piece>();
+        // Is the jarl at a camp (looked for every two seconds): its fire, and its chest.
+        public static bool AtCamp(Player jarl, CampState st)
+        {
+            if (Time.time >= st.NextLook)
+            {
+                st.NextLook = Time.time + 2f; st.Fire = null; st.Chest = null;
+                Found.Clear(); Piece.GetAllPiecesInRadius(jarl.transform.position, CampReach, Found);
+                foreach (Piece p in Found)
+                {
+                    ZDO z = p.GetComponent<ZNetView>()?.GetZDO();
+                    if (z == null || z.GetString(CampKey, null) == null) continue;
+                    if (st.Fire == null && p.GetComponent<Fireplace>() is Fireplace f) st.Fire = f;
+                    if (st.Chest == null && p.GetComponent<Container>() is Container ch) st.Chest = ch;
+                }
+            }
+            return st.Fire != null;
+        }
+        // What lies about near the camp (not coins: those are someone's).
+        private static List<ItemDrop> Lying(Vector3 fire) => Object.FindObjectsByType<ItemDrop>(FindObjectsSortMode.None)
+            .Where(i => i != null && Utils.DistanceXZ(i.transform.position, fire) < 25f && i.m_itemData != null && !(i.m_itemData.m_dropPrefab != null && i.m_itemData.m_dropPrefab.name == "Coins")).ToList();
+        // One turn of the role's camp work (a few times a second); what they're doing.
+        public static string CampWork(Brain b, Player jarl, CampState st)
+        {
+            Vector3 fire = st.Fire.transform.position;
+            int k = (b.S.Vid.GetStableHashCode() & 0x7fffffff) % 6;
+            switch (RoleOf(b))
+            {
+                case "guard":
+                {
+                    // (a post a little out from the fire, a different side every minute or so, looking out)
+                    float a = (k * 60f + Mathf.Floor(Time.time / 70f) * 97f) * Mathf.Deg2Rad;
+                    Vector3 post = fire + new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a)) * 8f;
+                    if (Utils.DistanceXZ(b.Pos, post) > 2f) { if (!b.Move.Moving || Vector3.Distance(b.Move.Goal, post) > 2f) b.Move.To(Colony.Spot(post, 2f) ?? post, 1.2f); }
+                    else { Vector3 outward = b.Pos - fire; outward.y = 0; if (outward.sqrMagnitude > 0.01f) b.Ai.LookTowards(outward.normalized); }
+                    return "keeping watch at the camp";
+                }
+                case "cook":
+                {
+                    if (Utils.DistanceXZ(b.Pos, fire) > 2.5f) { if (!b.Move.Moving) b.Move.To(fire, 2f); return "going to the camp fire"; }
+                    if (Time.time >= st.Next)
+                    {
+                        st.Next = Time.time + 15f;
+                        ZNetView v = st.Fire.GetComponent<ZNetView>();
+                        string wood = st.Fire.m_fuelItem != null ? st.Fire.m_fuelItem.m_itemData.m_shared.m_name : "$item_wood";
+                        if (v != null && v.IsValid() && v.GetZDO().GetFloat(ZDOVars.s_fuel) < st.Fire.m_maxFuel - 1f)
+                        {
+                            // (from their own pack, else the camp chest)
+                            if (b.Body.GetInventory().CountItems(wood) > 0) { b.Body.GetInventory().RemoveItem(wood, 1); v.InvokeRPC("RPC_AddFuel"); }
+                            else if (st.Chest != null && st.Chest.GetInventory().CountItems(wood) > 0) { ContainerAccess.TakeOver(st.Chest); st.Chest.GetInventory().RemoveItem(wood, 1); v.InvokeRPC("RPC_AddFuel"); }
+                        }
+                    }
+                    Vector3 to = fire - b.Pos; to.y = 0; if (to.sqrMagnitude > 0.01f) b.Ai.LookTowards(to.normalized);
+                    return "tending the camp fire";
+                }
+                case "scout":
+                {
+                    // (out to a spot 60-90 m off, a look round from there, back to the fire, a rest; again)
+                    if (st.Phase == 0)
+                    {
+                        float a = Random.Range(0f, Mathf.PI * 2), d = Random.Range(60f, 90f);
+                        Vector3 far = fire + new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a)) * d;
+                        st.Goal = Nav.Valid(out Vector3 v, far, 6f) ? v : far; st.Phase = 1; st.Until = Time.time + 45f;
+                        b.Move.To(st.Goal, 3f, true);
+                    }
+                    if (st.Phase == 1)
+                    {
+                        if (b.Move.Arrived || b.Move.Failed || Time.time > st.Until || !b.Move.Moving && Utils.DistanceXZ(b.Pos, st.Goal) < 8f)
+                        { Net.Explore(b.Pos, 90f); st.Phase = 2; st.Until = Time.time + 45f; b.Move.To(fire, 3f, true); }
+                        else if (!b.Move.Moving) b.Move.To(st.Goal, 3f, true);
+                        return "scouting round the camp";
+                    }
+                    if (st.Phase == 2)
+                    {
+                        if (Utils.DistanceXZ(b.Pos, fire) < 4f || Time.time > st.Until) { st.Phase = 3; st.Until = Time.time + 30f; }
+                        else if (!b.Move.Moving) b.Move.To(fire, 3f, true);
+                        return "coming back to camp";
+                    }
+                    if (Time.time > st.Until) st.Phase = 0;
+                    return "resting at the camp fire";
+                }
+                case "carrier":
+                {
+                    // (a load of five kinds, or nothing more lying about: into the camp chest; else what lies about near the camp, picked up)
+                    var loot = b.Body.GetInventory().GetAllItems().Where(i => !i.m_equipped && Work.Loot(i) && !(i.m_dropPrefab != null && (i.m_dropPrefab.name == "Wood" || i.m_dropPrefab.name == "Stone"))).ToList();
+                    if (st.Chest != null && loot.Count > 0 && (loot.Count >= 5 || st.Phase == 1 || st.Item == null && Time.time >= st.Next && Lying(fire).Count == 0))
+                    {
+                        st.Phase = 1; st.Item = null;
+                        Stock.Walk w = Stock.WalkTo(b, st.Chest);
+                        if (w == Stock.Walk.Walking) return "taking things to the camp chest";
+                        if (w == Stock.Walk.Reached)
+                        {
+                            ContainerAccess.TakeOver(st.Chest);
+                            foreach (var i in loot) if (st.Chest.GetInventory().CanAddItem(i)) { st.Chest.GetInventory().AddItem(i.Clone()); b.Body.GetInventory().RemoveItem(i); }
+                        }
+                        st.Phase = 0; st.Next = Time.time + 1f;
+                        return "taking things to the camp chest";
+                    }
+                    if (st.Item == null && Time.time >= st.Next) { st.Next = Time.time + 3f; st.Item = Lying(fire).OrderBy(i => Utils.DistanceXZ(i.transform.position, b.Pos)).FirstOrDefault(); }
+                    if (st.Item != null)
+                    {
+                        if (!st.Item) { st.Item = null; return "gathering for the camp"; }
+                        if (!WorkTask.InReach(b, st.Item.transform.position)) { if (!b.Move.Moving) b.Move.To(st.Item.transform.position, 1.2f); return "gathering for the camp"; }
+                        if (WorkTask.PickUpNow(b, st.Item) != WorkTask.Got.Waiting) st.Item = null;
+                        return "gathering for the camp";
+                    }
+                    if (Utils.DistanceXZ(b.Pos, fire) > 5f && !b.Move.Moving) b.Move.To(fire, 3.5f);
+                    return "resting at the camp fire";
+                }
+                default:
+                    if (Utils.DistanceXZ(b.Pos, fire) > 5f && !b.Move.Moving) b.Move.To(fire, 3.5f);
+                    return "resting at the camp fire";
+            }
+        }
+
         // While following: what the role does on the road (from FollowTask, a few times a second).
         public static void OnTheRoad(Brain b, Player jarl, ref float next)
         {
