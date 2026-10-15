@@ -97,7 +97,10 @@ namespace Factorheim
             if(wear!=null)wear.m_onDestroyed+=Spill;
         }
         // Torn down or broken: what it held falls on the ground (on the owner's game, who has the latest stores).
-        protected virtual void Spill()
+        private static readonly System.Reflection.MethodInfo SaveDrop=HarmonyLib.AccessTools.Method(typeof(ItemDrop),"Save");
+        // (never throws: an exception here would stop the game removing the piece)
+        private void Spill(){try{SpillStores();}catch(Exception e){Plugin.Warn($"{Title}: could not drop what it held: {e.Message}");}}
+        protected virtual void SpillStores()
         {
             if(!Owner)return;
             foreach(Store s in new[]{Input,Output,FuelStore})
@@ -111,7 +114,10 @@ namespace Factorheim
                     for(int left=kv.Value;left>0;)
                     {
                         int n=Mathf.Min(left,Mathf.Max(1,drop.m_itemData.m_shared.m_maxStackSize));
-                        ItemDrop.DropItem(drop.m_itemData,n,transform.position+Vector3.up*0.6f+UnityEngine.Random.insideUnitSphere*0.3f,Quaternion.identity);
+                        // (made from the prefab itself: ItemDrop.DropItem wants the item's m_dropPrefab, which a prefab's own data lacks)
+                        GameObject go=Instantiate(prefab,transform.position+Vector3.up*0.6f+UnityEngine.Random.insideUnitSphere*0.3f,Quaternion.identity);
+                        ItemDrop d=go.GetComponent<ItemDrop>();
+                        if(d!=null){d.m_itemData.m_stack=n;SaveDrop?.Invoke(d,null);}
                         left-=n;
                     }
                 }
