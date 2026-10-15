@@ -311,19 +311,6 @@
         "WrongUniverse.dll",
         "WrongUniverse.pdb"
       ]
-    },
-    {
-      "guid": "cx.bob.factorheim",
-      "name": "Factorheim",
-      "version": "0.1.2",
-      "description": "Factorio in the tenth world. Start with a burner drill on a copper vein and a few belts; end by riding a rune-carved rocket straight to Valhalla. Everything is built with the hammer (Crafting tab; poles under Misc) and unlocks by research.\n\nBurner age (from the start): burner drills on any ore deposit (copper, tin, iron mud piles, silver, obsidian, soft tissue, flametal; stone from plain ground) that never run dry, a woodcutter that gathers from the trees around it, bronze belts that carry items and you, burner inserters, and the rune lab.\nScience: craft rune packs (Bronze, Iron, Silver, Eitr, Flametal runes) and feed them to rune labs. Shift+E on a lab opens the research window. Research is shared by the whole world: Automation, Logistics, Tar processing, Eitr works, Rocket silo.\nAutomation: steam engines (near water), power poles with copper wires, assemblers with a recipe picker (Shift+E), electric inserters. Later: iron and eitr belts, splitters, long and filter inserters, electric drills, accumulators, surtling generators, eitr reactors, tar pumpjacks and chemical plants (plastic, solid fuel, rocket fuel).\nBelts and inserters work with your chests and with the game's own smelters, kilns, blast furnaces, refineries and fires: what a smelter drops onto a belt rides away.\nThe rocket: a 9x9 silo builds rocket parts. When the rocket stands complete, board it: countdown, liftoff, the clouds, a Valkyrie at your side, and Valhalla. Everyone nearby watches it go. You come back with Einherjar's horn.\n\nEvery cost is a setting (9 - Costs). \"Unlock everything\" skips research for trying things out.",
-      "notes": "0.1.2: Machines placed before an update can be taken down too (the old version's leftover hook threw and stopped the removal; the hammer only flashed them red).",
-      "restart": "Adds saved items with recipes and build pieces. Install Factorheim on the host and every player, then restart Valheim before loading the world.",
-      "cover": "Factorheim.cover.jpg",
-      "files": [
-        "Factorheim.dll",
-        "Factorheim.pdb"
-      ]
     }
   ]
 }
