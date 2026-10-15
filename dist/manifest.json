@@ -3,9 +3,9 @@
     {
       "guid": "com.bobisme.bobspipes",
       "name": "Bob's Pipes",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "description": "Bob's Pipes: a reusable carved corewood pipe, made at the workbench. Prepare Meadow, Honeywood or Cloudberry pipe tobacco at Quad's Cigar Rolling Table. Use a tin to pack an empty pipe, then use your hotbar pipe near a burning fire or holding a torch to light it. Use it again to put it out and save the unfinished bowl. The lit pipe rests in your mouth, with a small ember, quiet smoke, occasional exhalations and a slowly seasoned finish. Combat, swimming and exposed rain put it away. Small blend bonuses, configurable down to cosmetic only. Requires Quad's Cigars; with its smoking API (v1 or newer), pipes and cigars share one active smoke.",
-      "notes": "0.1.5: Works with Quad's Cigars under its new id (com.quad.cigarsmoking, from 0.3.1), and still with older copies (com.dhack.cigarsmoking).",
+      "notes": "0.1.6: no error every frame after leaving a world with a pipe lit (the smoker had gone with the world).",
       "restart": "Adds saved pipe and tobacco item prefabs. Install Bob's Pipes and Quad's Cigars on the host and every player, then restart Valheim before loading the world.",
       "cover": "BobsPipes.cover.jpg",
       "files": [

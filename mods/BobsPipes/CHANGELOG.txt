@@ -1,3 +1,5 @@
+0.1.6: no error every frame after leaving a world with a pipe lit (the smoker had gone with the world).
+
 0.1.5: Works with Quad's Cigars under its new id (com.quad.cigarsmoking, from 0.3.1), and still with older copies (com.dhack.cigarsmoking).
 
 0.1.4: Smoother play: the once-a-second check that pipe items and recipes are registered no longer reads the name of every prefab in the game when everything is already in place (about 6 ms each second).

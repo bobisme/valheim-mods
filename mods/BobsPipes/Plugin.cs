@@ -13,7 +13,7 @@ namespace BobsPipes
     {
         public const string Guid = "com.bobisme.bobspipes";
         public const string Name = "Bob's Pipes";
-        public const string Version = "0.1.5";
+        public const string Version = "0.1.6";
         internal static Plugin Instance;
         internal ConfigEntry<float> Minutes, Strength;
         internal ConfigEntry<bool> ShowSmoke, Rain;
@@ -89,10 +89,11 @@ namespace BobsPipes
             {
                 if (save) Save(true);
                 Player owner = _owner;
+                _pipe = null; _owner = null; // (first: a smoker gone with the world they left can't be told anything, and must not be asked again every frame)
+                if (owner == null) return; // (Unity's null: destroyed when the world closed)
                 string effect = Blend.All[_bowl.Blend].Effect;
                 Data(owner)?.Set(EndKey, 0L);
-                _pipe = null; _owner = null;
-                if(removeEffect) owner?.GetSEMan().RemoveStatusEffect(effect.GetStableHashCode(), true);
+                if(removeEffect) owner.GetSEMan().RemoveStatusEffect(effect.GetStableHashCode(), true);
                 if (message != null) Say(owner, message);
             }
             finally { _stopping = false; }
@@ -162,9 +163,9 @@ namespace BobsPipes
             return false;
         }
         internal static ZDO Data(Player player)
-        { ZNetView view=player?.GetComponent<ZNetView>(); return view!=null&&view.IsValid()&&view.IsOwner()?view.GetZDO():null; }
+        { if (player == null) return null; ZNetView view=player.GetComponent<ZNetView>(); return view!=null&&view.IsValid()&&view.IsOwner()?view.GetZDO():null; }
         internal float RemainingFor(int blend) => _pipe!=null&&_bowl.Blend==blend?(float)_bowl.Remaining:0;
-        private static void Say(Player player,string text)=>player?.Message(MessageHud.MessageType.TopLeft,text);
+        private static void Say(Player player,string text){ if (player != null) player.Message(MessageHud.MessageType.TopLeft,text); }
         private void OnDestroy()
         {
             Snuff(); Tobacco.Release(); _harmony?.UnpatchSelf();
