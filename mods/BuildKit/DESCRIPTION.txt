@@ -10,4 +10,6 @@ Shingle roofs (26° and 45°, every shape): rows of wooden shingles with rounded
 
 Shingle ridge with dragon head (26° and 45°): the end piece of a shingled ridge, with a carved dragon's head rising out of it and reaching out past the gable, jaws open, a crest down its neck: put it last on the ridge, the head facing out. 2 wood, 4 fine wood, 1 resin.
 
+Stave church pieces: a stave wall (upright tarred planks standing in a sill under a wall plate; snaps and holds like the game's wooden wall; 4 wood, 1 resin), a stave post (a round tarred post with a carved band and a swelling capital, like the game's 2 m pole; 2 wood, 1 resin), and a carved portal door (the game's own door set in carved jambs wound with vines, a beast's head on each, and a carved arch over it standing proud of the wall above; 10 wood, 6 fine wood, 2 resin).
+
 Reloads in a world. Native Linux and Windows.

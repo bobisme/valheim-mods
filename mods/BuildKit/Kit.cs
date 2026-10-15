@@ -14,9 +14,10 @@ namespace BuildKit
     {
         internal sealed class Def
         {
-            public string Name, From, Title, Text; public Shape Shape; public bool Steep, Hole, Shingled, Dragon;
+            public string Name, From, Title, Text, Stave; public Shape Shape; public bool Steep, Hole, Shingled, Dragon; // (Stave: "wall", "post", "portal")
         }
         // Turf roofs: one for each of the game's roof shapes, 26° and 45°.
+        internal static IEnumerable<Def> All => Defs.Concat(StaveDefs);
         internal static readonly Def[] Defs =
         {
             Turf("BK_turf_roof", "wood_roof", Shape.Straight, false, "Turf roof 26°"),
@@ -45,6 +46,13 @@ namespace BuildKit
             // (a ridge's gable end, with a dragon's head carved rising from it)
             new Def { Name = "BK_shingle_ridge_dragon", From = "wood_roof_top", Shape = Shape.Ridge, Shingled = true, Dragon = true, Title = "Shingle ridge with dragon head 26°", Text = DragonText },
             new Def { Name = "BK_shingle_ridge_dragon_45", From = "wood_roof_top_45", Shape = Shape.Ridge, Steep = true, Shingled = true, Dragon = true, Title = "Shingle ridge with dragon head 45°", Text = DragonText },
+        };
+        // Stave church (K2): walls of upright tarred planks, round posts, a carved portal round the game's own door.
+        internal static readonly Def[] StaveDefs =
+        {
+            new Def { Name = "BK_stave_wall", From = "woodwall", Shingled = true, Stave = "wall", Title = "Stave wall", Text = "Upright tarred planks standing in a sill under a wall plate, as a stave church's walls are made: snaps and holds like the game's wooden wall." },
+            new Def { Name = "BK_stave_post", From = "wood_pole2", Shingled = true, Stave = "post", Title = "Stave post", Text = "A round tarred post with a carved band and a swelling capital: a stave church's corner post or a hall's pillar. Holds like the game's 2 m pole." },
+            new Def { Name = "BK_stave_portal", From = "wood_door", Shingled = true, Stave = "portal", Title = "Carved portal door", Text = "The game's door in a carved portal: jambs wound with vines, a beast's head on each, an arch over it standing proud of the wall above. Snaps into a wall like the game's door." },
         };
         private const string DragonText = "The end of a shingled ridge with a dragon's head carved rising from it, jaws open, as on a stave church's gables: put it last on the ridge, the head facing out.";
         private static Def Shingle(string name, string from, Shape s, bool steep, string title) => new Def
@@ -83,7 +91,7 @@ namespace BuildKit
             if (scene != _scene) { Forget(); _scene = scene; }
             table.m_pieces.RemoveAll(p => p == null); // (a piece an older copy made and destroyed, or one dropped from the kit: the build menu throws on it)
             bool changed = false;
-            foreach (Def d in Defs)
+            foreach (Def d in All)
             {
                 if (!Made.TryGetValue(d.Name, out GameObject prefab) || prefab == null)
                 {
@@ -123,15 +131,18 @@ namespace BuildKit
             var states = new List<GameObject>();
             if (wear != null) foreach (GameObject s in new[] { wear.m_new, wear.m_worn, wear.m_broken }) if (s != null && !states.Contains(s)) states.Add(s);
             foreach (LODGroup lod in go.GetComponentsInChildren<LODGroup>(true)) Object.DestroyImmediate(lod);
+            Transform leaf = d.Stave == "portal" ? go.transform.Find("door") : null; // (a portal keeps the game's own door leaf, and its swing)
             foreach (Renderer r in go.GetComponentsInChildren<Renderer>(true))
             {
+                if (leaf != null && r.transform.IsChildOf(leaf)) continue;
                 GameObject o = r.gameObject;
                 Object.DestroyImmediate(r);
                 if (o.GetComponent<MeshFilter>() is MeshFilter f) Object.DestroyImmediate(f);
             }
-            if (states.Count == 0) states.Add(go);
+            // (a state object turned or stretched unevenly, as a pole's is, would shear a look hung under it: then one look on the piece itself)
+            if (states.Count == 0 || states.Any(st => st.transform.localRotation != Quaternion.identity || Mathf.Abs(st.transform.localScale.x - st.transform.localScale.y) > 0.001f || Mathf.Abs(st.transform.localScale.y - st.transform.localScale.z) > 0.001f)) { states.Clear(); states.Add(go); }
             if (wear != null) wear.m_fragmentRoots = new GameObject[0]; // (the game's broken bits were the old look's)
-            Mesh mesh = d.Shingled ? ShingleMeshFor(d) : TurfMesh(d, 15, 0);
+            Mesh mesh = d.Stave != null ? StaveMeshFor(d) : d.Shingled ? ShingleMeshFor(d) : TurfMesh(d, 15, 0);
             Material[] mats = d.Shingled ? ShingleMaterials(from) : TurfMaterials(scene, from);
             foreach (GameObject s in states)
             {
@@ -145,7 +156,8 @@ namespace BuildKit
             Piece piece = go.GetComponent<Piece>();
             if (!d.Shingled) go.AddComponent<TurfLook>(); // (its open sides torn, the rest left to meet their neighbours)
             if (d.Hole) HoleColliders(go, d);
-            if (d.Shingled) piece.m_resources = d.Dragon ? Cost(("Wood", 2), ("FineWood", 4), ("Resin", 1)) : Cost(("Wood", 2), ("Resin", 1)); // (two wood, as a roof costs, and resin for the tar; fine wood for a carving)
+            if (d.Stave != null) piece.m_resources = d.Stave == "portal" ? Cost(("Wood", 10), ("FineWood", 6), ("Resin", 2)) : d.Stave == "wall" ? Cost(("Wood", 4), ("Resin", 1)) : Cost(("Wood", 2), ("Resin", 1));
+            else if (d.Shingled) piece.m_resources = d.Dragon ? Cost(("Wood", 2), ("FineWood", 4), ("Resin", 1)) : Cost(("Wood", 2), ("Resin", 1)); // (two wood, as a roof costs, and resin for the tar; fine wood for a carving)
             else
             {
                 piece.m_resources = d.Hole ? Cost(("Wood", 4), ("FineWood", 1)) : Cost(("Wood", 2), ("FineWood", 1)); // (two wood for the boards, as a roof costs, and a fine wood: birch, its bark)
@@ -250,6 +262,21 @@ namespace BuildKit
             var v = new Vector3[t.Count]; var n = new Vector3[t.Count]; var uv = new Vector2[t.Count]; var col = new Color[t.Count];
             for (int i = 0; i < t.Count; i++) { v[i] = new Vector3(t.V[3 * i], t.V[3 * i + 1], t.V[3 * i + 2]); n[i] = new Vector3(t.N[3 * i], t.N[3 * i + 1], t.N[3 * i + 2]); uv[i] = new Vector2(t.Uv[2 * i], t.Uv[2 * i + 1]); col[i] = new Color(t.C[3 * i], t.C[3 * i + 1], t.C[3 * i + 2]); }
             mesh.vertices = v; mesh.normals = n; mesh.uv = uv; mesh.colors = col; // (each shingle its own shade, by the vertex colour the game's shader reads)
+            mesh.subMeshCount = ShingleMesh.Slots;
+            for (int k = 0; k < ShingleMesh.Slots; k++) mesh.SetTriangles(t.T[k], k);
+            mesh.RecalculateBounds(); mesh.RecalculateTangents();
+            Owned.Add(mesh); Meshes[(d.Name, 0, 0)] = mesh;
+            return mesh;
+        }
+        // A stave piece's mesh (its look is the shingles': tarred wood, game wood, carvings).
+        internal static Mesh StaveMeshFor(Def d)
+        {
+            if (Meshes.TryGetValue((d.Name, 0, 0), out Mesh have) && have != null) return have;
+            var t = d.Stave == "wall" ? Stave.Wall() : d.Stave == "post" ? Stave.Post() : Stave.Portal();
+            var mesh = new Mesh { name = d.Name };
+            var v = new Vector3[t.Count]; var n = new Vector3[t.Count]; var uv = new Vector2[t.Count]; var col = new Color[t.Count];
+            for (int i = 0; i < t.Count; i++) { v[i] = new Vector3(t.V[3 * i], t.V[3 * i + 1], t.V[3 * i + 2]); var nn = new Vector3(t.N[3 * i], t.N[3 * i + 1], t.N[3 * i + 2]); n[i] = nn.sqrMagnitude > 0 ? nn.normalized : Vector3.up; uv[i] = new Vector2(t.Uv[2 * i], t.Uv[2 * i + 1]); col[i] = new Color(t.C[3 * i], t.C[3 * i + 1], t.C[3 * i + 2]); }
+            mesh.vertices = v; mesh.normals = n; mesh.uv = uv; mesh.colors = col;
             mesh.subMeshCount = ShingleMesh.Slots;
             for (int k = 0; k < ShingleMesh.Slots; k++) mesh.SetTriangles(t.T[k], k);
             mesh.RecalculateBounds(); mesh.RecalculateTangents();

@@ -42,6 +42,7 @@ namespace BuildKit
         // (for the carvings: a point, its normal's parts, and faces shown toward a way)
         public int AddPoint(float x, float y, float z, float nx, float ny, float nz, float u, float v, float r, float g, float b) => Add((x, y, z), nx, ny, nz, u, v, r, g, b);
         public float Nx(int i) => N[3 * i]; public float Ny(int i) => N[3 * i + 1]; public float Nz(int i) => N[3 * i + 2];
+        public float X(int i) => V[3 * i]; public float Y(int i) => V[3 * i + 1]; public float Z(int i) => V[3 * i + 2];
         public void QuadFacing(int slot, int a, int b, int c, int d, float nx, float ny, float nz) => QuadOut(slot, a, b, c, d, nx, ny, nz);
         public void TriFacing(int slot, int a, int b, int c, float nx, float ny, float nz) => TriOut(slot, a, b, c, nx, ny, nz);
 

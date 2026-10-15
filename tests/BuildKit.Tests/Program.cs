@@ -131,4 +131,17 @@ foreach (Shape sh in new[] { Shape.Straight, Shape.Ridge, Shape.OuterCorner, Sha
     Check(dragon.Count > plain.Count + 100 && reach > 2.4f && reach < 3f && rise > Roofs.Height(Shape.Ridge, true, 0, 0) + 0.6f, $"The dragon reaches out past the gable end and rises over the ridge ({reach:0.0} m out, {rise:0.0} m up)");
 }
 
+// ---- Stave church: walls, posts, the portal ----
+foreach (var (name, m, w, h, d) in new[] { ("wall", Stave.Wall(), 1.01f, 1.01f, 0.2f), ("post", Stave.Post(), 0.21f, 1.01f, 0.21f), ("portal", Stave.Portal(), 1.05f, 1.45f, 0.37f) })
+{
+    Check(m.Count > 100 && m.T.All(t => t.All(i => i >= 0 && i < m.Count) && t.Count % 3 == 0), $"Stave {name}: a mesh with real corners");
+    float mx = 0, my = 0, mz = 0; for (int i = 0; i < m.Count; i++) { mx = Math.Max(mx, Math.Abs(m.V[3 * i])); my = Math.Max(my, Math.Abs(m.V[3 * i + 1])); mz = Math.Max(mz, Math.Abs(m.V[3 * i + 2])); }
+    Check(mx <= w && my <= h && mz <= d, $"Stave {name}: within its piece ({mx:0.00}, {my:0.00}, {mz:0.00})");
+}
+{
+    var portal = Stave.Portal(); bool open = true;
+    for (int i = 0; i < portal.Count; i++) { float x = portal.V[3 * i], y = portal.V[3 * i + 1]; if (Math.Abs(x) < Stave.JambIn - 0.01f && y < 0.99f && y > -0.99f) open = false; }
+    Check(open, "The portal leaves the doorway clear for the game's own door");
+}
+
 Console.WriteLine($"BuildKit: {checks} checks passed");

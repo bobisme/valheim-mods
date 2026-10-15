@@ -1,3 +1,5 @@
+0.2.1: Stave church pieces: a stave wall of upright tarred planks between a sill and a wall plate, a round stave post with a carved band and capital, and a carved portal: the game's own door in jambs wound with vines, a beast's head on each, a carved arch above.
+
 0.2.0: Shingle roofs in every shape, 26° and 45°: tarred wooden shingles with rounded tongues, as a stave church is roofed, lapping row over row (no seams between pieces), ridges capped with boards, hips and valleys lined with them. A shingle ridge end with a carved dragon's head reaching out from the gable, jaws open (26° and 45°).
 
 0.1.2: No more build-menu errors from a piece an older copy of the mod left behind in the hammer's list.

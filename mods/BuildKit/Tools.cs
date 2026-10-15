@@ -50,7 +50,7 @@ namespace BuildKit
             switch (sub)
             {
                 case "list":
-                    output(new JObject { ["pieces"] = new JArray(Kit.Defs.Select(d => Kit.Made.TryGetValue(d.Name, out GameObject p) && p != null
+                    output(new JObject { ["pieces"] = new JArray(Kit.All.Select(d => Kit.Made.TryGetValue(d.Name, out GameObject p) && p != null
                         ? $"{d.Name} ({d.Title}): {(Kit.Hammer()?.m_pieces.Contains(p) == true ? "in the hammer" : "NOT in the hammer")}, from {d.From}" : $"{d.Name}: not made")),
                         ["gameTurfInHammer"] = Kit.Hammer()?.m_pieces.Any(x => x != null && x.name == "turf_roof") == true,
                         // (the turf standing near the player: which sides are open, bits -z +x +z -x)
@@ -129,7 +129,7 @@ namespace BuildKit
                     {
                         Player me = Player.m_localPlayer; if (me == null) { error("no player"); yield break; }
                         float radius = a.Length > 2 ? F(a[2]) : 30;
-                        var hashes = Kit.Defs.Select(d => d.Name.GetStableHashCode()).ToList();
+                        var hashes = Kit.All.Select(d => d.Name.GetStableHashCode()).ToList();
                         int n = 0;
                         var near = new System.Collections.Generic.List<Piece>(); Piece.GetAllPiecesInRadius(me.transform.position, radius, near);
                         foreach (Piece p in near)
@@ -144,7 +144,7 @@ namespace BuildKit
                     break;
                 case "icons": // (each piece's build-menu icon, side by side, as a picture: kit icons)
                     {
-                        var icons = Kit.Defs.Select(d => Kit.Made.TryGetValue(d.Name, out GameObject p) && p != null ? p.GetComponent<Piece>()?.m_icon : null).ToList();
+                        var icons = Kit.All.Select(d => Kit.Made.TryGetValue(d.Name, out GameObject p) && p != null ? p.GetComponent<Piece>()?.m_icon : null).ToList();
                         var sheet = new Texture2D(128 * icons.Count, 128, TextureFormat.RGBA32, false);
                         sheet.SetPixels(Enumerable.Repeat(new Color(0.25f, 0.22f, 0.2f, 1), sheet.width * sheet.height).ToArray());
                         for (int i = 0; i < icons.Count; i++)
