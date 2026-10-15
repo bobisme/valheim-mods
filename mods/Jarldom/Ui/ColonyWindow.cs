@@ -325,7 +325,7 @@ namespace Jarldom.Ui
             if (asks.Count > 0)
             {
                 y = Heading(list, "Asked of you", y);
-                foreach (var (row, ask) in asks) y = Text(list, $"• {row.Name}: {ask.Value.what} ({ask.Value.daysLeft} {(ask.Value.daysLeft == 1 ? "day" : "days")} left){(ask.Value.deed ? " <color=#ff8c59>a deed, to wash out their disgrace</color>" : "")}", y, 16);
+                foreach (var (row, ask) in asks) y = Text(list, $"• {row.Name}: {ask.Value.what} ({ask.Value.daysLeft} {(ask.Value.daysLeft == 1 ? "day" : "days")} left){(ask.Value.deed ? (Villagers.Body(row.Vid) is Humanoid hb && Villagers.Brain(hb)?.S.Disgraced == true ? " <color=#ff8c59>a deed, to wash out their disgrace</color>" : " <color=#9fb8a8>a deed, to lift their dimming</color>") : "")}", y, 16);
                 y = Text(list, "Talk to them (E) to take it on, hand it over or tell of it. Answered, they think better of you, gain worth and pay from their own hoard, and the colony gains renown.", y, 14, GameUi.Dim);
             }
             y = DogsPart(list, y);

@@ -76,6 +76,8 @@ namespace Jarldom
                     GameObject t = Resolve(o.Target);
                     if (t == null || o.Kind == "chop" && t.GetComponent<TreeLog>() == null || o.Kind == "mine" && !IsOre(t)) c.Board.Cancel(o.Id);
                 }
+            var room = new Dictionary<string, bool>(); // (room in the stores for a crop, asked once a scan)
+            bool RoomFor(GameObject item) => item == null || (room.TryGetValue(item.name, out bool r) ? r : room[item.name] = Room(c, item.name));
             yield return 1;
             foreach (Zone z in c.R.Zones.ToList()) // (a copy: a zone may be marked between steps)
             {
@@ -113,7 +115,8 @@ namespace Jarldom
                             break;
                         case ZoneType.Fields:
                             Pickable crop = go.GetComponent<Pickable>();
-                            if (crop != null && Crops.Contains(Utils.GetPrefabName(go)) && crop.CanBePicked()) { kind = "harvest"; prio = 4; }
+                            // (left standing while the stores have no room for it: the field keeps it better than the ground does)
+                            if (crop != null && Crops.Contains(Utils.GetPrefabName(go)) && crop.CanBePicked() && RoomFor(crop.m_itemPrefab)) { kind = "harvest"; prio = 4; }
                             break;
                         case ZoneType.Foraging:
                             Pickable wild = go.GetComponent<Pickable>();
@@ -487,7 +490,7 @@ namespace Jarldom
                 {
                     case ZoneType.Woodlot: return !Room(c, "Wood") ? "no room for wood in the stockpiles: add chests" : Stock.Enough(c, "wood") ? $"resting: the stores hold {Stock.Keep(c, "wood")} wood, as the Work tab asks" : "no trees left to fell in the woodlot";
                     case ZoneType.Mine: return !Room(c, "Stone") ? "no room for stone in the stockpiles: add chests" : Stock.Enough(c, "stone") ? $"resting: the stores hold {Stock.Keep(c, "stone")} stone, as the Work tab asks" : "nothing left to dig in the quarry";
-                    case ZoneType.Fields: return "nothing to harvest or sow in the fields yet";
+                    case ZoneType.Fields: return "nothing to harvest or sow in the fields yet (what's ripe waits in the field while the stores have no room for it)";
                     case ZoneType.Foraging: return "nothing ripe in the foraging grounds yet";
                     case ZoneType.Hunting: return "no game in the hunting grounds";
                     case ZoneType.FishingDock: return c.R.Zones.Any(z => z.Type == ZoneType.FishingDock && Zones.HasWater(z)) ? "nothing to fish at the dock" : "no fishing dock reaches the water (mark one out over it)";

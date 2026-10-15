@@ -405,6 +405,16 @@ namespace Jarldom
                 case "tombs": // (test: every loaded tombstone: whose (a villager's id, if one), where, what's in it)
                     output(new JObject { ["tombs"] = new JArray(Object.FindObjectsByType<TombStone>(FindObjectsSortMode.None).Select(t => $"{t.GetComponent<ZNetView>()?.GetZDO()?.GetString(Villagers.TombKey, "")} '{t.GetOwnerName()}' at {V(t.transform.position)}: {string.Join(", ", t.GetComponent<Container>().GetInventory().GetAllItems().Select(i => Prefab(i) + " x" + i.m_stack))}")) });
                     break;
+                case "bodies": // (test: every villager body this game knows of, loaded or not, by villager: more than one for a villager is a fault)
+                    {
+                        int vh = VillagerPrefab.Name.GetStableHashCode();
+                        var all = ZDOMan.instance.GetType().GetField("m_objectsByID", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(ZDOMan.instance) as Dictionary<ZDOID, ZDO>;
+                        var bodies = all.Values.Where(z => z.GetPrefab() == vh).ToList();
+                        output(new JObject { ["count"] = bodies.Count, ["twice"] = new JArray(bodies.GroupBy(z => z.GetString(Villagers.VidKey, "?")).Where(g => g.Count() > 1).Select(g => g.Key)),
+                            ["bodies"] = new JArray(bodies.Select(z => $"{z.GetString(Villagers.VidKey, "?")} {z.GetString(Villagers.NameKey, "?")} at {z.GetPosition().x:0},{z.GetPosition().y:0},{z.GetPosition().z:0} owner {z.GetOwner()} id {z.m_uid}")),
+                            ["fallen"] = new JArray(c.R.Fallen.Select(f => $"{f.Vid} {f.Killer} at {f.At:0} gear {f.Gear?.Length ?? 0} B")) });
+                    }
+                    break;
                 case "souls": // (test: every soul object this game has, by villager: more than one for a villager is a fault; each one's bag and revision)
                     {
                         int hash = SoulStore.PrefabName.GetStableHashCode();
