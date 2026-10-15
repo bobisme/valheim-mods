@@ -175,6 +175,11 @@ namespace Jarldom
         }
         private Task Choose(Activity a)
         {
+            // (coins brought home, from a trade run or found: to the treasury first, work hours or not; carried round the hall till
+            // morning, they were the treasury short for a payday)
+            if ((a == Activity.Wake || a == Activity.Work || a == Activity.Hall || a == Activity.Idle) && Time.time > NoStoreUntil
+                && Body.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == "Coins" && Work.Stores(this, i)) is ItemDrop.ItemData coins
+                && Stock.Destination(Colony, coins, Pos) != null) return new DepositTask();
             switch (a)
             {
                 case Activity.Sleep: return new SleepTask();

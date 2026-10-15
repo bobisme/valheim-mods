@@ -1,3 +1,5 @@
+0.1.152: coins a villager brings home (a trader back from market) go to the treasury straight away, not after the next work hours; not in a storm, asleep or during a festival.
+
 0.1.151: trade chests. Shift+E on a chest with the staff: 'trade goods'. Whatever you put in one, a trader takes to market and sells, coins to the treasury: wood, crops, hides, ore, metal, food, gear, anything, at set prices by kind (smelted metal and gear pay best; treasure at the game's own price). No villager takes from a trade chest or fills it. From the rest of the stores, traders still take only treasure. The Work tab says how.
 
 0.1.150: 'You slept among your people' shows in the middle of the screen as you wake (it was a small line in the corner, easy to miss). It comes when your bed is in a room marked as a longhouse.
