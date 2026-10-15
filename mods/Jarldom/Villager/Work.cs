@@ -580,7 +580,8 @@ namespace Jarldom
         // (a weaver keeps their spun thread by them)
         public static bool Stores(Brain b, ItemDrop.ItemData i) => !CornerTask.Keepsake(i) && !(b.S.Prof == Prof.Weaver && Classes.Prefab(i) == Weaving.Thread && i.m_stack <= 20) && Loot(i) || !i.m_equipped && i.m_dropPrefab != null && (b.Hauled.Contains(i.m_dropPrefab.name) || Surplus(b, i) || Spare(b, i));
         // A second of what they already have and use: a tankard past their one, a weaker bow, armour or clothes beaten by what they
-        // wear in that slot (for the stores, where someone in rags or with no bow will find it).
+        // wear in that slot, a second tool of a kind, a weaker weapon (for the stores, where someone without will find it).
+        private static readonly string[] SpareKinds = { "pickaxe", "axe", "hammer", "hoe", "cultivator", "rod" };
         public static bool Spare(Brain b, ItemDrop.ItemData i)
         {
             if (i.m_equipped || CornerTask.Keepsake(i)) return false;
@@ -590,6 +591,10 @@ namespace Jarldom
             if (t0 == ItemDrop.ItemData.ItemType.Bow) return bag.Any(o => o != i && o.m_shared.m_itemType == t0 && Gear.Usable(o) && o.GetDamage().GetTotalDamage() >= i.GetDamage().GetTotalDamage());
             if (t0 == ItemDrop.ItemData.ItemType.Helmet || t0 == ItemDrop.ItemData.ItemType.Chest || t0 == ItemDrop.ItemData.ItemType.Legs || t0 == ItemDrop.ItemData.ItemType.Shoulder)
                 return bag.Any(o => o != i && o.m_equipped && o.m_shared.m_itemType == t0 && Gear.Usable(o) && o.GetArmor() >= i.GetArmor());
+            // (a second tool of a kind, past the one they'd use: two pickaxes while a miner has none)
+            foreach (string kind in SpareKinds) if (Gear.Is(kind, i)) return Gear.Tool(b, kind) is ItemDrop.ItemData use && use != i;
+            // (a weaker weapon besides the one they fight with)
+            if (Gear.IsWeapon(i) && Gear.Weapon(b) is ItemDrop.ItemData arm && arm != i && Smithing.Score(i) <= Smithing.Score(arm)) return true;
             return false;
         }
         // Food beyond what a villager keeps for themselves (a small stack of their best, five or fewer; a bigger one goes in whole and they

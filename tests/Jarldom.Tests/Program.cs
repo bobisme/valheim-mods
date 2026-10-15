@@ -816,6 +816,21 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Verse.Make(new List<LogEntry> { new LogEntry(5, 3, "greatwork", "Shithole", "the Lighthouse", "") }, 2, p => p).Any(l => l.Contains("Lighthouse")), "The skald sings it");
 }
 
+// ---- Expectations rise: the fare a colony of standing wants ----
+{
+    Check(Fare.Of("CookedMeat", 30) == 0 && Fare.Of("Sausages", 55) == 2 && Fare.Of("LoxPie", 75) == 4 && Fare.Of("MeatPlatter", 80) == 5, "Dishes by their land");
+    Check(Fare.Of("SomeModStew", 20) == 0 && Fare.Of("SomeModStew", 60) == 4 && Fare.Of("SomeModStew", 90) == 6, "Another mod's dish by how much it feeds");
+    Check(Fare.Opened(k => false) == 0 && Fare.Opened(k => k == "defeated_eikthyr" || k == "defeated_gdking") == 2, "The lands open as the bosses fall");
+    Check(Fare.Wanted(Rank.Camp, 6) == 0 && Fare.Wanted(Rank.Homestead, 6) == 0 && Fare.Wanted(Rank.Hamlet, 6) == 1 && Fare.Wanted(Rank.Village, 6) == 2 && Fare.Wanted(Rank.Jarldom, 6) == 4 && Fare.Wanted(Rank.Hold, 6) == 5, "Each rank wants more");
+    Check(Fare.Wanted(Rank.Hold, 2) == 2 && Fare.Wanted(Rank.Jarldom, 0) == 0, "Never past what the world has opened");
+    Check(Fare.Met(new List<int> { 0, 0, 0, 0, 0, 0, 0, 0 }, 0), "Nothing wanted: met");
+    Check(Fare.Met(new List<int> { 0, 0 }, 3), "Too few meals to tell: met");
+    Check(!Fare.Met(new List<int> { 1, 1, 1, 1, 1, 1, 1, 1 }, 2) && Fare.Met(new List<int> { 1, 1, 1, 2, 1, 1, 3, 1 }, 2), "Now and then: one meal in four of the tier");
+    Check(!Fare.Met(new List<int> { 3, 3, 0, 0, 0, 0, 0, 0, 0, 0 }, 3), "Only the last eight meals count");
+    Check(Fare.Filling(4, 4) == 1f && Fare.Filling(5, 4) == 1f && Math.Abs(Fare.Filling(2, 4) - 0.8f) < 0.001f && Fare.Filling(0, 6) == 0.7f, "Plain fare fills a little less, never under 70%");
+    Check(Fare.Wants(4).Contains("Plains") && Fare.Wants(4).Contains("bread") && Fare.Lands.Length == Fare.Examples.Length && Fare.Lands.Length == Fare.Keys.Length + 1, "It names the land and its dishes");
+}
+
 // ---- Prefab names: a save finds a thing again by its prefab's name; none shipped may go ----
 {
     var golden = File.ReadAllLines(Path.Combine(AppContext.BaseDirectory, "prefabs.txt")).Select(l => l.Trim()).Where(l => l != "").ToList();

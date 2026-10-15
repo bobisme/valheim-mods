@@ -746,7 +746,7 @@ namespace Jarldom
             b.Body.GetInventory().RemoveOneItem(item);
             b.Body.m_consumeItemEffects.Create(b.Body.transform.position, Quaternion.identity);
             Body_.Anim(b.Body)?.SetTrigger("eat");
-            Mood.Satisfy(b.S, Need.Food, 25 + item.m_shared.m_food);
+            Mood.Satisfy(b.S, Need.Food, (25 + item.m_shared.m_food) * Fare.Filling(Fare.Of(prefab, item.m_shared.m_food), Expect.Wanted(b.Colony))); // (plain fare fills a little less, in a colony of standing)
             if (item.m_shared.m_food >= 30) Mood.Add(b.S, "finemeal", b.Now);
             b.S.Foods.Add(prefab); if (b.S.Foods.Count > 9) b.S.Foods.RemoveAt(0);
             b.Body.SetMaxHealth(b.MaxHealth());

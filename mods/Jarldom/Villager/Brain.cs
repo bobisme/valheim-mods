@@ -253,6 +253,7 @@ namespace Jarldom
             if (S.Has("pious") && shrines == 0) { if (!Jarldom.Mood.Has(S, "neglect", now)) Jarldom.Mood.Add(S, "neglect", now); } else Jarldom.Mood.Remove(S, "neglect");
             if (S.Needs[(int)Need.Food] < 15) { if (!Jarldom.Mood.Has(S, "hungry", now)) Jarldom.Mood.Add(S, "hungry", now); } else Jarldom.Mood.Remove(S, "hungry");
             if (S.Foods.Count >= 3 && S.Foods.Skip(S.Foods.Count - 3).Distinct().Count() == 1) { if (!Jarldom.Mood.Has(S, "samefood", now)) Jarldom.Mood.Add(S, "samefood", now); } else Jarldom.Mood.Remove(S, "samefood");
+            if (!Expect.Met(Colony, S)) { if (!Jarldom.Mood.Has(S, "plainfare", now)) Jarldom.Mood.Add(S, "plainfare", now); } else Jarldom.Mood.Remove(S, "plainfare"); // (expectations rise with the colony's standing)
             if (!Weaving.InRags(this)) { if (!Jarldom.Mood.Has(S, "dressed", now)) Jarldom.Mood.Add(S, "dressed", now); } else Jarldom.Mood.Remove(S, "dressed");
             if (S.Worthy && !Jarldom.Mood.Has(S, "valkyries", now)) Jarldom.Mood.Add(S, "valkyries", now);
             if (!Jarldom.Mood.Has(S, "gary", now) && Held == null && Compat.Gary(Pos, 5f) is Character gary)

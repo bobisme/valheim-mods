@@ -392,6 +392,10 @@ namespace Jarldom
                         output(new JObject { ["added"] = a[2] });
                     }
                     break;
+                case "fare": // (test: "fare <lands opened|->": what the colony's standing wants at table, as if that many lands were open)
+                    if (a.Length > 2) Expect.OpenedTest = a[2] == "-" ? -1 : int.Parse(a[2]);
+                    output(new JObject { ["rank"] = c.R.Rank.ToString(), ["wanted"] = Expect.Wanted(c), ["wants"] = Fare.Wants(Expect.Wanted(c)), ["met"] = new JArray(Villagers.All.Where(b => b.S.Colony == c.Id).Select(b => $"{b.S.Name}: {string.Join(",", Expect.Recent(b.S))} {(Expect.Met(c, b.S) ? "met" : "NOT met")}")) });
+                    break;
                 case "prefabs": // (test: every prefab Jarldom registers, and how that list stands against Data/PrefabNames.cs)
                     {
                         var names = Assets.RegisteredNames();

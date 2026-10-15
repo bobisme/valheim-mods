@@ -76,6 +76,9 @@ namespace Jarldom.Ui
                 GameUi.Bar(left, new Vector2(90, -y - 1), new Vector2(310, 16), s.Needs[(int)n] / 100f, GameUi.Gold, "");
                 y += 21;
             }
+            // (what a colony of its standing wants on the table: said once it wants anything, and whether they've had it lately)
+            int fare = Expect.Wanted(c);
+            if (fare > 0) y = Text(left, $"At table: a {c.R.Rank.ToString().ToLower()} wants {Fare.Wants(fare)}. {(Fare.Met(Expect.Recent(s), fare) ? "Had some lately." : "<color=#ff8c59>None lately.</color>")}", y + 4, 14, GameUi.Dim);
             // Right: worth, skills, bed and work.
             RectTransform right = GameUi.Box(_window, new Vector2(456, -92), new Vector2(420, 624));
             float ry = 10;
