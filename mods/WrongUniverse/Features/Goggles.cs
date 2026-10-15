@@ -27,7 +27,9 @@ namespace WrongUniverse
         internal static ConfigEntry<float> Range,Brighten,Dim;
         internal static ConfigEntry<bool> StartOn,ShowSelf;
         internal static bool On=true;
-        internal static Vector3 Offset=new Vector3(0f,0.26f,0.11f);   // from the Head bone (up the head, forward): lenses over the eyes, set in game
+        // Fixed under the helmet joint (so they nod and turn with the face), turned by Turn so +y is up the head and +z out of the
+        // face, then Offset in that frame. (The neck-to-head line leans ~50 degrees forward and doesn't follow the head.) Set in game.
+        internal static Vector3 Offset=new Vector3(0f,0f,0.06f),Turn=Vector3.zero;
         internal static CameraEvent Stage=CameraEvent.AfterImageEffects;
 
         private static readonly AccessTools.FieldRef<Humanoid,ItemDrop.ItemData> Helmet=AccessTools.FieldRefAccess<Humanoid,ItemDrop.ItemData>("m_helmetItem");
@@ -102,7 +104,7 @@ namespace WrongUniverse
                 VisEquipment vis=p.GetComponent<VisEquipment>();
                 if(vis==null||HelmetHash(vis)!=hash)continue;
                 GameObject inst=HelmetInst(vis);
-                if(inst!=null)Wear.Place(vis,inst.transform,"Head","Neck","Head",Offset);
+                if(inst!=null)Wear.PlaceOnJoint(inst.transform,Quaternion.Euler(Turn),Offset);
             }
             Thermal();
         }
@@ -225,7 +227,7 @@ namespace WrongUniverse
         }
 
         internal override string Command=>"goggles";
-        internal override string Help=>"[info|on|off|offset <x y z>|stage post|alpha|opaque]";
+        internal override string Help=>"[info|on|off|offset <x y z>|turn <ex ey ez>|stage post|alpha|opaque]";
         internal override IEnumerator Test(string[] args,Action<JObject> output,Action<string> error)
         {
             string sub=args.Length>2?args[2]:"info";
@@ -235,6 +237,7 @@ namespace WrongUniverse
                 case "on":On=true;break;
                 case "off":On=false;break;
                 case "offset":Offset=new Vector3(F(3,Offset.x),F(4,Offset.y),F(5,Offset.z));break;
+                case "turn":Turn=new Vector3(F(3,Turn.x),F(4,Turn.y),F(5,Turn.z));break;
                 case "stage":
                 {
                     string w=args.Length>3?args[3]:"post";
@@ -257,12 +260,13 @@ namespace WrongUniverse
                 placed["worldScale"]=Tools.V(inst.transform.lossyScale);
                 placed["at"]=Tools.V(inst.transform.position);
                 placed["head"]=head!=null?Tools.V(head.position):null;
+                if(inst.transform.parent!=null)placed["jointInBody"]=Tools.V((Quaternion.Inverse(vis.transform.rotation)*inst.transform.parent.rotation).eulerAngles);   // (for choosing turn)
                 placed["neckFound"]=neck!=null;
                 placed["hashMatches"]=HelmetHash(vis)==Item.Prefab.GetStableHashCode();
                 placed["renderers"]=inst.GetComponentsInChildren<Renderer>(true).Length;
             }
             output(new JObject{["placed"]=placed,["wearing"]=Wearing(Player.m_localPlayer),["on"]=On,["active"]=Active,["shader"]=_shader!=null||Shader.Find("Hidden/Internal-Colored")!=null,
-                ["attached"]=_cam!=null,["stage"]=Stage.ToString(),["renderersDrawn"]=_drawn,["bodies"]=Bodies.Count,["offset"]=Tools.V(Offset),
+                ["attached"]=_cam!=null,["stage"]=Stage.ToString(),["renderersDrawn"]=_drawn,["bodies"]=Bodies.Count,["offset"]=Tools.V(Offset),["turn"]=Tools.V(Turn),
                 ["ambient"]=RenderSettings.ambientLight.ToString()});
             return null;
         }

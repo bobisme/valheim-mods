@@ -1,5 +1,5 @@
-# The infrared goggles (WU_InfraredGoggles), a helmet: built under "attach" on the helmet joint and placed by Wear.Place (origin
-# 10 cm up and 10 cm forward of the Head bone: about between the eyes). Blender frame: +Y forward (out of the face), +Z up.
+# The infrared goggles (WU_InfraredGoggles), a helmet: built under "attach" on the helmet joint and placed by Wear.PlaceOnJoint (origin
+# 6 cm forward of the helmet joint: about between the eyes). Blender frame: +Y forward (out of the face), +Z up.
 # Same footprint as the first primitive pair: lens barrels at x +-0.042 pointing forward, red lenses, battery on top, strap round.
 # Run: blender -b --python ~/.cache/wu-models/wm-wear/goggles.py -- render
 import sys, os; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); from wulib import *

@@ -275,6 +275,19 @@ namespace WrongUniverse
             map[name]=t;
             return t;
         }
+        // Fixed in the joint it hangs from (the game's helmet joint, a child of the head), as the game's own helmets are: turned by
+        // turn, offset in that turned frame (metres, whatever the joint's scale). Being a fixed child, it moves with every nod.
+        internal static void PlaceOnJoint(Transform item,Quaternion turn,Vector3 offset)
+        {
+            Transform parent=item.parent;
+            if(parent==null)return;
+            Vector3 s=parent.lossyScale;
+            if(Mathf.Abs(s.x)<1e-5f||Mathf.Abs(s.y)<1e-5f||Mathf.Abs(s.z)<1e-5f)return;
+            item.localScale=new Vector3(1f/s.x,1f/s.y,1f/s.z);
+            Vector3 o=turn*offset;
+            item.localRotation=turn;
+            item.localPosition=new Vector3(o.x/s.x,o.y/s.y,o.z/s.z);
+        }
         // At a bone, upright along upFrom -> upTo (a spine or neck's bend), facing the character's forward; offset in that frame (metres).
         internal static bool Place(VisEquipment vis,Transform item,string at,string upFrom,string upTo,Vector3 offset)
         {
