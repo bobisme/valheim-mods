@@ -66,6 +66,7 @@ namespace BuildShapes
                 float sign=wheel>0?1:-1;bool ctrl=Input.GetKey(KeyCode.LeftControl)||Input.GetKey(KeyCode.RightControl),shift=Input.GetKey(KeyCode.LeftShift)||Input.GetKey(KeyCode.RightShift);
                 if(ctrl && shift)_gap=GapStep(_gap,sign);
                 else if(ctrl && _tool==Tool.Curve)_curve=Mathf.Clamp((float)System.Math.Round(_curve+sign*0.1f,1),0,1);
+                else if(ctrl && _tool==Tool.Circle)_circlePlane=Mathf.Clamp(_circlePlane+(int)sign,Spline.CircleLevel,Spline.CircleStanding);
                 else if(ctrl && _tool==Tool.Arch)_archRise=Mathf.Clamp((float)System.Math.Round(_archRise+sign*0.25f,2),0,Arch.MaximumRise);
                 else if(ctrl)return false;
                 else if(shift)_pieceTurn=Mathf.Repeat(_pieceTurn+sign*TurnStep,360);
@@ -90,18 +91,30 @@ namespace BuildShapes
             if(segments.Count>Curve.MaximumPieces)throw new System.ArgumentException("The shape is over 256 pieces.");
             if(sideBySide)AddSideBySide(segments);else if(_upright)AddUpright(segments);else AddAlong(segments);
         }
-        // Circle: round the centre (the first marker), level at the edge point's height (the second), from the edge point; the
-        // pieces go evenly all the way round (as a closed Curve's do), with the same rolls, turns, gaps and Home.
+        // Circle: round the centre (the first marker), through the edge point (the second), from the edge point, in the plane
+        // Ctrl+scroll picks (level, through both points, or standing); the pieces go evenly all the way round (as a closed Curve's
+        // do), with the same rolls, turns, gaps and Home. It's laid out level, then tilted into its plane, pieces and all, so in a
+        // tilted ring "upright" stands square to the ring and "along" keeps their tops to its side.
+        private int _circlePlane=Spline.CircleThrough;
+        private Vector3 _circleSide=Vector3.right; // (the camera's right when the edge was clicked: which way a ring stands when the edge is straight above)
         private void PreviewCircle()
         {
-            Vector3 centre=_markers[0],edge=_markers[1];
-            System.Func<double,V3> path=Spline.Circle(V(centre),V(edge));
+            V3 normal=Spline.CircleNormal(V(_markers[0]),V(_markers[1]),_circlePlane,V(_circleSide));
+            Vector3 up=V(normal),centre=V(Spline.CircleCentre(V(_markers[0]),V(_markers[1]),normal)),edge=_markers[1];
+            Quaternion tilt=Quaternion.FromToRotation(Vector3.up,up),level=Quaternion.Inverse(tilt);
+            System.Func<double,V3> path=Spline.Circle(V(centre),V(centre+level*(edge-centre)));
             bool sideBySide=_upright && !UprightPossible();
             float length=sideBySide?SideWidth(out _):(_localEnd-_localStart).magnitude;
             var segments=Curve.Plan(path,length,_upright,true,Spline.MaximumLength,_gap);
+            int first=_output.Count;
             if(sideBySide)AddSideBySide(segments);else if(_upright)AddUpright(segments);else AddAlong(segments);
+            for(int i=first;i<_output.Count;i++)
+            {
+                PiecePose pose=_output[i];
+                _output[i]=new PiecePose(pose.Id,pose.Prefab,centre+tilt*(pose.Position-centre),tilt*pose.Rotation);
+            }
             // The radius, faint: centre to edge.
-            Line(new[]{new Vector3(centre.x,edge.y,centre.z),edge},0.03f);
+            Line(new[]{centre,edge},0.03f);
         }
         // Each piece's length along its segment, in 3D, its top kept as near the sky as the segment allows (so pieces don't twist
         // about the curve: a block's faces stay the way up they were); where a segment runs straight up, its top carries on from the

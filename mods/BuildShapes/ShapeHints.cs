@@ -48,6 +48,7 @@ namespace BuildShapes
             {
                 if (HintTool != Tool.Mirror) { Add("Roll", "wheel"); Add("Turn", "Shift", "wheel"); }
                 if (HintTool == Tool.Arch) Add("Height", ctrl, "wheel");
+                if (HintTool == Tool.Circle) Add("Plane", ctrl, "wheel");
                 if (HintTool == Tool.Curve && (_markers.Count > 2 || full)) Add("Curve", ctrl, "wheel");
                 if (HintTool != Tool.Mirror) Add("Gap", ctrl, "Shift", "wheel");
             }
@@ -61,7 +62,12 @@ namespace BuildShapes
             string Warm(string text) => "<color=#FFDB8C>" + text + "</color>";
             var parts = new List<string> { _output.Count > 0 ? $"{_output.Count} pieces" : HintTool == Tool.Curve ? $"{_markers.Count} markers" : $"{_markers.Count}/{RequiredMarkers} markers" };
             if (HintTool == Tool.Circle && _markers.Count == 2)
-                parts.Add($"radius {Vector3.ProjectOnPlane(_markers[1] - _markers[0], Vector3.up).magnitude:0.##} m");
+            {
+                V3 normal = Spline.CircleNormal(V(_markers[0]), V(_markers[1]), _circlePlane, V(_circleSide));
+                parts.Add($"radius {(V(_markers[1]) - Spline.CircleCentre(V(_markers[0]), V(_markers[1]), normal)).Length:0.##} m");
+                float tilt = Vector3.Angle(Vector3.up, V(normal));
+                parts.Add(_circlePlane == Spline.CircleLevel ? "level" : _circlePlane == Spline.CircleStanding ? "standing" : tilt < 0.05f ? "through both points (level)" : $"through both points (tilted {tilt:0.#}°)");
+            }
             if (HintTool == Tool.Circle) parts.Add((!_upright ? "along the circle" : UprightPossible() ? "upright" : "side by side") + " (Home)");
             if (HintTool == Tool.Curve)
             {

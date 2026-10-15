@@ -236,6 +236,15 @@ Check(link.Ready()&&!link.Extended&&link.Available(player)&&!link.AtRay(player,n
     Check(circlePieces.Count==13 && circlePieces.All(g=>Math.Abs((g.End-g.Start).Length-2)<1e-7), "A 4 m circle takes 13 two-metre pieces");
     Reject(()=>Spline.Circle(new V3(),new V3(0.1,3,0)), "A circle needs an edge away from its centre");
     Reject(()=>Spline.Circle(new V3(),new V3(50,0,0)), "A circle's size is bounded");
+    // A circle's plane: level, through both points (tilted as little as they need), or standing upright through them.
+    V3 c0=new V3(0,0,0),e0=new V3(3,4,0),sideways=new V3(0,0,1);
+    V3 nLevel=Spline.CircleNormal(c0,e0,Spline.CircleLevel,sideways),nThrough=Spline.CircleNormal(c0,e0,Spline.CircleThrough,sideways),nStand=Spline.CircleNormal(c0,e0,Spline.CircleStanding,sideways);
+    Check(Near(nLevel,new V3(0,1,0)) && Near(Spline.CircleCentre(c0,e0,nLevel),new V3(0,4,0)), "A level circle sits at the edge's height");
+    Check(Math.Abs(V3.Dot(nThrough,e0-c0))<1e-9 && Math.Abs(nThrough.Z)<1e-9 && nThrough.Y>0 && Near(Spline.CircleCentre(c0,e0,nThrough),c0), "A circle through both points tilts only along its radius, centred on the click");
+    Check(Math.Abs(nStand.Y)<1e-9 && Math.Abs(V3.Dot(nStand,e0-c0))<1e-9 && Near(Spline.CircleCentre(c0,e0,nStand),c0), "A standing circle's plane is upright, through both points");
+    Check(Near(Spline.CircleNormal(c0,new V3(4,0,0),Spline.CircleThrough,sideways),new V3(0,1,0)), "Level points make a level circle through them");
+    V3 nAbove=Spline.CircleNormal(c0,new V3(0,3,0),Spline.CircleThrough,new V3(1,0,0));
+    Check(Math.Abs(nAbove.Y)<1e-9 && Math.Abs(nAbove.X)<1e-9 && Math.Abs(nAbove.Length-1)<1e-9, "An edge straight above stands the ring across the camera's view");
     // Gaps (what Repeat did): as few pieces as fit with no more than the gap between, the gaps even, the outer ends on the ends.
     var straight10=new List<V3>{ new V3(0,0,0), new V3(10,0,0) };
     var spaced=Curve.Plan(Spline.Path(straight10,false,1),1,false,false,Spline.MaximumLength,2);

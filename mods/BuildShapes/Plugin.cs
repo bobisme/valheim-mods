@@ -15,7 +15,7 @@ namespace BuildShapes
     {
         public const string Guid = "com.bobisme.buildshapes";
         public const string Name = "BuildShapes";
-        public const string Version = "0.13.0";
+        public const string Version = "0.13.1";
         internal static Plugin Instance;
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem");
         private static readonly FieldInfo PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
@@ -144,7 +144,7 @@ namespace BuildShapes
             if (requested == Tool.Curve || requested == Tool.Circle) _upright = UprightByDefault(name);
             _tool = requested;
             Say(requested == Tool.Mirror ? "Mirror: click two points for the line; Ctrl+click pieces/ghosts to select; " + _plan.Value + " plans." :
-                requested == Tool.Circle ? "Circle: click the centre, then a point on the edge; scroll rolls, Shift+scroll turns; " + _plan.Value + " plans." :
+                requested == Tool.Circle ? "Circle: click the centre, then a point on the edge; Ctrl+scroll picks its plane (level, through both points, standing); scroll rolls, Shift+scroll turns; " + _plan.Value + " plans." :
                 requested == Tool.Arch ? "Arch: click start and end; a circle through them and its top. Ctrl+scroll sets the height, scroll turns; " + _plan.Value + " plans." :
 "Curve: click points: two make a line, more a curve through them; click the first again to close the loop. " + _plan.Value + " plans.");
         }
@@ -260,6 +260,7 @@ namespace BuildShapes
             if (_tool == Tool.Curve && _markers.Count >= 3 && Vector3.Distance(point, _markers[0]) < 0.5f) { _closed = true; Preview(); return; }
             if (_markers.Any(p => Vector3.Distance(p, point) < 0.1f)) { Say("Place distinct markers."); return; }
             _markers.Add(point);
+            if (_tool == Tool.Circle && _markers.Count == 2 && Camera.main != null) _circleSide = Camera.main.transform.right;
             if (_tool == Tool.Arch && _markers.Count == 2 && !_archRiseSet)
             { _archRise = (float)Arch.DefaultRise(V(_markers[0]), V(_markers[1])); _archRiseSet = true; }
             Preview();
@@ -391,7 +392,7 @@ namespace BuildShapes
         }
         private void ClearVisuals() { DirtySharedPreview(); foreach (GameObject go in _visuals) if (go != null) Destroy(go); _visuals.Clear(); }
         private void ClearShape() { CloseRadial(); _archRiseSet = false; _closed = false; _markers.Clear(); _sources.Clear(); _output.Clear(); _previewError = null; ClearVisuals(); }
-        private void Stop() { _tool = Tool.None; _shapeRoll = _pieceTurn = _gap = 0; _curve = 1; _bounds.Clear(); _mirrorProfiles.Clear(); ClearShape(); }
+        private void Stop() { _tool = Tool.None; _shapeRoll = _pieceTurn = _gap = 0; _curve = 1; _circlePlane = Spline.CircleThrough; _bounds.Clear(); _mirrorProfiles.Clear(); ClearShape(); }
         private static void Say(string text) { Player.m_localPlayer?.Message(MessageHud.MessageType.Center, "BuildShapes: " + (text ?? "Planner unavailable.")); }
         private void OnDestroy()
         {

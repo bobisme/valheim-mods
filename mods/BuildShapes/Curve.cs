@@ -174,6 +174,25 @@ namespace BuildShapes
             V3 u = outward * (1 / radius), w = new V3(-u.Z, 0, u.X), c = new V3(centre.X, edge.Y, centre.Z);
             return t => c + u * (radius * Math.Cos(2 * Math.PI * t)) + w * (radius * Math.Sin(2 * Math.PI * t));
         }
+        // The plane a circle lies in, as its normal (pointing up where it can): 0 level; 1 through both points, tilted no more than
+        // they need (level when they're level); 2 standing, the upright plane through both points (a ring on a wall). Where the
+        // edge is straight above or below the centre, tilted and standing both face side (the way the camera looked across).
+        internal const int CircleLevel = 0, CircleThrough = 1, CircleStanding = 2;
+        internal static V3 CircleNormal(V3 centre, V3 edge, int plane, V3 side)
+        {
+            V3 up = new V3(0, 1, 0), r = edge - centre;
+            if (plane == CircleLevel || r.Length < 1e-9) return up;
+            V3 n = plane == CircleThrough ? up * V3.Dot(r, r) - r * r.Y : V3.Cross(up, new V3(r.X, 0, r.Z));
+            if (n.Length < 1e-6 * Math.Max(1, V3.Dot(r, r)))
+            {
+                n = V3.Cross(side, r);
+                if (n.Length < 1e-9) n = V3.Cross(new V3(1, 0, 0), r);
+                if (n.Length < 1e-9) n = V3.Cross(new V3(0, 0, 1), r);
+            }
+            return n * (1 / n.Length);
+        }
+        // Its centre: the clicked centre, moved onto the plane through the edge point (level: to the edge's height).
+        internal static V3 CircleCentre(V3 centre, V3 edge, V3 normal) => centre + normal * V3.Dot(edge - centre, normal);
         // Side i: from marker i to the next.
         internal static Func<double, V3> Side(IReadOnlyList<V3> points, bool closed, double curve, int i)
         {

@@ -982,7 +982,7 @@ Choosing the shape you're in, with the same piece, keeps your markers; anything 
 | **Left click** | Place a marker |
 | **Scroll** | Roll the pieces about their length, 22.5° a notch |
 | **Shift + scroll** | Turn each piece about its own up, on its middle, 22.5° a notch |
-| **Ctrl + scroll** | Curve: how round it is (10% a notch); Arch: height (0.25 m a notch) |
+| **Ctrl + scroll** | Curve: how round it is (10% a notch); Arch: height (0.25 m a notch); Circle: its plane (level, through both points, standing) |
 | **Ctrl + Shift + scroll** | The gap between pieces: none, or up to 16 m (0.1 m a notch to 1 m, 0.25 m to 4 m, then 0.5 m) |
 | **Home** | Curve, Circle: pieces standing (upright walls, side-by-side posts) or lying along the curve |
 | **Left Ctrl + left click** | Mirror: toggle a source piece/ghost |
@@ -1021,9 +1021,11 @@ of the line between the ends (0–32 m, 0.25 m a notch); the gold guide marks th
 work; the ends must be apart horizontally. (This was Arc until BuildShapes 0.13.0; the old Arch, with plumb legs, is gone: Curve
 draws any arch you click.)
 
-**Circle:** pick a piece and click the **centre**, then a **point on the edge**. The circle lies level at the edge point's height
-(up to 81 m across) and its pieces go evenly all the way round, as a closed Curve's do; Home, roll, turn and gaps work as in Curve
-(walls stand upright round it, posts side by side).
+**Circle:** pick a piece and click the **centre**, then a **point on the edge**. By default the circle lies in the plane through both
+points, tilted only as much as they need (level when they're level; on a slope it follows the slope). **Ctrl+scroll** down snaps it
+**level** at the edge point's height; up stands it **upright** through both points (a ring on a wall face; with the edge straight above
+the centre it faces you). Up to 81 m across; its pieces go evenly all the way round, as a closed Curve's do; Home, roll, turn and gaps
+work as in Curve (walls stand square to the circle, posts side by side).
 
 **Gaps (what Repeat did):** **Ctrl+Shift+scroll** in Curve, Arch or Circle spaces the pieces out: the gap is the most room between two
 pieces, shrunk evenly so the outer pieces still meet both end points (round a loop, evenly all the way). With gaps, pieces needn't
@@ -1052,7 +1054,7 @@ batch, ghost-ray, input-conflict, undo, and world tests. Rendering, multiplayer 
 Open the shape radial (hold Left Ctrl) with no tool active and during each tool. Try flicking to each shape, letting go in the middle, Escape, Build, a quick Ctrl+click and a slow Ctrl+scroll, changing hammer piece, opening another menu, and F6. Radial clicks must never place/attack/mark.
 
 1. Curve a 1m/2m wood beam through 2, 3 and 6 points, then close a loop; Ctrl+scroll the roundness to 0% and check pieces end at the corners. Lay wood walls (upright) round a loop on a slope, and poles side by side; Home switches each. Compare centre lines to submitted ghosts and normal support/material costs.
-2. Arch between two level and two unequal-height endpoints: Ctrl+scroll the height and check the endpoints stay fixed. Circle round a centre with walls, beams and posts; Home, gaps. Scroll rolls, Shift+scroll turns; E plans; Delete clears.
+2. Arch between two level and two unequal-height endpoints: Ctrl+scroll the height and check the endpoints stay fixed. Circle round a centre with walls, beams and posts; Home, gaps; on a slope and up a wall, Ctrl+scroll through level, through both points and standing. Scroll rolls, Shift+scroll turns; E plans; Delete clears.
 3. Mirror a roof wing, triangular under-roof wall (including inverted variants), sloped beam, and offset-pivot beam across an oblique
    line. Check native snaps, wedge slopes, roof pitch, and copied versus original pieces.
 4. Curve posts, torches and banners with gaps (Ctrl+Shift+scroll): check the gaps stay even, the end pieces stay on the end points, and a loop spaces evenly all the way round.
