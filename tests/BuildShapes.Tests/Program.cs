@@ -112,80 +112,29 @@ foreach(var fixture in fixtures.RootElement.EnumerateArray())
  {
   V3 expected=mirror.Point(source+r*point.X+u*point.Y+f*point.Z);
   Check(snaps.Any(q=>Near(root+mr*q.X+mu*q.Y+mf*q.Z,expected)),fixtureName+": every reflected native snap lands correctly");
-  // Use a tilted final frame: pinning must include the selected snap's full XYZ offset,
-  // not just height, and must remain correct away from the world origin.
-  foreach(V3 station in new[]{new V3(5,7,-3),new V3(10000,21,-10000)})
-  {
-   V3 placed=Curve.AnchoredOrigin(station,point,r,u,f);
-   Check(Near(placed+r*point.X+u*point.Y+f*point.Z,station),fixtureName+": selected Repeat snap stays on the path after final tilt/yaw");
-  }
  }
 }
-V3 anchorStation=new V3(10,20,30);
-Check(Near(Curve.AnchoredOrigin(anchorStation,new V3(0,-1,0),new V3(1,0,0),new V3(0,0,1),new V3(0,-1,0)),new V3(10,20,31)),"Bottom of a pitched post pins to the path, not its root");
-Check(Near(Curve.AnchoredOrigin(anchorStation,new V3(2,0,0),new V3(0,0,-1),new V3(0,1,0),new V3(1,0,0)),new V3(10,20,32)),"End of a yawed beam pins to the path");
-Check(Near(Curve.AnchoredOrigin(anchorStation,new V3(),new V3(1,0,0),new V3(0,0,1),new V3(0,-1,0)),anchorStation),"Piece origin retains legacy Repeat placement");
 var offsetProfile=MirrorProfile.Choose(new[]{new V3(0,0,0),new V3(4,0,0)},new V3(2.1,0,0));
 Check(!offsetProfile.FlipZ&&offsetProfile.Centre==2,"Snap-derived origin compensation avoids decorative mesh-bound drift");
 var fallback=MirrorProfile.Choose(Array.Empty<V3>(),new V3(2.1,0,0));
 Check(!fallback.FlipZ&&fallback.Centre==2.1,"Pieces without snaps retain bounded mesh-centre fallback");
 
-var row=Curve.Repeat(new V3(),new V3(5,0,0),new V3(10,0,0),3);
-Check(row.Count==5,"Repeat fits both ends with bounded maximum spacing");
-for(int i=0;i<row.Count;i++)
- Check(Near(row[i].Position,new V3(i*2.5,0,0))&&Math.Abs(row[i].Yaw-90)<1e-8,"Straight repeat evenly spaced with tangent yaw");
-// Integrate the analytic derivative independently; X=12t lets us recover each station's parameter.
-double ArcBetween(double lo,double hi)
-{
- double total=0;const int slices=1000;
- double Speed(double t)=>Math.Sqrt(144+Math.Pow(16-32*t,2)+Math.Pow(12-24*t,2));
- for(int i=0;i<slices;i++){double a=lo+(hi-lo)*i/slices,b=lo+(hi-lo)*(i+1)/slices;total+=(b-a)/6*(Speed(a)+4*Speed((a+b)/2)+Speed(b));}
- return total;
-}
-foreach(double spacing in new[]{0.25,1.0,2.0,16.0})
-{
- var stations=Curve.Repeat(new V3(),new V3(6,4,3),new V3(12,0,0),spacing);
- Check(Near(stations[0].Position,new V3())&&Near(stations[^1].Position,new V3(12,0,0)),"Curved repeat preserves both native-root anchors");
- double desired=ArcBetween(0,1)/(stations.Count-1);
- for(int i=1;i<stations.Count;i++)
- {
-  double previous=stations[i-1].Position.X/12,t=stations[i].Position.X/12;
-  Check(Math.Abs(ArcBetween(previous,t)-desired)<0.0001,"Repeat uniform in arc distance, checked with independent integration");
-  Check((stations[i].Position-stations[i-1].Position).Length<=spacing+1e-7,"Repeat chord never exceeds chosen maximum spacing");
-  Check(Math.Abs(stations[i].Yaw-Math.Atan2(12,12-24*t)*180/Math.PI)<0.0001,"Repeat uses analytic projected tangent yaw");
- }
-}
-var posts=Curve.Repeat(new V3(),new V3(0,4,0),new V3(0,8,0),2);
-Check(posts.Count==5&&posts.All(s=>s.Yaw==0),"Vertical path has stable yaw fallback without tipping posts");
-var cusp=Curve.Repeat(new V3(),new V3(0,5,2),new V3(0,10,0),1);
-Check(cusp.All(s=>!double.IsNaN(s.Yaw)&&!double.IsInfinity(s.Yaw)),"Vanishing horizontal tangent retains finite yaw");
-Reject(()=>Curve.Repeat(new V3(),new V3(64,0,0),new V3(128,0,0),0.25),"Repeat rejects station budget before output");
-Reject(()=>Curve.Repeat(new V3(),new V3(100,0,0),new V3(200,0,0),2),"Repeat path bound");
-Reject(()=>Curve.Repeat(new V3(),new V3(1,0,0),new V3(2,0,0),double.NaN),"Repeat nonfinite spacing");
-Reject(()=>Curve.Repeat(new V3(),new V3(1,0,0),new V3(),2),"Repeat coincident ends");
-
 // Line: a straight run of native-length beams, its outer ends on the markers, at any slope or upright.
 foreach (var (from, to) in new[] { (new V3(0,1,0), new V3(7,1,0)), (new V3(2,0,3), new V3(2,6,3)), (new V3(-1,2,-1), new V3(4,5,6)) })
 {
-    var run = Curve.Plan(from, Curve.Midpoint(from, to), to, 2);
+    var run = Curve.Plan(from, (from + to) * 0.5, to, 2);
     V3 axis = (to - from) * (1 / (to - from).Length);
     Check(Near(run[0].Start, from) && Near(run[run.Count - 1].End, to), "A line's outer beams meet both markers");
     Check(run.All(s => Math.Abs((s.End - s.Start).Length - 2) < 1e-6), "Line beams keep their native length");
     Check(run.All(s => (s.Start - from - axis * V3.Dot(s.Start - from, axis)).Length < 1e-6 && (s.End - from - axis * V3.Dot(s.End - from, axis)).Length < 1e-6), "Every beam lies on the line");
     Check(run.Count == (int)Math.Ceiling((to - from).Length / 2 - 1e-9), "A line uses the fewest beams that reach");
 }
-Reject(() => Curve.Plan(new V3(), Curve.Midpoint(new V3(), new V3(1,0,0)), new V3(1,0,0), 2), "A line shorter than one beam asks for a shorter beam");
+Reject(() => Curve.Plan(new V3(), new V3(0.5,0,0), new V3(1,0,0), 2), "A line shorter than one beam asks for a shorter beam");
 
-// Arch rises straight skyward from its ends (a half-ellipse); Arc is the circle through its ends and top, ends leaning as it has them.
+// Arch: the circle through its ends and top, ends leaning as it has them.
 V3 skyward = new V3(0, 1, 0);
 foreach (var (from, to, rise) in new[] { (new V3(0,0,0), new V3(6,0,0), 3.0), (new V3(0,0,0), new V3(8,0,2), 1.5), (new V3(0,1,0), new V3(6,3,0), 4.0) })
 {
-    var arch = Arch.Upright(from, to, rise, 1);
-    Check(Near(arch(0), from) && Near(arch(1), to) && Near(arch(0.5), Arch.Middle(from, to, rise)), "An arch meets both ends and its top");
-    var archBeams = Curve.Plan(arch, 1);
-    V3 firstBeam = archBeams[0].End - archBeams[0].Start, lastBeam = archBeams[archBeams.Count - 1].End - archBeams[archBeams.Count - 1].Start;
-    if (rise * 0.75 >= 1) Check(V3.Dot(firstBeam * (1 / firstBeam.Length), skyward) > 0.9999 && V3.Dot(lastBeam * (1 / lastBeam.Length), skyward) < -0.9999, "An arch's end beams stand plumb");
-    Check(Near(archBeams[0].Start, from) && Near(archBeams[archBeams.Count - 1].End, to), "An arch's outer beams meet its ends");
     var arc = Arch.Circular(from, to, rise);
     Check(Near(arc(0), from) && Near(arc(1), to), "An arc meets both ends");
     // Equally far from one centre all the way round: fit the circle through three of its points and check the rest.
@@ -201,8 +150,7 @@ Check(V3.Dot(lean * (1 / lean.Length), skyward) < 0.8, "A shallow arc's ends lea
 var half = Curve.Plan(Arch.Circular(new V3(), new V3(6,0,0), 3), 0.5); V3 stand = half[0].End - half[0].Start;
 Check(V3.Dot(stand * (1 / stand.Length), skyward) > 0.95, "A semicircular arc stands skyward at its ends, as an arch does");
 var flat = Arch.Circular(new V3(), new V3(4,0,0), 0); Check(Near(flat(0.5), new V3(2,0,0)), "An arc with no height is straight");
-Reject(() => Arch.Upright(new V3(), new V3(0,3,0), 1, 1), "An arch needs its ends apart horizontally");
-var low = Arch.Upright(new V3(), new V3(6,0,0), 1, 2); Check(Near(low(0.5), new V3(3,1,0)) && Enumerable.Range(0, 101).All(i => low(i / 100.0).Y <= 1 + 1e-9), "A low arch's legs never rise past its top");
+Reject(() => Arch.Circular(new V3(), new V3(0,3,0), 1), "An arch needs its ends apart horizontally");
 
 // Exercise the real reflection bridge through reloads, missing/old dependencies, and failure replies.
 var link = new Planner(); var player = new Player();
@@ -230,6 +178,81 @@ extended.InputAvailable=false;Check(!link.Available(player),"Concurrent planner 
 extended.InputAvailable=true;Check(link.Available(player),"Input resumes after planner placement ends");
 Chainloader.PluginInfos[Planner.Guid].Instance=new MockPlanner();
 Check(link.Ready()&&!link.Extended&&link.Available(player)&&!link.AtRay(player,new Vector3(),new Vector3(),out _,out _,out _,out _,out _),"Original v1 planner retains Curve support without stale extended calls");
+// Curve: a path through any number of markers, straight to fully curved, open or closed.
+{
+    var two = new List<V3>{ new V3(0,0,0), new V3(6,0,0) };
+    var line = Curve.Plan(Spline.Path(two,false,1),2,false,false,Spline.MaximumLength);
+    Check(line.Count==3 && Near(line[0].Start,two[0]) && Near(line[^1].End,two[1]), "Two markers make a straight line, ends met");
+    foreach (Segment g in line) Check(Math.Abs(g.Start.Y)<1e-9 && Math.Abs(g.Start.Z)<1e-9 && Math.Abs(g.End.Z)<1e-9, "Two markers stay on the straight line");
+    var pts = new List<V3>{ new V3(0,0,0), new V3(6,0,4), new V3(12,0,0), new V3(18,0,5), new V3(24,1,0) };
+    foreach (double c in new[]{0.0,0.3,1.0})
+    foreach (bool closed in new[]{false,true})
+    {
+        var path = Spline.Path(pts,closed,c);
+        Check(Near(path(0),pts[0]) && Near(path(1),closed?pts[0]:pts[^1]), "Path starts at the first marker and ends at the last (or back at the first)");
+        for (int i=0;i<Spline.Sides(pts.Count,closed);i++)
+        {
+            var side = Spline.Side(pts,closed,c,i);
+            Check(Near(side(0),pts[i]) && Near(side(1),pts[(i+1)%pts.Count]), "Each side runs marker to marker");
+            if (c==0) Check(Near(side(0.5),(pts[i]+pts[(i+1)%pts.Count])*0.5), "No curve: straight sides");
+        }
+    }
+    // Smooth through a marker (the same direction either side) when curved; a corner when straight.
+    V3 Dir(Func<double,V3> f,double t,double h){ V3 d=f(t+h)-f(t-h); return d*(1/d.Length); }
+    var s1=Spline.Side(pts,false,1,0); var s2=Spline.Side(pts,false,1,1);
+    Check(V3.Dot(Dir(s1,1-1e-4,1e-5),Dir(s2,1e-4,1e-5))>0.999, "A full curve passes smoothly through each marker");
+    var c1=Spline.Side(pts,false,0,0); var c2=Spline.Side(pts,false,0,1);
+    Check(V3.Dot(Dir(c1,0.5,0.01),Dir(c2,0.5,0.01))<0.9, "No curve keeps the corner");
+    // Three evenly spaced markers on a parabola give that parabola.
+    var para=new List<V3>{ new V3(-4,0,16), new V3(0,0,0), new V3(4,0,16) };
+    var pp=Spline.Path(para,false,1);
+    for (double t=0.05;t<1;t+=0.1){ V3 q=pp(t); Check(Math.Abs(q.Z-q.X*q.X)<0.6, "Three markers fit a natural curve"); }
+    // Sides laid one by one at 0%: every corner is a piece's end.
+    var square=new List<V3>{ new V3(0,0,0), new V3(8,0,0), new V3(8,0,8), new V3(0,0,8) };
+    var walls=new List<Segment>();
+    for (int i=0;i<4;i++) walls.AddRange(Curve.Plan(Spline.Side(square,true,0,i),2,true,false,Spline.MaximumLength));
+    Check(walls.Count==16, "A closed 8 m square takes 16 two-metre walls");
+    foreach (V3 corner in square) Check(walls.Count(w=>Near(w.Start,corner))==1 && walls.Count(w=>Near(w.End,corner))==1, "Each corner is where two sides' walls meet");
+    // A smooth closed loop: evenly round, every piece native length, joints close.
+    var loop=Curve.Plan(Spline.Path(square,true,1),2,false,true,Spline.MaximumLength);
+    Check(loop.Count>=16 && loop.Count<=20, "A loop takes about its length in pieces");
+    foreach (Segment g in loop) Check(Math.Abs((g.End-g.Start).Length-2)<1e-7, "Loop pieces keep native length");
+    for (int i=0;i<loop.Count;i++) Check((loop[(i+1)%loop.Count].Start-loop[i].End).Length<0.5, "Loop pieces join all the way round");
+    // Upright (level) pieces: spaced across the ground, each at the lower of its ends' heights.
+    var slope=new List<V3>{ new V3(0,0,0), new V3(8,4,0) };
+    var steps=Curve.Plan(Spline.Path(slope,false,1),2,true,false,Spline.MaximumLength);
+    Check(steps.Count==4, "Upright pieces are spaced by their run across the ground");
+    foreach (Segment g in steps) Check(Math.Abs(g.Start.Y-g.End.Y)<1e-9 && Math.Abs((g.End-g.Start).Length-2)<1e-7, "Upright segments are level and native length");
+    Check(Math.Abs(steps[0].Start.Y)<1e-9 && Math.Abs(steps[3].Start.Y-3)<1e-6, "Each upright piece stands at the lower of its ends");
+    Reject(()=>Curve.Plan(Spline.Path(new List<V3>{new V3(0,0,0),new V3(0,6,0)},false,1),2,true,false,Spline.MaximumLength), "Upright pieces need a shape that runs sideways");
+    Reject(()=>Spline.Path(new List<V3>{new V3(0,0,0),new V3(1,0,0)},true,1), "A loop needs three markers");
+    Reject(()=>Spline.Path(new List<V3>{new V3(0,0,0),new V3(0.05,0,0),new V3(3,0,0)},false,1), "Markers on top of each other rejected");
+    Reject(()=>Spline.Path(pts,false,1.5), "Curve above 100% rejected");
+    // Circle: level round the centre at the edge point's height, from the edge point; pieces evenly round it.
+    var ring2=Spline.Circle(new V3(5,0,5),new V3(9,2,5));
+    Check(Near(ring2(0),new V3(9,2,5)) && Near(ring2(1),new V3(9,2,5)), "A circle starts and ends at the edge point");
+    for (double t=0;t<1;t+=0.05) Check(Math.Abs((ring2(t)-new V3(5,2,5)).Length-4)<1e-9, "Every point of a circle is the radius from its centre, at the edge's height");
+    var circlePieces=Curve.Plan(ring2,2,false,true,Spline.MaximumLength);
+    Check(circlePieces.Count==13 && circlePieces.All(g=>Math.Abs((g.End-g.Start).Length-2)<1e-7), "A 4 m circle takes 13 two-metre pieces");
+    Reject(()=>Spline.Circle(new V3(),new V3(0.1,3,0)), "A circle needs an edge away from its centre");
+    Reject(()=>Spline.Circle(new V3(),new V3(50,0,0)), "A circle's size is bounded");
+    // Gaps (what Repeat did): as few pieces as fit with no more than the gap between, the gaps even, the outer ends on the ends.
+    var straight10=new List<V3>{ new V3(0,0,0), new V3(10,0,0) };
+    var spaced=Curve.Plan(Spline.Path(straight10,false,1),1,false,false,Spline.MaximumLength,2);
+    Check(spaced.Count==4 && Near(spaced[0].Start,new V3(0,0,0)) && Near(spaced[^1].End,new V3(10,0,0)), "Ten metres of one-metre pieces with gaps up to 2 m take four, ends met");
+    for (int i=1;i<spaced.Count;i++) Check(Math.Abs((spaced[i].Start-spaced[i-1].End).Length-2)<1e-6, "The gaps come out even");
+    foreach (double g in new[]{0.1,0.5,1.5,4.0})
+    {
+        var pieces=Curve.Plan(Spline.Path(pts,false,1),1,false,false,Spline.MaximumLength,g);
+        foreach (Segment piece in pieces) Check(Math.Abs((piece.End-piece.Start).Length-1)<1e-7, "Spaced pieces keep native length");
+        Check(Near(pieces[0].Start,pts[0]) && Near(pieces[^1].End,pts[^1]), "Spaced pieces meet both ends of a curve");
+        var ring=Curve.Plan(Spline.Path(square,true,1),1,true,true,Spline.MaximumLength,g);
+        for (int i=0;i<ring.Count;i++) Check((ring[(i+1)%ring.Count].Start-ring[i].End).Length<=g+0.05, "Round a loop, no gap is over the chosen one");
+    }
+    var tight=Curve.Plan(Spline.Path(square,true,1),2,false,true,Spline.MaximumLength,3);
+    Check(tight.Count>=3, "With gaps a tight loop still lays (pieces needn't meet)");
+    Reject(()=>Curve.Plan(Spline.Path(straight10,false,1),1,false,false,Spline.MaximumLength,-1), "Negative gaps rejected");
+}
 Console.WriteLine($"Passed {checks} curve geometry and planner reload/dependency checks.");
 
 class OldPlanner : BepInEx.BaseUnityPlugin { }

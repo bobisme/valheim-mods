@@ -21,7 +21,7 @@ namespace BuildShapes
 
         private void UpdateShapeHints() // (from LateUpdate: after the game has set its own hints up for the frame)
         {
-            bool show = _hintPin != null && Player.m_localPlayer != null || _tool != Tool.None && !_radial && !_repeatMenu && Ready(Player.m_localPlayer) && _planner.Available(Player.m_localPlayer);
+            bool show = _hintPin != null && Player.m_localPlayer != null || _tool != Tool.None && !_radial && Ready(Player.m_localPlayer) && _planner.Available(Player.m_localPlayer);
             if (!show) { HideShapeHints(); return; }
             Transform build = KeyHints.instance != null && KeyHints.instance.m_buildHints != null ? KeyHints.instance.m_buildHints.transform : null;
             Transform game = build != null ? build.Find("Keyboard") : null;
@@ -42,30 +42,37 @@ namespace BuildShapes
             string ctrl = "Ctrl", plan = KeyName(_plan.Value);
             Add("Marker", "Mouse-1");
             if (HintTool == Tool.Mirror) { Add("Select", ctrl, "Mouse-1"); Add("Unselect last", ctrl, KeyName(_back.Value)); }
-            if (HintTool == Tool.Repeat) Add("Copy", ctrl, "Mouse-1");
             bool full = _hintPin != null && _hintFull;
-            if (ShapeReady || full)
+            if (ShapeReady || full) Add("Plan", plan);
+            if (ShapeScrolls || full)
             {
-                Add("Plan", plan);
-                if (ShapeScrolls || full && HintTool != Tool.Mirror) Add("Turn", "wheel");
-                if (HintTool == Tool.Arch || HintTool == Tool.Arc) Add("Height", ctrl, "wheel");
-                if (HintTool == Tool.Repeat) Add("Spacing", ctrl, "wheel");
+                if (HintTool != Tool.Mirror) { Add("Roll", "wheel"); Add("Turn", "Shift", "wheel"); }
+                if (HintTool == Tool.Arch) Add("Height", ctrl, "wheel");
+                if (HintTool == Tool.Curve && (_markers.Count > 2 || full)) Add("Curve", ctrl, "wheel");
+                if (HintTool != Tool.Mirror) Add("Gap", ctrl, "Shift", "wheel");
             }
-            if (HintTool == Tool.Repeat && (_markers.Count == 3 || full)) Add("Options", KeyName(_options.Value));
             if (_markers.Count > 0 || full) { Add("Back", KeyName(_back.Value)); Add("Clear", "Delete"); }
             if (_lastPlan != null || full) Add("Undo", KeyName(_undo.Value));
             Add("Shapes", "Hold " + KeyName(_radialKey.Value));
-            Add("Exit", "Escape");
             return hints;
         }
         private string HintStatus()
         {
             string Warm(string text) => "<color=#FFDB8C>" + text + "</color>";
-            var parts = new List<string> { _output.Count > 0 ? $"{_output.Count} pieces" : $"{_markers.Count}/{RequiredMarkers} markers" };
-            if (HintTool == Tool.Arch || HintTool == Tool.Arc) parts.Add($"height {_archRise:0.##} m (Shift: finer)");
-            if (HintTool == Tool.Repeat) { parts.Add($"spacing {SafeSpacing():0.##} m (Shift: finer)"); parts.Add($"turned {_yaw:0.#}°"); parts.Add((_follow.Value ? "following the curve" : "fixed turn") + " (Home)"); }
-            else if (HintTool == Tool.Mirror) parts.Add($"{_sources.Count} selected");
-            else parts.Add($"turned {_shapeRoll:0.#}°");
+            var parts = new List<string> { _output.Count > 0 ? $"{_output.Count} pieces" : HintTool == Tool.Curve ? $"{_markers.Count} markers" : $"{_markers.Count}/{RequiredMarkers} markers" };
+            if (HintTool == Tool.Circle && _markers.Count == 2)
+                parts.Add($"radius {Vector3.ProjectOnPlane(_markers[1] - _markers[0], Vector3.up).magnitude:0.##} m");
+            if (HintTool == Tool.Circle) parts.Add((!_upright ? "along the circle" : UprightPossible() ? "upright" : "side by side") + " (Home)");
+            if (HintTool == Tool.Curve)
+            {
+                if (_closed) parts.Add("a closed loop");
+                if (_markers.Count > 2) parts.Add(_curve > 0 ? $"curve {_curve * 100:0}%" : "straight sides, sharp corners");
+                parts.Add((!_upright ? "along the curve" : UprightPossible() ? "upright" : "side by side") + " (Home)");
+            }
+            if (HintTool == Tool.Arch) parts.Add($"height {_archRise:0.##} m");
+            if (HintTool != Tool.Mirror) parts.Add(_gap > 0 ? $"gaps up to {_gap:0.##} m" : "no gaps");
+            if (HintTool == Tool.Mirror) parts.Add($"{_sources.Count} selected");
+            else { parts.Add($"rolled {_shapeRoll:0.#}°"); parts.Add($"turned {_pieceTurn:0.#}°"); }
             string line = Warm(HintTool.ToString()) + "   " + string.Join("  ·  ", parts);
             return _previewError != null ? line + "\n<color=#FF9E6B>" + _previewError + "</color>" : line;
         }

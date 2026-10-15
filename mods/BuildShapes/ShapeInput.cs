@@ -7,17 +7,32 @@ using UnityEngine.Rendering;
 
 namespace BuildShapes
 {
-    // How every shape tool is driven once its markers are down: the real pieces show, the scroll wheel turns them (in the game's own
-    // 22.5° steps), Ctrl+scroll changes Arch's height or Repeat's spacing (Shift with it for fine steps), E plans, Delete clears
-    // the shape and keeps the tool. Repeat's full options (anchor, pitch, roll, exact values) open on the options key.
+    // How every shape tool is driven once its markers are down: the pieces show, the scroll wheel rolls them about their length and
+    // Shift+scroll turns each about its up (in the game's own 22.5° steps), Ctrl+scroll sets Curve's roundness or Arch's
+    // height, Ctrl+Shift+scroll the gap between pieces, E plans, Delete clears the shape and keeps the tool.
     public sealed partial class Plugin
     {
         private const float TurnStep=22.5f;
-        private float _shapeRoll; // Curve, Arch, Line: the pieces turned about their own length (kept until the tool closes)
+        private float _shapeRoll; // Curve, Arch, Circle: the pieces rolled about their own length (kept until the tool closes)
+        private float _pieceTurn; // Curve, Arch, Circle: each piece turned about its own up, on its middle (Shift+scroll)
         private bool _archRiseSet;
         private float _archRise;
-        private bool ShapeReady=>_tool!=Tool.None && _markers.Count==RequiredMarkers && _output.Count>0;
-        private bool ShapeScrolls=>ShapeReady && _tool!=Tool.Mirror;
+        private bool ShapeReady=>_tool!=Tool.None && MarkersDone && _output.Count>0;
+        // Curve: closed back to its first marker; how round it runs through its markers (Ctrl+scroll, 0 to 1); its pieces upright
+        // (plumb, turned only to follow it: walls) or along it in 3D (beams, pillars), switched with Home.
+        private bool _closed,_upright; // (_upright on a piece standing up its length, a pole or pillar: side by side along the curve)
+        private float _curve=1;
+        // Curve, Arch, Circle: the most room between pieces (Ctrl+Shift+scroll); the pieces still meet both ends, so it shrinks evenly to fit.
+        private float _gap;
+        private const float MaximumGap=16;
+        // 0.1 m a notch up to a metre, then 0.25 m to four, then half a metre.
+        private static float GapStep(float gap,float sign)
+        {
+            float step=gap+(sign>0?0.001f:-0.001f)<1?0.1f:gap+(sign>0?0.001f:-0.001f)<4?0.25f:0.5f;
+            return Mathf.Clamp((float)System.Math.Round((gap+sign*step)/step)*step,0,MaximumGap);
+        }
+        // (the wheel works whenever the markers are down, also while the shape can't be laid: a bend too tight, a height too low, so it can be turned back)
+        private bool ShapeScrolls=>_tool!=Tool.None && MarkersDone && _tool!=Tool.Mirror;
         internal static bool ShapeTakesScroll=>Instance!=null && Instance.ShapeScrolls && Instance.ReservesHammer && !OptionsMenuOpen;
         private static int _enterFrame=-1; // (planning clears the shape, so the game may look after it, in the same frame)
         private static bool _confirmHeld;  // (the confirm key, still held after planning: E's hold-to-use waits for it to be let go)
@@ -30,7 +45,7 @@ namespace BuildShapes
                 if(Instance==null)return false;
                 if(_confirmHeld && !Input.GetKey(Instance._plan.Value))_confirmHeld=false;
                 return _enterFrame==Time.frameCount || _confirmHeld ||
-                    Instance.ReservesHammer && Input.GetKeyDown(Instance._plan.Value) && (Instance.ShapeReady || Instance._repeatMenu);
+                    Instance.ReservesHammer && Input.GetKeyDown(Instance._plan.Value) && Instance.ShapeReady;
             }
         }
 
@@ -38,22 +53,130 @@ namespace BuildShapes
         private bool UpdateShapeKeys(Player player)
         {
             if(Input.GetKeyDown(KeyCode.Delete))
-            {CloseRepeatMenu();_markers.Clear();_sources.Clear();_archRiseSet=false;Preview();Say($"{_tool} cleared. Click to start again.");return true;}
-            if(_tool==Tool.Repeat && _markers.Count==3 && Input.GetKeyDown(_options.Value)){OpenRepeatMenu();return true;}
-            if(!ShapeReady)return false;
+            {_markers.Clear();_sources.Clear();_archRiseSet=false;_closed=false;Preview();Say($"{_tool} cleared. Click to start again.");return true;}
+            if((_tool==Tool.Curve || _tool==Tool.Circle) && Input.GetKeyDown(KeyCode.Home))
+            {
+                _upright=!_upright;Preview();
+                Say(!_upright?"Pieces lie along the curve, following it in 3D.":UprightPossible()?"Pieces stand upright, end to end, turning to follow the curve.":"Pieces stand side by side along the curve.");return true;
+            }
+            if(!MarkersDone)return false;
             float wheel=Input.mouseScrollDelta.y;
             if(wheel!=0 && ShapeScrolls)
             {
-                float sign=wheel>0?1:-1;bool ctrl=Input.GetKey(KeyCode.LeftControl)||Input.GetKey(KeyCode.RightControl),fine=Input.GetKey(KeyCode.LeftShift)||Input.GetKey(KeyCode.RightShift);
-                if(ctrl && (_tool==Tool.Arch || _tool==Tool.Arc))_archRise=Mathf.Clamp((float)System.Math.Round(_archRise+sign*(fine?0.05f:0.25f),2),0,Arch.MaximumRise);
-                else if(ctrl && _tool==Tool.Repeat)_spacing.Value=Mathf.Clamp((float)System.Math.Round(SafeSpacing()+sign*(fine?0.05f:0.25f),2),0.25f,16f);
+                float sign=wheel>0?1:-1;bool ctrl=Input.GetKey(KeyCode.LeftControl)||Input.GetKey(KeyCode.RightControl),shift=Input.GetKey(KeyCode.LeftShift)||Input.GetKey(KeyCode.RightShift);
+                if(ctrl && shift)_gap=GapStep(_gap,sign);
+                else if(ctrl && _tool==Tool.Curve)_curve=Mathf.Clamp((float)System.Math.Round(_curve+sign*0.1f,1),0,1);
+                else if(ctrl && _tool==Tool.Arch)_archRise=Mathf.Clamp((float)System.Math.Round(_archRise+sign*0.25f,2),0,Arch.MaximumRise);
                 else if(ctrl)return false;
-                else if(_tool==Tool.Repeat)_yaw=Mathf.Repeat(_yaw+sign*TurnStep,360);
+                else if(shift)_pieceTurn=Mathf.Repeat(_pieceTurn+sign*TurnStep,360);
                 else _shapeRoll=Mathf.Repeat(_shapeRoll+sign*TurnStep,360);
                 Preview();return true;
             }
-            if(Time.unscaledTime-_lastAction>0.5f && Input.GetKeyDown(_plan.Value)){_enterFrame=Time.frameCount;_confirmHeld=true;_lastAction=Time.unscaledTime;Submit(player);return true;}
+            if(ShapeReady && Time.unscaledTime-_lastAction>0.5f && Input.GetKeyDown(_plan.Value)){_enterFrame=Time.frameCount;_confirmHeld=true;_lastAction=Time.unscaledTime;Submit(player);return true;}
             return false;
+        }
+        // Curve: two markers make a straight line, more a curve through them all in order; closed, back through the first. At 0%
+        // curve the sides are straight and each is laid on its own, so its pieces end at the corners (walls meet there); otherwise
+        // the pieces run on along the whole curve (or evenly round the loop).
+        private void PreviewCurve()
+        {
+            var points=_markers.Select(V).ToList();
+            bool sideBySide=_upright && !UprightPossible();
+            float length=sideBySide?SideWidth(out _):(_localEnd-_localStart).magnitude;
+            var segments=new System.Collections.Generic.List<Segment>();
+            if(_curve==0 && points.Count>2)
+                for(int i=0;i<Spline.Sides(points.Count,_closed);i++)segments.AddRange(Curve.Plan(Spline.Side(points,_closed,0,i),length,_upright,false,Spline.MaximumLength,_gap));
+            else segments=Curve.Plan(Spline.Path(points,_closed,_curve),length,_upright,_closed,Spline.MaximumLength,_gap);
+            if(segments.Count>Curve.MaximumPieces)throw new System.ArgumentException("The shape is over 256 pieces.");
+            if(sideBySide)AddSideBySide(segments);else if(_upright)AddUpright(segments);else AddAlong(segments);
+        }
+        // Circle: round the centre (the first marker), level at the edge point's height (the second), from the edge point; the
+        // pieces go evenly all the way round (as a closed Curve's do), with the same rolls, turns, gaps and Home.
+        private void PreviewCircle()
+        {
+            Vector3 centre=_markers[0],edge=_markers[1];
+            System.Func<double,V3> path=Spline.Circle(V(centre),V(edge));
+            bool sideBySide=_upright && !UprightPossible();
+            float length=sideBySide?SideWidth(out _):(_localEnd-_localStart).magnitude;
+            var segments=Curve.Plan(path,length,_upright,true,Spline.MaximumLength,_gap);
+            if(sideBySide)AddSideBySide(segments);else if(_upright)AddUpright(segments);else AddAlong(segments);
+            // The radius, faint: centre to edge.
+            Line(new[]{new Vector3(centre.x,edge.y,centre.z),edge},0.03f);
+        }
+        // Each piece's length along its segment, in 3D, its top kept as near the sky as the segment allows (so pieces don't twist
+        // about the curve: a block's faces stay the way up they were); where a segment runs straight up, its top carries on from the
+        // nearest piece that doesn't. The scroll wheel then turns each piece about its own length, through its end snaps.
+        private void AddAlong(System.Collections.Generic.IList<Segment> segments)
+        {
+            Vector3 axis=(_localEnd-_localStart).normalized;
+            Vector3 top=Vector3.ProjectOnPlane(Mathf.Abs(axis.y)<0.9f?Vector3.up:Vector3.forward,axis).normalized; // (the piece's own top, square to its length)
+            Quaternion local=Quaternion.LookRotation(axis,top);
+            var alongs=segments.Select(g=>V(g.End-g.Start).normalized).ToList();
+            var skies=alongs.Select(d=>Mathf.Abs(Vector3.Dot(d,Vector3.up))<0.999f?Vector3.ProjectOnPlane(Vector3.up,d).normalized:Vector3.zero).ToList();
+            Vector3 carried=skies.FirstOrDefault(v=>v!=Vector3.zero);
+            if(carried==Vector3.zero)carried=Vector3.forward; // (a straight upright run: any side will do)
+            for(int i=0;i<segments.Count;i++)
+            {
+                Vector3 along=alongs[i],sky=skies[i]!=Vector3.zero?skies[i]:Vector3.ProjectOnPlane(carried,along).normalized;
+                carried=sky;
+                Quaternion rotation=Quaternion.AngleAxis(_shapeRoll,along)*Quaternion.LookRotation(along,sky)*Quaternion.Inverse(local);
+                AddTurned(segments[i],rotation,sky,_localStart,_localEnd);
+            }
+        }
+        // Upright: each piece only turned about the vertical to follow its (level) segment, standing on it by the bottom of its end
+        // faces; the scroll wheel still turns it about its length.
+        private void AddUpright(System.Collections.Generic.IEnumerable<Segment> segments)
+        {
+            PieceEnds(_selected,out _,out _,out _,out Vector3 lowStart,out Vector3 lowEnd);
+            Vector3 flat=Vector3.ProjectOnPlane(lowEnd-lowStart,Vector3.up);
+            foreach(Segment segment in segments)
+            {
+                Vector3 along=V(segment.End-segment.Start);
+                Quaternion rotation=Quaternion.AngleAxis(_shapeRoll,along.normalized)*Quaternion.AngleAxis(Vector3.SignedAngle(flat,along,Vector3.up),Vector3.up);
+                AddTurned(segment,rotation,Vector3.up,lowStart,lowEnd);
+            }
+        }
+        // A piece laid on its segment (its ends start and end, as rotated, on the segment's), then turned by Shift+scroll about up
+        // through its middle, so it stays on the curve.
+        private void AddTurned(Segment segment,Quaternion rotation,Vector3 up,Vector3 start,Vector3 end)
+        {
+            Vector3 middle=(start+end)*0.5f,at=V((segment.Start+segment.End)*0.5);
+            rotation=Quaternion.AngleAxis(_pieceTurn,up)*rotation;
+            _output.Add(new PiecePose(null,_selected,at-rotation*middle,rotation));
+        }
+        // Side by side: a piece standing up its length (a pole, a pillar) upright on each level segment, its widest side across the
+        // ground along the curve, standing on it by its foot; scroll rolls it about the curve at its foot, Shift+scroll turns it.
+        private void AddSideBySide(System.Collections.Generic.IEnumerable<Segment> segments)
+        {
+            SideWidth(out Vector3 across);
+            Vector3 foot=_localStart.y<=_localEnd.y?_localStart:_localEnd;
+            foreach(Segment segment in segments)
+            {
+                Vector3 along=V(segment.End-segment.Start).normalized,at=V((segment.Start+segment.End)*0.5);
+                Quaternion rotation=Quaternion.AngleAxis(_pieceTurn,Vector3.up)*Quaternion.AngleAxis(_shapeRoll,along)*Quaternion.AngleAxis(Vector3.SignedAngle(across,along,Vector3.up),Vector3.up);
+                _output.Add(new PiecePose(null,_selected,at-rotation*foot,rotation));
+            }
+        }
+        // How much curve a standing piece takes: its wider side across the ground (X on a square one), and which way that runs.
+        private float SideWidth(out Vector3 across)
+        {
+            Vector3 size=LocalBounds(_selected).size;
+            across=size.z>size.x+0.001f?Vector3.forward:Vector3.right;
+            return Mathf.Clamp(Mathf.Max(size.x,size.z),0.1f,8f);
+        }
+        // Upright works for a piece that lies along its length (a wall, a beam, a block), not one standing up it (a pillar).
+        private bool UprightPossible()
+        {
+            Vector3 axis=_localEnd-_localStart;
+            return axis.sqrMagnitude>0 && Vector3.ProjectOnPlane(axis,Vector3.up).magnitude>0.9f*axis.magnitude;
+        }
+        // Walls start upright: lying along their length, at least twice as tall as they're thick. Poles and pillars start side by side.
+        private bool UprightByDefault(string name)
+        {
+            if(!UprightPossible())return true;
+            Vector3 axis=_localEnd-_localStart,size=LocalBounds(name).size;
+            float thick=Mathf.Abs(axis.x)>=Mathf.Abs(axis.z)?size.z:size.x;
+            return size.y>2*thick;
         }
         // The preview: as an architect's watercolour (mods/Shared/Sketch, as Hallwright drafts are), or the pieces as they'll look
         // (PreviewStyle). Their own meshes either way: no colliders, no cost, nothing in the world. A shape draws itself in, along its

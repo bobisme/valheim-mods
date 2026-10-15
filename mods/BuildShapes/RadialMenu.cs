@@ -12,6 +12,7 @@ namespace BuildShapes
         private const float RadialHold=0.35f,RadialDeadzone=45,RadialRadius=190;
         private bool _radial;
         internal static bool RadialOpen=>Instance!=null && Instance._radial;
+        internal static bool RadialKeyIsCtrl=>Instance!=null && Instance._enabled.Value && Instance._radialKey.Value==KeyCode.LeftControl;
         private float _radialKeyAt=-1;
         private bool _radialKeyUsed;
         private int _radialHover=-1;
@@ -22,22 +23,20 @@ namespace BuildShapes
             Piece piece=Player.m_localPlayer?.GetSelectedPiece();
             string selected=piece!=null?Utils.GetPrefabName(piece.gameObject):"";
             string beam=selected!="" && PieceEnds(selected,out _,out _,out string problem)?null:"no length";
-            string extended=_planner.Extended?null:"Update BuildOrders for Mirror and Repeat.";
+            string extended=_planner.Extended?null:"Update BuildOrders for Mirror.";
             var items=new List<RadialItem>
             {
-                new RadialItem{Tool=Tool.Curve,Label="Curve",Detail="Start, bend, end: a free curve.",Reason=beam},
-                new RadialItem{Tool=Tool.Arch,Label="Arch",Detail="Two ends; rises straight up from them.",Reason=beam},
-                new RadialItem{Tool=Tool.Arc,Label="Arc",Detail="Two ends; a circle through its top.",Reason=beam},
-                new RadialItem{Tool=Tool.Line,Label="Line",Detail="Two ends; straight, at any slope or upright.",Reason=beam},
+                new RadialItem{Tool=Tool.Curve,Label="Curve",Detail="Click points: a line, then a curve through them.",Reason=beam},
+                new RadialItem{Tool=Tool.Arch,Label="Arch",Detail="Two ends; a circle through its top.",Reason=beam},
+                new RadialItem{Tool=Tool.Circle,Label="Circle",Detail="The centre, then a point on the edge.",Reason=beam},
                 new RadialItem{Tool=Tool.Mirror,Label="Mirror",Detail="Reflect pieces across a line.",Reason=extended},
-                new RadialItem{Tool=Tool.Repeat,Label="Repeat",Detail="This piece, again and again along a curve.",Reason=extended},
             };
             // Only what works with the piece in hand.
             items.RemoveAll(i=>i.Reason!=null);
             if(_tool!=Tool.None)items.Add(new RadialItem{Label="Normal building",Detail="Leave the shape tool.",Exit=true});
             return items;
         }
-        private void OpenRadial(){CloseRepeatMenu();_radial=true;_radialHover=-1;_radialOpenedAt=Time.unscaledTime;_menuOpenedFrame=Time.frameCount;Cursor.lockState=CursorLockMode.None;Cursor.visible=true;}
+        private void OpenRadial(){_radial=true;_radialHover=-1;_radialOpenedAt=Time.unscaledTime;Cursor.lockState=CursorLockMode.None;Cursor.visible=true;}
         private void CloseRadial(){_radial=false;_radialHover=-1;_radialPinned=-2;}
         private int _radialPinned=-2; // (a Claude Tools test: held open with this wedge lit, -1 for none)
         private int RadialHoverIndex(int count)
@@ -58,7 +57,7 @@ namespace BuildShapes
             {
                 if(held && (click || wheel!=0))_radialKeyUsed=true;
                 if(!held){_radialKeyAt=-1;return false;}
-                if(!_radialKeyUsed && _radialKeyAt>=0 && !_repeatMenu && Time.unscaledTime-_radialKeyAt>=RadialHold)
+                if(!_radialKeyUsed && _radialKeyAt>=0 && Time.unscaledTime-_radialKeyAt>=RadialHold)
                 {
                     _radialKeyUsed=true;
                     if(RadialItems().Count==0){Say("No shapes for this piece.");return true;}
@@ -98,5 +97,22 @@ namespace BuildShapes
     internal static class RadialHidesBuildPanel
     {
         private static void Postfix(Hud __instance){if(Plugin.RadialOpen && __instance.m_buildHud!=null)__instance.m_buildHud.SetActive(false);}
+    }
+}
+namespace BuildShapes
+{
+    // Holding Left Ctrl in build mode makes the game ripple its placement ghost (a wobble on the ghost's material, nothing more).
+    // Ctrl is the shape radial's key, so with the hammer that wobble stays off.
+    [HarmonyPatch(typeof(Player),"UpdatePlacement")]
+    internal static class RadialKeyNoRipple
+    {
+        private static readonly AccessTools.FieldRef<Player,System.Collections.Generic.Dictionary<Material,float>> Ripple=
+            AccessTools.FieldRefAccess<Player,System.Collections.Generic.Dictionary<Material,float>>("m_ghostRippleDistance");
+        private static bool Prepare()=>AccessTools.Field(typeof(Player),"m_ghostRippleDistance")!=null;
+        private static void Postfix(Player __instance)
+        {
+            if(__instance!=Player.m_localPlayer || !Plugin.RadialKeyIsCtrl || !ZInput.GetKey(KeyCode.LeftControl))return;
+            foreach(Material material in Ripple(__instance).Keys)if(material!=null)material.SetFloat("_RippleDistance",0f);
+        }
     }
 }

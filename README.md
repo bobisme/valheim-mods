@@ -965,83 +965,77 @@ wording, plus the game methods it calls. Not yet tried in the game. First playte
 
 Hallwright (timber halls, longhouses and stave temples) is [its own mod](#hallwright) since BuildShapes 0.9.0.
 
-Curve, Arch, Arc, Line, Mirror, and Repeat tools for **BuildOrders**, using normal pieces, materials, and support rules. The original Curve API has been
-merged upstream. Mirror/Repeat also need the new ghost-selection/input API; use the patched planner from [upstream PR #3](https://github.com/HardHeadHackerHead/valheim-mods/pull/3) until it merges. Curve still works with the original API release (BuildOrders 1.9.3 or newer). BuildShapes finds BuildOrders under its new id
+Curve, Arch, Circle and Mirror tools for **BuildOrders**, using normal pieces, materials, and support rules. The original Curve API has been
+merged upstream. Mirror also needs the new ghost-selection/input API; use the patched planner from [upstream PR #3](https://github.com/HardHeadHackerHead/valheim-mods/pull/3) until it merges. Curve still works with the original API release (BuildOrders 1.9.3 or newer). BuildShapes finds BuildOrders under its new id
 (`com.quad.buildorders`, from 1.12.1) or the old `com.dhack.buildorders`.
 The add-on reconnects to the live planner after F6 or individual reloads, without referencing its assembly.
 
 Equip a **hammer** and pick a building piece as usual, then **hold Left Ctrl** (about a third of a second, without clicking or
-scrolling) for the **shape radial**: flick towards **Curve**, **Arch**, **Arc**, **Line**, **Mirror** or **Repeat** and let go, or
+scrolling) for the **shape radial**: flick towards **Curve**, **Arch**, **Circle** or **Mirror** and let go, or
 click. It looks like the game's own radial (and borrows its gold crest and arc); it shows only the shapes that work with the
 piece in your hand, and **Build** leaves the shape tool. Letting go in the middle or **Escape** closes it.
 Choosing the shape you're in, with the same piece, keeps your markers; anything else starts afresh (submitted ghosts stay).
 
 | Controls (in a shape tool) | Action |
 | --- | --- |
-| **Hold Left Ctrl** | The shape radial |
+| **Hold Left Ctrl** | The shape radial (the game's own Ctrl wobble on the build ghost stays off) |
 | **Left click** | Place a marker |
-| **Scroll** | Turn the pieces (Curve, Arch, Arc, Line: about their length; Repeat: each piece), 22.5° a notch |
-| **Ctrl + scroll** | Arch/Arc: height; Repeat: spacing (hold Shift too for fine steps) |
-| **Left Ctrl + left click** | Mirror: toggle a source piece/ghost; Repeat: copy a source piece/ghost and its orientation |
+| **Scroll** | Roll the pieces about their length, 22.5° a notch |
+| **Shift + scroll** | Turn each piece about its own up, on its middle, 22.5° a notch |
+| **Ctrl + scroll** | Curve: how round it is (10% a notch); Arch: height (0.25 m a notch) |
+| **Ctrl + Shift + scroll** | The gap between pieces: none, or up to 16 m (0.1 m a notch to 1 m, 0.25 m to 4 m, then 0.5 m) |
+| **Home** | Curve, Circle: pieces standing (upright walls, side-by-side posts) or lying along the curve |
+| **Left Ctrl + left click** | Mirror: toggle a source piece/ghost |
 | **E** | Plan the shape as shared ghosts (what you're looking at isn't used then) |
 | **Delete** | Clear the shape and keep the tool |
-| **Backspace** | Remove the last marker (Left Ctrl + Backspace: Mirror's last selection) |
-| **O** | Repeat: open/close the full options |
+| **Backspace** | Remove the last marker, or open a closed Curve loop (Left Ctrl + Backspace: Mirror's last selection) |
 | **U** | Remove the last submitted shape's unbuilt ghosts |
-| **Escape** | Close the radial or options first, or leave the shape tool |
+| **Escape** | Close the radial, or leave the shape tool |
 
 Once a shape's markers are down, it shows as an **architect's watercolour sketch** (drawn the way Hallwright drafts are: pen strokes along every edge over a wash of each piece's own colour, on watercolour-paper grain), and draws itself in along the shape, ink first, when it's first complete; turning or reshaping it afterwards shows at once. Set `PreviewStyle` (F7, General) to `Pieces` to see the real pieces instead. Either way it's local only (no colliders, no cost), and what you see is what E plans.
 While a shape tool is out, its keys replace the game's key hints along the bottom of the screen, in the same look (labels and key caps), with a line above them for the shape, its markers and its settings.
 A slow Ctrl+click or Ctrl+scroll that opens the radial, with the pointer still in its middle, closes it and does what it would have done.
-The camera doesn't zoom while a shape is ready to turn. Keys are in F7 under Controls: `ShapeMenu`, `ConfirmShape`, `RepeatOptions`.
+The camera doesn't zoom while a shape is ready to turn. Keys are in F7 under Controls: `ShapeMenu`, `ConfirmShape`.
 
-**Curve:** pick any piece with a length (a beam, pole, stone block, wall piece or pillar) and click **start, bend, end**; the curve passes through the bend marker and works in 3D.
-Pieces keep their native lengths with overlapping joints; the first/last endpoints meet your markers. Shorter beams follow tighter
-bends. Pieces lie end to end along their own length (the axis their snap points spread furthest along: a stone block along the path, a pillar along its height; else the mesh's longest side), at original prefab scale and 0.25–8 metres long. Tight or degenerate
-bends are rejected before planning.
+**Curve:** pick any piece with a length (a beam, pole, stone block, wall piece or pillar) and click points. Two make a **straight line**
+(at any slope, or upright for a post of stacked poles); a third and more make a **curve through them all**, in the order you clicked.
+Keep clicking to go on (up to 64 points). Click the **first point again** (from three points on) to **close the loop**: the start becomes
+just another point on the curve, and the pieces go evenly all the way round. **E** plans at any point; Backspace removes the last point
+(or opens the loop again), Delete starts over. **Ctrl+scroll** sets how round the curve runs through its points, from 100% down to 0%
+(10% a notch, 2% with Shift): at 0% the sides are straight and meet in sharp corners, and each side is laid on its own, so pieces end
+exactly at the corners (walls meet there).
+**How the pieces follow it (Home):** *along the curve*, each piece's length follows the curve in 3D (beams, poles, pillars: a sloping
+curve gives sloping beams); or *upright*, each piece stands plumb and only turns to follow the curve, spaced by its run across the
+ground, standing by the bottom of its ends on the curve, at the lower end's height on a slope (walls, fences). A piece whose length
+runs up its height (a pole, a pillar) stands *side by side* instead: upright, spaced by its width along the curve, its foot on it
+(a palisade, a colonnade); Home lays it along the curve, which is how to stack poles into a tall post. Walls (at least twice as
+tall as they're thick) and poles and pillars start standing; everything else starts along the curve. Pieces lie end to end along their own
+length (the axis their snap points spread furthest along: a stone block along the path, a pillar along its height; else the mesh's
+longest side), at original prefab scale and 0.1–8 metres long, keeping their native length with the overlaps spread evenly and the
+outer pieces meeting the end points. A curve can be 256 m long; bends too tight for the piece are rejected before planning (use a
+shorter piece, or less curve for a corner). The old Line tool is gone: two Curve points are a line.
 
-**Arch:** pick a piece with a length and click **both ends**. The arch **rises straight up** from them: an upright leg one beam long at each
-end (three quarters of the height on a low arch), so the end beams stand plumb, then a half-ellipse between the legs' tops, a
-semicircle when it's half as high as it's wide. **Ctrl+scroll** sets the height above the middle of the line between the ends
-(0–32 m, 0.25 m a notch, 0.05 m with Shift); the gold guide marks the top. It starts as a semicircle. Unequal end heights work;
-the ends must be apart horizontally.
+**Arch:** pick a piece with a length and click **both ends**: the **circle** through both ends and its top, the ends leaning as
+the circle has them (a shallow arch leans a lot; a half-circle stands up at its ends). **Ctrl+scroll** sets the height above the middle
+of the line between the ends (0–32 m, 0.25 m a notch); the gold guide marks the top. It starts as a semicircle. Unequal end heights
+work; the ends must be apart horizontally. (This was Arc until BuildShapes 0.13.0; the old Arch, with plumb legs, is gone: Curve
+draws any arch you click.)
 
-**Arc:** the same clicks and height, but the **circle** through both ends and the top: the ends lean as the circle has them (a
-shallow arc leans a lot; a half-circle stands up at its ends).
+**Circle:** pick a piece and click the **centre**, then a **point on the edge**. The circle lies level at the edge point's height
+(up to 81 m across) and its pieces go evenly all the way round, as a closed Curve's do; Home, roll, turn and gaps work as in Curve
+(walls stand upright round it, posts side by side).
 
-**Line:** pick a piece with a length and click the **start and end**. Native-length beams run straight between your markers at any slope,
-or upright for a post of stacked poles; the first and last beams meet the markers and the overlaps are spread evenly between them.
-A line shorter than one beam asks for a shorter beam.
+**Gaps (what Repeat did):** **Ctrl+Shift+scroll** in Curve, Arch or Circle spaces the pieces out: the gap is the most room between two
+pieces, shrunk evenly so the outer pieces still meet both end points (round a loop, evenly all the way). With gaps, pieces needn't
+meet, so tight bends are fine. Any building piece 0.1–8 m long works, so a curve of posts, torches or banners with gaps is a row of
+them along it; standing posts and pillars go side by side, each turned to follow the curve. Repeat (and its options window: path
+anchors, exact pitch/roll, Ctrl+click to copy a piece's orientation) is gone since BuildShapes 0.13.0.
 
-**Mirror:** click **two points** to define a vertical mirror plane; only their horizontal direction matters. Ctrl+click
-built pieces or visible planner ghosts to select a group; click again to deselect. Thin wire boxes show the source selection, and
-the mirrored copies show as real pieces. E plans them; original pieces/ghosts stay intact. You can mark the line and select pieces
-in either order. The reflection axis and pivot compensation are chosen from each piece's native snap layout, with mesh bounds as a
-fallback. Triangular under-roof walls and sloped beams use their thickness axis; ordinary roofs keep their width axis, so wedge
-slopes and roof pitches mirror correctly. Asymmetric carvings, lettering, or handed decorations remain their original meshes:
-inspect the resulting ghosts before building those.
-
-**Repeat:** select a post, decoration, or other building piece and click **start, bend, end** for its path. **Scroll** turns each
-piece, **Ctrl+scroll** sets the spacing, **Home** switches turning with the curve, and Ctrl+click copies a built piece/visible
-ghost and its orientation. **O** opens the full options beside the preview with a free cursor: a **Path anchor** (piece origin,
-visual center, or a named native snap point such as Bottom/Top), **spacing**, **yaw**, **pitch** and **roll**. Use sliders for
-broad changes, or type an exact value and press **Enter** or **Apply**; the ± buttons adjust spacing by **0.05 m** and rotation by
-**1°**, with **Shift** for **0.01 m / 0.1°**. **E** plans from the panel too (applying unfinished entries first); **O** or Escape
-closes it, keeping the path.
-
-Spacing is a maximum, adjusted evenly along the curve to include both endpoints. Curve-following applies the change in horizontal
-heading relative to the first point; seed tilt and initial heading are preserved, then the chosen yaw/pitch/roll offsets are applied.
-An upright post stays upright with zero tilt offsets. A vertical tangent keeps the previous heading. The chosen anchor sits on the path
-after the final rotation, so a Bottom snap follows the path at the base of a post, or an end snap at the end of a beam. Gold crosses mark
-the anchor positions. Piece origin preserves the previous behavior; Visual center uses the mesh bounds. Sampling the same piece type
-keeps your anchor choice; choosing a different type resets it to Piece origin. This does not align pieces to terrain automatically.
-Mark a horizontal curve for a palisade, or an arch to repeat ribs/decorations in three dimensions.
-
-Curves are bounded to 128 metres and all shapes to 256 output pieces. Markers and selected source origins must be within 40 metres;
+Curves and circles are bounded to 256 metres round, Arch to 128, and all shapes to 256 output pieces. Markers and selected source origins must be within 40 metres;
 BuildOrders checks every output pose against its 80-metre reach, unlocks, wards, and no-build rules before accepting anything. Ghost
 selection uses visible ghost bounding boxes and respects nearer physical hits; it is approximate rather than precise mesh picking.
 Selections are pose snapshots: moving/removing a source afterward does not alter your preview. Scaled and terrain-operation pieces
-are excluded. Curve, Arch, Arc, Line, Mirror and Repeat never alter terrain. Pieces build through the normal planner rules.
+are excluded. Curve, Arch, Circle and Mirror never alter terrain. Pieces build through the normal planner rules.
 
 Choose **Build** in the radial, or press **Escape** outside the options, before building normally. Shape tools reserve normal hammer placement,
 and yield to planner blueprint/bridge placement and menus. The Plans window lists generated groups with Move/Level disabled.
@@ -1050,23 +1044,18 @@ can receive/build ghosts but still expose terrain actions on add-on groups.
 
 U removes only remaining ghosts; built pieces and terrain stay intact. Undo is one step across all shape tools in the current session,
 and clears on death/respawn, F6, or world changes. Saved/shared ghosts remain after the add-on unloads. Settings are in
-`BepInEx/config/com.bobisme.buildshapes.cfg`. Radial repeat and ornament presets are future additions.
+`BepInEx/config/com.bobisme.buildshapes.cfg`.
 
-Automated checks cover two-endpoint arch height/symmetry, curve/station geometry, independently integrated arc spacing, reflected tilted frames, offset pivots, 33 captured native snap layouts (including triangular gables), repeat
-bounds and vertical heading, plus reflection dispatch across original/extended/missing/reloaded planners. Shared-preview checks cover full-size packets, malformed data, revision ordering, clear/expiry/rejoin behavior, peer bounds and update cadence. The upstream API has separate
+Automated checks cover two-endpoint arch height/symmetry, curve geometry (paths through any number of points, open or closed, straight to fully curved, gaps, upright spacing), reflected tilted frames, offset pivots, 33 captured native snap layouts (including triangular gables), plus reflection dispatch across original/extended/missing/reloaded planners. Shared-preview checks cover full-size packets, malformed data, revision ordering, clear/expiry/rejoin behavior, peer bounds and update cadence. The upstream API has separate
 batch, ghost-ray, input-conflict, undo, and world tests. Rendering, multiplayer delivery, and fresh-launch behavior still need playtests:
 
 Open the shape radial (hold Left Ctrl) with no tool active and during each tool. Try flicking to each shape, letting go in the middle, Escape, Build, a quick Ctrl+click and a slow Ctrl+scroll, changing hammer piece, opening another menu, and F6. Radial clicks must never place/attack/mark.
 
-1. Curve a 1m/2m wood beam horizontally and vertically; compare center lines to submitted ghosts and normal support/material costs.
-2. Arch and Arc between two level and two unequal-height endpoints. Ctrl+scroll the height (with and without Shift); check the endpoints stay fixed, the Arch's end beams stand plumb and the Arc's lean. Scroll to turn the beams; E plans; Delete clears.
+1. Curve a 1m/2m wood beam through 2, 3 and 6 points, then close a loop; Ctrl+scroll the roundness to 0% and check pieces end at the corners. Lay wood walls (upright) round a loop on a slope, and poles side by side; Home switches each. Compare centre lines to submitted ghosts and normal support/material costs.
+2. Arch between two level and two unequal-height endpoints: Ctrl+scroll the height and check the endpoints stay fixed. Circle round a centre with walls, beams and posts; Home, gaps. Scroll rolls, Shift+scroll turns; E plans; Delete clears.
 3. Mirror a roof wing, triangular under-roof wall (including inverted variants), sloped beam, and offset-pivot beam across an oblique
    line. Check native snaps, wedge slopes, roof pitch, and copied versus original pieces.
-4. Repeat upright posts along a curve. Scroll and Ctrl+scroll; press O and confirm the cursor is free and spacing/yaw/pitch/roll/follow change the
-   preview, and slider clicks never move/look/attack/place. Enter fractional spacing/angles, use ± with/without Shift, and check that
-   sliders keep the precise value until dragged. Try invalid/out-of-range entries, Enter/Apply, and Confirm with a pending edit.
-   Choose a Bottom/Top/end snap and check that it stays on the path while
-   changing pitch/roll/yaw. Try Edit path, Escape/O, Cancel, E from the panel, then F6 with the panel open.
+4. Curve posts, torches and banners with gaps (Ctrl+Shift+scroll): check the gaps stay even, the end pieces stay on the end points, and a loop spaces evenly all the way round.
 5. Build one output piece, then U: only its remaining ghosts disappear. Try protected, distant, scaled, and terrain-operation pieces.
 6. F6, reload the planner independently, switch worlds, open inventory/F11, or begin a blueprint/bridge. Check input/preview cleanup.
 7. Have another player view/build shapes with the updated planner alone. Save/restart and confirm ghosts persist.

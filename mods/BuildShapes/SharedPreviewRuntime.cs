@@ -92,9 +92,11 @@ namespace BuildShapes
                 foreach(long id in _sharedParticipants)try{_sharedRpc?.InvokeRoutedRPC(id,SharedAliveRpc,_sharedWorld,_sharedRevision);}catch(Exception ex){Logger.LogDebug(ex.Message);}
             }
         }
+        // What a shared draft's tool byte is called here (older BuildShapes send tools that are gone or renamed).
+        private static string DraftName(byte tool)=>tool==5?"Hallwright":tool==(byte)Tool.UprightArch?"Arch":((Tool)tool).ToString();
         private SharedPreview CaptureSharedPreview(bool active)
         {
-            var p=new SharedPreview{World=_sharedWorld,Revision=++_sharedRevision,Tool=active?(byte)_tool:(byte)0,Center=SharePoint(Vector3.zero)};
+            var p=new SharedPreview{World=_sharedWorld,Revision=++_sharedRevision,Tool=active?(byte)(_tool==Tool.Circle?Tool.Curve:_tool):(byte)0 /* (a circle is sent as a curve: older BuildShapes reads only up to Arc, 7) */,Center=SharePoint(Vector3.zero)};
             if(!active)return p;
             Vector3 center=(_markers.Aggregate(Vector3.zero,(a,b)=>a+b))/_markers.Count;
             center.y=_markers.Max(v=>v.y)+3;
@@ -230,7 +232,7 @@ namespace BuildShapes
             {
                 if(!_sharedLines.TryGetValue(pair.Key,out var lines)||lines.Count==0||!lines[0].activeSelf)continue;
                 Vector3 screen=Camera.main.WorldToScreenPoint(ShareVector(pair.Value.Preview.Center));if(screen.z<=0)continue;
-                _sharedOnline.TryGetValue(pair.Key,out string name);GUI.Label(new Rect(screen.x-200,Screen.height-screen.y-18,400,28),(name??"Player")+" · "+(pair.Value.Preview.Tool==5?"Hallwright":((Tool)pair.Value.Preview.Tool).ToString())+" draft",_sharedLabel);
+                _sharedOnline.TryGetValue(pair.Key,out string name);GUI.Label(new Rect(screen.x-200,Screen.height-screen.y-18,400,28),(name??"Player")+" · "+DraftName(pair.Value.Preview.Tool)+" draft",_sharedLabel);
             }
         }
         private void ClearSharedMeshCache()

@@ -135,35 +135,30 @@ namespace BuildShapes
             {
                 case "Curve":
                 {
-                    Vector2 a=new Vector2(14,26),m=new Vector2(48,70),b=new Vector2(84,38),k=m*2-(a+b)*0.5f;
-                    ink.Path(Sample(t=>a*(1-t)*(1-t)+k*(2*t*(1-t))+b*(t*t)),W);ink.Dot(a.x,a.y,6);ink.Dot(m.x,m.y,6);ink.Dot(b.x,b.y,6);break;
+                    // A curve through four points (a Catmull-Rom spline, as the tool draws it).
+                    Vector2[] p={new Vector2(12,22),new Vector2(36,62),new Vector2(62,34),new Vector2(86,72)};
+                    Vector2 P(int i)=>i<0?p[0]*2-p[1]:i>3?p[3]*2-p[2]:p[i];
+                    ink.Path(Sample(t=>{float u=t*3;int i=Mathf.Min(2,(int)u);u-=i;Vector2 a=P(i-1),b=P(i),c=P(i+1),d=P(i+2);
+                        return 0.5f*(2*b+(c-a)*u+(2*a-5*b+4*c-d)*u*u+(3*b-a-3*c+d)*u*u*u);},90),W);
+                    foreach(Vector2 q in p)ink.Dot(q.x,q.y,6);break;
                 }
                 case "Arch":
-                    ink.Stroke(22,14,22,46,W);ink.Stroke(74,14,74,46,W);
-                    ink.Path(Sample(t=>new Vector2(48-26*Mathf.Cos(Mathf.PI*t),46+34*Mathf.Sin(Mathf.PI*t))),W);
-                    ink.Stroke(10,12,86,12,3);break;
-                case "Arc":
                 {
                     // Through (14,24), (48,62) and (82,24): its centre on x = 48.
                     float cy=(62f*62f-24f*24f-34f*34f)/(2*(62f-24f)),radius=62-cy,a0=Mathf.Atan2(24-cy,-34)+2*Mathf.PI,a1=Mathf.Atan2(24-cy,34); // (a0 past a half turn, so the sweep goes over the top)
                     ink.Path(Sample(t=>{float a=Mathf.Lerp(a0,a1,t);return new Vector2(48+radius*Mathf.Cos(a),cy+radius*Mathf.Sin(a));}),W);
                     ink.Dot(14,24,6);ink.Dot(82,24,6);ink.Stroke(10,12,86,12,3);break;
                 }
-                case "Line":
-                    ink.Stroke(16,18,80,78,W);ink.Dot(16,18,6);ink.Dot(80,78,6);
-                    foreach(float t in new[]{1/3f,2/3f}){float x=16+64*t,y=18+60*t;ink.Stroke(x-6,y+6.4f,x+6,y-6.4f,3);}
-                    break;
+                case "Circle":
+                {
+                    // A ring, its centre dot and the radius out to the edge point.
+                    ink.Path(Sample(t=>new Vector2(48+34*Mathf.Cos(2*Mathf.PI*t),48+34*Mathf.Sin(2*Mathf.PI*t)),72),W);
+                    ink.Dot(48,48,6);ink.Stroke(48,48,82,48,3);ink.Dot(82,48,6);break;
+                }
                 case "Mirror":
                     for(float y=8;y<88;y+=14)ink.Stroke(48,y,48,y+7,3);
                     ink.Path(new[]{new Vector2(38,20),new Vector2(14,20),new Vector2(38,70),new Vector2(38,20)},W);
                     ink.Path(new[]{new Vector2(58,20),new Vector2(82,20),new Vector2(58,70),new Vector2(58,20)},W);break;
-                case "Repeat":
-                {
-                    Func<float,Vector2> path=t=>new Vector2(10+76*t,22+10*Mathf.Sin(Mathf.PI*t));
-                    ink.Path(Sample(path),3);
-                    for(int i=0;i<5;i++){Vector2 p=path(i/4f);ink.Stroke(p.x,p.y,p.x,p.y+40,W);}
-                    break;
-                }
                 default: // Normal building: the hammer
                     ink.Stroke(26,16,62,62,7);ink.Path(new[]{new Vector2(50,74),new Vector2(70,54),new Vector2(84,68),new Vector2(64,88),new Vector2(50,74)},W);break;
             }
