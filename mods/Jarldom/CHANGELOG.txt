@@ -1,3 +1,5 @@
+0.1.143: no error when a hauler readying the hall for a festival is already carrying the goods (they go straight to the hall).
+
 0.1.142: in the two days before a festival the haulers ready the great hall: what it still wants (food, mead, wood for the Yule log) is carried from the stores to the hall's chests, so a jarl away doesn't come home to a festival let slip. A hall chest they can't get to is passed over, and the hall tab (Needs you) and the festival's word say so.
 
 0.1.141: the hall's 'Asked of you' says a dimming villager's deed lifts their dimming (it called every deed a disgrace to wash out); ripe crops wait in the field while the stores have no room for them, instead of being picked to lie on the ground.

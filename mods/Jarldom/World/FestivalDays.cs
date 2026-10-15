@@ -409,7 +409,7 @@ namespace Jarldom
             }
             return null;
         }
-        public override void Start(Brain b) => b.Move.To(_from.transform.position, 1.8f);
+        public override void Start(Brain b) { Container first = _from ?? _to; if (first == null) { Done = true; return; } b.Move.To(first.transform.position, 1.8f); } // (carrying already: straight to the hall)
         public override void Tick(Brain b)
         {
             if (_from == null || _to == null) { Done = true; return; }
