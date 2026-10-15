@@ -188,6 +188,27 @@ namespace Jarldom
                 foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) { Mood.Add(b.S, "unheard", b.Now); b.Dirty(); }
         }
 
+        // Matters unheard too long and the jarl in the colony: once a day, the one whose matter is oldest (or whoever's free) comes up
+        // to them and asks for the Thing. A mood penalty alone went unnoticed: matters sat unheard for sixteen days.
+        public const string PleaDay = "thing:plea";
+        private static float _pleaNext;
+        private static void Plea(Colony c)
+        {
+            if (!c.IsOwner || Time.time < _pleaNext) return;
+            _pleaNext = Time.time + 10f;
+            var pending = Pending(c);
+            int waited = Petitions.Waited(pending, c.Day);
+            if (pending.Count == 0 || waited < Petitions.UnheardAfter || c.R.Flag(PleaDay) == c.Day || CanCall(c) != "") return;
+            Player jarl = Player.GetAllPlayers().FirstOrDefault(p => p != null && !p.IsDead() && c.Allows(p) && Utils.DistanceXZ(p.transform.position, c.Position) < c.Radius);
+            if (jarl == null) return;
+            Petition oldest = pending.OrderBy(p => p.Day).First();
+            Brain b = Villagers.All.Where(x => x.S.Colony == c.Id && x.Body != null && !(x.Task is SleepTask) && !(x.Task is PleaTask) && !Combat.Busy(x) && (x.Task == null || x.Task.Interruptible))
+                .OrderBy(x => x.S.Vid == oldest.By ? 0 : 1).ThenBy(x => Vector3.Distance(x.Pos, jarl.transform.position)).FirstOrDefault();
+            if (b == null) return;
+            c.R.Flags[PleaDay] = c.Day; c.MarkDirty();
+            b.Task?.Stop(b); b.Task = new PleaTask(jarl.GetPlayerName(), pending.Count, waited, b.S.Vid == oldest.By); b.Task.Start(b);
+        }
+
         // The jarl calls it: everyone to the hall.
         public static string CanCall(Colony c)
         {
@@ -219,7 +240,7 @@ namespace Jarldom
         // On the owner, every second while it sits: gathering, then each matter heard in turn.
         public static void Tick(Colony c)
         {
-            if (!Held(c)) return;
+            if (!Held(c)) { Plea(c); return; }
             double real = c.Now - c.R.Flag(Since); // (the stage's age: the world's seconds are the real ones, whatever the day length)
             if (c.RaidOn) { Close(c, "adjourned: a raid"); return; }
             // (no one who may rule anywhere near for a minute: adjourned)
@@ -509,6 +530,44 @@ namespace Jarldom
                     left -= n;
                 }
             }
+        }
+    }
+
+    // Up to the jarl, to ask for the Thing (a minute and a half at most; they give up if the jarl walks off).
+    internal sealed class PleaTask : Task
+    {
+        private readonly string _who; private readonly int _n, _days; private readonly bool _own; private float _until, _repath, _below; private bool _said;
+        public PleaTask(string who, int matters, int days, bool own) { _who = who; _n = matters; _days = days; _own = own; Doing = "going to ask the jarl for a Thing"; }
+        public override bool Interruptible => false;
+        public override void Start(Brain b) { _until = Time.time + 90f; }
+        public override void Tick(Brain b)
+        {
+            Player p = Player.GetAllPlayers().FirstOrDefault(x => x != null && x.GetPlayerName() == _who);
+            if (p == null || p.IsDead() || Time.time > _until || b.Colony == null) { Done = true; return; }
+            Vector3 d = p.transform.position - b.Pos; d.y = 0;
+            if (!_said)
+            {
+                // (close enough to talk; or near below them a few seconds, on a roof or a platform out of reach: called up to)
+                bool level = Mathf.Abs(p.transform.position.y - b.Pos.y) < 2f;
+                if (d.magnitude < 5f) { if (_below == 0) _below = Time.time; } else _below = 0;
+                if ((d.magnitude > 2.6f || !level) && !(d.magnitude < 5f && Time.time - _below > 4f))
+                {
+                    if (d.magnitude > 60f) { Done = true; return; } // (gone off: another day)
+                    if (Time.time > _repath || !b.Move.Moving) { _repath = Time.time + 2f; b.Move.To(p.transform.position, 2f, d.magnitude > 12f); }
+                    return;
+                }
+                b.Move.Stop();
+                string matters = _n == 1 ? "a matter waits" : $"{_n} matters wait";
+                string[] lines = _own
+                    ? new[] { $"Jarl! {char.ToUpper(matters[0]) + matters.Substring(1)} for the Thing, mine these {_days} days. Will you call it?", $"Jarl, I've a matter for the Thing, and it's waited {_days} days. When will you hear us?", $"Jarl, call the Thing. {char.ToUpper(matters[0]) + matters.Substring(1)}, and mine is the oldest." }
+                    : new[] { $"Jarl, the folk grumble: {matters} for the Thing, and none heard these {_days} days.", $"When will you call the Thing, jarl? {char.ToUpper(matters[0]) + matters.Substring(1)}.", $"Jarl, there's talk in the hall: {matters}, and no Thing to hear them." };
+                string line = lines[UnityEngine.Random.Range(0, lines.Length)];
+                b.Say(line, 8f);
+                b.Colony.TellPlayer(_who, $"{b.S.Name}: “{line}”\n<size=80%>Call it from the colony window's Thing tab, then go to the great hall.</size>");
+                _said = true; _until = Time.time + 6f;
+            }
+            if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized);
+            if (Time.time > _until) Done = true;
         }
     }
 }
