@@ -1,6 +1,6 @@
 Somebody's sci-fi kit fell through a crack into the tenth world. None of it belongs here, and all of it works. Made at the forge (the speeder with the hammer); every number and cost is a setting.
 
-Laser Pistol: one-handed, red bolts, one per click, overheats if you lean on it. Laser Rifle: two-handed; hold attack to charge, release to fire a blue beam out to 260 m; a full charge burns through four bodies; hold block to shoulder it and zoom. Both guns are held in both hands, aim where you look, kick, and vent when overheated.
+Laser Pistol: one-handed, red bolts, one per click, overheats if you lean on it. Laser Rifle: two-handed; hold attack to charge, release to fire a blue beam out to 260 m; a full charge burns through four bodies; hold block to shoulder it and zoom. The pistol is held in one hand, Han Solo style; the rifle is shouldered and sighted down the barrel. Both point at what the crosshair is on, kick, and vent when overheated.
 Laser Sword: the game's sword swings with a glowing blade that hums louder the faster it moves, ignites when drawn, chops trees and breaks rock. Blue, green, red, violet, yellow, white or cyan.
 Jetpack (utility slot): jump, then hold Jump to fly; move keys steer, Run boosts. Fuel refills on the ground. No fall damage while you wear it. Everyone sees the flames.
 Infrared Goggles (helmet): thermal view. The world goes dim and blue, and every warm body within 80 m glows through walls and hills; you see at night. H switches them.

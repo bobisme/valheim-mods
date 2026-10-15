@@ -1220,9 +1220,9 @@ Somebody's sci-fi kit fell through a crack into the tenth world (`cx.bob.wrongun
 
 - **Laser Pistol** (one-handed, red bolts, one per click, overheats) and **Laser Rifle** (two-handed; hold to charge, release
   to fire up to 260 m; a full charge pierces four bodies; block zooms). Hitscan beams everyone sees; a miss never hurts buildings.
-  Both are held in two hands the way Quad's Guns does it (`Features/GunPose.cs`, `Core/Arms.cs`: a two-bone arm solve after
-  the animation): chest carry, block aims (rifle shouldered, pistol at eye level), low ready sprinting, kick, charge tremble,
-  a venting pose when overheated; one-handed pistol with a shield. Arms start each frame from the animator's last real pose
+  Posed the way Quad's Guns does it (`Features/GunPose.cs`, `Core/Arms.cs`: a two-bone arm solve after the animation): the
+  pistol one-handed, Han Solo style, the other arm out to the side; the rifle always shouldered; both point at the crosshair's
+  spot; low ready sprinting, kick, charge tremble, a venting pose when overheated. Arms start each frame from the animator's last real pose
   (it skips frames, and re-bending our own pose twitched). Shared on the player's ZDO (state + pitch) for other players.
 - **Laser Sword**: the iron sword's swings, a glowing blade (seven colours) that ignites, hums with its speed and trails; chops and mines.
 - **Jetpack** (utility slot): hold Jump in the air to fly, move keys steer, Run boosts; fuel refills on the ground; no fall

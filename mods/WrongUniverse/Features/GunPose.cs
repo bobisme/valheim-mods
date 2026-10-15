@@ -9,11 +9,12 @@ using UnityEngine;
 
 namespace WrongUniverse
 {
-    // How the laser pistol and rifle are held, done the way Quad's Guns does it (Aim.PoseHeld): after the animation, every frame, both
-    // arms are bent (Core/Arms.cs) to hold the gun where it should be and the gun points where you look, pivoting about the grip.
-    // Walking it is held at the chest; aiming (block) the rifle comes up to the shoulder and the pistol goes out to arm's length; sprinting
-    // it drops to a low ready. A shot kicks it, a charging rifle trembles in the hands, an overheated gun is lowered and tipped to vent.
-    // A pistol with a shield in the other hand is held out in the right hand alone. The others see it too: our state and pitch sit on our
+    // How the laser pistol and rifle are held, done the way Quad's Guns does it (Aim.PoseHeld): after the animation, every frame, the
+    // arms are bent (Core/Arms.cs) to hold the gun where it should be, and the gun points at what the crosshair is on. The pistol is held
+    // Han Solo style, in the right hand with the left arm out to the side (with a shield, the shield arm is the game's); aiming (block)
+    // straightens the arm to eye level. The rifle is always shouldered and sighted down the barrel. Sprinting either drops to a low
+    // ready. A shot kicks it, a charging rifle trembles in the hands, an overheated gun is lowered and tipped to vent.
+    // The others see it too: our state and pitch sit on our
     // player's ZDO and every game poses everyone near by from that (players without the mod see the game's crossbow carry).
     internal sealed class GunPose:Feature
     {
@@ -25,17 +26,22 @@ namespace WrongUniverse
             internal Vector3 Grip;      // the right hand's joint in the model's space (the barrel +z, up +y, the top of the grip at the origin)
             internal Vector3 Support;   // the left hand's joint in the model's space
             internal Vector3 Euler;     // the right hand's turn in the model's space (the same turn as the pistol's tuned HandEuler)
-            internal Vector3 Walk,Aim,Sprint,One;   // the grip from the right shoulder: (right, forward, up); One: the pistol in one hand
+            internal Vector3 Walk,Aim,Sprint;   // the grip from the right shoulder joint: (right, forward, up); the joint sits ~0.13 behind the chest
+            internal bool OneHanded;    // held in the right hand alone, the left arm out to the side (Free)
+            internal Vector3 Free;      // the empty left hand from the left shoulder joint: (out to the left, forward, up)
             internal float Drop;        // degrees the muzzle drops sprinting
             internal float Kick,Climb;  // a shot pushes it back this far (m) and the muzzle climbs this much (degrees)
         }
+        // The pistol, Han Solo style: in the right hand alone, elbow bent at chest height walking, the arm straight out at eye level
+        // aiming; the left arm out to the side.
         internal static readonly Stance PistolStance=new Stance{Grip=new Vector3(0,-0.06f,0),Support=new Vector3(-0.03f,-0.085f,0.005f),Euler=new Vector3(0,0,90),
-            Walk=new Vector3(-0.06f,0.34f,-0.22f),Aim=new Vector3(-0.06f,0.46f,-0.05f),Sprint=new Vector3(-0.10f,0.26f,-0.30f),One=new Vector3(0.0f,0.52f,-0.06f),
-            Drop=40f,Kick=0.03f,Climb=9f};
+            Walk=new Vector3(0f,0.50f,-0.24f),Aim=new Vector3(0f,0.70f,-0.06f),Sprint=new Vector3(0.02f,0.32f,-0.30f),
+            OneHanded=true,Free=new Vector3(0.42f,0.08f,-0.30f),Drop=55f,Kick=0.03f,Climb=12f};
+        // The rifle is always shouldered and sighted down the barrel (a little lower walking than aiming); only a sprint lowers it.
         // (the rifle's numbers tuned in the game with wu pose: the shoulder joint sits well back in the body, so the stock only reaches
         // the front of the shoulder with the grip ~0.58 ahead of it; the left hand on the power cell, as far forward as the arm reaches)
         internal static readonly Stance RifleStance=new Stance{Grip=new Vector3(0,-0.06f,0),Support=new Vector3(0,-0.04f,0.13f),Euler=new Vector3(0,0,90),
-            Walk=new Vector3(-0.12f,0.40f,-0.26f),Aim=new Vector3(-0.15f,0.58f,-0.05f),Sprint=new Vector3(-0.12f,0.26f,-0.30f),One=Vector3.zero,
+            Walk=new Vector3(-0.15f,0.56f,-0.08f),Aim=new Vector3(-0.15f,0.58f,-0.05f),Sprint=new Vector3(-0.12f,0.26f,-0.30f),
             Drop=35f,Kick=0.045f,Climb=4f};
         internal static Stance Of(ItemDef d)=>d==Lasers.Pistol?PistolStance:d==Lasers.Rifle?RifleStance:null;
 
@@ -44,8 +50,9 @@ namespace WrongUniverse
         {
             internal ItemDef Def;
             internal Vector3 Look;
-            internal bool Aiming,Sprinting,Vent,Charging,OneHand,Arms=true;
-            internal float AimT,SprintT,VentT,OneT,Recoil,ChargeT;
+            internal Vector3? Target;   // ours only: the spot under the crosshair, which the barrel points at
+            internal bool Aiming,Sprinting,Vent,Charging,Shield,Arms=true;
+            internal float AimT,SprintT,VentT,Recoil,ChargeT;
         }
 
         private static ConfigEntry<bool> PoseArms;
@@ -68,12 +75,12 @@ namespace WrongUniverse
         private static int _state=-1;
         private static float _pitch=999f,_nextPitch,_nextSweep;
 
-        // `wu pose hold aim|sprint|vent|charge|one|off`: a state forced on for pictures (nobody can hold block for a screenshot).
+        // `wu pose hold aim|sprint|vent|charge|off`: a state forced on for pictures (nobody can hold block for a screenshot).
         private static string _hold;
 
         internal override void Bind(ConfigFile c)
         {
-            PoseArms=c.Bind("1 - Lasers","PoseArms",true,"Bend your arms to hold the laser guns with both hands (shouldered when you aim, low when you sprint, lowered to vent when overheated). Off: the game's own crossbow carry. Your own setting.");
+            PoseArms=c.Bind("1 - Lasers","PoseArms",true,"Bend your arms to hold the laser guns: the pistol in one hand with the other arm out to the side, the rifle shouldered and sighted down the barrel; both point at what the crosshair is on, drop low when you sprint and are lowered to vent when overheated. Off: the game's own crossbow carry. Your own setting.");
         }
 
         // ---- ours --------------------------------------------------------------------------------------------------
@@ -137,16 +144,17 @@ namespace WrongUniverse
             {
                 ItemDef d=Gun(Things.Held(me,out _));
                 Carry c=Mine;
-                if(d!=c.Def){c.AimT=c.SprintT=c.VentT=c.ChargeT=0f;c.OneT=d==Lasers.Pistol&&OffHandBusy(me)?1f:0f;}
+                if(d!=c.Def){c.AimT=c.SprintT=c.VentT=c.ChargeT=0f;}
                 c.Def=d;
                 if(d!=null&&!me.IsDead())
                 {
                     c.Look=_hold!=null?Vector3.ProjectOnPlane(me.transform.forward,Vector3.up).normalized:me.GetLookDir();   // (a held test state looks level)
+                    c.Target=_hold!=null?(Vector3?)null:Crosshair(me);
                     c.Aiming=Aiming||_hold=="aim";
                     c.Sprinting=me.IsRunning()||_hold=="sprint";
                     c.Vent=Lasers.Overheated||_hold=="vent";
                     c.Charging=Lasers.Charging||_hold=="charge";
-                    c.OneHand=d==Lasers.Pistol&&(OffHandBusy(me)||_hold=="one");
+                    c.Shield=OffHandBusy(me)&&d==Lasers.Pistol;
                     c.Arms=PoseArms.Value;
                     PoseOn(me,c);
                 }
@@ -214,7 +222,7 @@ namespace WrongUniverse
                 c.Vent=shared&&(state&FVent)!=0;
                 c.Charging=shared&&(state&FCharge)!=0;
                 c.Arms=!shared||(state&FArms)!=0;
-                c.OneHand=d==Lasers.Pistol&&zdo.GetInt(ZDOVars.s_leftItem)!=0;
+                c.Shield=d==Lasers.Pistol&&zdo.GetInt(ZDOVars.s_leftItem)!=0;
                 Vector3 flat=Vector3.ProjectOnPlane(p.transform.forward,Vector3.up).normalized;   // (their body faces where they look: AlwaysRotate below)
                 float pitch=(shared?zdo.GetFloat(PitchKey,0f):0f)*Mathf.Deg2Rad;
                 c.Look=flat*Mathf.Cos(pitch)+Vector3.up*Mathf.Sin(pitch);
@@ -227,6 +235,24 @@ namespace WrongUniverse
             Gone.Clear();
             Arms.Prune();
             if(Bases.Count>64){var dead=new List<Transform>();foreach(Transform t in Bases.Keys)if(t==null)dead.Add(t);foreach(Transform t in dead)Bases.Remove(t);}
+        }
+
+        // The spot under the crosshair (what the shot will hit), or null when there is nothing within reach or it is behind or right by us.
+        private static readonly RaycastHit[] RayHits=new RaycastHit[16];
+        private static Vector3? Crosshair(Player me)
+        {
+            Transform cam=GameCamera.instance!=null?GameCamera.instance.transform:null;
+            if(cam==null)return null;
+            int n=Physics.RaycastNonAlloc(cam.position,cam.forward,RayHits,250f,Hits.Mask,QueryTriggerInteraction.Ignore);
+            float best=250f;Vector3 at=cam.position+cam.forward*250f;
+            for(int i=0;i<n;i++)
+            {
+                RaycastHit h=RayHits[i];
+                if(h.distance>=best||h.collider==null||h.collider.GetComponentInParent<Character>()==me)continue;
+                best=h.distance;at=h.point;
+            }
+            Vector3 to=at-me.transform.position;
+            return to.magnitude<2.5f||Vector3.Dot(to,cam.forward)<=0f?(Vector3?)null:at;
         }
 
         // The model in the hand: the item's copy that VisEquipment made (the pistol in the right hand, the rifle, a bow, in the left).
@@ -265,14 +291,21 @@ namespace WrongUniverse
             c.AimT=Mathf.MoveTowards(c.AimT,c.Aiming&&!c.Vent?1f:0f,dt*7f);
             c.SprintT=Mathf.MoveTowards(c.SprintT,c.Sprinting&&!c.Aiming?1f:0f,dt*5f);
             c.VentT=Mathf.MoveTowards(c.VentT,c.Vent?1f:0f,dt*(c.Vent?4f:2.5f));
-            c.OneT=Mathf.MoveTowards(c.OneT,c.OneHand?1f:0f,dt*5f);
             c.ChargeT=Mathf.MoveTowards(c.ChargeT,c.Charging?1f:0f,dt/Mathf.Max(0.2f,Lasers.ChargeSeconds));
-            float aimT=Smooth(c.AimT),sprintT=Smooth(c.SprintT),ventT=Smooth(c.VentT),oneT=Smooth(c.OneT);
+            float aimT=Smooth(c.AimT),sprintT=Smooth(c.SprintT),ventT=Smooth(c.VentT);
 
-            Vector3 aimAt=Vector3.Lerp(s.Aim,s.One,oneT),walkAt=Vector3.Lerp(s.Walk,s.One+new Vector3(0,-0.08f,-0.10f),oneT);
-            Vector3 offset=Vector3.Lerp(Vector3.Lerp(walkAt,aimAt,aimT),s.Sprint,sprintT);
+            Vector3 offset=Vector3.Lerp(Vector3.Lerp(s.Walk,s.Aim,aimT),s.Sprint,sprintT);
             offset+=new Vector3(0.03f,-0.08f,-0.10f)*ventT;   // venting: lowered and drawn in
-            Vector3 fwd=c.Look.normalized,side=Vector3.Cross(Vector3.up,fwd).normalized;
+            // the barrel points at what the crosshair is on (from about where the gun is), or along the look for the others
+            Vector3 fwd=c.Look.normalized;
+            if(c.Target.HasValue)
+            {
+                Vector3 flat=Vector3.ProjectOnPlane(fwd,Vector3.up).normalized,sideFlat=Vector3.Cross(Vector3.up,flat).normalized;
+                Vector3 from=ur.position+sideFlat*offset.x+flat*offset.y+Vector3.up*offset.z;
+                Vector3 to=c.Target.Value-from;
+                if(to.sqrMagnitude>1f)fwd=to.normalized;
+            }
+            Vector3 side=Vector3.Cross(Vector3.up,fwd).normalized;
             float kick=c.Recoil;
             // charging: a tremble that grows with the charge, and the gun pulled in tight
             Vector3 shake=Vector3.zero;
@@ -287,8 +320,8 @@ namespace WrongUniverse
             Vector3 grip=ur.position+side*offset.x+fwd*offset.y+Vector3.up*offset.z+side*shake.x+Vector3.up*shake.y;
             grip+=rot*new Vector3(0f,0f,-kick*s.Kick);
 
-            // the left hand on the gun (pulled back towards the body until it can reach), unless the pistol is held in one hand
-            bool twoHands=oneT<0.5f;
+            // the left hand on the gun (pulled back towards the body until it can reach), unless the gun is held in one hand
+            bool twoHands=!s.OneHanded;
             if(twoHands)
             {
                 float reach=Arms.Length(ve.m_leftHand)*0.96f;
@@ -305,6 +338,12 @@ namespace WrongUniverse
             Arms.Place(ve.m_rightHand,grip,rot*Quaternion.Inverse(Quaternion.Euler(s.Euler)),side*0.6f+Vector3.down);
             Vector3 at=ve.m_rightHand.position-rot*s.Grip;
             if(twoHands)Arms.Reach(ve.m_leftHand,at+rot*s.Support,-side*0.6f+Vector3.down);
+            else if(!c.Shield)   // the free arm out to the side, elbow back and down (a shield's arm is the animation's: it blocks)
+            {
+                Vector3 flat=Vector3.ProjectOnPlane(fwd,Vector3.up).normalized,left=-Vector3.Cross(Vector3.up,flat).normalized;
+                Vector3 free=s.Free+new Vector3(0.04f,0f,0.06f)*aimT-new Vector3(0.14f,0f,0.06f)*sprintT;   // (aiming: out a little further for balance; sprinting: in)
+                Arms.Reach(ve.m_leftHand,ul.position+left*free.x+flat*free.y+Vector3.up*free.z,-flat+Vector3.down*0.5f);
+            }
             model.rotation=rot;   // (last: the rifle, a bow to the game, hangs from the left hand, and bending that arm moved it)
             model.position=at;
             Arms.Leave(ve.m_rightHand);Arms.Leave(ve.m_leftHand);
@@ -325,7 +364,7 @@ namespace WrongUniverse
         // ---- the test command --------------------------------------------------------------------------------------
 
         internal override string Command=>"pose";
-        internal override string Help=>"info | trace [frames] | film [file] | hold aim|sprint|vent|charge|one|off | kick [2] | <pistol|rifle> <grip|support|euler|walk|aim|sprint|one> x y z | <pistol|rifle> <drop|kick|climb> v";
+        internal override string Help=>"info | trace [frames] | film [file] | hold aim|sprint|vent|charge|off | kick [2] | <pistol|rifle> <grip|support|euler|walk|aim|sprint|free> x y z | <pistol|rifle> <drop|kick|climb> v";
         internal override IEnumerator Test(string[] args,Action<JObject> output,Action<string> error)
         {
             string sub=args.Length>2?args[2]:"info";
@@ -333,7 +372,7 @@ namespace WrongUniverse
             switch(sub)
             {
                 case "info":output(new JObject{["pistol"]=Dump(PistolStance),["rifle"]=Dump(RifleStance),["hold"]=_hold,["aiming"]=Aiming,["held"]=Mine.Def?.Prefab,
-                    ["aimT"]=Math.Round(Mine.AimT,2),["sprintT"]=Math.Round(Mine.SprintT,2),["ventT"]=Math.Round(Mine.VentT,2),["oneT"]=Math.Round(Mine.OneT,2),["others"]=Others.Count});return null;
+                    ["aimT"]=Math.Round(Mine.AimT,2),["sprintT"]=Math.Round(Mine.SprintT,2),["ventT"]=Math.Round(Mine.VentT,2),["target"]=Mine.Target.HasValue?Tools.V(Mine.Target.Value):null,["others"]=Others.Count});return null;
                 case "hold":_hold=args.Length>3&&args[3]!="off"?args[3]:null;output(new JObject{["hold"]=_hold});return null;
                 case "trace":
                 {
@@ -359,9 +398,9 @@ namespace WrongUniverse
                         switch(field)
                         {
                             case "grip":s.Grip=V3();break;case "support":s.Support=V3();break;case "euler":s.Euler=V3();break;
-                            case "walk":s.Walk=V3();break;case "aim":s.Aim=V3();break;case "sprint":s.Sprint=V3();break;case "one":s.One=V3();break;
+                            case "walk":s.Walk=V3();break;case "aim":s.Aim=V3();break;case "sprint":s.Sprint=V3();break;case "free":s.Free=V3();break;
                             case "drop":s.Drop=F(4);break;case "kick":s.Kick=F(4);break;case "climb":s.Climb=F(4);break;
-                            default:error("wu pose "+sub+" <grip|support|euler|walk|aim|sprint|one> x y z | <drop|kick|climb> v");return null;
+                            default:error("wu pose "+sub+" <grip|support|euler|walk|aim|sprint|free> x y z | <drop|kick|climb> v");return null;
                         }
                     }
                     catch(Exception){error("wu pose "+sub+" "+field+": numbers, please");return null;}
@@ -390,7 +429,7 @@ namespace WrongUniverse
             _trace.Add($"{Time.frameCount} {what} {l.x:F3} {l.y:F3} {l.z:F3}");
         }
         private static JObject Dump(Stance s)=>new JObject{["grip"]=Tools.V(s.Grip),["support"]=Tools.V(s.Support),["euler"]=Tools.V(s.Euler),["walk"]=Tools.V(s.Walk),
-            ["aim"]=Tools.V(s.Aim),["sprint"]=Tools.V(s.Sprint),["one"]=Tools.V(s.One),["drop"]=s.Drop,["kick"]=s.Kick,["climb"]=s.Climb};
+            ["aim"]=Tools.V(s.Aim),["sprint"]=Tools.V(s.Sprint),["free"]=Tools.V(s.Free),["drop"]=s.Drop,["kick"]=s.Kick,["climb"]=s.Climb};
     }
 
     // Block with a laser gun aims (Lasers.Tick reads the button itself), so the game must not take it as blocking: that raises the
