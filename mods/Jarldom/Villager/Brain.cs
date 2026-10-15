@@ -441,6 +441,12 @@ namespace Jarldom
                     S.Bump("rings"); Say(new[] { "I'll wear it with pride.", "A fine ring. I'll wear it always.", "This ring will be seen in the hall.", "Thank you. It's mine now, and I'm proud of it.", "A gold ring, for me! I'll wear it with pride." }[UnityEngine.Random.Range(0, 5)], 5);
                     break;
                 case "follow": if (long.TryParse(arg.Split('|')[0], out long leader) && leader != 0) Follow.Start(this, leader, arg.Contains("|") ? arg.Substring(arg.IndexOf('|') + 1) : ""); else { Follow.End(this, new[] { "Home, then.", "Back to the hall, then.", "Home we go.", "Enough roaming. Home.", "Home, and gladly." }[UnityEngine.Random.Range(0, 5)]); Follow.HomeFrom(this); } break;
+                case "expedition": // ("<leader id>|<role>|<leader name>")
+                    {
+                        string[] f = arg.Split('|');
+                        if (f.Length >= 3 && long.TryParse(f[0], out long lead) && lead != 0 && Expedition.CantTake(this, f[1]) == "") Expedition.Join(this, lead, f[2], f[1]);
+                    }
+                    break;
                 case "summon": Follow.End(this, new[] { "Coming.", "On my way.", "Coming, jarl.", "Right behind you.", "Coming now." }[UnityEngine.Random.Range(0, 5)]); if (Colony == null || !Colony.Valid) { Follow.HomeFrom(this); break; } Task?.Stop(this); Task = new SummonTask(Colony.Position + Colony.Seat.transform.forward * 2.5f); Task.Start(this); break;
                 case "dismiss": Dismiss(); return;
                 case "mood": Jarldom.Mood.Add(S, arg, Now); break;

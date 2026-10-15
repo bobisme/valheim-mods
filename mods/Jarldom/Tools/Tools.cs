@@ -67,7 +67,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "actas", "bags", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "move", "payfix", "arena", "greatwork", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing", "corner", "dim", "lost", "valkyrie", "shipburial" };
+            string[] cheats = { "arrivals", "actas", "expedition", "bags", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "move", "payfix", "arena", "greatwork", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing", "corner", "dim", "lost", "valkyrie", "shipburial" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or for a server admin with devcommands on"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -1138,6 +1138,15 @@ namespace Jarldom
                 case "payfix": // (test: payfix <missed> <last payday>: a test payday undone)
                     c.R.MissedPaydays = int.Parse(a[2]); c.R.LastPayday = int.Parse(a[3]); c.MarkDirty();
                     output(new JObject { ["missed"] = c.R.MissedPaydays, ["lastPayday"] = c.R.LastPayday, ["owed"] = c.Owed() }); break;
+                case "expedition": // (test: "expedition <name>:<role> ..." sets out with them, as the Expedition tab does; "expedition home")
+                    {
+                        if (a.Length > 2 && a[2] == "home") { Net.Act(c, "expedition", "home|" + me.GetPlayerID()); output(new JObject { ["home"] = true }); break; }
+                        var crew = new List<string>();
+                        foreach (string m in a.Skip(2)) { string[] nr = m.Split(':'); Brain cb = nr.Length == 2 ? Who(nr[0]) : null; if (cb == null) { error("who? " + m); return; } crew.Add(cb.S.Vid + ":" + nr[1]); }
+                        Net.Act(c, "expedition", $"start|{me.GetPlayerID()}|{string.Join(",", crew)}");
+                        output(new JObject { ["crew"] = new JArray(crew) });
+                    }
+                    break;
                 case "actas": // (as that player: "actas <founder> allow <name>" lets another character of the same person run the colony in single player)
                     if (a.Length < 4) { error("actas <who> <action> [arg]"); return; }
                     c.Handle(a[3], a.Length > 4 ? string.Join(" ", a.Skip(4)) : "", a[2].Replace('_', ' '));

@@ -1,3 +1,5 @@
+0.1.156: expeditions, first part. A new Expedition tab in the colony window: pick up to six to come out with you, each with a role, and set out. Guards fight (they need a weapon); the cook packs food from the stores (the most filling first) and hands you some when you're running low; the scout uncovers the map far round you as you go; the carrier packs a camp's makings (25 wood, 5 stone). Call them home from the same tab.
+
 0.1.155: matters unheard for 5 days or more: once a day, while you're in the colony, the villager whose matter is oldest comes up to you and asks you to call the Thing (and says where: the colony window's Thing tab, then the great hall).
 
 0.1.154: a villager's bag can no longer be emptied by a new body: when a villager's body loads before their saved record is found, it waits for the record instead of taking its own empty bag as loaded and later saving it over the real one (a whole bag lost that way once). Gear given back on a return or a rising is saved at once.

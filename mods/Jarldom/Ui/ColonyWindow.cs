@@ -73,7 +73,7 @@ namespace Jarldom.Ui
             Tip(GameUi.Button(_window, "Rename", new Vector2(30 + tw + 14, -24), new Vector2(96, 32), () => { _tab = "hall"; _renaming = true; _rename = _c.R.Name; _renameFor = _c; Build(); }, true, 14), "Rename the hall", "Its name in this window, on the pillars and in the saga.");
             GameUi.Line(_window, $"{Tables.Of(r.Rank).Name} · {_c.Population} {(_c.Population == 1 ? "soul" : "souls")} · renown {_c.Renown}", new Vector2(560, -26), 390, 18, GameUi.Dim, null, TextAlignmentOptions.TopRight);
             GameUi.Braid(_window, new Vector2(0, -72), 920);
-            var tabs = new List<(string id, string name)> { ("hall", "The hall"), ("people", "People"), ("rooms", "Rooms"), ("work", "Work"), ("thing", "The Thing"), ("gods", "Gods"), ("saga", "Saga") };
+            var tabs = new List<(string id, string name)> { ("hall", "The hall"), ("people", "People"), ("rooms", "Rooms"), ("work", "Work"), ("thing", "The Thing"), ("expedition", "Expedition"), ("gods", "Gods"), ("saga", "Saga") };
             if (r.ComingLanded && r.Coming.Count > 0) tabs.Insert(1, ("newcomers", $"New ({r.Coming.Count})"));
             float x = 24, w = (Size.x - 48) / tabs.Count;
             foreach (var t in tabs) { string id = t.id; GameUi.Tab(_window, t.name, new Vector2(x, -90), new Vector2(w - 6, 40), _tab == id, () => { _tab = id; Build(); }, 16); x += w; }
@@ -88,6 +88,7 @@ namespace Jarldom.Ui
                 case "rooms": y = Rooms(_list); break;
                 case "work": y = WorkTab(_list); break;
                 case "thing": y = ThingTab(_list); break;
+                case "expedition": y = ExpeditionTab(_list); break;
                 case "gods": y = Gods(_list); break;
                 case "saga": y = Saga(_list); break;
             }
@@ -586,6 +587,51 @@ namespace Jarldom.Ui
             ["guard"] = "Guarding", ["build"] = "Building",
         };
         private static string KindName(string k) => Kinds.TryGetValue(k, out string n) ? n : char.ToUpper(k[0]) + k.Substring(1);
+
+        // ---- an expedition: pick a crew and their roles, and set out with them ----
+        private static readonly Dictionary<string, string> _crew = new Dictionary<string, string>(); // (vid -> role, chosen here, not yet set out)
+        private static float ExpeditionTab(RectTransform list)
+        {
+            float y = 4;
+            Player me = Player.m_localPlayer;
+            if (me == null) return y;
+            long id = me.GetPlayerID();
+            var people = Villagers.All.Where(b => b.S.Colony == _c.Id && b.Body != null).OrderBy(b => b.S.Name).ToList();
+            var outNow = people.Where(b => Follow.LeaderId(b) == id && Expedition.RoleOf(b) != "").ToList();
+            if (outNow.Count > 0)
+            {
+                y = Heading(list, "Out with you", y);
+                foreach (Brain b in outNow) y = Text(list, $"{b.S.Name} ({Tables.Of(b.S.Prof).Name}): <color=#ffd27a>{Expedition.RoleOf(b)}</color>. {b.Task?.Doing}", y, 16);
+                Tip(GameUi.Button(list, "Call them home", new Vector2(8, -y - 4), new Vector2(200, 36), () => Net.Act(_c, "expedition", "home|" + id), true, 16), "Call them home",
+                    "The crew stops following you. Near home, they walk back; far off, they make their own way and are next seen at the pillars. What they packed and didn't use goes back to the stores.");
+                return y + 50;
+            }
+            y = Text(list, $"Pick up to {Expedition.MaxCrew} to come out with you, and what each is for. They pack for it from the stores and follow you (through portals too; they wait on the shore while you sail).", y, 16, GameUi.Dim);
+            foreach (string role in Expedition.Roles) y = Text(list, $"<color=#ffd27a>{role}</color>: {Expedition.RoleText[role]}", y, 15, GameUi.Dim, 24);
+            y += 6;
+            foreach (string vid in _crew.Keys.ToList()) if (!people.Any(b => b.S.Vid == vid)) _crew.Remove(vid);
+            foreach (Brain b in people)
+            {
+                string vid = b.S.Vid;
+                _crew.TryGetValue(vid, out string chosen);
+                GameUi.Line(list, $"{b.S.Name} <color=#a89a86>({Tables.Of(b.S.Prof).Name})</color>", new Vector2(8, -y - 4), 300, 16, chosen != null ? GameUi.Warm : GameUi.Text);
+                float bx = 320;
+                foreach (string role in new[] { "" }.Concat(Expedition.Roles))
+                {
+                    string r = role, why = role == "" ? "" : Expedition.CantTake(b, role);
+                    bool on = (chosen ?? "") == role, full = role != "" && chosen == null && _crew.Count >= Expedition.MaxCrew;
+                    var btn = GameUi.Button(list, (on ? "• " : "") + (role == "" ? "stays" : role), new Vector2(bx, -y), new Vector2(104, 30), () => { if (r == "") _crew.Remove(vid); else _crew[vid] = r; Build(); }, why == "" && !full, 14);
+                    if (why != "") Tip(btn, role, $"{b.S.Name} can't: {why}.");
+                    bx += 110;
+                }
+                y += 36;
+            }
+            y += 8;
+            string crew = string.Join(",", _crew.Select(kv => kv.Key + ":" + kv.Value));
+            Tip(GameUi.Button(list, _crew.Count == 0 ? "Set out" : $"Set out with {_crew.Count}", new Vector2(8, -y), new Vector2(220, 40), () => { Net.Act(_c, "expedition", $"start|{id}|{crew}"); _crew.Clear(); Build(); }, _crew.Count > 0, 17),
+                "Set out", "Those chosen pack for their roles from the stores and follow you. Call them home from this tab.");
+            return y + 54;
+        }
 
         private static float WorkTab(RectTransform list)
         {

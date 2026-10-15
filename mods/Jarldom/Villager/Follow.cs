@@ -43,6 +43,7 @@ namespace Jarldom
             string jarl = z.GetString(NameKey, "the jarl");
             double hours = (ZNet.instance.GetTime().Ticks - z.GetLong(SinceKey, ZNet.instance.GetTime().Ticks)) / (double)System.TimeSpan.TicksPerSecond / Clock.Hour;
             z.Set(Key, 0L);
+            Expedition.Ended(b);
             b.Task?.Stop(b); b.Task = null;
             if (hours >= 0.5 || kills > 0)
             {
@@ -114,7 +115,7 @@ namespace Jarldom
 
     internal sealed class FollowTask : Task
     {
-        private float _nextHungry, _nextCheer; private bool _watching; private Vector3? _seat;
+        private float _nextHungry, _nextCheer, _nextRole; private bool _watching; private Vector3? _seat;
         public override void Start(Brain b) { Doing = "following the jarl"; }
         // The jarl fighting in Quad's Arena: up to the stands beside a seat, to watch, wager and cheer (not into the ring).
         private void Watch(Brain b, Player l, Vector3 ring)
@@ -148,7 +149,9 @@ namespace Jarldom
             if (_watching) { _watching = false; _seat = null; b.Move.Stop(); }
             Vector3 to = l.transform.position;
             float d = Vector3.Distance(b.Pos, to);
-            Doing = $"following {l.GetPlayerName()}";
+            string role = Expedition.RoleOf(b);
+            Doing = role != "" ? $"out with {l.GetPlayerName()} ({role})" : $"following {l.GetPlayerName()}";
+            Expedition.OnTheRoad(b, l, ref _nextRole);
             // (the jarl at sea: wait on the shore, and catch up when they land, rather than swim after the ship)
             if (l.IsAttachedToShip() || l.GetStandingOnShip() != null) { Doing = $"waiting for {l.GetPlayerName()}'s ship"; if (b.Move.Moving) b.Move.Stop(); return; }
             // Left far behind (a portal, a ship, a fall): they catch up out of sight, as companions do.

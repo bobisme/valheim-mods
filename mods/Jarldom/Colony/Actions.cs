@@ -81,6 +81,12 @@ namespace Jarldom
                 case "summon": Villagers.Command(a[0], "summon", ""); break;
                 case "asked": Asks.Logged(this, a); break;
                 case "follow": Villagers.Command(a[0], "follow", Get(a, 1) + "|" + who); break;
+                case "expedition": // ("start|<leader id>|vid:role,vid:role..." or "home|<leader id>")
+                    if (a[0] == "start" && a.Length > 2)
+                        foreach (string m in a[2].Split(',').Take(Expedition.MaxCrew)) { string[] vr = m.Split(':'); if (vr.Length == 2) Villagers.Command(vr[0], "expedition", a[1] + "|" + vr[1] + "|" + who); }
+                    else if (a[0] == "home" && long.TryParse(Get(a, 1), out long lead))
+                        foreach (Brain cb in Villagers.All.Where(x => x.S.Colony == Id && Follow.LeaderId(x) == lead && Expedition.RoleOf(x) != "").ToList()) Villagers.Command(cb.S.Vid, "follow", "0");
+                    break;
                 case "log": { string[] f = arg.Split('\u001e'); if (f.Length == 4) Log(f[0], f[1], f[2], f[3]); } break;
                 case "craft": { int n = Int(a, 1); string key = Crafts.Prefix + a[0]; int now = R.Flag(key) + n; if (now > 0) R.Flags[key] = Math.Min(now, 99); else R.Flags.Remove(key); } break;
                 case "tribute": Tribute.Pay(this, who); break;
