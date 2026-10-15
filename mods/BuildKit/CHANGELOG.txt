@@ -1,3 +1,5 @@
+0.3.0: the shingle roofs, the dragon ridge ends and the stave wall, post and portal are gone: the game has its own (the darkwood roofs, the dragon and raven carvings, the Deep North's stave set). Any of them standing in a world disappear. The wattle and daub wall no longer shows the sky in thin cracks round its clay: the panels now run into the timbers.
+
 0.2.3: a hot reload (for mod makers) no longer leaves the old copy's pieces, meshes, materials and icons behind: a few seconds after the new copy is in the hammer it puts its own looks on the roofs and walls standing and frees the rest.
 
 0.2.2: Wattle fence (withies woven between stakes) and wattle and daub wall (clay over wattle in a timber frame).

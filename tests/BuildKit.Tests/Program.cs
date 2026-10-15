@@ -97,51 +97,22 @@ foreach (bool steep in new[] { false, true })
     Check(bad == 0, $"The hood's wood faces out ({bad} turned in)");
 }
 
-// ---- Shingle roofs (K2) ----
-foreach (Shape sh in new[] { Shape.Straight, Shape.Ridge, Shape.OuterCorner, Shape.InnerCorner })
-    foreach (bool steep in new[] { false, true })
-    {
-        var m = ShingleMesh.Build(sh, steep);
-        string what = $"{sh} {(steep ? 45 : 26)}°";
-        Check(m.Count > 500 && m.T[ShingleMesh.Shingles].Count > 0 && m.T.All(t => t.All(i => i >= 0 && i < m.Count) && t.Count % 3 == 0), $"{what}: shingles, triangles that point at real corners");
-        Check(m.C.Count == m.V.Count && m.Uv.Count / 2 == m.Count, $"{what}: a colour and a uv for every corner");
-        // (every shingle's top faces up out of the roof: none drawn inside out)
-        int bad = 0, faces = 0; var t = m.T[ShingleMesh.Shingles];
-        for (int i = 0; i < t.Count; i += 3)
-        {
-            (float x, float y, float z) P(int k) => (m.V[3 * k], m.V[3 * k + 1], m.V[3 * k + 2]);
-            var (a, b, c) = (P(t[i]), P(t[i + 1]), P(t[i + 2]));
-            float ux = b.x - a.x, uy = b.y - a.y, uz = b.z - a.z, vx = c.x - a.x, vy = c.y - a.y, vz = c.z - a.z;
-            float nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
-            if (nx * nx + ny * ny + nz * nz < 1e-8) continue;
-            faces++;
-            if (nx * m.N[3 * t[i]] + ny * m.N[3 * t[i] + 1] + nz * m.N[3 * t[i] + 2] <= 0) bad++;
-        }
-        Check(faces > 0 && bad == 0, $"{what}: every shingle face shows outward ({bad} of {faces} turned in)");
-        // (nothing far outside its 2 m square but a shingle's overhang at the eave)
-        float most = 0; for (int i = 0; i < m.Count; i++) most = Math.Max(most, Math.Max(Math.Abs(m.V[3 * i]), Math.Abs(m.V[3 * i + 2])));
-        Check(most < 1.4f, $"{what}: within its square but for the lapping heads and the eave ({most:0.00} m)");
-        // (the shingles lie on the roof: just above it, never under the boards)
-        float low = float.MaxValue; foreach (int i in t) low = Math.Min(low, m.V[3 * i + 1] - Roofs.Height(sh, steep, m.V[3 * i], m.V[3 * i + 2]));
-        Check(low > -0.05f, $"{what}: shingles on the roof, not sunk into it ({low:0.000})");
-    }
+// ---- Wattle: the fence, and the daubed wall ----
+foreach (var (name, m, w, h, d) in new[] { ("fence", Wattle.Fence(), 1.03f, 0.7f, 0.08f), ("daub", Wattle.Daub(), 1.01f, 1.01f, 0.16f) })
 {
-    var plain = ShingleMesh.Build(Shape.Ridge, true); var dragon = ShingleMesh.Build(Shape.Ridge, true, dragon: true);
-    float reach = 0, rise = 0; for (int i = plain.Count; i < dragon.Count; i++) { reach = Math.Max(reach, dragon.V[3 * i]); rise = Math.Max(rise, dragon.V[3 * i + 1]); }
-    Check(dragon.Count > plain.Count + 100 && reach > 2.4f && reach < 3f && rise > Roofs.Height(Shape.Ridge, true, 0, 0) + 0.6f, $"The dragon reaches out past the gable end and rises over the ridge ({reach:0.0} m out, {rise:0.0} m up)");
-}
-
-// ---- Stave church: walls, posts, the portal ----
-foreach (var (name, m, w, h, d) in new[] { ("wall", Stave.Wall(), 1.01f, 1.01f, 0.2f), ("post", Stave.Post(), 0.21f, 1.01f, 0.21f), ("portal", Stave.Portal(), 1.05f, 1.45f, 0.37f), ("wattle", Stave.Wattle(), 1.03f, 0.7f, 0.08f), ("daub", Stave.Daub(), 1.01f, 1.01f, 0.16f) })
-{
-    Check(m.Count > 100 && m.T.All(t => t.All(i => i >= 0 && i < m.Count) && t.Count % 3 == 0), $"Stave {name}: a mesh with real corners");
+    Check(m.Count > 100 && m.T.All(t => t.All(i => i >= 0 && i < m.Count) && t.Count % 3 == 0), $"Wattle {name}: a mesh with real corners");
     float mx = 0, my = 0, mz = 0; for (int i = 0; i < m.Count; i++) { mx = Math.Max(mx, Math.Abs(m.V[3 * i])); my = Math.Max(my, Math.Abs(m.V[3 * i + 1])); mz = Math.Max(mz, Math.Abs(m.V[3 * i + 2])); }
-    Check(mx <= w && my <= h && mz <= d, $"Stave {name}: within its piece ({mx:0.00}, {my:0.00}, {mz:0.00})");
+    Check(mx <= w && my <= h && mz <= d, $"Wattle {name}: within its piece ({mx:0.00}, {my:0.00}, {mz:0.00})");
 }
 {
-    var portal = Stave.Portal(); bool open = true;
-    for (int i = 0; i < portal.Count; i++) { float x = portal.V[3 * i], y = portal.V[3 * i + 1]; if (Math.Abs(x) < Stave.JambIn - 0.01f && y < 0.99f && y > -0.99f) open = false; }
-    Check(open, "The portal leaves the doorway clear for the game's own door");
+    // (the clay runs into the timbers round each panel, inside their depth: flush on their faces, the sky showed between)
+    var daub = Wattle.Daub(); var clay = daub.T[PartMesh.Main].Distinct().ToList();
+    foreach (int side in new[] { -1, 1 })
+    {
+        var panel = clay.Where(i => Math.Sign(daub.V[3 * i]) == side).ToList();
+        float inner = panel.Min(i => Math.Abs(daub.V[3 * i])), outer = panel.Max(i => Math.Abs(daub.V[3 * i])), low = panel.Min(i => daub.V[3 * i + 1]), high = panel.Max(i => daub.V[3 * i + 1]), deep = panel.Max(i => Math.Abs(daub.V[3 * i + 2]));
+        Check(inner < 0.08f - 0.02f && outer > 0.84f + 0.02f && low < -0.84f - 0.02f && high > 0.86f + 0.02f && deep < 0.13f, $"Daub panel {side}: tucked into the post, the end post, the sill and the plate ({inner:0.00}-{outer:0.00} across, {low:0.00}-{high:0.00} up, {deep:0.00} deep)");
+    }
 }
 
 Console.WriteLine($"BuildKit: {checks} checks passed");
