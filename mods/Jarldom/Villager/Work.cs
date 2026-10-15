@@ -185,7 +185,8 @@ namespace Jarldom
                 if (v == null || !v.IsValid()) continue;
                 // (every fire the colony tends, in a room or out: a campfire under the cooking station, the torches along the road, a brazier,
                 // a hot tub; the haulers' round, and anyone idle helps: what warms or lights is one job whatever burns in it)
-                if (fire != null && !fire.m_infiniteFuel && fire.m_fuelItem != null && c.Feeds(p) && v.GetZDO().GetFloat(ZDOVars.s_fuel) < fire.m_maxFuel * 0.5f && HaveInStock(c, fire.m_fuelItem.name) && !c.LeftAloneAt(p.transform.position)) // (none can walk to it: left alone)
+                // (not the beacon: it's lit when a jarl sails home, and often stands where no hauler climbs)
+                if (fire != null && !fire.m_infiniteFuel && fire.m_fuelItem != null && !Beacon.IsMarked(c, fire) && c.Feeds(p) && v.GetZDO().GetFloat(ZDOVars.s_fuel) < fire.m_maxFuel * 0.5f && HaveInStock(c, fire.m_fuelItem.name) && !c.LeftAloneAt(p.transform.position)) // (none can walk to it: left alone)
                     c.Board.Post("fuel", Key(v), Prof.Hauler, Classes.Warms(fire) ? 4 : 3, p.transform.position.x, p.transform.position.y, p.transform.position.z, now, "", "fire");
                 Smelter smelter = p.GetComponent<Smelter>();
                 if (smelter != null)
@@ -592,6 +593,7 @@ namespace Jarldom
             if (t0 == ItemDrop.ItemData.ItemType.Helmet || t0 == ItemDrop.ItemData.ItemType.Chest || t0 == ItemDrop.ItemData.ItemType.Legs || t0 == ItemDrop.ItemData.ItemType.Shoulder)
                 return bag.Any(o => o != i && o.m_equipped && o.m_shared.m_itemType == t0 && Gear.Usable(o) && o.GetArmor() >= i.GetArmor());
             // (a second tool of a kind, past the one they'd use: two pickaxes while a miner has none)
+            if (Gear.Is("pickaxe", i) && b.S.Prof != Prof.Miner) return true; // (only miners dig: a woodcutter's pickaxe is a miner's without one)
             foreach (string kind in SpareKinds) if (Gear.Is(kind, i)) return Gear.Tool(b, kind) is ItemDrop.ItemData use && use != i;
             // (a weaker weapon besides the one they fight with)
             if (Gear.IsWeapon(i) && Gear.Weapon(b) is ItemDrop.ItemData arm && arm != i && Smithing.Score(i) <= Smithing.Score(arm)) return true;

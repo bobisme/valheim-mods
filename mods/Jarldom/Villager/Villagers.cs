@@ -96,6 +96,7 @@ namespace Jarldom
             return b;
         }
 
+        private static float _slowSaid;
         public static void Tick()
         {
             Order.RemoveAll(b => !b.Alive);
@@ -106,7 +107,11 @@ namespace Jarldom
             {
                 _turn = (_turn + 1) % n;
                 Brain b = Order[_turn];
+                string was = b.Task?.GetType().Name;
+                long start = System.Diagnostics.Stopwatch.GetTimestamp();
                 Plugin.Guard(b.Decide);
+                double ms = (System.Diagnostics.Stopwatch.GetTimestamp() - start) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+                if (ms > 6 && Time.unscaledTime > _slowSaid) { _slowSaid = Time.unscaledTime + 20f; Plugin.Log($"Jarldom: slow decision {ms:0.0} ms: {b.S.Name} ({b.S.Prof}, {b.Activity}) {was ?? "none"} -> {b.Task?.GetType().Name ?? "none"} {b.Task?.Doing}"); } // (a hitch traced to its villager and task)
             }
             Talk.Tick();
         }

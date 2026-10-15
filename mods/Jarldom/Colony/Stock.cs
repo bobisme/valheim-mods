@@ -169,11 +169,14 @@ namespace Jarldom
         {
             string cat = Category(item);
             bool coins = item.m_dropPrefab != null && item.m_dropPrefab.name == "Coins";
-            var chests = Chests(c, near).Where(x => !ContainerAccess.InUse(x.chest) && x.chest.GetInventory().CanAddItem(item, 1)).ToList();
-            if (coins) { var t = chests.FirstOrDefault(x => x.category == "treasury"); if (t.chest != null) return t.chest; }
-            var best = chests.FirstOrDefault(x => x.category == cat);
-            if (best.chest == null) best = chests.FirstOrDefault(x => x.category == "any");
-            if (best.chest == null && c.R.Stockpiles.Count == 0) best = chests.FirstOrDefault(x => x.category == "" && x.chest.GetInventory().HaveItem(item.m_shared.m_name));
+            // (room is looked for only in the chests of the kind wanted, nearest first, until one has it: asked of every chest, it was a
+            // hitch for every load and every miner's look at the claims)
+            var chests = Chests(c, near);
+            bool Fits((Container chest, string id, string category) x) => !ContainerAccess.InUse(x.chest) && x.chest.GetInventory().CanAddItem(item, 1);
+            if (coins) { var t = chests.FirstOrDefault(x => x.category == "treasury" && Fits(x)); if (t.chest != null) return t.chest; }
+            var best = chests.FirstOrDefault(x => x.category == cat && Fits(x));
+            if (best.chest == null) best = chests.FirstOrDefault(x => x.category == "any" && Fits(x));
+            if (best.chest == null && c.R.Stockpiles.Count == 0) best = chests.FirstOrDefault(x => x.category == "" && x.chest.GetInventory().HaveItem(item.m_shared.m_name) && Fits(x));
             return best.chest;
         }
 

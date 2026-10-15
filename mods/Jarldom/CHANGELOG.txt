@@ -1,3 +1,5 @@
+0.1.140: a pickaxe carried by anyone but a miner goes to the stores (a miner without one takes it); haulers no longer try to climb to the beacon fire (it's lit when a jarl sails home); fewer hitches: where a load goes is found without asking every chest for room, and the pose check no longer copies every villager's animator settings each second; a villager's decision slower than 6 ms is named in the log.
+
 0.1.139: expectations rise: a hamlet wants Black Forest dishes now and then, a village Swamp ones, a jarldom Plains ones, a hold Mistlands ones (never past the lands the world's bosses have opened): with none of them in a quarter of their meals, 'Plain fare for a colony of our standing' (-4), and plain meals fill a little less; the villager panel says what's wanted at table. A second pickaxe, hammer or axe, or a weaker spare weapon, goes to the stores for whoever has none.
 
 0.1.138: every prefab Jarldom has shipped is on a list kept for good (a renamed or dropped one would vanish from saves): the tests hold it to a golden file, and the game logs an error at load if one is no longer made.

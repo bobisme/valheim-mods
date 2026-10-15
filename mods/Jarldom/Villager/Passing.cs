@@ -24,6 +24,15 @@ namespace Jarldom
             if (v != null && v.IsValid() && v.IsOwner() && v.GetZDO().GetBool(ZDOVars.s_wakeup, true)) v.GetZDO().Set(ZDOVars.s_wakeup, false);
         }
         private static float _next;
+        // (an animator's parameter names, by its controller: asking an animator for its parameters makes a new array every time)
+        private static readonly Dictionary<RuntimeAnimatorController, HashSet<string>> Params = new Dictionary<RuntimeAnimatorController, HashSet<string>>();
+        private static bool Has(Animator an, string name)
+        {
+            RuntimeAnimatorController rc = an.runtimeAnimatorController;
+            if (rc == null) return false;
+            if (!Params.TryGetValue(rc, out var names)) Params[rc] = names = new HashSet<string>(an.parameters.Select(q => q.name));
+            return names.Contains(name);
+        }
         public static void Tick()
         {
             if (Time.time < _next) return;
@@ -35,7 +44,7 @@ namespace Jarldom
                 Rigidbody body = h.GetComponent<Rigidbody>();
                 if (b == null && body != null && body.isKinematic) continue; // another game holds it seated (its kinematic body says so)
                 Animator an = h.GetComponentInChildren<Animator>();
-                if (an != null && (an.GetBool("wakeup") || b != null && Sticky.Any(p => p != "wakeup" && an.parameters.Any(q => q.name == p) && an.GetBool(p)))) Clear(h); // (a throne's or a bench's pose too, not only a chair's or a bed's)
+                if (an != null && (an.GetBool("wakeup") || b != null && Sticky.Any(p => p != "wakeup" && Has(an, p) && an.GetBool(p)))) Clear(h); // (a throne's or a bench's pose too, not only a chair's or a bed's)
             }
         }
     }
