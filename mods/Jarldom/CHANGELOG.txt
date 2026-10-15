@@ -1,3 +1,5 @@
+0.1.138: every prefab Jarldom has shipped is on a list kept for good (a renamed or dropped one would vanish from saves): the tests hold it to a golden file, and the game logs an error at load if one is no longer made.
+
 0.1.137: smoother in a big colony: the work scan (zones, things lying about, what's to be made, fires and stations) runs a step a frame instead of all in one (a 12-17 ms hitch every 8 s, now about 5 ms at most); the chest list, piece list, store categories, BuildOrders' plan count and where the colony tends are kept a little while instead of worked out again each time; a builder looks at a piece's health before the rooms and zones; a step slower than 8 ms is named in the log.
 
 0.1.136: villagers across the whole of a game's loaded ground keep going (a longhouse 100 m from the hall had everyone who walked to it stand frozen); spare tankards, weaker bows and outgrown clothes go to the stores, where those without find them; a smith doesn't put on what he made for the stores; a craft that fell through calls its maker back from the hall when they may try again.

@@ -816,4 +816,15 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Verse.Make(new List<LogEntry> { new LogEntry(5, 3, "greatwork", "Shithole", "the Lighthouse", "") }, 2, p => p).Any(l => l.Contains("Lighthouse")), "The skald sings it");
 }
 
+// ---- Prefab names: a save finds a thing again by its prefab's name; none shipped may go ----
+{
+    var golden = File.ReadAllLines(Path.Combine(AppContext.BaseDirectory, "prefabs.txt")).Select(l => l.Trim()).Where(l => l != "").ToList();
+    var shipped = PrefabNames.Shipped.ToList();
+    var gone = golden.Except(shipped).ToList();
+    Check(gone.Count == 0, "Every prefab name ever shipped is still in Data/PrefabNames.cs (gone: " + string.Join(", ", gone) + "): put it back; a renamed or dropped prefab is lost from every save");
+    Check(shipped.Distinct().Count() == shipped.Count, "No prefab name twice in Data/PrefabNames.cs");
+    var unlisted = shipped.Except(golden).ToList();
+    Check(unlisted.Count == 0, "New prefab names are added to tests/Jarldom.Tests/prefabs.txt too (append: " + string.Join(", ", unlisted) + ")");
+}
+
 Console.WriteLine($"Jarldom: {checks} checks passed");

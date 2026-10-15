@@ -53,3 +53,18 @@ bool stag = f != null && Safe(() => f(ch));
   logged. A method that should be there but isn't (or has another shape): `null`, one
   warning in the log.
 - Wrap the call itself (`Safe`): the other mod's code can still throw.
+
+## Prefab names are forever
+
+A save finds every piece, item and creature again by its prefab's name: one renamed or dropped
+is gone from every player's world. Each mod that registers prefabs keeps them in a pure list
+and a golden file, as Jarldom does:
+
+- `Data/PrefabNames.cs`: `PrefabNames.Shipped`, every name the mod has shipped. Only ever
+  appended to.
+- `tests/<Mod>.Tests/prefabs.txt`: the same names, one a line. The test fails if a golden name
+  is missing from `Shipped`, if `Shipped` names one twice, or if a new name isn't in the file.
+- At load the mod compares what it registered with `Shipped`: a shipped name no longer made is
+  an error in the log, a new one not on the list is a warning. `jarldom prefabs` shows both.
+- A prefab moving to another mod (the clothes to Loom) keeps its name there, and goes on that
+  mod's list too.

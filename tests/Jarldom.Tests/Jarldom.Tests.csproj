@@ -3,5 +3,6 @@
   <ItemGroup>
     <Compile Include="../../mods/Jarldom/Core/*.cs" LinkBase="Core" />
     <Compile Include="../../mods/Jarldom/Data/*.cs" LinkBase="Data" />
+    <None Include="prefabs.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

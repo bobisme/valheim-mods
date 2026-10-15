@@ -392,6 +392,12 @@ namespace Jarldom
                         output(new JObject { ["added"] = a[2] });
                     }
                     break;
+                case "prefabs": // (test: every prefab Jarldom registers, and how that list stands against Data/PrefabNames.cs)
+                    {
+                        var names = Assets.RegisteredNames();
+                        output(new JObject { ["count"] = names.Count, ["missing"] = new JArray(PrefabNames.Shipped.Except(names)), ["unlisted"] = new JArray(names.Except(PrefabNames.Shipped)), ["all"] = new JArray(names) });
+                    }
+                    break;
                 case "tombs": // (test: every loaded tombstone: whose (a villager's id, if one), where, what's in it)
                     output(new JObject { ["tombs"] = new JArray(Object.FindObjectsByType<TombStone>(FindObjectsSortMode.None).Select(t => $"{t.GetComponent<ZNetView>()?.GetZDO()?.GetString(Villagers.TombKey, "")} '{t.GetOwnerName()}' at {V(t.transform.position)}: {string.Join(", ", t.GetComponent<Container>().GetInventory().GetAllItems().Select(i => Prefab(i) + " x" + i.m_stack))}")) });
                     break;

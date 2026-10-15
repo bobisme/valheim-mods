@@ -46,6 +46,7 @@ namespace Jarldom
                 Pieces.Ensure(scene);
                 foreach (GameObject go in VillagerPrefab.All.Concat(Pieces.All).Concat(new[] { SoulStore.Prefab, Einherjar.Prefab }).Where(g => g != null)) Register(scene, go);
                 Items.RegisterScene(scene);
+                CheckNames();
             }
             catch (Exception e) { Plugin.Warn("Jarldom: registering prefabs failed: " + e); }
             if (ObjectDB.instance != null) RegisterDB(ObjectDB.instance);
@@ -69,6 +70,17 @@ namespace Jarldom
             Named(scene)[prefab.name.GetStableHashCode()] = prefab;
             if (!Registered.Contains(prefab)) Registered.Add(prefab);
         }
+        // Every name ever shipped still made (one gone is lost from every save), and every one made on the list (once a load).
+        private static bool _namesChecked;
+        private static void CheckNames()
+        {
+            if (_namesChecked) return;
+            _namesChecked = true;
+            var names = RegisteredNames();
+            foreach (string gone in PrefabNames.Shipped.Except(names)) Plugin.Error($"Jarldom: the prefab {gone} has shipped but is no longer made: saves that have one will lose it. Make it again under that name.");
+            foreach (string added in names.Except(PrefabNames.Shipped)) Plugin.Warn($"Jarldom: the prefab {added} isn't in Data/PrefabNames.cs (and tests/Jarldom.Tests/prefabs.txt): add it there before it ships.");
+        }
+        internal static List<string> RegisteredNames() => Registered.Where(p => p != null).Select(p => p.name).Distinct().OrderBy(n => n, StringComparer.Ordinal).ToList();
         internal static void UnregisterAll()
         {
             if (ObjectDB.instance != null) Pieces.RemoveFromHammer(ObjectDB.instance);

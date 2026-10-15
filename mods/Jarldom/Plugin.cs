@@ -14,7 +14,7 @@ namespace Jarldom
     {
         public const string Guid = "com.bobisme.jarldom";
         public const string Name = "Jarldom";
-        public const string Version = "0.1.137";
+        public const string Version = "0.1.138";
         public const int DataVersion = 1; // raised whenever what's saved changes shape: games of different data versions mustn't write each other's colonies
         internal static Plugin Instance;
         internal ServerSettings Synced;
@@ -57,6 +57,7 @@ namespace Jarldom
         }
         internal static void Log(string text) => Instance?.Logger.LogInfo(text);
         internal static void Warn(string text) => Instance?.Logger.LogWarning(text);
+        internal static void Error(string text) => Instance?.Logger.LogError(text);
         internal static void Trace(string text) { if (Instance != null && Instance.Debug.Value) Instance.Logger.LogInfo(text); }
 
         // What Jarldom costs a frame (its Update and the villagers' fixed-update thinking), for jarldom perf.
