@@ -1,3 +1,5 @@
+0.1.157: expeditions: make camp. Out in the wilds with a crew, press E on any of them: 'Make camp here' and the crew (a carrier first) puts up a fire pit, a chest and a workbench just ahead of you, paid in full from what they carry (22 wood, 5 stone: a carrier packs 25 and 5). Not near a colony. 'Call the crew home' sends them all back.
+
 0.1.156: expeditions, first part. A new Expedition tab in the colony window: pick up to six to come out with you, each with a role, and set out. Guards fight (they need a weapon); the cook packs food from the stores (the most filling first) and hands you some when you're running low; the scout uncovers the map far round you as you go; the carrier packs a camp's makings (25 wood, 5 stone). Call them home from the same tab.
 
 0.1.155: matters unheard for 5 days or more: once a day, while you're in the colony, the villager whose matter is oldest comes up to you and asks you to call the Thing (and says where: the colony window's Thing tab, then the great hall).

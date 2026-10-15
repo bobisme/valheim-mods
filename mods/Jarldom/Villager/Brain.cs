@@ -317,7 +317,7 @@ namespace Jarldom
             if (_dirty && Time.time >= _nextSave) { _nextSave = Time.time + 60f; if (SoulStore.Of(View.GetZDO()) != null) Save(); }
             if (Combat.Busy(this)) return;
             if (!Follow.Check(this)) { Idle("far from home"); return; }
-            if (!(Task is FollowTask) || Task.Done) { Task?.Stop(this); Activity = Activity.Follow; Task = new FollowTask(); Task.Start(this); }
+            if (!(Task is FollowTask || Task is CampTask) || Task.Done) { Task?.Stop(this); Activity = Activity.Follow; Task = new FollowTask(); Task.Start(this); }
             Task.Tick(this);
             if (Task != null) SetDoing(Task.Doing);
         }
@@ -445,6 +445,14 @@ namespace Jarldom
                     {
                         string[] f = arg.Split('|');
                         if (f.Length >= 3 && long.TryParse(f[0], out long lead) && lead != 0 && Expedition.CantTake(this, f[1]) == "") Expedition.Join(this, lead, f[2], f[1]);
+                    }
+                    break;
+                case "camp": // ("<x>|<y>|<z>|<yaw>": make camp there, as one of the crew out with the jarl)
+                    {
+                        string[] f = arg.Split('|'); var ic = System.Globalization.CultureInfo.InvariantCulture; var fs = System.Globalization.NumberStyles.Float;
+                        if (f.Length < 4 || !Expedition.Out(this) || Combat.Busy(this)) break;
+                        if (!float.TryParse(f[0], fs, ic, out float cx) || !float.TryParse(f[1], fs, ic, out float cy) || !float.TryParse(f[2], fs, ic, out float cz) || !float.TryParse(f[3], fs, ic, out float yaw)) break;
+                        Task?.Stop(this); Task = new CampTask(new Vector3(cx, cy, cz), yaw); Task.Start(this);
                     }
                     break;
                 case "summon": Follow.End(this, new[] { "Coming.", "On my way.", "Coming, jarl.", "Right behind you.", "Coming now." }[UnityEngine.Random.Range(0, 5)]); if (Colony == null || !Colony.Valid) { Follow.HomeFrom(this); break; } Task?.Stop(this); Task = new SummonTask(Colony.Position + Colony.Seat.transform.forward * 2.5f); Task.Start(this); break;

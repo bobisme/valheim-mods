@@ -1141,6 +1141,16 @@ namespace Jarldom
                 case "expedition": // (test: "expedition <name>:<role> ..." sets out with them, as the Expedition tab does; "expedition home")
                     {
                         if (a.Length > 2 && a[2] == "home") { Net.Act(c, "expedition", "home|" + me.GetPlayerID()); output(new JObject { ["home"] = true }); break; }
+                        if (a.Length > 2 && a[2] == "camp") // (test: why the crew can or can't camp where the player stands, the cost; "camp at x z": make it there)
+                        {
+                            var crew0 = Expedition.CrewOf(me.GetPlayerID());
+                            Vector3 spot = a.Length > 5 && a[3] == "at" ? new Vector3(F(a[4]), Ground(new Vector3(F(a[4]), 0, F(a[5]))), F(a[5])) : me.transform.position;
+                            Expedition.TestAnywhere = a.Contains("anywhere");
+                            string why = Expedition.CantCamp(crew0, spot);
+                            if (a.Length > 5 && a[3] == "at" && why == "" && crew0.Count > 0) crew0.OrderBy(m => Expedition.RoleOf(m) == "carrier" ? 0 : 1).First().Command("camp", $"{spot.x.ToString(CultureInfo.InvariantCulture)}|{spot.y.ToString(CultureInfo.InvariantCulture)}|{spot.z.ToString(CultureInfo.InvariantCulture)}|0");
+                            output(new JObject { ["crew"] = crew0.Count, ["why"] = why, ["cost"] = new JArray(Expedition.CampCost().Select(x => $"{x.n} {x.item.name}")) });
+                            break;
+                        }
                         var crew = new List<string>();
                         foreach (string m in a.Skip(2)) { string[] nr = m.Split(':'); Brain cb = nr.Length == 2 ? Who(nr[0]) : null; if (cb == null) { error("who? " + m); return; } crew.Add(cb.S.Vid + ":" + nr[1]); }
                         Net.Act(c, "expedition", $"start|{me.GetPlayerID()}|{string.Join(",", crew)}");

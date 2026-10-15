@@ -93,6 +93,24 @@ namespace Jarldom.Ui
             ry = Text(right, string.IsNullOrEmpty(s.Bed) ? "<color=#ff8c59>No bed</color>: sleeps by the hall fire. If they die, they're slow to rise again (by the pillars)." : bed != null ? $"Has a bed (comfort {Colony.ComfortAt(bed.transform.position)})." : "Has a bed (not loaded here).", ry, 15);
             string vid = s.Vid;
             float bx = 10;
+            // (one of the crew out with you: make camp, or call them all home; works far from home, where the colony isn't loaded)
+            long mine = Player.m_localPlayer.GetPlayerID();
+            if (Z.GetLong(Follow.Key, 0L) == mine && Z.GetString(Expedition.RoleKey, "") != "")
+            {
+                Small(right, "Make camp here", ref bx, ry, () =>
+                {
+                    Player me = Player.m_localPlayer; var crew = Expedition.CrewOf(mine);
+                    Vector3 at = me.transform.position + me.transform.forward * 3f;
+                    string why = Expedition.CantCamp(crew, at);
+                    if (why != "") { me.Message(MessageHud.MessageType.Center, "Can't make camp: " + why + "."); return; }
+                    Brain maker = crew.OrderBy(m => Expedition.RoleOf(m) == "carrier" ? 0 : 1).First();
+                    var ic = System.Globalization.CultureInfo.InvariantCulture;
+                    Villagers.Command(maker.S.Vid, "camp", $"{at.x.ToString(ic)}|{at.y.ToString(ic)}|{at.z.ToString(ic)}|{me.transform.eulerAngles.y.ToString(ic)}");
+                    Close();
+                }, "A fire, a chest and a workbench, just ahead of you, paid from what the crew carries (a carrier packs a camp's makings). Not near a colony.");
+                Small(right, "Call the crew home", ref bx, ry, () => { foreach (Brain m in Expedition.CrewOf(mine)) Villagers.Command(m.S.Vid, "follow", "0"); Close(); }, "The whole crew stops following you and goes home.");
+                ry += 44; bx = 10;
+            }
             if (c != null)
             {
                 Small(right, "Nearest free bed", ref bx, ry, () => { Bed free = c.FreeBeds().OrderBy(b => Vector3.Distance(b.transform.position, Player.m_localPlayer.transform.position)).FirstOrDefault(); if (free != null) Net.Act(c, "bed", vid + "|" + Colony.IdOf(free.GetComponent<ZNetView>())); else Player.m_localPlayer.Message(MessageHud.MessageType.Center, "No free bed in the colony."); });
