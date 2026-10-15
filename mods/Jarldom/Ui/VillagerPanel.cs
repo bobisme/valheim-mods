@@ -97,6 +97,8 @@ namespace Jarldom.Ui
             long mine = Player.m_localPlayer.GetPlayerID();
             if (Z.GetLong(Follow.Key, 0L) == mine && Z.GetString(Expedition.RoleKey, "") != "")
             {
+                ry = Text(right, $"Out with you as the crew's <color=#ffd27a>{Z.GetString(Expedition.RoleKey, "")}</color>.", ry, 15);
+                if (c == null) { Small(right, "Open bag", ref bx, ry, () => { Humanoid h = _h; Close(); Body.OpenBag(h); }, "Give them what to carry (wood and stone for a camp, resin for the pillars), or take what they've gathered."); ry += 44; bx = 10; }
                 Small(right, "Make camp here", ref bx, ry, () =>
                 {
                     Player me = Player.m_localPlayer; var crew = Expedition.CrewOf(mine);

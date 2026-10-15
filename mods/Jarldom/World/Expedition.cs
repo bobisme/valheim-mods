@@ -241,6 +241,8 @@ namespace Jarldom
         internal sealed class CampState
         {
             public Fireplace Fire; public Container Chest; public float NextLook, Next, Until; public int Phase; public Vector3 Goal; public ItemDrop Item;
+            public GameObject Bed; // (a spot by the fire to sleep on at night)
+            public void Wake(Brain b) { if (Bed == null) return; b.Stand(); Object.Destroy(Bed); Bed = null; }
         }
         private static readonly List<Piece> Found = new List<Piece>();
         // Is the jarl at a camp (looked for every two seconds): its fire, and its chest.
@@ -268,6 +270,26 @@ namespace Jarldom
         {
             Vector3 fire = st.Fire.transform.position;
             int k = (b.S.Vid.GetStableHashCode() & 0x7fffffff) % 6;
+            // (night at camp: all but the guards sleep round the fire, the guards keep watch)
+            double hour = Clock.HourOfDay(ZNet.instance.GetTimeSeconds());
+            bool night = hour >= Schedule.SleepAt || hour < Schedule.WakeAt;
+            if (night && RoleOf(b) != "guard")
+            {
+                float a = k * 60f * Mathf.Deg2Rad;
+                Vector3 spot = fire + new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a)) * 2.2f;
+                if (st.Bed == null)
+                {
+                    if (Utils.DistanceXZ(b.Pos, spot) > 1.2f) { if (!b.Move.Moving) b.Move.To(Colony.Spot(spot, 1f) ?? spot, 0.8f); return "going to sleep by the camp fire"; }
+                    st.Bed = new GameObject("JarldomCampSleep");
+                    st.Bed.transform.position = b.Pos;
+                    Vector3 toFire = fire - b.Pos; toFire.y = 0;
+                    st.Bed.transform.rotation = Quaternion.LookRotation(toFire.sqrMagnitude > 0.01f ? toFire.normalized : Vector3.forward) * Quaternion.Euler(0, 90, 0);
+                    b.Sit(st.Bed.transform, "attach_bed", Vector3.zero);
+                }
+                Mood.Satisfy(b.S, Need.Rest, (float)(b.GameDt / Clock.Hour * 10)); // (a night by the fire: most of a night's rest, if not a bed's)
+                return "asleep by the camp fire";
+            }
+            st.Wake(b);
             switch (RoleOf(b))
             {
                 case "guard":
