@@ -668,7 +668,7 @@ namespace Jarldom
                         if (a.Length > 2 && a[2] == "clear") { foreach (string k in c.R.Flags.Keys.Where(k => k.StartsWith("fest:") || k.StartsWith("yule:")).ToList()) c.R.Flags.Remove(k); c.MarkDirty(); }
                         var (nf, nd) = Calendar.Next(Year.Today()); var (af, ap) = Festivals.Active(c.R.Flags);
                         output(new JObject { ["next"] = Calendar.Name(nf), ["days"] = nd, ["readied"] = Mathf.RoundToInt(FestivalDays.Readied(c, nf) * 100), ["wants"] = FestivalDays.Wants(c, nf),
-                            ["blessing"] = af == null ? "none" : $"{Calendar.Name(af.Value)} at {Mathf.RoundToInt(ap * 100)}%", ["neglected"] = Festivals.Neglected(c.R.Flags, c.Day) });
+                            ["blessing"] = af == null ? "none" : $"{Calendar.Name(af.Value)} at {Mathf.RoundToInt(ap * 100)}%", ["neglected"] = Festivals.Neglected(c.R.Flags, c.Day), ["noHauler"] = FestivalDays.NoHauler(c) });
                     }
                     break;
                 case "beacon": // ("beacon": where it is and whether it burns; "beacon mark x z": the fire nearest there marked (or not); "beacon douse":

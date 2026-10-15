@@ -155,6 +155,9 @@ namespace Jarldom.Ui
             // (a festival coming and the hall's chest out of the haulers' reach: the goods have nowhere to go)
             if (Calendar.Next(Year.Today()) is var nf && nf.Item2 <= Calendar.PrepDays && FestHaulTask.HallOutOfReach(c))
                 list.Add($"{Calendar.Name(nf.Item1)} is coming, and the haulers can't get to the great hall's chest to ready it: put a chest in the hall where they can walk right up to it.");
+            // (a festival coming, not yet readied, and no one whose work it is to carry its goods to the hall)
+            if (Calendar.Next(Year.Today()) is var hf && hf.Item2 <= Calendar.PrepDays && c.Best(RoomType.GreatHall) != null && FestivalDays.NoHauler(c) && FestivalDays.Readied(c, hf.Item1) < 1f)
+                list.Add($"{Calendar.Name(hf.Item1)} is coming, and no one hauls: give someone the Hauler trade (People tab), or its goods won't reach the great hall's chests.");
             int homeless = people.Count(p => string.IsNullOrEmpty(p.Bed));
             if (homeless > 0) list.Add($"{homeless} {(homeless == 1 ? "has" : "have")} no bed and sleep by the hall fire: build beds in a marked longhouse (or by the pillars).");
             int meals = Stock.Food(c, c.Position).Sum(f => f.item.m_stack);

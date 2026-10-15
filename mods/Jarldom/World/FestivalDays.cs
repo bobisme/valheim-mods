@@ -49,6 +49,9 @@ namespace Jarldom
             }
             return a.kinds.Count > 0 && a.kinds.Any(k => Is(k, item));
         }
+        // (only haulers carry a festival's goods to the hall: none, and nothing gets there)
+        public static bool NoHauler(Colony c) => !c.R.Living.Any(r => r.Prof == Prof.Hauler);
+        private static string NoHaulerText(Colony c) => NoHauler(c) ? " No one hauls: give someone the Hauler trade (People tab), or the goods won't get there." : "";
         // (no chest in the hall at all: say so, or the goods have nowhere to go)
         private static string NoChest(Colony c)
         {
@@ -69,7 +72,7 @@ namespace Jarldom
             if (c.Best(RoomType.GreatHall) == null) { c.Tell($"{Calendar.Name(f)} {(until == 0 ? "is tonight" : $"in {until} {(until == 1 ? "day" : "days")}")}, but there's no great hall to keep it in.", true); return; }
             c.Tell(until == 0
                 ? $"{Calendar.Name(f)} is tonight, at dusk. Readied {Mathf.RoundToInt(Readied(c, f) * 100)}%: {Wants(c, f)}."
-                : $"{Calendar.Name(f)} in {until} {(until == 1 ? "day" : "days")}. Bring to the great hall's chests (it's kept there for the day, not eaten): {Wants(c, f)}.{NoChest(c)}", true);
+                : $"{Calendar.Name(f)} in {until} {(until == 1 ? "day" : "days")}. Bring to the great hall's chests (it's kept there for the day, not eaten): {Wants(c, f)}.{NoChest(c)}{NoHaulerText(c)}", true);
             if (until == Calendar.PrepDays) c.Log("text", "", "", $"{Calendar.Name(f)} is coming in {until} days: it wants {Wants(c, f)} in the great hall's chests."); // (in the saga and the while-you-were-gone, for a jarl who's away)
             Blessing(c);
         }
