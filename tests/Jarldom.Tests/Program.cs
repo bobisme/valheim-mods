@@ -853,6 +853,20 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Worn.Load("junk;1,2,x,3;").Count == 0, "Bad record entries are skipped");
 }
 
+// ---- The scattered reborn ----
+{
+    Check(!Scatter.Rolls(Rank.Homestead, 0.01) && Scatter.Rolls(Rank.Hamlet, 0.19) && !Scatter.Rolls(Rank.Hold, 0.2), "One arrival in five, once a hamlet");
+    var places = new List<(string, float, float, string)> { ("WoodHouse3", 500, 0, "Meadows"), ("Ruin1", 300, 0, "Meadows"), ("StoneTower1", 0, 900, "BlackForest"), ("ShipWreck01", 1600, 0, "Meadows"), ("Crypt2", 600, 0, "BlackForest"), ("WoodVillage1", 0, -700, "Swamp"), ("Vendor_BlackForest", 0, 800, "BlackForest") };
+    var srng = new Random(3); var seen = new HashSet<string>();
+    for (int i = 0; i < 200; i++) { var site = Scatter.Site(places, 0, 0, 1, srng); if (site != null) seen.Add(site.Value.prefab); }
+    Check(seen.SetEquals(new[] { "WoodHouse3", "StoneTower1" }), "Only shelters 400-1500 m away, in an opened land (" + string.Join(", ", seen) + ")");
+    Check(Scatter.Site(places, 0, 0, 0, new Random(1))?.prefab == "WoodHouse3", "Nothing opened: the Meadows only");
+    Check(Scatter.Site(new List<(string, float, float, string)> { ("Ruin1", 50, 0, "Meadows") }, 0, 0, 6, new Random(1)) == null, "Nowhere fit: none");
+    Check(!Scatter.Expired(10, 12.9) && Scatter.Expired(10, 13) && Math.Abs(Scatter.DaysLeft(10, 11.5) - 1.5) < 1e-9, "They hold out three days");
+    var sw = Scatter.Load(Scatter.Save(new Scatter.Waiting { Vid = "abc", X = 512.3f, Z = -77.1f, Day = 41.25 }));
+    Check(sw != null && sw.Vid == "abc" && Math.Abs(sw.X - 512.3f) < 0.06f && Math.Abs(sw.Day - 41.25) < 1e-6 && Scatter.Load("") == null && Scatter.Load("a,b,c,d") == null, "Kept in the record and read back");
+}
+
 // ---- Prefab names: a save finds a thing again by its prefab's name; none shipped may go ----
 {
     var golden = File.ReadAllLines(Path.Combine(AppContext.BaseDirectory, "prefabs.txt")).Select(l => l.Trim()).Where(l => l != "").ToList();
