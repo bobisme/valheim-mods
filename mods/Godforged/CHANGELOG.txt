@@ -1,0 +1,49 @@
+0.2.40: Every finger's first joint has the same curved iron plate as the middle finger's, so they match.
+
+0.2.39: The back-of-hand plate lies on the hand (fitted to its surface measured in the game; it stood up to 2 cm off). gf cuff backhand measures it.
+
+0.2.37: Járngreipr: a riveted, arched iron plate on the back of each hand with Thor's rune, and a curved plate on the middle finger's first joint (the plates made from the skin there were flat slabs: too few points). Fixed: a relic in flight through a reload came back twice (one home, one on the ground); unloading now brings every relic in flight home and takes its projectile away.
+
+0.2.36: Járngreipr's cuffs are splinted vambraces, as the Viking age made them: blackened iron splints riveted to a leather sleeve, buckled on with leather straps, Thor's rune cut into the middle splints, old bronze; no more glowing lights or gold bands.
+
+0.2.33: Gungnir's head almost barbed rather than barbed: its outline flows in smooth curves, the shoulders sweeping back into soft hooks, the point still keen.
+
+0.2.32: Járngreipr look forged, not plastic: the iron mottled, pitted and scratched with its shine varying across it, the leather grained (textures made in the game).
+
+0.2.31: Gungnir's head is one forged piece: its barbs are part of its outline, bevelled to the same keen edge and ridge as the blade (they were plates set on its edge).
+
+0.2.30: Every Godforged surface shows its own metal and gloss (the game's shader read them from a map that was missing, so all of it shone like a mirror): the gauntlets' iron and leather are dull, the hammer and the spear forged rather than chromed.
+
+0.2.29: Járngreipr dull, not shiny: matte leather, dull forged iron and bronze. The gloves' leather stops at the cuffs (it ran up the arm to the elbow above them).
+
+0.2.28: Gungnir's head is angular and barbed, as on the Vendel plates: straight keen edges from hard shoulders, barbs swept back, the shaft running on up through it as an iron spine, runes either side.
+
+0.2.27: Gungnir remade as a dwarf's work: a huge leaf head (75 cm, as Odin's on the Vendel helmet plates) with keen ground edges, a proud rib and glowing runes, winged lugs, a long eight-sided socket; its shaft dark ash bound in iron (langets, an iron band wound down it, a wrapped grip, an iron butt spike).
+
+0.2.26: The gloves' leather runs up the whole forearm under the iron cuffs to the elbow (the forearm's skin was being shrunk into the hand along with the borrowed armour's, so bare skin showed between cuff and glove), pushed out from the bone so it always sits over the skin.
+
+0.2.16: The cuffs narrow towards the wrist and close on the glove with a leather skirt: nothing of the arm shows inside them when the wrist bends.
+
+0.2.14: Járngreipr's iron cuffs sit lower and tighter, from mid-forearm down over the wrist onto the glove: cuff and glove are one gauntlet.
+
+0.2.13: Mjölnir hums as it flies (a deep throb with a crackle), Gungnir rushes like a sharp wind; both on the way back too, heard by everyone. Relics are made at full durability (they started at the copied item's: Frostner's and the Carapace Spear's, so the bar showed nearly worn out); gf repair mends the ones already made. The gloves' leather runs up the whole forearm under the cuffs (bare skin showed at the wrist).
+
+0.2.11: Járngreipr's gloves are made from the wearer's own hands as they're put on: a leather glove (the skin of the hands and fingers, and the wrist up under the cuffs, a little larger) with iron plates over the backs of every finger joint and of the hand, apart at the knuckles, bending with every finger. Iron and leather match the cuffs; nothing shows through. The borrowed Protector plate is off by default (HandFrom).
+
+0.2.10: Járngreipr are gloves now: an iron plate over the back of every finger and thumb joint, each riding its own bone so the fingers bend and grip in them (sized to the hand's bones as measured in the game; palm side open), and the back of the hand is the Breastplate of the Protector's plate, borrowed from the game and cut down to the hand as it's worn (HandFrom). ForearmLook: Járngreipr's iron cuffs (default) or the Protector's forearm plates. gf cuff hand / scan / borrow for fitting.
+
+0.2.3: Járngreipr remade to the player's forearm as measured in the game (gf cuff measure: the body mesh's own radius along the bone): elbow to wrist, flared over the thick of the arm, riveted plates down both sides, nothing of the arm showing through. gf cuff measure also says which prefab the game draws them from.
+
+0.2.0: Mjölnir's lightning splits trees: chop damage to the trees, logs and stumps it reaches (StrikeSplitsTrees, StrikeSplitTier). On its way home it hits whatever it passes through (60% of its damage and a shove; ReturnDamage; never you, tame animals or friends; buildings only with ReturnHurtsBuildings).
+
+0.1.9: A thrown Mjölnir flies with its head upright and tumbles end over end (it whirled flat).
+
+0.1.8: Járngreipr fitted to the arm from pictures taken in the game: twice as wide, so the iron sits outside the forearm (it was inside it, only the bands and runes showing). gf cuff takes a size too (sx sy sz).
+
+0.1.5: A thrown Mjölnir tumbles head over handle, so it strikes with a head (it spun about the head's own axis and hit with its flat). Járngreipr turned end for end: narrow at the wrist, flared towards the elbow.
+
+0.1.4: Mjölnir is thrown much harder (75% faster, flatter, more damage and knockback; its lightning pushes harder too). Járngreipr sit on the forearms, a fifth wider and nearer the elbow (they were down over the hands, inside the arm). gf cuff also measures the forearm bones.
+
+0.1.1: Mjölnir burns the bare hand that holds it (3 health a second, never below 1; BareHandBurn) until you wear Járngreipr. Its striking faces are flared blocks (they were twisted eight-sided cones).
+
+0.1.0: First version. Mjölnir (thrown, lightning strikes where it lands and it comes back to the hand; only with Járngreipr), Járngreipr (iron gauntlets in the trinket slot), Gungnir (thrown, it finds the foe at the crosshair and comes back). Thor's kit with the game's Megingjord: the lightning leaps from foe to foe. Not yet played in the game: expect rough edges in how things sit in the hand and on the arms, and the tuning.

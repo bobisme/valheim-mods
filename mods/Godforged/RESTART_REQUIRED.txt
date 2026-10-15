@@ -1,0 +1,1 @@
+Adds saved items with recipes and networked projectiles. Install Godforged on the host and every player, then restart Valheim before loading the world.

@@ -1243,6 +1243,31 @@ and loaded by `Core/Meshes.cs`; run `blender -b --python <absolute path>.py -- r
 can't read /tmp). `wu look <prefab>` renders a model in the game from four sides, `wu grip` tunes how it sits in the hand.
 Tested in the game: firing, the sword, jetpack flight, goggles, drone, ion strike, speeder ride, displacer, stim pack.
 
+## Godforged
+
+The gods' own treasures, as weapons and gear (`cx.bob.godforged`). Made at the forge for now; every cost is a setting
+(`9 - Costs`). Fimbulwinter (valheim-ragnarok) builds on it: its Godforged tier hands these out as Ragnarök and trial rewards
+through `Godforged.Api` (`Relics`, `Relic(item)`, `Prefab(name)`, `SetCraftable(false)`).
+
+- **Mjölnir** (one-handed, a copy of Frostner): blunt and lightning, a little less reach (the short handle). The secondary
+  attack throws it, tumbling end over end with a throbbing hum: lightning strikes where it lands (60 over 4 m, and it splits
+  trees: chop damage to trees, logs and stumps), it hits what it passes on the way home, and comes back to the hand. Held
+  bare-handed it burns (3 a second, never below 1); it can't be thrown without **Járngreipr**.
+- **Járngreipr** (trinket slot, a copy of the Bracelets of the Brave: the game has no gloves): iron on leather, as the north made
+  them. Splinted vambraces (iron splints riveted to a leather sleeve, buckled, Thor's rune cut in) over gloves made from the
+  wearer's own hands as they're put on (`Features/Glove.cs`: the body mesh's hand and forearm skin, pushed out, bound to the same
+  bones), with iron over every finger joint and a riveted plate on the back of each hand.
+- **Gungnir** (a copy of the Carapace Spear), a dwarf's work: a huge angular, almost-barbed head on an iron-bound shaft. Thrown,
+  with a rushing wind, it picks the foe nearest the crosshair (10°, 90 m, in sight) and turns in flight to reach it, then comes back.
+- **Thor's kit**: with Mjölnir, Járngreipr and the game's own **Megingjord** worn, the strike leaps on to four more foes.
+
+A thrown relic never drops: the game hands the item to the projectile to drop where it lands, and Godforged takes it back at
+the first hit (or when the projectile goes any other way) and flies it home, into the bag and the empty hand, or onto the ground
+there if it can't get home. Everyone sees the throw, the flight home and the lightning. Claude Tools gets a `gf` command: `list`,
+`give <prefab|all>` and `repair` (cheats only), `held`, `icons`, `look`, `grip`, and `cuff` (`measure`, `hand`, `backhand`, `glove`: the wearer's arm and hand as measured from the body mesh; `scan`/`borrow`: try other armour's hand meshes) for fitting the gauntlets. Code: `Core/`
+is Wrong Universe's; `Features/Throws.cs` is the throw that comes back; one class per relic. Models: `Models/<name>.py` (Blender,
+Wrong Universe's wulib); surfaces named `c_RRGGBB_..._f`/`_l` get forged-iron or leather grain made in the game (`Look.Grained`). Played in a test world through 0.2.40 (forced reloads; a full restart still to do).
+
 ## Factorheim
 
 Factorio in Valheim (`cx.bob.factorheim`): start with a burner drill on a copper vein, end by riding a rocket to Valhalla.
