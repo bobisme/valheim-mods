@@ -1,0 +1,9 @@
+Factorio in the tenth world. Start with a burner drill on a copper vein and a few belts; end by riding a rune-carved rocket straight to Valhalla. Everything is built with the hammer (Crafting tab; poles under Misc) and unlocks by research.
+
+Burner age (from the start): burner drills on any ore deposit (copper, tin, iron mud piles, silver, obsidian, soft tissue, flametal; stone from plain ground) that never run dry, a woodcutter that gathers from the trees around it, bronze belts that carry items and you, burner inserters, and the rune lab.
+Science: craft rune packs (Bronze, Iron, Silver, Eitr, Flametal runes) and feed them to rune labs. Shift+E on a lab opens the research window. Research is shared by the whole world: Automation, Logistics, Tar processing, Eitr works, Rocket silo.
+Automation: steam engines (near water), power poles with copper wires, assemblers with a recipe picker (Shift+E), electric inserters. Later: iron and eitr belts, splitters, long and filter inserters, electric drills, accumulators, surtling generators, eitr reactors, tar pumpjacks and chemical plants (plastic, solid fuel, rocket fuel).
+Belts and inserters work with your chests and with the game's own smelters, kilns, blast furnaces, refineries and fires: what a smelter drops onto a belt rides away.
+The rocket: a 9x9 silo builds rocket parts. When the rocket stands complete, board it: countdown, liftoff, the clouds, a Valkyrie at your side, and Valhalla. Everyone nearby watches it go. You come back with Einherjar's horn.
+
+Every cost is a setting (9 - Costs). "Unlock everything" skips research for trying things out.

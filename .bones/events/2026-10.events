@@ -1249,3 +1249,29 @@
 1792027518335277	codex-mod-covers	itc:AQ		item.move	bn-kvh	{"state":"doing"}	blake3:08A8rD56pmYqWgSk2mIG8toGHK0j-Wsg5oEFLmQIRuI
 1792027518341447	codex-mod-covers	itc:AQ		item.assign	bn-kvh	{"action":"assign","agent":"codex-mod-covers"}	blake3:Yqpa-6E_9I3eLgsbGlB9SXC_gmqurYwNI_0BcjRGou0
 1792027729820588	codex-mod-covers	itc:AQ		item.move	bn-kvh	{"state":"done"}	blake3:TEyisVD1K9P8r6Mg_VWeSOiS9VLWFk0_V_AOfW3ZzMY
+1792033011300020	claude-factorheim	itc:AQ		item.create	bn-afm3	{"kind":"goal","labels":["factorheim"],"title":"Factorheim: Factorio in Valheim, from burner drills to a rocket to Valhalla"}	blake3:SGwnqedtSxP0m_wFdgRFRjbUHRGAp_QRAMBbrAHQd7A
+1792033011434289	claude-factorheim	itc:AQ		item.create	bn-1naw	{"kind":"task","labels":["factorheim"],"parent":"bn-afm3","title":"Core: plugin, items/pieces registry, ports, machine base, power and tech contracts, fh command"}	blake3:g-V8vtAmOnlqdiZktT1cRN0fXLrsf1iHc3D1sRKvEVM
+1792033011561756	claude-factorheim	itc:AQ		item.create	bn-7ysi	{"kind":"task","labels":["factorheim"],"parent":"bn-afm3","title":"Logistics: belts (items riding, ZDO-throttled), inserters, splitter, ports for chests/vanilla smelters/ground items"}	blake3:NUgommbpkXPMLK5XmXvbnUdrAZ2jFYj12DhgGvhRFCU
+1792033011698312	claude-factorheim	itc:AQ		item.create	bn-2e4b	{"kind":"task","labels":["factorheim"],"parent":"bn-afm3","title":"Production: burner + electric drills on ore deposits, assemblers with recipes, tar pumpjack, chemical plant, intermediate items"}	blake3:hwhgJsi7BMpZj1IcQotYDzSiJscjLw3PN7nUw3xgycI
+1792033011824021	claude-factorheim	itc:AQ		item.create	bn-1sjr	{"kind":"task","labels":["factorheim"],"parent":"bn-afm3","title":"Power: boiler, steam engine, power poles with wires, network solver"}	blake3:rGmtV_TK9M_5RJ8c23dRmGMdxdcRPNVJ-bsNdcvDhOE
+1792033011950733	claude-factorheim	itc:AQ		item.create	bn-2bda	{"kind":"task","labels":["factorheim"],"parent":"bn-afm3","title":"Science: rune science packs, rune lab, research tiers in global keys, piece/recipe gating, research panel"}	blake3:RYR8am4_A0OK7NS2wyavHFPRDUkxfUekMtISxv8ZxPo
+1792033012076642	claude-factorheim	itc:AQ		item.create	bn-14r6	{"kind":"task","labels":["factorheim"],"parent":"bn-afm3","title":"Rocket: silo, rocket parts, launch + ascent to Valhalla cinematic, credits, trophy"}	blake3:B-SYXpLrtkalILkUNMQqDEVkT7GY0gIA-Lb-4AxBeAk
+1792033621665069	claude-factorheim	itc:AQ		item.move	bn-1naw	{"state":"done"}	blake3:smq5sKvRGF2mB8kHQ16qrEC9KoEZHq8nDTqxTcYltnQ
+1792033621692132	claude-factorheim	itc:AQ		item.move	bn-7ysi	{"state":"doing"}	blake3:I7RdyuaurAH6NF6ovi1UNSyjVuNw9vZf5ipjAGgBZ4s
+1792033621698672	claude-factorheim	itc:AQ		item.assign	bn-7ysi	{"action":"assign","agent":"claude-factorheim"}	blake3:i2-BAC0BYxzPyGSSRB6MogP5oNXnTQQMj_aPl_pLKT8
+1792033621714190	claude-factorheim	itc:AQ		item.move	bn-2e4b	{"state":"doing"}	blake3:9J_-jFroJoj-IZALMGA6d6ysUUr9ZdQd4Put02j6BqI
+1792033621718705	claude-factorheim	itc:AQ		item.assign	bn-2e4b	{"action":"assign","agent":"claude-factorheim"}	blake3:XUbTxZWr_MTUCKrZzQVcaguwRJ1H9c6gNyXhK0-aGAI
+1792033621734130	claude-factorheim	itc:AQ		item.move	bn-1sjr	{"state":"doing"}	blake3:EA0Ca8D8Oo0kyOPoZeVkCw8zbjnkXm1bABkv1elziPM
+1792033621738056	claude-factorheim	itc:AQ		item.assign	bn-1sjr	{"action":"assign","agent":"claude-factorheim"}	blake3:gvsMlCwBKNVw0fcqkHKEi3aUBxiLzr_LGIyaUlh7xT4
+1792033621753618	claude-factorheim	itc:AQ		item.move	bn-2bda	{"state":"doing"}	blake3:rrXCAV0tYsjl8N_NftJltSeleuCw9ZYikjVBmAXUzvk
+1792033621758335	claude-factorheim	itc:AQ		item.assign	bn-2bda	{"action":"assign","agent":"claude-factorheim"}	blake3:SpNML345X0AIkMeokyjzRvMJSrbyPTeM_8rQdnrANSk
+1792033621774218	claude-factorheim	itc:AQ		item.move	bn-14r6	{"state":"doing"}	blake3:1rghEbWUyL_hQislbXaM1wqw6MC4Jptfj-FO30TURoA
+1792033621778522	claude-factorheim	itc:AQ		item.assign	bn-14r6	{"action":"assign","agent":"claude-factorheim"}	blake3:h9Q162iz81wHu7gIV547EiBY9CajvH2iDK73Rhi1evM
+1792034398619159	claude-factorheim	itc:AQ		item.move	bn-7ysi	{"state":"done"}	blake3:NffCprFF-LB7wu5KrHWZywPACBVbt6e6AfMF7NWjSnY
+1792034398637244	claude-factorheim	itc:AQ		item.move	bn-2e4b	{"state":"done"}	blake3:hR2K-1T_UG7HGpBIPbc7o7YgNkzJy13I3CnYw1R6GYw
+1792034398655362	claude-factorheim	itc:AQ		item.move	bn-1sjr	{"state":"done"}	blake3:vGa8CLMtqxzMqvqUQDp-ZddidKUWoQaCBPQ4Yek_8k8
+1792034398675134	claude-factorheim	itc:AQ		item.move	bn-2bda	{"state":"done"}	blake3:oihx7R886XvR5b-PHyntMm4KuO4u8J6pxOtOn3M84TM
+1792034398693503	claude-factorheim	itc:AQ		item.move	bn-14r6	{"state":"done"}	blake3:pnuvfxAi61dcB7b2XhTJPvpeOQZlssHvVIogl6Q-zs4
+1792034398697784	claude-factorheim	itc:AQ		item.move	bn-afm3	{"reason":"auto-completed: all children of bn-afm3 are done","state":"done"}	blake3:Ybd0ioBS_Dl0bWEdzphCva4wrJb8cU-JJOQFFRN6Aug
+1792034398817129	claude-factorheim	itc:AQ		item.create	bn-1sda	{"kind":"task","labels":["factorheim","needs-multiplayer"],"parent":"bn-afm3","title":"Factorheim MP: belt items seen by a second client, research from two labs, watchers see the rocket launch, ownership at zone edges"}	blake3:HF7Kkt6NgstkN7aai95kARBvZoUDJkZJgJypFmAoBow
+1792034403284176	claude-factorheim	itc:AQ		item.create	bn-14wy	{"kind":"task","labels":["factorheim","needs-player"],"parent":"bn-afm3","title":"Factorheim 0.1.0 first playtest: model sizes, drills on deposits, belt+inserter+smelter line, poles/wires, assembler picker, research window, silo launch"}	blake3:xgstTCbz79LQjhlxeclg2vOnkFpRHjCpY2GaNRCHf2w

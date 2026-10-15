@@ -1251,6 +1251,32 @@ and loaded by `Core/Meshes.cs`; run `blender -b --python <absolute path>.py -- r
 can't read /tmp). `wu look <prefab>` renders a model in the game from four sides, `wu grip` tunes how it sits in the hand.
 Tested in the game: firing, the sword, jetpack flight, goggles, drone, ion strike, speeder ride, displacer, stim pack.
 
+## Factorheim
+
+Factorio in Valheim (`cx.bob.factorheim`): start with a burner drill on a copper vein, end by riding a rocket to Valhalla.
+Everything is a hammer piece (Crafting tab, poles under Misc) that unlocks with research; every cost is a setting (`9 - Costs`),
+and "Unlock everything" (`0 - General`) skips research.
+
+- **Logistics**: bronze, iron and eitr belts (1.9 / 3.75 / 5.6 items/s, 1 m segments that snap end to end, side-loading, carry
+  the player), splitter, burner / electric / long / filter inserters. Belts pick up what lands on them, so a vanilla smelter's
+  output rides away; inserters feed chests, our machines and the game's smelters, kilns, refineries and fires.
+- **Production**: burner and electric drills on any deposit (read from the game's drop tables; plain ground gives stone; never
+  run dry), woodcutter, three assembler tiers and a chemical plant with a recipe picker (Shift+E), tar pumpjack.
+- **Power**: steam engine (needs water within 12 m), surtling generator, eitr reactor, accumulator, small and big poles with
+  sagging copper wires. Each game solves the grid itself from the pieces (nothing on the network); fuel burns with the load.
+- **Science**: five rune packs, rune labs (half speed unpowered), world research in tiers 0-5 kept as global keys
+  (`fh_tier1..5`; progress counted by the server), research window on Shift+E.
+- **Rocket**: the 9x9 silo builds rocket parts (100, a setting) and raises a longship-rocket section by section (Blender model).
+  Board it: countdown, liftoff seen by everyone nearby (one launch time on the silo's ZDO), clouds, a Valkyrie alongside,
+  VALHALLA and credits, and back to the silo with Einherjar's horn.
+
+Multiplayer: items move only on the game that owns both ends (no duplication); belts write their ZDO at most once a second and
+only when items came or went, and everyone draws belt items locally. Zones that aren't loaded don't run.
+Claude Tools gets `fh`: `list`, `give <prefab|all> [n]`, `tech [tier]`, `pieces`, `place <piece> [dist] [yaw]`, `machines`,
+`crafts`, and `belt`, `prod`, `power`, `research`, `silo` for each part's own checks. `DESIGN.md` has the tech tree, items and
+recipes. Code: `Core/` (items, pieces, machine base, ports, crafts, tech, item views; looks, icons, GameUi from Wrong Universe
+and the Claude Tools templates) and one `Features/` part each, built in parallel. Not yet played in the game.
+
 ## Build with mise
 
 Install [mise](https://mise.jdx.dev/) and run:
