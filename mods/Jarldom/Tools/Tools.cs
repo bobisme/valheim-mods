@@ -1140,7 +1140,7 @@ namespace Jarldom
                     output(new JObject { ["missed"] = c.R.MissedPaydays, ["lastPayday"] = c.R.LastPayday, ["owed"] = c.Owed() }); break;
                 case "expedition": // (test: "expedition <name>:<role> ..." sets out with them, as the Expedition tab does; "expedition home")
                     {
-                        if (a.Length > 2 && a[2] == "home") { if (c != null) Net.Act(c, "expedition", "home|" + me.GetPlayerID()); else foreach (Brain m in Expedition.CrewOf(me.GetPlayerID())) Villagers.Command(m.S.Vid, "follow", "0"); output(new JObject { ["home"] = true }); break; }
+                        if (a.Length > 2 && a[2] == "home") { foreach (Brain m in Expedition.CrewOf(me.GetPlayerID())) Villagers.Command(m.S.Vid, "follow", "0"); output(new JObject { ["home"] = true }); break; }
                         if (a.Length > 2 && a[2] == "outpost") // (test: why an outpost can or can't be raised where the player stands; "outpost raise": raise it 4 m ahead)
                         {
                             var crew1 = Expedition.CrewOf(me.GetPlayerID());
