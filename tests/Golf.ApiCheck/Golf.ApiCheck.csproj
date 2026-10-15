@@ -1,4 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><EnableDefaultCompileItems>false</EnableDefaultCompileItems></PropertyGroup>
+  <PropertyGroup>
+    <!-- The game folder, found as the mods find it (mods/Directory.Build.props): VALHEIM_DIR, -p:ValheimDir, or the usual Steam libraries. -->
+    <ValheimDir Condition="'$(ValheimDir)' == ''">$(VALHEIM_DIR)</ValheimDir>
+    <ValheimDir Condition="'$(ValheimDir)' == '' and '$(OS)' == 'Windows_NT'">C:/Program Files (x86)/Steam/steamapps/common/Valheim</ValheimDir>
+    <ValheimDir Condition="'$(ValheimDir)' == '' and Exists('$(HOME)/.local/share/Steam/steamapps/common/Valheim/valheim.x86_64')">$(HOME)/.local/share/Steam/steamapps/common/Valheim</ValheimDir>
+    <ValheimDir Condition="'$(ValheimDir)' == '' and Exists('$(HOME)/.steam/steam/steamapps/common/Valheim/valheim.x86_64')">$(HOME)/.steam/steam/steamapps/common/Valheim</ValheimDir>
+    <ValheimDir Condition="'$(ValheimDir)' == '' and Exists('$(HOME)/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Valheim/valheim.x86_64')">$(HOME)/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Valheim</ValheimDir>
+  </PropertyGroup>
   <ItemGroup><Compile Include="Program.cs" /><Reference Include="Mono.Cecil"><HintPath>$(ValheimDir)/BepInEx/core/Mono.Cecil.dll</HintPath></Reference></ItemGroup>
 </Project>

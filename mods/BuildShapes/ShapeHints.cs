@@ -142,8 +142,10 @@ namespace BuildShapes
             rect.anchorMin = rowRect.anchorMin; rect.anchorMax = rowRect.anchorMax; rect.pivot = new Vector2(0.5f, 0);
             rect.anchoredPosition = rowRect.anchoredPosition + new Vector2(0, 48); rect.sizeDelta = new Vector2(1400, 60);
             var like2 = label.GetComponent<TMP_Text>();
+            status.SetActive(false); // (given its font before it wakes: TextMeshPro warns about a missing default font otherwise)
             _hintStatus = status.AddComponent<TextMeshProUGUI>();
             _hintStatus.font = like2.font; _hintStatus.fontSharedMaterial = like2.fontSharedMaterial; _hintStatus.fontSize = like2.fontSize * 1.1f;
+            status.SetActive(true);
             _hintStatus.color = like2.color; _hintStatus.alignment = TextAlignmentOptions.Bottom; _hintStatus.richText = true; _hintStatus.raycastTarget = false;
             status.transform.SetParent(_hintRow.transform, true); // (shown and hidden with the row, but left out of its layout)
             status.AddComponent<LayoutElement>().ignoreLayout = true;

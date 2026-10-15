@@ -13,7 +13,7 @@ namespace Gary
             // Read only the native inventory header. Loading an Inventory can instantiate items.
             if(!initialized||data==null||data.Length<6||data.Length>1024*1024)return LootState.Unknown;
             int version=Int(data,0),header,count;
-            if(version==108||version==109){header=6;count=data[4]|data[5]<<8;}
+            if(version>=108&&version<=110){header=6;count=data[4]|data[5]<<8;}
             else if(version>=101&&version<=107&&data.Length>=8){header=8;count=Int(data,4);}
             else return LootState.Unknown;
             if(count<0||count>4096)return LootState.Unknown;

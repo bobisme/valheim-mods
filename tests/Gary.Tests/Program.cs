@@ -108,7 +108,7 @@ byte[] Header(int version,int count,bool compact,bool body=false)
     writer.Write(version);if(compact)writer.Write((ushort)count);else writer.Write(count);
     if(body)writer.Write((byte)1);return stream.ToArray();
 }
-foreach(int version in Enumerable.Range(101,9))
+foreach(int version in Enumerable.Range(101,10))
 {
     bool compact=version>=108;
     Check(LootPolicy.Chest(Header(version,0,compact),true)==LootState.Empty,"Exact native empty chest header is empty");
@@ -117,7 +117,7 @@ foreach(int version in Enumerable.Range(101,9))
     Check(LootPolicy.Chest(Header(version,0,compact,true),true)==LootState.Unknown,"Unexpected trailing data is not empty");
     Check(LootPolicy.Chest(Header(version,0,compact),false)==LootState.Unknown,"Ungenerated defaults are unknown");
 }
-foreach(byte[] data in new byte[][]{null,Array.Empty<byte>(),new byte[5],Header(110,0,true),Header(100,0,false),Header(106,-1,false),new byte[1024*1024+1]})
+foreach(byte[] data in new byte[][]{null,Array.Empty<byte>(),new byte[5],Header(111,0,true),Header(100,0,false),Header(106,-1,false),new byte[1024*1024+1]})
     Check(LootPolicy.Chest(data!,true)==LootState.Unknown,"Missing, future, malformed, and oversized inventories stay unknown");
 foreach(LootState state in Enum.GetValues<LootState>())
 {

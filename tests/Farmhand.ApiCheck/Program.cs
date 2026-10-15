@@ -185,10 +185,10 @@ Field("DungeonGenerator","m_roomsToLoad","System.Int32");
 Field("DungeonGenerator","m_loadedRooms","DungeonGenerator/RoomPlacementData[]");
 Field("Player","m_customData","System.Collections.Generic.Dictionary`2<System.String,System.String>");
 var itemVersions=game.MainModule.Types.Single(t=>t.Name=="Version").NestedTypes.Single(t=>t.Name=="Item");
-foreach(var (name,value) in new[]{("Quality",101),("Smaller",108),("ChunksNCheats",109)})
+foreach(var (name,value) in new[]{("Quality",101),("Smaller",108),("ChunksNCheats",109),("NewCheats",110)})
     if(!itemVersions.Fields.Any(f=>f.Name==name&&f.HasConstant&&(int)f.Constant==value))throw new Exception("Native chest serialization changed: "+name);
 var inventorySave=game.MainModule.Types.Single(t=>t.Name=="Inventory").Methods.Single(m=>m.Name=="Save"&&m.Parameters.Count==1);
-if(!inventorySave.Body.Instructions.Any(i=>i.OpCode.Code==Mono.Cecil.Cil.Code.Ldc_I4_S&&Convert.ToInt32(i.Operand)==109)||
+if(!inventorySave.Body.Instructions.Any(i=>i.OpCode.Code==Mono.Cecil.Cil.Code.Ldc_I4_S&&Convert.ToInt32(i.Operand)==110)||
    !inventorySave.Body.Instructions.Any(i=>i.Operand is MethodReference m&&m.DeclaringType.Name=="ZPackage"&&m.Name=="Write"&&m.Parameters.Count==1&&m.Parameters[0].ParameterType.FullName=="System.UInt16"))
     throw new Exception("Native inventory header changed; review Gary's read-only chest parser.");
 Method("ZPackage","Size","System.Int32");
