@@ -79,7 +79,7 @@ namespace BuildKit
         private static readonly MethodInfo UpdateKnownRecipes = AccessTools.Method(typeof(Player), "UpdateKnownRecipesList"), UpdateAvailablePieces = AccessTools.Method(typeof(Player), "UpdateAvailablePiecesList");
         internal static readonly Dictionary<string, GameObject> Made = new Dictionary<string, GameObject>();
         private static readonly List<Object> Owned = new List<Object>();
-        private static GameObject _holder; private static ZNetScene _scene; private static float _next; private static bool _broken;
+        private static GameObject _holder; private static ZNetScene _scene; private static float _next, _settleAt = -1; private static bool _broken;
 
         internal static PieceTable Hammer() => ObjectDB.instance?.GetItemPrefab("Hammer")?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces;
 
@@ -92,13 +92,13 @@ namespace BuildKit
             if (scene == null || table == null || Plugin.Instance == null || !Plugin.Instance.Enabled.Value) return;
             if (scene != _scene) { Forget(); _scene = scene; }
             table.m_pieces.RemoveAll(p => p == null); // (a piece an older copy made and destroyed, or one dropped from the kit: the build menu throws on it)
-            bool changed = false;
+            bool changed = false, every = true;
             foreach (Def d in All)
             {
                 if (!Made.TryGetValue(d.Name, out GameObject prefab) || prefab == null)
                 {
                     prefab = Make(scene, d);
-                    if (prefab == null) continue;
+                    if (prefab == null) { every = false; continue; }
                     Made[d.Name] = prefab;
                 }
                 if (table.m_pieces.Contains(prefab) && scene.GetPrefab(d.Name) == prefab) continue;
@@ -107,6 +107,9 @@ namespace BuildKit
                 changed = true;
             }
             if (changed && Player.m_localPlayer is Player p) { UpdateKnownRecipes?.Invoke(p, null); UpdateAvailablePieces?.Invoke(p, null); }
+            // (an older copy's: ours put in their place on what's standing, the rest freed; a few seconds on, once the turf roofs
+            // reattached have chosen this copy's meshes)
+            if (every) { if (_settleAt < 0) _settleAt = Time.unscaledTime + 3; else if (Time.unscaledTime >= _settleAt) Leftovers.TakeOver(Owned); }
         }
         internal static void Broken() => _broken = true;
         // Made again (a texture tried with kit look): the pieces standing keep their look until the area reloads.
@@ -115,8 +118,9 @@ namespace BuildKit
         {
             PieceTable table = Hammer();
             foreach (GameObject prefab in Made.Values) PieceReload.UnloadPiece(prefab, table);
-            // (its meshes and materials are left: the pieces standing in the world still draw with them until the next copy's look
-            // takes over, and destroyed they'd show magenta)
+            // (its meshes and materials are left: the pieces standing in the world still draw with them until the next copy puts its own
+            // in their place; it frees these then)
+            Leftovers.HandOver(Owned.Concat(new Object[] { _holder }));
         }
         // A new world (or the main menu): made again from that world's own prefabs.
         private static void Forget() { Made.Clear(); Meshes.Clear(); foreach (Object o in Owned) if (o != null) Object.Destroy(o); Owned.Clear(); Mats.Clear(); }

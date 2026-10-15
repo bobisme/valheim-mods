@@ -49,6 +49,15 @@ namespace BuildKit
             string sub = a.Length > 1 ? a[1] : "list";
             switch (sub)
             {
+                case "mem": // (what reloads leave: the kit's materials, meshes, icons and prefab holders alive, of every copy)
+                    output(new JObject
+                    {
+                        ["materials"] = Resources.FindObjectsOfTypeAll<Material>().Count(m => m.name.StartsWith("BuildKit ", StringComparison.Ordinal)),
+                        ["meshes"] = Resources.FindObjectsOfTypeAll<Mesh>().Count(m => Kit.All.Any(d => m.name.StartsWith(d.Name, StringComparison.Ordinal))),
+                        ["holders"] = Resources.FindObjectsOfTypeAll<GameObject>().Count(g => g.name == "BuildKit prefabs"),
+                        ["unityMB"] = Math.Round(UnityEngine.Profiling.Profiler.GetTotalAllocatedMemoryLong() / 1048576.0),
+                    });
+                    break;
                 case "list":
                     output(new JObject { ["pieces"] = new JArray(Kit.All.Select(d => Kit.Made.TryGetValue(d.Name, out GameObject p) && p != null
                         ? $"{d.Name} ({d.Title}): {(Kit.Hammer()?.m_pieces.Contains(p) == true ? "in the hammer" : "NOT in the hammer")}, from {d.From}" : $"{d.Name}: not made")),
