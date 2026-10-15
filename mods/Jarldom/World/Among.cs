@@ -75,7 +75,7 @@ namespace Jarldom
             if (c == null || _bedRoom == null) return;
             Rest(me);
             Net.Act(c, "among", "sleep|" + RoomOpinion + "|" + _bedRoom);
-            me.Message(MessageHud.MessageType.TopLeft, $"You slept among your people at {c.R.Name}: Rested lasts {Extra / 60:0} minutes longer.");
+            me.Message(MessageHud.MessageType.Center, $"You slept among your people at {c.R.Name}: Rested lasts {Extra / 60:0} minutes longer.");
             _bedRoom = _bedColony = null;
         }
 
