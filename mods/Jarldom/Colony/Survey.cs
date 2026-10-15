@@ -27,7 +27,7 @@ namespace Jarldom
             return id;
         }
 
-        // (every piece in the loaded world is looked at to find these, and much asks: the answer is kept a second; don't change the list)
+        // (every piece in the loaded world is looked at to find these, and much asks: the answer is kept a few seconds; don't change the list)
         // Each radius asked, and each kind of piece (stations, beds, doors), is kept as long as the look itself: a work scan asks a hundred times.
         private float _piecesAt = -1, _piecesRadius; private List<Piece> _pieces;
         private readonly Dictionary<float, List<Piece>> _within = new Dictionary<float, List<Piece>>();
@@ -35,7 +35,7 @@ namespace Jarldom
         private readonly Dictionary<float, int> _checkedFrame = new Dictionary<float, int>(); private readonly Dictionary<(System.Type, float), int> _kindChecked = new Dictionary<(System.Type, float), int>();
         public List<Piece> PiecesIn(float radius)
         {
-            if (_pieces == null || Time.time - _piecesAt >= 1f || radius > _piecesRadius)
+            if (_pieces == null || Time.time - _piecesAt >= 4f || radius > _piecesRadius) // (pieces come and go seldom; gone ones are left out below)
             {
                 PieceBuffer.Clear();
                 _piecesRadius = Mathf.Max(radius, Radius + 40f); // (one wide look serves every nearer ask)
@@ -65,7 +65,17 @@ namespace Jarldom
         // A fire or light anywhere in the colony circle is kept fed, along the paths too, whoever built it (fuel from the stores
         // takes nothing of theirs); only not inside a ward that keeps the jarl out (someone's own base).
         public bool Feeds(Piece p) => Tends(p.transform.position) || Utils.DistanceXZ(p.transform.position, Position) <= Radius && PrivateArea.CheckAccess(p.transform.position, 0f, false, false);
-        public bool Tends(Vector3 p) => Utils.DistanceXZ(p, Position) <= NearPillars || RoomAt(p) != null || R.Zones.Any(z => Geometry.Distance(z.Xz, p.x, p.z) <= 2f);
+        public bool Tends(Vector3 p)
+        {
+            if (Utils.DistanceXZ(p, Position) <= NearPillars) return true;
+            // (each spot's answer kept a few seconds, by the half metre: a work scan asks it of every fire, torch and dropped thing, and the
+            // answer is every room's outline and every zone's edges; they change seldom)
+            if (Time.time - _tendsAt > 10f) { _tends.Clear(); _tendsAt = Time.time; }
+            var key = (Mathf.RoundToInt(p.x * 2), Mathf.RoundToInt(p.y * 2), Mathf.RoundToInt(p.z * 2));
+            if (_tends.TryGetValue(key, out bool kept)) return kept;
+            return _tends[key] = RoomAt(p) != null || R.Zones.Any(z => Geometry.Distance(z.Xz, p.x, p.z) <= 2f);
+        }
+        private readonly Dictionary<(int, int, int), bool> _tends = new Dictionary<(int, int, int), bool>(); private float _tendsAt;
         public static long Hash(string vid) => (long)(uint)vid.GetStableHashCode() + 1_000_000_000L * 7;
         public static string BedOwner(Bed bed, out string kind)
         {

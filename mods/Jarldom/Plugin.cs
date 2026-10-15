@@ -14,7 +14,7 @@ namespace Jarldom
     {
         public const string Guid = "com.bobisme.jarldom";
         public const string Name = "Jarldom";
-        public const string Version = "0.1.136";
+        public const string Version = "0.1.137";
         public const int DataVersion = 1; // raised whenever what's saved changes shape: games of different data versions mustn't write each other's colonies
         internal static Plugin Instance;
         internal ServerSettings Synced;
@@ -108,7 +108,25 @@ namespace Jarldom
             Guard(Lost.Tick);
         }
         private static float _lastError;
+        // Every guarded step timed (two clock reads): one over SlowMs is logged by name, each name at most every half minute, so a
+        // hitch in the field can be traced to its step without a profiler.
+        private const double SlowMs = 8;
+        private static readonly System.Collections.Generic.Dictionary<System.Reflection.MethodInfo, float> SlowSaid = new System.Collections.Generic.Dictionary<System.Reflection.MethodInfo, float>();
         internal static void Guard(Action a)
+        {
+            long start = System.Diagnostics.Stopwatch.GetTimestamp();
+            try { GuardInner(a); }
+            finally
+            {
+                double ms = (System.Diagnostics.Stopwatch.GetTimestamp() - start) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+                if (ms > SlowMs && (!SlowSaid.TryGetValue(a.Method, out float said) || UnityEngine.Time.unscaledTime - said > 30f))
+                {
+                    SlowSaid[a.Method] = UnityEngine.Time.unscaledTime;
+                    Instance?.Logger.LogInfo($"Jarldom: slow step {a.Method.DeclaringType?.Name}.{a.Method.Name}: {ms:0.0} ms");
+                }
+            }
+        }
+        private static void GuardInner(Action a)
         {
             try { a(); }
             catch (Exception e)

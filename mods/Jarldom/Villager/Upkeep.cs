@@ -134,7 +134,8 @@ namespace Jarldom
         public static List<WearNTear> Hurt(Colony c)
         {
             if (Damaged.TryGetValue(c.Id, out var hit) && Time.time - hit.at < 20f) return hit.list.Where(w => w != null).ToList();
-            var list = c.PiecesIn(c.Radius).Select(p => p.GetComponent<WearNTear>()).Where(w => w != null && c.Tends(w.transform.position) && w.GetComponent<ZNetView>()?.GetZDO() is ZDO z && z.GetFloat(ZDOVars.s_health, w.m_health) < w.m_health * 0.75f).ToList();
+            // (the health first: it's one number; whether the colony tends a spot is rooms and zones)
+            var list = c.PiecesIn(c.Radius).Select(p => p.GetComponent<WearNTear>()).Where(w => w != null && w.GetComponent<ZNetView>()?.GetZDO() is ZDO z && z.GetFloat(ZDOVars.s_health, w.m_health) < w.m_health * 0.75f && c.Tends(w.transform.position)).ToList();
             Damaged[c.Id] = (Time.time, list);
             return list;
         }

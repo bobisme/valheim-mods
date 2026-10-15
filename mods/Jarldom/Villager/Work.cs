@@ -61,7 +61,10 @@ namespace Jarldom
         }
 
         // ---- the scanners (colony owner, every few seconds) ----
-        public static void Scan(Colony c)
+        public static void Scan(Colony c) { foreach (int _ in Steps(c)) { } }
+        // The scan a step at a time, a frame each (a zone, the things lying about, what's to be made, the fires and stations): all in one
+        // frame it was a hitch every few seconds in a big colony.
+        public static IEnumerable<int> Steps(Colony c)
         {
             double now = c.Now;
             LearnCrops();
@@ -73,8 +76,11 @@ namespace Jarldom
                     GameObject t = Resolve(o.Target);
                     if (t == null || o.Kind == "chop" && t.GetComponent<TreeLog>() == null || o.Kind == "mine" && !IsOre(t)) c.Board.Cancel(o.Id);
                 }
-            foreach (Zone z in c.R.Zones)
+            yield return 1;
+            foreach (Zone z in c.R.Zones.ToList()) // (a copy: a zone may be marked between steps)
             {
+                yield return 2;
+                if (!c.R.Zones.Contains(z)) continue;
                 ZoneInfo info = Tables.Of(z.Type);
                 if (info.Worker == null) continue;
                 Vector3 centre = Zones.Centre(z); float reach = Zones.Reach(z) + 2, scan = reach + Zones.FuzzReach(z);
@@ -125,6 +131,7 @@ namespace Jarldom
                 if (z.Type == ZoneType.Woodlot) Planting(c, z, centre, reach, now);
                 if (z.Type == ZoneType.Fields) Sowing(c, z, centre, reach, now);
             }
+            yield return 3;
             // Things lying about in the colony: to the stockpiles (if there are any).
             if (Stock.Chests(c).Any(x => x.category != "" && x.category != "treasury"))
             {
@@ -146,6 +153,7 @@ namespace Jarldom
                 }
                 if (FirstSeen.Count > 4000) FirstSeen.Clear();
             }
+            yield return 4;
             // Watch posts: a round for each guard (two may walk it at once, from different posts).
             var posts = WatchPost.All(c.Position);
             if (posts.Count > 0)
@@ -155,13 +163,22 @@ namespace Jarldom
                 for (int i = 0; i < guards; i++) c.Board.Post("guard", "round:" + i, Prof.Guard, 2, p0.x, p0.y, p0.z, now, "", "watch posts");
             }
             Faith.Bog(c);
-            Crafts.Scan(c, now);
+            yield return 4;
+            foreach (int _ in Crafts.Steps(c, now)) yield return 4;
+            yield return 4;
             Weaving.Scan(c, now);
+            yield return 5;
             // BuildOrders' planned ghosts in the colony: one standing order for the builders (they take the pieces one by one).
             if (Compat.GhostCount(c.Position, c.Radius) > 0) c.Board.Post("build", "ghosts", Prof.Builder, 3, c.Position.x, c.Position.y, c.Position.z, now, "", "plans");
             // Fires that burn low, and the stations: fuel and feeding.
-            foreach (Piece p in c.PiecesIn(c.Radius))
+            yield return 6;
+            List<Piece> pieces = c.PiecesIn(c.Radius);
+            yield return 7;
+            int looked = 0;
+            foreach (Piece p in pieces)
             {
+                if (++looked % 800 == 0) yield return 8; // (a big colony's pieces over a few frames)
+                if (p == null) continue;
                 Fireplace fire = p.GetComponent<Fireplace>();
                 if (fire != null) FireAvoid.Ensure(fire); // (one lit before Jarldom loaded)
                 ZNetView v = p.GetComponent<ZNetView>();

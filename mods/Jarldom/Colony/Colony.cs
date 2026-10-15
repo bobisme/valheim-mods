@@ -298,8 +298,9 @@ namespace Jarldom
             if (hour >= Schedule.HallAt && R.LastDusk != day) { R.LastDusk = day; _dirty = true; Plugin.Guard(() => Dusk(day)); }
             if (Time.time >= _nextSurvey) { _nextSurvey = Time.time + 300; Plugin.Guard(Survey); Plugin.Guard(Rerank); }
             if (Time.time >= _nextRooms) { _nextRooms = Time.time + 20; Plugin.Guard(RoomsDue); }
-            if (Time.time >= _nextScan) { _nextScan = Time.time + 8; Plugin.Guard(LeftAloneSync); Plugin.Guard(() => Work.Scan(this)); }
-            Plugin.Guard(() => Defense.Tick(this));
+            if (Time.time >= _nextScan && _scan == null) { _nextScan = Time.time + 8; Plugin.Guard(LeftAloneSync); _scan = Work.Steps(this).GetEnumerator(); }
+            if (_scan != null) Plugin.Guard(ScanWork); // (a step a frame)
+            Plugin.Guard(DefenseTick);
             Plugin.Guard(() => JarlDeeds.Tick(this));
             Plugin.Guard(() => Beacon.Tick(this));
             Plugin.Guard(() => TrueLegends.Tick(this));
@@ -399,6 +400,16 @@ namespace Jarldom
             Plugin.Guard(() => Lost.Dusk(this, day));
             Plugin.Guard(() => FestivalDays.Dusk(this, day));
         }
+
+        // (named, so a slow one is logged by its name)
+        private IEnumerator<int> _scan;
+        private void ScanWork()
+        {
+            IEnumerator<int> scan = _scan;
+            _scan = null; // (a step that throws ends this scan: the next starts afresh)
+            if (scan.MoveNext()) _scan = scan;
+        }
+        private void DefenseTick() => Defense.Tick(this);
 
         // ---- souls falling and rising ----
         public void SoulFell(VillagerState s, byte[] gear, Vector3 at, string killer, bool lost)

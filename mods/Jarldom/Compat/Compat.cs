@@ -202,7 +202,16 @@ namespace Jarldom
         }
 
         // ---- BuildOrders: the helper hooks it publishes (AppDomain data, no types shared) ----
-        public static int GhostCount(Vector3 at, float radius) => AppDomain.CurrentDomain.GetData("DHack.BuildOrders.Count") is Func<Vector3, float, int> f ? Safe(() => f(at, radius)) : 0;
+        // (BuildOrders counts its plans' pieces afresh each time, 5 to 15 ms in a big base: the answer kept a few seconds; plans change seldom)
+        private static readonly Dictionary<(int, int, int), (float at, int n)> GhostsKept = new Dictionary<(int, int, int), (float, int)>();
+        public static int GhostCount(Vector3 at, float radius)
+        {
+            var key = (Mathf.RoundToInt(at.x), Mathf.RoundToInt(at.z), Mathf.RoundToInt(radius));
+            if (GhostsKept.TryGetValue(key, out var kept) && Time.time - kept.at < 10f) return kept.n;
+            int n = AppDomain.CurrentDomain.GetData("DHack.BuildOrders.Count") is Func<Vector3, float, int> f ? Safe(() => f(at, radius)) : 0;
+            GhostsKept[key] = (Time.time, n);
+            return n;
+        }
         public static string[] NextGhosts(Vector3 at, float radius, int max) => AppDomain.CurrentDomain.GetData("DHack.BuildOrders.Next") is Func<Vector3, float, int, string[]> f ? Safe(() => f(at, radius, max)) ?? new string[0] : new string[0];
         public static bool PlaceGhost(string id) => AppDomain.CurrentDomain.GetData("DHack.BuildOrders.Place") is Func<string, bool> f && Safe(() => f(id));
         public static string[] GhostBlockers(Vector3 at, float radius) => AppDomain.CurrentDomain.GetData("DHack.BuildOrders.Blockers") is Func<Vector3, float, string[]> f ? Safe(() => f(at, radius)) ?? new string[0] : new string[0];

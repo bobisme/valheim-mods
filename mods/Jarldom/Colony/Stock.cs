@@ -17,9 +17,18 @@ namespace Jarldom
             i.m_dropPrefab = prefab;
             return i;
         }
+        // (by prefab: what decides it is the same for every one of a kind; asked of every item in every chest, often)
+        private static readonly Dictionary<string, string> CategoryOf = new Dictionary<string, string>();
         public static string Category(ItemDrop.ItemData item)
         {
             if (item == null) return "any";
+            if (item.m_dropPrefab == null) return CategoryNow(item);
+            string name = item.m_dropPrefab.name;
+            if (!CategoryOf.TryGetValue(name, out string cat)) CategoryOf[name] = cat = CategoryNow(item);
+            return cat;
+        }
+        private static string CategoryNow(ItemDrop.ItemData item)
+        {
             string n = item.m_dropPrefab != null ? item.m_dropPrefab.name : "";
             var t = item.m_shared.m_itemType;
             if (n == "Coins" || item.m_shared.m_value > 0) return "valuables";
@@ -87,15 +96,15 @@ namespace Jarldom
         public static bool Reachable(Brain b, Container chest) => !Unreachable.TryGetValue((b.S.Vid, chest.GetInstanceID()), out float until) || Time.time > until;
         // The colony's chests near a villager, less those they couldn't reach lately.
         public static List<(Container chest, string id, string category)> ChestsFor(Brain b) => Chests(b.Colony, b.Pos).Where(x => Reachable(b, x.chest)).ToList();
-        public static void Forget() { Cache.Clear(); Listed.Clear(); Counted.Clear(); }
+        public static void Forget() { Cache.Clear(); Listed.Clear(); Counted.Clear(); CategoryOf.Clear(); }
         private static List<Container> Boxes(Colony c)
         {
             if (Cache.TryGetValue(c.Id, out var hit) && Time.time - hit.at < 3f) return hit.chests;
             var boxes = new List<Container>();
-            foreach (Piece p in c.PiecesIn(c.Radius))
+            foreach (Container box in c.PiecesIn<Container>(c.Radius)) // (the colony's kept list of them: not every piece looked at again)
             {
-                Container box = p.GetComponent<Container>();
                 if (box == null || !ContainerAccess.IsStorage(box)) continue;
+                Piece p = box.GetComponent<Piece>();
                 if (box.m_privacy == Container.PrivacySetting.Private) continue;
                 if (Utils.GetPrefabName(p.gameObject) == Pieces.PyreName) continue; // grave goods aren't the colony's
                 boxes.Add(box);
@@ -103,11 +112,12 @@ namespace Jarldom
             Cache[c.Id] = (Time.time, boxes);
             return boxes;
         }
-        // The chests with their categories, worked out once a frame (a work scan asks a hundred times over); each caller gets its own list.
-        private static readonly Dictionary<string, (int frame, List<(Container, string, string)> list)> Listed = new Dictionary<string, (int, List<(Container, string, string)>)>();
+        // The chests with their categories, worked out once a second (a work scan asks a hundred times over; a chest's category changes only
+        // when the jarl marks it); each caller gets its own list.
+        private static readonly Dictionary<string, (float at, List<(Container, string, string)> list)> Listed = new Dictionary<string, (float, List<(Container, string, string)>)>();
         public static List<(Container chest, string id, string category)> Chests(Colony c, Vector3? near = null)
         {
-            if (!Listed.TryGetValue(c.Id, out var hit) || hit.frame != Time.frameCount) Listed[c.Id] = hit = (Time.frameCount, Categorised(c));
+            if (!Listed.TryGetValue(c.Id, out var hit) || Time.time - hit.at > 1f) Listed[c.Id] = hit = (Time.time, Categorised(c));
             var list = new List<(Container chest, string id, string category)>(hit.list.Count);
             foreach (var x in hit.list) if (x.Item1 != null) list.Add(x);
             Vector3 from = near ?? c.Position;

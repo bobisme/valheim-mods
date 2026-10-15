@@ -104,7 +104,9 @@ namespace Jarldom
         }
 
         // ---- the owner's scan ----
-        public static void Scan(Colony c, double now)
+        public static void Scan(Colony c, double now) { foreach (int _ in Steps(c, now)) { } }
+        // (a step a frame, as the work scan is)
+        public static IEnumerable<int> Steps(Colony c, double now)
         {
             foreach (var kv in Commissions(c))
             {
@@ -114,6 +116,7 @@ namespace Jarldom
                 Vector3 p = st.transform.position;
                 c.Board.Post("craft", Prefix + kv.Key, Maker(r), 3, p.x, p.y, p.z, now, "", "commission");
             }
+            yield return 0;
             // Fish in the stores, whole as caught: a cook prepares them by the game's own recipe for them (at whatever station it asks), so
             // the cooking station has something to cook.
             Recipe prep = PrepRecipes().FirstOrDefault(r => InStock(c, r.m_item.name) < PrepKeep && Needs(r).Any(n => InStock(c, n.item) > 0) && CanAfford(c, r) && StationFor(c, r, c.Position) != null);
@@ -122,6 +125,7 @@ namespace Jarldom
                 CraftingStation st = StationFor(c, prep, c.Position);
                 c.Board.Post("craft", PrepPrefix + prep.name, Prof.Cook, 3, st.transform.position.x, st.transform.position.y, st.transform.position.z, now, "", "fish");
             }
+            yield return 0;
             // An empty fermenter and no mead base in the stores: a cook brews one at the cauldron, if the stores have what it takes.
             foreach (Fermenter f in c.PiecesIn<Fermenter>(c.Radius))
             {
@@ -133,6 +137,7 @@ namespace Jarldom
                 c.Board.Post("craft", BrewPrefix + brew.m_item.name, Prof.Cook, 3, st.transform.position.x, st.transform.position.y, st.transform.position.z, now, "", "fermenter");
                 break; // one at a time
             }
+            yield return 0;
             Smithing.Scan(c, now); // (the smith's own work: missing tools, arrows, the guards' upgrades)
         }
         // The game's recipes that take a whole fish and make something else of it (raw fish, chiefly). Kept until the recipe list changes.

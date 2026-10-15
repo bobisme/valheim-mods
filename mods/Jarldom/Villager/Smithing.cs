@@ -113,10 +113,21 @@ namespace Jarldom
         public static Recipe Best(Colony c, Func<ItemDrop.ItemData, bool> fits, int spare = 1, bool byTier = false)
         {
             if (ObjectDB.instance == null) return null;
-            return ObjectDB.instance.m_recipes.Where(r => r != null && r.m_enabled && r.m_item != null && r.m_resources.Length > 0 && !r.m_requireOnlyOneIngredient && !r.m_noCraftOnlyUpgrade
-                    && Crafts.Maker(r) == Prof.Smith && fits(Made(r)))
+            return SmithRecipes().Where(r => r != null && fits(Made(r)))
                 .Where(r => Crafts.StationFor(c, r, c.Position) != null && Crafts.Needs(r).All(n => Crafts.InStock(c, n.item) >= n.amount * spare))
                 .OrderByDescending(r => byTier ? Made(r).m_shared.m_toolTier : 0).ThenByDescending(r => Score(Made(r)) + Made(r).GetArmor()).FirstOrDefault();
+        }
+        // The recipes a smith makes, kept until the game's list changes (a scan asks for them several times over, of hundreds).
+        private static List<Recipe> _smithRecipes; private static ObjectDB _recipesOf; private static int _recipeCount = -1;
+        private static List<Recipe> SmithRecipes()
+        {
+            ObjectDB db = ObjectDB.instance;
+            if (_smithRecipes == null || _recipesOf != db || _recipeCount != db.m_recipes.Count)
+            {
+                _recipesOf = db; _recipeCount = db.m_recipes.Count;
+                _smithRecipes = db.m_recipes.Where(r => r != null && r.m_enabled && r.m_item != null && r.m_resources.Length > 0 && !r.m_requireOnlyOneIngredient && !r.m_noCraftOnlyUpgrade && Crafts.Maker(r) == Prof.Smith).ToList();
+            }
+            return _smithRecipes;
         }
         // The thing a recipe makes, as it comes off the station (the recipe's own copy has no durability and no prefab to it). Kept.
         private static readonly Dictionary<Recipe, ItemDrop.ItemData> MadeOf = new Dictionary<Recipe, ItemDrop.ItemData>();
