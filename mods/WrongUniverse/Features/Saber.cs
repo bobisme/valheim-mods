@@ -21,7 +21,7 @@ namespace WrongUniverse
         private static ConfigEntry<int> Tier;
         private static ConfigEntry<string> BladeColor;
 
-        internal static readonly ItemDef Sword=new ItemDef{Prefab="WU_LaserSword",Name="Laser Sword",Base="SwordIron",
+        internal static readonly ItemDef Sword=new ItemDef{Prefab="WU_LaserSword",HandEuler=new Vector3(-90,0,0),Name="Laser Sword",Base="SwordIron",
             Description="An elegant weapon from a more civilised universe. A blade of pure light that hums when it moves: it cuts through trolls, trees and copper ore alike, and turns aside almost anything that is swung at you.",
             Cost="Iron:12, SurtlingCore:4, Crystal:4",Station="forge",Level=2,Weight=1.2f,Model=SwordModel,Stats=SwordStats};
         internal override IEnumerable<ItemDef> Items=>new[]{Sword};
