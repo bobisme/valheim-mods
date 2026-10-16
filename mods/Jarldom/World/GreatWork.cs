@@ -296,7 +296,7 @@ namespace Jarldom
         {
             string god = God(c, work) ?? "odin";
             Vector3 at = At(c, work, out float yaw);
-            var corners = new[] { (-2.5f, -4.6f), (2.5f, -4.6f), (2.5f, 4.6f), (-2.5f, 4.6f) }.Select(q => GreatWorks.Place(new GreatWorks.Part("", q.Item1, 0, q.Item2, 0), at.x, at.y, at.z, yaw)).ToList();
+            var corners = new[] { (-3.5f, -4.5f), (3.5f, -4.5f), (3.5f, 4.5f), (-3.5f, 4.5f) }.Select(q => GreatWorks.Place(new GreatWorks.Part("", q.Item1, 0, q.Item2, 0), at.x, at.y, at.z, yaw)).ToList();
             if (c.R.Rooms.Any(r => r.Type == RoomType.Temple && Geometry.Inside(r.Xz, at.x, at.z))) return; // (marked already)
             string xz = string.Join(",", corners.SelectMany(q => new[] { q.x, q.z }).Select(v => v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)));
             Net.Act(c, "room", $"{RoomType.Temple}|{god}|{(at.y + 0.25f).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}|{xz}");
