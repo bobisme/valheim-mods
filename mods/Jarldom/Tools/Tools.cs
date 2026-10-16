@@ -389,7 +389,7 @@ namespace Jarldom
                 output(new JObject { ["relic"] = lines[1] });
                 return;
             }
-            if (c == null && cmd != "place" && cmd != "put" && cmd != "unputnear" && cmd != "claims" && cmd != "find" && cmd != "profile" && cmd != "versions" && cmd != "env" && cmd != "overlay" && cmd != "icon" && cmd != "layers" && cmd != "compat" && cmd != "status" && cmd != "bags" && cmd != "expedition" && cmd != "villager" && cmd != "give") { error("no colony near (jarldom place pillars makes one)"); return; }
+            if (c == null && cmd != "place" && cmd != "put" && cmd != "unputnear" && cmd != "isle" && cmd != "claims" && cmd != "find" && cmd != "profile" && cmd != "versions" && cmd != "env" && cmd != "overlay" && cmd != "icon" && cmd != "layers" && cmd != "compat" && cmd != "status" && cmd != "bags" && cmd != "expedition" && cmd != "villager" && cmd != "give") { error("no colony near (jarldom place pillars makes one)"); return; }
             Player me = Player.m_localPlayer;
             switch (cmd)
             {
@@ -1138,6 +1138,32 @@ namespace Jarldom
                     break;
                 case "alonewhere": output(new JObject { ["alone"] = new JArray(c.PiecesIn(c.Radius + 20).Select(p => p.GetComponent<ZNetView>()).Where(v => v != null && v.IsValid() && v.GetComponent<Fireplace>() != null && c.LeftAloneAt(v.transform.position)).Select(v => $"{Utils.GetPrefabName(v.gameObject)} at {V(v.transform.position)}")) }); break; // (test: where the fires left alone are)
                 case "tagged": { var counts = c.PiecesIn(c.Radius + 30).Where(p => p.GetComponent<ZNetView>()?.GetZDO()?.GetBool(TestKey) == true && (a.Length < 3 || Utils.GetPrefabName(p.gameObject) == a[2])).GroupBy(p => Utils.GetPrefabName(p.gameObject)).OrderByDescending(g => g.Count()); output(new JObject { ["tagged"] = new JObject(counts.Select(g => new JProperty(g.Key, g.Count()))) }); } break; // (count only: what unput would take)
+                case "isle": // (test: isle <x> <z>: the island there or beside it, if it's one (Island.Mass); and the circuit being sailed)
+                    {
+                        if (a.Length > 2 && a[2] == "undo") // (isle undo: a test's islands off the player, and the colony's island firsts and their saga lines)
+                        {
+                            Player pl = Player.m_localPlayer; pl.m_customData.Remove(JarlDeeds.IslesKey);
+                            if (pl.m_customData.TryGetValue(JarlDeeds.FirstsKey, out string fk)) pl.m_customData[JarlDeeds.FirstsKey] = string.Join(";", fk.Split(';').Where(x => x != "" && !x.StartsWith("isle:")));
+                            int gone = 0;
+                            if (c != null && c.IsOwner) { foreach (string k in c.R.Flags.Keys.Where(k => k.StartsWith(Wanderer.Prefix + "isle:")).ToList()) { c.R.Flags.Remove(k); gone++; } gone += c.R.Log.RemoveAll(e => e.Text.Contains("round an island") || e.Text.Contains("islands, more than any")); c.MarkDirty(); }
+                            output(new JObject { ["undone"] = gone });
+                            return;
+                        }
+                        if (a.Length > 5 && a[2] == "sail") // (isle sail <x> <z> <radius>: round it at that radius, as if aboard; the firsts it brings carried home)
+                        {
+                            float sx = F(a[3]), sz = F(a[4]), sr = F(a[5]); var got = new List<string>();
+                            JarlDeeds.TestAboard = true;
+                            try { for (int deg = 0; deg <= 360; deg += 10) JarlDeeds.Isles(Player.m_localPlayer, new Vector3(sx + sr * Mathf.Cos(deg * Mathf.Deg2Rad), 0, sz + sr * Mathf.Sin(deg * Mathf.Deg2Rad)), got, deg == 0); }
+                            finally { JarlDeeds.TestAboard = false; }
+                            foreach (string f in got) JarlDeeds.CarryFirst(Player.m_localPlayer, f);
+                            output(new JObject { ["firsts"] = new JArray(got) });
+                            return;
+                        }
+                        var m = Island.Mass((x, z) => WorldGenerator.instance.GetHeight(x, z), ZoneSystem.instance.m_waterLevel, F(a[2]), F(a[3]));
+                        Player.m_localPlayer.m_customData.TryGetValue(JarlDeeds.IslesKey, out string isl);
+                        output(new JObject { ["isle"] = m.HasValue ? $"middle {m.Value.x:0},{m.Value.z:0} reach {m.Value.reach:0} cells {m.Value.cells}" : "none (no land near, or a continent)", ["onShip"] = Ship.GetLocalShip() != null, ["isles"] = isl ?? "" });
+                    }
+                    break;
                 case "unputnear": // (test: unputnear <radius>: test-placed pieces within that of the player, outside any colony too)
                     {
                         var near = new List<Piece>(); Piece.GetAllPiecesInRadius(me.transform.position, F(a[2]), near); int n = 0;

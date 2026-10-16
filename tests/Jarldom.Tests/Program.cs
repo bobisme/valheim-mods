@@ -123,6 +123,21 @@ Check(Hunting.Word(0) == "plentiful" && Hunting.Word(8) == "hunted out for now",
 Check(Relics.Cap('A', false) == 'B' && Relics.Cap('S', false) == 'B' && Relics.Cap('C', false) == 'C' && Relics.Cap('S', true) == 'S', "Relics: a temple held at B without its relic");
 Check(Relics.Of.Count == Tables.Gods.Length && Tables.Gods.All(g => Relics.Of.ContainsKey(g.Id)) && Relics.GodOf(Relics.StormStone) == "thor" && Relics.GodOf("Wishbone") == "hel", "Relics: one for every god");
 Check(Relics.Ours.All(n => n.StartsWith("JarldomRelic")), "Relics: our own prefab names");
+{
+    // an island: a disc of land, 200 m across, at (1000, 1000), in open sea
+    float H(float x, float z) => Math.Sqrt((x - 1000) * (x - 1000) + (z - 1000) * (z - 1000)) < 100 ? 40f : 10f;
+    var isle = Island.Mass(H, 30f, 1150, 1000);
+    Check(isle.HasValue && Math.Abs(isle.Value.x - 1000) < 12 && Math.Abs(isle.Value.z - 1000) < 12 && isle.Value.reach > 90 && isle.Value.reach < 130, "Island: found from the water beside it, its middle and reach");
+    Check(Island.Mass((x, z) => 40f, 30f, 0, 0, 16f, 2000) == null && Island.Mass((x, z) => 10f, 30f, 0, 0) == null, "Island: a continent is no isle, open sea none");
+    var round = new Circuit(1000, 1000, 110);
+    bool stayed = true;
+    for (int deg = 0; deg <= 340; deg += 10) stayed &= round.Step(1000 + 180 * (float)Math.Cos(deg * Math.PI / 180), 1000 + 180 * (float)Math.Sin(deg * Math.PI / 180));
+    Check(stayed && round.Done, "Island: sailed round, 340 degrees");
+    var toAndFro = new Circuit(1000, 1000, 110);
+    foreach (int deg in new[] { 0, 60, 120, 60, 0, -60 }) toAndFro.Step(1000 + 180 * (float)Math.Cos(deg * Math.PI / 180), 1000 + 180 * (float)Math.Sin(deg * Math.PI / 180));
+    Check(!toAndFro.Done && !new Circuit(1000, 1000, 110).Step(2000, 2000), "Island: back and forth isn't round; far off leaves it");
+    Check(Wanderer.Points("isle:1") == 4 && Wanderer.Points("isle:10") == 8 && Wanderer.Points("isle:2") == 0 && Wanderer.Tell("isle:1", "Bob").Contains("round an island"), "Wanderer: islands sailed round are the saga's");
+}
 Check(Trading.Choose(Rank.Village, false, false, false, 40) == TradeWay.Foot, "No cart: on foot");
 Check(Trading.Choose(Rank.Village, true, false, false, 4) == TradeWay.Foot && Trading.Choose(Rank.Village, true, false, false, 10) == TradeWay.Cart, "The cart only when there's more than a pack");
 Check(Trading.Choose(Rank.Village, true, true, true, 50) == TradeWay.Cart, "Ships wait for their rank");

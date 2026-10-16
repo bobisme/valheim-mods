@@ -16,6 +16,7 @@ namespace Jarldom
         { ["Ocean"] = "the open sea", ["BlackForest"] = "the Black Forest", ["Swamp"] = "the Swamp", ["Mountain"] = "the Mountains", ["Plains"] = "the Plains", ["Mistlands"] = "the Mistlands", ["AshLands"] = "the Ashlands", ["DeepNorth"] = "the Deep North" };
         public static readonly int[] FarKm = { 1, 2, 4, 8 };
         public const int PlacePoints = 2, DungeonPoints = 5;
+        public static readonly int[] Isles = { 1, 3, 10 }; // (islands sailed round)
 
         // What a first is worth (0: not one the saga keeps).
         public static int Points(string what)
@@ -28,6 +29,7 @@ namespace Jarldom
                 case "place": return Requests.Landmark(f[1]) != null ? PlacePoints : 0;
                 case "dungeon": return DungeonPoints;
                 case "far": return int.TryParse(f[1], out int km) && FarKm.Contains(km) ? 2 * (Array.IndexOf(FarKm, km) + 1) : 0;
+                case "isle": return int.TryParse(f[1], out int n) && Isles.Contains(n) ? 4 + 2 * Array.IndexOf(Isles, n) : 0;
             }
             return 0;
         }
@@ -46,6 +48,7 @@ namespace Jarldom
                 case "place": return $"{who} was the first of the hall to find {Requests.Landmark(arg)?.label ?? arg}.";
                 case "dungeon": return $"{who} was the first of the hall to go down into {Requests.Landmark(arg)?.label ?? arg}.";
                 case "far": return $"{who} went further from the hall than any before: {arg} km.";
+                case "isle": return arg == "1" ? $"{who} was the first of the hall to sail all the way round an island." : $"{who} has sailed round {arg} islands, more than any of the hall.";
             }
             return null;
         }

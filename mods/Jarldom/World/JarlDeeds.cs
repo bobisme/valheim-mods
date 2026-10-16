@@ -153,6 +153,7 @@ namespace Jarldom
             }
             int far = home < float.MaxValue && !me.InInterior() ? Wanderer.Far(home) : 0;
             foreach (int km in Wanderer.FarKm.Where(k => k <= far)) found.Add("far:" + km); // (every milestone on the way)
+            Isles(me, at, found);
             if (found.Count == 0) return;
             me.m_customData.TryGetValue(FirstsKey, out string had);
             var carried = new HashSet<string>((had ?? "").Split(';').Where(s => s != ""));
@@ -162,6 +163,44 @@ namespace Jarldom
                 Carry(me, "first:" + f);
             }
             me.m_customData[FirstsKey] = string.Join(";", carried);
+        }
+        // Sailing round an island (Core's Island.Mass and Circuit): the island beside the ship found once, the bearing round it kept while
+        // the ship stays near; round, and it's one more of this character's islands ("jarldom_isles": their middles, so each counts once).
+        public const string IslesKey = "jarldom_isles";
+        private static Circuit _circuit; private static float _nextIsle;
+        public static bool TestAboard; // (test: as if on a ship)
+        public static void CarryFirst(Player me, string f)
+        {
+            me.m_customData.TryGetValue(FirstsKey, out string had);
+            var carried = new HashSet<string>((had ?? "").Split(';').Where(x => x != ""));
+            if (!carried.Add(f) || Wanderer.Points(f) <= 0) return;
+            Carry(me, "first:" + f);
+            me.m_customData[FirstsKey] = string.Join(";", carried);
+        }
+        public static void Isles(Player me, Vector3 at, List<string> found, bool now = false)
+        {
+            if (Ship.GetLocalShip() == null && !TestAboard || me.InInterior() || WorldGenerator.instance == null) { _circuit = null; return; }
+            if (now) _nextIsle = 0;
+            if (_circuit != null && !_circuit.Step(at.x, at.z)) _circuit = null; // (sailed off and left it)
+            if (_circuit == null)
+            {
+                if (Time.time < _nextIsle) return;
+                _nextIsle = Time.time + 20f;
+                var mass = Island.Mass((x, z) => WorldGenerator.instance.GetHeight(x, z), ZoneSystem.instance.m_waterLevel, at.x, at.z);
+                if (mass == null) return;
+                _circuit = new Circuit(mass.Value.x, mass.Value.z, mass.Value.reach);
+                _circuit.Step(at.x, at.z);
+                return;
+            }
+            if (!_circuit.Done) return;
+            string key = $"{Mathf.RoundToInt(_circuit.X / 32f)}_{Mathf.RoundToInt(_circuit.Z / 32f)}";
+            _circuit = null;
+            me.m_customData.TryGetValue(IslesKey, out string had);
+            var isles = new HashSet<string>((had ?? "").Split(';').Where(x => x != ""));
+            if (!isles.Add(key)) return;
+            me.m_customData[IslesKey] = string.Join(";", isles);
+            me.Message(MessageHud.MessageType.Center, isles.Count == 1 ? "You've sailed all the way round an island." : $"Round another island: {isles.Count} now.");
+            foreach (int n in Wanderer.Isles.Where(n => n <= isles.Count)) found.Add("isle:" + n);
         }
         // ---- Wayfinder's primstav: the next festival burnt into it, once a minute ----
         private static float _nextFeast;
