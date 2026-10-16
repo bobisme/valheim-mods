@@ -455,7 +455,8 @@ namespace Jarldom
                 return;
             }
             // (near enough across the ground, and within reach in height: a roof or upper wall is built from below)
-            if (Utils.DistanceXZ(b.Pos, _at) > 3.5f || _at.y - b.Pos.y > 6f || b.Pos.y - _at.y > 3f) { if (!b.Move.Moving) b.Move.To(_at, 2.5f); if (b.Move.Failed) { Done = true; b.NoBuildUntil = Time.time + 20; } return; }
+            // (straight under it, a ridge's end can be reached 10 m up, as a player's hammer reaches it)
+            if (Utils.DistanceXZ(b.Pos, _at) > 3.5f || _at.y - b.Pos.y > (Utils.DistanceXZ(b.Pos, _at) < 3f ? 10f : 6f) || b.Pos.y - _at.y > 3f) { if (!b.Move.Moving) b.Move.To(_at, 2.5f); if (b.Move.Failed) { Done = true; b.NoBuildUntil = Time.time + 20; } return; }
             b.Move.Stop();
             Vector3 d = _at - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized);
             if (Time.time < _next) return;
