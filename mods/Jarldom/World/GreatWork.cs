@@ -10,6 +10,18 @@ namespace Jarldom
     internal static class GreatWork
     {
         public const float Steep = 1.0f; // (most the ground may rise or fall across its footing)
+        // The Peak Temple's god (chosen at the Thing): the altar in its plan is theirs.
+        public static string God(Colony c, string work) => work == GreatWorks.PeakTemple && c.R.Flags.TryGetValue(GreatWorks.GodKey(work), out int g) && g >= 0 && g < Tables.Gods.Length ? Tables.Gods[g].Id : null;
+        public static List<GreatWorks.Part> Parts(Colony c, string work) => GreatWorks.Parts(work, God(c, work));
+        // The highest ground in the colony (the world's own heights, every 6 m): the Peak Temple stands within a few metres of it.
+        public static float Highest(Colony c)
+        {
+            float hi = float.MinValue;
+            for (float x = -c.Radius; x <= c.Radius; x += 6f) for (float z = -c.Radius; z <= c.Radius; z += 6f)
+                if (x * x + z * z <= (c.Radius - 6f) * (c.Radius - 6f)) hi = Mathf.Max(hi, WorldGenerator.instance.GetHeight(c.Position.x + x, c.Position.z + z));
+            return hi;
+        }
+        public const float HighEnough = 4f; // (how far below the colony's highest ground the temple may stand)
         private static float _next;
 
         // A shore within the colony: open water near enough for a lighthouse to light (null if none).
@@ -39,13 +51,19 @@ namespace Jarldom
             float sea = ZoneSystem.instance.m_waterLevel;
             if (ground < sea + 0.3f) return "that's in the water: step back onto dry ground";
             float lo = ground, hi = ground;
-            for (int i = 0; i < 8; i++) { float a = i * Mathf.PI / 4f; if (ZoneSystem.instance.GetSolidHeight(at + new Vector3(Mathf.Sin(a) * 4f, 0, Mathf.Cos(a) * 4f), out float h)) { lo = Mathf.Min(lo, h); hi = Mathf.Max(hi, h); } }
+            float reach = GreatWorks.FootingOf(work) - 0.5f;
+            for (int i = 0; i < 8; i++) { float a = i * Mathf.PI / 4f; if (ZoneSystem.instance.GetSolidHeight(at + new Vector3(Mathf.Sin(a) * reach, 0, Mathf.Cos(a) * reach), out float h)) { lo = Mathf.Min(lo, h); hi = Mathf.Max(hi, h); } }
             if (hi - lo > Steep) return $"the ground's too steep there ({hi - lo:0.0} m across its footing): level it with the hoe, or find flatter ground";
             if (work == GreatWorks.Lighthouse)
             {
                 bool water = false;
                 for (int i = 0; i < 16 && !water; i++) { float a = i * Mathf.PI / 8f; for (float r = 8f; r <= 40f && !water; r += 4f) water = WorldGenerator.instance.GetHeight(at.x + Mathf.Sin(a) * r, at.z + Mathf.Cos(a) * r) < sea - 1f; }
                 if (!water) return "a lighthouse wants the sea within 40 m";
+            }
+            if (work == GreatWorks.PeakTemple)
+            {
+                float top = Highest(c), here = WorldGenerator.instance.GetHeight(at.x, at.z);
+                if (here < top - HighEnough) return $"a peak temple stands on the colony's highest ground: this is {top - here:0} m below it (look about for the top of the rise)";
             }
             at.y = ground;
             Vector3 f = c.Position - at; f.y = 0; // (its door toward the colony)
@@ -60,7 +78,7 @@ namespace Jarldom
         {
             if (GreatWorks.Stage(c.R.Flags, work) != GreatWorks.Done) return false;
             int built = Built(c, work);
-            return built >= 0 && built < GreatWorks.Parts(work).Count / 4;
+            return built >= 0 && built < Parts(c, work).Count / 4;
         }
         // Its plan taken away (each plan BuildOrders keeps under its name: whoever laid it): how many ghosts went.
         public static int Plans(Colony c, string work) => PlanKeys(c, work).Count;
@@ -113,7 +131,7 @@ namespace Jarldom
         public static bool RaiseIn(Colony c, string work, IList<float> xz)
         {
             Player me = Player.m_localPlayer;
-            string site = GreatWorks.Site(xz, out float x, out float z);
+            string site = GreatWorks.Site(work, xz, out float x, out float z);
             if (site != "") { me?.Message(MessageHud.MessageType.Center, $"Not here: {site}."); return false; }
             Vector3 spot = new Vector3(x, 0, z);
             ZoneSystem.instance.GetSolidHeight(spot, out float gy); spot.y = gy;
@@ -135,7 +153,7 @@ namespace Jarldom
             if (stage == GreatWorks.Laid) Unplan(c, work); // (being raised: its plan laid again, as the design is now)
             Vector3 at = At(c, work, out float yaw);
             var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 12f, 22f, near);
-            var missing = GreatWorks.Parts(work).Where(p => only == null || p.Prefab == only).Where(p => { var w = GreatWorks.Place(p, at.x, at.y, at.z, yaw); Vector3 spot = new Vector3(w.x, w.y, w.z);
+            var missing = Parts(c, work).Where(p => only == null || p.Prefab == only).Where(p => { var w = GreatWorks.Place(p, at.x, at.y, at.z, yaw); Vector3 spot = new Vector3(w.x, w.y, w.z);
                 return !near.Any(x => x != null && Colony.NameOf(x) == p.Prefab && Vector3.Distance(x.transform.position, spot) < 0.5f); }).ToList();
             if (missing.Count == 0) return 0;
             object bo = Compat.Find("com.quad.buildorders", "com.dhack.buildorders");
@@ -151,7 +169,7 @@ namespace Jarldom
             Player me = Player.m_localPlayer;
             string why = Why(c, work, me, spot, out Vector3 at, out float yaw);
             if (why != "") { me?.Message(MessageHud.MessageType.Center, $"Not here: {why}."); return false; }
-            var parts = GreatWorks.Parts(work);
+            var parts = Parts(c, work);
             var placed = parts.Select(p => GreatWorks.Place(p, at.x, at.y, at.z, yaw)).ToList();
             object bo = Compat.Find("com.quad.buildorders", "com.dhack.buildorders");
             var method = bo?.GetType().GetMethod("TryCreateBuildingShell");
@@ -202,7 +220,7 @@ namespace Jarldom
             if (!ZNetScene.instance.IsAreaReady(at)) return -1;
             var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 12f, 22f, near);
             int n = 0;
-            foreach (var p in GreatWorks.Parts(work))
+            foreach (var p in Parts(c, work))
             {
                 var w = GreatWorks.Place(p, at.x, at.y, at.z, yaw);
                 Vector3 spot = new Vector3(w.x, w.y, w.z);
@@ -215,20 +233,22 @@ namespace Jarldom
         {
             Vector3 at = At(c, work, out float yaw);
             var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 12f, 22f, near);
-            return GreatWorks.Parts(work).Where(p => { var w = GreatWorks.Place(p, at.x, at.y, at.z, yaw); Vector3 spot = new Vector3(w.x, w.y, w.z);
+            return Parts(c, work).Where(p => { var w = GreatWorks.Place(p, at.x, at.y, at.z, yaw); Vector3 spot = new Vector3(w.x, w.y, w.z);
                 return !near.Any(x => x != null && Colony.NameOf(x) == p.Prefab && Vector3.Distance(x.transform.position, spot) < 0.5f); }).Select(p => $"{p.Prefab} {p.X} {p.Y:0.##} {p.Z}").ToList();
         }
         public static void Tick(Colony c)
         {
             if (!c.IsOwner || Time.time < _next) return;
             _next = Time.time + 20f;
-            string work = GreatWorks.Lighthouse;
-            if (GreatWorks.Stage(c.R.Flags, work) == GreatWorks.Done) { Rekindle(c, work); return; }
-            if (GreatWorks.Stage(c.R.Flags, work) != GreatWorks.Laid) return;
-            int built = Built(c, work), all = GreatWorks.Parts(work).Count;
-            if (built < 0) return;
-            if (built != c.R.Flag(GreatWorks.BuiltKey(work))) { c.R.Flags[GreatWorks.BuiltKey(work)] = built; c.MarkDirty(); }
-            if (built >= all) Finish(c, work);
+            foreach (string work in GreatWorks.All)
+            {
+                if (GreatWorks.Stage(c.R.Flags, work) == GreatWorks.Done) { Rekindle(c, work); continue; }
+                if (GreatWorks.Stage(c.R.Flags, work) != GreatWorks.Laid) continue;
+                int built = Built(c, work), all = Parts(c, work).Count;
+                if (built < 0) continue;
+                if (built != c.R.Flag(GreatWorks.BuiltKey(work))) { c.R.Flags[GreatWorks.BuiltKey(work)] = built; c.MarkDirty(); }
+                if (built >= all) Finish(c, work);
+            }
         }
         public static void Finish(Colony c, string work)
         {
@@ -246,7 +266,9 @@ namespace Jarldom
             }
             c.R.Flags[GreatWorks.DayKey(work)] = c.Day;
             c.R.Deeds += GreatWorks.Renown;
-            c.Log("greatwork", c.R.Name, GreatWorks.Name(work), $"{c.R.Name} raised {GreatWorks.Name(work)} on the shore. Every ship of ours comes home by its light.");
+            string god = God(c, work);
+            c.Log("greatwork", c.R.Name, GreatWorks.Name(work), work == GreatWorks.PeakTemple ? $"{c.R.Name} raised {GreatWorks.Name(work)} on the height, to {Tables.God(god ?? "odin")?.Name ?? "the gods"}. They hear us better from there."
+                : $"{c.R.Name} raised {GreatWorks.Name(work)} on the shore. Every ship of ours comes home by its light.");
             foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) { Mood.Add(b.S, "greatwork", b.Now); if (b.S.Prof == Prof.Builder) Worth.Gain(b.S, "festival"); b.Dirty(); }
             if (work == GreatWorks.Lighthouse)
             {
@@ -254,6 +276,7 @@ namespace Jarldom
                 Fireplace hearth = near.Where(p => p != null && Colony.NameOf(p) == "bonfire").Select(p => p.GetComponent<Fireplace>()).FirstOrDefault(f => f != null);
                 if (hearth != null && !Beacon.IsMarked(c, hearth)) Beacon.Mark(c, Colony.IdOf(hearth.GetComponent<ZNetView>()));
             }
+            if (work == GreatWorks.PeakTemple) Hallow(c, work);
             Net.LegendPin(c, at, GreatWorks.Proper(work, c.R.Name));
             c.Tell($"{GreatWorks.Title(work)} stands! {GreatWorks.Gift(work)} (+{GreatWorks.Renown} renown)", true);
             c.MarkDirty();
@@ -268,6 +291,18 @@ namespace Jarldom
             Fireplace fire = near.Where(p => p != null && Colony.NameOf(p) == "bonfire").Select(p => p.GetComponent<Fireplace>()).FirstOrDefault(f => f != null);
             if (fire != null && !Beacon.IsMarked(c, fire)) Beacon.Mark(c, Colony.IdOf(fire.GetComponent<ZNetView>()));
         }
+        // The Peak Temple's hall is the colony's temple to its god (marked as a Temple room, as a jarl would mark it), its walls' inside.
+        public static void Hallow(Colony c, string work)
+        {
+            string god = God(c, work) ?? "odin";
+            Vector3 at = At(c, work, out float yaw);
+            var corners = new[] { (-2.7f, -3.7f), (2.7f, -3.7f), (2.7f, 3.7f), (-2.7f, 3.7f) }.Select(q => GreatWorks.Place(new GreatWorks.Part("", q.Item1, 0, q.Item2, 0), at.x, at.y, at.z, yaw)).ToList();
+            if (c.R.Rooms.Any(r => r.Type == RoomType.Temple && Geometry.Inside(r.Xz, at.x, at.z))) return; // (marked already)
+            string xz = string.Join(",", corners.SelectMany(q => new[] { q.x, q.z }).Select(v => v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)));
+            Net.Act(c, "room", $"{RoomType.Temple}|{god}|{(at.y + 0.25f).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}|{xz}");
+        }
+        // How strongly a god blesses the colony: not at all, as a temple to them does, or twice that with the Peak Temple raised to them.
+        public static float Blessing(Colony c, string god) => !Faith.Blessed(c, god) ? 0f : Has(c, GreatWorks.PeakTemple) && God(c, GreatWorks.PeakTemple) == god ? 2f : 1f;
         public static bool Has(Colony c, string work) => c != null && GreatWorks.Stage(c.R.Flags, work) == GreatWorks.Done;
     }
 }

@@ -268,6 +268,17 @@ namespace Jarldom
                     { ZDO z = zv.GetZDO(); rows.Add($"{Utils.GetPrefabName(zv.gameObject)} owner {z.GetOwner()} mine {zv.IsOwner()} me {ZDOMan.GetSessionID()} peer {ZNet.instance.GetPeer(z.GetOwner()) != null} active {ZNetScene.InActiveArea(zv.transform.position, ZNet.instance.GetReferencePosition())} enabled {zv.enabled}/{zv.gameObject.activeInHierarchy} picked {zv.GetComponent<Pickable>()?.CanBePicked()} hp {z.GetFloat(ZDOVars.s_health, -1):0}/{zv.GetComponent<WearNTear>()?.m_health} parts {string.Join(",", zv.GetComponents<Component>().Select(cp => cp.GetType().Name))}"); }
                 output(new JObject { ["near"] = rows }); return;
             }
+            if (cmd == "pcost")
+            {
+                // Test (read-only): what pieces cost, and the station they want (pcost <prefab> ...).
+                var res = new JObject();
+                foreach (string name in a.Skip(2))
+                {
+                    Piece pc = ZNetScene.instance.GetPrefab(name)?.GetComponent<Piece>();
+                    res[name] = pc == null ? "no such piece" : string.Join(" + ", pc.m_resources.Select(r => $"{r.m_amount} {r.m_resItem?.name}")) + (pc.m_craftingStation != null ? " @" + pc.m_craftingStation.name : "") + $" | hp {pc.GetComponent<WearNTear>()?.m_health} mat {pc.GetComponent<WearNTear>()?.m_materialType}";
+                }
+                output(res); return;
+            }
             if (cmd == "drops")
             {
                 // Test: what lies on the ground around the player, by kind and 10 m cell (drops <radius> [text]).
@@ -1125,11 +1136,57 @@ namespace Jarldom
                     break;
                 case "greatwork": // (test: "greatwork": its stage; "promise": as if the Thing chose it; "place x z": Shift+E there; "finish": done now; "clear": none)
                     {
-                        string w = GreatWorks.Lighthouse, sub = a.Length > 2 ? a[2] : "";
+                        string w = a.Contains("temple") ? GreatWorks.PeakTemple : GreatWorks.Lighthouse; a = a.Where(x => x != "temple").ToArray(); // ("temple": the Peak Temple)
+                        string sub = a.Length > 2 ? a[2] : "";
                         bool force = a.Contains("force"); a = a.Where(x => x != "force").ToArray();
+                        string godArg = a.FirstOrDefault(x => x.StartsWith("god="))?.Substring(4); a = a.Where(x => !x.StartsWith("god=")).ToArray();
+                        if (sub == "flat") // (test: flat open ground in the colony big enough for its footing, nothing built within it)
+                        {
+                            float foot = GreatWorks.FootingOf(w); var found = new List<string>();
+                            for (float x = -c.Radius + 10; x <= c.Radius - 10 && found.Count < 10; x += 6f) for (float z = -c.Radius + 10; z <= c.Radius - 10 && found.Count < 10; z += 6f)
+                            {
+                                Vector3 q = c.Position + new Vector3(x, 0, z);
+                                if (!ZoneSystem.instance.GetSolidHeight(q, out float h0) || h0 < ZoneSystem.instance.m_waterLevel + 1) continue;
+                                float lo = h0, hi = h0;
+                                for (int i = 0; i < 8; i++) { float an = i * Mathf.PI / 4f; ZoneSystem.instance.GetSolidHeight(q + new Vector3(Mathf.Sin(an) * (foot + 1), 0, Mathf.Cos(an) * (foot + 1)), out float hh); lo = Mathf.Min(lo, hh); hi = Mathf.Max(hi, hh); }
+                                if (hi - lo > 0.8f) continue;
+                                var near = new List<Piece>(); Piece.GetAllPiecesInRadius(new Vector3(q.x, h0, q.z), foot + 3, near);
+                                if (near.Any(pc => pc != null && pc.GetComponent<Plant>() == null)) continue;
+                                found.Add($"{q.x:0},{q.z:0} ground {h0:0.0} rise {hi - lo:0.0}");
+                            }
+                            output(new JObject { ["flat"] = new JArray(found) }); return;
+                        }
+                        if (sub == "show") // (test: its parts as real test pieces at x z, facing yaw: a look before it's raised; "unput" takes them away)
+                        {
+                            Vector3 q = new Vector3(F(a[3]), 0, F(a[4])); q.y = Ground(q); float yawS = a.Length > 5 ? F(a[5]) : 0; int n = 0;
+                            foreach (var part in GreatWorks.Parts(w, godArg ?? GreatWork.God(c, w)))
+                            {
+                                GameObject pf = Assets.Find(part.Prefab); if (pf == null) continue;
+                                var pl = GreatWorks.Place(part, q.x, q.y, q.z, yawS);
+                                GameObject go = Put(pf, new Vector3(pl.x, pl.y, pl.z), 0); go.transform.rotation = GreatWork.Turn(part, yawS); n++;
+                            }
+                            output(new JObject { ["placed"] = n, ["at"] = V(q) }); return;
+                        }
+                        if (sub == "standing") // (test: the pieces within 10 m of x z, by kind, and the weakest held up)
+                        {
+                            Vector3 q = new Vector3(F(a[3]), 0, F(a[4])); q.y = Ground(q);
+                            var ps = new List<Piece>(); Piece.GetAllPiecesInRadius(q + Vector3.up * 4, 11f, ps);
+                            var sf = HarmonyLib.AccessTools.Field(typeof(WearNTear), "m_support");
+                            output(new JObject { ["count"] = ps.Count, ["kinds"] = new JArray(ps.GroupBy(x => Colony.NameOf(x)).Select(g => g.Key + " x" + g.Count())),
+                                ["weakest"] = new JArray(ps.Where(x => x.GetComponent<WearNTear>() != null).OrderBy(x => (float)sf.GetValue(x.GetComponent<WearNTear>())).Take(6).Select(x => $"{Colony.NameOf(x)} {x.transform.position.y - q.y:0.0} support {(float)sf.GetValue(x.GetComponent<WearNTear>()):0}")) });
+                            return;
+                        }
+                        if (sub == "high") // (test: the colony's highest ground, and the highest spots it has with what Why says of each)
+                        {
+                            float top = GreatWork.Highest(c); var spots = new List<(Vector3 p, float h)>();
+                            for (float x = -c.Radius; x <= c.Radius; x += 6f) for (float z = -c.Radius; z <= c.Radius; z += 6f)
+                                if (x * x + z * z <= (c.Radius - 6f) * (c.Radius - 6f)) { Vector3 q = c.Position + new Vector3(x, 0, z); spots.Add((q, WorldGenerator.instance.GetHeight(q.x, q.z))); }
+                            output(new JObject { ["highest"] = top, ["spots"] = new JArray(spots.OrderByDescending(q => q.h).Take(12).Select(q => { string why = GreatWork.Why(c, w, me, q.p, out Vector3 at2, out _); return $"{q.p.x:0},{q.p.z:0} h {q.h:0.0}: {(why == "" ? "ok" : why)}"; })) });
+                            return;
+                        }
                         if ((sub == "promise" || sub == "clear" || sub == "outline" || sub == "place") && GreatWorks.Stage(c.R.Flags, w) >= GreatWorks.Laid && !force) { error($"a real {GreatWorks.Name(w)} is under way (stage {GreatWorks.Stage(c.R.Flags, w)}): add \"force\" to test over it"); return; }
-                        if (sub == "promise") c.R.Flags[GreatWorks.Key(w)] = GreatWorks.Promised;
-                        if (sub == "clear") { foreach (string k in c.R.Flags.Keys.Where(k => k.StartsWith("gw:")).ToList()) c.R.Flags.Remove(k); }
+                        if (sub == "promise") { c.R.Flags[GreatWorks.Key(w)] = GreatWorks.Promised; if (w == GreatWorks.PeakTemple) c.R.Flags[GreatWorks.GodKey(w)] = Math.Max(0, Array.FindIndex(Tables.Gods, g => g.Id == (godArg ?? Thing.TempleGod(c)))); }
+                        if (sub == "clear") { foreach (string k in c.R.Flags.Keys.Where(k => k == GreatWorks.Key(w) || k.StartsWith(GreatWorks.Key(w) + ":")).ToList()) c.R.Flags.Remove(k); } // (this work's only: not the Lighthouse with the temple)
                         if (sub == "place") { Vector3 spot = new Vector3(F(a[3]), 0, F(a[4])); ZoneSystem.instance.GetSolidHeight(spot, out float gh); spot.y = gh; GreatWork.RaiseHere(c, w, spot); }
                         if (sub == "finish") GreatWork.Finish(c, w);
                         if (sub == "support") { Vector3 at0 = GreatWork.At(c, w, out _); var ps = new List<Piece>(); Piece.GetAllPiecesInRadius(at0 + Vector3.up * 12f, 22f, ps);

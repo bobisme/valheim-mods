@@ -584,7 +584,8 @@ namespace Jarldom
             bool temple = c.R.Rooms.Any(r => r.Ok && r.Type == RoomType.Temple && r.God == "njord");
             int njord = Mathf.RoundToInt(c.FavourOf("njord"));
             coins = coins * Trading.PricePercent(way) / 100;
-            if (temple && njord > 0) coins = coins * 110 / 100;
+            float njordBless = GreatWork.Blessing(c, "njord");
+            if (njordBless > 0) coins = coins * (100 + Mathf.RoundToInt(10 * njordBless)) / 100; // (twice the boon with the Peak Temple raised to him)
             coins = Mathf.RoundToInt(coins * (1 + Festivals.Of(c.R.Flags, Festival.Sigrblot, Festivals.SigrTrade))); // (Sigrblot's blessing)
             bool lost = UnityEngine.Random.value < Trading.LossChance(way, njord, temple) * (Trading.AtSea(way) && GreatWork.Has(c, GreatWorks.Lighthouse) ? GreatWorks.LossAtSea : 1f); // (the Lighthouse brings them home)
             b.S.Bump("trades");

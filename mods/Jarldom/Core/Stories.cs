@@ -366,6 +366,8 @@ namespace Jarldom
         public List<(string a, string b)> Feuds = new List<(string, string)>(); public int GuardWage; public int MissedPaydays; public bool Hungry; public int Beds;
         public List<(string name, int seen)> Suspects = new List<(string, int)>();
         public bool GreatWork; // (a village by the sea, no great work begun: the Thing may ask for a lighthouse)
+        public string TempleGod = ""; // (a village with no great work under way and no Peak Temple yet: the god it would be raised to; "" none)
+        public string TempleGodName = "";
         public bool DarkHome, UnburiedNoGround; // (a jarl came home by night to a shore with no beacon; the lost lie unburied and there's nowhere to lay them)
     }
 
@@ -387,6 +389,7 @@ namespace Jarldom
                 all.Add(new Petition { Id = "accuse", About = s.name, Text = $"{s.name} has been seen near the mischief {s.seen} times. Cast them out?", Yes = "Cast them out", No = "Let it be", YesMood = 2, NoMood = -2 });
             if (c.DarkHome) all.Add(new Petition { Id = "beacon", Text = "Raise a beacon: the jarl came home in the dark, and the shore was black.", Yes = "Promise a beacon", No = "We know the way", YesMood = 2, NoMood = -1 });
             if (c.GreatWork) all.Add(new Petition { Id = "greatwork", About = GreatWorks.Lighthouse, Text = "Let us raise a lighthouse on the shore: a great work, sung of long after us, and every ship of ours would find home.", Yes = "Let it be raised", No = "Not in our day", YesMood = 5, NoMood = -2 });
+            if (c.TempleGod != "") all.Add(new Petition { Id = "greatwork", About = GreatWorks.PeakTemple + "|" + c.TempleGod, Text = $"Let us raise a temple to {c.TempleGodName} on the highest ground we hold: a great work, nearer the gods, and they would hear us twice as well.", Yes = "Let it be raised", No = "Not in our day", YesMood = 5, NoMood = -2 });
             if (c.UnburiedNoGround) all.Add(new Petition { Id = "burial", Text = "Make a burial ground: our lost walk unburied, and there's nowhere to lay them.", Yes = "Promise it", No = "Let them walk", YesMood = 4, NoMood = -4 });
             if (c.Beds < c.Population) all.Add(new Petition { Id = "beds", Text = "Build beds: some of us sleep on the hall floor.", Yes = "Promise beds", No = "Sleep by the fire", YesMood = 4, NoMood = -4 });
             return all.OrderBy(_ => rng.Next()).Take(max).ToList();

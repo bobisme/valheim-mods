@@ -828,6 +828,25 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Verse.Make(new List<LogEntry> { new LogEntry(5, 3, "greatwork", "Shithole", "the Lighthouse", "") }, 2, p => p).Any(l => l.Contains("Lighthouse")), "The skald sings it");
 }
 
+// ---- Great Works: the Peak Temple ----
+{
+    var parts = GreatWorks.TempleParts("thor");
+    Check(parts.Count(p => p.Prefab == "JarldomAltar_thor") == 1 && GreatWorks.TempleParts().Count(p => p.Prefab == "JarldomAltar_odin") == 1, "The Peak Temple's altar is its god's (Odin's, before one's chosen)");
+    Check(parts.All(p => Math.Abs(p.X) <= GreatWorks.FootingOf(GreatWorks.PeakTemple) && Math.Abs(p.Z) <= GreatWorks.FootingOf(GreatWorks.PeakTemple) || p.Prefab == "wood_dragon1"), "Everything but the dragons' heads on its footing");
+    var spots = parts.Select(p => (p.Prefab, Math.Round(p.X, 2), Math.Round(p.Y, 2), Math.Round(p.Z, 2))).ToList();
+    Check(spots.Distinct().Count() == spots.Count, "No two of its parts in the same place");
+    Check(parts.Count(p => p.Prefab == "wood_door") == 1 && parts.Count(p => p.Prefab == "wood_roof_45") == 20 && parts.Count(p => p.Prefab == "wood_roof_top_45") == 5 && parts.Count(p => p.Prefab == "wood_dragon1") == 2, "A door, two rows of roof a side, a capped ridge, dragons at its ends: " + parts.Count + " parts");
+    var roofs = parts.Where(p => p.Prefab == "wood_roof_45").ToList();
+    Check(roofs.All(p => (p.X > 0) == (p.Yaw == 90)) && roofs.Where(p => Math.Abs(p.X) > 2).All(p => Math.Abs(p.Y - 3.25) < 0.01), "Each side's roof falls outward, its lower row resting on the walls' tops");
+    Check(parts.Where(p => p.Prefab == "woodwall" && p.Y < 3).All(p => parts.Any(q => q.Prefab == "stone_wall_2x1" && Math.Abs(q.X - p.X) < 0.01 && Math.Abs(q.Z - p.Z) < 0.01)), "Every plank wall on its course of stone");
+    var needs = GreatWorks.Needs(GreatWorks.PeakTemple);
+    Check(needs["Stone"] > 200 && needs["Wood"] > 50 && needs["Coins"] == 10 && needs["Iron"] == 2, "What it costs (stone and timber, the altar's coins, the stonecutter's 2 iron): " + GreatWorks.NeedsText(GreatWorks.PeakTemple));
+    Check(GreatWorks.Site(GreatWorks.PeakTemple, new List<float> { 0, 0, 10, 0, 10, 10, 0, 10 }, out _, out _).Contains("12 × 12") && GreatWorks.Site(GreatWorks.PeakTemple, new List<float> { 0, 0, 14, 0, 14, 14, 0, 14 }, out _, out _) == "", "Its outline must hold 12 × 12 m");
+    var tview = new ColonyView { Population = 6, HasBeautyRoom = true, HasShrine = true, GuardWage = 9, Beds = 6, TempleGod = "freyja", TempleGodName = "Freyja" };
+    var asked = Petitions.Raise(new Random(1), tview, 10).FirstOrDefault(p => p.Id == "greatwork");
+    Check(asked != null && asked.About == "peaktemple|freyja" && asked.Text.Contains("Freyja"), "The Thing may ask for a temple to the best-pleased god");
+}
+
 // ---- Expectations rise: the fare a colony of standing wants ----
 {
     Check(Fare.Of("CookedMeat", 30) == 0 && Fare.Of("Sausages", 55) == 2 && Fare.Of("LoxPie", 75) == 4 && Fare.Of("MeatPlatter", 80) == 5, "Dishes by their land");

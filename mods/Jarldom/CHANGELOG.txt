@@ -1,3 +1,5 @@
+0.1.167: A second Great Work, the Peak Temple (first draft). Once the Lighthouse is done, or isn't wanted, a village may be asked at the Thing to raise a temple on its highest ground, to its best-pleased god. It's a hof: a stone plinth with torch-topped pillars, a plank hall on a course of stone under a steep dragon-headed roof, and the god's altar inside. Raised, it becomes that god's temple, their blessing on the colony is twice as strong (Thor's strike, Freyja's growth, Frigg's comfort, Njord's trade), and offerings to them count double. One Great Work at a time.
+
 0.1.166: The land wears thin. What villagers take from each 64 m square of land (trees felled, game killed, wild plants picked; not the fields) is counted, and their gathering where the land is worn comes in thinner, up to 30% less. Ten days of rest and it's whole again. Worn woodlots, hunting grounds and foraging grounds show it on their hammer labels and in Needs-you. Players' own gathering is never affected.
 
 0.1.165: Builders mend ships moored in the colony's water from the shore beside them, with 2 wood from the stores, once one is knocked below 95%.

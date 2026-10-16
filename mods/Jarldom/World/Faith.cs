@@ -25,7 +25,8 @@ namespace Jarldom
                 Colony near = Colony.At(attacker.transform.position) ?? Colony.All.FirstOrDefault(c => c.Valid && Utils.DistanceXZ(c.Position, attacker.transform.position) < c.Radius * 3);
                 if (near != null && (VillagerPrefab.Is(attacker) || attacker.IsPlayer())) { float sigr = Festivals.Of(near.R.Flags, Festival.Sigrblot, Festivals.SigrDamage); if (sigr > 0) hit.m_damage.Modify(1 + sigr); }
                 if (!VillagerPrefab.Is(attacker)) return;
-                if (Blessed(Colony.At(attacker.transform.position), "thor")) hit.m_damage.Modify(1.1f);
+                float thor = GreatWork.Blessing(Colony.At(attacker.transform.position), "thor");
+                if (thor > 0) hit.m_damage.Modify(1 + 0.1f * thor); // (twice that with the Peak Temple raised to him)
             }
         }
         // Freyja: crops and saplings in the colony grow a fifth faster.
@@ -34,7 +35,8 @@ namespace Jarldom
         {
             private static void Postfix(Plant __instance, ref float __result)
             {
-                if (Blessed(Colony.At(__instance.transform.position), "freyja")) __result *= 0.8f;
+                float freyja = GreatWork.Blessing(Colony.At(__instance.transform.position), "freyja");
+                if (freyja > 0) __result *= 1 - 0.2f * freyja;
             }
         }
         // Thor's lightning on raiders inside the radius, now and then while a raid lasts (stronger as he is better pleased).
@@ -102,6 +104,7 @@ namespace Jarldom
         public static void Received(Colony c, string god, int points, string what, string who)
         {
             if (Tables.God(god) == null || points <= 0) return;
+            if (GreatWork.Has(c, GreatWorks.PeakTemple) && GreatWork.God(c, GreatWorks.PeakTemple) == god) points *= 2; // (offerings to the Peak Temple's god count double)
             Add(c, god, points, $"{who} offered {what}");
             c.Log("offering", who, Tables.God(god).Name);
             foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id && b.S.Has("pious"))) { Mood.Satisfy(b.S, Need.Faith, 10); b.Dirty(); }

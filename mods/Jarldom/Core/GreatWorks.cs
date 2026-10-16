@@ -10,7 +10,8 @@ namespace Jarldom
     public static class GreatWorks
     {
         public const int Promised = 1, Laid = 2, Done = 3;
-        public const string Lighthouse = "lighthouse";
+        public const string Lighthouse = "lighthouse", PeakTemple = "peaktemple";
+        public static readonly string[] All = { Lighthouse, PeakTemple };
         public static string Key(string work) => "gw:" + work;
         public static string AtKey(string work) => "gw:" + work + ":at";     // (packed x, z: TrueLegend.Pack)
         public static string YKey(string work) => "gw:" + work + ":y";       // (the ground's height, in tenths of a metre)
@@ -20,6 +21,7 @@ namespace Jarldom
         public static string BuiltKey(string work) => "gw:" + work + ":built";
         public static string DayKey(string work) => "gw:" + work + ":day";
         public static string AgainKey(string work) => "gw:" + work + ":again"; // (raised again after it was taken down: no second reward)
+        public static string GodKey(string work) => "gw:" + work + ":god";   // (the Peak Temple's god: its index in Tables.Gods)
         public static int Stage(IDictionary<string, int> flags, string work) => flags.TryGetValue(Key(work), out int s) ? s : 0;
 
         // (prefab, x, y, z from the foot of its middle, +z its front; yaw in degrees; Up: which way the piece's own up points, for a
@@ -110,18 +112,59 @@ namespace Jarldom
             parts.Add(new Part(log, half, y, 0, 90)); parts.Add(new Part(log, -half, y, 0, 90));
         }
         public const float Footing = 4.5f; // (half its footing, the gallery's overhang with it: the outline must hold this square)
+        public static float FootingOf(string work) => work == PeakTemple ? 6f : Footing; // (the temple's plinth: 10 × 12 m)
         // Where a work stands in an outline drawn for it: the middle of the outline, if its footing fits inside ("" or why not).
-        public static string Site(IList<float> xz, out float x, out float z)
+        public static string Site(IList<float> xz, out float x, out float z) => Site(Lighthouse, xz, out x, out z);
+        public static string Site(string work, IList<float> xz, out float x, out float z)
         {
+            float foot = FootingOf(work);
             x = z = 0;
             int n = xz.Count / 2;
             if (n < 3) return "draw its outline first";
             for (int i = 0; i < n; i++) { x += xz[i * 2]; z += xz[i * 2 + 1]; }
             x /= n; z /= n;
-            foreach (var (sx, sz) in Corners) if (!Geometry.Inside(xz, x + sx * Footing, z + sz * Footing)) return $"the outline is too small: it needs {Footing * 2:0} × {Footing * 2:0} m clear in its middle";
+            foreach (var (sx, sz) in Corners) if (!Geometry.Inside(xz, x + sx * foot, z + sz * foot)) return $"the outline is too small: it needs {foot * 2:0} × {foot * 2:0} m clear in its middle";
             return "";
         }
-        public static List<Part> Parts(string work) => work == Lighthouse ? LighthouseParts() : new List<Part>();
+        public static List<Part> Parts(string work, string god = null) => work == Lighthouse ? LighthouseParts() : work == PeakTemple ? TempleParts(god) : new List<Part>();
+
+        // The Peak Temple: a hof on the colony's high ground. A stone plinth 10 × 12 m, a stone pillar with a torch at each corner and
+        // either side of the way in; on it the hall, 6 × 8 m: a course of stone under plank walls, core wood posts at its corners, the
+        // door in the middle of its front with a banner either side; a steep roof (45°) over all, a metre out past the walls, closed at
+        // its gables, a dragon head at each end of the ridge; inside, the god's altar at the back between two torches. Behind the hall
+        // the workbench and stonecutter it was raised with.
+        public static List<Part> TempleParts(string god = null)
+        {
+            var parts = new List<Part>();
+            void P(string prefab, float x, float y, float z, float yaw = 0) => parts.Add(new Part(prefab, x, y, z, yaw));
+            const float deck = 0.25f, top = deck + 3f; // (the plinth's top; the walls' top, where the roof rests)
+            for (int x = -4; x <= 4; x += 2) for (int z = -5; z <= 5; z += 2) P("stone_floor_2x2", x, deck - 0.5f, z);
+            foreach (var (px, pz) in new[] { (4.5f, 5.5f), (-4.5f, 5.5f), (4.5f, -5.5f), (-4.5f, -5.5f), (2.2f, 5.4f), (-2.2f, 5.4f) })
+            { P("stone_pillar", px, deck + 1f, pz); P("piece_groundtorch_wood", px, deck + 2.65f, pz); }
+            // the walls: a course of stone, planks over it; the door in the middle of the front, planks over the door
+            void Wall(float x, float z, float yaw) { P("stone_wall_2x1", x, deck + 0.5f, z, yaw); P("woodwall", x, deck + 2f, z, yaw); }
+            Wall(-2, 4, 0); Wall(2, 4, 0);
+            P("wood_door", 0, deck + 1.01f, 4); P("wood_wall_half", 0, deck + 2.5f, 4);
+            for (int x = -2; x <= 2; x += 2) Wall(x, -4, 0);
+            for (int z = -3; z <= 3; z += 2) { Wall(3, z, 90); Wall(-3, z, 90); }
+            foreach (var (sx, sz) in Corners) P("wood_pole_log_4", sx * 3f, deck + 1f, sz * 4f); // (sunk a metre in the plinth: their tops at the eaves)
+            // the roof: two rows a side (the eaves a metre out past the walls), the ridge capped, the gables closed under it
+            for (int z = -4; z <= 4; z += 2)
+            {
+                P("wood_roof_45", 3, top, z, 90); P("wood_roof_45", 1, top + 2f, z, 90);
+                P("wood_roof_45", -3, top, z, 270); P("wood_roof_45", -1, top + 2f, z, 270);
+                P("wood_roof_top_45", 0, top + 2f, z, 90);
+            }
+            foreach (float gz in new[] { 4f, -4f }) { P("wood_wall_roof_45", -2, top, gz, 0); P("wood_wall_roof_45", 2, top, gz, 180); P("woodwall", 0, top + 1f, gz); }
+            P("wood_dragon1", 0, top + 3f, 4.9f, 0); P("wood_dragon1", 0, top + 3f, -4.9f, 180);
+            P("piece_banner03", -2, deck + 2.9f, 4.3f, 90); P("piece_banner03", 2, deck + 2.9f, 4.3f, 90);
+            // inside: the altar at the back, a torch either side
+            P("JarldomAltar_" + (string.IsNullOrEmpty(god) ? "odin" : god), 0, deck, -2.6f);
+            P("piece_groundtorch_wood", 2f, deck + 0.7f, -3f); P("piece_groundtorch_wood", -2f, deck + 0.7f, -3f);
+            // behind the hall, what it was raised with (the builders' reach)
+            P("piece_workbench", 2.5f, deck, -5.4f, 180); P("piece_stonecutter", -2.5f, deck, -5.4f, 180);
+            return parts;
+        }
 
         // A part where it stands in the world: turned with the work about its foot, then moved there.
         public static (float x, float y, float z, float yaw) Place(Part p, float x, float y, float z, float yaw)
@@ -134,23 +177,31 @@ namespace Jarldom
         {
             ["wood_floor_1x1"] = new[] { ("Wood", 1) }, ["wood_wall_half"] = new[] { ("Wood", 1) }, ["stone_pile"] = new[] { ("Stone", 50) }, ["fire_pit"] = new[] { ("Stone", 5), ("Wood", 2) }, ["wood_floor"] = new[] { ("Wood", 2) }, ["wood_pole"] = new[] { ("Wood", 1) }, ["wood_beam_45"] = new[] { ("Wood", 2) },
             ["wood_door"] = new[] { ("Wood", 4) }, ["wood_stepladder"] = new[] { ("Wood", 2) }, ["wood_wall_log_4x0.5"] = new[] { ("RoundLog", 2) },
+            ["JarldomAltar"] = new[] { ("Stone", 12), ("Coins", 10), ("Resin", 2) },
             ["stone_wall_1x1"] = new[] { ("Stone", 3) }, ["stone_wall_2x1"] = new[] { ("Stone", 4) }, ["stone_wall_4x2"] = new[] { ("Stone", 6) }, ["stone_floor_2x2"] = new[] { ("Stone", 6) }, ["stone_pillar"] = new[] { ("Stone", 5) },
-            ["piece_workbench"] = new[] { ("Wood", 10) }, ["piece_stonecutter"] = new[] { ("Wood", 10), ("Iron", 2), ("Stone", 4) },
+            ["piece_workbench"] = new[] { ("Wood", 10) }, ["woodwall"] = new[] { ("Wood", 2) }, ["wood_roof_45"] = new[] { ("Wood", 2) }, ["wood_roof_top_45"] = new[] { ("Wood", 2) }, ["wood_wall_roof_45"] = new[] { ("Wood", 2) },
+            ["wood_pole_log_4"] = new[] { ("RoundLog", 2) }, ["piece_stonecutter"] = new[] { ("Wood", 10), ("Iron", 2), ("Stone", 4) },
             ["bonfire"] = new[] { ("SurtlingCore", 1), ("ElderBark", 5), ("FineWood", 5), ("RoundLog", 5) }, ["piece_groundtorch_wood"] = new[] { ("Wood", 2), ("Resin", 2) }, ["wood_pole_log"] = new[] { ("RoundLog", 1) }, ["woodiron_pole"] = new[] { ("Wood", 2), ("Iron", 1) }, ["forge"] = new[] { ("Stone", 4), ("Coal", 4), ("Wood", 10), ("Copper", 6) }, ["stone_pillar"] = new[] { ("Stone", 5) }, ["piece_banner03"] = new[] { ("LeatherScraps", 6), ("FineWood", 2), ("Raspberry", 4) }, ["wood_dragon1"] = new[] { ("FineWood", 10) }, ["piece_workbench_ext1"] = new[] { ("Wood", 10), ("Flint", 10) }, ["piece_workbench_ext2"] = new[] { ("Wood", 10), ("Flint", 15), ("LeatherScraps", 20), ("DeerHide", 5) },
         };
         public static Dictionary<string, int> Needs(string work)
         {
             var all = new Dictionary<string, int>();
-            foreach (var p in Parts(work)) if (Cost.TryGetValue(p.Prefab, out var c)) foreach (var (item, n) in c) all[item] = (all.TryGetValue(item, out int had) ? had : 0) + n;
+            foreach (var p in Parts(work)) if (Cost.TryGetValue(p.Prefab.StartsWith("JarldomAltar_") ? "JarldomAltar" : p.Prefab, out var c)) foreach (var (item, n) in c) all[item] = (all.TryGetValue(item, out int had) ? had : 0) + n;
             return all;
         }
         public static string NeedsText(string work) => string.Join(", ", Needs(work).OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Value} {Item(kv.Key)}"));
         private static string Item(string prefab) => prefab == "RoundLog" ? "core wood" : prefab == "FineWood" ? "fine wood" : prefab == "ElderBark" ? "ancient bark" : prefab == "SurtlingCore" ? "surtling core"
             : prefab == "LeatherScraps" ? "leather scraps" : prefab == "DeerHide" ? "deer hides" : prefab == "Raspberry" ? "raspberries" : prefab.ToLower();
-        public static string Name(string work) => work == Lighthouse ? "the Lighthouse" : work;
-        public static string Title(string work) => work == Lighthouse ? "The Lighthouse" : work; // (to start a sentence)
-        public static string Proper(string work, string colony) => (work == Lighthouse ? "Lighthouse" : work) + " of " + colony; // (its name on the map)
-        public static string Gift(string work) => work == Lighthouse ? "Its fire is the colony's beacon, and ships on the colony's trade runs are lost half as often." : "";
+        public static string Name(string work) => work == Lighthouse ? "the Lighthouse" : work == PeakTemple ? "the Peak Temple" : work;
+        public static string Title(string work) => work == Lighthouse ? "The Lighthouse" : work == PeakTemple ? "The Peak Temple" : work; // (to start a sentence)
+        public static string Proper(string work, string colony) => (work == Lighthouse ? "Lighthouse" : work == PeakTemple ? "Peak Temple" : work) + " of " + colony; // (its name on the map)
+        public static string Gift(string work) => work == Lighthouse ? "Its fire is the colony's beacon, and ships on the colony's trade runs are lost half as often."
+            : work == PeakTemple ? "Its god's blessing on the colony is twice as strong, and offerings to them count double." : "";
+        // What it looks like, for the hall tab before it's placed.
+        public static string Look(string work) => work == Lighthouse ? "a tall timber tower on a stone plinth, ladders inside up to a railed gallery hung with banners, and the beacon's bonfire on a dragon-headed fire deck 24 m up"
+            : work == PeakTemple ? "a hof on the colony's high ground: a stone plinth ringed with torch-topped pillars, a plank hall on a course of stone under a steep dragon-headed roof, and the god's altar inside" : "";
+        // Where it must stand, for the hall tab and the Thing's word.
+        public static string Where(string work) => work == Lighthouse ? "by the shore" : work == PeakTemple ? "on the highest ground in the colony" : "";
         public const float LossAtSea = 0.5f; // (the Lighthouse: trade runs at sea lost this much as often)
         public const int Renown = 40;
     }

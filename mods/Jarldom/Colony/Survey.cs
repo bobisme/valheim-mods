@@ -184,7 +184,7 @@ namespace Jarldom
             Beds = beds.Count(b => { BedOwner(b, out string kind); return kind == "" || kind == "villager"; });
             var comforts = beds.Select(b => ComfortAt(b.transform.position)).ToList();
             ComfortPart = Jarldom.Renown.Comfort(comforts);
-            int frigg = R.Rooms.Any(r => r.Ok && r.Type == RoomType.Temple && r.God == "frigg") && FavourOf("frigg") > 0 ? 1 : 0;
+            int frigg = Mathf.RoundToInt(GreatWork.Blessing(this, "frigg")); // (2 with the Peak Temple raised to her)
             if (frigg > 0) ComfortPart += 3 * frigg;
             R.Flags["renown"] = Renown;
         }

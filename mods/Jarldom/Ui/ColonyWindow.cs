@@ -147,8 +147,11 @@ namespace Jarldom.Ui
         {
             var list = new List<string>();
             var people = c.R.Living.ToList();
-            if (GreatWorks.Stage(c.R.Flags, GreatWorks.Lighthouse) == GreatWorks.Promised) list.Add($"The Thing chose to raise {GreatWorks.Name(GreatWorks.Lighthouse)}: with the hammer's \"Mark rooms and zones\", outline its site on flat ground near the sea (9 × 9 m at least) and choose \"{GreatWorks.Title(GreatWorks.Lighthouse)}\" under Great work.");
-            if (GreatWorks.Stage(c.R.Flags, GreatWorks.Lighthouse) == GreatWorks.Laid && !people.Any(p => p.Prof == Prof.Builder)) list.Add($"{GreatWorks.Title(GreatWorks.Lighthouse)} waits for builders: give someone the Builder trade (People tab).");
+            foreach (string gw in GreatWorks.All)
+            {
+                if (GreatWorks.Stage(c.R.Flags, gw) == GreatWorks.Promised) list.Add($"The Thing chose to raise {GreatWorks.Name(gw)}: with the hammer's \"Mark rooms and zones\", outline its site {GreatWorks.Where(gw)} ({GreatWorks.FootingOf(gw) * 2:0} × {GreatWorks.FootingOf(gw) * 2:0} m at least, on ground flat enough) and choose \"{GreatWorks.Title(gw)}\" under Great work.");
+                if (GreatWorks.Stage(c.R.Flags, gw) == GreatWorks.Laid && !people.Any(p => p.Prof == Prof.Builder)) list.Add($"{GreatWorks.Title(gw)} waits for builders: give someone the Builder trade (People tab).");
+            }
             // (a crop chosen for the season with no seeds for it: the farmers sow whatever else there is)
             foreach (Zone z in c.R.Zones.Where(z => z.Type == ZoneType.Fields))
                 if (Work.ChosenNow(c, z) is var ch && ch != null && !Work.HaveInStock(c, ch.Value.seed))
@@ -448,23 +451,28 @@ namespace Jarldom.Ui
         // Great works (Core/GreatWorks.cs): what the Thing chose, where it stands and how far it's come.
         private static float GreatWorksSection(RectTransform list, float y)
         {
-            string work = GreatWorks.Lighthouse; int stage = GreatWorks.Stage(_c.R.Flags, work);
-            if (stage == 0 && _c.R.Rank < Rank.Village) return y;
+            bool any = GreatWorks.All.Any(w => GreatWorks.Stage(_c.R.Flags, w) != 0);
+            if (!any && _c.R.Rank < Rank.Village) return y;
             y = Heading(list, "Great works", y);
-            if (stage == 0) return Text(list, GreatWork.Shore(_c) != null ? "None yet. A village by the sea may be asked at the Thing to raise a lighthouse: the whole colony's work, remembered for good." : "None yet: a village by the sea may be asked to raise a lighthouse.", y, 15, GameUi.Dim);
-            if (stage == GreatWorks.Promised)
+            if (!any) return Text(list, "None yet. A village may be asked at the Thing to raise a great work, one at a time: a lighthouse on its shore, or a temple on its highest ground. The whole colony's work, remembered for good.", y, 15, GameUi.Dim);
+            foreach (string work in GreatWorks.All)
             {
-                return Text(list, $"The Thing chose to raise {GreatWorks.Name(work)}: a tall timber tower on a stone plinth, ladders inside up to a railed gallery hung with banners, and the beacon's bonfire on a dragon-headed fire deck 24 m up ({GreatWorks.NeedsText(work)}). Show where it stands: with the hammer's \"Mark rooms and zones\", outline its site as you would a zone (fairly flat ground inside the colony near the sea, 9 × 9 m at least) and choose \"{GreatWorks.Title(work)}\" under Great work. It rises in the middle of the outline, its door toward the colony, and the builders raise it from the stores.", y);
+                int stage = GreatWorks.Stage(_c.R.Flags, work);
+                if (stage == 0) continue;
+                string god = GreatWork.God(_c, work), to = god != null ? $" to {Tables.God(god)?.Name}" : "";
+                if (stage == GreatWorks.Promised) { y = Text(list, $"The Thing chose to raise {GreatWorks.Name(work)}{to}: {GreatWorks.Look(work)} ({GreatWorks.NeedsText(work)}). Outline its site {GreatWorks.Where(work)} with \"Mark rooms and zones\" and choose it under Great work.", y, 15); continue; }
+                int all = GreatWork.Parts(_c, work).Count, built = _c.R.Flag(GreatWorks.BuiltKey(work));
+                if (stage == GreatWorks.Laid)
+                {
+                    Vector3 at = GreatWork.At(_c, work, out _);
+                    if (GreatWork.Movable(_c, work)) y = Text(list, "Not begun yet: outline another site with \"Mark rooms and zones\" and choose \"Move it here\" under Great work to move it.", y, 15, GameUi.Dim);
+                    y = Text(list, $"{GreatWorks.Title(work)}{to} is rising {Mathf.RoundToInt(Utils.DistanceXZ(at, _c.Position))} m to the {ScoutTask.Compass(at - _c.Position)} of the high seat: {built} of {all} parts stand. Builders raise it from the stores ({GreatWorks.NeedsText(work)}).", y, 15);
+                    if (!_c.R.Living.Any(r => r.Prof == Prof.Builder)) y = Text(list, "No one is a builder: give someone the Builder trade (People tab).", y, 15, GameUi.Warn);
+                    continue;
+                }
+                y = Text(list, $"{GreatWorks.Title(work)}{to}, raised on day {_c.R.Flag(GreatWorks.DayKey(work))}. {GreatWorks.Gift(work)}", y, 16, GameUi.Good);
             }
-            int all = GreatWorks.Parts(work).Count, built = _c.R.Flag(GreatWorks.BuiltKey(work));
-            if (stage == GreatWorks.Laid)
-            {
-                Vector3 at = GreatWork.At(_c, work, out _);
-                if (GreatWork.Movable(_c, work)) y = Text(list, "Not begun yet: outline another site with \"Mark rooms and zones\" and choose \"Move it here\" under Great work to move it.", y, 15, GameUi.Dim);
-                y = Text(list, $"{GreatWorks.Title(work)} is rising {Mathf.RoundToInt(Utils.DistanceXZ(at, _c.Position))} m to the {ScoutTask.Compass(at - _c.Position)} of the high seat: {built} of {all} parts stand. Builders raise it from the stores ({GreatWorks.NeedsText(work)} in all).", y);
-                return _c.R.Living.Any(r => r.Prof == Prof.Builder) ? y : Text(list, "No one is a builder: give someone the Builder trade (People tab).", y, 15, GameUi.Warn);
-            }
-            return Text(list, $"{GreatWorks.Title(work)}, raised on day {_c.R.Flag(GreatWorks.DayKey(work))}. {GreatWorks.Gift(work)}", y, 16, GameUi.Good);
+            return y;
         }
         private static Button Btn(RectTransform list, string text, ref float x, float y, Action click, bool enabled = true)
         {

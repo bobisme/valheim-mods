@@ -141,7 +141,9 @@ namespace Jarldom
                 Hungry = Villagers.All.Count(b => b.S.Colony == c.Id && b.S.Needs[(int)Need.Food] < 30) > c.Population / 2,
                 GuardWage = Tables.Wage(Prof.Guard, false) + c.GuardExtra, // (raised at a Thing: not asked again)
                 DarkHome = c.R.Flag(Beacon.DarkKey) > 0 && day - c.R.Flag(Beacon.DarkKey) <= 10 && Beacon.Where(c, out _, out _) == null, // (withdrawn once there's a beacon)
-                GreatWork = c.R.Rank >= Rank.Village && GreatWorks.Stage(c.R.Flags, GreatWorks.Lighthouse) == 0 && GreatWork.Shore(c) != null,
+                GreatWork = c.R.Rank >= Rank.Village && GreatWorks.Stage(c.R.Flags, GreatWorks.Lighthouse) == 0 && !Underway(c) && GreatWork.Shore(c) != null,
+                TempleGod = c.R.Rank >= Rank.Village && GreatWorks.Stage(c.R.Flags, GreatWorks.PeakTemple) == 0 && !Underway(c) ? TempleGod(c) : "",
+                TempleGodName = Tables.God(TempleGod(c))?.Name ?? "Odin",
                 UnburiedNoGround = c.R.Roster.Any(r => r.State == SoulState.Lost && !Lost.Rests(c, r.Vid)) && !c.R.Rooms.Any(r => r.Ok && r.Type == RoomType.BurialGround),
             };
             foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id))
@@ -331,11 +333,14 @@ namespace Jarldom
             if (yes && p.YesDeed != "") c.R.Deeds += Renown.Deed(p.YesDeed);
             if (yes && p.Id == "exile") { Brain b = Villagers.All.FirstOrDefault(x => x.S.Colony == c.Id && x.S.Name == p.About); if (b != null) { c.Log("exile", b.S.FullName, who); Villagers.Command(b.S.Vid, "dismiss", ""); } }
             if (yes && p.Id == "guardpay") c.R.Flags["guardraise"] = 1;
-            if (yes && p.Id == "greatwork" && GreatWorks.Stage(c.R.Flags, p.About) == 0)
+            string gwork = (p.About ?? "").Split('|')[0];
+            if (yes && p.Id == "greatwork" && GreatWorks.Stage(c.R.Flags, gwork) == 0)
             {
-                c.R.Flags[GreatWorks.Key(p.About)] = GreatWorks.Promised;
+                c.R.Flags[GreatWorks.Key(gwork)] = GreatWorks.Promised;
+                string[] about = p.About.Split('|');
+                if (gwork == GreatWorks.PeakTemple) { int gi = System.Array.FindIndex(Tables.Gods, g => g.Id == (about.Length > 1 ? about[1] : "odin")); c.R.Flags[GreatWorks.GodKey(gwork)] = gi < 0 ? 0 : gi; }
                 foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) { Mood.Add(b.S, "greatpromise", b.Now); b.Dirty(); }
-                c.Tell($"{GreatWorks.Title(p.About)} is to be raised: stand where it should stand, by the shore, and press \"Raise it here\" on the hall tab of the pillars.", true);
+                c.Tell($"{GreatWorks.Title(gwork)} is to be raised {GreatWorks.Where(gwork)}: with the hammer's \"Mark rooms and zones\", outline its site and choose it under Great work.", true);
             }
             if (yes && p.Id == "accuse") Saboteur.CastOut(c, p.About, who);
             if (yes && Promises.Contains(p.Id)) c.R.Flags["promise:" + p.Id] = c.Day + 5; // to be kept within five days
@@ -387,6 +392,10 @@ namespace Jarldom
                 c.Log("text", "", "", kept ? $"The jarl kept the promise made at the Thing ({id})." : $"The promise made at the Thing ({id}) was broken.");
             }
         }
+        // A great work under way (chosen at the Thing, or being raised): only one at a time.
+        public static bool Underway(Colony c) => GreatWorks.All.Any(w => GreatWorks.Stage(c.R.Flags, w) == GreatWorks.Promised || GreatWorks.Stage(c.R.Flags, w) == GreatWorks.Laid);
+        // The god a Peak Temple would be raised to: the colony's best pleased (Odin, before any is pleased at all).
+        public static string TempleGod(Colony c) => Tables.Gods.Where(g => c.FavourOf(g.Id) > 0).OrderByDescending(g => c.FavourOf(g.Id)).Select(g => g.Id).FirstOrDefault() ?? "odin";
     }
 
     // Raids at the colony: the game's own events, found when they start near the pillars; the horn sounds, raids grow with renown.
