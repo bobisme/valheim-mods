@@ -15,6 +15,7 @@ namespace WrongUniverse
     internal sealed class Gadgets:Feature
     {
         internal override string Name=>"Gadgets";
+        internal static ConfigEntry<bool> MapJump;
         internal static ConfigEntry<float> GrabRange,PuntRange,FlingSpeed,ImpactDamage,MaxMass,BlinkRange,BlinkCooldown,StimSeconds,StimRegen,StimSpeed;
 
         // The two guns are copies of the Arbalest (two hands, the aiming pose); the barrel lies along +Z in the model, turned into the hand.
@@ -26,7 +27,7 @@ namespace WrongUniverse
         internal static readonly ItemDef Displacer=new ItemDef{Prefab="WU_Displacer",Name="Displacer",Base="CrossbowArbalest",Weight=3f,
             Cost="Iron:10, SurtlingCore:2, Crystal:3, GreydwarfEye:6",Station="forge",Level=2,AttachEuler=GunTurn,Model=DisplacerModel,Stats=Gun,
             Description="Point it, pull the trigger, and you are over there. Not quite instant, not quite safe, and not something a portal would approve of. Needs a few seconds to cool between jumps.",
-            Primary=Blink,Secondary=(p,i)=>true};
+            Primary=Blink,Secondary=OpenMapJump};
         internal static readonly ItemDef StimPack=new ItemDef{Prefab="WU_StimPack",Name="Stim Pack",Base="MeadHealthMinor",Weight=0.2f,Stack=10,
             Cost="Honey:1, Resin:1, Bloodbag:1",Station="piece_workbench",Level=2,Model=StimModel,Stats=Consumable,
             Description="One jab in the thigh: every wound closes, every breath comes back, and for half a minute you heal like a troll and run like a deer. The label lists side effects in a language nobody here reads.",
@@ -47,6 +48,7 @@ namespace WrongUniverse
             MaxMass=c.Bind(S,"GravityMaxMass",1500f,new ConfigDescription("The heaviest loose thing it lifts (rigidbody mass). Creatures it lifts whatever they weigh, except bosses.",new AcceptableValueRange<float>(10,100000)));
             BlinkRange=c.Bind(S,"DisplacerRange",60f,new ConfigDescription("How far the Displacer jumps (metres).",new AcceptableValueRange<float>(5,200)));
             BlinkCooldown=c.Bind(S,"DisplacerCooldown",3f,new ConfigDescription("Seconds between jumps.",new AcceptableValueRange<float>(0,60)));
+            MapJump=c.Bind(S,"DisplacerMapJump",false,"The Displacer's secondary attack opens the map: click anywhere on it to jump there (the world loads around you as a portal's does). The cooldown still applies.");
             StimSeconds=c.Bind(S,"StimSeconds",30f,new ConfigDescription("How long a Stim Pack's rush lasts (seconds). Needs a restart.",new AcceptableValueRange<float>(5,300)));
             StimRegen=c.Bind(S,"StimRegen",6f,new ConfigDescription("Health and stamina regeneration during the rush (times normal). Needs a restart.",new AcceptableValueRange<float>(1,50)));
             StimSpeed=c.Bind(S,"StimSpeed",0.4f,new ConfigDescription("Extra movement speed during the rush (0.4 = 40% faster). Needs a restart.",new AcceptableValueRange<float>(0,3)));
@@ -99,6 +101,51 @@ namespace WrongUniverse
             Beam.Show(from,from+Vector3.up*2.6f,Violet,0.9f,0.6f);
             Beam.Show(to,to+Vector3.up*2.6f,Color.white,0.9f,0.6f);
             Sfx(SfxBlink,from);Sfx(SfxBlink,to);
+        }
+
+        // The map jump: the secondary attack opens the map, and the next click on it (instead of ticking a pin) jumps there.
+        private static bool _mapJumping;
+        private static float _lastSecondary;
+        private static bool _mapLanding;   // (on the ground once the jump lands: then up onto whatever is built there)
+        private static bool _mapTest;   // (`wu gadget map on`: as if the setting were on, without changing it)
+        private static readonly Func<Minimap,Vector3,Vector3> MapToWorld=AccessTools.MethodDelegate<Func<Minimap,Vector3,Vector3>>(AccessTools.Method(typeof(Minimap),"ScreenToWorldPoint"));
+        private static bool OpenMapJump(Player p,ItemDrop.ItemData item)
+        {
+            bool pressed=Time.time-_lastSecondary>0.2f;   // (called every physics step while held: only a new press counts)
+            _lastSecondary=Time.time;
+            if(!pressed||p!=Player.m_localPlayer||Minimap.instance==null)return true;
+            if(!MapJump.Value&&!_mapTest){p.Message(MessageHud.MessageType.Center,"Map jumps are off (setting DisplacerMapJump)");return true;}
+            if(Time.time<_blinkReady||p.IsTeleporting())return true;
+            _mapJumping=true;
+            Minimap.instance.SetMapMode(Minimap.MapMode.Large);
+            p.Message(MessageHud.MessageType.Center,"Click the map to jump there");
+            return true;
+        }
+        internal static bool MapClick(Minimap map)
+        {
+            Player p=Player.m_localPlayer;
+            if(!_mapJumping||p==null||Things.Held(p,out _)!=Displacer)return true;
+            _mapJumping=false;
+            Vector3 at=MapToWorld(map,ZInput.pointerPosition);
+            map.SetMapMode(Minimap.MapMode.Small);
+            MapLand(p,at);
+            return false;
+        }
+        private static bool MapLand(Player p,Vector3 at)
+        {
+            if(at==Vector3.zero||p.IsDead()||p.IsTeleporting()||p.IsAttached()||Time.time<_blinkReady)return false;
+            if(new Vector2(at.x,at.z).magnitude>WorldGenerator.worldSize+400f){p.Message(MessageHud.MessageType.Center,"Nothing out there to stand on");return false;}
+            // (the ground there: the real heightmap if it is loaded, else the world's generated height; never under the sea)
+            if(!Heightmap.GetHeight(at,out float ground))ground=WorldGenerator.instance!=null?WorldGenerator.instance.GetHeight(at.x,at.z):30f;
+            float water=ZoneSystem.instance!=null?ZoneSystem.instance.m_waterLevel:30f;
+            at.y=Mathf.Max(ground,water)+0.5f;
+            Vector3 from=p.transform.position;
+            if(!p.TeleportTo(at,p.transform.rotation,true))return false;
+            _mapLanding=true;
+            Beam.Show(from,from+Vector3.up*2.6f,Violet,0.9f,0.6f);
+            Sfx(SfxBlink,from);
+            _blinkReady=Time.time+BlinkCooldown.Value;
+            return true;
         }
 
         // Where to land: on what the crosshair finds (backed off a wall, stood on a floor), or in the air at full range; always with room for a
@@ -232,6 +279,22 @@ namespace WrongUniverse
         {
             Gravity.Tick();
             Player p=Player.m_localPlayer;
+            if(_mapJumping&&(Minimap.instance==null||Minimap.instance.m_mode!=Minimap.MapMode.Large))_mapJumping=false;   // (closed without a click)
+            if(_mapLanding&&p!=null&&!p.IsTeleporting())
+            {
+                // The map knows the ground, not what stands on it: a jump onto a house lands on its floor or roof, not inside it under the floor.
+                // (Only pieces and ground count: not the top of a tree.)
+                _mapLanding=false;
+                Vector3 at=p.transform.position;
+                if(at.y<5000f&&Physics.Raycast(at+Vector3.up*500f,Vector3.down,out RaycastHit top,520f,LayerMask.GetMask("piece","terrain"),QueryTriggerInteraction.Ignore)&&top.point.y>at.y+0.3f)
+                {
+                    Vector3 to=top.point+Vector3.up*0.05f;
+                    p.transform.position=to;
+                    Rigidbody body=BodyOf(p);
+                    if(body!=null){body.position=to;body.linearVelocity=Vector3.zero;}
+                    MaxAir(p)=to.y;
+                }
+            }
             bool stimmed=p!=null&&GadgetEffects.Has(p,StimHash);
             if(stimmed&&_stimGlow==null)_stimGlow=Look.AddLight(p.transform,new Color(0.4f,1f,0.5f),4f,0.9f,Vector3.up*1.2f);
             if(_stimGlow!=null)
@@ -241,6 +304,8 @@ namespace WrongUniverse
             }
         }
         internal override void FixedTick()=>Gravity.FixedTick();
+        [HarmonyPatch(typeof(Minimap),nameof(Minimap.OnMapLeftClick))]
+        private static class MapJumpClick{private static bool Prefix(Minimap __instance)=>MapClick(__instance);}
         internal override void Gui()
         {
             Player p=Player.m_localPlayer;
@@ -262,7 +327,7 @@ namespace WrongUniverse
         // ---- `wu gadget ...` ----------------------------------------------------------------------------------------------
 
         internal override string Command=>"gadget";
-        internal override string Help=>"info | equip <prefab> | grab [seconds] | fling | drop | spot | blink | stim | recall [go]";
+        internal override string Help=>"info | equip <prefab> | grab [seconds] | fling | drop | spot | blink | map [click | x z | on] | stim | recall [go]";
         internal override IEnumerator Test(string[] args,Action<JObject> output,Action<string> error)
         {
             Player p=Player.m_localPlayer;
@@ -291,6 +356,19 @@ namespace WrongUniverse
                 case "spot":
                     output(Spot(p,BlinkRange.Value,out Vector3 at)?new JObject{["spot"]=Tools.V(at),["distance"]=Math.Round(Vector3.Distance(at,p.transform.position),1)}:new JObject{["spot"]=null});
                     return null;
+                case "map":   // the secondary attack (opens the map in jump mode), then a click where the mouse is, or a jump to x z
+                {
+                    _lastSecondary=0f;
+                    _mapTest=args.Length>3&&args[3]!="off";
+                    OpenMapJump(p,null);
+                    _mapTest=false;
+                    var o=new JObject{["mapOpen"]=Minimap.instance.m_mode==Minimap.MapMode.Large,["jumpMode"]=_mapJumping,["from"]=Tools.V(p.transform.position)};
+                    if(args.Length>3&&args[3]=="click"){Minimap.instance.OnMapLeftClick();o["teleporting"]=p.IsTeleporting();}
+                    else if(args.Length>4&&float.TryParse(args[3],out float x)&&float.TryParse(args[4],out float z))
+                    {Minimap.instance.SetMapMode(Minimap.MapMode.Small);_mapJumping=false;o["jumped"]=MapLand(p,new Vector3(x,0f,z));o["teleporting"]=p.IsTeleporting();}
+                    output(o);
+                    return null;
+                }
                 case "blink":
                 {
                     if(!Spot(p,BlinkRange.Value,out Vector3 to)){error("wu gadget blink: no room there");return null;}

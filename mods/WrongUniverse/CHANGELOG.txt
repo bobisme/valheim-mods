@@ -1,3 +1,5 @@
+0.2.10: The Displacer can jump anywhere on the map: switch on DisplacerMapJump (section 8 - Gadgets), then its secondary attack opens the map and a click jumps you there, landing on the ground, the sea, or the floor of whatever is built there (the world loads around you as through a portal). The cooldown still applies. Its other settings, DisplacerRange and DisplacerCooldown, are in the same section. New test command: wu gadget map.
+
 0.2.9: The laser rifle is held like a rifle: the butt in the shoulder pocket (it sat on top of the shoulder), the head down on the stock with the right eye behind the scope (the gun ran through the middle of the face with the scope at the forehead), the right hand on the pistol grip and the left under the fore-end. The upper body leans back to aim up and forward to aim down, so the stock stays in the shoulder (it rose over the shoulder aiming down, and the head was thrown back aiming up).
 
 0.2.8: The laser rifle sits closer, butt in the shoulder, so the right arm bends with the elbow tucked down at the right side (it was held at arm's length, the arm out straight and the elbow flared).

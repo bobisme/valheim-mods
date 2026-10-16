@@ -8,7 +8,7 @@ Combat Drone: use it to launch a drone that circles your shoulder and zaps enemi
 Orbital Uplink: point at the ground up to 300 m away and paint it. Three seconds later a low orbit ion cannon puts a pillar of light there: 600 damage over 12 m, fells trees, breaks rocks, sets things burning and digs a crater. 60 s to recharge. Spares buildings, and digs no crater near a ward or your builds unless you allow it.
 Hover Speeder (hammer, near a forge): rides 1 m over land and water. W/S throttle, A/D steer, Shift boost, Jump hops; a friend can ride pillion. Rams enemies at speed.
 Gravity Gun: hold attack to lift a creature, log, cart or loose item and carry it; block flings it. Flung things hurt what they hit.
-Displacer: blink to the crosshair, up to 60 m, every 3 s.
+Displacer: blink to the crosshair, up to 60 m, every 3 s. With the setting DisplacerMapJump on, its secondary attack opens the map: click anywhere to jump there.
 Stim Pack: full health and stamina now, then 30 s of six times the regeneration and 40% more speed.
 Recall Beacon: one use, takes you to your bed, ore and all.
 
