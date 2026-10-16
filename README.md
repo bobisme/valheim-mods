@@ -241,6 +241,16 @@ places one (or a vanilla cart) near the player, sits the player in a seat and st
 compare how far they roll, and removes the test carts. Placing, seating and the steadiness comparison were tested in a live
 world; pulling it with passengers aboard and seating remote players in multiplayer still need a playtest.
 
+## Camping
+
+Somewhere to sleep away from home. Hammer → **Furniture**, no workbench needed:
+
+- **Bedroll** (3 deer hides, 4 leather scraps): sleep by any fire without a roof. You still can't sleep on it soaked, so in the rain put it under a lean-to. It sets your spawn point while it's laid out.
+- **Lean-to** (10 wood, 4 deer hides): hides over a frame of poles, open at the front. Whatever's under it stays dry.
+- **Tent** (4 wolf pelts, 6 deer hides, 6 leather scraps, 8 wood): wool walls on carved crossed boards. Inside it's dry and warm, so you can sleep without a fire and the mountain cold can't reach you. It sets your spawn point.
+
+**Shift+E** on a bedroll or tent packs it up, and everything it cost goes back in your bag. Nothing is an item, so removing the mod loses nothing from bags or chests. The models are made from scratch in Blender (`mods/Camping/Models/camp.py`). It reloads in a world. Building, sleeping on and packing up the pieces still need a playtest.
+
 ## Meadow Golf
 
 Build a rustic golf course through your meadow or longhouse. Craft the **Meadow golf club** at a workbench

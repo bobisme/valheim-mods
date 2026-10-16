@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>Camping</AssemblyName><RootNamespace>Camping</RootNamespace></PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Models/*.json.gz" LogicalName="Camping.%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

@@ -53,6 +53,19 @@
       ]
     },
     {
+      "guid": "cx.bob.camping",
+      "name": "Camping",
+      "version": "0.1.0",
+      "description": "Somewhere to sleep away from home, for the hammer (Furniture tab). Nothing needs a workbench: you make camp from what you carry.\n\nBedroll: a deer hide to lie on, a wolf pelt over it and a wool blanket rolled at its head. Lay it down by any fire and sleep: unlike a bed it wants no roof, but you can't sleep on it soaked through, so in the rain put it under a lean-to. It sets your spawn point while it's laid out. 3 deer hides, 4 leather scraps.\n\nLean-to: hides lashed over a frame of poles, open at the front. Whatever's under it stays dry: a fire, a bedroll, you. 10 wood, 4 deer hides.\n\nTent: wool walls on carved, crossed boards, as the old ones were. Inside it's dry and warm: you can sleep without a fire, and the mountain's cold can't reach you. It sets your spawn point. 4 wolf pelts, 6 deer hides, 6 leather scraps, 8 wood.\n\nPacking up: Shift+E on a bedroll or tent rolls it up, and everything it cost goes back in your bag (on the ground beside it if your bag is full). Only your own, or one nobody has slept in yet.\n\nNone of it is an item: if you ever take the mod away, nothing in your bag or chests is lost (the pieces standing in the world go).",
+      "notes": "0.1.0: First version: a bedroll (sleep by any fire, no roof needed), a lean-to (keeps the rain off) and a tent (dry and warm: sleep without a fire, no cold inside). The bedroll and tent pack up again with Shift+E, everything they cost back in your bag. Models made from scratch.",
+      "restart": "",
+      "cover": "Camping.cover.jpg",
+      "files": [
+        "Camping.dll",
+        "Camping.pdb"
+      ]
+    },
+    {
       "guid": "com.bobisme.chestsearch",
       "name": "ChestSearch",
       "version": "0.1.0",
