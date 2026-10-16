@@ -314,9 +314,11 @@ namespace Jarldom
             if (Time.time >= st.NextLook)
             {
                 st.NextLook = Time.time + 2f; st.Fire = null; st.Chest = null; st.Rolls.Clear();
-                Found.Clear(); Piece.GetAllPiecesInRadius(jarl.transform.position, CampReach, Found);
+                // (across the ground: on a mountain the jarl may stand well below or above the camp)
+                Found.Clear(); Piece.GetAllPiecesInRadius(jarl.transform.position, CampReach + 25f, Found);
                 foreach (Piece p in Found)
                 {
+                    if (p == null || Utils.DistanceXZ(p.transform.position, jarl.transform.position) > CampReach) continue;
                     ZDO z = p.GetComponent<ZNetView>()?.GetZDO();
                     if (z == null || z.GetString(CampKey, null) == null) continue;
                     if (p.GetComponent<Bed>() is Bed roll && z.GetInt(SlotKey, -1) is int slot && slot >= 0 && !st.Rolls.ContainsKey(slot)) st.Rolls[slot] = roll;

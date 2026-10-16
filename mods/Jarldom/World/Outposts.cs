@@ -34,6 +34,18 @@ namespace Jarldom
             foreach (string line in Z.GetGlobalKeys().Where(l => l.StartsWith("jarldom_outpost_") && l.EndsWith(" " + c.Id)).ToList()) Z.RemoveGlobalKey(line.Substring(0, line.IndexOf(' ')));
         }
         public static string Parent(Colony c) => Z != null && Z.GetGlobalKey(LinkKey(c.Id), out string p) ? p : "";
+        // An outpost on an island: no way over land to its main colony (worked out once from the world's own heights, kept in its
+        // flags with the main colony it was worked out for). Raids come at half strength; ore goes home by ship.
+        private const string IslandKey = "island", IslandOfKey = "island:of";
+        public static bool OnIsland(Colony c)
+        {
+            string parent = Parent(c);
+            if (parent == "" || !(Where(parent) is Vector3 main) || WorldGenerator.instance == null) return false;
+            if (c.R.Flags.TryGetValue(IslandKey, out int known) && c.R.Flag(IslandOfKey) == parent.GetStableHashCode()) return known == 1;
+            bool? joined = Island.Connected((x, z) => WorldGenerator.instance.GetHeight(x, z), ZoneSystem.instance.m_waterLevel, c.Position.x, c.Position.z, main.x, main.z);
+            c.R.Flags[IslandKey] = joined == false ? 1 : 0; c.R.Flags[IslandOfKey] = parent.GetStableHashCode(); c.MarkDirty();
+            return joined == false;
+        }
         public static bool IsOutpost(Colony c) => Parent(c) != "";
         // The founder's other colonies far enough off to be this one's main colony: id → where.
         public static List<(string id, Vector3 at)> Candidates(Colony c)

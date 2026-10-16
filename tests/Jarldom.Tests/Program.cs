@@ -849,6 +849,15 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     var peak = GreatWorks.HighestNear((x, z) => Math.Max(Hill(x, z, 707, 707, 120, 300), Hill(x, z, 2500, 0, 400, 300)), 0, 0, 1500, 24, 60);
     Check(peak.HasValue && Math.Abs(peak.Value.x - 707) < 4 && Math.Abs(peak.Value.z - 707) < 4 && peak.Value.h > 115, $"The far peak is the hill's top, not the higher one out of reach: {peak}");
     Check(GreatWorks.HighestNear((x, z) => 20f, 0, 0, 1500, 24, 60) == null, "No peak where nothing stands above the floor");
+    // (island outposts: two hills in the sea, joined by a ridge or not; a ford shallow enough to wade)
+    float Isle(float x, float z, float cx, float cz) => 40f - (float)Math.Sqrt((x - cx) * (x - cx) + (z - cz) * (z - cz)) / 10f;
+    Func<float, float, float> apart = (x, z) => Math.Max(Isle(x, z, 0, 0), Isle(x, z, 1200, 0));
+    Func<float, float, float> joined = (x, z) => Math.Max(apart(x, z), Math.Abs(z) < 30 ? 35f : 0f);
+    Func<float, float, float> ford = (x, z) => Math.Max(apart(x, z), Math.Abs(z) < 30 ? 29.7f : 0f);
+    Check(Island.Connected(apart, 30, 0, 0, 1200, 0) == false, "Two islands: no way over land");
+    Check(Island.Connected(joined, 30, 0, 0, 1200, 0) == true, "A ridge between them: joined");
+    Check(Island.Connected(ford, 30, 0, 0, 1200, 0) == true, "Water a hand deep between them: waded");
+    Check(Island.Connected(apart, 30, 0, 0, 90000, 0) == null, "Too far apart to tell");
     Check(GreatWorks.SnapYaw(35) == 45 && GreatWorks.SnapYaw(326.5f) == 337.5f && GreatWorks.SnapYaw(-10) == 0 && GreatWorks.SnapYaw(-20) == 337.5f && GreatWorks.SnapYaw(359) == 0 && GreatWorks.SnapYaw(11) == 0 && GreatWorks.SnapYaw(12) == 22.5f, "A great work faces on the game's 22.5° steps");
     var tview = new ColonyView { Population = 6, HasBeautyRoom = true, HasShrine = true, GuardWage = 9, Beds = 6, TempleGod = "freyja", TempleGodName = "Freyja" };
     var asked = Petitions.Raise(new Random(1), tview, 10).FirstOrDefault(p => p.Id == "greatwork");

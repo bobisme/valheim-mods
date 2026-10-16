@@ -412,6 +412,7 @@ namespace Jarldom.Ui
             {
                 Vector3 at = Outposts.Where(parent) ?? _c.Position;
                 y = Text(list, $"An outpost of the colony {Mathf.RoundToInt(Utils.DistanceXZ(at, _c.Position))} m to the {ScoutTask.Compass(at - _c.Position)}: its treasury meets the wages this one's can't.", y, 15, GameUi.Dim);
+                if (Outposts.OnIsland(_c)) y = Text(list, "An island: no way over land to the main colony. Raids come at half strength over the water, and the carter takes the ore home by ship (a karve or longship at this shore: the shipwright can build one).", y, 15, GameUi.Dim);
                 float ox = 8; Btn(list, "Stand alone", ref ox, y, () => Net.Act(_c, "outpost", "")); y += 52;
             }
             else

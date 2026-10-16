@@ -470,12 +470,12 @@ namespace Jarldom
                 if (ev == null) return;
                 Colony c = Colony.Nearest(ev.m_pos, 200);
                 if (c == null) return;
-                float scale = Renown.RaidScale(c.Renown);
-                if (scale <= 1.01f) return;
+                float scale = Renown.RaidScale(c.Renown) * (Outposts.OnIsland(c) ? 0.5f : 1f); // (an island outpost: what comes over the water is fewer)
+                if (Mathf.Abs(scale - 1f) <= 0.01f) return;
                 if (!Made.TryGetValue(ev, out var list))
                 {
                     if (Made.Count > 8) Made.Clear();
-                    list = __result.Select(s => { var copy = s.Clone(); copy.m_maxSpawned = Mathf.CeilToInt(s.m_maxSpawned * scale); copy.m_groupSizeMax = Mathf.CeilToInt(s.m_groupSizeMax * Mathf.Sqrt(scale)); return copy; }).ToList();
+                    list = __result.Select(s => { var copy = s.Clone(); copy.m_maxSpawned = Mathf.Max(1, Mathf.CeilToInt(s.m_maxSpawned * scale)); copy.m_groupSizeMax = Mathf.Max(1, Mathf.CeilToInt(s.m_groupSizeMax * Mathf.Sqrt(scale))); copy.m_groupSizeMin = Mathf.Min(copy.m_groupSizeMin, copy.m_groupSizeMax); return copy; }).ToList();
                     Made[ev] = list;
                 }
                 __result = list;

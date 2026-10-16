@@ -1674,6 +1674,9 @@ namespace Jarldom
                         break;
                     }
                 case "fires": output(new JObject { ["fires"] = new JArray(c.PiecesIn(c.Radius).Select(pc => pc.GetComponent<Fireplace>()).Where(f => f != null).Select(f => $"{Utils.GetPrefabName(f.gameObject)} at {f.transform.position.x:0},{f.transform.position.z:0}: warms {Classes.Warms(f)}, lit {Classes.Lit(f)}, areas {string.Join("/", f.GetComponentsInChildren<EffectArea>(true).Select(e => e.m_type + (e.gameObject.activeInHierarchy ? "" : "(off)")))}, fuel {f.GetComponent<ZNetView>().GetZDO().GetFloat(ZDOVars.s_fuel):0.0}/{f.m_maxFuel} {f.m_fuelItem?.name}, by {f.GetComponent<Piece>()?.GetCreator()}, fed {c.Feeds(f.GetComponent<Piece>())}")), ["founder"] = c.R.Founder, ["me"] = Player.m_localPlayer?.GetPlayerID() ?? 0, ["players"] = new JArray(Player.GetAllPlayers().Select(x => x.GetPlayerName() + " " + x.GetPlayerID())), ["allowed"] = new JArray(c.R.Allowed) }); break;
+                case "island": // (test: is there a way over land from the colony to x z: "island <x> <z>")
+                    output(new JObject { ["joined"] = Island.Connected((x, z) => WorldGenerator.instance.GetHeight(x, z), ZoneSystem.instance.m_waterLevel, c.Position.x, c.Position.z, F(a[2]), F(a[3])) is bool j ? (JToken)j : "too far to tell", ["height"] = WorldGenerator.instance.GetHeight(F(a[2]), F(a[3])) });
+                    break;
                 case "scatter": // (test: "scatter" the one waiting out in the wilds; "scatter now" sets a newcomer down far out (one made up if none is coming); "scatter expire" ages the wait past three days)
                     {
                         if (a.Length > 2 && a[2] == "now")
@@ -1951,7 +1954,7 @@ namespace Jarldom
             ["id"] = c.Id, ["name"] = c.R.Name, ["at"] = V(c.Position), ["owner"] = c.IsOwner ? "this game" : c.Z.GetOwner().ToString(), ["rank"] = c.R.Rank.ToString(), ["population"] = c.Population, ["cap"] = c.Cap,
             ["radius"] = c.Radius, ["renown"] = c.Renown, ["day"] = c.Day, ["hour"] = Math.Round(c.Hour, 2), ["arrivals"] = c.R.Arrivals, ["coming"] = c.R.Coming.Count, ["landed"] = c.R.ComingLanded,
             ["raid"] = c.RaidOn, ["horn"] = c.HornUntil > Time.time, ["rooms"] = c.R.Rooms.Count, ["zones"] = c.R.Zones.Count, ["orders"] = c.Board.All.Count(o => o.State == OrderState.Open || o.State == OrderState.Claimed),
-            ["treasury"] = c.R.Treasury, ["deeds"] = c.R.Deeds, ["fallen"] = c.R.Fallen.Count, ["recordBytes"] = c.Z.GetByteArray(Colony.RecordKey)?.Length ?? 0,
+            ["treasury"] = c.R.Treasury, ["deeds"] = c.R.Deeds, ["fallen"] = c.R.Fallen.Count, ["island"] = Outposts.OnIsland(c), ["recordBytes"] = c.Z.GetByteArray(Colony.RecordKey)?.Length ?? 0,
         };
         // A command for a villager who has only just been made: sent once their body (and brain) is up, within ten seconds.
         private static System.Collections.IEnumerator WhenUp(string vid, string action, string arg)

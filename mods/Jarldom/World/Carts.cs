@@ -26,6 +26,13 @@ namespace Jarldom
             string main = Outposts.Parent(c);
             if (main == "") { b.Idle("a carter needs an outpost to carry from"); b.NoCartUntil = Time.time + 60; return null; }
             if (!Stock.Chests(c, b.Pos).Any(x => x.category != "treasury" && x.chest.GetInventory().GetAllItems().Count(IsCargo) > 0)) { b.NoCartUntil = Time.time + 60; return null; }
+            // (an island outpost's load goes home by sea: a karve or a longship at its shore, not a cart)
+            if (Outposts.OnIsland(c))
+            {
+                Ship ship = Trade.Ship(c, false) ?? Trade.Ship(c, true);
+                if (ship == null) { b.Idle("an island's ore goes home by ship: there's no karve or longship at its shore"); b.NoCartUntil = Time.time + 60; return null; }
+                return new CartTask(main, ship);
+            }
             Vagon cart = CartNear(c);
             if (cart == null) { b.Idle("there's no cart here"); b.NoCartUntil = Time.time + 60; return null; }
             return new CartTask(main, cart);
@@ -91,8 +98,9 @@ namespace Jarldom
     // Loading the cart: the outpost's ore and metal from its stores, then off down the road (away until the round trip is done).
     internal sealed class CartTask : Task
     {
-        private readonly string _main; private readonly Vagon _cart; private int _phase; private Container _from;
+        private readonly string _main; private readonly Component _cart; private int _phase; private Container _from; private readonly bool _sea;
         public CartTask(string main, Vagon cart) { _main = main; _cart = cart; }
+        public CartTask(string main, Ship ship) { _main = main; _cart = ship; _sea = true; } // (from an island: by ship)
         public override bool Interruptible => _phase == 0;
         public override void Start(Brain b) { Doing = "loading the cart"; }
         private int Loaded(Brain b) => b.Body.GetInventory().GetAllItems().Count(Carts.IsCargo);
@@ -114,8 +122,9 @@ namespace Jarldom
                 return;
             }
             // To the cart, and away.
-            Doing = "taking the cart to the main colony";
-            Stock.Walk cw = Stock.WalkNear(b, _cart.transform.position, 3f, 2f);
+            Doing = _sea ? "taking the load down to the ship" : "taking the cart to the main colony";
+            Vector3 board = _sea ? Trade.Shore(_cart.transform.position, b.Colony.Position) ?? _cart.transform.position : _cart.transform.position;
+            Stock.Walk cw = Stock.WalkNear(b, board, _sea ? 4f : 3f, 2f);
             if (cw != Stock.Walk.Reached) { if (cw == Stock.Walk.Unreachable) { Done = true; b.NoCartUntil = Time.time + 120; } return; }
             Colony c = b.Colony;
             Vector3 main = Outposts.Where(_main) ?? c.Position;
@@ -123,15 +132,15 @@ namespace Jarldom
             var load = bag.GetAllItems().Where(Carts.IsCargo).GroupBy(i => i.m_dropPrefab.name).Select(g => (name: g.Key, n: g.Sum(i => i.m_stack))).ToList();
             foreach (ItemDrop.ItemData i in bag.GetAllItems().Where(Carts.IsCargo).ToList()) bag.RemoveItem(i);
             string what = string.Join(", ", load.Select(l => $"{l.n} {Localization.instance.Localize(ObjectDB.instance.GetItemPrefab(l.name)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name ?? l.name).ToLower()}"));
-            if (UnityEngine.Random.value < Carts.AmbushChance(distance))
-                c.Log("text", b.S.Name, "", $"{b.S.Name}'s cart was ambushed on the road, {Mathf.RoundToInt(distance)} m long: the load ({what}) was lost.");
+            if (UnityEngine.Random.value < Carts.AmbushChance(distance) * (_sea ? 0.5f : 1f))
+                c.Log("text", b.S.Name, "", _sea ? $"{b.S.Name}'s ship met a storm on the way, {Mathf.RoundToInt(distance)} m of open water: the load ({what}) went over the side." : $"{b.S.Name}'s cart was ambushed on the road, {Mathf.RoundToInt(distance)} m long: the load ({what}) was lost.");
             else
             {
                 ZoneSystem.instance.SetGlobalKey($"jarldom_cargo_{_main}_{Colony.NewId()} " + string.Join("|", load.Select(l => $"{l.name.ToLowerInvariant()}:{l.n}")));
-                c.Log("text", b.S.Name, "", $"{b.S.Name} took a cart to the main colony with {what}.");
+                c.Log("text", b.S.Name, "", _sea ? $"{b.S.Name} sailed the island's {what} home to the main colony." : $"{b.S.Name} took a cart to the main colony with {what}.");
             }
             b.S.Bump("carts"); b.Dirty();
-            float trip = distance * 2 / Carts.Speed; // there and back
+            float trip = distance * 2 / (_sea ? Carts.Speed * 2.5f : Carts.Speed); // there and back (under sail, faster)
             b.Away(Carts.Prefix + Mathf.RoundToInt(trip).ToString(CultureInfo.InvariantCulture));
             Done = true;
         }
