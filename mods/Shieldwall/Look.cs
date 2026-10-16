@@ -64,7 +64,7 @@ namespace Shieldwall
                 catch(System.Exception e){Plugin.Log("Shieldwall: the stave socket's model: "+e.Message);return null;}
             }
         }
-        private static Mesh Build(JObject d,string name)
+        internal static Mesh Build(JObject d,string name)
         {
             if(d==null)return null;
             float[] v=d["v"].ToObject<float[]>(),n=d["n"].ToObject<float[]>(),uv=d["uv"].ToObject<float[]>();

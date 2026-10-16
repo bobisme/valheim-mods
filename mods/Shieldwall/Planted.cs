@@ -111,6 +111,7 @@ namespace Shieldwall
         // The stave stands in the pedestal head up (the head is the end farthest from where a hand holds it): big, thick and heavy.
         private void Build(GameObject source)
         {
+            if(_stave!=null&&source==Items.Get(_stave.Prefab)&&StaveModel.Mesh(_stave.Kind)!=null){BuildOwn(_stave.Kind);return;}
             Transform attach=source.transform.Find("attach");
             _look=new GameObject("StaveLook");
             _look.transform.SetParent(transform,false);
@@ -144,6 +145,19 @@ namespace Shieldwall
             var lit=new GameObject("StaveGlow");lit.transform.SetParent(transform,false);lit.transform.localPosition=new Vector3(0,Pieces.SocketTop+_length-0.4f,0);
             _light=lit.AddComponent<Light>();_light.type=LightType.Point;_light.range=6+Rank;_light.intensity=1.8f;_light.shadows=LightShadows.None;
             _light.color=_stave!=null&&Items.Colours.TryGetValue(_stave.Kind,out var c)?c.glow*1.6f:new Color(0.6f,0.6f,1f);
+        }
+        // A war stave of ours stands as it was made: upright, its foot sunk in the socket, its light in its head.
+        private void BuildOwn(StaveKind kind)
+        {
+            _look=new GameObject("StaveLook");
+            _look.transform.SetParent(transform,false);
+            _look.transform.localPosition=new Vector3(0,Pieces.SocketTop-StaveModel.Sunk,0);
+            _look.transform.localRotation=Quaternion.Euler(0,(transform.position.x*37+transform.position.z*11)%360,0); // (not all facing alike)
+            StaveModel.Dress(_look.transform,kind,1);
+            _length=Mathf.Clamp(StaveModel.Height(kind)-StaveModel.Sunk,1.5f,5.5f);
+            var lit=new GameObject("StaveGlow");lit.transform.SetParent(transform,false);lit.transform.localPosition=new Vector3(0,Pieces.SocketTop-StaveModel.Sunk+StaveModel.Head(kind),0);
+            _light=lit.AddComponent<Light>();_light.type=LightType.Point;_light.range=6+Rank;_light.intensity=1.8f;_light.shadows=LightShadows.None;
+            _light.color=Items.Colours[kind].glow*1.6f;
         }
         // The staff's shaft: the long axis of its longest mesh, in the frame given, pointing at its head (the end farther from where a hand
         // holds it, the item's origin). A staff's mesh is modelled along its length, whatever angle it is carried at.
@@ -289,7 +303,7 @@ namespace Shieldwall
             if(Time.time>=_nextLoad){_nextLoad=Time.time+0.5f;Load();}
             if(_item==null)return;
             Warstone stone=Stone();
-            ShowPower(stone!=null);
+            ShowPower(stone!=null||TestLit);
             if(!View.IsOwner()||stone==null||Time.time<_next)return;
             _next=Time.time+Cooldown;
             if(_stave!=null&&_stave.Kind==StaveKind.Hearth){Mend(stone);return;}
@@ -299,6 +313,7 @@ namespace Shieldwall
         }
         // A fed stave glows in its colour; a sleeping one stands dark as cold iron, with no light.
         private int _shown=-1;
+        internal static bool TestLit; // (test: every stave shown fed, see siege look lit=1)
         private static MaterialPropertyBlock _dark;
         private void ShowPower(bool on)
         {

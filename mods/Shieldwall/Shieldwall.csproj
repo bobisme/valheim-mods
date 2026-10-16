@@ -3,6 +3,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Models/warstone/warstone.json.gz" LogicalName="Shieldwall.warstone.json.gz" />
     <EmbeddedResource Include="Models/socket/socket.json.gz" LogicalName="Shieldwall.socket.json.gz" />
+    <EmbeddedResource Include="Models/stave/stave_*.json.gz" LogicalName="Shieldwall.%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="UnityEngine.AIModule"><HintPath>$(ManagedDir)/UnityEngine.AIModule.dll</HintPath><Private>false</Private></Reference>

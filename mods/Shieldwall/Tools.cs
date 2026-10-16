@@ -91,14 +91,14 @@ namespace Shieldwall
             switch(sub)
             {
                 case "look":
-                    // Test: siege look [rock=<prefab[:i]>] [iron=<prefab[:i]>] [rockscale=n] [ironscale=n] [marks=n] [cracked=0|1] [health=0-100] (-1: the stone's own): the Warstone's materials, redressed on every stone
+                    // Test: siege look [lit=0|1] [rock=<prefab[:i]>] [iron=<prefab[:i]>] [rockscale=n] [ironscale=n] [marks=n] [cracked=0|1] [health=0-100] (-1: the stone's own): the Warstone's materials, redressed on every stone
                     foreach(string a in args.Skip(2))
                     {
                         string[] kv=a.Split('=');
                         if(kv[0]=="rock")Look.RockFrom=kv[1];else if(kv[0]=="iron")Look.IronFrom=kv[1];
                         else if(kv[0]=="rockscale")Look.RockScale=float.Parse(kv[1],System.Globalization.CultureInfo.InvariantCulture);
                         else if(kv[0]=="ironscale")Look.IronScale=float.Parse(kv[1],System.Globalization.CultureInfo.InvariantCulture);
-                        else if(kv[0]=="marks")Look.TestMarks=int.Parse(kv[1]);else if(kv[0]=="cracked")Look.TestCracked=int.Parse(kv[1]);else if(kv[0]=="health")Look.TestHealth=int.Parse(kv[1]);
+                        else if(kv[0]=="marks")Look.TestMarks=int.Parse(kv[1]);else if(kv[0]=="cracked")Look.TestCracked=int.Parse(kv[1]);else if(kv[0]=="health")Look.TestHealth=int.Parse(kv[1]);else if(kv[0]=="lit")Planted.TestLit=kv[1]=="1";
                         else if(kv[0]=="rocktint"){float[] c=kv[1].Split(',').Select(x=>float.Parse(x,System.Globalization.CultureInfo.InvariantCulture)).ToArray();Look.RockTint=new Color(c[0],c[1],c[2]);}
                     }
                     Look.Restyle();
@@ -609,9 +609,11 @@ namespace Shieldwall
                 }
                 case "unbuild":
                 {
-                    // Remove every test piece (walls, pillars, sockets) placed by these commands.
+                    // Remove every test piece (walls, pillars, sockets) placed by these commands; "unbuild x z r": only those within r metres of there.
                     int removed=0;
-                    foreach(ZNetView v in Assets.AllInstances().Where(v=>v.GetZDO().GetBool(TestKey,false)).ToList()){v.ClaimOwnership();ZNetScene.instance.Destroy(v.gameObject);removed++;}
+                    float nx=0,nz=0,nr=0;
+                    bool near=args.Length>4&&float.TryParse(args[2],out nx)&&float.TryParse(args[3],out nz)&&float.TryParse(args[4],out nr);
+                    foreach(ZNetView v in Assets.AllInstances().Where(v=>v.GetZDO().GetBool(TestKey,false)&&(!near||Utils.DistanceXZ(v.transform.position,new Vector3(nx,0,nz))<=nr)).ToList()){v.ClaimOwnership();ZNetScene.instance.Destroy(v.gameObject);removed++;}
                     output(new JObject{["removed"]=removed});
                     break;
                 }

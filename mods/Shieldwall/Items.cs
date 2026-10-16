@@ -41,8 +41,8 @@ namespace Shieldwall
             var shared=(ItemDrop.ItemData.SharedData)Assets.CloneShared.Invoke(sourceDrop.m_itemData.m_shared,null);
             if(stave!=null)
             {
-                var (tint,glow)=Colours[stave.Kind];
-                Assets.Tint(go,tint,Color.black); // coloured, not glowing: the light at its head does the glowing
+                // Its own look (StaveModel); the game staff it was copied from, tinted, if that can't be had.
+                if(!StaveModel.DressItem(go,stave.Kind))Assets.Tint(go,Colours[stave.Kind].tint,Color.black); // coloured, not glowing: the light at its head does the glowing
                 shared.m_name=stave.Name;
                 shared.m_description=stave.Description+"\n\nFar too heavy and thick to swing: it is set in a stave socket by a Warstone (Use on the socket, or drag it there from your hotbar). "+
                     "Strengthen it in its socket with warshards.";
@@ -51,7 +51,7 @@ namespace Shieldwall
                 shared.m_maxQuality=Policy.MaxQuality;shared.m_useDurability=false;shared.m_teleportable=true;shared.m_value=0;
                 shared.m_damages=new HitData.DamageTypes();shared.m_damagesPerLevel=new HitData.DamageTypes();
                 Transform attach=go.transform.Find("attach");
-                if(attach!=null)attach.localScale=attach.localScale*1.7f; // big on the ground too
+                if(attach!=null&&StaveModel.Mesh(stave.Kind)==null)attach.localScale=attach.localScale*1.7f; // big on the ground too
                 Sprite icon=Assets.Icon(go,prefab,Quaternion.Euler(0,0,-35));
                 if(icon!=null)shared.m_icons=new[]{icon};
             }
