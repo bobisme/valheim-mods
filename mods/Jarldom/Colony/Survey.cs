@@ -227,7 +227,7 @@ namespace Jarldom
             room.Height = Ceiling(room);
             RoomFacts f = Measure(room);
             RoomVerdict v = RoomRules.Judge(room.Type, f, room.God);
-            room.Ok = v.Ok; room.Grade = v.Grade; room.Points = v.Points; room.Failures = string.Join("; ", v.Failures);
+            room.Ok = v.Ok; room.Grade = v.Grade; room.Points = v.Points; room.Failures = v.Ok ? v.Capped : string.Join("; ", v.Failures); // (a working temple: what holds it at B, if anything)
             room.OpenEdges = string.Join(",", v.OpenEdges); room.Checked = Now;
             return v;
         }
@@ -379,7 +379,12 @@ namespace Jarldom
             bool memorial = n == Pieces.MemorialName.ToLowerInvariant();
             if (n.Contains("runestone") || memorial) yield return "runestone";
             if (n.Contains("grave") || n.Contains("tomb") || n == "stone_pile" || n.Contains("cairn") || memorial) yield return "grave";
-            if (n.StartsWith(Pieces.AltarPrefix.ToLowerInvariant())) yield return "altar_" + n.Substring(Pieces.AltarPrefix.Length);
+            if (n.StartsWith(Pieces.AltarPrefix.ToLowerInvariant()))
+            {
+                string god = n.Substring(Pieces.AltarPrefix.Length);
+                yield return "altar_" + god;
+                if (p.GetComponent<Altar>() is Altar altar && altar.HoldsRelic) yield return "relic_" + god; // (its god's relic on it: the temple may grade past B)
+            }
             if (n.Contains("forge") && p.GetComponent<CraftingStation>() != null) yield return "forge";
             if (n.Contains("workbench") && p.GetComponent<CraftingStation>() != null) yield return "workbench";
             // A station's extension counts where its own station's work is done (an anvil in the smithy, a spice rack in the brewhouse).

@@ -90,7 +90,7 @@ namespace Jarldom.Ui
             if (room != null)
             {
                 text = $"{Math.Round(Geometry.Area(xz))} m², floor at {room.Floor:0.0} m, {room.Height:0.0} m to the ceiling.\n" +
-                       (room.Ok ? $"<color=#99e08c>Grade {room.Grade}</color> ({room.Points} points from {Tables.Of(room.Type).PointsFrom})." : $"<color=#ff8c59>Not yet a {Tables.Of(room.Type).Name.ToLower()}: {room.Failures}.</color>") +
+                       (room.Ok ? $"<color=#99e08c>Grade {room.Grade}</color> ({room.Points} points from {Tables.Of(room.Type).PointsFrom}).{(room.Failures != "" ? $" <color=#ff8c59>{room.Failures}.</color>" : "")}" : $"<color=#ff8c59>Not yet a {Tables.Of(room.Type).Name.ToLower()}: {room.Failures}.</color>") +
                        (room.OpenEdges.Length > 0 ? "\nThe red edges on the ground are gaps in its walls." : "");
             }
             else

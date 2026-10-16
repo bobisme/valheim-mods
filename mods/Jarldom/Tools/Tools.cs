@@ -389,7 +389,7 @@ namespace Jarldom
                 output(new JObject { ["relic"] = lines[1] });
                 return;
             }
-            if (c == null && cmd != "place" && cmd != "put" && cmd != "claims" && cmd != "find" && cmd != "profile" && cmd != "versions" && cmd != "env" && cmd != "overlay" && cmd != "icon" && cmd != "layers" && cmd != "compat" && cmd != "status" && cmd != "bags" && cmd != "expedition" && cmd != "villager" && cmd != "give") { error("no colony near (jarldom place pillars makes one)"); return; }
+            if (c == null && cmd != "place" && cmd != "put" && cmd != "unputnear" && cmd != "claims" && cmd != "find" && cmd != "profile" && cmd != "versions" && cmd != "env" && cmd != "overlay" && cmd != "icon" && cmd != "layers" && cmd != "compat" && cmd != "status" && cmd != "bags" && cmd != "expedition" && cmd != "villager" && cmd != "give") { error("no colony near (jarldom place pillars makes one)"); return; }
             Player me = Player.m_localPlayer;
             switch (cmd)
             {
@@ -1138,6 +1138,13 @@ namespace Jarldom
                     break;
                 case "alonewhere": output(new JObject { ["alone"] = new JArray(c.PiecesIn(c.Radius + 20).Select(p => p.GetComponent<ZNetView>()).Where(v => v != null && v.IsValid() && v.GetComponent<Fireplace>() != null && c.LeftAloneAt(v.transform.position)).Select(v => $"{Utils.GetPrefabName(v.gameObject)} at {V(v.transform.position)}")) }); break; // (test: where the fires left alone are)
                 case "tagged": { var counts = c.PiecesIn(c.Radius + 30).Where(p => p.GetComponent<ZNetView>()?.GetZDO()?.GetBool(TestKey) == true && (a.Length < 3 || Utils.GetPrefabName(p.gameObject) == a[2])).GroupBy(p => Utils.GetPrefabName(p.gameObject)).OrderByDescending(g => g.Count()); output(new JObject { ["tagged"] = new JObject(counts.Select(g => new JProperty(g.Key, g.Count()))) }); } break; // (count only: what unput would take)
+                case "unputnear": // (test: unputnear <radius>: test-placed pieces within that of the player, outside any colony too)
+                    {
+                        var near = new List<Piece>(); Piece.GetAllPiecesInRadius(me.transform.position, F(a[2]), near); int n = 0;
+                        foreach (Piece p in near.Where(p => p.GetComponent<ZNetView>()?.GetZDO()?.GetBool(TestKey) == true).ToList()) { p.GetComponent<ZNetView>().ClaimOwnership(); p.GetComponent<ZNetView>().Destroy(); n++; }
+                        output(new JObject { ["removed"] = n });
+                    }
+                    break;
                 case "unput":
                     {
                         int n = 0;
@@ -1662,6 +1669,49 @@ namespace Jarldom
                 case "leisure": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } b.Task?.Stop(b); b.Task = new LeisureTask(a[3], "test"); b.Task.Start(b); output(new JObject { ["doing"] = b.Task.Doing }); } break;
                 case "deeds": c.R.Deeds += int.Parse(a[2]); c.MarkDirty(); output(new JObject { ["deeds"] = c.R.Deeds }); break; // (test mishaps undone)
                 case "hildir": if (a.Length > 2) Weaving.TestHildir = a[2] == "on"; output(new JObject { ["known"] = Weaving.HildirKnown(), ["keys"] = new JArray(new[] { "Hildir1", "Hildir2", "Hildir3" }.Where(k => ZoneSystem.instance.GetGlobalKey(k))) }); break;
+                case "godrelic": // (test: godrelic lay|take <god>: the nearest altar of that god in the colony, as the player using the relic on it / shift+E)
+                    {
+                        if (a.Length > 2 && a[2] == "clear") { int gone = 0; foreach (ItemDrop.ItemData it in me.GetInventory().GetAllItems().Where(i => new[] { "Storm stone", "Golden wildflower", "Golden spindle", "Raven feather" }.Contains(i.m_shared.m_name)).ToList()) { me.GetInventory().RemoveItem(it); gone++; } output(new JObject { ["removed"] = gone }); return; } // (godrelic clear: Jarldom's relics out of the player's bag)
+                        string god = a.Length > 3 ? a[3] : "";
+                        Altar al = c.PiecesIn<Altar>(c.Radius).Where(x => x.God == god).OrderBy(x => Vector3.Distance(x.transform.position, me.transform.position)).FirstOrDefault();
+                        if (al == null || !Relics.Of.ContainsKey(god)) { error("no altar of " + god); return; }
+                        if (a[2] == "lay") { ItemDrop.ItemData it = me.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == Relics.Of[god].prefab); if (it == null) { error("no " + Relics.Of[god].prefab + " in the bag"); return; } al.UseItem(me, it); }
+                        else if (a[2] == "take") al.Interact(me, false, true);
+                        output(new JObject { ["altar"] = V(al.transform.position), ["held"] = al.Held, ["relic"] = al.HoldsRelic, ["hover"] = al.GetHoverText() });
+                    }
+                    break;
+                case "shieling": // (test: shieling | shieling up <herder> | shieling down <herder>: the herd records; a drive up or a fetch down now, whatever the season)
+                    {
+                        if (a.Length > 2 && (a[2] == "summer" || a[2] == "autumn" || a[2] == "real")) Shieling.TestSeason = a[2] == "summer" ? Season.Summer : a[2] == "autumn" ? Season.Autumn : (Season?)null; // (test: the herder's season)
+                        if (a.Length > 2 && a[2] == "clean") // (test: shieling clean: the test herd's boars, by name, out of the world)
+                            foreach (Character ch in Character.GetAllCharacters().Where(ch => ch != null && (ch.GetComponent<ZNetView>()?.GetZDO()?.GetString(ZDOVars.s_tamedName, "") ?? "").StartsWith("test boar", StringComparison.OrdinalIgnoreCase)).ToList()) { ch.GetComponent<ZNetView>().ClaimOwnership(); ZNetScene.instance.Destroy(ch.gameObject); }
+                        if (a.Length > 2 && a[2] == "replace") // (test: shieling replace: the herd taken off its shieling's pen and set out again, near the player)
+                        {
+                            foreach (Claim x in Claims.Of(c).Where(x => x.Shieling)) { Herd hh = Shieling.Get(x.Id); if (hh == null || !hh.Up) continue; foreach (Character ch in Character.GetAllCharacters().Where(ch => ch != null && ch.GetComponent<ZNetView>()?.GetZDO()?.GetString(Shieling.TagKey, "") == x.Id).ToList()) { ch.GetComponent<ZNetView>().ClaimOwnership(); ZNetScene.instance.Destroy(ch.gameObject); } hh.Placed = false; Shieling.Save(hh); }
+                        }
+                        if (a.Length > 2 && a[2] == "home") // (shieling home: the colony's tame beasts outside the pasture put back in it)
+                        {
+                            Zone ph = c.R.Zones.FirstOrDefault(z => z.Type == ZoneType.Pasture); if (ph == null) { error("no pasture"); return; }
+                            foreach (Character ch in Character.GetAllCharacters().Where(ch => ch != null && ch.IsTamed() && !VillagerPrefab.Is(ch) && ch.m_group != "bob_gary" && Utils.GetPrefabName(ch.gameObject) == "Boar" && Utils.DistanceXZ(ch.transform.position, c.Position) < c.Radius + 120f && !Zones.Inside(ph, ch.transform.position)))
+                            { Vector3 pc = Zones.Centre(ph); ch.transform.position = (Colony.Spot(pc, 3f) ?? pc) + Vector3.up * 0.3f; }
+                        }
+                        if (a.Length > 3 && a[2] == "stock") // (shieling stock <n>: tame boars set in the first pasture, for a test herd)
+                        {
+                            Zone pz = c.R.Zones.FirstOrDefault(z => z.Type == ZoneType.Pasture); if (pz == null) { error("no pasture"); return; }
+                            Vector3 pc = Zones.Centre(pz);
+                            for (int i = 0; i < int.Parse(a[3]); i++) { Character ch = Shieling.Spawn("Boar", Colony.Spot(pc, 3f) ?? pc, 1, "Test boar " + (i + 1), null); ch?.GetComponent<ZNetView>()?.GetZDO()?.Set(TestKey, true); }
+                        }
+                        if (a.Length > 3 && (a[2] == "up" || a[2] == "down"))
+                        {
+                            Brain hb = Who(a[3]); if (hb == null) { error("who?"); return; }
+                            Claim sc = Claims.Of(c).FirstOrDefault(x => x.Shieling && (a[2] == "down" ? Shieling.Get(x.Id)?.Up == true : Shieling.WhyNot(c, x) == ""));
+                            if (sc == null) { error("no shieling ready: " + string.Join("; ", Claims.Of(c).Where(x => x.Shieling).Select(x => Shieling.WhyNot(c, x)))); return; }
+                            Task t = a[2] == "up" ? (Task)new DriveTask(sc, Shieling.Beasts(c)) : new FetchTask(sc);
+                            hb.Task?.Stop(hb); hb.Task = t; t.Start(hb);
+                        }
+                        output(new JObject { ["today"] = Year.Today().ToString(), ["pasture"] = Shieling.Beasts(c).Count, ["shielings"] = new JArray(Claims.Of(c).Where(x => x.Shieling).Select(x => $"{x.Id} at {x.X:0},{x.Z:0} {x.Biome} beds {x.Beds}: {(Shieling.WhyNot(c, x) is string w && w != "" ? w : "ready")} | herd {Shieling.Get(x.Id)?.Encode() ?? "none"}")) });
+                    }
+                    break;
                 case "claims":
                     {
                         // Test: claims (this colony's) | claims survey (the nearest stake, now) | claims send <name> (that miner sets out).

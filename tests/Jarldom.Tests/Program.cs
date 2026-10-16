@@ -104,6 +104,25 @@ Check(Math.Abs(Hunting.Plenty(0) - 1) < 1e-9 && Math.Abs(Hunting.Plenty(2) - 1 /
 Check(Hunting.AfterTrip(0, true) == 1 && Hunting.AfterTrip(0, false) == 0.5 && Hunting.AfterTrip(7.8, true) == Hunting.MaxPressure, "Hunting: a day's pressure a camp trip, half a bare stake's, capped");
 Check(Hunting.Yield("meadows", true, 0, () => 0.0, 0.5)["DeerMeat"] == 2 && Hunting.Yield("meadows", true, 0, () => 0.0)["DeerMeat"] == 4, "Hunting: a thinned camp gives less");
 Check(Hunting.Word(0) == "plentiful" && Hunting.Word(8) == "hunted out for now", "Hunting: the stake says how thick the game is");
+{
+    var herd = new Herd { Claim = "cl", Colony = "col", Up = true, Year = 3, Placed = false, Fetching = true };
+    herd.Beasts.Add(("Boar", 2, "Big, Bertha;"));
+    herd.Beasts.Add(("Boar", 1, ""));
+    var hb = Herd.Decode("cl", herd.Encode().ToLowerInvariant()); // (the game lower-cases global keys)
+    Check(hb != null && hb.Up && hb.Year == 3 && !hb.Placed && hb.Fetching && hb.Beasts.Count == 2 && hb.Beasts[0].level == 2 && hb.Beasts[0].name == "Big  Bertha" && hb.Beasts[0].prefab == "Boar", "Shieling: the herd kept in its key, names made safe, capitals through the game's lower-casing");
+    Check(Shielings.GoUp(Season.Summer, 3, null) && Shielings.GoUp(Season.Summer, 4, new Herd { Year = 3 }) && !Shielings.GoUp(Season.Summer, 3, new Herd { Year = 3 }) && !Shielings.GoUp(Season.Spring, 4, null), "Shieling: up once a summer");
+    Check(Shielings.ComeDown(Season.Autumn, hb) && !Shielings.ComeDown(Season.Summer, hb) && !Shielings.ComeDown(Season.Autumn, new Herd()), "Shieling: down when summer's over");
+    var beasts = new List<(string, int, string)> { ("Boar", 1, "a"), ("Boar", 3, "b"), ("Boar", 1, "c"), ("Boar", 1, "d"), ("Neck", 1, "e") };
+    var safe = Shielings.Summer(beasts, "meadows", () => 0.2);
+    Check(safe.lost == 0 && safe.home.Count == 5 && safe.home.Count(x => x.level == 2) == 4 && safe.home.Any(x => x.level == 3) && safe.young.Count == 2 && safe.young.All(y => y == "Boar_piggy"), "Shieling: a good summer - a star stronger, young for every two boars, none for a neck");
+    Check(Shielings.Summer(new List<(string, int, string)> { ("boar", 1, ""), ("boar", 1, "") }, "meadows", () => 0.5).young.Count == 1, "Shieling: young whatever the case of the kind's name");
+    var bad = Shielings.Summer(beasts, "mountain", () => 0.01);
+    Check(bad.lost == 5 && bad.home.Count == 0 && bad.young.Count == 0, "Shieling: the wolves can take them all");
+    Check(Shielings.GoodGround("Mountain") && Shielings.GoodGround("meadows") && !Shielings.GoodGround("swamp"), "Shieling: meadow, forest and mountain ground");
+}
+Check(Relics.Cap('A', false) == 'B' && Relics.Cap('S', false) == 'B' && Relics.Cap('C', false) == 'C' && Relics.Cap('S', true) == 'S', "Relics: a temple held at B without its relic");
+Check(Relics.Of.Count == Tables.Gods.Length && Tables.Gods.All(g => Relics.Of.ContainsKey(g.Id)) && Relics.GodOf(Relics.StormStone) == "thor" && Relics.GodOf("Wishbone") == "hel", "Relics: one for every god");
+Check(Relics.Ours.All(n => n.StartsWith("JarldomRelic")), "Relics: our own prefab names");
 Check(Trading.Choose(Rank.Village, false, false, false, 40) == TradeWay.Foot, "No cart: on foot");
 Check(Trading.Choose(Rank.Village, true, false, false, 4) == TradeWay.Foot && Trading.Choose(Rank.Village, true, false, false, 10) == TradeWay.Cart, "The cart only when there's more than a pack");
 Check(Trading.Choose(Rank.Village, true, true, true, 50) == TradeWay.Cart, "Ships wait for their rank");
@@ -236,6 +255,14 @@ Check(race.CompletedCount == race.All.Count(o => o.State == OrderState.Done), "E
 var hallFacts = new RoomFacts { Walls = new[] { 1f, 0.95f, 0.9f, 1f }, Roof = 0.97f, Doors = 1, Area = 48 };
 hallFacts.Count["fire"] = 1; hallFacts.Count["seat"] = 6; hallFacts.Count["table"] = 2;
 var verdict = RoomRules.Judge(RoomType.GreatHall, hallFacts);
+{
+    var temple = new RoomFacts { Walls = new[] { 1f, 1f, 1f, 1f }, Roof = 1f, Doors = 1, Area = 30 };
+    temple.Count["altar_thor"] = 1; temple.Count["fire"] = 1; temple.Count["raven"] = 6; temple.Count["brazier"] = 6; temple.Count["carving"] = 6; temple.Count["trophy"] = 10;
+    var held = RoomRules.Judge(RoomType.Temple, temple, "thor");
+    temple.Count["relic_thor"] = 1;
+    var free = RoomRules.Judge(RoomType.Temple, temple, "thor");
+    Check(held.Grade == 'B' && held.Capped.Contains("storm stone") && free.Grade == 'S' && free.Capped == "", "Relics: Thor's temple held at B until the storm stone is on the altar");
+}
 Check(verdict.Ok && verdict.Grade == 'C', "A plain great hall works: grade C");
 hallFacts.Walls[2] = 0.4f; verdict = RoomRules.Judge(RoomType.GreatHall, hallFacts);
 Check(!verdict.Ok && verdict.OpenEdges.Single() == 2 && verdict.Failures[0].Contains("gap"), "A missing wall shows where");

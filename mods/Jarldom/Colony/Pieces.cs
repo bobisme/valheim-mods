@@ -519,7 +519,7 @@ namespace Jarldom
                 head.transform.localPosition = new Vector3(0, pb.size.y * 0.55f, 0f);
                 head.GetComponent<MeshRenderer>().sharedMaterial = Plain(wood, new Color(0.35f, 0.35f, 0.37f));
             }
-            Finish(go, look, "Ore claim", "Drive it in beside a deposit you've found (copper, tin, silver; by a sunken crypt's door for its iron): the colony's miners go out to it and bring the ore home. Build a camp round it (a bed, a chest and a fire) and they work everything near, more of them, staying longer. Or make it a hunting camp (shift+E on it), out where the game is: the hunters go there when the stores are short of meat.",
+            Finish(go, look, "Ore claim", "Drive it in beside a deposit you've found (copper, tin, silver; by a sunken crypt's door for its iron): the colony's miners go out to it and bring the ore home. Build a camp round it (a bed, a chest and a fire) and they work everything near, more of them, staying longer. Or make it a hunting camp (shift+E on it), out where the game is: the hunters go there when the stores are short of meat; or a shieling (shift+E again), a summer pasture 300 m or more out, where the herder takes the pasture's beasts for the summer.",
                 Piece.PieceCategory.Misc, ("Wood", 2), ("Stone", 1));
             go.GetComponent<Piece>().m_craftingStation = null; // (driven in out in the wilds: no workbench there)
             go.AddComponent<OreClaim>();

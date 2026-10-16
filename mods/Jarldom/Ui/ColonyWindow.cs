@@ -576,7 +576,7 @@ namespace Jarldom.Ui
                 GameUi.Button(list, "Check", new Vector2(W - 190, -y + 2), new Vector2(90, 30), () => Net.Act(_c, "check", id), true, 15);
                 GameUi.Button(list, "Remove", new Vector2(W - 96, -y + 2), new Vector2(96, 30), () => Net.Act(_c, "unroom", id), true, 15);
                 y += 34;
-                if (!room.Ok && room.Failures != "") y = Text(list, room.Failures, y, 15, GameUi.Warn, 24);
+                if (room.Failures != "") y = Text(list, room.Ok ? char.ToUpper(room.Failures[0]) + room.Failures.Substring(1) + "." : room.Failures, y, 15, GameUi.Warn, 24); // (a working room's: what holds a temple at B)
             }
             if (_c.R.Zones.Count > 0) y = Heading(list, "Work zones", y);
             foreach (Zone z in _c.R.Zones)

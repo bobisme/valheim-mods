@@ -21,6 +21,7 @@ namespace Jarldom
     public sealed class RoomVerdict
     {
         public bool Ok; public int Points; public char Grade = 'D'; public List<string> Failures = new List<string>(); public List<int> OpenEdges = new List<int>();
+        public string Capped = ""; // (a temple held at B: what its altar lacks)
     }
 
     public static class RoomRules
@@ -63,6 +64,12 @@ namespace Jarldom
             }
             v.Points = Points(type, f);
             v.Grade = Tables.Grade(v.Points);
+            // (a temple without its god's relic on the altar: B at most)
+            if (type == RoomType.Temple && !string.IsNullOrEmpty(god) && Relics.Of.TryGetValue(god, out var relic))
+            {
+                char earned = v.Grade; v.Grade = Relics.Cap(earned, f.C("relic_" + god) > 0);
+                if (v.Grade != earned) v.Capped = $"grade {earned} earned, held at B until {relic.name} lies on its altar ({relic.where})";
+            }
             v.Ok = v.Failures.Count == 0;
             return v;
         }

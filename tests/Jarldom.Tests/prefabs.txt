@@ -18,6 +18,10 @@ JarldomMemorial
 JarldomOreClaim
 JarldomPyre
 JarldomRelic
+JarldomRelicGoldenFlower
+JarldomRelicRavenFeather
+JarldomRelicSpindle
+JarldomRelicStormStone
 JarldomRemains
 JarldomSoul
 JarldomVillager

@@ -547,6 +547,7 @@ namespace Jarldom
             if (prof == Prof.Builder) { Task up = Upkeep.Next(b); if (up != null) return up; } // (nothing planned: mend, rebuild, pave)
             if (prof == Prof.Shipwright && c.IsOwner && Gear.Tool(b, "hammer") != null && Time.time > b.NoBuildUntil && Shipyard.Building(c) != null) return BuildTask.Ships();
             if (prof == Prof.Miner) { Task trip = Claims.Next(b); if (trip != null) return trip; } // (ore claims out in the wilds first)
+            if (prof == Prof.Herder) { Task summer = Shieling.Next(b); if (summer != null) return summer; } // (the herd up to the shieling for the summer, and down again)
             if (prof == Prof.Herder || prof == Prof.Hunter) { Task catching = Catching.Next(b); if (catching != null) return catching; } // (an empty pasture: a wild boar for it)
             if (prof == Prof.Hunter && NothingFor(c, Prof.Hunter)) { Task trip = Claims.HuntNext(b); if (trip != null) return trip; } // (a hunting camp out where the game is, before ranging round the edge)
             if (prof == Prof.Hunter && NothingFor(c, Prof.Hunter) && RangeTask.Wanted(b)) return new RangeTask();

@@ -130,6 +130,61 @@ namespace Jarldom
     internal sealed class Altar : MonoBehaviour, Hoverable, Interactable
     {
         public string God = "odin";
+        public const string RelicKey = "jarldom_relic"; // (on the altar: the prefab of the relic laid on it)
+        private ZNetView _v; private GameObject _shown; private string _showing = "";
+        private ZDO Z => (_v != null ? _v : _v = GetComponent<ZNetView>()) != null && _v.IsValid() ? _v.GetZDO() : null;
+        public string Held => Z?.GetString(RelicKey, "") ?? "";
+        public bool HoldsRelic => Relics.Of.TryGetValue(God, out var r) && Held == r.prefab;
+        private void Update()
+        {
+            // (the relic shown lying on top, as it's laid on or taken off on any game)
+            string held = Held;
+            if (held == _showing) return;
+            _showing = held;
+            if (_shown != null) Destroy(_shown);
+            if (held != "") _shown = Show(held);
+        }
+        private GameObject Show(string prefab)
+        {
+            GameObject item = ObjectDB.instance?.GetItemPrefab(prefab);
+            if (item == null) return null;
+            Transform look = item.transform.Find("attach") ?? item.transform.Cast<Transform>().FirstOrDefault(t => t.GetComponentInChildren<MeshRenderer>(true) != null);
+            if (look == null) return null;
+            GameObject copy = Instantiate(look.gameObject, transform);
+            foreach (Collider col in copy.GetComponentsInChildren<Collider>(true)) Destroy(col);
+            foreach (Rigidbody rb in copy.GetComponentsInChildren<Rigidbody>(true)) Destroy(rb);
+            // (laid on the altar's own table: its broadest flat top above the ground, not on a post's head)
+            copy.transform.position = transform.TransformPoint(Shelf(copy.transform)) + Vector3.up * 0.03f;
+            copy.transform.rotation = transform.rotation * Quaternion.Euler(0, 30, 0);
+            return copy;
+        }
+        // Where on the altar a thing is laid (the altar's own space; kept for each god): of its model's upward faces, the height with
+        // the most area that isn't the ground at its foot, and the middle of that.
+        private static readonly Dictionary<string, Vector3> Shelves = new Dictionary<string, Vector3>();
+        private Vector3 Shelf(Transform skip)
+        {
+            if (Shelves.TryGetValue(God, out Vector3 kept)) return kept;
+            var area = new Dictionary<int, (float a, Vector3 sum)>();
+            float low = float.MaxValue, high = float.MinValue;
+            foreach (MeshFilter mf in GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf.transform.IsChildOf(skip) || mf.sharedMesh == null || !mf.sharedMesh.isReadable) continue;
+                Vector3[] v = mf.sharedMesh.vertices; int[] t = mf.sharedMesh.triangles;
+                for (int i = 0; i + 2 < t.Length; i += 3)
+                {
+                    Vector3 p0 = transform.InverseTransformPoint(mf.transform.TransformPoint(v[t[i]])), p1 = transform.InverseTransformPoint(mf.transform.TransformPoint(v[t[i + 1]])), p2 = transform.InverseTransformPoint(mf.transform.TransformPoint(v[t[i + 2]]));
+                    Vector3 n = Vector3.Cross(p1 - p0, p2 - p0); float twice = n.magnitude;
+                    low = Mathf.Min(low, p0.y, Mathf.Min(p1.y, p2.y)); high = Mathf.Max(high, p0.y, Mathf.Max(p1.y, p2.y));
+                    if (twice < 1e-6f || n.y / twice < 0.92f) continue; // (facing up)
+                    Vector3 mid = (p0 + p1 + p2) / 3f; int key = Mathf.RoundToInt(mid.y / 0.05f);
+                    area.TryGetValue(key, out var had); area[key] = (had.a + twice / 2, had.sum + mid * (twice / 2));
+                }
+            }
+            Vector3 at = new Vector3(0, 1f, 0);
+            var best = area.Where(kv => kv.Key * 0.05f > low + 0.2f && kv.Key * 0.05f < high - 0.05f).OrderByDescending(kv => kv.Value.a).FirstOrDefault();
+            if (best.Value.a > 0) at = best.Value.sum / best.Value.a;
+            return Shelves[God] = at;
+        }
         public string GetHoverName() => "Altar of " + (Tables.God(God)?.Name ?? God);
         public string GetHoverText()
         {
@@ -137,15 +192,55 @@ namespace Jarldom
             Colony c = Colony.At(transform.position);
             int f = c == null ? 0 : God == "odin" ? Faith.Odin(c) : c.FavourOf(God);
             string favour = c != null ? $"\n<size=80%>{g?.Name}'s favour: {Faith.FavourWord(f)} ({f})</size>" : "";
-            return Localization.instance.Localize($"Altar of {g?.Name}{favour}\n<size=80%>wants {g?.Offerings}</size>\n[<color=yellow><b>$KEY_Use</b></color>] Make an offering   <size=80%>(or use an item on it)</size>");
+            string relic = "";
+            if (Relics.Of.TryGetValue(God, out var r))
+                relic = HoldsRelic ? $"\n<size=80%>{char.ToUpper(r.name[0]) + r.name.Substring(1)} lies on it.</size>\n[<color=yellow><b>$KEY_AltPlace + $KEY_Use</b></color>] Take the relic back"
+                    : God == "odin" && c?.RoomAt(transform.position)?.Type == RoomType.OdinShrine ? "" : $"\n<size=80%>A temple to {g?.Name} grades no higher than B without {r.name} on the altar ({r.where}): use it on the altar.</size>";
+            return Localization.instance.Localize($"Altar of {g?.Name}{favour}{relic}\n<size=80%>wants {g?.Offerings}</size>\n[<color=yellow><b>$KEY_Use</b></color>] Make an offering   <size=80%>(or use an item on it)</size>");
         }
         public bool Interact(Humanoid user, bool hold, bool alt)
         {
             if (hold || !(user is Player p)) return false;
+            if (alt && Held != "")
+            {
+                // (the relic back into the bag)
+                GameObject prefab = ObjectDB.instance?.GetItemPrefab(Held);
+                if (prefab == null || !p.GetInventory().CanAddItem(prefab, 1)) { p.Message(MessageHud.MessageType.Center, "No room in your bag for it."); return true; }
+                p.GetInventory().AddItem(prefab, 1);
+                if (!_v.IsOwner()) _v.ClaimOwnership();
+                Z.Set(RelicKey, "");
+                Changed();
+                p.Message(MessageHud.MessageType.Center, $"You take the relic from {Tables.God(God)?.Name}'s altar.");
+                return true;
+            }
             Faith.OfferFromBag(this, p);
             return true;
         }
-        public bool UseItem(Humanoid user, ItemDrop.ItemData item) { if (user is Player p) Faith.Offer(this, p, item, item.m_stack); return true; }
+        public bool UseItem(Humanoid user, ItemDrop.ItemData item)
+        {
+            if (!(user is Player p)) return true;
+            string prefab = item != null && item.m_dropPrefab != null ? item.m_dropPrefab.name : ""; // (a Unity null: ?. passes a destroyed prefab)
+            string whose = Relics.GodOf(prefab);
+            if (whose != null)
+            {
+                // A relic: laid on its own god's altar, never offered away.
+                if (whose != God) { p.Message(MessageHud.MessageType.Center, $"That's {Tables.God(whose)?.Name}'s, not {Tables.God(God)?.Name}'s."); return true; }
+                if (HoldsRelic) { p.Message(MessageHud.MessageType.Center, "One lies on the altar already."); return true; }
+                if (Z == null) return true;
+                if (!_v.IsOwner()) _v.ClaimOwnership();
+                p.GetInventory().RemoveItem(item, 1);
+                Z.Set(RelicKey, prefab);
+                Assets.Effect("vfx_offering", transform.position + Vector3.up);
+                Assets.Effect("sfx_offering", transform.position);
+                Changed();
+                p.Message(MessageHud.MessageType.Center, $"You lay {Relics.Of[God].name} on {Tables.God(God)?.Name}'s altar.");
+                return true;
+            }
+            Faith.Offer(this, p, item, item.m_stack);
+            return true;
+        }
+        // (the room it stands in judged again now: its grade may change)
+        private void Changed() => Colony.At(transform.position)?.SurveySoon();
         public float GetHoverOffset() => 1.2f;
     }
 

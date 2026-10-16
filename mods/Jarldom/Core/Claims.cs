@@ -13,7 +13,7 @@ namespace Jarldom
     // took is taken out of the world there then (worked-out deposits go).
     public sealed class Claim
     {
-        public string Id = "", Colony = ""; public float X, Z; public string Biome = ""; public bool Crypt, Hunt; public int Beds; // (Hunt: a hunting camp, no ore: "h" where a crypt is "1")
+        public string Id = "", Colony = ""; public float X, Z; public string Biome = ""; public bool Crypt, Hunt, Shieling; public int Beds; // (Hunt: a hunting camp, no ore: "h" where a crypt is "1"; Shieling "s")
         public Dictionary<string, (int n, int tier)> Left = new Dictionary<string, (int, int)>();
         public Dictionary<string, int> Taken = new Dictionary<string, int>();
         public bool Camp => Beds > 0;
@@ -22,14 +22,14 @@ namespace Jarldom
 
         private static string F(float f) => Math.Round(f).ToString(CultureInfo.InvariantCulture);
         public string Encode() =>
-            $"{Colony},{F(X)},{F(Z)},{Biome.ToLowerInvariant()},{(Hunt ? "h" : Crypt ? "1" : "0")},{Beds}," +
+            $"{Colony},{F(X)},{F(Z)},{Biome.ToLowerInvariant()},{(Hunt ? "h" : Shieling ? "s" : Crypt ? "1" : "0")},{Beds}," +
             string.Join(";", Left.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => $"{kv.Key}:{kv.Value.n}:{kv.Value.tier}")) + "," + string.Join(";", Taken.Where(kv => kv.Value > 0).OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => $"{kv.Key}:{kv.Value}")); // (sorted: the same claim, the same key)
         public static Claim Decode(string id, string value)
         {
             if (string.IsNullOrEmpty(value)) return null;
             string[] f = value.Split(',');
             if (f.Length < 8) return null;
-            var c = new Claim { Id = id, Colony = f[0], Biome = f[3], Crypt = f[4] == "1", Hunt = f[4] == "h" };
+            var c = new Claim { Id = id, Colony = f[0], Biome = f[3], Crypt = f[4] == "1", Hunt = f[4] == "h", Shieling = f[4] == "s" };
             if (!float.TryParse(f[1], NumberStyles.Float, CultureInfo.InvariantCulture, out c.X) || !float.TryParse(f[2], NumberStyles.Float, CultureInfo.InvariantCulture, out c.Z)) return null;
             int.TryParse(f[5], out c.Beds);
             foreach (string part in f[6].Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))

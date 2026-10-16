@@ -123,7 +123,7 @@ namespace Jarldom
             var room = new Room { Id = NewId(), Type = type, God = Get(a, 1), Floor = Flt(Get(a, 2)), Xz = xz, Height = type == RoomType.BurialGround ? 6 : 5 };
             RoomVerdict v = Check(room);
             R.Rooms.Add(room);
-            TellPlayer(who, v.Ok ? $"{Tables.Of(type).Name}: grade {v.Grade}." : $"{Tables.Of(type).Name} marked, but not working yet: {room.Failures}.");
+            TellPlayer(who, v.Ok ? $"{Tables.Of(type).Name}: grade {v.Grade}.{(v.Capped != "" ? " " + char.ToUpper(v.Capped[0]) + v.Capped.Substring(1) + "." : "")}" : $"{Tables.Of(type).Name} marked, but not working yet: {room.Failures}.");
             if (v.Ok) Log("room", "", Tables.Of(type).Name.ToLower());
             Rerank();
         }

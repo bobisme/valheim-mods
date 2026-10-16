@@ -19,6 +19,38 @@ namespace Jarldom
         private static readonly MethodInfo CloneShared = typeof(object).GetMethod("MemberwiseClone", BindingFlags.Instance | BindingFlags.NonPublic);
         public static IEnumerable<GameObject> All => Prefabs.Values.Where(p => p != null);
         public static GameObject Ring => Ensure();
+
+        // The gods' relics that are Jarldom's own (Core's Relics: the others are the game's rare things): each a vanilla thing of the
+        // right shape, recoloured and named for its god. Worth nothing to a trader.
+        private static readonly (string name, string source, string title, string text, Color tint, Color glow)[] GodRelics =
+        {
+            (Relics.StormStone, "Thunderstone", "Storm stone", "A stone fused glassy where the lightning struck a mountain's peak in a storm: Thor's own. Lay it on Thor's altar and his temple may be more than B.", new Color(0.55f, 0.65f, 1.1f), new Color(0.1f, 0.18f, 0.45f)),
+            (Relics.GoldenFlower, "Dandelion", "Golden wildflower", "A flower of gold that grew among the meadow's own, once in a long while: Freyja's. Lay it on Freyja's altar and her temple may be more than B.", new Color(1.4f, 1.1f, 0.35f), new Color(0.3f, 0.2f, 0.0f)),
+            (Relics.Spindle, "LinenThread", "Golden spindle", "A spindle wound with gold thread, from a burial chamber in the Black Forest: Frigg spins the clouds with one like it. Lay it on Frigg's altar and her temple may be more than B.", new Color(1.3f, 1.0f, 0.4f), new Color(0.25f, 0.16f, 0.0f)),
+            (Relics.RavenFeather, "Feathers", "Raven feather", "A raven's feather, black and blue, from a ruin in the Mistlands: Huginn's or Muninn's. Lay it on Odin's altar and his temple may be more than B.", new Color(0.25f, 0.27f, 0.4f), new Color(0.03f, 0.04f, 0.12f)),
+        };
+        public static GameObject GodRelic(string name)
+        {
+            if (Prefabs.TryGetValue(name, out GameObject made) && made != null) return made;
+            var def = GodRelics.FirstOrDefault(r => r.name == name);
+            if (def.name == null) return null;
+            GameObject source = Assets.Find(def.source);
+            ItemDrop sourceDrop = source != null ? source.GetComponent<ItemDrop>() : null;
+            if (sourceDrop == null) return null;
+            GameObject go = Object.Instantiate(source, Assets.Holder);
+            go.name = def.name;
+            var shared = (ItemDrop.ItemData.SharedData)CloneShared.Invoke(sourceDrop.m_itemData.m_shared, null);
+            Assets.Tint(go, def.tint, def.glow);
+            shared.m_name = def.title; shared.m_description = def.text;
+            shared.m_itemType = ItemDrop.ItemData.ItemType.Misc; shared.m_maxStackSize = 1; shared.m_weight = 0.5f; shared.m_value = 0; shared.m_teleportable = true;
+            shared.m_icons = new[] { shared.m_icons?.FirstOrDefault() };
+            Assets.Icon(go, def.name, Quaternion.Euler(25, 30, 0), icon => shared.m_icons[0] = icon);
+            ItemDrop drop = go.GetComponent<ItemDrop>();
+            drop.m_itemData.m_shared = shared; drop.m_itemData.m_stack = 1; drop.m_itemData.m_quality = 1; drop.m_itemData.m_dropPrefab = go;
+            drop.m_autoDestroy = false; // (a god's relic: never tidied away off the ground)
+            Prefabs[def.name] = go;
+            return go;
+        }
         public static GameObject Relic => EnsureRelic();
 
         // The heart of the high seat: what's left when the pillars come down, holding the whole colony (its record in the item's own data).
@@ -171,10 +203,10 @@ namespace Jarldom
             return go;
         }
 
-        public static void RegisterScene(ZNetScene scene) { GameObject ring = Ensure(); if (ring != null) Assets.Register(scene, ring); GameObject relic = EnsureRelic(); if (relic != null) Assets.Register(scene, relic); GameObject drum = EnsureDrum(); if (drum != null) Assets.Register(scene, drum); GameObject remains = EnsureRemains(); if (remains != null) Assets.Register(scene, remains); }
+        public static void RegisterScene(ZNetScene scene) { GameObject ring = Ensure(); if (ring != null) Assets.Register(scene, ring); GameObject relic = EnsureRelic(); if (relic != null) Assets.Register(scene, relic); GameObject drum = EnsureDrum(); if (drum != null) Assets.Register(scene, drum); GameObject remains = EnsureRemains(); if (remains != null) Assets.Register(scene, remains); foreach (string n in Relics.Ours) { GameObject r = GodRelic(n); if (r != null) Assets.Register(scene, r); } }
         public static void BeforeRegisters(ObjectDB db)
         {
-            db.m_items.RemoveAll(i => i == null || i.name == RingName && i != Ensure() || i.name == RelicName && i != EnsureRelic() || i.name == DrumName && i != EnsureDrum() || i.name == RemainsPrefab && i != EnsureRemains());
+            db.m_items.RemoveAll(i => i == null || i.name == RingName && i != Ensure() || i.name == RelicName && i != EnsureRelic() || i.name == DrumName && i != EnsureDrum() || i.name == RemainsPrefab && i != EnsureRemains() || Relics.Ours.Contains(i.name) && i != GodRelic(i.name));
             db.m_recipes.RemoveAll(r => r != null && r.name == "Recipe_" + DrumName && r != _drumRecipe);
             db.m_recipes.RemoveAll(r => r == null || r.name == "Recipe_" + RingName && r != _ringRecipe);
             if (db.GetItemPrefab("Coins") == null && db.m_items.All(i => i == null || i.name != "Coins")) return; // the main menu's empty database
@@ -187,6 +219,7 @@ namespace Jarldom
             if (drum != null && !db.m_items.Contains(drum)) db.m_items.Add(drum);
             GameObject remains = EnsureRemains();
             if (remains != null && !db.m_items.Contains(remains)) db.m_items.Add(remains);
+            foreach (string n in Relics.Ours) { GameObject r = GodRelic(n); if (r != null && !db.m_items.Contains(r)) db.m_items.Add(r); }
             CraftingStation bench = Assets.Find("piece_workbench")?.GetComponent<CraftingStation>();
             ItemDrop hide = db.m_items.FirstOrDefault(i => i != null && i.name == "DeerHide")?.GetComponent<ItemDrop>(), wood = db.m_items.FirstOrDefault(i => i != null && i.name == "Wood")?.GetComponent<ItemDrop>();
             if (drum != null && bench != null && hide != null && wood != null)
