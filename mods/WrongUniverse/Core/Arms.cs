@@ -83,6 +83,15 @@ namespace WrongUniverse
                 else b.localRotation=q[0];
             }
         }
+        // The same for one bone (a head turned to sight down a rifle).
+        internal static void FromAnimationBone(Transform b)
+        {
+            if(b==null)return;
+            if(!Poses.TryGetValue(b,out Quaternion[] q)){Poses[b]=new[]{b.localRotation,b.localRotation};return;}
+            if(Quaternion.Angle(b.localRotation,q[1])>0.01f)q[0]=b.localRotation;
+            else b.localRotation=q[0];
+        }
+        internal static void LeaveBone(Transform b){if(b!=null&&Poses.TryGetValue(b,out Quaternion[] q))q[1]=b.localRotation;}
         // After bending: what we left, to tell next frame whether the animator has been since.
         internal static void Leave(Transform joint)
         {

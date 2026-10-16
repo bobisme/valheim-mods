@@ -1,3 +1,5 @@
+0.2.9: The laser rifle is held like a rifle: the butt in the shoulder pocket (it sat on top of the shoulder), the head down on the stock with the right eye behind the scope (the gun ran through the middle of the face with the scope at the forehead), the right hand on the pistol grip and the left under the fore-end. The upper body leans back to aim up and forward to aim down, so the stock stays in the shoulder (it rose over the shoulder aiming down, and the head was thrown back aiming up).
+
 0.2.8: The laser rifle sits closer, butt in the shoulder, so the right arm bends with the elbow tucked down at the right side (it was held at arm's length, the arm out straight and the elbow flared).
 
 0.2.7: Laser shots always start at the barrel (on some frames they left from where the game's animation held the gun, a metre off). The rifle's arms no longer go through the body when you look down: it tilts at most 25 degrees down and 30 up, and the elbows point out from the aim.
