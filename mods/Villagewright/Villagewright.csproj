@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>Villagewright</AssemblyName><RootNamespace>Villagewright</RootNamespace></PropertyGroup>
+  <ItemGroup>
+    <!-- The village layout engine is Fimbulwinter's (valheim-ragnarok, checked out next to this repo), compiled in. -->
+    <Compile Include="../../../valheim-ragnarok/mods/Shared/Village/*.cs" Link="Village/%(Filename)%(Extension)" />
+    <!-- Hallwright's pure hall geometry designs each building (no runtime link to Hallwright). -->
+    <Compile Include="../Hallwright/Curve.cs;../Hallwright/HallLayout.cs;../Hallwright/HallDoors.cs;../Hallwright/HallStairs.cs;../Hallwright/StaveLayout.cs;../Hallwright/HallExcavation.cs" Link="Hall/%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>
