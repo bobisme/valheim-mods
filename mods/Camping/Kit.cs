@@ -98,6 +98,7 @@ namespace Camping
                     // (a pile of furs and hides a hand and more deep: one can stand on it, and lie on it)
                     Box(go, pieceLayer, new Vector3(0, 0.08f, 0), new Vector3(1.0f, 0.16f, 2.05f), Quaternion.identity);
                     Spawn(go, new Vector3(0, 0.22f, 0));
+                    Ground(go, 1.25f, 2.4f, 1.3f);
                     break;
                 case LeanTo:
                     // (its hides: a slab from over the front posts down to the ground at the back; the two posts)
@@ -113,6 +114,7 @@ namespace Camping
                     Box(go, pieceLayer, new Vector3(0, 0.02f, 0), new Vector3(1.4f, 0.04f, 2.3f), Quaternion.identity); // (the pelt on its floor)
                     Spawn(go, new Vector3(0, 0.1f, 0.1f));
                     Warmth(go, new Vector3(0, 0.9f, 0), 1.6f);
+                    Ground(go, 1.9f, 3.2f, 1.9f);
                     break;
             }
             var piece = go.GetComponent<Piece>();
@@ -149,6 +151,16 @@ namespace Camping
             if (bed == null) return;
             if (bed.m_spawnPoint == null) { var s = new GameObject("spawnpoint"); s.transform.SetParent(go.transform, false); bed.m_spawnPoint = s.transform; }
             bed.m_spawnPoint.localPosition = at; bed.m_spawnPoint.localRotation = Quaternion.identity;
+        }
+        // The ground under it levelled to where it lies (blended into the slope round it) and trodden to dirt, so the grass doesn't hide
+        // it: as the hoe's path does it, while it stands (packed up, the ground is as it was).
+        private static void Ground(GameObject go, float level, float smooth, float paint)
+        {
+            TerrainModifier t = go.GetComponent<TerrainModifier>() ?? go.AddComponent<TerrainModifier>();
+            t.m_useTerrainCompiler = false; t.m_playerModifiction = true; t.m_sortOrder = 0;
+            t.m_level = true; t.m_levelRadius = level; t.m_levelOffset = -0.02f; t.m_square = false;
+            t.m_smooth = true; t.m_smoothRadius = smooth; t.m_smoothPower = 3f;
+            t.m_paintCleared = true; t.m_paintType = TerrainModifier.PaintType.Dirt; t.m_paintRadius = paint; t.m_paintStrength = 1f; t.m_paintHeightCheck = false;
         }
         // Warm inside (a heat area, as a fire's: no cold, and a bed in it needs no fire): its own, the bed's base area copied.
         private static void Warmth(GameObject go, Vector3 at, float radius)
@@ -198,20 +210,21 @@ namespace Camping
             if (_mats != null && _mats.All(m => m != null)) return _mats;
             Material wood = PieceMat(scene, "wood_pole");
             if (wood == null) { Plugin.Warn("No wood_pole material to draw the kit in."); return null; }
-            // (the brown fur rug's and the wolf's fur for furs; hides in plain tanned shades: the deer rug's is orange, the moose rug's black)
-            Texture brown = Tex(scene, "rug_fur"), wolf = Tex(scene, "rug_wolf");
+            // (the brown fur rug's and the wolf's fur for furs; the deer rug's hide for hides, each patch its own piece of it: the models
+            // give their hides uvs of their own, in the middle of the texture)
+            Texture brown = Tex(scene, "rug_fur"), wolf = Tex(scene, "rug_wolf"), deer = Tex(scene, "rug_deer");
             _mats = new[]
             {
                 Grain(wood, new Color(0.8f, 0.72f, 0.64f), 0.6f, "wood"),
-                Plain(wood, new Color(0.58f, 0.48f, 0.37f), "hide"),
-                brown != null ? Textured(wood, brown, new Color(0.9f, 0.86f, 0.82f), 0.5f, "fur") : Plain(wood, new Color(0.4f, 0.3f, 0.2f), "fur"),
-                Plain(wood, new Color(0.66f, 0.61f, 0.52f), "wool"),
+                deer != null ? Textured(wood, deer, new Color(0.74f, 0.69f, 0.74f), "hide", own: true) : Plain(wood, new Color(0.58f, 0.48f, 0.37f), "hide"),
+                brown != null ? Textured(wood, brown, new Color(0.9f, 0.86f, 0.82f), "fur") : Plain(wood, new Color(0.4f, 0.3f, 0.2f), "fur"),
+                Plain(wood, new Color(0.55f, 0.5f, 0.43f), "wool"), // (undyed: a warm grey-brown, not a glow in the dark)
                 Plain(wood, new Color(0.2f, 0.12f, 0.07f), "leather"),
                 Plain(wood, new Color(0.55f, 0.48f, 0.35f), "rope"),
                 Plain(wood, new Color(0.48f, 0.09f, 0.06f), "red"),
                 Plain(wood, new Color(0.42f, 0.42f, 0.4f), "stone"),
-                Plain(wood, new Color(0.47f, 0.38f, 0.29f), "hide2"),
-                wolf != null ? Textured(wood, wolf, new Color(0.7f, 0.68f, 0.66f), 0.45f, "fur2") : Plain(wood, new Color(0.35f, 0.33f, 0.31f), "fur2"),
+                deer != null ? Textured(wood, deer, new Color(0.6f, 0.54f, 0.58f), "hide2", own: true) : Plain(wood, new Color(0.47f, 0.38f, 0.29f), "hide2"),
+                wolf != null ? Textured(wood, wolf, new Color(0.7f, 0.68f, 0.66f), "fur2") : Plain(wood, new Color(0.35f, 0.33f, 0.31f), "fur2"),
             };
             return _mats;
         }
@@ -223,10 +236,12 @@ namespace Camping
             var m = new Material(wood) { name = "Camping " + name, color = tint }; m.mainTextureScale = Vector2.one * scale;
             Owned.Add(m); return m;
         }
-        private static Material Textured(Material wood, Texture tex, Color tint, float scale, string name)
+        private static Material Textured(Material wood, Texture tex, Color tint, string name, bool own = false)
         {
-            // (a rug's texture is the rug laid out on black: only its middle is sampled, so the metres the model spans stay on the hide)
-            var m = new Material(wood) { name = "Camping " + name, color = tint, mainTexture = tex }; m.mainTextureScale = Vector2.one * 0.1f; m.mainTextureOffset = Vector2.one * 0.42f;
+            // (a rug's texture is the rug laid out on black: only its middle is sampled, so the metres the model spans stay on the hide;
+            // a model's own uvs already keep to it)
+            var m = new Material(wood) { name = "Camping " + name, color = tint, mainTexture = tex };
+            if (own) { m.mainTextureScale = Vector2.one; m.mainTextureOffset = Vector2.zero; } else { m.mainTextureScale = Vector2.one * 0.1f; m.mainTextureOffset = Vector2.one * 0.42f; }
             if (m.HasProperty("_BumpMap")) m.SetTexture("_BumpMap", null);
             // (a rug's texture is see-through past the rug's edge: only its colour is wanted, never cut out)
             if (m.HasProperty("_Cutoff")) m.SetFloat("_Cutoff", 0f);

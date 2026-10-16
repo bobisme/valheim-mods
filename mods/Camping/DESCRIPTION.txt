@@ -1,10 +1,10 @@
 Somewhere to sleep away from home, for the hammer (Furniture tab). Nothing needs a workbench: you make camp from what you carry.
 
-Bedroll: a pile of furs and hides to lie on, with a wool blanket and a fur rolled at its head. Lay it down by any fire and sleep: unlike a bed it wants no roof, but you can't sleep on it soaked through, so in the rain put it under a lean-to. It sets your spawn point while it's laid out. 3 deer hides, 4 leather scraps.
+Bedroll: a pile of furs and hides to lie on, with a wool blanket and a fur rolled at its head. It levels and tramples the ground it lies on, so it sits on slopes and above the grass. Lay it down by any fire and sleep: unlike a bed it wants no roof, but you can't sleep on it soaked through, so in the rain put it under a lean-to. It sets your spawn point while it's laid out. 3 deer hides, 4 leather scraps.
 
 Lean-to: one sheet of hides stitched together, lashed over a frame of poles, open at the front. Whatever's under it stays dry: a fire, a bedroll, you. 10 wood, 4 deer hides.
 
-Tent: wool walls on carved, crossed boards, as the old ones were. Inside it's dry and warm: you can sleep without a fire, and the mountain's cold can't reach you. It sets your spawn point. 4 wolf pelts, 6 deer hides, 6 leather scraps, 8 wood.
+Tent: undyed wool walls on carved, crossed boards, as in the Gokstad and Oseberg ship burials, the hems pegged down. It levels the ground under it. Inside it's dry and warm: you can sleep without a fire, and the mountain's cold can't reach you. It sets your spawn point. 4 wolf pelts, 6 deer hides, 6 leather scraps, 8 wood.
 
 Packing up: Shift+E on a bedroll or tent rolls it up, and everything it cost goes back in your bag (on the ground beside it if your bag is full). Only your own, or one nobody has slept in yet.
 

@@ -10,6 +10,7 @@ OUT = '/home/bob/.cache/camping/'
 WOOD, HIDE, FUR, WOOL, LEATHER, ROPE, RED, STONE, HIDE2, FUR2 = range(10)
 NAMES = ('wood', 'hide', 'fur', 'wool', 'leather', 'rope', 'red', 'stone', 'hide2', 'fur2')
 SMOOTH = ('pole', 'roll', 'strap', 'rope', 'peg', 'post', 'rafter', 'ridge', 'fork', 'stone', 'pad', 'stitch', 'sheet')
+KEEPUV = ('sheet', 'pad_hide')  # (their own uvs: each patch of hide its own piece of the texture, turned its own way)
 rng = random.Random(7)
 mats = []
 
@@ -142,6 +143,11 @@ def pad(name, pts2, height, sink, mat, seed=0, shift=(0, 0), turn=0.0):
         bm.faces.new((rings[-1][i], rings[-1][(i + 1) % n], top))
     bm.faces.new(list(reversed(rings[0])))
     bm.normal_update()
+    uvl = bm.loops.layers.uv.new('uv')  # (the hide's texture's middle, a metre of hide 0.3 of it)
+    for f in bm.faces:
+        for loop in f.loops:
+            co = loop.vert.co
+            loop[uvl].uv = (0.5 + 0.3 * (co.x - cx), 0.5 + 0.3 * (co.y - cy))
     return link(name, bm, mat)
 
 def patched_sheet(name, corner, u, v, nu, nv, thick, nrm, sag, edge, cells, mats2, seed):
@@ -166,12 +172,20 @@ def patched_sheet(name, corner, u, v, nu, nv, thick, nrm, sag, edge, cells, mats
             if e: p = p + (corner + u * 0.5 + v * 0.5 - p).normalized() * e
             row.append(bm.verts.new(p))
         grid.append(row)
-    me_mats = []
+    # each patch its own piece of hide: the texture's middle, turned its own way and moved a little (a metre of hide is 0.3 of it)
+    uvl = bm.loops.layers.uv.new('uv')
+    turns = {(i, j): (r.uniform(0, 2 * math.pi), r.uniform(-0.06, 0.06), r.uniform(-0.06, 0.06)) for i in range(cu) for j in range(cv)}
+    lu, lv = u.length, v.length
     for j in range(nv):
         for i in range(nu):
             f = bm.faces.new((grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]))
             pi, pj = patch((i + 0.5) / nu, (j + 0.5) / nv)
             f.material_index = (pi + pj) % 2
+            a, du, dv = turns[(pi, pj)]
+            cs = ((bu[pi] + bu[pi + 1]) / 2 * lu, (bv[pj] + bv[pj + 1]) / 2 * lv)
+            for loop, (ii, jj) in zip(f.loops, ((i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1))):
+                x, y = ii / nu * lu - cs[0], jj / nv * lv - cs[1]
+                loop[uvl].uv = (0.5 + du + 0.3 * (x * math.cos(a) - y * math.sin(a)), 0.5 + dv + 0.3 * (x * math.sin(a) + y * math.cos(a)))
     bm.normal_update()
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
     for m in mats2: me.materials.append(mats[m])
@@ -276,7 +290,7 @@ def tent():
             board(f'board{sx}{y}', foot, top, 0.17, 0.045, WOOD)
             head(f'head{sx}{y}', top, (cross - foot).normalized())
     pole('ridge', Vector((0, ends[0] - 0.25, T_RIDGE + 0.12)), Vector((0, ends[1] + 0.25, T_RIDGE + 0.12)), 0.05, bend=0.01)
-    bands = [(0.0, 0.08, RED), (0.08, 0.78, WOOL), (0.78, 0.86, RED), (0.86, 0.9, WOOL), (0.9, 0.96, RED), (0.96, 1.0, WOOL)]
+    bands = [(0.0, 1.0, WOOL)]  # (undyed wool: no tent cloth survives, and the red stripes are a reenactors' habit)
     for sx in (-1, 1):
         top, foot = Vector((0, 0, T_RIDGE + 0.06)), Vector((sx * (T_HALF + 0.12), 0, 0.0))
         slope = foot - top
@@ -284,14 +298,17 @@ def tent():
         if nrm.z < 0: nrm = -nrm
         for b0, b1, mat in bands:
             corner = Vector((top.x, ends[0] - 0.08, top.z)) + slope * b0 + nrm * 0.03
-            sheet(f'wall{sx}_{b0}', corner, Vector((0, T_LEN + 0.16, 0)), slope * (b1 - b0), 12, max(1, int((b1 - b0) * 8)), 0.012, mat,
+            sheet(f'wall{sx}_{b0}', corner, Vector((0, T_LEN + 0.16, 0)), slope * (b1 - b0), 12, 8, 0.012, mat,
                   sag=lambda s, t: -0.035 * math.sin(s * math.pi * 3) ** 2, normal=nrm)
     gable('back', ends[1] + 0.06)
     flap('flapL', -1, ends[0] - 0.06); flap('flapR', 1, ends[0] - 0.06)
-    for y, d in ((ends[0], -1), (ends[1], 1)):
-        a, b = Vector((0, y + d * 0.28, T_RIDGE + 0.1)), Vector((0, y + d * 1.4, 0.05))
-        tube('rope' + str(y), [a.lerp(b, i / 8) + Vector((0, 0, -0.08 * math.sin(i / 8 * math.pi))) for i in range(9)], 0.01, ROPE)
-        pole('peg' + str(y), b + Vector((0, d * 0.02, -0.2)), b + Vector((0, -d * 0.04, 0.12)), 0.025)
+    # (the A-frame stands on its own: no guy ropes; the walls' hems pegged down, a loop of cord to each peg)
+    for sx in (-1, 1):
+        for k in range(5):
+            y = ends[0] + 0.05 + k * (T_LEN - 0.1) / 4
+            hem = Vector((sx * (T_HALF + 0.14), y, 0.04)); peg = hem + Vector((sx * 0.14, 0, 0))
+            pole(f'peg{sx}_{k}', peg + Vector((-sx * 0.03, 0, -0.18)), peg + Vector((sx * 0.02, 0, 0.12)), 0.022)
+            tube(f'rope{sx}_{k}', [hem + Vector((0, 0, 0.02)), hem.lerp(peg, 0.5) + Vector((0, 0, 0.05)), peg + Vector((0, 0, 0.08))], 0.008, ROPE)
     outline_slab('pelt', hide_outline(1.3, 2.2, 5), 0.0, 0.03, FUR)
     export('tent')
     if 'render' in sys.argv: preview('tent', [(0, 6.5, 2.2, 1.0), (35, 6.5, 2.6, 1.0), (150, 6.5, 2.4, 1.0), (0, 2.6, 1.1, 0.6)])
@@ -323,7 +340,7 @@ def head(name, at, d):
 
 def gable(name, y):
     # a triangle closing an end, in strips down from the ridge (a red band near its foot)
-    for k, (t0, t1, mat) in enumerate(((0.0, 0.86, WOOL), (0.86, 0.94, RED), (0.94, 1.0, WOOL))):
+    for k, (t0, t1, mat) in enumerate(((0.0, 1.0, WOOL),)):
         bm = bmesh.new()
         def at(t, s):
             return Vector((s * (T_HALF + 0.1) * t, y, (T_RIDGE + 0.05) * (1 - t)))
@@ -367,7 +384,8 @@ def export(base):
                 co = me.vertices[me.loops[li].vertex_index].co
                 n = cn[li].vector if ob.name.startswith(SMOOTH) else p.normal
                 fn = p.normal
-                u, v = (co.x, co.z) if abs(fn.y) >= max(abs(fn.x), abs(fn.z)) else ((co.y, co.z) if abs(fn.x) >= abs(fn.z) else (co.x, co.y))
+                if ob.name.startswith(KEEPUV) and me.uv_layers.active: u, v = me.uv_layers.active.data[li].uv
+                else: u, v = (co.x, co.z) if abs(fn.y) >= max(abs(fn.x), abs(fn.z)) else ((co.y, co.z) if abs(fn.x) >= abs(fn.z) else (co.x, co.y))
                 key = (round(co.x, 4), round(co.y, 4), round(co.z, 4), round(n.x, 3), round(n.y, 3), round(n.z, 3), round(u, 4), round(v, 4))
                 if key not in index:
                     index[key] = len(verts) // 3; verts += [co.x, co.z, co.y]; norms += [n.x, n.z, n.y]; uvs += [u, v]
