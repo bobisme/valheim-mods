@@ -162,8 +162,9 @@ namespace Jarldom
             }
             P("piece_banner03", -2.6f, deck + 2.4f, TempleEnd + 0.3f, 90); P("piece_banner03", 2.6f, deck + 2.4f, TempleEnd + 0.3f, 90);
             P("wood_dragon1", 0, deck + TempleRidge + 0.2f, TempleEnd + 0.2f, 0); P("wood_dragon1", 0, deck + TempleRidge + 0.2f, -TempleEnd - 0.2f, 180);
-            // inside: the altar at the back, a torch either side
+            // inside: the altar at the back, a torch either side, wolf pelts from the door up to it (the rest is the jarl's to hang)
             P("JarldomAltar_" + (string.IsNullOrEmpty(god) ? "odin" : god), 0, deck, -3.6f);
+            P("rug_wolf", 0, deck + 0.03f, 3.2f); P("rug_wolf", 0, deck + 0.03f, 0.2f);
             P("piece_groundtorch_wood", 1.6f, deck + 0.7f, -3.8f); P("piece_groundtorch_wood", -1.6f, deck + 0.7f, -3.8f);
             // behind it, what it was raised with (the builders' reach)
             P("piece_workbench", 2.5f, deck, -5.6f, 180); P("piece_stonecutter", -2.5f, deck, -5.6f, 180);
@@ -187,7 +188,7 @@ namespace Jarldom
             ["JarldomAltar"] = new[] { ("Stone", 12), ("Coins", 10), ("Resin", 2) },
             ["stone_wall_1x1"] = new[] { ("Stone", 3) }, ["stone_wall_2x1"] = new[] { ("Stone", 4) }, ["stone_wall_4x2"] = new[] { ("Stone", 6) }, ["stone_floor_2x2"] = new[] { ("Stone", 6) }, ["stone_pillar"] = new[] { ("Stone", 5) },
             ["piece_workbench"] = new[] { ("Wood", 10) }, ["woodwall"] = new[] { ("Wood", 2) }, ["wood_roof_45"] = new[] { ("Wood", 2) }, ["wood_roof_top_45"] = new[] { ("Wood", 2) }, ["wood_wall_roof_45"] = new[] { ("Wood", 2) }, ["wood_roof_67"] = new[] { ("Wood", 2) }, ["wood_roof_top_67"] = new[] { ("Wood", 2) }, ["wood_wall_roof_67_a"] = new[] { ("Wood", 2) },
-            ["wood_pole_log_4"] = new[] { ("RoundLog", 2) }, ["piece_stonecutter"] = new[] { ("Wood", 10), ("Iron", 2), ("Stone", 4) },
+            ["wood_pole_log_4"] = new[] { ("RoundLog", 2) }, ["rug_wolf"] = new[] { ("WolfPelt", 4) }, ["piece_stonecutter"] = new[] { ("Wood", 10), ("Iron", 2), ("Stone", 4) },
             ["bonfire"] = new[] { ("SurtlingCore", 1), ("ElderBark", 5), ("FineWood", 5), ("RoundLog", 5) }, ["piece_groundtorch_wood"] = new[] { ("Wood", 2), ("Resin", 2) }, ["wood_pole_log"] = new[] { ("RoundLog", 1) }, ["woodiron_pole"] = new[] { ("Wood", 2), ("Iron", 1) }, ["forge"] = new[] { ("Stone", 4), ("Coal", 4), ("Wood", 10), ("Copper", 6) }, ["stone_pillar"] = new[] { ("Stone", 5) }, ["piece_banner03"] = new[] { ("LeatherScraps", 6), ("FineWood", 2), ("Raspberry", 4) }, ["wood_dragon1"] = new[] { ("FineWood", 10) }, ["piece_workbench_ext1"] = new[] { ("Wood", 10), ("Flint", 10) }, ["piece_workbench_ext2"] = new[] { ("Wood", 10), ("Flint", 15), ("LeatherScraps", 20), ("DeerHide", 5) },
         };
         public static Dictionary<string, int> Needs(string work)
@@ -198,7 +199,7 @@ namespace Jarldom
         }
         public static string NeedsText(string work) => string.Join(", ", Needs(work).OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Value} {Item(kv.Key)}"));
         private static string Item(string prefab) => prefab == "RoundLog" ? "core wood" : prefab == "FineWood" ? "fine wood" : prefab == "ElderBark" ? "ancient bark" : prefab == "SurtlingCore" ? "surtling core"
-            : prefab == "LeatherScraps" ? "leather scraps" : prefab == "DeerHide" ? "deer hides" : prefab == "Raspberry" ? "raspberries" : prefab.ToLower();
+            : prefab == "LeatherScraps" ? "leather scraps" : prefab == "WolfPelt" ? "wolf pelts" : prefab == "DeerHide" ? "deer hides" : prefab == "Raspberry" ? "raspberries" : prefab.ToLower();
         public static string Name(string work) => work == Lighthouse ? "the Lighthouse" : work == PeakTemple ? "the Peak Temple" : work;
         public static string Title(string work) => work == Lighthouse ? "The Lighthouse" : work == PeakTemple ? "The Peak Temple" : work; // (to start a sentence)
         public static string Proper(string work, string colony) => (work == Lighthouse ? "Lighthouse" : work == PeakTemple ? "Peak Temple" : work) + " of " + colony; // (its name on the map)

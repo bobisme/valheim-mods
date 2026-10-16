@@ -1,3 +1,5 @@
+0.1.173: The Peak Temple's plan has wolf-pelt rugs from the door to the altar (8 wolf pelts), and once it stands the hall tab says its grade rises with what's hung in it.
+
 0.1.172: The Peak Temple is the A-frame again (Bob preferred it): the 67° roof from the plinth to the ridge, plank gables, the door between stone jambs.
 
 0.1.171: The Peak Temple is now a log hof like the mountains' own cabins: 2 m core wood walls with the gable logs running past the corners, the 67° roof on top up to a 10 m ridge, log gables with planks only in the slopes' corners, and the door set in the log front.

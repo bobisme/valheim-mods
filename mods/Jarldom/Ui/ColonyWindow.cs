@@ -471,6 +471,7 @@ namespace Jarldom.Ui
                     continue;
                 }
                 y = Text(list, $"{GreatWorks.Title(work)}{to}, raised on day {_c.R.Flag(GreatWorks.DayKey(work))}. {GreatWorks.Gift(work)}", y, 16, GameUi.Good);
+                if (work == GreatWorks.PeakTemple) y = Text(list, "Its grade rises with what's hung and set in it: trophies, ravens, candles, braziers, carvings and banners (Rooms tab).", y, 15, GameUi.Dim);
             }
             return y;
         }
