@@ -31,7 +31,8 @@ namespace WrongUniverse
             internal bool OneHanded;    // held in the right hand alone, the left arm out to the side (Free)
             internal Vector3 Free;      // the empty left hand from the left shoulder joint: (out to the left, forward, up)
             internal float Drop;        // degrees the muzzle drops sprinting
-            internal float MaxDown=45f,MaxUp=55f;   // how far it tilts to follow the aim (degrees): further down, a shouldered rifle's arms go through the body
+            internal float MaxDown=45f,MaxUp=55f;
+            internal float ElbowOut=0.6f;   // the right elbow's pole: this much out to the right, and down (from the aim); small = tucked in   // how far it tilts to follow the aim (degrees): further down, a shouldered rifle's arms go through the body
             internal float Kick,Climb;  // a shot pushes it back this far (m) and the muzzle climbs this much (degrees)
         }
         // The pistol, Han Solo style: in the right hand alone, elbow bent at chest height walking, the arm straight out at eye level
@@ -40,10 +41,11 @@ namespace WrongUniverse
             Walk=new Vector3(0.02f,0.50f,-0.17f),Aim=new Vector3(0f,0.70f,-0.06f),Sprint=new Vector3(0.02f,0.32f,-0.30f),
             OneHanded=true,Free=new Vector3(0.14f,0.06f,-0.48f),Drop=55f,Kick=0.03f,Climb=12f};
         // The rifle is always shouldered and sighted down the barrel (a little lower walking than aiming); only a sprint lowers it.
-        // (the rifle's numbers tuned in the game with wu pose: the shoulder joint sits well back in the body, so the stock only reaches
-        // the front of the shoulder with the grip ~0.58 ahead of it; the left hand on the power cell, as far forward as the arm reaches)
+        // (the rifle's numbers tuned in the game with wu pose: the shoulder joint sits well back in the body; with the grip 0.48 ahead
+        // of it the butt is just inside the shoulder (closer and it pokes out of the back) and the arm bends, the elbow tucked down at
+        // the right side (further, the arm is straight and the elbow can't tuck); the left hand on the power cell)
         internal static readonly Stance RifleStance=new Stance{Grip=new Vector3(0,-0.06f,0),Support=new Vector3(0,-0.04f,0.13f),Euler=new Vector3(0,0,90),
-            Walk=new Vector3(-0.15f,0.56f,-0.08f),Aim=new Vector3(-0.15f,0.58f,-0.05f),Sprint=new Vector3(-0.12f,0.26f,-0.30f),Pivot=new Vector3(0f,-0.01f,-0.44f),MaxDown=25f,MaxUp=30f,
+            Walk=new Vector3(-0.10f,0.48f,-0.08f),Aim=new Vector3(-0.10f,0.50f,-0.05f),Sprint=new Vector3(-0.12f,0.26f,-0.30f),Pivot=new Vector3(0f,-0.01f,-0.44f),MaxDown=25f,MaxUp=30f,ElbowOut=0.3f,
             Drop=35f,Kick=0.045f,Climb=4f};
         internal static Stance Of(ItemDef d)=>d==Lasers.Pistol?PistolStance:d==Lasers.Rifle?RifleStance:null;
 
@@ -188,14 +190,14 @@ namespace WrongUniverse
                 if(main!=null)cam.cullingMask=main.cullingMask;
                 const int S=480;
                 var rt=new RenderTexture(S,S,24);
-                var sheet=new Texture2D(S*5,S,TextureFormat.RGB24,false);
+                var sheet=new Texture2D(S*6,S,TextureFormat.RGB24,false);
                 Vector3 f=Vector3.ProjectOnPlane(p.transform.forward,Vector3.up).normalized,rgt=Vector3.Cross(Vector3.up,f);
-                Vector3[] offs={rgt*1.6f,rgt*1.0f+f*1.3f,-rgt*1.6f+f*0.1f,f*1.8f+Vector3.up*0.15f,rgt*0.25f-f*2.6f+Vector3.up*0.9f};   // (the last: about where the game's camera is)
+                Vector3[] offs={rgt*1.6f,rgt*1.0f+f*1.3f,-rgt*1.6f+f*0.1f,f*1.8f+Vector3.up*0.15f,rgt*0.25f-f*2.6f+Vector3.up*0.9f,Vector3.up*2.4f};   // (the fifth: about where the game's camera is; the sixth: straight down)
                 cam.targetTexture=rt;
                 for(int i=0;i<offs.Length;i++)
                 {
                     go.transform.position=c+offs[i];
-                    go.transform.rotation=Quaternion.LookRotation(c-go.transform.position,Vector3.up);
+                    go.transform.rotation=Quaternion.LookRotation(c-go.transform.position,i==5?f:Vector3.up);
                     cam.Render();
                     RenderTexture.active=rt;
                     sheet.ReadPixels(new Rect(0,0,S,S),i*S,0);
@@ -355,7 +357,7 @@ namespace WrongUniverse
                 }
             }
             // the right hand on the grip, turned the way the pistol's grip was tuned; the gun where the hand ended up (if it couldn't reach)
-            Arms.Place(ve.m_rightHand,grip,rot*Quaternion.Inverse(Quaternion.Euler(s.Euler)),side*0.6f-up);   // (elbows out and down from the aim, not the world: aiming low they'd fold into the chest)
+            Arms.Place(ve.m_rightHand,grip,rot*Quaternion.Inverse(Quaternion.Euler(s.Euler)),side*s.ElbowOut-up);   // (elbows out and down from the aim, not the world: aiming low they'd fold into the chest)
             Vector3 at=ve.m_rightHand.position-rot*s.Grip;
             if(twoHands)Arms.Reach(ve.m_leftHand,at+rot*s.Support,-side*0.6f-up);
             else if(!c.Shield)   // the free arm out to the side, elbow back and down (a shield's arm is the animation's: it blocks)
@@ -430,7 +432,7 @@ namespace WrongUniverse
                         {
                             case "grip":s.Grip=V3();break;case "support":s.Support=V3();break;case "euler":s.Euler=V3();break;
                             case "walk":s.Walk=V3();break;case "aim":s.Aim=V3();break;case "sprint":s.Sprint=V3();break;case "free":s.Free=V3();break;
-                            case "drop":s.Drop=F(4);break;case "maxdown":s.MaxDown=F(4);break;case "maxup":s.MaxUp=F(4);break;case "kick":s.Kick=F(4);break;case "climb":s.Climb=F(4);break;
+                            case "drop":s.Drop=F(4);break;case "maxdown":s.MaxDown=F(4);break;case "elbow":s.ElbowOut=F(4);break;case "maxup":s.MaxUp=F(4);break;case "kick":s.Kick=F(4);break;case "climb":s.Climb=F(4);break;
                             default:error("wu pose "+sub+" <grip|support|euler|walk|aim|sprint|free> x y z | <drop|kick|climb> v");return null;
                         }
                     }

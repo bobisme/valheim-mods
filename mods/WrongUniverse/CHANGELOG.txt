@@ -1,3 +1,5 @@
+0.2.8: The laser rifle sits closer, butt in the shoulder, so the right arm bends with the elbow tucked down at the right side (it was held at arm's length, the arm out straight and the elbow flared).
+
 0.2.7: Laser shots always start at the barrel (on some frames they left from where the game's animation held the gun, a metre off). The rifle's arms no longer go through the body when you look down: it tilts at most 25 degrees down and 30 up, and the elbows point out from the aim.
 
 0.2.6: The laser pistol's stance is square to the front (it used the crossbow's side-on body, right shoulder back), with the free arm hanging loose at the side instead of stuck out palm up. The laser rifle turns about its butt in the shoulder when you aim up or down, so it stays shouldered (it swung down to the hip or up over the head), and neither gun tilts past 55 degrees.
