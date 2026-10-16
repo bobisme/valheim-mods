@@ -697,6 +697,7 @@ namespace Jarldom.Ui
                 y = Heading(list, "Trade runs", y);
                 foreach (string line in Trade.Plan(_c)) y = Text(list, line, y, 15, GameUi.Dim);
             }
+            y = Ships(list, y);
             foreach (var g in orders.Where(o => o.State != OrderState.Done && o.State != OrderState.Cancelled).GroupBy(o => o.Kind).OrderByDescending(g => g.Count()))
             {
                 y = Heading(list, $"{KindName(g.Key)} ({g.Count()})", y);
@@ -710,6 +711,31 @@ namespace Jarldom.Ui
                 }
             }
             return y + 10;
+        }
+
+        // Ships: what the shipwright builds at the boatyard, one at a time (World/Shipyard.cs).
+        private static float Ships(RectTransform list, float y)
+        {
+            bool yard = Shipyard.Yards(_c).Count > 0, wright = _c.R.Living.Any(r => r.Prof == Prof.Shipwright);
+            if (!yard && !wright && _c.R.Rank < Rank.Village) return y;
+            y = Heading(list, "Ships", y);
+            var building = Shipyard.Building(_c);
+            if (building.HasValue)
+            {
+                Shipyard.Kind k = Shipyard.Of(building.Value.prefab);
+                Brain w = Villagers.All.FirstOrDefault(b => b.S.Colony == _c.Id && b.S.Prof == Prof.Shipwright && (b.Task?.Doing ?? "").Contains("boatyard"));
+                y = Text(list, $"A {k?.Name ?? "ship"} is planned at the boatyard{(w != null ? $": {w.S.Name} is at work on it" : wright ? ": the shipwright builds it from the stores" : ": no one is a shipwright (People tab)")} ({Shipyard.Cost(k)}).", y, 15);
+                float cx = 8; Btn(list, "Cancel the ship", ref cx, y, () => { object bo = Compat.Find("com.quad.buildorders", "com.dhack.buildorders"); bo?.GetType().GetMethod("TryRemoveGhostPlan")?.Invoke(bo, new object[] { Player.m_localPlayer, Shipyard.Plan(_c, k), 0, null }); Build(); });
+                return y + 52;
+            }
+            y = Text(list, "A shipwright builds the colony's ships at a boatyard (mark one out over the shore, with a workbench by it), from the stores. Trade runs go by karve or longship once one lies at the shore.", y, 15, GameUi.Dim);
+            float x = 8;
+            foreach (Shipyard.Kind k in Shipyard.Kinds)
+            {
+                string why = Shipyard.WhyNot(_c, k);
+                Tip(Btn(list, $"Order a {k.Name}", ref x, y, () => { if (Shipyard.Order(_c, k)) Build(); }, why == ""), $"A {k.Name}", (why == "" ? "" : $"Not yet: {why}.\n") + $"Costs {Shipyard.Cost(k)}, from the stores.");
+            }
+            return y + 52;
         }
 
         // Things to be made for the stores: smiths at the forge and workbench, cooks at the cauldron.

@@ -67,7 +67,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "arrivals", "actas", "expedition", "bags", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "move", "payfix", "arena", "greatwork", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing", "corner", "dim", "lost", "valkyrie", "shipburial" };
+            string[] cheats = { "ship", "arrivals", "actas", "expedition", "bags", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "move", "payfix", "arena", "greatwork", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing", "corner", "dim", "lost", "valkyrie", "shipburial" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or for a server admin with devcommands on"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -1155,7 +1155,10 @@ namespace Jarldom
                         GameObject prefab = Assets.Find(a[4]);
                         if (ch == null || prefab == null) { error("no chest or prefab"); return; }
                         ContainerAccess.TakeOver(ch);
+                        bool take = a.Length > 6 && a[5] == "take"; if (take) a = a.Where((x, i) => i != 5).ToArray();
                         int n = a.Length > 5 ? int.Parse(a[5]) : 1, put = 0;
+                        if (take) n = -n;
+                        if (n < 0) { string nm = prefab.GetComponent<ItemDrop>().m_itemData.m_shared.m_name; foreach (var it in ch.GetInventory().GetAllItems().Where(i => i.m_shared.m_name == nm || Prefab(i) == a[4]).ToList()) { if (put <= n) break; int k = Math.Min(it.m_stack, put - n); ch.GetInventory().RemoveItem(it, k); put -= k; } n = put; } // (test: "fill x z prefab take n" takes that many out)
                         while (put < n) { int stack = Math.Min(n - put, prefab.GetComponent<ItemDrop>().m_itemData.m_shared.m_maxStackSize); if (!ch.GetInventory().AddItem(prefab, stack)) break; put += stack; }
                         output(new JObject { ["chest"] = V(ch.transform.position), ["put"] = put, ["holds"] = new JArray(ch.GetInventory().GetAllItems().Select(i => $"{Prefab(i)} x{i.m_stack}")) });
                     }
@@ -1671,6 +1674,15 @@ namespace Jarldom
                         break;
                     }
                 case "fires": output(new JObject { ["fires"] = new JArray(c.PiecesIn(c.Radius).Select(pc => pc.GetComponent<Fireplace>()).Where(f => f != null).Select(f => $"{Utils.GetPrefabName(f.gameObject)} at {f.transform.position.x:0},{f.transform.position.z:0}: warms {Classes.Warms(f)}, lit {Classes.Lit(f)}, areas {string.Join("/", f.GetComponentsInChildren<EffectArea>(true).Select(e => e.m_type + (e.gameObject.activeInHierarchy ? "" : "(off)")))}, fuel {f.GetComponent<ZNetView>().GetZDO().GetFloat(ZDOVars.s_fuel):0.0}/{f.m_maxFuel} {f.m_fuelItem?.name}, by {f.GetComponent<Piece>()?.GetCreator()}, fed {c.Feeds(f.GetComponent<Piece>())}")), ["founder"] = c.R.Founder, ["me"] = Player.m_localPlayer?.GetPlayerID() ?? 0, ["players"] = new JArray(Player.GetAllPlayers().Select(x => x.GetPlayerName() + " " + x.GetPlayerID())), ["allowed"] = new JArray(c.R.Allowed) }); break;
+                case "ship": // (test: "ship" the boatyard's state; "ship <raft|karve|longship>" orders one, as the Work tab's button does)
+                    {
+                        var bk = Shipyard.Building(c);
+                        if (a.Length > 2) { Shipyard.Kind k = Shipyard.Kinds.FirstOrDefault(x => x.Name == a[2]); if (k == null) { error("raft, karve or longship"); return; } output(new JObject { ["why"] = Shipyard.WhyNot(c, k), ["ordered"] = Shipyard.Order(c, k) }); break; }
+                        output(new JObject { ["yards"] = Shipyard.Yards(c).Count, ["building"] = bk.HasValue ? $"{bk.Value.prefab} at {bk.Value.at.x:0.0},{bk.Value.at.y:0.0},{bk.Value.at.z:0.0}" : null,
+                            ["why"] = new JArray(Shipyard.Kinds.Select(k => $"{k.Name}: {(Shipyard.WhyNot(c, k) is string w && w != "" ? w : "ok")} ({Shipyard.Cost(k)})")),
+                            ["launch"] = new JArray(Shipyard.Kinds.Select(k => Shipyard.Yards(c).Count > 0 && Shipyard.Launch(c, Shipyard.Yards(c)[0], k, out Vector3 la, out Quaternion lr) ? $"{k.Name} {la.x:0.0},{la.z:0.0} yaw {lr.eulerAngles.y:0}" : $"{k.Name}: none")) });
+                    }
+                    break;
                 case "upkeep": output(new JObject { ["ruins"] = new JArray(Upkeep.Ruins(c).Select(r => $"{r.Prefab} at {r.At.x:0.0},{r.At.y:0.0},{r.At.z:0.0}")), ["hurt"] = new JArray(Upkeep.Hurt(c).Select(w => $"{Utils.GetPrefabName(w.gameObject)} at {w.transform.position.x:0},{w.transform.position.z:0}")), ["wornPaths"] = Upkeep.Worn(c), ["busiest"] = Upkeep.Busiest(c) }); break;
                 case "wreck":
                     {

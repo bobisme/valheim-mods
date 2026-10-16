@@ -391,12 +391,17 @@ namespace Jarldom
         private readonly Vector3? _site; private readonly float _reach; private readonly Container _camp;
         public BuildTask() { }
         public BuildTask(Vector3 site, float reach, Container camp) { _site = site; _reach = reach; _camp = camp; }
+        // (a shipwright: only the ships at the boatyard, worked a long while, reached from the shore; builders leave ships alone)
+        private readonly bool _ships; private Shipyard.Kind _kind;
+        public static BuildTask Ships() => new BuildTask(true);
+        private BuildTask(bool ships) { _ships = ships; }
         public string Short; // (far: what the camp chest lacked, for the jarl)
         public override void Start(Brain b)
         {
             Vector3 centre = _site ?? b.Colony.Position; float radius = _site.HasValue ? _reach : b.Colony.Radius;
             // The first plan no other builder is on (each fetches the whole cost: two on one plan would waste a trip).
-            string[] next = Compat.NextGhosts(centre, radius, 8).Where(g => !Taken.Contains(g.Split('|')[0])).Take(1).ToArray();
+            if (_ships) radius += 40f; // (a ship lies out on the water, maybe past the colony's edge)
+            string[] next = Compat.NextGhosts(centre, radius, _ships ? 600 : 40).Where(g => !Taken.Contains(g.Split('|')[0]) && Shipyard.IsShip(g.Split('|')[1]) == _ships).Take(1).ToArray();
             if (next.Length == 0) { Done = true; b.NoBuildUntil = Time.time + 30; string[] why = Compat.GhostBlockers(centre, radius); if (why.Length > 0) b.Say(new[] { "I can't build the plans: ", "No plans can go up: ", "The plans won't go up: ", "I can't raise these plans: ", "Stuck on the plans: " }[UnityEngine.Random.Range(0, 5)] + why[0].Replace("|", " ").Trim(), 6); return; }
             string[] f = next[0].Split('|');
             _id = f[0]; _prefab = f[1]; Taken.Add(_id);
@@ -405,6 +410,7 @@ namespace Jarldom
             if (_piece == null) { Done = true; b.NoBuildUntil = Time.time + 30; return; }
             _needs = _piece.m_resources.Where(r => r.m_resItem != null && !r.m_upgraderResource && r.m_amount > 0).Select(r => (r.m_resItem.name, r.m_amount)).ToList();
             Doing = "building " + Localization.instance.Localize(_piece.m_name).ToLower();
+            if (_ships) { _kind = Shipyard.Of(_prefab); Doing = $"building a {_kind?.Name ?? "ship"} at the boatyard"; }
         }
         // (far: what the rest of the crew carries; walked to, and handed over within reach)
         private static IEnumerable<Brain> Crew(Brain b) => Expedition.CrewOf(Follow.LeaderId(b)).Where(m => m != b && Utils.DistanceXZ(m.Pos, b.Pos) < 40f);
@@ -442,6 +448,7 @@ namespace Jarldom
                     {
                         Done = true; b.NoBuildUntil = Time.time + 60; string lacking = Localization.instance.Localize(Assets.Find(item)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name ?? item).ToLower();
                         if (_site.HasValue) { Short = $"{amount - Have(b, item)} {lacking}"; b.Say(new[] { $"The camp chest is short of {lacking} for this, jarl: bring some.", $"I need {Short} in the camp chest to go on.", $"Out of {lacking} up here. Fetch some, jarl?" }[UnityEngine.Random.Range(0, 3)], 7); return; }
+                        if (_ships) { string ship = Shipyard.Of(_prefab)?.Name ?? "ship"; b.Say(new[] { $"The stores have too little {lacking} for the {ship}.", $"I can't go on with the {ship}: we're short of {lacking}.", $"No {lacking} in the stores for the {ship}." }[UnityEngine.Random.Range(0, 3)], 6); b.ShipShort = lacking; return; }
                         b.Say(new[] { $"The stores have too little {lacking} to build the plans.", $"The stores are short of {lacking} for these plans.", $"No {lacking} in the stores for the plans.", $"The plans need more {lacking} than the stores hold.", $"We're short of {lacking} for the plans." }[UnityEngine.Random.Range(0, 5)], 6); return; }
                 var (want, count) = missing[0];
                 Container from = chests.Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want));
@@ -456,7 +463,9 @@ namespace Jarldom
             }
             // (near enough across the ground, and within reach in height: a roof or upper wall is built from below)
             // (straight under it, a ridge's end can be reached 10 m up, as a player's hammer reaches it)
-            if (Utils.DistanceXZ(b.Pos, _at) > 3.5f || _at.y - b.Pos.y > (Utils.DistanceXZ(b.Pos, _at) < 3f ? 10f : 6f) || b.Pos.y - _at.y > 3f) { if (!b.Move.Moving) b.Move.To(_at, 2.5f); if (b.Move.Failed) { Done = true; b.NoBuildUntil = Time.time + 20; } return; }
+            float near = _ships ? 9f : 3.5f; // (a ship's hull is worked from the shore beside it)
+            if (_ships && b.Move.Failed && Utils.DistanceXZ(b.Pos, _at) < 16f) near = 16f;
+            if (Utils.DistanceXZ(b.Pos, _at) > near || _at.y - b.Pos.y > (Utils.DistanceXZ(b.Pos, _at) < 3f ? 10f : 6f) || b.Pos.y - _at.y > 3f) { if (!b.Move.Moving) b.Move.To(_at, 2.5f); if (b.Move.Failed) { Done = true; b.NoBuildUntil = Time.time + 20; } return; }
             b.Move.Stop();
             Vector3 d = _at - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized);
             if (Time.time < _next) return;
@@ -465,9 +474,14 @@ namespace Jarldom
             if (hammer == null) { Done = true; b.NoBuildUntil = Time.time + 30; return; }
             if (!b.Body.IsItemEquiped(hammer)) b.Body.EquipItem(hammer, false);
             Body_.Anim(b.Body)?.SetTrigger("swing_hammer");
-            if (++_phase < 3) return; // a couple of blows, then it stands
+            if (++_phase < (_kind?.Blows ?? 3)) // a couple of blows, then it stands (a ship: many, over a good while)
+            {
+                if (_kind != null && _phase % 10 == 0) b.Say(new[] { "Another strake on.", "Ribs first, then planks.", "Tar, and more tar.", "She's taking shape.", "Mind the keel, it's the backbone of her." }[UnityEngine.Random.Range(0, 5)], 4);
+                return;
+            }
             if (_needs.Any(n => Have(b, n.item) < n.amount)) { Done = true; b.NoBuildUntil = Time.time + 20; return; }
             if (!Compat.PlaceGhost(_id)) { Done = true; b.NoBuildUntil = Time.time + 10; return; }
+            if (_kind != null) Plugin.Guard(() => Shipyard.Launched(b, _kind, _at));
             Inventory bag = b.Body.GetInventory();
             foreach (var (item, amount) in _needs)
                 for (int left = amount; left > 0;)

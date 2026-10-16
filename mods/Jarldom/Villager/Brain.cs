@@ -52,6 +52,7 @@ namespace Jarldom
             return true;
         }
         public void Dirty() => _dirty = true;
+        public string ShipShort; // (a shipwright: what the stores lacked for the ship, last time)
         public void Save()
         {
             if (!View.IsValid() || !View.IsOwner()) return;

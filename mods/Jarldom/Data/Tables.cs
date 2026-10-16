@@ -7,13 +7,13 @@ namespace Jarldom
     // Everything the colony's rules are made of, as plain tables: professions, rooms, traits, moodlets, ranks, wages, gods.
     // No Unity here (tests/Jarldom.Tests compiles it); the numbers are starting values to tune, not contracts.
 
-    public enum Prof { Hauler, Woodcutter, Forager, Farmer, Guard, Miner, Hunter, Fisherman, Smelter, Cook, Builder, Smith, Scout, Trader, Gothi, Skald, Healer, Herder, Carter, Weaver }
+    public enum Prof { Hauler, Woodcutter, Forager, Farmer, Guard, Miner, Hunter, Fisherman, Smelter, Cook, Builder, Smith, Scout, Trader, Gothi, Skald, Healer, Herder, Carter, Weaver, Shipwright }
 
     public enum Need { Food, Rest, Shelter, Social, Safety, Faith, Beauty }
 
     public enum RoomType { Longhouse, GreatHall, Stockpile, Smithy, OdinShrine, Temple, HealersHouse, TreasureRoom, BurialGround, Watchtower, Brewhouse }
 
-    public enum ZoneType { Woodlot, Mine, Fields, Foraging, Hunting, FishingDock, GuardPost, SacredBog, Pasture }
+    public enum ZoneType { Woodlot, Mine, Fields, Foraging, Hunting, FishingDock, GuardPost, SacredBog, Pasture, Boatyard }
 
     public enum Rank { Camp, Homestead, Hamlet, Village, Jarldom, Hold }
 
@@ -75,6 +75,7 @@ namespace Jarldom
             P(Prof.Herder, "Herder", 5, "feeds the tame beasts in the pasture and culls the surplus", "a weapon to cull with", 3, tool: ""),
             P(Prof.Carter, "Carter", 10, "carries an outpost's ore and metal to the main colony by cart", "an outpost and a cart", 4, tool: ""),
             P(Prof.Weaver, "Weaver", 3, "spins flax into linen and weaves and dyes clothes and caps at the workbench, so no one goes in rags", "a workbench, and flax or linen thread", 4, tool: ""),
+            P(Prof.Shipwright, "Shipwright", 8, "builds the ships the jarl orders at the boatyard (Work tab), from the stores", "a hammer and a boatyard at the shore", 6, tool: "hammer"),
         };
 
         private static ProfessionInfo P(Prof id, string name, int milestone, string does, string needs, int wage, string tool, bool combat = false) =>
@@ -212,6 +213,7 @@ namespace Jarldom
             new ZoneInfo { Id = ZoneType.GuardPost, Name = "Guard post", Worker = Prof.Guard, Text = "an old guard post (raise watch posts instead: guards walk them in turn)" },
             new ZoneInfo { Id = ZoneType.SacredBog, Name = "Sacred bog", Worker = null, Text = "where coins go to the gods" },
             new ZoneInfo { Id = ZoneType.Pasture, Name = "Pasture", Worker = Prof.Herder, Text = "tame beasts to keep" },
+            new ZoneInfo { Id = ZoneType.Boatyard, Name = "Boatyard", Worker = Prof.Shipwright, Text = "a shore to build ships at: mark it out over the water's edge" },
         };
         public static ZoneInfo Of(ZoneType z) => Zones[(int)z];
 

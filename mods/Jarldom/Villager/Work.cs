@@ -500,6 +500,7 @@ namespace Jarldom
                     case ZoneType.FishingDock: return c.R.Zones.Any(z => z.Type == ZoneType.FishingDock && Zones.HasWater(z)) ? "nothing to fish at the dock" : "no fishing dock reaches the water (mark one out over it)";
                     case ZoneType.GuardPost: return "between watches";
                     case ZoneType.Pasture: return "the pasture's beasts are seen to";
+                    case ZoneType.Boatyard: return Gear.Tool(b, "hammer") == null ? "needs a hammer to build ships" : Shipyard.Building(c) != null ? $"the stores lack {b.ShipShort ?? "something"} for the ship" : "no ship ordered: order one in the Work tab";
                 }
             }
             switch (p)
@@ -543,6 +544,7 @@ namespace Jarldom
             if (prof == Prof.Smith && c.IsOwner) { Task mend = MendTask.Next(b); if (mend != null) return mend; } // (everyone's worn gear, before new work)
             if (prof == Prof.Builder && c.IsOwner && Compat.GhostCount(c.Position, c.Radius) > 0 && Gear.Tool(b, "hammer") != null && Time.time > b.NoBuildUntil) return new BuildTask();
             if (prof == Prof.Builder) { Task up = Upkeep.Next(b); if (up != null) return up; } // (nothing planned: mend, rebuild, pave)
+            if (prof == Prof.Shipwright && c.IsOwner && Gear.Tool(b, "hammer") != null && Time.time > b.NoBuildUntil && Shipyard.Building(c) != null) return BuildTask.Ships();
             if (prof == Prof.Miner) { Task trip = Claims.Next(b); if (trip != null) return trip; } // (ore claims out in the wilds first)
             if (prof == Prof.Herder || prof == Prof.Hunter) { Task catching = Catching.Next(b); if (catching != null) return catching; } // (an empty pasture: a wild boar for it)
             if (prof == Prof.Hunter && NothingFor(c, Prof.Hunter) && RangeTask.Wanted(b)) return new RangeTask();
