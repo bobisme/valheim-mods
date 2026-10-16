@@ -21,7 +21,7 @@ namespace Villagewright
     {
         public const string Guid = "cx.bob.villagewright";
         public const string Name = "Villagewright";
-        public const string Version = "0.1.0";
+        public const string Version = "0.1.1";
         internal static Plugin Instance;
         private Harmony _harmony;
         internal ConfigEntry<bool> Enabled;
