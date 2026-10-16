@@ -169,6 +169,7 @@ namespace Jarldom
                     bool star = __instance.GetLevel() > 1, boss = __instance.IsBoss();
                     Worth.Gain(b.S, boss ? "bosskill" : star ? "starkill" : "kill", Faith.OdinWorthBonus(b.Colony));
                     b.S.Bump("kills");
+                    if (Work.IsGame(__instance) && b.Colony != null) WornLand.Use(b.Colony, __instance.transform.position, "hunt"); // (game taken from the land there)
                     if (b.Colony != null && b.Colony.RaidOn && Raider(__instance)) b.S.Counts["raidkill"] = Clock.Day(b.Now); // (fought in a raid: a disgraced soul's way back)
                     string what = Localization.instance.Localize(__instance.m_name);
                     if (star || boss)

@@ -163,6 +163,12 @@ namespace Jarldom.Ui
             if (Calendar.Next(Year.Today()) is var mf && mf.Item2 <= 6 && Festivals.Needs(mf.Item1, c.Population).FirstOrDefault(n => n.kind == "mead") is var mw && mw.amount > 0
                 && Stock.Chests(c).Where(x => x.category != "treasury").Sum(x => x.chest.GetInventory().GetAllItems().Where(Classes.IsMead).Sum(i => i.m_stack)) < mw.amount && Crafts.MeadWhy(c) is string mead)
                 list.Add($"{Calendar.Name(mf.Item1)} wants {mw.amount} mead in {mf.Item2} {(mf.Item2 == 1 ? "day" : "days")}, and the colony can't brew its own: {mead}.");
+            // (a woodlot, hunting or foraging ground worked hard: it gives less till it rests)
+            if (WornLand.Worst(c) is var wl && wl != null)
+            {
+                Vector3 wc = Zones.Centre(wl.Value.zone); float far = Utils.DistanceXZ(wc, c.Position);
+                list.Add($"The {Tables.Of(wl.Value.zone.Type).Name.ToLower()} {(far < 6 ? "by the pillars" : $"{Mathf.RoundToInt(far)} m {ScoutTask.Compass(wc - c.Position)}")} is worked thin: it gives {Mathf.RoundToInt((1 - wl.Value.yield) * 100)}% less until it rests ({wl.Value.days} days with no work there), or mark another further out.");
+            }
             int homeless = people.Count(p => string.IsNullOrEmpty(p.Bed));
             if (homeless > 0) list.Add($"{homeless} {(homeless == 1 ? "has" : "have")} no bed and sleep by the hall fire: build beds in a marked longhouse (or by the pillars).");
             int meals = Stock.Food(c, c.Position).Sum(f => f.item.m_stack);

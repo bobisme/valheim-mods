@@ -262,6 +262,7 @@ namespace Jarldom
         // Everything networked near a point (trees, rocks, plants, beasts), each once.
         // Game for a hunter: the game's own animals (deer), and boars, necks and hares, which it counts with the forest's monsters.
         private static readonly HashSet<string> Game = new HashSet<string> { "Boar", "Neck", "Hare", "Deer" };
+        public static bool IsGame(Character c) => c != null && (c.GetFaction() == Character.Faction.AnimalsVeg || Game.Contains(Utils.GetPrefabName(c.gameObject))) && !c.IsTamed() && !c.IsBoss();
         public static bool Prey(Character c) => c != null && !c.IsDead() && !Combat.LetBe(c) && !c.IsTamed() && !c.IsBoss() && !VillagerPrefab.Is(c) && !c.IsPlayer()
             && (c.GetFaction() == Character.Faction.AnimalsVeg || Game.Contains(Utils.GetPrefabName(c.gameObject)));
         // What stands in a zone: not the buildings (wild pickables lie on the item layer: kept) (a zone by a big base found its 2048 places all taken by walls and floors, and
@@ -885,10 +886,13 @@ namespace Jarldom
         }
 
         // Chopping and mining: the swing's animation, and the tool's own damage on the target, as a player's blow does.
+        private Vector3? _treeAt;
         private void Strike(Brain b)
         {
+            if (_target != null && Kind == "chop" && _treeAt == null && _target.GetComponent<TreeBase>() != null) _treeAt = _target.transform.position;
             if (_target == null)
             {
+                if (_treeAt != null) { WornLand.Use(b.Colony, _treeAt.Value, "chop"); _fell = _treeAt; _treeAt = null; } // (a tree down: the land there used)
                 // A felled tree becomes logs: chop on at the nearest log, then gather the wood.
                 if (Kind == "chop" && _phase == 0) { TreeLog log = NearLog(b.Pos); if (log != null) { _target = log.gameObject; return; } }
                 if (Collect(b)) return;
@@ -938,7 +942,12 @@ namespace Jarldom
             if (_phase < 2) { _phase = 2; _waitUntil = Time.time + 1.5f; return true; } // drops fall a moment after
             // (game falls where it was shot, 12 m off and more: gathered there)
             // (a wild hive spills a dozen pots and the queen: all of it, the queen first)
-            if (_phase == 2) { _collect.Clear(); _collect.AddRange(((Kind == "hunt" || Kind == "hive") && _fell != null ? Work.Drops(_fell.Value, 6f) : Work.Drops(b.Pos, 7f)).OrderByDescending(d => Kind == "hive" && Classes.Prefab(d.m_itemData) == "QueenBee").Take(Kind == "hive" ? 20 : 8)); _phase = 3; _collectUntil = Time.time + 60f; }
+            if (_phase == 2)
+            {
+                _collect.Clear(); _collect.AddRange(((Kind == "hunt" || Kind == "hive") && _fell != null ? Work.Drops(_fell.Value, 6f) : Work.Drops(b.Pos, 7f)).OrderByDescending(d => Kind == "hive" && Classes.Prefab(d.m_itemData) == "QueenBee").Take(Kind == "hive" ? 20 : 8));
+                if (Kind == "chop" || Kind == "hunt" || Kind == "pick") WornLand.Thin(b.Colony, _collect, _fell ?? b.Pos); // (worn land gives less)
+                _phase = 3; _collectUntil = Time.time + 60f;
+            }
             _collect.RemoveAll(d => d == null);
             if (_collect.Count == 0 || Time.time > _collectUntil) return false; // (a minute to gather up; what's left lies for the haulers)
             ItemDrop next = _collect.OrderByDescending(d => Classes.Prefab(d.m_itemData) == "QueenBee").ThenBy(d => Vector3.Distance(d.transform.position, b.Pos)).First();
@@ -976,6 +985,7 @@ namespace Jarldom
                 _crop = Utils.GetPrefabName(_target); _cropAt = _target.transform.position;
                 if (!WorkEmotes.Harvest(b)) Body_.Anim(b.Body)?.SetTrigger("interact"); // (crouched to pull it, with Bob's Animations)
                 p.Interact(b.Body, false, false);
+                if (Kind == "pick") WornLand.Use(b.Colony, _cropAt, "pick"); // (wild things taken: the fields aren't worn, they're sown again)
                 b.Body.RaiseSkill(Skills.SkillType.Farming, 1f);
                 _phase = 1; _waitUntil = Time.time + 0.6f;
                 b.S.Bump(Kind == "harvest" ? "harvests" : "forage");

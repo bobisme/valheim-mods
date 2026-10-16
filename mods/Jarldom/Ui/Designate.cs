@@ -66,6 +66,7 @@ namespace Jarldom
             var sb = new System.Text.StringBuilder(c.Id);
             foreach (Room r in c.R.Rooms) sb.Append('|').Append(r.Id).Append(r.Type).Append(r.Ok).Append(r.Grade).Append(r.OpenEdges).Append(r.Floor).Append(string.Join(",", r.Xz));
             foreach (Zone z in c.R.Zones) sb.Append('|').Append(z.Id).Append(z.Type).Append(string.Join(",", z.Xz));
+            foreach (Zone z in c.R.Zones) sb.Append(Overlay_.WornNote(c, z));
             sb.Append('|').Append((int)Year.Today().Season); foreach (var kv in c.R.Flags) if (kv.Key.StartsWith(CropChoice.Prefix)) sb.Append('|').Append(kv.Key).Append(kv.Value); // (the season's crop on each fields label)
             return sb.ToString();
         }
@@ -158,6 +159,13 @@ namespace Jarldom
     // With the hammer out: the colony's rooms and zones drawn on the ground, gaps in walls marked red.
     internal static class Overlay_
     {
+        // (a woodlot, hunting or foraging ground on worn land: how much less it gives, and the rest it wants)
+        internal static string WornNote(Colony c, Zone z)
+        {
+            if (z.Type != ZoneType.Woodlot && z.Type != ZoneType.Hunting && z.Type != ZoneType.Foraging) return "";
+            Vector3 at = Zones.Centre(z); float y = WornLand.Yield(c, at);
+            return y >= 0.95f ? "" : $"\nworn: {Mathf.RoundToInt((1 - y) * 100)}% less, {WornLand.RestDays(c, at)} days' rest";
+        }
         private static readonly List<GameObject> Drawn = new List<GameObject>();
         private static string _shown = ""; private static float _next;
         private static Material _mat;
@@ -207,7 +215,7 @@ namespace Jarldom
                 l.SetPositions(pts.ToArray());
                 Drawn.Add(l.gameObject);
                 Vector3 centre = Zones.Centre(z); centre.y = ZoneSystem.instance.GetGroundHeight(centre) + 2f;
-                Drawn.Add(Label(centre, Tables.Of(z.Type).Name + (Work.ChosenNow(c, z) is var ch && ch != null ? "\n" + Work.CropName(ch.Value.sapling.name).ToLower() : ""), new Color(0.55f, 0.75f, 1f, 0.9f)));
+                Drawn.Add(Label(centre, Tables.Of(z.Type).Name + (Work.ChosenNow(c, z) is var ch && ch != null ? "\n" + Work.CropName(ch.Value.sapling.name).ToLower() : "") + WornNote(c, z), new Color(0.55f, 0.75f, 1f, 0.9f)));
             }
         }
         private static string Sig(Colony c)
@@ -215,6 +223,7 @@ namespace Jarldom
             var sb = new System.Text.StringBuilder(c.Id);
             foreach (Room r in c.R.Rooms) sb.Append('|').Append(r.Id).Append(r.Type).Append(r.Ok).Append(r.Grade).Append(r.OpenEdges).Append(r.Floor).Append(string.Join(",", r.Xz));
             foreach (Zone z in c.R.Zones) sb.Append('|').Append(z.Id).Append(z.Type).Append(string.Join(",", z.Xz));
+            foreach (Zone z in c.R.Zones) sb.Append(Overlay_.WornNote(c, z));
             sb.Append('|').Append((int)Year.Today().Season); foreach (var kv in c.R.Flags) if (kv.Key.StartsWith(CropChoice.Prefix)) sb.Append('|').Append(kv.Key).Append(kv.Value); // (the season's crop on each fields label)
             return sb.ToString();
         }

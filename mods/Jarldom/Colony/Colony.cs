@@ -266,7 +266,7 @@ namespace Jarldom
         {
             if (!IsOwner) { Reload(); LoadSaga(); return; }
             if (!_sagaRead) LoadSaga(); // (an owner reads the saga in as soon as it can)
-            if (Time.time >= _nextSave) { _nextSave = Time.time + 15; Flush(); } // (the record goes to every game when written: a few times a minute at most; players' actions write at once)
+            if (Time.time >= _nextSave) { _nextSave = Time.time + 15; Flush(); WornLand.Flush(this, false); } // (the record goes to every game when written: a few times a minute at most; players' actions write at once)
             if (Time.time >= _nextBoardShare) { _nextBoardShare = Time.time + 5; ShareBoard(); }
             if (Time.time < _nextTick) return;
             _nextTick = Time.time + 1;
