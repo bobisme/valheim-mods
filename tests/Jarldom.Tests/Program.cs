@@ -100,6 +100,10 @@ Check(Renown.Comfort(new int[0]) == 0 && Renown.Comfort(new[] { 4, 2 }) == 15, "
     Check(Hunting.Yield("meadows", true, 0, () => 0.99).Keys.OrderBy(k => k).SequenceEqual(new[] { "DeerHide", "DeerMeat" }) && Hunting.Yield("ashlands", true, 50, () => 0.0).Count == 0, "Hunting: only the sure things on a bad day; nothing with no list for the ground");
     Check(Hunting.Yield("mountain", false, 0, () => 0.0).ContainsKey("WolfPelt") && Hunting.Keep(5) == 20 && Hunting.Keep(21) == 63, "Hunting: wolves in the mountains; meat kept by heads");
 }
+Check(Math.Abs(Hunting.Plenty(0) - 1) < 1e-9 && Math.Abs(Hunting.Plenty(2) - 1 / 1.7) < 1e-9 && Hunting.Rested(2, 3) == 0 && Hunting.Rested(5, 1.5) == 3.5, "Hunting: plenty falls with pressure, rest takes it off");
+Check(Hunting.AfterTrip(0, true) == 1 && Hunting.AfterTrip(0, false) == 0.5 && Hunting.AfterTrip(7.8, true) == Hunting.MaxPressure, "Hunting: a day's pressure a camp trip, half a bare stake's, capped");
+Check(Hunting.Yield("meadows", true, 0, () => 0.0, 0.5)["DeerMeat"] == 2 && Hunting.Yield("meadows", true, 0, () => 0.0)["DeerMeat"] == 4, "Hunting: a thinned camp gives less");
+Check(Hunting.Word(0) == "plentiful" && Hunting.Word(8) == "hunted out for now", "Hunting: the stake says how thick the game is");
 Check(Trading.Choose(Rank.Village, false, false, false, 40) == TradeWay.Foot, "No cart: on foot");
 Check(Trading.Choose(Rank.Village, true, false, false, 4) == TradeWay.Foot && Trading.Choose(Rank.Village, true, false, false, 10) == TradeWay.Cart, "The cart only when there's more than a pack");
 Check(Trading.Choose(Rank.Village, true, true, true, 50) == TradeWay.Cart, "Ships wait for their rank");

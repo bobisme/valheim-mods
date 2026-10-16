@@ -203,7 +203,20 @@ namespace Jarldom
             }
             return new ClaimTrip(best);
         }
-        // A hunter with nothing to hunt nearer and the stores short of meat: a hunting camp with room for another (the nearest).
+        // How hard a hunting camp's game has been pressed (Core's Hunting.Rested: a point a day of hunting, a point off a day of rest),
+        // kept on the colony's record: "huntp:<claim>" tenths, "huntd:<claim>" the day it was last worked out.
+        public static double Pressure(Colony c, string claim)
+        {
+            if (c == null || !c.R.Flags.TryGetValue("huntp:" + claim, out int p)) return 0;
+            int day = c.R.Flags.TryGetValue("huntd:" + claim, out int d) ? d : c.Day;
+            return Hunting.Rested(p / 10.0, c.Day - day);
+        }
+        private static void Hunted(Colony c, Claim x)
+        {
+            c.R.Flags["huntp:" + x.Id] = (int)Math.Round(Hunting.AfterTrip(Pressure(c, x.Id), x.Camp) * 10);
+            c.R.Flags["huntd:" + x.Id] = c.Day; c.MarkDirty();
+        }
+        // A hunter with nothing to hunt nearer and the stores short of meat: a hunting camp with room for another (the most game for the walk).
         public static Task HuntNext(Brain b)
         {
             Colony c = b.Colony;
@@ -219,7 +232,7 @@ namespace Jarldom
             if (far.Count == 0) { Gear.Problem = $"the hunting camp is too near home: game keeps away from homes (put it {Mathf.RoundToInt(Hunting.NearHome)} m or more past the colony's edge)"; return null; }
             var known = far.Where(x => Hunting.Game.ContainsKey(x.Biome.ToLowerInvariant())).ToList();
             if (known.Count == 0) { Gear.Problem = "no game the hunters know at the hunting camp's ground"; return null; }
-            Claim best = known.Where(x => Out(c, x.Id) < Mining.Room(x)).OrderBy(x => Utils.DistanceXZ(At(x), c.Position)).FirstOrDefault();
+            Claim best = known.Where(x => Out(c, x.Id) < Mining.Room(x)).OrderByDescending(x => Mining.Score(Hunting.Plenty(Pressure(c, x.Id)), Utils.DistanceXZ(At(x), c.Position))).FirstOrDefault();
             return best == null ? null : new ClaimTrip(best);
         }
         // How much the colony wants this ore now (Core's Mining.Need from what the stores hold).
@@ -294,7 +307,10 @@ namespace Jarldom
                 if (spent >= Hunting.Arrows) break;
                 int n = Math.Min(ammo.m_stack, Hunting.Arrows - spent); h.GetInventory().RemoveItem(ammo, n); spent += n;
             }
-            var got = Hunting.Yield(claim.Biome, claim.Camp, s.Skill("Bows"), () => UnityEngine.Random.value);
+            double pressed = Pressure(c, claim.Id);
+            var got = Hunting.Yield(claim.Biome, claim.Camp, s.Skill("Bows"), () => UnityEngine.Random.value, Hunting.Plenty(pressed));
+            Hunted(c, claim);
+            string thin = Hunting.Plenty(pressed) <= 0.85 ? $" (the game there is {Hunting.Word(pressed)})" : "";
             var told = new List<string>();
             foreach (var kv in got)
             {
@@ -307,7 +323,7 @@ namespace Jarldom
             }
             bool hurt = roll < death + wound;
             if (b != null) { b.S.Bump("hunts"); if (got.Count > 0) b.S.Bump("kills"); if (hurt) b.S.InjuredUntil = c.Now + Clock.Hour * 6; b.Body.RaiseSkill(Skills.SkillType.Bows, 2f); b.Dirty(); }
-            c.Log("text", s.Name, "", told.Count == 0 ? $"{s.Name} came back from {where} empty-handed{(hurt ? ", and wounded" : "")}: the game kept away." : $"{s.Name} came back from {where} with {string.Join(", ", told)}{(hurt ? ", wounded" : "")}.");
+            c.Log("text", s.Name, "", told.Count == 0 ? $"{s.Name} came back from {where} empty-handed{(hurt ? ", and wounded" : "")}: the game kept away{thin}." : $"{s.Name} came back from {where} with {string.Join(", ", told)}{(hurt ? ", wounded" : "")}{thin}.");
         }
     }
 
@@ -464,7 +480,7 @@ namespace Jarldom
                     bool known = Hunting.Game.ContainsKey(c.Biome.ToLowerInvariant());
                     t.Append(tooNear ? $"\n<size=80%><color=#ff8c59>Too near home: game keeps away from homes. Put it {Mathf.RoundToInt(Hunting.NearHome)} m or more past the colony's edge.</color></size>"
                         : !known ? "\n<size=80%><color=#ff8c59>No game the hunters know on this ground.</color></size>"
-                        : $"\n<size=80%>Game here: {string.Join(", ", Hunting.Game[c.Biome.ToLowerInvariant()].Where(g => !g.item.StartsWith("Trophy")).Select(g => Claims.Name(g.item)))}. The hunters go when the stores are short of meat.</size>");
+                        : $"\n<size=80%>Game here{(home_ != null ? $" ({Hunting.Word(Claims.Pressure(home_, c.Id))})" : "")}: {string.Join(", ", Hunting.Game[c.Biome.ToLowerInvariant()].Where(g => !g.item.StartsWith("Trophy")).Select(g => Claims.Name(g.item)))}. The hunters go when the stores are short of meat; game hunted hard thins, and comes back in a few days' rest.</size>");
                     t.Append(c.Camp ? $"\n<size=80%>A camp: {c.Beds} bed{(c.Beds == 1 ? "" : "s")}, so {c.Beds} hunter{(c.Beds == 1 ? "" : "s")} at once, a day's hunting a trip.</size>"
                         : $"\n<size=80%>A bare stake: one hunter, half a day. A camp (a bed, a chest and a fire within {Mathf.RoundToInt(Mining.CampNear)} m) hunts a whole day, a hunter a bed.</size>");
                     var (hw, hd) = Mining.Risk(c.Biome, false, c.Camp, false);

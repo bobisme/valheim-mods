@@ -124,7 +124,7 @@ namespace Jarldom
                             break;
                         case ZoneType.Hunting:
                             Character beast = go.GetComponent<Character>();
-                            if (Prey(beast)) kind = "hunt";
+                            if (Prey(beast)) { kind = "hunt"; if (c.R.Flag(GameSeenKey) != c.Day) { c.R.Flags[GameSeenKey] = c.Day; c.MarkDirty(); } } // (for Needs you: grounds with no game)
                             break;
                     }
                     if (kind == null) continue;
@@ -227,6 +227,7 @@ namespace Jarldom
         public static bool CookFree(CookingStation s) { try { return (int)AccessTools.Method(typeof(CookingStation), "GetFreeSlot").Invoke(s, null) >= 0; } catch { return false; } }
         private static readonly System.Reflection.MethodInfo QueueMethod = AccessTools.Method(typeof(Smelter), "GetQueueSize");
         public static int QueueSize(Smelter s) { try { return (int)QueueMethod.Invoke(s, null); } catch { return 99; } }
+        public const string GameSeenKey = "huntgame"; // (the day game was last seen in the hunting grounds)
         public static bool HaveInStock(Colony c, string prefab) => Stock.Count(c, prefab, free: true) > 0;
         private static bool Forage(Pickable p)
         {

@@ -65,18 +65,26 @@ namespace Jarldom
             ["plains"] = new[] { ("LoxMeat", 2, 4, 1f), ("LoxPelt", 1, 2, 0.8f), ("Needle", 1, 4, 0.6f), ("TrophyLox", 1, 1, 0.05f) },
             ["mistlands"] = new[] { ("HareMeat", 2, 4, 1f), ("ScaleHide", 1, 2, 0.6f), ("Feathers", 2, 6, 0.6f) },
         };
+        // Game thins where it's hunted: each day's hunting at a camp (half a day from a bare stake) is a point of pressure, a day's rest
+        // takes one off; what a hunter brings home is the plenty left, 1 / (1 + 0.35 x pressure): a camp hunted two days running
+        // gives about 60%, one left a few days is whole again.
+        public const double RecoverPerDay = 1.0, MaxPressure = 8.0;
+        public static double Plenty(double pressure) => 1.0 / (1.0 + 0.35 * Math.Max(0.0, pressure));
+        public static double Rested(double pressure, double days) => Math.Max(0.0, pressure - Math.Max(0.0, days) * RecoverPerDay);
+        public static double AfterTrip(double pressure, bool camp) => Math.Min(MaxPressure, pressure + (camp ? 1.0 : 0.5));
+        public static string Word(double pressure) { double p = Plenty(pressure); return p > 0.85 ? "plentiful" : p > 0.6 ? "thinning" : p > 0.4 ? "thin" : "hunted out for now"; }
         // Meat the stores should hold before the hunters stop going out: three meals a head, at least twenty.
         public static int Keep(int people) => Math.Max(20, people * 3);
         // One hunter's bag home: each beast's yield rolled, a day at a camp twice a bare stake's half day, a better archer more (bows
         // skill 0..100: up to half again). (roll: 0..1)
-        public static Dictionary<string, int> Yield(string biome, bool camp, float bows, Func<double> roll)
+        public static Dictionary<string, int> Yield(string biome, bool camp, float bows, Func<double> roll, double plenty = 1.0)
         {
             var got = new Dictionary<string, int>();
             if (biome == null || !Game.TryGetValue(biome.ToLowerInvariant(), out var beasts)) return got;
-            double k = (camp ? 2.0 : 1.0) * (1.0 + Math.Max(0f, Math.Min(100f, bows)) / 200.0);
+            double k = (camp ? 2.0 : 1.0) * (1.0 + Math.Max(0f, Math.Min(100f, bows)) / 200.0) * Math.Max(0.0, Math.Min(1.0, plenty));
             foreach (var (item, min, max, chance) in beasts)
             {
-                if (roll() >= chance) continue;
+                if (roll() >= chance * (item.StartsWith("Trophy") ? plenty : 1.0)) continue;
                 bool trophy = item.StartsWith("Trophy");
                 int n = trophy ? 1 : (int)Math.Round((min + Math.Floor(roll() * (max - min + 1))) * k);
                 if (n > 0) got[item] = (got.TryGetValue(item, out int had) ? had : 0) + n;

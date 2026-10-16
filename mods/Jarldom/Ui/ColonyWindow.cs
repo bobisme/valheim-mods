@@ -178,6 +178,10 @@ namespace Jarldom.Ui
             int meals = Stock.Food(c, c.Position).Sum(f => f.item.m_stack);
             if (people.Count > 0 && meals < people.Count * 3)
                 list.Add(meals == 0 ? "The stores hold no food: mark fields, foraging or hunting grounds, or a fishing dock, or fill a chest." : $"Food for less than a day: {meals} meals for {people.Count} people.");
+            // (hunting grounds by the houses, where the game never comes: the hunters range the edge for necks; a hunting camp out past it)
+            int noGame = c.Day - (c.R.Flags.TryGetValue(Work.GameSeenKey, out int seen) ? seen : Clock.Day(c.R.Founded));
+            if (noGame >= 3 && people.Any(p => p.Prof == Prof.Hunter) && c.R.Zones.Any(z => z.Type == ZoneType.Hunting) && !Claims.Of(c).Any(x => x.Hunt))
+                list.Add($"No game in the hunting grounds for {noGame} days: game keeps away from houses and fires. Make a hunting camp out past the colony's edge (a claim stake, shift+E on it) and the hunters go there.");
             // (raw meat and fish piling up with no one to cook them: the hunters and fishers feed no one)
             if (people.Count > 0 && !people.Any(p => p.Prof == Prof.Cook))
             {
