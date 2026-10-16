@@ -31,6 +31,7 @@ namespace WrongUniverse
             internal bool OneHanded;    // held in the right hand alone, the left arm out to the side (Free)
             internal Vector3 Free;      // the empty left hand from the left shoulder joint: (out to the left, forward, up)
             internal float Drop;        // degrees the muzzle drops sprinting
+            internal float MaxDown=45f,MaxUp=55f;   // how far it tilts to follow the aim (degrees): further down, a shouldered rifle's arms go through the body
             internal float Kick,Climb;  // a shot pushes it back this far (m) and the muzzle climbs this much (degrees)
         }
         // The pistol, Han Solo style: in the right hand alone, elbow bent at chest height walking, the arm straight out at eye level
@@ -42,7 +43,7 @@ namespace WrongUniverse
         // (the rifle's numbers tuned in the game with wu pose: the shoulder joint sits well back in the body, so the stock only reaches
         // the front of the shoulder with the grip ~0.58 ahead of it; the left hand on the power cell, as far forward as the arm reaches)
         internal static readonly Stance RifleStance=new Stance{Grip=new Vector3(0,-0.06f,0),Support=new Vector3(0,-0.04f,0.13f),Euler=new Vector3(0,0,90),
-            Walk=new Vector3(-0.15f,0.56f,-0.08f),Aim=new Vector3(-0.15f,0.58f,-0.05f),Sprint=new Vector3(-0.12f,0.26f,-0.30f),Pivot=new Vector3(0f,-0.01f,-0.44f),
+            Walk=new Vector3(-0.15f,0.56f,-0.08f),Aim=new Vector3(-0.15f,0.58f,-0.05f),Sprint=new Vector3(-0.12f,0.26f,-0.30f),Pivot=new Vector3(0f,-0.01f,-0.44f),MaxDown=25f,MaxUp=30f,
             Drop=35f,Kick=0.045f,Climb=4f};
         internal static Stance Of(ItemDef d)=>d==Lasers.Pistol?PistolStance:d==Lasers.Rifle?RifleStance:null;
 
@@ -100,7 +101,12 @@ namespace WrongUniverse
             ZDO zdo=ZdoOf(p);
             return zdo!=null&&zdo.GetInt(ZDOVars.s_leftItem)!=0;
         }
-        internal static bool Aiming;   // set by Lasers.Tick: block held with a gun that aims
+        internal static bool Aiming;
+        // Where our posed gun's muzzle was last frame. The animator runs on physics steps: in Update, on a frame it ran, the hand is
+        // back in its crossbow carry and the muzzle's own transform is off to the side, so a shot fired then starts from here.
+        private static Vector3 MuzzleAt;
+        private static int _muzzleFrame=-10;
+        internal static Vector3? PosedMuzzle=>Time.frameCount-_muzzleFrame<=2?MuzzleAt:(Vector3?)null;   // set by Lasers.Tick: block held with a gun that aims
 
         // A shot from our own gun (kind 0 pistol, 1 rifle, 2 a full charge), or from another player's (their RPC).
         internal static void Kick(int kind)=>Mine.Recoil=Mathf.Min(1.6f,Mine.Recoil+(kind==2?1.6f:1f));
@@ -308,7 +314,7 @@ namespace WrongUniverse
                 Vector3 to=c.Target.Value-from;
                 if(to.sqrMagnitude>1f)fwd=to.normalized;
             }
-            fwd=ClampPitch(fwd,55f);
+            fwd=ClampPitch(fwd,s.MaxDown,s.MaxUp);
             Vector3 side=Vector3.Cross(Vector3.up,fwd).normalized;
             Vector3 up=Vector3.Cross(fwd,side);   // (the stance turns with the aim, about the shoulder: looking down, the stock stays in the shoulder)
             float kick=c.Recoil;
@@ -349,9 +355,9 @@ namespace WrongUniverse
                 }
             }
             // the right hand on the grip, turned the way the pistol's grip was tuned; the gun where the hand ended up (if it couldn't reach)
-            Arms.Place(ve.m_rightHand,grip,rot*Quaternion.Inverse(Quaternion.Euler(s.Euler)),side*0.6f+Vector3.down);
+            Arms.Place(ve.m_rightHand,grip,rot*Quaternion.Inverse(Quaternion.Euler(s.Euler)),side*0.6f-up);   // (elbows out and down from the aim, not the world: aiming low they'd fold into the chest)
             Vector3 at=ve.m_rightHand.position-rot*s.Grip;
-            if(twoHands)Arms.Reach(ve.m_leftHand,at+rot*s.Support,-side*0.6f+Vector3.down);
+            if(twoHands)Arms.Reach(ve.m_leftHand,at+rot*s.Support,-side*0.6f-up);
             else if(!c.Shield)   // the free arm out to the side, elbow back and down (a shield's arm is the animation's: it blocks)
             {
                 Vector3 flat=Vector3.ProjectOnPlane(fwd,Vector3.up).normalized,left=-Vector3.Cross(Vector3.up,flat).normalized;
@@ -362,14 +368,15 @@ namespace WrongUniverse
             }
             model.rotation=rot;   // (last: the rifle, a bow to the game, hangs from the left hand, and bending that arm moved it)
             model.position=at;
+            if(p==Player.m_localPlayer){Transform m=Lasers.Find(model,"wu_muzzle");if(m!=null){MuzzleAt=m.position;_muzzleFrame=Time.frameCount;}}
             Arms.Leave(ve.m_rightHand);Arms.Leave(ve.m_leftHand);
             Note(p,"want",grip);Note(p,"got",ve.m_rightHand.position);Note(p,"model",model.position);
         }
-        private static Vector3 ClampPitch(Vector3 dir,float max)
+        private static Vector3 ClampPitch(Vector3 dir,float down,float up)
         {
             Vector3 flat=Vector3.ProjectOnPlane(dir,Vector3.up);
             if(flat.sqrMagnitude<0.0001f)return dir;
-            float pitch=Mathf.Clamp(Mathf.Asin(Mathf.Clamp(dir.normalized.y,-1f,1f))*Mathf.Rad2Deg,-max,max)*Mathf.Deg2Rad;
+            float pitch=Mathf.Clamp(Mathf.Asin(Mathf.Clamp(dir.normalized.y,-1f,1f))*Mathf.Rad2Deg,-down,up)*Mathf.Deg2Rad;
             return flat.normalized*Mathf.Cos(pitch)+Vector3.up*Mathf.Sin(pitch);
         }
         private static float Smooth(float t)=>t*t*(3f-2f*t);
@@ -395,7 +402,7 @@ namespace WrongUniverse
             switch(sub)
             {
                 case "info":output(new JObject{["pistol"]=Dump(PistolStance),["rifle"]=Dump(RifleStance),["hold"]=_hold,["aiming"]=Aiming,["held"]=Mine.Def?.Prefab,
-                    ["aimT"]=Math.Round(Mine.AimT,2),["sprintT"]=Math.Round(Mine.SprintT,2),["ventT"]=Math.Round(Mine.VentT,2),["target"]=Mine.Target.HasValue?Tools.V(Mine.Target.Value):null,["others"]=Others.Count});return null;
+                    ["aimT"]=Math.Round(Mine.AimT,2),["sprintT"]=Math.Round(Mine.SprintT,2),["ventT"]=Math.Round(Mine.VentT,2),["target"]=Mine.Target.HasValue?Tools.V(Mine.Target.Value):null,["posedMuzzle"]=PosedMuzzle.HasValue?Tools.V(PosedMuzzle.Value):null,["muzzleNow"]=Lasers.Muzzle(Player.m_localPlayer)!=null?Tools.V(Lasers.Muzzle(Player.m_localPlayer).position):null,["others"]=Others.Count});return null;
                 case "hold":_hold=args.Length>3&&args[3]!="off"?args[3]:null;_holdPitch=args.Length>4?float.Parse(args[4],inv):0f;output(new JObject{["hold"]=_hold,["pitch"]=_holdPitch});return null;
                 case "trace":
                 {
@@ -423,7 +430,7 @@ namespace WrongUniverse
                         {
                             case "grip":s.Grip=V3();break;case "support":s.Support=V3();break;case "euler":s.Euler=V3();break;
                             case "walk":s.Walk=V3();break;case "aim":s.Aim=V3();break;case "sprint":s.Sprint=V3();break;case "free":s.Free=V3();break;
-                            case "drop":s.Drop=F(4);break;case "kick":s.Kick=F(4);break;case "climb":s.Climb=F(4);break;
+                            case "drop":s.Drop=F(4);break;case "maxdown":s.MaxDown=F(4);break;case "maxup":s.MaxUp=F(4);break;case "kick":s.Kick=F(4);break;case "climb":s.Climb=F(4);break;
                             default:error("wu pose "+sub+" <grip|support|euler|walk|aim|sprint|free> x y z | <drop|kick|climb> v");return null;
                         }
                     }

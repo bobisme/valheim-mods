@@ -165,7 +165,7 @@ namespace WrongUniverse
         {
             bool rifle=d==Rifle;
             Transform muzzle=Muzzle(p);
-            Vector3 from=muzzle!=null?muzzle.position:p.transform.position+Vector3.up*1.4f+p.transform.forward*0.6f;
+            Vector3 from=GunPose.PosedMuzzle??(muzzle!=null?muzzle.position:p.transform.position+Vector3.up*1.4f+p.transform.forward*0.6f);   // (the posed gun's, not where the animator just put it)
             float range=rifle?RRange.Value:PRange.Value;
             Vector3 dir=AimAt(p,from,range);
             Color color=rifle?Look.Blue:Look.Red;

@@ -18,7 +18,7 @@ namespace WrongUniverse
     {
         public const string Guid="cx.bob.wronguniverse";
         public const string Name="Wrong Universe";
-        public const string Version="0.2.6";
+        public const string Version="0.2.7";
         internal static Plugin Instance;
         internal static ConfigFile Cfg;
         internal static ConfigEntry<float> Volume;
