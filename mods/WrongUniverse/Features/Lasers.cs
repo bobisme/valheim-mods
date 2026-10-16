@@ -58,6 +58,7 @@ namespace WrongUniverse
         private static void PistolStats(ItemDrop.ItemData.SharedData s)
         {
             s.m_itemType=ItemDrop.ItemData.ItemType.OneHandedWeapon;   // (the left hand stays free for a shield)
+            s.m_animationState=ItemDrop.ItemData.AnimationState.OneHanded;   // (square shoulders: the crossbow carry turns the body side-on, right shoulder back)
             s.m_damages=Damage(PDamage.Value);
             GunStats(s);
         }

@@ -27,6 +27,7 @@ namespace WrongUniverse
             internal Vector3 Support;   // the left hand's joint in the model's space
             internal Vector3 Euler;     // the right hand's turn in the model's space (the same turn as the pistol's tuned HandEuler)
             internal Vector3 Walk,Aim,Sprint;   // the grip from the right shoulder joint: (right, forward, up); the joint sits ~0.13 behind the chest
+            internal Vector3? Pivot;    // where it turns to aim up and down, in the model's space (a rifle's butt, in the shoulder); null: the shoulder joint
             internal bool OneHanded;    // held in the right hand alone, the left arm out to the side (Free)
             internal Vector3 Free;      // the empty left hand from the left shoulder joint: (out to the left, forward, up)
             internal float Drop;        // degrees the muzzle drops sprinting
@@ -35,13 +36,13 @@ namespace WrongUniverse
         // The pistol, Han Solo style: in the right hand alone, elbow bent at chest height walking, the arm straight out at eye level
         // aiming; the left arm out to the side.
         internal static readonly Stance PistolStance=new Stance{Grip=new Vector3(0,-0.06f,0),Support=new Vector3(-0.03f,-0.085f,0.005f),Euler=new Vector3(0,0,90),
-            Walk=new Vector3(0f,0.50f,-0.24f),Aim=new Vector3(0f,0.70f,-0.06f),Sprint=new Vector3(0.02f,0.32f,-0.30f),
-            OneHanded=true,Free=new Vector3(0.42f,0.08f,-0.30f),Drop=55f,Kick=0.03f,Climb=12f};
+            Walk=new Vector3(0.02f,0.50f,-0.17f),Aim=new Vector3(0f,0.70f,-0.06f),Sprint=new Vector3(0.02f,0.32f,-0.30f),
+            OneHanded=true,Free=new Vector3(0.14f,0.06f,-0.48f),Drop=55f,Kick=0.03f,Climb=12f};
         // The rifle is always shouldered and sighted down the barrel (a little lower walking than aiming); only a sprint lowers it.
         // (the rifle's numbers tuned in the game with wu pose: the shoulder joint sits well back in the body, so the stock only reaches
         // the front of the shoulder with the grip ~0.58 ahead of it; the left hand on the power cell, as far forward as the arm reaches)
         internal static readonly Stance RifleStance=new Stance{Grip=new Vector3(0,-0.06f,0),Support=new Vector3(0,-0.04f,0.13f),Euler=new Vector3(0,0,90),
-            Walk=new Vector3(-0.15f,0.56f,-0.08f),Aim=new Vector3(-0.15f,0.58f,-0.05f),Sprint=new Vector3(-0.12f,0.26f,-0.30f),
+            Walk=new Vector3(-0.15f,0.56f,-0.08f),Aim=new Vector3(-0.15f,0.58f,-0.05f),Sprint=new Vector3(-0.12f,0.26f,-0.30f),Pivot=new Vector3(0f,-0.01f,-0.44f),
             Drop=35f,Kick=0.045f,Climb=4f};
         internal static Stance Of(ItemDef d)=>d==Lasers.Pistol?PistolStance:d==Lasers.Rifle?RifleStance:null;
 
@@ -75,8 +76,10 @@ namespace WrongUniverse
         private static int _state=-1;
         private static float _pitch=999f,_nextPitch,_nextSweep;
 
-        // `wu pose hold aim|sprint|vent|charge|off`: a state forced on for pictures (nobody can hold block for a screenshot).
+        // `wu pose hold walk|aim|sprint|vent|charge|off [pitch]`: a state forced on for pictures (nobody can hold block for a screenshot).
         private static string _hold;
+        internal static float FreeWrist=1f;
+        private static float _holdPitch;
 
         internal override void Bind(ConfigFile c)
         {
@@ -148,7 +151,7 @@ namespace WrongUniverse
                 c.Def=d;
                 if(d!=null&&!me.IsDead())
                 {
-                    c.Look=_hold!=null?Vector3.ProjectOnPlane(me.transform.forward,Vector3.up).normalized:me.GetLookDir();   // (a held test state looks level)
+                    c.Look=_hold!=null?Quaternion.AngleAxis(-_holdPitch,me.transform.right)*Vector3.ProjectOnPlane(me.transform.forward,Vector3.up).normalized:me.GetLookDir();   // (a held test state looks level, or at wu pose pitch)
                     c.Target=_hold!=null?(Vector3?)null:Crosshair(me);
                     c.Aiming=Aiming||_hold=="aim";
                     c.Sprinting=me.IsRunning()||_hold=="sprint";
@@ -181,7 +184,7 @@ namespace WrongUniverse
                 var rt=new RenderTexture(S,S,24);
                 var sheet=new Texture2D(S*5,S,TextureFormat.RGB24,false);
                 Vector3 f=Vector3.ProjectOnPlane(p.transform.forward,Vector3.up).normalized,rgt=Vector3.Cross(Vector3.up,f);
-                Vector3[] offs={rgt*1.6f,rgt*1.0f+f*1.3f,-rgt*1.6f+f*0.1f,f*1.8f+Vector3.up*0.15f,rgt*0.6f-f*1.5f+Vector3.up*0.5f};
+                Vector3[] offs={rgt*1.6f,rgt*1.0f+f*1.3f,-rgt*1.6f+f*0.1f,f*1.8f+Vector3.up*0.15f,rgt*0.25f-f*2.6f+Vector3.up*0.9f};   // (the last: about where the game's camera is)
                 cam.targetTexture=rt;
                 for(int i=0;i<offs.Length;i++)
                 {
@@ -305,7 +308,9 @@ namespace WrongUniverse
                 Vector3 to=c.Target.Value-from;
                 if(to.sqrMagnitude>1f)fwd=to.normalized;
             }
+            fwd=ClampPitch(fwd,55f);
             Vector3 side=Vector3.Cross(Vector3.up,fwd).normalized;
+            Vector3 up=Vector3.Cross(fwd,side);   // (the stance turns with the aim, about the shoulder: looking down, the stock stays in the shoulder)
             float kick=c.Recoil;
             // charging: a tremble that grows with the charge, and the gun pulled in tight
             Vector3 shake=Vector3.zero;
@@ -317,7 +322,16 @@ namespace WrongUniverse
             }
             Quaternion rot=Quaternion.LookRotation(fwd,Vector3.up)
                 *Quaternion.Euler(-kick*s.Climb+s.Drop*sprintT+28f*ventT,-14f*ventT,-38f*ventT);   // (venting: muzzle down, turned in and rolled to show the vents)
-            Vector3 grip=ur.position+side*offset.x+fwd*offset.y+Vector3.up*offset.z+side*shake.x+Vector3.up*shake.y;
+            Vector3 grip;
+            if(s.Pivot.HasValue)
+            {
+                // laid out level, then turned about the butt: the stock stays in the shoulder whether you aim up or down
+                Vector3 flat=Vector3.ProjectOnPlane(fwd,Vector3.up).normalized;
+                Vector3 level=ur.position+side*offset.x+flat*offset.y+Vector3.up*offset.z;
+                Vector3 butt=level+Quaternion.LookRotation(flat,Vector3.up)*(s.Pivot.Value-s.Grip);
+                grip=butt+rot*(s.Grip-s.Pivot.Value)+side*shake.x+up*shake.y;
+            }
+            else grip=ur.position+side*offset.x+fwd*offset.y+up*offset.z+side*shake.x+up*shake.y;
             grip+=rot*new Vector3(0f,0f,-kick*s.Kick);
 
             // the left hand on the gun (pulled back towards the body until it can reach), unless the gun is held in one hand
@@ -343,11 +357,20 @@ namespace WrongUniverse
                 Vector3 flat=Vector3.ProjectOnPlane(fwd,Vector3.up).normalized,left=-Vector3.Cross(Vector3.up,flat).normalized;
                 Vector3 free=s.Free+new Vector3(0.04f,0f,0.06f)*aimT-new Vector3(0.14f,0f,0.06f)*sprintT;   // (aiming: out a little further for balance; sprinting: in)
                 Arms.Reach(ve.m_leftHand,ul.position+left*free.x+flat*free.y+Vector3.up*free.z,-flat+Vector3.down*0.5f);
+                Transform lh=Arms.Hand(ve.m_leftHand);
+                if(lh!=null)lh.localRotation=Quaternion.Slerp(lh.localRotation,Quaternion.identity,FreeWrist);   // (the wrist in line: the crossbow animation cocks it back)
             }
             model.rotation=rot;   // (last: the rifle, a bow to the game, hangs from the left hand, and bending that arm moved it)
             model.position=at;
             Arms.Leave(ve.m_rightHand);Arms.Leave(ve.m_leftHand);
             Note(p,"want",grip);Note(p,"got",ve.m_rightHand.position);Note(p,"model",model.position);
+        }
+        private static Vector3 ClampPitch(Vector3 dir,float max)
+        {
+            Vector3 flat=Vector3.ProjectOnPlane(dir,Vector3.up);
+            if(flat.sqrMagnitude<0.0001f)return dir;
+            float pitch=Mathf.Clamp(Mathf.Asin(Mathf.Clamp(dir.normalized.y,-1f,1f))*Mathf.Rad2Deg,-max,max)*Mathf.Deg2Rad;
+            return flat.normalized*Mathf.Cos(pitch)+Vector3.up*Mathf.Sin(pitch);
         }
         private static float Smooth(float t)=>t*t*(3f-2f*t);
 
@@ -364,7 +387,7 @@ namespace WrongUniverse
         // ---- the test command --------------------------------------------------------------------------------------
 
         internal override string Command=>"pose";
-        internal override string Help=>"info | trace [frames] | film [file] | hold aim|sprint|vent|charge|off | kick [2] | <pistol|rifle> <grip|support|euler|walk|aim|sprint|free> x y z | <pistol|rifle> <drop|kick|climb> v";
+        internal override string Help=>"info | trace [frames] | film [file] | hold walk|aim|sprint|vent|charge|off [pitch] | kick [2] | <pistol|rifle> <grip|support|euler|walk|aim|sprint|free> x y z | <pistol|rifle> <drop|kick|climb> v";
         internal override IEnumerator Test(string[] args,Action<JObject> output,Action<string> error)
         {
             string sub=args.Length>2?args[2]:"info";
@@ -373,7 +396,7 @@ namespace WrongUniverse
             {
                 case "info":output(new JObject{["pistol"]=Dump(PistolStance),["rifle"]=Dump(RifleStance),["hold"]=_hold,["aiming"]=Aiming,["held"]=Mine.Def?.Prefab,
                     ["aimT"]=Math.Round(Mine.AimT,2),["sprintT"]=Math.Round(Mine.SprintT,2),["ventT"]=Math.Round(Mine.VentT,2),["target"]=Mine.Target.HasValue?Tools.V(Mine.Target.Value):null,["others"]=Others.Count});return null;
-                case "hold":_hold=args.Length>3&&args[3]!="off"?args[3]:null;output(new JObject{["hold"]=_hold});return null;
+                case "hold":_hold=args.Length>3&&args[3]!="off"?args[3]:null;_holdPitch=args.Length>4?float.Parse(args[4],inv):0f;output(new JObject{["hold"]=_hold,["pitch"]=_holdPitch});return null;
                 case "trace":
                 {
                     // Per frame: where the animation put the right hand (before our pose) and where it ended up, both from the player.
@@ -386,6 +409,7 @@ namespace WrongUniverse
                     _film=file;
                     return FilmWait(file,output);
                 }
+                case "wrist":FreeWrist=float.Parse(args[3],inv);output(new JObject{["wrist"]=FreeWrist});return null;
                 case "kick":Kick(args.Length>3&&args[3]=="2"?2:0);output(new JObject{["recoil"]=Mine.Recoil});return null;
                 case "pistol":case "rifle":
                 {
