@@ -39,8 +39,21 @@ namespace Camping
             private static void Postfix(Bed __instance, ref string __result)
             {
                 if (!Ours(__instance)) return;
+                // (the bed's own words, with its name: "Unclaimed Tent", not "Unclaimed Bed")
+                string title = Localization.instance.Localize(__instance.GetComponent<Piece>()?.m_name ?? "");
+                string bed = Localization.instance.Localize("$piece_bed");
+                if (title != "" && bed != "" && bed != "$piece_bed") __result = __result.Replace(bed, title);
                 string what = Utils.GetPrefabName(__instance.gameObject) == Kit.Tent ? "Pack up" : "Roll up";
                 __result += Localization.instance.Localize($"\n[<color=yellow><b>$KEY_AltPlace + $KEY_Use</b></color>] {what}");
+            }
+        }
+
+        [HarmonyPatch(typeof(Bed), nameof(Bed.GetHoverName))]
+        private static class Name
+        {
+            private static void Postfix(Bed __instance, ref string __result)
+            {
+                if (Ours(__instance) && __instance.GetComponent<Piece>() is Piece p) __result = Localization.instance.Localize(p.m_name);
             }
         }
 
