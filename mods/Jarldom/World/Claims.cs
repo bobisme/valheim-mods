@@ -184,7 +184,7 @@ namespace Jarldom
             b.NoClaimUntil = Time.time + 20;
             int pick = Gear.Tool(b, "pickaxe")?.m_shared.m_toolTier ?? -1;
             var mine = Of(c).Where(x => x.Ore > 0).ToList();
-            if (mine.Count == 0) return null;
+            if (mine.Count == 0) { if (Of(c).Any()) Gear.Problem = "every ore claim is worked out: drive a claim stake by a new deposit"; return null; }
             // (not off again with last trip's load still on their back, nor for ore the stores have no room for)
             if (b.Body.GetInventory().GetAllItems().Any(Carts.IsCargo)) return null;
             mine = mine.Where(x => x.Left.Keys.Any(ore => Carts_Item(ore) is GameObject p && Stock.Destination(c, Stock.Of(p), c.Position) != null)).ToList();
@@ -197,6 +197,7 @@ namespace Jarldom
             {
                 Claim want = mine.OrderBy(x => x.Tier).First();
                 if (want.Tier > pick) Gear.Problem = $"needs gear: a pickaxe of tier {want.Tier} for the {Title(want).ToLower()}";
+                else if (mine.All(x => x.Crypt) && !ElderBeaten) Gear.Problem = "the only claim with ore left is a crypt, and miners won't go down into one till the Elder is beaten; or drive a claim stake by a new deposit";
                 else if (open.Count > 0) Gear.Problem = "nothing to dig: the stores hold enough of every ore (Work tab: stores to keep)";
                 return null;
             }
@@ -245,6 +246,13 @@ namespace Jarldom
                 if (left > 0) left -= Carts.Put(c, prefab, left); // (more than a bag holds: straight to the stores, as from the cart)
                 for (; left > 0;) { int stack = Math.Min(left, prefab.GetComponent<ItemDrop>().m_itemData.m_shared.m_maxStackSize); ItemDrop.DropItem(prefab.GetComponent<ItemDrop>().m_itemData.Clone(), stack, h.transform.position + Vector3.up, Quaternion.identity); left -= stack; } // (stores full too: set down beside them)
                 told.Add($"{kv.Value} {Name(kv.Key)}");
+            }
+            // (and on the way home, what grows out there that the stores are short of)
+            foreach (var (item, n) in Gathering.Along(claim.Biome, it => Crafts.InStock(c, it), () => UnityEngine.Random.value))
+            {
+                GameObject prefab = Assets.Find(item); if (prefab == null) continue;
+                if (!h.GetInventory().AddItem(prefab, n) && Carts.Put(c, prefab, n) < n) continue;
+                told.Add($"{n} {Localization.instance.Localize(prefab.GetComponent<ItemDrop>().m_itemData.m_shared.m_name).ToLower()} picked on the way");
             }
             if (b != null) { b.S.Bump("orehauls"); if (roll < death + wound) b.S.InjuredUntil = c.Now + Clock.Hour * 6; b.Dirty(); }
             c.Log("text", s.Name, "", told.Count == 0 ? $"{s.Name} came back from {where} {Where(claim, c.Position)} with nothing: it's worked out." : $"{s.Name} came back from {where} {Where(claim, c.Position)} with {string.Join(", ", told)}{(roll < death + wound ? ", wounded" : "")}.{(claim.Ore == 0 ? " It's worked out now." : "")}");

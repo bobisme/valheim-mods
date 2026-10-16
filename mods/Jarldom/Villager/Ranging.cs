@@ -5,11 +5,11 @@ using UnityEngine;
 namespace Jarldom
 {
     // Ranging for game: a hunter whose grounds hold nothing to hunt, and the stores short of meat, goes out past the colony's edge a while
-    // (a lookout 30 m beyond it, a new way each time) to find a deer or a boar, brings it down and carries it home. Nothing seen, home
+    // (a lookout 50 m beyond it, a new way each time) to find a deer or a boar, brings it down and carries it home. Nothing seen, home
     // again, and not out again for a while. (The world past a player's own ground stands still: no further than the scout goes.)
     internal sealed class RangeTask : Task
     {
-        public const float Beyond = 30f, Farthest = 120f, Sight = 40f, Every = 480f;
+        public const float Beyond = 50f, Farthest = 150f, Sight = 40f, Every = 480f; // (past the edge's own buildings, where the game spawns no game at all: 30 m out found only necks by the water)
         public static readonly string[] Meats = { "RawMeat", "DeerMeat", "NeckTail", "WolfMeat", "LoxMeat", "SerpentMeat", "HareMeat", "ChickenMeat", "BugMeat", "AsksvinMeat", "VoltureMeat", "BoneMawSerpentMeat" };
         public static int Meat(Colony c) => Meats.Sum(m => Stock.Count(c, m));
         // Out today? Daylight, no raid, a bow (or a weapon) to hunt with, and less meat in the stores than a day's eating for two of every three.

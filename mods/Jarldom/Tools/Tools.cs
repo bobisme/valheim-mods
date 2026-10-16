@@ -1165,7 +1165,9 @@ namespace Jarldom
                     break;
                 case "move": // (test: move x1 z1 x2 z2 <prefab> [n]: items from the chest nearest one spot to the chest nearest another)
                     {
-                        Container from = Stock.Chests(c, new Vector3(F(a[2]), 0, F(a[3]))).Select(x => x.chest).FirstOrDefault(), to = Stock.Chests(c, new Vector3(F(a[4]), 0, F(a[5]))).Select(x => x.chest).FirstOrDefault();
+                        // (trade chests too)
+                        Container Near(Vector3 p) => Stock.Chests(c, p).Select(x => x.chest).Concat(Stock.TradeChests(c)).OrderBy(ch => Utils.DistanceXZ(ch.transform.position, p)).FirstOrDefault();
+                        Container from = Near(new Vector3(F(a[2]), 0, F(a[3]))), to = Near(new Vector3(F(a[4]), 0, F(a[5])));
                         GameObject prefab = Assets.Find(a[6]);
                         if (from == null || to == null || from == to || prefab == null) { error("no chests or prefab"); return; }
                         ContainerAccess.TakeOver(from); ContainerAccess.TakeOver(to);
@@ -1764,6 +1766,10 @@ namespace Jarldom
                         if (a.Length > 3 && a[2] == "location")
                             output(new JObject { ["found"] = new JArray(ZoneSystem.instance.m_locationInstances.Values.Where(l => l.m_location?.m_prefabName != null && l.m_location.m_prefabName.IndexOf(a[3], StringComparison.OrdinalIgnoreCase) >= 0)
                                 .OrderBy(l => Utils.DistanceXZ(l.m_position, from)).Take(5).Select(l => $"{l.m_location.m_prefabName} at {l.m_position.x:0},{l.m_position.y:0},{l.m_position.z:0} ({Utils.DistanceXZ(l.m_position, from):0} m, {(l.m_placed ? "generated" : "not yet generated")})")) });
+                        else if (a.Length > 3 && a[2] == "item") // (find item <prefab part>: loose items on the ground, by place; a scene search, for tests only)
+                            output(new JObject { ["found"] = new JArray(UnityEngine.Object.FindObjectsOfType<ItemDrop>().Where(d => d != null && Utils.GetPrefabName(d.gameObject).IndexOf(a[3], StringComparison.OrdinalIgnoreCase) >= 0 && Utils.DistanceXZ(d.transform.position, from) < 200f)
+                                .GroupBy(d => (Mathf.RoundToInt(d.transform.position.x / 4) * 4, Mathf.RoundToInt(d.transform.position.z / 4) * 4))
+                                .OrderBy(g => Utils.DistanceXZ(new Vector3(g.Key.Item1, 0, g.Key.Item2), from)).Take(20).Select(g => $"{g.Sum(d => d.m_itemData.m_stack)} {Utils.GetPrefabName(g.First().gameObject)} near {g.Key.Item1},{g.Key.Item2} (y {g.First().transform.position.y:0})")) });
                         else if (a.Length > 3 && a[2] == "biome" && Enum.TryParse(a[3], true, out Heightmap.Biome want))
                         {
                             var hits = new JArray();

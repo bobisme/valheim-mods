@@ -46,6 +46,38 @@ namespace Jarldom
         }
     }
 
+    // What a miner picks on the way home from a claim, from what grows (or is had) in its biome, when the stores are short of it: the
+    // Black Forest's berries, mushrooms and thistle the foragers can't reach from a meadow colony, a swamp's bloodbags for mead. Only
+    // what the stores hold less of than they keep, a handful each (roll: 0..1 per item).
+    public static class Gathering
+    {
+        public static readonly Dictionary<string, (string item, int min, int max)[]> ByBiome = new Dictionary<string, (string, int, int)[]>
+        {
+            ["meadows"] = new[] { ("Raspberry", 4, 10), ("Mushroom", 2, 5), ("Dandelion", 3, 8) },
+            ["blackforest"] = new[] { ("Blueberries", 4, 10), ("MushroomYellow", 2, 6), ("Mushroom", 2, 5), ("Thistle", 3, 8) },
+            ["swamp"] = new[] { ("Bloodbag", 2, 5), ("Thistle", 2, 5), ("Turnip", 2, 6) },
+            ["mountain"] = new[] { ("Onion", 2, 6) },
+            ["plains"] = new[] { ("Cloudberry", 4, 10), ("Barley", 4, 10) },
+        };
+        public static readonly Dictionary<string, int> Keep = new Dictionary<string, int>
+        {
+            ["Raspberry"] = 20, ["Blueberries"] = 20, ["Mushroom"] = 10, ["MushroomYellow"] = 12, ["Thistle"] = 15, ["Dandelion"] = 10,
+            ["Bloodbag"] = 12, ["Turnip"] = 10, ["Onion"] = 10, ["Cloudberry"] = 15, ["Barley"] = 20,
+        };
+        public static List<(string item, int n)> Along(string biome, Func<string, int> stock, Func<double> roll)
+        {
+            var got = new List<(string, int)>();
+            if (biome == null || !ByBiome.TryGetValue(biome.ToLowerInvariant(), out var there)) return got;
+            foreach (var (item, min, max) in there)
+            {
+                int keep = Keep.TryGetValue(item, out int k) ? k : 10;
+                if (stock(item) >= keep) continue;
+                got.Add((item, Math.Min(max, min + (int)Math.Floor(roll() * (max - min + 1)))));
+            }
+            return got;
+        }
+    }
+
     public static class Mining
     {
         public const float BareReach = 8f, CampReach = 60f, CampNear = 15f, CryptReach = 45f, Walk = 2.5f;

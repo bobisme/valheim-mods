@@ -82,6 +82,13 @@ Check(Renown.Comfort(new int[0]) == 0 && Renown.Comfort(new[] { 4, 2 }) == 15, "
     Check(Kitchen.Choose(dishes, St, mead, 4) == null, "Kitchen: nothing once every dish it can make is stocked");
     Check(Kitchen.Keep(3) == 6 && Kitchen.Keep(21) == 21 && Kitchen.Keep(80) == 30, "Kitchen: a dish kept per head, 6 to 30");
 }
+{
+    var st = new Dictionary<string, int> { ["Blueberries"] = 0, ["MushroomYellow"] = 30, ["Thistle"] = 4, ["Mushroom"] = 0 };
+    var bf = Gathering.Along("BlackForest", i => st.TryGetValue(i, out int v) ? v : 0, () => 0.999);
+    Check(bf.Any(x => x.item == "Blueberries" && x.n == 10) && !bf.Any(x => x.item == "MushroomYellow") && bf.Any(x => x.item == "Thistle" && x.n == 8), "Gathering: what's short in the claim's biome, up to its most");
+    Check(Gathering.Along("blackforest", i => 0, () => 0.0).All(x => x.n == Gathering.ByBiome["blackforest"].First(t => t.item == x.item).min), "Gathering: at least the least");
+    Check(Gathering.Along("ashlands", i => 0, () => 0.5).Count == 0 && Gathering.Along(null, i => 0, () => 0.5).Count == 0, "Gathering: nothing from a biome without a list");
+}
 Check(Trading.Choose(Rank.Village, false, false, false, 40) == TradeWay.Foot, "No cart: on foot");
 Check(Trading.Choose(Rank.Village, true, false, false, 4) == TradeWay.Foot && Trading.Choose(Rank.Village, true, false, false, 10) == TradeWay.Cart, "The cart only when there's more than a pack");
 Check(Trading.Choose(Rank.Village, true, true, true, 50) == TradeWay.Cart, "Ships wait for their rank");
