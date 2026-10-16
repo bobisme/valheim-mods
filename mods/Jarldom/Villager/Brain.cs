@@ -450,7 +450,8 @@ namespace Jarldom
                 case "camp": // ("<x>|<y>|<z>|<yaw>": make camp there, as one of the crew out with the jarl)
                     {
                         string[] f = arg.Split('|'); var ic = System.Globalization.CultureInfo.InvariantCulture; var fs = System.Globalization.NumberStyles.Float;
-                        if (f.Length < 4 || !Expedition.Out(this) || Combat.Busy(this)) break;
+                        if (f.Length < 4 || !Expedition.Out(this)) break;
+                        if (Combat.Busy(this)) { Say(new[] { "Not now, jarl: we're fighting!", "Camp after this fight, jarl!", "Let's see these off first, then camp." }[UnityEngine.Random.Range(0, 3)], 4); break; }
                         if (!float.TryParse(f[0], fs, ic, out float cx) || !float.TryParse(f[1], fs, ic, out float cy) || !float.TryParse(f[2], fs, ic, out float cz) || !float.TryParse(f[3], fs, ic, out float yaw)) break;
                         Task?.Stop(this); Task = new CampTask(new Vector3(cx, cy, cz), yaw); Task.Start(this);
                     }

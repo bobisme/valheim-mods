@@ -47,6 +47,15 @@ namespace Jarldom
             return cost.Select(kv => (kv.Key, kv.Value)).ToList();
         }
         private static (string item, int n)[] Makings(string prefab, int times = 1) => CostOf(prefab).Select(x => (x.item.gameObject.name, x.n * times)).ToArray();
+        // What a carrier keeps in the pack for the next camp, not put in this one's chest: the camp's makings (and the Camping pieces').
+        private static HashSet<string> _makings;
+        public static HashSet<string> Makings()
+        {
+            if (_makings != null && (!CampingKit || _makings.Contains("DeerHide"))) return _makings;
+            _makings = new HashSet<string>(Kit.Values.SelectMany(k => k.Select(x => x.item)));
+            if (CampingKit) foreach (string piece in new[] { BedrollName, LeanToName, TentName }) foreach (var (item, _) in Makings(piece)) _makings.Add(item);
+            return _makings;
+        }
         // What a role packs with the Camping mod, on top of the kit above.
         private static List<(string item, int n)> CampingPack(Brain b, string role, List<Container> chests)
         {
@@ -196,6 +205,7 @@ namespace Jarldom
             Colony home = crew[0].Colony;
             if (!TestAnywhere && Colony.All.Any(c => c.Valid && Utils.DistanceXZ(at, c.Position) < c.Radius + NoCampNearHome)) return "you're near a colony: no need for a camp here";
             if (Wet(at, 3.5f)) return "the ground's under water here: find dry ground";
+            if (CampTask.Rise(at, Vector3.forward, new Vector3(3f, 0, 3f)) > 2.2f) return "the ground's too steep here for a camp: find a flatter spot";
             var missing = CampCost().Where(x => crew.Sum(b => b.Body.GetInventory().CountItems(x.item.m_itemData.m_shared.m_name)) < x.n)
                 .Select(x => $"{x.n - crew.Sum(b => b.Body.GetInventory().CountItems(x.item.m_itemData.m_shared.m_name))} {Localization.instance.Localize(x.item.m_itemData.m_shared.m_name).ToLowerInvariant()}").ToList();
             if (missing.Count > 0) return "the crew carries too little: short " + string.Join(", ", missing) + " (a carrier packs a camp's makings)";
@@ -413,7 +423,7 @@ namespace Jarldom
                 case "carrier":
                 {
                     // (a load of five kinds, or nothing more lying about: into the camp chest; else what lies about near the camp, picked up)
-                    var loot = b.Body.GetInventory().GetAllItems().Where(i => !i.m_equipped && Work.Loot(i) && !(i.m_dropPrefab != null && (i.m_dropPrefab.name == "Wood" || i.m_dropPrefab.name == "Stone"))).ToList();
+                    var loot = b.Body.GetInventory().GetAllItems().Where(i => !i.m_equipped && Work.Loot(i) && !(i.m_dropPrefab != null && Makings().Contains(i.m_dropPrefab.name))).ToList();
                     if (st.Chest != null && loot.Count > 0 && (st.Phase == 1 || Time.time >= st.Next) && (loot.Count >= 5 || st.Phase == 1 || st.Item == null && Time.time >= st.Next && Lying(fire).Count == 0))
                     {
                         st.Phase = 1; st.Item = null;
@@ -590,11 +600,21 @@ namespace Jarldom
                 dir = Quaternion.AngleAxis(deg, Vector3.up) * way;
                 at = fire + dir * far;
                 at.y = ZoneSystem.instance.GetGroundHeight(at);
+                if (Rise(at, dir, half) > Mathf.Max(0.5f, half.y)) continue; // (too steep under it)
                 if (!Physics.CheckBox(at + Vector3.up * (half.y + 0.15f), half, Quaternion.LookRotation(dir), _solid, QueryTriggerInteraction.Ignore)) return true;
             }
             at = fire; dir = way; return false;
         }
         private static int _solid = -1;
+        // How much the ground rises and falls under a footprint of that half-size there (its corners and middle).
+        public static float Rise(Vector3 at, Vector3 dir, Vector3 half)
+        {
+            Vector3 across = Vector3.Cross(Vector3.up, dir).normalized * half.x, along = dir.normalized * half.z;
+            float lo = float.MaxValue, hi = float.MinValue;
+            foreach (Vector3 o in new[] { Vector3.zero, across + along, across - along, -across + along, -across - along })
+            { float h = ZoneSystem.instance.GetGroundHeight(at + o); lo = Mathf.Min(lo, h); hi = Mathf.Max(hi, h); }
+            return hi - lo;
+        }
         // Two bedrolls (a metre wide, two long) laid there those ways would lie on each other.
         private static bool Overlap(Vector3 a, Vector3 aWay, Vector3 b, Vector3 bWay)
         {
