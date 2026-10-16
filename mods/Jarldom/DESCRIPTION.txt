@@ -38,6 +38,8 @@ Great works: once it's a village, the Thing may ask to raise a great work, one a
 
 Ships: mark a Boatyard zone out over the shore (with a workbench by it, as for any ship), make someone a Shipwright (they need a hammer), and order a raft, karve or longship in the Work tab. The shipwright fetches its makings from the stores and works on it at the water's edge a good while, and the colony cheers it into the water. Trade runs go by karve or longship once one lies at the shore. One ship at a time; you must know how to build that ship yourself.
 
+The scattered reborn: once the colony is a hamlet, now and then one of the souls the Valkyrie brings at dusk is set down far out instead of at the pillars, by a ruin, a wreck or a standing stone 400 to 1500 m away in a land you've opened. Hugin says where and it's pinned on your map. They wait there by a small fire, calling out when someone comes near, and follow whoever reaches them home, owing that one their life. Unfound after three days, the Valkyrie carries them on to Valhalla instead.
+
 While you're away: an unloaded colony makes up the time when you return. Outposts: a second colony 300 m or more away can be linked to the first, and a carter brings its ore home.
 
 Moving the pillars: taken down or broken, they leave the heart of the high seat; raise new pillars while carrying it and the colony stands there again.

@@ -123,7 +123,7 @@ namespace Jarldom
             Brains.Clear(); Order.Clear();
             Jarldom.Body.Forget();
         }
-        public static void ForgetWorld() { DetachAll(); VillagerPrefab.ForgetKnown(); Expedition.Forget(); }
+        public static void ForgetWorld() { DetachAll(); VillagerPrefab.ForgetKnown(); Expedition.Forget(); Scattered.Forget(); }
 
         // ---- making ----
         public static Humanoid Spawn(Colony colony, VillagerState s, Vector3 at, byte[] gear = null, bool dressNew = false)

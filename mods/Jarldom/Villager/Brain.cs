@@ -123,8 +123,11 @@ namespace Jarldom
             // as fast as the real one: sleeping players, a faster day; a jump of the clock counts as an hour at most)
             double world = Now; GameDt = _lastWorld > 0 ? Math.Min(Math.Max(0, world - _lastWorld), Clock.Hour) : 0; _lastWorld = world;
             _nextDecide = Time.time + 0.25f; // four times a second is plenty
+            // (set down far out by the Valkyrie: waiting by their fire to be found, Scattered.cs)
+            if (Scattered.Stranded(this)) { if (Time.time >= _nextGear) { _nextGear = Time.time + 1f; Gear.Maintain(this); } if (Time.time >= _nextFoes) { _nextFoes = Time.time + 0.3f; Combat.Think(this); } if (!Combat.Busy(this)) { Task?.Stop(this); Task = null; Idle(Scattered.Wait(this)); } return; }
             if (Colony == null || !Colony.Valid) { Colony = Colony.Of(S.Colony); if (Colony == null) { if (Follow.LeaderId(this) != 0) Away(); else Idle("waiting for the hall to load"); return; } }
             Follow.Told(this); // (a homecoming told while the hall was far away)
+            if (View.GetZDO().GetLong(Scattered.RescuerKey, 0L) != 0) Plugin.Guard(() => Scattered.Home(this)); // (found out in the wilds, and home now)
             double now = Now;
             Split.Begin();
             if (Time.time >= _nextNeeds) { _nextNeeds = Time.time + 5f; Needs(now); Split.Mark("needs"); }

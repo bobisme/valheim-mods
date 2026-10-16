@@ -144,6 +144,7 @@ namespace Jarldom
             M("valkyries", "Hears the Valkyries", 15, 0),
             M("tribute", "We paid the Fulings", -5, 72),
             M("arrived", "Reborn in a new home", 10, 24),
+            M("rescued", "Brought home from the wilds", 12, 72),
             M("rain", "Caught in the rain", -3, 2),
             M("merry", "Merry company in the hall", 5, 24),
             M("blessed", "The gods smile on us", 8, 24),

@@ -43,6 +43,8 @@ namespace Jarldom
         {
             ColonyRecord r = c.R;
             if (r.Coming.Count == 0 || r.ComingLanded || r.ComingDay != day && !force) return;
+            Plugin.Guard(() => Scattered.SetDown(c, day)); // (one of them, now and then, set down far out instead)
+            if (r.Coming.Count == 0) { c.MarkDirty(); return; }
             r.ComingLanded = true;
             c.MarkDirty();
             Net.Valkyrie_(c.Position);

@@ -305,6 +305,7 @@ namespace Jarldom
             Plugin.Guard(() => Beacon.Tick(this));
             Plugin.Guard(() => TrueLegends.Tick(this));
             Plugin.Guard(() => GreatWork.Tick(this));
+            Plugin.Guard(() => Scattered.Tick(this));
             Plugin.Guard(() => Thing.Tick(this));
             Plugin.Guard(() => Expedition.LinkPending(this));
         }

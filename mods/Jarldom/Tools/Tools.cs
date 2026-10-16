@@ -67,7 +67,7 @@ namespace Jarldom
         {
             string cmd = a.Length > 1 ? a[1].ToLowerInvariant() : "status";
             Colony c = Here();
-            string[] cheats = { "ship", "arrivals", "actas", "expedition", "bags", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "move", "payfix", "arena", "greatwork", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing", "corner", "dim", "lost", "valkyrie", "shipburial" };
+            string[] cheats = { "scatter", "ship", "arrivals", "actas", "expedition", "bags", "despawn", "drop", "creature", "table", "soil", "cultivate", "grow", "nav", "roof", "act", "level", "put", "wall", "unput", "fill", "move", "payfix", "arena", "greatwork", "place", "spawn", "migrate", "accept", "room", "zone", "prof", "mood", "worth", "need", "give", "bed", "goto", "time", "pay", "favour", "feast", "thing", "ascend", "kill", "raid", "horn", "treasury", "stockpile", "tp", "remove", "tribute", "craft", "clear", "site", "hurt", "takedown", "relic", "pickrelic", "touch", "mischief", "follow", "purge", "leisure", "makeown", "deeds", "wreck", "slay", "unlose", "forgetrow", "unlog", "relog", "kneel", "setfuel", "traderun", "away", "master", "envoy", "capture", "barrow", "claims", "ask", "smite", "feed", "dog", "landing", "corner", "dim", "lost", "valkyrie", "shipburial" };
             if (cheats.Contains(cmd) && !(cmd == "room" && a.Length > 2 && a[2] == "check") && !Cheats()) { error("jarldom " + cmd + " changes the world: only in single player, for the host, or for a server admin with devcommands on"); return; }
             if (cmd == "seatview") { Ui.JarlView.Test(); output(new JObject { ["active"] = Ui.JarlView.Active }); return; }
             if (cmd == "pintest")
@@ -1674,6 +1674,18 @@ namespace Jarldom
                         break;
                     }
                 case "fires": output(new JObject { ["fires"] = new JArray(c.PiecesIn(c.Radius).Select(pc => pc.GetComponent<Fireplace>()).Where(f => f != null).Select(f => $"{Utils.GetPrefabName(f.gameObject)} at {f.transform.position.x:0},{f.transform.position.z:0}: warms {Classes.Warms(f)}, lit {Classes.Lit(f)}, areas {string.Join("/", f.GetComponentsInChildren<EffectArea>(true).Select(e => e.m_type + (e.gameObject.activeInHierarchy ? "" : "(off)")))}, fuel {f.GetComponent<ZNetView>().GetZDO().GetFloat(ZDOVars.s_fuel):0.0}/{f.m_maxFuel} {f.m_fuelItem?.name}, by {f.GetComponent<Piece>()?.GetCreator()}, fed {c.Feeds(f.GetComponent<Piece>())}")), ["founder"] = c.R.Founder, ["me"] = Player.m_localPlayer?.GetPlayerID() ?? 0, ["players"] = new JArray(Player.GetAllPlayers().Select(x => x.GetPlayerName() + " " + x.GetPlayerID())), ["allowed"] = new JArray(c.R.Allowed) }); break;
+                case "scatter": // (test: "scatter" the one waiting out in the wilds; "scatter now" sets a newcomer down far out (one made up if none is coming); "scatter expire" ages the wait past three days)
+                    {
+                        if (a.Length > 2 && a[2] == "now")
+                        {
+                            if (c.R.Coming.Count == 0) { c.R.Coming = Souls.Group(new System.Random(Environment.TickCount), 1); c.R.ComingDay = c.Day; }
+                            output(new JObject { ["set"] = Scattered.SetDown(c, c.Day, true) });
+                        }
+                        else if (a.Length > 2 && a[2] == "expire" && Scattered.Waiting(c) is Scatter.Waiting old) { old.Day -= Scatter.HoldDays; c.Z.Set(Scattered.RecordKey, Scatter.Save(old)); }
+                        Scatter.Waiting w = Scattered.Waiting(c); ZDO bz = w != null ? Scattered.BodyOf(w.Vid) : null;
+                        output(new JObject { ["waiting"] = w != null ? $"{c.R.Row(w.Vid)?.Name} at {w.X:0},{w.Z:0}, {Scatter.DaysLeft(w.Day, c.Now / Clock.DayLength):0.00} days left" : null, ["body"] = bz != null ? $"{bz.GetPosition()} stranded={bz.GetString(Scattered.StrandKey, "")} rescuer={bz.GetLong(Scattered.RescuerKey, 0L)}" : null, ["opened"] = Scattered.Opened() });
+                    }
+                    break;
                 case "ship": // (test: "ship" the boatyard's state; "ship <raft|karve|longship>" orders one, as the Work tab's button does)
                     {
                         var bk = Shipyard.Building(c);
