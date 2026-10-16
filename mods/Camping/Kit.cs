@@ -150,7 +150,8 @@ namespace Camping
             Bed bed = go.GetComponent<Bed>();
             if (bed == null) return;
             if (bed.m_spawnPoint == null) { var s = new GameObject("spawnpoint"); s.transform.SetParent(go.transform, false); bed.m_spawnPoint = s.transform; }
-            bed.m_spawnPoint.localPosition = at; bed.m_spawnPoint.localRotation = Quaternion.identity;
+            // (turned round: the game lays a sleeper with their head toward the spawn point's back, and the pillow is at the model's back)
+            bed.m_spawnPoint.localPosition = at; bed.m_spawnPoint.localRotation = Quaternion.Euler(0, 180, 0);
         }
         // The ground under it levelled to where it lies (blended into the slope round it) and trodden to dirt, so the grass doesn't hide
         // it: as the hoe's path does it, while it stands (packed up, the ground is as it was).
