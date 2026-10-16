@@ -1,3 +1,5 @@
+0.1.176: The Peak Temple's banners hang from the tops of the door jambs.
+
 0.1.175: The Peak Temple's door jambs are a stone taller, and the banners hang from them (they fell with nothing to hold them).
 
 0.1.174: The Peak Temple's banners hang on the door's stone jambs, and the entrance pillars stand clear of them.

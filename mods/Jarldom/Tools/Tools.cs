@@ -308,6 +308,15 @@ namespace Jarldom
                 for (float z = r; z >= -r; z -= st) { var line = new List<string>(); for (float x = -r; x <= r; x += st) { ZoneSystem.instance.GetGroundHeight(new Vector3(gx + x, 0, gz + z), out float h); line.Add(h.ToString("0.0")); } rows.Add(string.Join(" ", line)); }
                 output(new JObject { ["rows"] = rows, ["world"] = WorldGenerator.instance.GetHeight(gx, gz) }); return;
             }
+            if (cmd == "piecesat")
+            {
+                // Test (read-only): built pieces within r of x z (piecesat <x> <z> <r> [prefab]): where, their turn, whether a test piece.
+                Vector3 q = new Vector3(F(a[2]), 0, F(a[3])); float r = F(a[4]); string only = a.Length > 5 ? a[5] : "";
+                var ps = new List<Piece>(); Piece.GetAllPiecesInRadius(new Vector3(q.x, Player.m_localPlayer.transform.position.y, q.z), r + 20, ps);
+                output(new JObject { ["pieces"] = new JArray(ps.Where(x => x != null && Utils.DistanceXZ(x.transform.position, q) <= r && (only == "" || Colony.NameOf(x) == only))
+                    .Select(x => $"{Colony.NameOf(x)} at {x.transform.position.ToString("F2")} yaw {x.transform.rotation.eulerAngles.y:0.#} test {x.GetComponent<ZNetView>()?.GetZDO()?.GetBool(TestKey) == true}")) });
+                return;
+            }
             if (cmd == "peaks")
             {
                 // Test (read-only): the highest mountain ground within r of the player (peaks <r>), each a local top, with how flat 6 m round it is.
