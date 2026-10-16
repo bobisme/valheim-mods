@@ -158,9 +158,10 @@ namespace Jarldom
                 if (gz < 0) { P("woodwall", -1, deck + 1f, gz); P("woodwall", 1, deck + 1f, gz); continue; }
                 P("stone_wall_1x1", -1.5f, deck + 0.5f, gz); P("stone_wall_1x1", -1.5f, deck + 1.5f, gz);
                 P("stone_wall_1x1", 1.5f, deck + 0.5f, gz); P("stone_wall_1x1", 1.5f, deck + 1.5f, gz);
+                P("stone_wall_1x1", -1.5f, deck + 2.5f, gz); P("stone_wall_1x1", 1.5f, deck + 2.5f, gz); // (a third stone each side: what the banners hang from)
                 P("wood_door", 0, deck + 1.01f, gz);
             }
-            P("piece_banner03", -1.6f, deck + 2.4f, TempleEnd + 0.6f, 90); P("piece_banner03", 1.6f, deck + 2.4f, TempleEnd + 0.6f, 90); // (hung on the door's jambs, in front of the stone; the pillars clear of them)
+            P("piece_banner03", -1.5f, deck + 2.4f, TempleEnd + 0.58f, 90); P("piece_banner03", 1.5f, deck + 2.4f, TempleEnd + 0.58f, 90); // (hung on the door's jambs, in front of the stone; the pillars clear of them)
             P("wood_dragon1", 0, deck + TempleRidge + 0.2f, TempleEnd + 0.2f, 0); P("wood_dragon1", 0, deck + TempleRidge + 0.2f, -TempleEnd - 0.2f, 180);
             // inside: the altar at the back, a torch either side, wolf pelts from the door up to it (the rest is the jarl's to hang)
             P("JarldomAltar_" + (string.IsNullOrEmpty(god) ? "odin" : god), 0, deck, -3.6f);
