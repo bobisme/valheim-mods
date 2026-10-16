@@ -1,3 +1,5 @@
+0.1.174: The Peak Temple's banners hang on the door's stone jambs, and the entrance pillars stand clear of them.
+
 0.1.173: The Peak Temple's plan has wolf-pelt rugs from the door to the altar (8 wolf pelts), and once it stands the hall tab says its grade rises with what's hung in it.
 
 0.1.172: The Peak Temple is the A-frame again (Bob preferred it): the 67° roof from the plinth to the ridge, plank gables, the door between stone jambs.

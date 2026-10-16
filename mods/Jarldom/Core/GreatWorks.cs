@@ -140,7 +140,7 @@ namespace Jarldom
             void P(string prefab, float x, float y, float z, float yaw = 0) => parts.Add(new Part(prefab, x, y, z, yaw));
             const float deck = 0.25f; // (the plinth's top)
             for (int x = -4; x <= 4; x += 2) for (int z = -5; z <= 5; z += 2) P("stone_floor_2x2", x, deck - 0.5f, z);
-            foreach (var (px, pz) in new[] { (4.5f, 5.5f), (-4.5f, 5.5f), (4.5f, -5.5f), (-4.5f, -5.5f), (2.4f, 5.7f), (-2.4f, 5.7f) })
+            foreach (var (px, pz) in new[] { (4.5f, 5.5f), (-4.5f, 5.5f), (4.5f, -5.5f), (-4.5f, -5.5f), (3.0f, 5.7f), (-3.0f, 5.7f) })
             { P("stone_pillar", px, deck + 1f, pz); P("piece_groundtorch_wood", px, deck + 2.65f, pz); }
             // the roof, from the plinth up (a 67° piece rises 4 m over 2: its pivot 1.02 m over its foot and 1.06 m in from it)
             for (float z = -4; z <= 4; z += 2)
@@ -160,7 +160,7 @@ namespace Jarldom
                 P("stone_wall_1x1", 1.5f, deck + 0.5f, gz); P("stone_wall_1x1", 1.5f, deck + 1.5f, gz);
                 P("wood_door", 0, deck + 1.01f, gz);
             }
-            P("piece_banner03", -2.6f, deck + 2.4f, TempleEnd + 0.3f, 90); P("piece_banner03", 2.6f, deck + 2.4f, TempleEnd + 0.3f, 90);
+            P("piece_banner03", -1.6f, deck + 2.4f, TempleEnd + 0.6f, 90); P("piece_banner03", 1.6f, deck + 2.4f, TempleEnd + 0.6f, 90); // (hung on the door's jambs, in front of the stone; the pillars clear of them)
             P("wood_dragon1", 0, deck + TempleRidge + 0.2f, TempleEnd + 0.2f, 0); P("wood_dragon1", 0, deck + TempleRidge + 0.2f, -TempleEnd - 0.2f, 180);
             // inside: the altar at the back, a torch either side, wolf pelts from the door up to it (the rest is the jarl's to hang)
             P("JarldomAltar_" + (string.IsNullOrEmpty(god) ? "odin" : god), 0, deck, -3.6f);
