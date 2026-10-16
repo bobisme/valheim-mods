@@ -476,13 +476,22 @@ namespace Shieldwall
                 if(c==null||c.IsDead()||!(c.IsPlayer()||c.IsTamed()||c.GetFaction()==Character.Faction.Players))continue;
                 if(Vector3.Distance(c.transform.position,transform.position)>Range||c.GetHealth()>=c.GetMaxHealth()-0.5f)continue;
                 c.Heal(amount,true);any=true;
+                HealMark?.Create(c.GetCenterPoint(),Quaternion.identity,c.transform); // (the shaman's mark on whoever it mends)
             }
             // The stone: half a percent of its strength each pulse (more with upgrades), during a siege.
             ZDO z=stone.Z;
             if(stone.Phase==Phase.Battle&&Vector3.Distance(stone.transform.position,transform.position)<=Range+5&&z.GetFloat(Shieldwall.Stone.HealthKey,0)<z.GetFloat(Shieldwall.Stone.MaxHealthKey,0))
             {Net.Damage(stone,-z.GetFloat(Shieldwall.Stone.MaxHealthKey,0)*0.005f*Policy.Power(Quality)*Policy.BoonDamage(StaveKind.Hearth,Boons,false),stone.transform.position);any=true;}
-            if(any)Assets.Effect("vfx_HealthUpgrade",transform.position+Vector3.up*Pieces.SocketTop);
+            if(any)
+            {
+                // The greydwarf shaman's healing: its green prayer-fire at the stave's head, and its chant.
+                Vector3 head=_light!=null?_light.transform.position:transform.position+Vector3.up*(Pieces.SocketTop+_length-0.5f);
+                Assets.Effect("vfx_greydwarf_shaman_pray",head);
+                Assets.Effect("sfx_greydwarf_shaman_heal",head);
+            }
         }
+        // What the shaman's healing leaves on each one it mends (its heal's own hit effect; not the heal itself, which mends monsters).
+        private static EffectList HealMark=>Assets.Find("shaman_heal_aoe")?.GetComponent<Aoe>()?.m_hitEffects;
 
         // ---- the socket brought down (by the horde, or taken down with the hammer): the stave falls where it stood ----
         private void Fallen()
