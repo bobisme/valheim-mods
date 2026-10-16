@@ -11,7 +11,8 @@ namespace Jarldom
     internal static class Faith
     {
         // A god's blessing: a temple to them that passes, and their favour above nothing.
-        public static bool Blessed(Colony c, string god) => c != null && c.R != null && c.R.Rooms.Any(r => r.Ok && r.Type == RoomType.Temple && r.God == god) && c.FavourOf(god) > 0;
+        public static bool Blessed(Colony c, string god) => c != null && c.R != null && (c.R.Rooms.Any(r => r.Ok && r.Type == RoomType.Temple && r.God == god)
+            || GreatWork.Has(c, GreatWorks.PeakTemple) && FarWork.Far(c, GreatWorks.PeakTemple) && GreatWork.God(c, GreatWorks.PeakTemple) == god) && c.FavourOf(god) > 0; // (the far Peak Temple is theirs)
 
         // Thor: the colony's villagers strike a tenth harder.
         [HarmonyPatch(typeof(Character), "RPC_Damage")]

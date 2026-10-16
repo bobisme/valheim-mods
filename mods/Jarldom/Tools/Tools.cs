@@ -1298,7 +1298,7 @@ namespace Jarldom
                         if (sub == "why") { Vector3 spot = new Vector3(F(a[3]), 0, F(a[4])); ZoneSystem.instance.GetSolidHeight(spot, out float gh); spot.y = gh; output(new JObject { ["why"] = GreatWork.Why(c, w, me, spot, out _, out _) }); }
                         c.MarkDirty();
                         int st = GreatWorks.Stage(c.R.Flags, w);
-                        output(new JObject { ["stage"] = st, ["shore"] = GreatWork.Shore(c) is Vector3 sh ? V(sh) : null, ["parts"] = GreatWorks.Parts(w).Count, ["needs"] = GreatWorks.NeedsText(w),
+                        output(new JObject { ["stage"] = st, ["far"] = FarWork.Far(c, w), ["peak"] = FarWork.Peak(c, w) is Vector3 pk ? $"{pk.x:0} {pk.z:0} h {WorldGenerator.instance.GetHeight(pk.x, pk.z):0}, {Utils.DistanceXZ(pk, c.Position):0} m" : null, ["where"] = FarWork.Where(c, w), ["shore"] = GreatWork.Shore(c) is Vector3 sh ? V(sh) : null, ["parts"] = GreatWorks.Parts(w).Count, ["needs"] = GreatWorks.NeedsText(w),
                             ["built"] = st >= GreatWorks.Laid ? GreatWork.Built(c, w) : 0, ["at"] = st >= GreatWorks.Laid ? V(GreatWork.At(c, w, out _)) : null, ["ghosts"] = Compat.GhostCount(c.Position, c.Radius), ["plans"] = GreatWork.Plans(c, w), ["movable"] = GreatWork.Movable(c, w), ["blockers"] = new JArray(Compat.GhostBlockers(GreatWork.At(c, w, out _), 30f)), ["knowsIron"] = me.IsRecipeKnown(Assets.Find("woodiron_pole")?.GetComponent<Piece>()?.m_name ?? ""), ["missing"] = st >= GreatWorks.Laid ? new JArray(GreatWork.Missing(c, w)) : null });
                     }
                     break;
@@ -1315,6 +1315,18 @@ namespace Jarldom
                             string why = Expedition.CantRaise(crew1, spot);
                             if (a.Length > 3 && a[3] == "raise" && why == "") crew1.OrderBy(m => Expedition.RoleOf(m) == "carrier" ? 0 : 1).First().Command("outpost", $"{spot.x.ToString(CultureInfo.InvariantCulture)}|{spot.y.ToString(CultureInfo.InvariantCulture)}|{spot.z.ToString(CultureInfo.InvariantCulture)}|{(me.transform.eulerAngles.y + 180f).ToString(CultureInfo.InvariantCulture)}");
                             output(new JObject { ["crew"] = crew1.Count, ["why"] = why, ["atCamp"] = Expedition.AtCamp(me, new Expedition.CampState()), ["cost"] = new JArray(Expedition.PillarsCost().Select(x => $"{x.n} {x.item.name}")), ["colonies"] = new JArray(Outposts.All().Select(x => $"{x.id} {Mathf.RoundToInt(Utils.DistanceXZ(x.at, spot))} m")) });
+                            break;
+                        }
+                        if (a.Length > 2 && a[2] == "farwork") // (test: the crew builder's far great work plan, why it can't be laid here; "farwork lay" lays it as the crew menu's button does)
+                        {
+                            Brain fb = FarWork.Carrier(me.GetPlayerID()); FarWork.Plan fp = FarWork.Of(fb);
+                            var camp = new Expedition.CampState(); bool atCamp = Expedition.AtCamp(me, camp);
+                            string why = fp == null ? "no builder with a plan" : FarWork.WhyNot(fp, me, atCamp ? camp.Fire.transform.position : (Vector3?)null, out Vector3 fat, out float fyaw);
+                            bool laid = a.Length > 3 && a[3] == "lay" && fp != null && atCamp && FarWork.Lay(fb, me, camp.Fire.transform.position);
+                            fp = FarWork.Of(fb);
+                            output(new JObject { ["builder"] = fb?.S.Name, ["plan"] = fb?.View.GetZDO().GetString(FarWork.CarryKey, ""), ["why"] = why, ["laid"] = laid, ["ghosts"] = fp != null && fp.Laid ? Compat.GhostCount(fp.At, 16f) : 0,
+                                ["built"] = fp != null && fp.Laid ? GreatWork.BuiltAt(fp.Parts(), fp.At, fp.Yaw) : 0, ["parts"] = fp?.Parts().Count ?? 0, ["chest"] = atCamp && camp.Chest != null ? new JArray(camp.Chest.GetInventory().GetAllItems().Select(i => $"{i.m_dropPrefab?.name} x{i.m_stack}")) : null,
+                                ["keys"] = new JArray(ZoneSystem.instance.GetGlobalKeys().Where(k => k.StartsWith("jarldom_gw"))) });
                             break;
                         }
                         if (a.Length > 2 && a[2] == "camp") // (test: why the crew can or can't camp where the player stands, the cost; "camp at x z": make it there)

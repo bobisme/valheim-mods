@@ -20,6 +20,22 @@ namespace Jarldom
 
         internal static bool IsBag(Container c) => c != null && c.m_name == VillagerPrefab.BagName && c.GetComponent<Humanoid>() != null;
         internal static void Forget() { Loaded.Clear(); SoulSeen.Clear(); }
+        // After a reload (this copy's list of loaded bags starts empty): a bag this game owns whose contents are just what its soul
+        // holds is loaded already, as the copy before this one left it; taken as loaded, so what changes in it is saved again. (Not
+        // taken so, it was saved nowhere until the game loaded it again: items put in a chest came back to the bag.) A bag that
+        // differs from its soul is left to the game's own load, as before (a new body's empty bag mustn't be written over the soul).
+        internal static void Settle(Humanoid h)
+        {
+            Container bag = h != null ? h.GetComponent<Container>() : null;
+            if (!IsBag(bag) || Loaded.Contains(bag.GetInstanceID())) return;
+            ZNetView v = bag.GetComponent<ZNetView>();
+            if (v == null || !v.IsValid() || !v.IsOwner()) return;
+            byte[] data = Saved(v.GetZDO(), SoulStore.Of(v.GetZDO()), out _);
+            if (data == null || data.Length == 0) return;
+            var soul = new Inventory("", null, VillagerPrefab.BagWidth, VillagerPrefab.BagRows);
+            try { soul.Load(new ZPackage(data)); } catch { return; }
+            if (Contents(soul) == Contents(bag.GetInventory())) Loaded.Add(bag.GetInstanceID());
+        }
 
         [HarmonyPatch(typeof(Container), "Awake")]
         private static class ShareBag

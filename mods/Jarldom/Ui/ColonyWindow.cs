@@ -149,8 +149,9 @@ namespace Jarldom.Ui
             var people = c.R.Living.ToList();
             foreach (string gw in GreatWorks.All)
             {
-                if (GreatWorks.Stage(c.R.Flags, gw) == GreatWorks.Promised) list.Add($"The Thing chose to raise {GreatWorks.Name(gw)}: with the hammer's \"Mark rooms and zones\", outline its site {GreatWorks.Where(gw)} ({GreatWorks.FootingOf(gw) * 2:0} × {GreatWorks.FootingOf(gw) * 2:0} m at least, on ground flat enough) and choose \"{GreatWorks.Title(gw)}\" under Great work.");
-                if (GreatWorks.Stage(c.R.Flags, gw) == GreatWorks.Laid && !people.Any(p => p.Prof == Prof.Builder)) list.Add($"{GreatWorks.Title(gw)} waits for builders: give someone the Builder trade (People tab).");
+                if (GreatWorks.Stage(c.R.Flags, gw) == GreatWorks.Promised) list.Add($"The Thing chose to raise {GreatWorks.Name(gw)} {FarWork.Where(c, gw)}. At home: with the hammer's \"Mark rooms and zones\", outline its site ({GreatWorks.FootingOf(gw) * 2:0} × {GreatWorks.FootingOf(gw) * 2:0} m at least, on ground flat enough) and choose \"{GreatWorks.Title(gw)}\" under Great work.");
+                if (GreatWorks.Stage(c.R.Flags, gw) == GreatWorks.Laid && !FarWork.Far(c, gw) && !people.Any(p => p.Prof == Prof.Builder)) list.Add($"{GreatWorks.Title(gw)} waits for builders: give someone the Builder trade (People tab).");
+                if (GreatWorks.Stage(c.R.Flags, gw) == GreatWorks.Laid && FarWork.Far(c, gw)) list.Add($"{GreatWorks.Title(gw)} rises far off on its peak: it's built only while a crew's builder is camped there (Expedition tab: a builder, and carriers to pack its makings).");
             }
             // (a crop chosen for the season with no seeds for it: the farmers sow whatever else there is)
             foreach (Zone z in c.R.Zones.Where(z => z.Type == ZoneType.Fields))
@@ -460,14 +461,16 @@ namespace Jarldom.Ui
                 int stage = GreatWorks.Stage(_c.R.Flags, work);
                 if (stage == 0) continue;
                 string god = GreatWork.God(_c, work), to = god != null ? $" to {Tables.God(god)?.Name}" : "";
-                if (stage == GreatWorks.Promised) { y = Text(list, $"The Thing chose to raise {GreatWorks.Name(work)}{to}: {GreatWorks.Look(work)} ({GreatWorks.NeedsText(work)}). Outline its site {GreatWorks.Where(work)} with \"Mark rooms and zones\" and choose it under Great work.", y, 15); continue; }
+                if (stage == GreatWorks.Promised) { y = Text(list, $"The Thing chose to raise {GreatWorks.Name(work)}{to}: {GreatWorks.Look(work)} ({GreatWorks.NeedsText(work)}). Where: {FarWork.Where(_c, work)}. At home, outline its site with \"Mark rooms and zones\" and choose it under Great work; on the peak, E on the crew's builder.", y, 15); continue; }
                 int all = GreatWork.Parts(_c, work).Count, built = _c.R.Flag(GreatWorks.BuiltKey(work));
                 if (stage == GreatWorks.Laid)
                 {
                     Vector3 at = GreatWork.At(_c, work, out _);
                     if (GreatWork.Movable(_c, work)) y = Text(list, "Not begun yet: outline another site with \"Mark rooms and zones\" and choose \"Move it here\" under Great work to move it.", y, 15, GameUi.Dim);
-                    y = Text(list, $"{GreatWorks.Title(work)}{to} is rising {Mathf.RoundToInt(Utils.DistanceXZ(at, _c.Position))} m to the {ScoutTask.Compass(at - _c.Position)} of the high seat: {built} of {all} parts stand. Builders raise it from the stores ({GreatWorks.NeedsText(work)}).", y, 15);
-                    if (!_c.R.Living.Any(r => r.Prof == Prof.Builder)) y = Text(list, "No one is a builder: give someone the Builder trade (People tab).", y, 15, GameUi.Warn);
+                    bool far = FarWork.Far(_c, work);
+                    y = Text(list, $"{GreatWorks.Title(work)}{to} is rising {Mathf.RoundToInt(Utils.DistanceXZ(at, _c.Position))} m to the {ScoutTask.Compass(at - _c.Position)} of the high seat: {built} of {all} parts stand{(far ? " (when last heard)" : "")}. "
+                        + (far ? $"It's far off on its peak: a crew's builder raises it from their camp there, from what the carriers bring (Expedition tab; still to come: {string.Join(", ", FarWork.StillNeeded(_c, work).Where(kv => kv.Value > 0).Select(kv => kv.Value + " " + GreatWorks.Item(kv.Key)))})." : $"Builders raise it from the stores ({GreatWorks.NeedsText(work)})."), y, 15);
+                    if (!_c.R.Living.Any(r => r.Prof == Prof.Builder) && !far) y = Text(list, "No one is a builder: give someone the Builder trade (People tab).", y, 15, GameUi.Warn);
                     continue;
                 }
                 y = Text(list, $"{GreatWorks.Title(work)}{to}, raised on day {_c.R.Flag(GreatWorks.DayKey(work))}. {GreatWorks.Gift(work)}", y, 16, GameUi.Good);

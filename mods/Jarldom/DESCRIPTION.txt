@@ -34,6 +34,8 @@ Trade runs: from village rank a trader takes what the stores have to sell (amber
 
 Out with the jarl: Follow me on a villager's panel takes them along on your travels, through portals too; they fight what comes at you, and Go home sends them back. The Expedition tab sets out with a crew, each with a role (guard, cook, scout, carrier) and packing for it; E on one of them makes camp where you stand (a fire, a chest, a workbench). With the Camping mod the crew also lays bedrolls round the fire and a lean-to over yours (a tent instead in the mountains), and sleeps on them at night.
 
+Great works: once it's a village, the Thing may ask to raise a great work, one at a time, with BuildOrders laying out its plan for the builders. The Lighthouse by the shore: its fire is the colony's beacon and trade ships are lost half as often. The Peak Temple to the best-pleased god, an A-frame hof for the snow line, doubles that god's blessing and offerings: on the colony's highest ground, or on the highest peak within 1.5 km (pinned on your map). For the peak, set out with a crew with a builder and carriers (they pack its makings from the stores), make camp near the summit, and E on the builder to raise it there; the builder works from the camp and the carriers' packs, and tells you what to bring when the camp chest runs short.
+
 While you're away: an unloaded colony makes up the time when you return. Outposts: a second colony 300 m or more away can be linked to the first, and a carter brings its ore home.
 
 Moving the pillars: taken down or broken, they leave the heart of the high seat; raise new pillars while carrying it and the colony stands there again.

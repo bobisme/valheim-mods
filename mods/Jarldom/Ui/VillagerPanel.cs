@@ -112,6 +112,17 @@ namespace Jarldom.Ui
                 }, "A fire, a chest and a workbench, just ahead of you, paid from what the crew carries (a carrier packs a camp's makings). Not near a colony.");
                 Small(right, "Call the crew home", ref bx, ry, () => { foreach (Brain m in Expedition.CrewOf(mine)) Villagers.Command(m.S.Vid, "follow", "0"); Close(); }, "The whole crew stops following you and goes home.");
                 ry += 44; bx = 10;
+                // (a builder on the crew carrying a far great work's plan: lay it on the Thing's peak)
+                Brain builder = FarWork.Carrier(mine);
+                if (FarWork.Of(builder) is FarWork.Plan far && !far.Laid)
+                {
+                    var camp = new Expedition.CampState(); bool atCamp = Expedition.AtCamp(Player.m_localPlayer, camp);
+                    string why = FarWork.WhyNot(far, Player.m_localPlayer, atCamp ? camp.Fire.transform.position : (Vector3?)null, out _, out _);
+                    Small(right, "Raise " + GreatWorks.Name(far.Work) + " here", ref bx, ry, () => { if (atCamp && FarWork.Lay(builder, Player.m_localPlayer, camp.Fire.transform.position)) Close(); else Player.m_localPlayer.Message(MessageHud.MessageType.Center, "Not yet: " + why + "."); },
+                        why == "" ? $"{builder.S.Name} lays out {GreatWorks.Proper(far.Work, far.HomeName)} on the summit, its door toward the camp: the crew digs its footing level, the carriers unpack its makings into the camp chest and {builder.S.Name} raises it piece by piece ({GreatWorks.NeedsText(far.Work)}). Bring what's short to the camp chest."
+                        : $"Not yet: {why}.");
+                    ry += 44; bx = 10;
+                }
                 // (at the crew's camp: raise it into an outpost of their home colony)
                 if (Expedition.AtCamp(Player.m_localPlayer, new Expedition.CampState()))
                 {

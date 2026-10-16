@@ -202,7 +202,7 @@ namespace Jarldom
             c.R.Flags[GreatWorks.YKey(work)] = Mathf.RoundToInt(F(f[2]) * 10f);
             c.R.Flags[GreatWorks.XKey(work)] = Mathf.RoundToInt(F(f[1]) * 10f); c.R.Flags[GreatWorks.ZKey(work)] = Mathf.RoundToInt(F(f[3]) * 10f);
             c.R.Flags[GreatWorks.YawKey(work)] = Mathf.RoundToInt(F(f[4]));
-            c.R.Flags[GreatWorks.BuiltKey(work)] = 0;
+            c.R.Flags[GreatWorks.BuiltKey(work)] = 0; c.R.Flags.Remove(GreatWorks.FarKey(work)); // (FarWork marks it far again, if it's on the peak)
             c.Log("text", who, "", moved ? $"{who} moved {GreatWorks.Name(work)} to a new site before a stick of it was raised." : c.R.Flag(GreatWorks.AgainKey(work)) != 0 ? $"{who} set the builders to raise {GreatWorks.Name(work)} again." : $"{who} chose where {GreatWorks.Name(work)} will stand, and the builders began.");
             c.MarkDirty();
         }
@@ -218,9 +218,13 @@ namespace Jarldom
         {
             Vector3 at = At(c, work, out float yaw);
             if (!ZNetScene.instance.IsAreaReady(at)) return -1;
+            return BuiltAt(Parts(c, work), at, yaw);
+        }
+        public static int BuiltAt(List<GreatWorks.Part> parts, Vector3 at, float yaw)
+        {
             var near = new List<Piece>(); Piece.GetAllPiecesInRadius(at + Vector3.up * 12f, 22f, near);
             int n = 0;
-            foreach (var p in Parts(c, work))
+            foreach (var p in parts)
             {
                 var w = GreatWorks.Place(p, at.x, at.y, at.z, yaw);
                 Vector3 spot = new Vector3(w.x, w.y, w.z);
@@ -240,10 +244,11 @@ namespace Jarldom
         {
             if (!c.IsOwner || Time.time < _next) return;
             _next = Time.time + 20f;
+            FarWork.Tick(c);
             foreach (string work in GreatWorks.All)
             {
                 if (GreatWorks.Stage(c.R.Flags, work) == GreatWorks.Done) { Rekindle(c, work); continue; }
-                if (GreatWorks.Stage(c.R.Flags, work) != GreatWorks.Laid) continue;
+                if (GreatWorks.Stage(c.R.Flags, work) != GreatWorks.Laid || FarWork.Far(c, work)) continue; // (far off: counted by the expedition's jarl, FarWork)
                 int built = Built(c, work), all = Parts(c, work).Count;
                 if (built < 0) continue;
                 if (built != c.R.Flag(GreatWorks.BuiltKey(work))) { c.R.Flags[GreatWorks.BuiltKey(work)] = built; c.MarkDirty(); }
@@ -276,7 +281,7 @@ namespace Jarldom
                 Fireplace hearth = near.Where(p => p != null && Colony.NameOf(p) == "bonfire").Select(p => p.GetComponent<Fireplace>()).FirstOrDefault(f => f != null);
                 if (hearth != null && !Beacon.IsMarked(c, hearth)) Beacon.Mark(c, Colony.IdOf(hearth.GetComponent<ZNetView>()));
             }
-            if (work == GreatWorks.PeakTemple) Hallow(c, work);
+            if (work == GreatWorks.PeakTemple && !FarWork.Far(c, work)) Hallow(c, work); // (far off on its peak: a temple to its god by its own right, Faith.Blessed)
             Net.LegendPin(c, at, GreatWorks.Proper(work, c.R.Name));
             c.Tell($"{GreatWorks.Title(work)} stands! {GreatWorks.Gift(work)} (+{GreatWorks.Renown} renown)", true);
             c.MarkDirty();

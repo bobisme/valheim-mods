@@ -844,6 +844,11 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     var needs = GreatWorks.Needs(GreatWorks.PeakTemple);
     Check(needs["Stone"] > 200 && needs["Wood"] > 50 && needs["Coins"] == 10 && needs["Iron"] == 2, "What it costs (stone and timber, the altar's coins, the stonecutter's 2 iron): " + GreatWorks.NeedsText(GreatWorks.PeakTemple));
     Check(GreatWorks.Site(GreatWorks.PeakTemple, new List<float> { 0, 0, 10, 0, 10, 10, 0, 10 }, out _, out _).Contains("12 × 12") && GreatWorks.Site(GreatWorks.PeakTemple, new List<float> { 0, 0, 14, 0, 14, 14, 0, 14 }, out _, out _) == "", "Its outline must hold 12 × 12 m");
+    // (a far peak: a hill 1000 m north-east of the high seat, its top 120 m up; another higher one beyond reach)
+    float Hill(float x, float z, float cx, float cz, float top, float r) { float d = (float)Math.Sqrt((x - cx) * (x - cx) + (z - cz) * (z - cz)); return Math.Max(0, top * (1 - d / r)); }
+    var peak = GreatWorks.HighestNear((x, z) => Math.Max(Hill(x, z, 707, 707, 120, 300), Hill(x, z, 2500, 0, 400, 300)), 0, 0, 1500, 24, 60);
+    Check(peak.HasValue && Math.Abs(peak.Value.x - 707) < 4 && Math.Abs(peak.Value.z - 707) < 4 && peak.Value.h > 115, $"The far peak is the hill's top, not the higher one out of reach: {peak}");
+    Check(GreatWorks.HighestNear((x, z) => 20f, 0, 0, 1500, 24, 60) == null, "No peak where nothing stands above the floor");
     Check(GreatWorks.SnapYaw(35) == 45 && GreatWorks.SnapYaw(326.5f) == 337.5f && GreatWorks.SnapYaw(-10) == 0 && GreatWorks.SnapYaw(-20) == 337.5f && GreatWorks.SnapYaw(359) == 0 && GreatWorks.SnapYaw(11) == 0 && GreatWorks.SnapYaw(12) == 22.5f, "A great work faces on the game's 22.5° steps");
     var tview = new ColonyView { Population = 6, HasBeautyRoom = true, HasShrine = true, GuardWage = 9, Beds = 6, TempleGod = "freyja", TempleGodName = "Freyja" };
     var asked = Petitions.Raise(new Random(1), tview, 10).FirstOrDefault(p => p.Id == "greatwork");

@@ -387,11 +387,17 @@ namespace Jarldom
         }
         public override void Stop(Brain b) { if (_id != null) Held.Remove(_id); base.Stop(b); }
         public override bool Interruptible => _phase == 0;
+        // (far from home, on an expedition: the plans round a far site, built from the camp chest; no colony stores)
+        private readonly Vector3? _site; private readonly float _reach; private readonly Container _camp;
+        public BuildTask() { }
+        public BuildTask(Vector3 site, float reach, Container camp) { _site = site; _reach = reach; _camp = camp; }
+        public string Short; // (far: what the camp chest lacked, for the jarl)
         public override void Start(Brain b)
         {
+            Vector3 centre = _site ?? b.Colony.Position; float radius = _site.HasValue ? _reach : b.Colony.Radius;
             // The first plan no other builder is on (each fetches the whole cost: two on one plan would waste a trip).
-            string[] next = Compat.NextGhosts(b.Colony.Position, b.Colony.Radius, 8).Where(g => !Taken.Contains(g.Split('|')[0])).Take(1).ToArray();
-            if (next.Length == 0) { Done = true; b.NoBuildUntil = Time.time + 30; string[] why = Compat.GhostBlockers(b.Colony.Position, b.Colony.Radius); if (why.Length > 0) b.Say(new[] { "I can't build the plans: ", "No plans can go up: ", "The plans won't go up: ", "I can't raise these plans: ", "Stuck on the plans: " }[UnityEngine.Random.Range(0, 5)] + why[0].Replace("|", " ").Trim(), 6); return; }
+            string[] next = Compat.NextGhosts(centre, radius, 8).Where(g => !Taken.Contains(g.Split('|')[0])).Take(1).ToArray();
+            if (next.Length == 0) { Done = true; b.NoBuildUntil = Time.time + 30; string[] why = Compat.GhostBlockers(centre, radius); if (why.Length > 0) b.Say(new[] { "I can't build the plans: ", "No plans can go up: ", "The plans won't go up: ", "I can't raise these plans: ", "Stuck on the plans: " }[UnityEngine.Random.Range(0, 5)] + why[0].Replace("|", " ").Trim(), 6); return; }
             string[] f = next[0].Split('|');
             _id = f[0]; _prefab = f[1]; Taken.Add(_id);
             _at = new Vector3(float.Parse(f[2], System.Globalization.CultureInfo.InvariantCulture), float.Parse(f[3], System.Globalization.CultureInfo.InvariantCulture), float.Parse(f[4], System.Globalization.CultureInfo.InvariantCulture));
@@ -399,6 +405,26 @@ namespace Jarldom
             if (_piece == null) { Done = true; b.NoBuildUntil = Time.time + 30; return; }
             _needs = _piece.m_resources.Where(r => r.m_resItem != null && !r.m_upgraderResource && r.m_amount > 0).Select(r => (r.m_resItem.name, r.m_amount)).ToList();
             Doing = "building " + Localization.instance.Localize(_piece.m_name).ToLower();
+        }
+        // (far: what the rest of the crew carries; walked to, and handed over within reach)
+        private static IEnumerable<Brain> Crew(Brain b) => Expedition.CrewOf(Follow.LeaderId(b)).Where(m => m != b && Utils.DistanceXZ(m.Pos, b.Pos) < 40f);
+        private static int Count(Brain m, string item) => m.Body.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == item && !i.m_equipped).Sum(i => i.m_stack);
+        private static int CrewHas(Brain b, string item) => Crew(b).Sum(m => Count(m, item));
+        private bool FromCrew(Brain b, string item, int n)
+        {
+            Brain m = Crew(b).Where(x => Count(x, item) > 0).OrderBy(x => Utils.DistanceXZ(x.Pos, b.Pos)).FirstOrDefault();
+            if (m == null) return false;
+            if (Utils.DistanceXZ(m.Pos, b.Pos) > 2.5f) { if (!b.Move.Moving || Vector3.Distance(b.Move.Goal, m.Pos) > 2f) b.Move.To(m.Pos, 1.8f); Doing = $"getting {Localization.instance.Localize(Assets.Find(item)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name ?? item).ToLower()} from {m.S.Name}"; return true; }
+            b.Move.Stop();
+            foreach (ItemDrop.ItemData i in m.Body.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == item && !i.m_equipped).ToList())
+            {
+                if (n <= 0) break;
+                int k = Math.Min(n, i.m_stack); var copy = i.Clone(); copy.m_stack = k;
+                if (!b.Body.GetInventory().AddItem(copy)) break;
+                m.Body.GetInventory().RemoveItem(i, k); n -= k;
+            }
+            m.Dirty(); b.Dirty();
+            return true;
         }
         private int Have(Brain b, string item) => b.Body.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == item).Sum(i => i.m_stack);
         public override void Tick(Brain b)
@@ -409,14 +435,21 @@ namespace Jarldom
                 // Fetch what's missing from the stores; refuse the piece if the stores don't hold it all.
                 var missing = _needs.Where(n => Have(b, n.item) < n.amount).ToList();
                 if (missing.Count == 0) { _phase = 1; b.Move.To(_at, 2.5f); return; }
-                var chests = Stock.ChestsFor(b).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).ToList();
+                var chests = _site.HasValue ? (_camp != null ? new List<(Container chest, string id, string category)> { (_camp, "", "camp") } : new List<(Container chest, string id, string category)>())
+                    : Stock.ChestsFor(b).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).ToList();
                 foreach (var (item, amount) in missing)
-                    if (chests.Sum(x => x.chest.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == item).Sum(i => i.m_stack)) + Have(b, item) < amount)
-                    { Done = true; b.NoBuildUntil = Time.time + 60; string lacking = Localization.instance.Localize(Assets.Find(item)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name ?? item).ToLower(); b.Say(new[] { $"The stores have too little {lacking} to build the plans.", $"The stores are short of {lacking} for these plans.", $"No {lacking} in the stores for the plans.", $"The plans need more {lacking} than the stores hold.", $"We're short of {lacking} for the plans." }[UnityEngine.Random.Range(0, 5)], 6); return; }
+                    if (chests.Sum(x => x.chest.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == item).Sum(i => i.m_stack)) + Have(b, item) + (_site.HasValue ? CrewHas(b, item) : 0) < amount)
+                    {
+                        Done = true; b.NoBuildUntil = Time.time + 60; string lacking = Localization.instance.Localize(Assets.Find(item)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name ?? item).ToLower();
+                        if (_site.HasValue) { Short = $"{amount - Have(b, item)} {lacking}"; b.Say(new[] { $"The camp chest is short of {lacking} for this, jarl: bring some.", $"I need {Short} in the camp chest to go on.", $"Out of {lacking} up here. Fetch some, jarl?" }[UnityEngine.Random.Range(0, 3)], 7); return; }
+                        b.Say(new[] { $"The stores have too little {lacking} to build the plans.", $"The stores are short of {lacking} for these plans.", $"No {lacking} in the stores for the plans.", $"The plans need more {lacking} than the stores hold.", $"We're short of {lacking} for the plans." }[UnityEngine.Random.Range(0, 5)], 6); return; }
                 var (want, count) = missing[0];
                 Container from = chests.Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want));
+                if (from == null && _site.HasValue && FromCrew(b, want, count - Have(b, want))) return; // (far: a carrier's pack, handed over)
                 if (from == null) { Done = true; b.NoBuildUntil = Time.time + 20; return; }
-                if (Stock.WalkTo(b, from) != Stock.Walk.Reached) return; // (one out of reach is passed over: another is chosen next time round)
+                Stock.Walk walk = Stock.WalkTo(b, from, _site.HasValue ? 3.5f : 2.4f);
+                if (walk == Stock.Walk.Unreachable && _site.HasValue) { Done = true; b.NoBuildUntil = Time.time + 30; b.Say("I can't get to the camp chest.", 5); return; }
+                if (walk != Stock.Walk.Reached) return; // (one out of reach is passed over: another is chosen next time round)
                 ItemDrop.ItemData stack = from.GetInventory().GetAllItems().First(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want);
                 if (Stock.Take(from, b.Body.GetInventory(), stack, count - Have(b, want)) == 0) { Done = true; b.NoBuildUntil = Time.time + 30; return; }
                 return;

@@ -22,7 +22,38 @@ namespace Jarldom
         public static string DayKey(string work) => "gw:" + work + ":day";
         public static string AgainKey(string work) => "gw:" + work + ":again"; // (raised again after it was taken down: no second reward)
         public static string GodKey(string work) => "gw:" + work + ":god";   // (the Peak Temple's god: its index in Tables.Gods)
+        public static string FarKey(string work) => "gw:" + work + ":far";   // (1: its site is far from home, on a peak an expedition went to)
+        public static string PeakXKey(string work) => "gw:" + work + ":peakx"; // (the far peak the Thing named for it, in tenths of a metre;
+        public static string PeakZKey(string work) => "gw:" + work + ":peakz"; //  none found: -1 in peakx)
         public static int Stage(IDictionary<string, int> flags, string work) => flags.TryGetValue(Key(work), out int s) ? s : 0;
+
+        // ---- a far peak for the Peak Temple: the highest ground within reach of the high seat ----
+        public const float PeakReach = 1500f, PeakAbove = 30f; // (how far out it may be; how much higher than the colony's own highest ground)
+        // The highest point within reach of (cx, cz) by the height function: a coarse look every step, then a finer one round the best.
+        // Null if none stands above floor (nowhere is higher than the colony already is).
+        public static (float x, float z, float h)? HighestNear(Func<float, float, float> height, float cx, float cz, float reach, float step, float floor)
+        {
+            (float x, float z, float h) best = (cx, cz, float.MinValue);
+            for (float x = -reach; x <= reach; x += step) for (float z = -reach; z <= reach; z += step)
+            {
+                if (x * x + z * z > reach * reach) continue;
+                float h = height(cx + x, cz + z);
+                if (h > best.h) best = (cx + x, cz + z, h);
+            }
+            for (int pass = 0; pass < 2; pass++)
+            {
+                float fine = step / (pass == 0 ? 4f : 16f); var at = best;
+                for (float x = -step; x <= step; x += fine) for (float z = -step; z <= step; z += fine)
+                {
+                    float px = at.x + x, pz = at.z + z;
+                    if ((px - cx) * (px - cx) + (pz - cz) * (pz - cz) > reach * reach) continue;
+                    float h = height(px, pz);
+                    if (h > best.h) best = (px, pz, h);
+                }
+                step = fine * 2;
+            }
+            return best.h > floor ? best : ((float, float, float)?)null;
+        }
 
         // (prefab, x, y, z from the foot of its middle, +z its front; yaw in degrees; Up: which way the piece's own up points, for a
         // leaning log (0, 0, 0: straight up))
@@ -199,7 +230,7 @@ namespace Jarldom
             return all;
         }
         public static string NeedsText(string work) => string.Join(", ", Needs(work).OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Value} {Item(kv.Key)}"));
-        private static string Item(string prefab) => prefab == "RoundLog" ? "core wood" : prefab == "FineWood" ? "fine wood" : prefab == "ElderBark" ? "ancient bark" : prefab == "SurtlingCore" ? "surtling core"
+        public static string Item(string prefab) => prefab == "RoundLog" ? "core wood" : prefab == "FineWood" ? "fine wood" : prefab == "ElderBark" ? "ancient bark" : prefab == "SurtlingCore" ? "surtling core"
             : prefab == "LeatherScraps" ? "leather scraps" : prefab == "WolfPelt" ? "wolf pelts" : prefab == "DeerHide" ? "deer hides" : prefab == "Raspberry" ? "raspberries" : prefab.ToLower();
         public static string Name(string work) => work == Lighthouse ? "the Lighthouse" : work == PeakTemple ? "the Peak Temple" : work;
         public static string Title(string work) => work == Lighthouse ? "The Lighthouse" : work == PeakTemple ? "The Peak Temple" : work; // (to start a sentence)

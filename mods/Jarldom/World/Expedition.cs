@@ -12,7 +12,7 @@ namespace Jarldom
     internal static class Expedition
     {
         public const string RoleKey = "jarldom_role";
-        public static readonly string[] Roles = { "guard", "cook", "scout", "carrier" };
+        public static readonly string[] Roles = { "guard", "cook", "scout", "carrier", "builder" };
         public const int MaxCrew = 6;
         public static readonly Dictionary<string, string> RoleText = new Dictionary<string, string>
         {
@@ -20,6 +20,7 @@ namespace Jarldom
             ["cook"] = "Packs food from the stores and hands the jarl some when they're running low.",
             ["scout"] = "Uncovers the map far round the jarl as the crew goes.",
             ["carrier"] = "Packs a camp's makings from the stores: 25 wood and 5 stone.",
+            ["builder"] = "Raises a great work far from home (the Peak Temple on the Thing's peak) from the camp: carries its plan, and with the carriers packs its makings. Needs a hammer.",
         };
         // (with the Camping mod: the sleepers' bedrolls, and the carrier's lean-to and the jarl's bedroll, or a tent for the cold)
         public static string Describe(string role)
@@ -79,6 +80,7 @@ namespace Jarldom
             if (b == null) return "not here";
             if (Follow.LeaderId(b) != 0) return "already out with someone";
             if (role == "guard" && !Gear.CanFight(b)) return "no weapon";
+            if (role == "builder" && Gear.Tool(b, "hammer") == null) return "no hammer";
             return "";
         }
 
@@ -90,6 +92,8 @@ namespace Jarldom
             if (!Crews.TryGetValue(leader, out var ids)) Crews[leader] = ids = new List<ZDOID>();
             if (!ids.Contains(b.View.GetZDO().m_uid)) ids.Add(b.View.GetZDO().m_uid);
             Follow.Start(b, leader, name);
+            // (a builder carries the plan of a great work far from home, if the colony has one to raise)
+            if (role == "builder") b.View.GetZDO().Set(FarWork.CarryKey, b.Colony != null && b.Colony.Valid && FarWork.For(b.Colony) is FarWork.Plan plan ? plan.Pack() : "");
             Pack(b, role);
         }
         // ---- left behind: a crew member in ground that isn't loaded (two jumps too quick, a portal's far end not loaded yet) runs no
@@ -100,7 +104,9 @@ namespace Jarldom
         public static void Tick()
         {
             Player me = Player.m_localPlayer;
-            if (me == null || ZNetScene.instance == null || Time.time < _nextGather) return;
+            if (me == null || ZNetScene.instance == null) return;
+            FarWork.Watch(me);
+            if (Time.time < _nextGather) return;
             _nextGather = Time.time + 5f;
             // (crews this game sets out with, and any crew already loaded here following this jarl: after a reload the list is empty)
             long id = me.GetPlayerID();
@@ -131,7 +137,7 @@ namespace Jarldom
             }
         }
         // Home: the role goes with the follow (what's left of the packing goes back to the stores as any carrying does).
-        public static void Ended(Brain b) { if (b?.View != null && b.View.IsValid()) b.View.GetZDO().Set(RoleKey, ""); }
+        public static void Ended(Brain b) { if (b?.View != null && b.View.IsValid()) { b.View.GetZDO().Set(RoleKey, ""); b.View.GetZDO().Set(FarWork.CarryKey, ""); } }
 
         private static void Pack(Brain b, string role)
         {
@@ -154,10 +160,12 @@ namespace Jarldom
                     }
                 said = packed > 0 ? $"I've packed {packed} things to eat." : "There's nothing in the stores to pack: we'll eat what we find.";
             }
-            if (Kit.ContainsKey(role) || CampingKit && role != "guard")
+            // (the carriers and the builder: a far great work's makings too, what the crew hasn't packed yet)
+            var bill = role == "carrier" || role == "builder" ? FarWork.Bill(c, CrewOf(Follow.LeaderId(b))) : new List<(string item, int n)>();
+            if (Kit.ContainsKey(role) || CampingKit && role != "guard" || bill.Count > 0)
             {
                 var got = new List<string>();
-                var want = (Kit.TryGetValue(role, out var kit) ? kit : new (string, int)[0]).Concat(CampingPack(b, role, chests))
+                var want = (Kit.TryGetValue(role, out var kit) ? kit : new (string, int)[0]).Concat(CampingPack(b, role, chests)).Concat(bill)
                     .GroupBy(x => x.Item1).Select(g => (item: g.Key, n: g.Sum(x => x.Item2))).ToList();
                 foreach (var (item, n) in want)
                 {
@@ -291,6 +299,7 @@ namespace Jarldom
             public GameObject Bed; // (a spot by the fire to sleep on at night)
             public readonly Dictionary<int, Bed> Rolls = new Dictionary<int, Bed>(); // (the camp's bedrolls and tent by slot, with the Camping mod)
             public Bed OnRoll; public int Slot = -1; public float Since; // (tonight's bedroll, lain on)
+            public BuildTask Build; public float NextShort; // (a builder at a far great work: the piece being raised; when the jarl was last told of a lack)
             public void Wake(Brain b)
             {
                 Slot = -1; Since = 0;
@@ -420,8 +429,54 @@ namespace Jarldom
                     if (Time.time > st.Until) st.Phase = 0;
                     return "resting at the camp fire";
                 }
+                case "builder":
+                {
+                    // (a far great work laid by this camp: its plans raised one by one from the builder's pack and the camp chest)
+                    FarWork.Plan plan = FarWork.Of(b);
+                    if (plan != null && plan.Laid && Utils.DistanceXZ(plan.At, fire) < CampReach + 10f)
+                    {
+                        if (st.Build == null || st.Build.Done)
+                        {
+                            string had = st.Build?.Short;
+                            if (Time.time >= b.NoBuildUntil) { st.Build = new BuildTask(plan.At, 16f, st.Chest); st.Build.Start(b); }
+                            if (st.Build == null || st.Build.Done)
+                            {
+                                string lack = st.Build?.Short ?? had;
+                                if (lack != null && Time.time >= st.NextShort && jarl == Player.m_localPlayer)
+                                { st.NextShort = Time.time + 180f; jarl.Message(MessageHud.MessageType.TopLeft, $"{b.S.Name}: the camp chest needs {lack} for {GreatWorks.Name(plan.Work)}."); }
+                                if (Utils.DistanceXZ(b.Pos, fire) > 5f && !b.Move.Moving) b.Move.To(fire, 3.5f);
+                                return lack != null ? $"waiting for {lack} in the camp chest" : "looking over the plans";
+                            }
+                        }
+                        st.Build.Tick(b);
+                        return st.Build.Doing ?? "building";
+                    }
+                    if (Utils.DistanceXZ(b.Pos, fire) > 5f && !b.Move.Moving) b.Move.To(fire, 3.5f);
+                    return plan != null && !plan.Laid ? "waiting to be shown where to build" : "resting at the camp fire";
+                }
                 case "carrier":
                 {
+                    // (a far great work rising by this camp: what they packed for it into the camp chest first, for the builder)
+                    FarWork.Plan work = FarWork.Of(FarWork.Carrier(Follow.LeaderId(b)));
+                    if (work != null && work.Laid && st.Chest != null && Utils.DistanceXZ(work.At, fire) < CampReach + 10f && Time.time >= st.Next)
+                    {
+                        var needs = GreatWorks.Needs(work.Work);
+                        var unpack = b.Body.GetInventory().GetAllItems().Where(i => !i.m_equipped && i.m_dropPrefab != null && needs.ContainsKey(i.m_dropPrefab.name) && st.Chest.GetInventory().CanAddItem(i)).ToList(); // (what fits: the rest the builder takes from the pack)
+                        if (unpack.Count > 0)
+                        {
+                            Stock.Walk w = Stock.WalkTo(b, st.Chest, 3.5f);
+                            if (w == Stock.Walk.Walking) return "unpacking for " + GreatWorks.Name(work.Work);
+                            if (w == Stock.Walk.Reached)
+                            {
+                                ContainerAccess.TakeOver(st.Chest);
+                                foreach (var i in unpack) Stock.Put(b.Body.GetInventory(), st.Chest, i);
+                                b.Dirty();
+                                b.Say(new[] { "There: the temple's makings, in the chest.", "Unpacked. My back thanks the gods.", "All of it's in the chest for the builder." }[Random.Range(0, 3)], 5);
+                            }
+                            st.Next = Time.time + 20f;
+                            return "unpacking for " + GreatWorks.Name(work.Work);
+                        }
+                    }
                     // (a load of five kinds, or nothing more lying about: into the camp chest; else what lies about near the camp, picked up)
                     var loot = b.Body.GetInventory().GetAllItems().Where(i => !i.m_equipped && Work.Loot(i) && !(i.m_dropPrefab != null && Makings().Contains(i.m_dropPrefab.name))).ToList();
                     if (st.Chest != null && loot.Count > 0 && (st.Phase == 1 || Time.time >= st.Next) && (loot.Count >= 5 || st.Phase == 1 || st.Item == null && Time.time >= st.Next && Lying(fire).Count == 0))

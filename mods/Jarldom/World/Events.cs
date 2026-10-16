@@ -340,7 +340,8 @@ namespace Jarldom
                 string[] about = p.About.Split('|');
                 if (gwork == GreatWorks.PeakTemple) { int gi = System.Array.FindIndex(Tables.Gods, g => g.Id == (about.Length > 1 ? about[1] : "odin")); c.R.Flags[GreatWorks.GodKey(gwork)] = gi < 0 ? 0 : gi; }
                 foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id)) { Mood.Add(b.S, "greatpromise", b.Now); b.Dirty(); }
-                c.Tell($"{GreatWorks.Title(gwork)} is to be raised {GreatWorks.Where(gwork)}: with the hammer's \"Mark rooms and zones\", outline its site and choose it under Great work.", true);
+                c.Tell($"{GreatWorks.Title(gwork)} is to be raised {FarWork.Where(c, gwork)}: at home, with the hammer's \"Mark rooms and zones\", outline its site and choose it under Great work.", true);
+                if (FarWork.Peak(c, gwork) is Vector3 peak) Net.LegendPin(c, peak, "Peak for " + GreatWorks.Proper(gwork, c.R.Name));
             }
             if (yes && p.Id == "accuse") Saboteur.CastOut(c, p.About, who);
             if (yes && Promises.Contains(p.Id)) c.R.Flags["promise:" + p.Id] = c.Day + 5; // to be kept within five days

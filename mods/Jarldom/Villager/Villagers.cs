@@ -107,6 +107,7 @@ namespace Jarldom
             {
                 _turn = (_turn + 1) % n;
                 Brain b = Order[_turn];
+                if (b.Body != null) Plugin.Guard(() => Jarldom.Body.Settle(b.Body));
                 string was = b.Task?.GetType().Name;
                 long start = System.Diagnostics.Stopwatch.GetTimestamp();
                 Plugin.Guard(b.Decide);
