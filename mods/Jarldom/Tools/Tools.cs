@@ -284,7 +284,7 @@ namespace Jarldom
                 // Test (anywhere, cheats): the Peak Temple's parts as real test pieces at x z facing yaw (templeshow <x> <z> [yaw] [god]).
                 if (!Cheats()) { error("cheats aren't allowed here"); return; }
                 Vector3 q = new Vector3(F(a[2]), 0, F(a[3])); ZoneSystem.instance.GetSolidHeight(q, out float gy); q.y = gy;
-                float yawS = a.Length > 4 ? F(a[4]) : 0; string god = a.Length > 5 ? a[5] : null; int n = 0;
+                float yawS = GreatWorks.SnapYaw(a.Length > 4 ? F(a[4]) : 0); string god = a.Length > 5 ? a[5] : null; int n = 0;
                 foreach (var part in GreatWorks.Parts(GreatWorks.PeakTemple, god))
                 {
                     GameObject pf = Assets.Find(part.Prefab); if (pf == null) continue;
@@ -1207,7 +1207,7 @@ namespace Jarldom
                         }
                         if (sub == "show") // (test: its parts as real test pieces at x z, facing yaw: a look before it's raised; "unput" takes them away)
                         {
-                            Vector3 q = new Vector3(F(a[3]), 0, F(a[4])); q.y = Ground(q); float yawS = a.Length > 5 ? F(a[5]) : 0; int n = 0;
+                            Vector3 q = new Vector3(F(a[3]), 0, F(a[4])); q.y = Ground(q); float yawS = GreatWorks.SnapYaw(a.Length > 5 ? F(a[5]) : 0); int n = 0;
                             foreach (var part in GreatWorks.Parts(w, godArg ?? GreatWork.God(c, w)))
                             {
                                 GameObject pf = Assets.Find(part.Prefab); if (pf == null) continue;

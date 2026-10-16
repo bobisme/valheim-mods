@@ -67,7 +67,7 @@ namespace Jarldom
             }
             at.y = ground;
             Vector3 f = c.Position - at; f.y = 0; // (its door toward the colony)
-            yaw = f.sqrMagnitude > 0.01f ? Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg : 0f;
+            yaw = GreatWorks.SnapYaw(f.sqrMagnitude > 0.01f ? Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg : 0f); // (on the game's 22.5° steps)
             return "";
         }
         // Not begun yet (planned, nothing of it built): its site can still move.

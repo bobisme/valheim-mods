@@ -170,6 +170,9 @@ namespace Jarldom
             return parts;
         }
 
+        // Its facing, kept to the steps the game turns pieces by (22.5°): what a player builds on or beside it lines up with it.
+        public const float YawStep = 22.5f;
+        public static float SnapYaw(float yaw) { float y = (float)Math.Round(yaw / YawStep) * YawStep % 360f; return y < 0 ? y + 360f : y; }
         // A part where it stands in the world: turned with the work about its foot, then moved there.
         public static (float x, float y, float z, float yaw) Place(Part p, float x, float y, float z, float yaw)
         {

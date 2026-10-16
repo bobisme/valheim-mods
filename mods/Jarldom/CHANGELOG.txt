@@ -1,3 +1,5 @@
+0.1.170: Great Works face on the game's 22.5° steps, so what you build on or beside them snaps into line.
+
 0.1.169: The Peak Temple is now an A-frame for the snow line: the steepest roof the game has (67°), running from the plinth to a dragon-headed ridge 8 m up, with plank gables, the door between stone jambs, and the altar inside.
 
 0.1.168: Test tools only (peaks, groundgrid, alltombs, templeshow, pcost, owner, forage, beasts, drops).
