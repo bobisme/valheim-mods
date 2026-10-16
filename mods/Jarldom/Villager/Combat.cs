@@ -137,6 +137,7 @@ namespace Jarldom
             if (!b.Ai.IsLookingAt(aim, 25f)) { b.CombatNote = "turning"; return; }
             if (h.GetTimeSinceLastAttack() < 0.4f) return;
             if (ranged) { Body_.DrawTime(h) = 10f; AimAt(b.Ai) = t; } // the AI can't hold a draw: a bow shot undrawn does nothing
+            Work.TakeOver(t.gameObject); // (a beast no game here runs: its hurts go to nobody)
             bool started = h.StartAttack(t, false);
             if (ranged) Body_.DrawTime(h) = 0f;
             if (ranged && started && Work.Prey(t) && !Raider(t, b.Colony) && Missed(b, t)) { b.Fighting = false; b.FightTarget = null; b.Foe = null; b.Move.Stop(); b.CombatNote = "can't get an arrow into it"; return; }

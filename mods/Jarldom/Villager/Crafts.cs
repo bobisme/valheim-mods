@@ -78,6 +78,33 @@ namespace Jarldom
         }
         public static string Name(string prefab) { GameObject p = Assets.Find(prefab); string n = p?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name; return n == null ? prefab : Localization.instance.Localize(n); }
 
+        // Mead, as the colony would make it, and the first thing missing on the way (null: nothing's in the way): a fermenter under a
+        // roof, a cauldron, a cook, honey (a beehive, from a queen bee), raspberries or blueberries. (for the Needs-you list)
+        public static string MeadWhy(Colony c)
+        {
+            var people = c.R.Living.ToList();
+            var ferms = c.PiecesIn<Fermenter>(c.Radius).Where(f => Work.Roofed(f.transform.position)).ToList();
+            if (ferms.Count == 0) return "build a fermenter under a roof, with a cauldron near it: the cook brews mead base and ferments it";
+            if (!people.Any(p => p.Prof == Prof.Cook)) return "no one brews: give someone the Cook trade (People tab)";
+            if (ferms.Any(f => Work.FermentStatus(f) != "Empty")) return null; // (a cask on the go)
+            // (of the bases this fermenter takes and the cauldron here can brew, the one nearest to hand: what it still lacks)
+            var bases = ferms[0].m_conversion.Where(cv => cv.m_from != null).Select(cv => RecipeFor(cv.m_from.name)).Where(r => r != null && StationFor(c, r, ferms[0].transform.position) != null).ToList();
+            if (bases.Count == 0) return "the cook needs a cauldron (over a fire, by the fermenter) to brew the mead base";
+            if (bases.Any(r => CanAfford(c, r))) return null;
+            Recipe near = bases.OrderBy(r => Needs(r).Count(q => InStock(c, q.item) < q.amount)).ThenBy(r => Needs(r).Sum(q => Math.Max(0, q.amount - InStock(c, q.item)))).First();
+            var missing = new List<string>();
+            foreach (var q in Needs(near).Where(q => InStock(c, q.item) < q.amount))
+            {
+                string what = $"{q.amount - InStock(c, q.item)} more {Name(q.item).ToLower()}";
+                if (q.item == "Honey")
+                    what += c.PiecesIn<Beehive>(c.Radius).Any() ? " (the foragers keep the beehives; more hives, more honey)"
+                        : InStock(c, "QueenBee") > 0 ? " (a queen bee waits in the stores: build a beehive, hammer → Misc, and the foragers keep it)"
+                        : " (build a beehive with a queen bee: foragers knock down wild hives on their trips and bring the queen home)";
+                else if (ForageTrip.Wants.Any(w => w.item == q.item)) what += people.Any(p => p.Prof == Prof.Forager) ? " (the foragers pick them, in the grounds and out on trips)" : " (give someone the Forager trade)";
+                missing.Add(what);
+            }
+            return $"for {Name(near.m_item.name).ToLower()} the cook lacks " + string.Join(", ", missing);
+        }
         // Why each fermenter isn't being kept going (for the jarldom craft command).
         public static List<string> BrewWhy(Colony c) => c.PiecesIn<Fermenter>(c.Radius).Select(f =>
         {

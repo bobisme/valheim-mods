@@ -159,6 +159,10 @@ namespace Jarldom.Ui
             // (a festival coming, not yet readied, and no one whose work it is to carry its goods to the hall)
             if (Calendar.Next(Year.Today()) is var hf && hf.Item2 <= Calendar.PrepDays && c.Best(RoomType.GreatHall) != null && FestivalDays.NoHauler(c) && FestivalDays.Readied(c, hf.Item1) < 1f)
                 list.Add($"{Calendar.Name(hf.Item1)} is coming, and no one hauls: give someone the Hauler trade (People tab), or its goods won't reach the great hall's chests.");
+            // (a festival within the week that wants mead, and not enough of it: what's in the way of the colony brewing its own)
+            if (Calendar.Next(Year.Today()) is var mf && mf.Item2 <= 6 && Festivals.Needs(mf.Item1, c.Population).FirstOrDefault(n => n.kind == "mead") is var mw && mw.amount > 0
+                && Stock.Chests(c).Where(x => x.category != "treasury").Sum(x => x.chest.GetInventory().GetAllItems().Where(Classes.IsMead).Sum(i => i.m_stack)) < mw.amount && Crafts.MeadWhy(c) is string mead)
+                list.Add($"{Calendar.Name(mf.Item1)} wants {mw.amount} mead in {mf.Item2} {(mf.Item2 == 1 ? "day" : "days")}, and the colony can't brew its own: {mead}.");
             int homeless = people.Count(p => string.IsNullOrEmpty(p.Bed));
             if (homeless > 0) list.Add($"{homeless} {(homeless == 1 ? "has" : "have")} no bed and sleep by the hall fire: build beds in a marked longhouse (or by the pillars).");
             int meals = Stock.Food(c, c.Position).Sum(f => f.item.m_stack);
@@ -584,7 +588,7 @@ namespace Jarldom.Ui
             ["chop"] = "Felling", ["mine"] = "Mining", ["harvest"] = "Harvesting", ["pick"] = "Foraging", ["hunt"] = "Hunting", ["haul"] = "Hauling",
             ["plant"] = "Planting saplings", ["sow"] = "Sowing", ["fish"] = "Fishing", ["fuel"] = "Fuelling fires", ["smelt"] = "Smelting", ["cook"] = "Cooking",
             ["craft"] = "Commissions", ["ferment"] = "Fermenters", ["tap"] = "Tapping fermenters", ["feed"] = "Feeding beasts", ["cull"] = "Culling the herd",
-            ["guard"] = "Guarding", ["build"] = "Building",
+            ["guard"] = "Guarding", ["build"] = "Building", ["honey"] = "Keeping bees", ["hive"] = "Raiding wild hives",
         };
         private static string KindName(string k) => Kinds.TryGetValue(k, out string n) ? n : char.ToUpper(k[0]) + k.Substring(1);
 

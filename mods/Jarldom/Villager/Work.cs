@@ -206,6 +206,9 @@ namespace Jarldom
                     else if (st == "Empty" && ferm.m_conversion.Any(cv => cv.m_from != null && HaveInStock(c, cv.m_from.name)))
                         c.Board.Post("ferment", Key(v), Prof.Cook, 3, p.transform.position.x, p.transform.position.y, p.transform.position.z, now, "", "fermenter");
                 }
+                // A beehive with honey in it: the forager (a farmer, with none) takes it, two pots or more at a time.
+                if (p.GetComponent<Beehive>() != null && v.GetZDO().GetInt(ZDOVars.s_level) >= 2)
+                    c.Board.Post("honey", Key(v), Keeper(c), 3, p.transform.position.x, p.transform.position.y, p.transform.position.z, now, "", "beehive");
                 CookingStation cook = p.GetComponent<CookingStation>();
                 // (an oven burns its own fuel; a cooking station sits over a fire)
                 if (cook != null && cook.m_useFuel && cook.m_fuelItem != null && v.GetZDO().GetFloat(ZDOVars.s_fuel) < cook.m_maxFuel * 0.5f && HaveInStock(c, cook.m_fuelItem.name) && cook.m_conversion.Any(cv => cv.m_from != null && HaveInStock(c, cv.m_from.name)))
@@ -541,7 +544,8 @@ namespace Jarldom
             if (prof == Prof.Builder) { Task up = Upkeep.Next(b); if (up != null) return up; } // (nothing planned: mend, rebuild, pave)
             if (prof == Prof.Miner) { Task trip = Claims.Next(b); if (trip != null) return trip; } // (ore claims out in the wilds first)
             if (prof == Prof.Herder || prof == Prof.Hunter) { Task catching = Catching.Next(b); if (catching != null) return catching; } // (an empty pasture: a wild boar for it)
-            if (prof == Prof.Hunter && NothingFor(c, Prof.Hunter) && RangeTask.Wanted(b)) return new RangeTask(); // (nothing in the grounds, little meat in the stores: out past the edge for some)
+            if (prof == Prof.Hunter && NothingFor(c, Prof.Hunter) && RangeTask.Wanted(b)) return new RangeTask();
+            if (prof == Prof.Forager && NothingFor(c, Prof.Forager) && ForageTrip.Wanted(b)) return new ForageTrip(); // (nothing ripe in the grounds, the kitchen short of honey or berries: out for them) // (nothing in the grounds, little meat in the stores: out past the edge for some)
             if (prof == Prof.Trader && c.R.Rank >= Rank.Village && Time.time > b.NoTradeUntil && b.Body.GetInventory().GetEmptySlots() > 1 && Trade.Lots(c) >= 3) return new TradeTask(); // (three lots to sell: the trade chests' goods, the stores' treasure)
             // (out of work of their own, they lend the haulers a hand: two at a time, not the whole colony off round the torches)
             bool helping = prof != Prof.Hauler && (Gear.Lacks(b, prof) != null || NothingFor(c, prof)) && HelpersWanted(c, b);
@@ -577,6 +581,19 @@ namespace Jarldom
             var helpers = new HashSet<string>(mine.Where(v => v != b && v.S.Prof != Prof.Hauler).Select(v => v.S.Vid));
             return c.Board.All.Count(o => o.State == OrderState.Claimed && o.Prof == Prof.Hauler && helpers.Contains(o.Vid)) < MaxHelpers;
         }
+        // An object a villager works on (a bush to pick, a beast to shoot, a tree to fell) that no game here runs: past the ground the
+        // game simulates round its player, still marked as a game's long gone. A pick or a blow sent to that owner goes nowhere (a neck
+        // took seventy arrows unhurt, a mushroom was "picked" forty times): the host takes it first, as it takes the villagers
+        // (KeepAwake). Never one another player's game is running.
+        public static void TakeOver(GameObject go)
+        {
+            ZNetView v = go != null ? go.GetComponentInParent<ZNetView>() : null;
+            if (v == null || !v.IsValid() || v.IsOwner() || ZNet.instance == null) return;
+            long owner = v.GetZDO().GetOwner();
+            if (owner == 0L || ZNet.instance.IsServer() && owner != ZDOMan.GetSessionID() && ZNet.instance.GetPeer(owner) == null) v.ClaimOwnership();
+        }
+        // Who keeps the colony's bees: a forager, or a farmer if there's none.
+        public static Prof Keeper(Colony c) => Villagers.All.Any(v => v.Alive && v.S.Colony == c.Id && v.S.Prof == Prof.Forager) ? Prof.Forager : Prof.Farmer;
         private static bool NothingFor(Colony c, Prof p) => !c.Board.All.Any(o => o.State == OrderState.Open && o.Prof == p);
         internal static string GearFor(Brain b, Order o)
         {
@@ -589,7 +606,7 @@ namespace Jarldom
                 GameObject t = Resolve(o.Target);
                 tier = t == null ? 0 : t.GetComponent<TreeBase>()?.m_minToolTier ?? t.GetComponent<TreeLog>()?.m_minToolTier ?? t.GetComponent<MineRock5>()?.m_minToolTier ?? t.GetComponent<MineRock>()?.m_minToolTier ?? t.GetComponent<Destructible>()?.m_minToolTier ?? 0;
             }
-            if (o.Kind == "harvest" || o.Kind == "pick" || o.Kind == "fuel" || o.Kind == "smelt" || o.Kind == "cook" || o.Kind == "ferment" || o.Kind == "tap" || o.Kind == "craft" || o.Kind == "plant" || o.Kind == "sow" || o.Kind == "feed" || o.Kind == "guard") return o.Kind == "guard" ? Gear.Lacks(b, Prof.Guard) : null;
+            if (o.Kind == "harvest" || o.Kind == "pick" || o.Kind == "fuel" || o.Kind == "smelt" || o.Kind == "cook" || o.Kind == "ferment" || o.Kind == "tap" || o.Kind == "craft" || o.Kind == "plant" || o.Kind == "sow" || o.Kind == "feed" || o.Kind == "honey" || o.Kind == "hive" || o.Kind == "guard") return o.Kind == "guard" ? Gear.Lacks(b, Prof.Guard) : null;
             return Gear.Lacks(b, o.Prof, tier);
         }
         public static int Carrying(Brain b) => b.Body.GetInventory().GetAllItems().Count(i => Stores(b, i));
@@ -729,6 +746,8 @@ namespace Jarldom
                 case "cull": return "culling " + what.ToLower();
                 case "ferment": return "filling the fermenter";
                 case "tap": return "tapping the mead";
+                case "honey": return "taking honey from the beehive";
+                case "hive": return "knocking down a wild beehive for its honey";
                 default: return Kind;
             }
         }
@@ -797,6 +816,8 @@ namespace Jarldom
             {
                 case "chop": case "mine": Strike(b); break; // (reach 2 m: an axe's own)
                 case "harvest": case "pick": Pick(b); break;
+                case "honey": Honey(b); break;
+                case "hive": Hive(b); break;
                 case "haul": Haul(b); break;
                 case "hunt": Hunt(b); break;
                 case "guard": Guard(b); break;
@@ -900,6 +921,7 @@ namespace Jarldom
             hit.SetAttacker(b.Body);
             hit.m_skill = Kind == "chop" ? Skills.SkillType.WoodCutting : Skills.SkillType.Pickaxes;
             IDestructible target = _target.GetComponent<IDestructible>();
+            Work.TakeOver(_target);
             target?.Damage(hit);
             Gear.Wear(b, tool);
             b.Body.RaiseSkill(hit.m_skill, 1f);
@@ -915,10 +937,11 @@ namespace Jarldom
         {
             if (_phase < 2) { _phase = 2; _waitUntil = Time.time + 1.5f; return true; } // drops fall a moment after
             // (game falls where it was shot, 12 m off and more: gathered there)
-            if (_phase == 2) { _collect.Clear(); _collect.AddRange((Kind == "hunt" && _fell != null ? Work.Drops(_fell.Value, 6f) : Work.Drops(b.Pos, 7f)).Take(8)); _phase = 3; _collectUntil = Time.time + 60f; }
+            // (a wild hive spills a dozen pots and the queen: all of it, the queen first)
+            if (_phase == 2) { _collect.Clear(); _collect.AddRange(((Kind == "hunt" || Kind == "hive") && _fell != null ? Work.Drops(_fell.Value, 6f) : Work.Drops(b.Pos, 7f)).OrderByDescending(d => Kind == "hive" && Classes.Prefab(d.m_itemData) == "QueenBee").Take(Kind == "hive" ? 20 : 8)); _phase = 3; _collectUntil = Time.time + 60f; }
             _collect.RemoveAll(d => d == null);
             if (_collect.Count == 0 || Time.time > _collectUntil) return false; // (a minute to gather up; what's left lies for the haulers)
-            ItemDrop next = _collect.OrderBy(d => Vector3.Distance(d.transform.position, b.Pos)).First();
+            ItemDrop next = _collect.OrderByDescending(d => Classes.Prefab(d.m_itemData) == "QueenBee").ThenBy(d => Vector3.Distance(d.transform.position, b.Pos)).First();
             if (!InReach(b, next.transform.position)) { if (Under(b, next.transform.position) || b.Move.Failed) { _collect.Remove(next); return true; } if (!b.Move.Moving) b.Move.To(next.transform.position, 0.8f); return true; }
             if (!PickUp(b, next)) _collect.Remove(next);
             return true;
@@ -933,6 +956,7 @@ namespace Jarldom
             if (drop == null) return Got.Failed;
             ZNetView v = drop.GetComponent<ZNetView>();
             if (v == null || !v.IsValid()) return Got.Failed;
+            Work.TakeOver(drop.gameObject); // (dropped where no game runs: no one to ask)
             if (!drop.CanPickup(false)) { drop.RequestOwn(); return Got.Waiting; } // asked: picked up on a later tick
             if (!b.Body.GetInventory().CanAddItem(drop.m_itemData)) return Got.Failed;
             return b.Body.Pickup(drop.gameObject, false, false) ? Got.Picked : Got.Failed;
@@ -948,6 +972,7 @@ namespace Jarldom
                 if (Walking(b, 1.4f)) return;
                 Pickable p = _target.GetComponent<Pickable>();
                 if (p == null || !p.CanBePicked()) { Gone(b); return; }
+                Work.TakeOver(_target);
                 _crop = Utils.GetPrefabName(_target); _cropAt = _target.transform.position;
                 if (!WorkEmotes.Harvest(b)) Body_.Anim(b.Body)?.SetTrigger("interact"); // (crouched to pull it, with Bob's Animations)
                 p.Interact(b.Body, false, false);
@@ -967,6 +992,48 @@ namespace Jarldom
                 return;
             }
             Finish(b, true);
+        }
+        // The colony's own beehive: honey taken as a player takes it, and gathered up.
+        private void Honey(Brain b)
+        {
+            if (_phase == 0)
+            {
+                if (_target == null) { Gone(b); return; }
+                if (Walking(b, 1.6f)) return;
+                Beehive hive = _target.GetComponent<Beehive>();
+                ZNetView hv = _target.GetComponent<ZNetView>();
+                if (hive == null || hv == null || !hv.IsValid() || hv.GetZDO().GetInt(ZDOVars.s_level) <= 0) { Finish(b, true); return; }
+                Body_.Anim(b.Body)?.SetTrigger("interact");
+                Work.TakeOver(_target);
+                hive.Interact(b.Body, false, false);
+                b.S.Bump("honey");
+                _phase = 1; _waitUntil = Time.time + 0.8f;
+                return;
+            }
+            if (Collect(b)) return;
+            Finish(b, true);
+        }
+        // A wild hive (an old house's eaves, a tree in the meadows): knocked down, and its honey and the queen gathered up.
+        private void Hive(Brain b)
+        {
+            if (_target == null)
+            {
+                if (_fell != null && _phase < 2) KillSites.Mark(b.Colony, _fell.Value); // (what's left lying, the haulers carry in, if it fell in the colony)
+                if (Collect(b)) return; Finish(b, true); return;
+            }
+            if (Walking(b, 2.0f)) return;
+            Vector3 flat = _target.transform.position - b.Pos; flat.y = 0;
+            if (flat.sqrMagnitude > 0.01f) b.Ai.LookTowards(flat.normalized);
+            if (Time.time < _next) return;
+            _next = Time.time + 1.4f;
+            ItemDrop.ItemData w = Gear.Weapon(b);
+            Body_.Anim(b.Body)?.SetTrigger(w != null && !string.IsNullOrEmpty(w.m_shared.m_attack.m_attackAnimation) ? w.m_shared.m_attack.m_attackAnimation + (w.m_shared.m_attack.m_attackChainLevels > 1 ? "0" : "") : "interact");
+            var hit = new HitData { m_point = _target.transform.position + Vector3.up * 0.5f, m_dir = flat.normalized, m_toolTier = 0 };
+            hit.m_damage.m_blunt = 15f; hit.m_damage.m_slash = 15f;
+            hit.SetAttacker(b.Body);
+            Work.TakeOver(_target);
+            _target.GetComponent<IDestructible>()?.Damage(hit);
+            _fell = _target.transform.position; // (what it drops falls about where it hung)
         }
         private bool _seedsFetched, _tilled; private Container _seedChest; private string _plantFail;
         private bool Replanting(Brain b, (GameObject sapling, string seed, int amount) plant)
@@ -1244,6 +1311,7 @@ namespace Jarldom
             }
             if (_phase == 1)
             {
+                if (_source == null) { _phase = 0; return; } // (the chest went, broken or taken down, on the way to it)
                 Stock.Walk w = Stock.WalkTo(b, _source);
                 if (w == Stock.Walk.Unreachable) { _source = null; _phase = 0; return; } // (another chest with it, if there is one)
                 if (w == Stock.Walk.Walking) { if (NoHeadway(b, _source.transform.position)) Block(b, "can't reach the stores"); return; }

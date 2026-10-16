@@ -245,6 +245,29 @@ namespace Jarldom
                     return $"{x.m_name} {x.GetHealth():0}/{x.GetMaxHealth():0} at {x.transform.position.ToString("F1")} centre y {cp.y:0.0} ground {ZoneSystem.instance.GetGroundHeight(x.transform.position):0.0} swim {x.IsSwimming()} radius {x.GetRadius():0.00} cover {(over ? hh.collider.name : "-")} faction {x.GetFaction()}"; })) });
                 return;
             }
+            if (cmd == "forage")
+            {
+                // Test (read-only): ripe bushes and mushrooms, and wild beehives, around the player (forage <radius>), by kind and 20 m cell.
+                float r = a.Length > 2 ? F(a[2]) : 150f; Vector3 pp = Player.m_localPlayer.transform.position;
+                var found = new List<string>();
+                foreach (Pickable pk in UnityEngine.Object.FindObjectsByType<Pickable>(FindObjectsSortMode.None))
+                    if (pk != null && pk.m_itemPrefab != null && Utils.DistanceXZ(pk.transform.position, pp) < r && (pk.m_itemPrefab.name.Contains("berr") || pk.m_itemPrefab.name.Contains("Berr") || pk.m_itemPrefab.name.StartsWith("Mushroom") || pk.m_itemPrefab.name == "Honey"))
+                        found.Add($"{pk.m_itemPrefab.name}{(pk.CanBePicked() ? "" : " (picked)")} near ({Mathf.RoundToInt(pk.transform.position.x / 20) * 20}, {Mathf.RoundToInt(pk.transform.position.z / 20) * 20})");
+                foreach (WearNTear d in UnityEngine.Object.FindObjectsByType<WearNTear>(FindObjectsSortMode.None))
+                    if (d != null && Utils.GetPrefabName(d.gameObject) == "Beehive" && Utils.DistanceXZ(d.transform.position, pp) < r) found.Add($"wild Beehive at {d.transform.position.ToString("F0")}");
+                output(new JObject { ["forage"] = new JArray(found.GroupBy(x => x).Select(g => g.Count() + " x " + g.Key).OrderBy(x => x)) });
+                return;
+            }
+            if (cmd == "owner")
+            {
+                // Test (read-only): who runs the networked things within 2 m of x z (owner, this game's session, in the active area).
+                Vector3 at = new Vector3(F(a[2]), 0, F(a[3]));
+                var rows = new JArray();
+                foreach (ZNetView zv in UnityEngine.Object.FindObjectsByType<ZNetView>(FindObjectsSortMode.None))
+                    if (zv != null && zv.IsValid() && Utils.DistanceXZ(zv.transform.position, at) < 2f)
+                    { ZDO z = zv.GetZDO(); rows.Add($"{Utils.GetPrefabName(zv.gameObject)} owner {z.GetOwner()} mine {zv.IsOwner()} me {ZDOMan.GetSessionID()} peer {ZNet.instance.GetPeer(z.GetOwner()) != null} active {ZNetScene.InActiveArea(zv.transform.position, ZNet.instance.GetReferencePosition())} enabled {zv.enabled}/{zv.gameObject.activeInHierarchy} picked {zv.GetComponent<Pickable>()?.CanBePicked()} parts {string.Join(",", zv.GetComponents<Component>().Select(cp => cp.GetType().Name))}"); }
+                output(new JObject { ["near"] = rows }); return;
+            }
             if (cmd == "drops")
             {
                 // Test: what lies on the ground around the player, by kind and 10 m cell (drops <radius> [text]).
@@ -982,7 +1005,7 @@ namespace Jarldom
                 case "craft":
                     if (a.Length > 2) Net.Act(c, "craft", a[2] + "|" + (a.Length > 3 ? a[3] : "1"));
                     output(new JObject { ["commissions"] = new JArray(Crafts.Commissions(c).Select(k => $"{k.Key} x{k.Value}")),
-                        ["offered"] = new JArray(Crafts.Offered(c, Player.m_localPlayer).Select(r => r.m_item.name)), ["brewing"] = new JArray(Crafts.BrewWhy(c)),
+                        ["offered"] = new JArray(Crafts.Offered(c, Player.m_localPlayer).Select(r => r.m_item.name)), ["brewing"] = new JArray(Crafts.BrewWhy(c)), ["mead"] = Crafts.MeadWhy(c) ?? "nothing in the way",
                         ["prep"] = new JArray(Crafts.PrepRecipes().Select(r => $"{r.name} -> {r.m_item.name}: have {Crafts.InStock(c, r.m_item.name)}, fish {string.Join(",", Crafts.Needs(r).Where(n => Crafts.InStock(c, n.item) > 0).Select(n => n.item + " " + Crafts.InStock(c, n.item)))}, afford {Crafts.CanAfford(c, r)}, station {(Crafts.StationFor(c, r, c.Position) is CraftingStation st ? V(st.transform.position).ToString(Newtonsoft.Json.Formatting.None) + " " + (Crafts.Unusable(st) ?? "ok") : "none")}")) });
                     break;
                 case "horn": Net.Act(c, "horn", c.HornUntil > Time.time ? "off" : "on"); output(new JObject { ["horn"] = c.HornUntil > Time.time }); break;
@@ -1443,6 +1466,7 @@ namespace Jarldom
                     }
                     break;
                 case "carvedebug": { var res = new JArray(); foreach (MeshFilter f in Object.FindObjectsByType<MeshFilter>(FindObjectsInactive.Include, FindObjectsSortMode.None).Where(f => f.name.EndsWith("_odin") || f.name.EndsWith("_thor")).Where(f => f.gameObject.activeInHierarchy).Take(6)) { var r = f.GetComponent<MeshRenderer>(); res.Add($"{f.name} idx {(f.sharedMesh != null ? string.Join("/", Enumerable.Range(0, f.sharedMesh.subMeshCount).Select(k => f.sharedMesh.GetIndexCount(k))) : "")} enabled {r?.enabled} visible {r?.isVisible} readable {f.sharedMesh?.isReadable} active {f.gameObject.activeInHierarchy} pos {V(f.transform.position)} scale {f.transform.lossyScale} verts {f.sharedMesh?.vertexCount} subs {f.sharedMesh?.subMeshCount} bounds {f.sharedMesh?.bounds} rb {r?.bounds} mats {string.Join(",", r?.sharedMaterials.Select(m => m?.name + "/" + m?.shader?.name))} layer {f.gameObject.layer}"); } output(new JObject { ["carved"] = res }); } break;
+                case "hivefill": { int n = (int)F(a[2]), done = 0; foreach (Beehive h in c.PiecesIn<Beehive>(c.Radius)) { ZNetView hv = h.GetComponent<ZNetView>(); if (!hv.IsOwner()) hv.ClaimOwnership(); hv.GetZDO().Set(ZDOVars.s_level, n); done++; } output(new JObject { ["hives"] = done, ["level"] = n }); } break; // (test: hivefill <n>)
                 case "setfuel": { Vector3 at = new Vector3(F(a[2]), 0, F(a[3])); Fireplace f = c.PiecesIn<Fireplace>(c.Radius + 20).OrderBy(x => Utils.DistanceXZ(x.transform.position, at)).FirstOrDefault(); ZNetView v = f?.GetComponent<ZNetView>(); if (v == null) { error("no fire"); return; } v.ClaimOwnership(); v.GetZDO().Set(ZDOVars.s_fuel, F(a[4])); output(new JObject { ["fire"] = V(f.transform.position), ["fuel"] = F(a[4]), ["max"] = f.m_maxFuel }); } break; // (test: setfuel <x> <z> <n>)
                 case "animq": { Brain b = Who(a[2]); RosterRow row = b == null ? c.R.Roster.FirstOrDefault(r => r.Name.Equals(a[2], StringComparison.OrdinalIgnoreCase)) : null; Humanoid body = b?.Body ?? (row != null ? Villagers.Body(row.Vid) : null); if (body == null) { error("who?"); return; } Animator an = body.GetComponentInChildren<Animator>(); var st = an.GetCurrentAnimatorStateInfo(0); output(new JObject { ["speed"] = an.speed, ["kneelMark"] = body.GetComponent<ZNetView>().GetZDO().GetLong(Kneels.Key, 0L) > 0, ["emoteTag"] = st.IsTag("emote"), ["state"] = st.shortNameHash, ["inEmote"] = body.InEmote(), ["doing"] = b?.Doing ?? "(another game runs them)", ["at"] = V(body.transform.position) }); } break; // (test: is the animator in an emote)
                 case "kneel": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } b.Task?.Stop(b); b.Task = new KneelTask(Time.time + (a.Length > 3 ? F(a[3]) : 15f), b.Pos + b.Body.transform.forward); b.Task.Start(b); output(new JObject { ["at"] = V(b.Pos), ["facing"] = V(b.Body.transform.forward) }); } break; // (test: kneel <name> [seconds])

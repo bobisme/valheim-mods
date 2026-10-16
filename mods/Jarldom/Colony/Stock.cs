@@ -220,8 +220,25 @@ namespace Jarldom
                 if (c.RoomAt(x.chest.transform.position, RoomType.Brewhouse) != null) continue; // the brewer's honey and berries aren't for eating
                 bool hall = c.RoomAt(x.chest.transform.position, RoomType.GreatHall) != null;
                 foreach (ItemDrop.ItemData item in x.chest.GetInventory().GetAllItems())
-                    if (Edible(item) && !(hall && FestivalDays.SetAside(c, item))) yield return (x.chest, item);
+                    if (Edible(item) && !(hall && FestivalDays.SetAside(c, item)) && !ForBrew(c, item)) yield return (x.chest, item);
             }
+        }
+        // With a fermenter under a roof to keep going, what the cook brews with isn't eaten: honey not at all, berries, yellow
+        // mushrooms and thistle not below a brew's worth. (honey and berries kept vanishing into the villagers before a mead base
+        // could be brewed; asked a few seconds at a time, not counted at every bite)
+        public static readonly Dictionary<string, int> BrewKeep = new Dictionary<string, int> { ["Honey"] = int.MaxValue, ["Raspberry"] = 20, ["Blueberries"] = 10, ["MushroomYellow"] = 10, ["Thistle"] = 10 };
+        private static readonly Dictionary<string, (float at, Dictionary<string, int> held)> _brew = new Dictionary<string, (float, Dictionary<string, int>)>();
+        public static bool ForBrew(Colony c, ItemDrop.ItemData item)
+        {
+            string n = item?.m_dropPrefab?.name;
+            if (n == null || !BrewKeep.TryGetValue(n, out int keep)) return false;
+            if (!_brew.TryGetValue(c.Id, out var b) || Time.time - b.at > 10f)
+            {
+                bool brewing = c.PiecesIn<Fermenter>(c.Radius).Any(f => Work.Roofed(f.transform.position));
+                b = (Time.time, brewing ? BrewKeep.Keys.ToDictionary(k => k, k => Count(c, k)) : null);
+                _brew[c.Id] = b;
+            }
+            return b.held != null && b.held.TryGetValue(n, out int have) && have <= keep;
         }
         public static bool Edible(ItemDrop.ItemData item) => item != null && item.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Consumable && item.m_shared.m_food > 0;
 
