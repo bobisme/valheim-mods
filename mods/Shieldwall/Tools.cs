@@ -90,6 +90,39 @@ namespace Shieldwall
             Warstone stone=Nearest();
             switch(sub)
             {
+                case "effects":
+                {
+                    // Test: siege effects <item prefab> — the effects an item's attacks and status effect play (to borrow a creature's look).
+                    GameObject item=args.Length>2?Assets.Find(args[2]):null;
+                    ItemDrop.ItemData.SharedData sh=item?.GetComponent<ItemDrop>()?.m_itemData.m_shared;
+                    StatusEffect se=sh==null&&args.Length>2?ObjectDB.instance?.GetStatusEffect(args[2].GetStableHashCode()):null;
+                    if(sh==null&&se==null){error("siege effects: no item or status effect "+(args.Length>2?args[2]:""));break;}
+                    var fxs=new JObject();
+                    void List(string where,object owner)
+                    {
+                        if(owner==null)return;
+                        foreach(var f in owner.GetType().GetFields(System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.Instance))
+                        {
+                            if(f.FieldType==typeof(EffectList)&&f.GetValue(owner) is EffectList list&&list.m_effectPrefabs!=null&&list.m_effectPrefabs.Length>0)
+                                fxs[where+"."+f.Name]=new JArray(list.m_effectPrefabs.Select(e=>(e.m_prefab!=null?e.m_prefab.name:"null")+(e.m_attach?" (attached)":"")).ToArray());
+                            else if(f.FieldType==typeof(GameObject)&&f.GetValue(owner) is GameObject go&&go!=null)fxs[where+"."+f.Name]=go.name;
+                        }
+                    }
+                    if(sh!=null)
+                    {
+                        List("attack",sh.m_attack);List("secondary",sh.m_secondaryAttack);List("item",sh);
+                        if(sh.m_attack!=null)fxs["animation"]=sh.m_attack.m_attackAnimation;
+                        List("status",sh.m_attackStatusEffect);List("consume",sh.m_consumeStatusEffect);
+                    }
+                    else List("status",se);
+                    output(fxs);
+                    break;
+                }
+                case "dust":
+                    // Test: siege dust — the Hearth stave's healing dust where the player stands.
+                    if(Player.m_localPlayer!=null)Planted.HealDust(Player.m_localPlayer.transform.position+Player.m_localPlayer.transform.forward*3);
+                    output(new JObject{["dust"]=true});
+                    break;
                 case "icons":
                 {
                     // Test: siege icons — the war staves' inventory icons as pictures in Claude Tools' shots folder.

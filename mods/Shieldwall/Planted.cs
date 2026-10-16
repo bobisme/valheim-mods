@@ -300,6 +300,12 @@ namespace Shieldwall
             if(View==null||!View.IsValid())return;
             if(Time.time>=_nextLoad){_nextLoad=Time.time+0.5f;Load();}
             if(_item==null)return;
+            if(_stave!=null&&_stave.Kind==StaveKind.Hearth)
+            {
+                int mended=View.GetZDO().GetInt(MendKey);
+                if(_seenMend>=0&&mended!=_seenMend)HealDust(transform.position);
+                _seenMend=mended;
+            }
             Warstone stone=Stone();
             ShowPower(stone!=null||TestLit);
             if(!View.IsOwner()||stone==null||Time.time<_next)return;
@@ -474,7 +480,6 @@ namespace Shieldwall
                 if(c==null||c.IsDead()||!(c.IsPlayer()||c.IsTamed()||c.GetFaction()==Character.Faction.Players))continue;
                 if(Vector3.Distance(c.transform.position,transform.position)>Range||c.GetHealth()>=c.GetMaxHealth()-0.5f)continue;
                 c.Heal(amount,true);any=true;
-                HealMark?.Create(c.GetCenterPoint(),Quaternion.identity,c.transform); // (the shaman's mark on whoever it mends)
             }
             // The stone: half a percent of its strength each pulse (more with upgrades), during a siege.
             ZDO z=stone.Z;
@@ -482,14 +487,29 @@ namespace Shieldwall
             {Net.Damage(stone,-z.GetFloat(Shieldwall.Stone.MaxHealthKey,0)*0.005f*Policy.Power(Quality)*Policy.BoonDamage(StaveKind.Hearth,Boons,false),stone.transform.position);any=true;}
             if(any)
             {
-                // The greydwarf shaman's healing: its green prayer-fire at the stave's head, and its chant.
-                Vector3 head=_light!=null?_light.transform.position:transform.position+Vector3.up*(Pieces.SocketTop+_length-0.5f);
-                Assets.Effect("vfx_greydwarf_shaman_pray",head);
-                Assets.Effect("sfx_greydwarf_shaman_heal",head);
+                // The greydwarf shaman's healing: its chant (heard by all), and its dust thrown up round the socket (each game shows it, see Update).
+                Assets.Effect("sfx_greydwarf_shaman_heal",transform.position+Vector3.up*Pieces.SocketTop);
+                ZDO z2=View.GetZDO();z2.Set(MendKey,z2.GetInt(MendKey)+1);
             }
         }
-        // What the shaman's healing leaves on each one it mends (its heal's own hit effect; not the heal itself, which mends monsters).
-        private static EffectList HealMark=>Assets.Find("shaman_heal_aoe")?.GetComponent<Aoe>()?.m_hitEffects;
+        // The shaman's heal looks like its healing cloud: glowing dust rising round it for a few seconds. Only its look is borrowed (its
+        // particles and light, without the cloud's heal, which mends monsters).
+        internal const string MendKey="bob_sw_mended";
+        private int _seenMend=-1;
+        internal static void HealDust(Vector3 at)
+        {
+            Transform cloud=Assets.Find("shaman_heal_aoe")?.transform;
+            if(cloud==null)return;
+            var dust=new GameObject("StaveHealDust");dust.transform.position=at;
+            foreach(string part in new[]{"flames_world","Point light"})
+            {
+                Transform t=cloud.Find(part);
+                if(t==null)continue;
+                GameObject copy=Object.Instantiate(t.gameObject,dust.transform,false);copy.SetActive(true);
+                copy.transform.localPosition=t.localPosition;copy.transform.localRotation=t.localRotation;
+            }
+            Object.Destroy(dust,3.5f);
+        }
 
         // ---- the socket brought down (by the horde, or taken down with the hammer): the stave falls where it stood ----
         private void Fallen()
