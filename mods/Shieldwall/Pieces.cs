@@ -57,9 +57,24 @@ namespace Shieldwall
             foreach(var up in Policy.Upgrades)
             {
                 if(Made.ContainsKey(up.prefab)&&Made[up.prefab]!=null)continue;
-                GameObject look=Assets.Find(up.source);
-                GameObject go=Build("piece_workbench_ext1",up.prefab,look,Vector3.zero,Quaternion.identity,1,null);
+                // Its own model (UpgradeModel); the game piece it was first dressed as, if that can't be had.
+                GameObject own=UpgradeModel.Dress(up.prefab),go;bool modelled=own!=null; // (own is "null" once destroyed below)
+                try{go=Build("piece_workbench_ext1",up.prefab,own??Assets.Find(up.source),Vector3.zero,own!=null?Quaternion.Euler(0,180,0):Quaternion.identity,1,null,own!=null?UpgradeModel.SolidOf(up.prefab):null);}
+                finally{if(own!=null)Object.DestroyImmediate(own);}
                 if(go==null)continue;
+                if(modelled&&up.prefab=="BobWarBrazier")
+                {
+                    // The fire in its bowl: the game brazier's own flames, light and sound, always lit (not its burn or warmth).
+                    Transform lit=Assets.Find("piece_brazierfloor01")?.transform.Find("_enabled_high");
+                    var fire=new GameObject("WarFire");fire.transform.SetParent(go.transform,false);fire.transform.localPosition=Vector3.up*UpgradeModel.BrazierFire;
+                    foreach(var (part,rise) in new[]{("fx_Brazier_flames",0f),("Point light",0.5f),("sfx_fire_loop",0f)})
+                    {
+                        Transform t=lit!=null?lit.Find(part):null;
+                        if(t==null)continue;
+                        GameObject f=Object.Instantiate(t.gameObject,fire.transform,false);f.SetActive(true);
+                        f.transform.localPosition=Vector3.up*rise;f.transform.localRotation=t.localRotation;
+                    }
+                }
                 Piece piece=go.GetComponent<Piece>();
                 piece.m_name=up.name;
                 piece.m_description=$"Raises a Warstone's level by one when built within 10 m of it (each kind counts once): more staves it can feed, farther reach, stronger stave upgrades.";
@@ -107,7 +122,7 @@ namespace Shieldwall
             pit.AddComponent<PitchPit>();
         }
         // A copy of a vanilla piece (its working parts: network view, piece, wear and tear) wearing another prefab's look.
-        private static GameObject Build(string baseName,string name,GameObject look,Vector3 offset,Quaternion rotation,float scale,System.Func<Renderer,bool> keep)
+        private static GameObject Build(string baseName,string name,GameObject look,Vector3 offset,Quaternion rotation,float scale,System.Func<Renderer,bool> keep,(Vector3 centre,Vector3 size)? solid=null)
         {
             GameObject basePrefab=Assets.Find(baseName);
             if(basePrefab==null||look==null){Plugin.Log($"Shieldwall: cannot make {name} ({baseName}, {look?.name})");return null;}
@@ -127,6 +142,7 @@ namespace Shieldwall
             var box=new GameObject("collider"){layer=layer};box.transform.SetParent(go.transform,false);
             // Reaching 5 cm below its base, so it rests in what it stands on (the game's support check needs the touch).
             BoxCollider collider=box.AddComponent<BoxCollider>();collider.center=b.center+Vector3.down*0.025f;collider.size=b.size+Vector3.up*0.05f;
+            if(solid.HasValue){collider.center=solid.Value.centre+Vector3.down*0.025f;collider.size=solid.Value.size+Vector3.up*0.05f;} // (only its solid part)
             WearNTear wear=go.GetComponent<WearNTear>();
             if(wear!=null){wear.m_new=model;wear.m_worn=model;wear.m_broken=model;}
             Piece piece=go.GetComponent<Piece>();
