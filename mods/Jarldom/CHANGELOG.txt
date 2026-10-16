@@ -1,3 +1,5 @@
+0.1.165: Builders mend ships moored in the colony's water from the shore beside them, with 2 wood from the stores, once one is knocked below 95%.
+
 0.1.164: Mead the colony brews itself. Foragers go out past the colony's edge for raspberries, blueberries, mushrooms and thistle the stores are short of, going back to where they found some. They knock down wild beehives for honey and the queen bee, and take honey from the colony's own beehives. With a fermenter under a roof, villagers no longer eat the honey, or berries below a brew's worth. Needs-you says what's missing for mead when a festival wants some. Villagers take over things no game is running (a bush, a beast or a drop out past the ground the game simulates), so a pick or a blow there no longer goes to nobody.
 
 0.1.163: What's killed inside the colony (a siege's greydwarfs, a neck by the shore) leaves its drops for the haulers to carry to the stores wherever it fell, not only in rooms and zones.

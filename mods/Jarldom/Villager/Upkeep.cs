@@ -141,11 +141,35 @@ namespace Jarldom
         }
 
         // What an idle builder does next, if anything.
+        public const float ShipReach = 9f;
+        // (just mended: the repair reaches the ship's record a moment later; not mended again, and two more wood spent, meanwhile)
+        public static readonly Dictionary<ZDOID, float> ShipMended = new Dictionary<ZDOID, float>();
+        private static Task MendShip(Brain b)
+        {
+            Colony c = b.Colony;
+            if (Crafts.InStock(c, "Wood") < 2) return null;
+            foreach (Ship s in c.PiecesIn<Ship>(c.Radius + 20f))
+            {
+                WearNTear w = s != null ? s.GetComponent<WearNTear>() : null;
+                ZNetView v = s != null ? s.GetComponent<ZNetView>() : null;
+                if (w == null || v == null || !v.IsValid() || s.HasPlayerOnboard()) continue;
+                if (ShipMended.TryGetValue(v.GetZDO().m_uid, out float at) && Time.time - at < 60f) continue;
+                if (v.GetZDO().GetFloat(ZDOVars.s_health, w.m_health) >= w.m_health * 0.95f) continue;
+                Rigidbody body = s.GetComponent<Rigidbody>();
+                if (body != null && body.velocity.magnitude > 0.5f) continue; // (moored, not under sail)
+                Vector3? stand = Colony.Spot(s.transform.position, ShipReach);
+                if (stand == null || Utils.DistanceXZ(stand.Value, s.transform.position) > ShipReach || UpkeepTask.Taken(stand.Value)) continue;
+                return new UpkeepTask("mendship", stand.Value) { Wnt = w, Needs = new List<(string, int)> { ("Wood", 2) } };
+            }
+            return null;
+        }
         public static Task Next(Brain b)
         {
             Colony c = b.Colony;
             if (Gear.Tool(b, "hammer") == null || Time.time < b.NoUpkeepUntil) return null;
             // (badly damaged first, then what was lost, then the weather's wear, then roads: wear never ends, and would keep the rest waiting)
+            // (a ship moored in the colony's water and knocked about: mended from the shore beside it, a couple of wood from the stores)
+            Task ship = MendShip(b); if (ship != null) return ship;
             var hurtAll = Hurt(c).Where(w => !UpkeepTask.Taken(w.transform.position)).OrderBy(w => Vector3.Distance(w.transform.position, b.Pos)).ToList();
             WearNTear bad = hurtAll.FirstOrDefault(w => w.GetComponent<ZNetView>().GetZDO().GetFloat(ZDOVars.s_health, w.m_health) < w.m_health * 0.5f);
             if (bad != null) return new UpkeepTask("mend", bad.transform.position) { Wnt = bad };
@@ -181,7 +205,8 @@ namespace Jarldom
         public override void Start(Brain b)
         {
             Held[At] = Time.time + 120; if (Held.Count > 50) foreach (var k in Held.Where(kv => kv.Value < Time.time).Select(kv => kv.Key).ToList()) Held.Remove(k);
-            Doing = Kind == "mend" ? "mending " + Localization.instance.Localize(Wnt?.GetComponent<Piece>()?.m_name ?? "a wall").ToLower()
+            Doing = Kind == "mendship" ? "mending the " + Localization.instance.Localize(Wnt?.GetComponent<Piece>()?.m_name ?? "ship").ToLower() + " from the shore"
+                : Kind == "mend" ? "mending " + Localization.instance.Localize(Wnt?.GetComponent<Piece>()?.m_name ?? "a wall").ToLower()
                 : Kind == "rebuild" ? "rebuilding " + Localization.instance.Localize(Prefab.m_name).ToLower() : "paving the path";
             if (Needs.Count == 0) { _phase = 1; b.Move.To(At, 2.5f); }
         }
@@ -203,11 +228,11 @@ namespace Jarldom
                 if (Stock.Take(from, b.Body.GetInventory(), stack, count - Have(b, want)) == 0) { Done = true; b.NoUpkeepUntil = Time.time + 30; }
                 return;
             }
-            if (Kind == "mend" && (Wnt == null || !Wnt.GetComponent<ZNetView>().IsValid())) { Done = true; return; }
+            if ((Kind == "mend" || Kind == "mendship") && (Wnt == null || !Wnt.GetComponent<ZNetView>().IsValid())) { Done = true; return; }
             // (near enough across the ground, and within reach in height)
             if (Utils.DistanceXZ(b.Pos, At) > 3.2f || At.y - b.Pos.y > 6f || b.Pos.y - At.y > 3f) { if (!b.Move.Moving) b.Move.To(At, 2.5f); if (b.Move.Failed) { Done = true; b.NoUpkeepUntil = Time.time + 20; } return; }
             b.Move.Stop();
-            Vector3 d = At - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized);
+            Vector3 d = (Kind == "mendship" ? Wnt.transform.position : At) - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized); // (the ship, out on the water)
             if (Time.time < _next) return;
             _next = Time.time + 1.2f / Mathf.Max(0.4f, b.Productivity());
             ItemDrop.ItemData hammer = Gear.Tool(b, "hammer");
@@ -222,6 +247,15 @@ namespace Jarldom
                 case "mend":
                     Wnt.Repair();
                     b.S.Bump("mended");
+                    break;
+                case "mendship":
+                    if (Have(b, "Wood") < 2) { Done = true; return; }
+                    { ZNetView sv = Wnt.GetComponent<ZNetView>(); if (!sv.IsOwner()) sv.ClaimOwnership(); }
+                    Wnt.Repair();
+                    Upkeep.ShipMended[sv0(Wnt)] = Time.time;
+                    Take(b);
+                    b.S.Bump("mended");
+                    c.Log("text", b.S.Name, "", $"{b.S.Name} mended the {Localization.instance.Localize(Wnt.GetComponent<Piece>()?.m_name ?? "ship").ToLower()} at its moorings.");
                     break;
                 case "rebuild":
                     if (Needs.Any(n => Have(b, n.item) < n.amount)) { Done = true; return; }
@@ -253,6 +287,7 @@ namespace Jarldom
             b.Dirty();
             Done = true;
         }
+        private static ZDOID sv0(WearNTear w) => w.GetComponent<ZNetView>().GetZDO().m_uid;
         private void Take(Brain b)
         {
             Inventory bag = b.Body.GetInventory();
