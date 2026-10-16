@@ -27,14 +27,14 @@ namespace Jarldom
         {
             if (_active && Vector3.Distance(goal, _goal) < 0.3f && !_failed) { _run = run; _arrive = arrive; return; }
             // The same goal again soon after failing stays failed, so a task that re-paths and then checks Failed sees it.
-            if (_failed && Vector3.Distance(goal, _goal) < 0.3f && Time.time - _failedAt < 20f) return;
+            if (_failed && Vector3.Distance(goal, _goal) < 0.3f && Time.time - _failedAt < 20f) { Arrived = false; return; } // (not the last goal's arrival: a bed task took that for being there and put them in bed from afar)
             _goal = goal; _arrive = Mathf.Max(0.4f, arrive); _run = run; _active = true; Arrived = false; _failed = false;
             _giveUpAt = Time.time + 30f + Vector3.Distance(_b.Body.transform.position, goal) * 1.5f; // however it goes, a walk that long has failed
             _nextPath = 0; _stuckStage = 0; _lastProgressAt = Time.time; _failAt = 0; _unsticks = 0; _lastProgressPos = _b.Body.transform.position; _viaDoor = null; _planDoor = null; _doorNear = null;
         }
         public void Stop() { _active = false; _path.Clear(); _b.Ai.StopMoving(); _viaDoor = null; _doorNear = null; }
         public string LastDoorPlan = "";
-        public string Debug => $"active {_active} arrived {Arrived} failed {_failed} path {_path.Count} arrive {_arrive:0.0} stuck {Time.time - _lastProgressAt:0.0}s stage {_stuckStage} door {(_doorNear.HasValue ? "yes" : "no")} plan [{LastDoorPlan}]";
+        public string Debug => $"active {_active} arrived {Arrived} failed {_failed} path {_path.Count} arrive {_arrive:0.0} stuck {Time.time - _lastProgressAt:0.0}s stage {_stuckStage} door {(_doorNear.HasValue ? "yes" : "no")} plan [{LastDoorPlan}] goal {_goal:F1} next {string.Join(" ", _path.Take(3).Select(q => q.ToString("F1")))}";
         public float Distance => Utils.DistanceXZ(_b.Body.transform.position, _goal);
 
         // From the fixed update: one step.
@@ -80,7 +80,15 @@ namespace Jarldom
                 _doorNear = null; _path.Clear(); _path.Add(_doorFar); _nextPath = Time.time + 3f;
             }
             Vector3 next = _path.Count > 0 ? _path[0] : _goal;
-            while (_path.Count > 0 && Utils.DistanceXZ(me, _path[0]) < (_run ? 1f : 0.6f)) { _path.RemoveAt(0); next = _path.Count > 0 ? _path[0] : _goal; }
+            bool repathed = false;
+            while (_path.Count > 0 && Utils.DistanceXZ(me, _path[0]) < (_run ? 1f : 0.6f))
+            {
+                _path.RemoveAt(0); next = _path.Count > 0 ? _path[0] : _goal;
+                // (the way ran out short of the goal, as at a door's far side: a new way now, not straight at the goal meanwhile, which
+                // from outside the hall door was back in through the hall, and out, and in, all night)
+                // (once a step: a new way whose first corners are as near as this would be dropped and found again, forever)
+                if (_path.Count == 0 && !repathed && Utils.DistanceXZ(me, _goal) > 3f) { repathed = true; _nextPath = 0; Repath(me); next = _path.Count > 0 ? _path[0] : _goal; }
+            }
             Vector3 dir = next - me; dir.y = 0;
             if (dir.sqrMagnitude < 0.0001f) dir = _goal - me;
             bool run = _run && _b.Stamina > 0.2f;
@@ -136,11 +144,12 @@ namespace Jarldom
                 {
                     bool sameSide = _b.Colony != null && _b.Colony.RoomAt(me) is Room inside && Geometry.Inside(inside.Xz, near.x, near.z) && Utils.DistanceXZ(me, near) < 15f;
                     if (!Pathfinding.instance.HavePath(me, near, _b.Ai.m_pathAgentType) && !sameSide) { LastDoorPlan += $"; no way to {near:F1}"; continue; }
-                    // The far side must lead to the goal, or at least be close to it in the same room (the navmesh behind a shut door can be cut off).
+                    // The far side must lead to the goal, or at least be in the goal's room (the navmesh behind a shut door can be cut off; a long
+                    // longhouse's far beds are well over 15 m from its doors).
                     bool sameRoom = _b.Colony != null && _b.Colony.RoomAt(far) is Room r && Geometry.Inside(r.Xz, goal.x, goal.z);
                     // (or it's the way out of this room to another behind its own shut door: out first, then that door, planned from outside)
                     bool outThenIn = from != null && to != from && _b.Colony.RoomAt(far) == null && Pathfinding.instance.HavePath(far, _b.Colony.Position, _b.Ai.m_pathAgentType);
-                    if (!outThenIn && !Pathfinding.instance.HavePath(far, goal, _b.Ai.m_pathAgentType) && Utils.DistanceXZ(far, goal) > 3f && !(sameRoom && Utils.DistanceXZ(far, goal) < 15f)) { LastDoorPlan += $"; no way from {far:F1}"; continue; }
+                    if (!outThenIn && !Pathfinding.instance.HavePath(far, goal, _b.Ai.m_pathAgentType) && Utils.DistanceXZ(far, goal) > 3f && !sameRoom) { LastDoorPlan += $"; no way from {far:F1}"; continue; }
                     LastDoorPlan += $"; through {d.name}";
                     Pathfinding.instance.GetPath(me, near, _path, _b.Ai.m_pathAgentType);
                     _path.Add(near);

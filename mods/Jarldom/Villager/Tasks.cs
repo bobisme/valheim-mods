@@ -769,15 +769,18 @@ namespace Jarldom
         }
         private static Vector3? Search(Brain b, Vector3 bed, Room room)
         {
-            // (the plain way first: if it stays in the room and ends beside it, nothing more to find)
-            if (Pathfinding.instance.GetPath(b.Pos, bed, Path, b.Ai.m_pathAgentType) && Path.Count > 0 && Utils.DistanceXZ(Path[Path.Count - 1], bed) < 2f && b.Colony.RoomAt(Path[Path.Count - 1] + Vector3.up * 0.3f) == room
+            // (the plain way first: if it stays in the room and ends beside it, nothing more to find; a whole way, not the game's best
+            // try, which for a bed on a raised bay ended on the bay's top, cut off, and walked them to the nearest rocks outside)
+            if (Pathfinding.instance.GetPath(b.Pos, bed, Path, b.Ai.m_pathAgentType, requireFullPath: true) && Path.Count > 0 && Utils.DistanceXZ(Path[Path.Count - 1], bed) < 2f && b.Colony.RoomAt(Path[Path.Count - 1] + Vector3.up * 0.3f) == room
                 && Path.All(q => b.Colony.RoomAt(q + Vector3.up * 0.3f) == room || Utils.DistanceXZ(q, b.Pos) < 1f || b.Colony.RoomAt(b.Pos + Vector3.up * 0.3f) != room && b.Colony.RoomAt(q + Vector3.up * 0.3f) == null)) { Last = "the plain way does"; return null; }
             var found = new List<(Vector3 v, float d)>();
             for (float dx = -4f; dx <= 4f; dx += 0.5f)
                 for (float dz = -4f; dz <= 4f; dz += 0.5f)
                 {
                     Vector3 p = bed + new Vector3(dx, 0, dz);
-                    if (!Nav.Valid(out Vector3 v, p, 0.35f) || Mathf.Abs(v.y - room.Floor) > 0.5f || b.Colony.RoomAt(v + Vector3.up * 0.3f) != room) continue; // (the floor: not a table top or a bench seat, which the navmesh covers too)
+                    // (the floor: not a table top or a bench seat, which the navmesh covers too - nor a raised sleeping bay's top, which
+                    // the way-in test below throws out; a bay-lined longhouse's measured floor was the bays', 0.56 m over the aisle)
+                    if (!Nav.Valid(out Vector3 v, p, 0.35f) || Mathf.Abs(v.y - room.Floor) > 0.75f || b.Colony.RoomAt(v + Vector3.up * 0.3f) != room) continue;
                     found.Add((v, Utils.DistanceXZ(v, bed)));
                 }
             // (the nearest that can be walked to: a pocket between a fire and the wall is floor too, but cut off)

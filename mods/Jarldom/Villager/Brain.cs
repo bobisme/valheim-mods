@@ -101,10 +101,30 @@ namespace Jarldom
             anim?.SetBool(Held.Anim, false);
             Poses.Clear(Body);
             Vector3 off = Held.Point != null ? Held.Point.position + Held.Point.forward * 0.9f + Vector3.up * 0.3f : Pos;
+            Vector3? floor = Held.Point != null ? Floor(Held.Point) : null;
             Held = null;
             if (_body != null) { _body.isKinematic = false; _body.linearVelocity = Vector3.zero; }
-            if (Steer.SafeSpot(off)) Place(off);
+            if (floor.HasValue) Place(floor.Value + Vector3.up * 0.2f);
+            else if (Steer.SafeSpot(off)) Place(off);
             Seats.Free(this);
+        }
+        // Where to stand up from a seat or bed: floor beside it (front first, then behind and the sides) with a way from there to the
+        // pillars. A bench against a wall whose front faces the wall put them in the gap behind it, off the navmesh with no way out.
+        // (Floor, not the seat's top: bench and table tops are navmesh too, at about the seat's height.)
+        private Vector3? Floor(Transform seat)
+        {
+            if (Pathfinding.instance == null) return null;
+            Vector3 p = seat.position, f = seat.forward; f.y = 0; f = f.sqrMagnitude > 0.01f ? f.normalized : Vector3.forward;
+            Vector3 r = Vector3.Cross(Vector3.up, f);
+            Vector3 home = Colony != null ? Colony.Position + Colony.Seat.transform.forward * 3f : Vector3.zero;
+            if (Colony != null && Nav.Valid(out Vector3 h, home, 3f)) home = h; // (the spot before the high seat may be under a table)
+            foreach (Vector3 d in new[] { f * 0.9f, f * 1.4f, -f * 0.9f, -f * 1.4f, r * 0.9f, -r * 0.9f })
+            {
+                if (!Nav.Valid(out Vector3 v, p + d, 0.6f) || v.y > p.y - 0.2f || p.y - v.y > 1.5f || Utils.DistanceXZ(v, p) > 1.8f) continue;
+                if (Colony != null && !Pathfinding.instance.HavePath(v, home, Pathfinding.AgentType.Humanoid)) continue;
+                return v;
+            }
+            return null;
         }
         public void Place(Vector3 at)
         {
