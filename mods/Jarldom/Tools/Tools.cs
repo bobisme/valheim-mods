@@ -1667,6 +1667,14 @@ namespace Jarldom
                         // Test: claims (this colony's) | claims survey (the nearest stake, now) | claims send <name> (that miner sets out).
                         string sub = a.Length > 2 ? a[2] : "";
                         if (sub == "elder") { Claims.TestElder = !Claims.TestElder; output(new JObject { ["testElder"] = Claims.TestElder }); }
+                        if (sub == "hunt") // (claims hunt <id>: that stake, loaded, to a hunting camp or back, as shift+E does)
+                        {
+                            OreClaim st = a.Length > 3 ? UnityEngine.Object.FindObjectsByType<OreClaim>(FindObjectsSortMode.None).FirstOrDefault(x => x.Id == a[3]) : null;
+                            if (st == null) { error("no stake loaded"); return; }
+                            st.Interact(Player.m_localPlayer, false, true);
+                            Claim got = st.Survey();
+                            output(new JObject { ["hunt"] = st.Hunt, ["claim"] = got?.Encode(), ["hover"] = st.GetHoverText() });
+                        }
                         if (sub == "survey") { OreClaim st = UnityEngine.Object.FindObjectsByType<OreClaim>(FindObjectsSortMode.None).OrderBy(x => Vector3.Distance(x.transform.position, Player.m_localPlayer.transform.position)).FirstOrDefault(); if (st == null) { error("no stake loaded"); return; } st.GetComponent<ZNetView>().ClaimOwnership(); Claim got = st.Survey(); Vector3 sp = st.transform.position;
                             output(new JObject { ["stake"] = $"{sp.x:0.0},{sp.z:0.0}", ["id"] = st.Id, ["survey"] = got == null ? "nothing" : Claims.Ores(got), ["ready"] = new JArray(new[] { Vector3.zero, Vector3.forward, Vector3.back, Vector3.left, Vector3.right }.Select(d => ZNetScene.instance.IsAreaReady(sp + d * Mining.CryptReach))),
                                 ["near"] = new JArray(Claims.Near(sp, Mining.BareReach, false).Select(d => $"{Utils.GetPrefabName(d.go)} {d.ore} {d.n} t{d.tier}")), ["home"] = OreClaim.HomeOf(sp) }); }

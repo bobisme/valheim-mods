@@ -13,7 +13,7 @@ namespace Jarldom
     // took is taken out of the world there then (worked-out deposits go).
     public sealed class Claim
     {
-        public string Id = "", Colony = ""; public float X, Z; public string Biome = ""; public bool Crypt; public int Beds;
+        public string Id = "", Colony = ""; public float X, Z; public string Biome = ""; public bool Crypt, Hunt; public int Beds; // (Hunt: a hunting camp, no ore: "h" where a crypt is "1")
         public Dictionary<string, (int n, int tier)> Left = new Dictionary<string, (int, int)>();
         public Dictionary<string, int> Taken = new Dictionary<string, int>();
         public bool Camp => Beds > 0;
@@ -22,14 +22,14 @@ namespace Jarldom
 
         private static string F(float f) => Math.Round(f).ToString(CultureInfo.InvariantCulture);
         public string Encode() =>
-            $"{Colony},{F(X)},{F(Z)},{Biome.ToLowerInvariant()},{(Crypt ? 1 : 0)},{Beds}," +
+            $"{Colony},{F(X)},{F(Z)},{Biome.ToLowerInvariant()},{(Hunt ? "h" : Crypt ? "1" : "0")},{Beds}," +
             string.Join(";", Left.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => $"{kv.Key}:{kv.Value.n}:{kv.Value.tier}")) + "," + string.Join(";", Taken.Where(kv => kv.Value > 0).OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => $"{kv.Key}:{kv.Value}")); // (sorted: the same claim, the same key)
         public static Claim Decode(string id, string value)
         {
             if (string.IsNullOrEmpty(value)) return null;
             string[] f = value.Split(',');
             if (f.Length < 8) return null;
-            var c = new Claim { Id = id, Colony = f[0], Biome = f[3], Crypt = f[4] == "1" };
+            var c = new Claim { Id = id, Colony = f[0], Biome = f[3], Crypt = f[4] == "1", Hunt = f[4] == "h" };
             if (!float.TryParse(f[1], NumberStyles.Float, CultureInfo.InvariantCulture, out c.X) || !float.TryParse(f[2], NumberStyles.Float, CultureInfo.InvariantCulture, out c.Z)) return null;
             int.TryParse(f[5], out c.Beds);
             foreach (string part in f[6].Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
@@ -49,6 +49,42 @@ namespace Jarldom
     // What a miner picks on the way home from a claim, from what grows (or is had) in its biome, when the stores are short of it: the
     // Black Forest's berries, mushrooms and thistle the foragers can't reach from a meadow colony, a swamp's bloodbags for mead. Only
     // what the stores hold less of than they keep, a handful each (roll: 0..1 per item).
+    // A hunting camp: a claim stake set to hunting, out where game is (it keeps away from homes). Its hunters go out as miners do and
+    // come back with what the ground there gives: the meat, hides and odd trophy of its beasts, more for a better archer, a day's
+    // hunting at a camp (a bed, a chest and a fire) and half a day from a bare stake. They go when the stores are short of meat.
+    public static class Hunting
+    {
+        public const float NearHome = 30f; // (a camp closer than this past the colony's edge finds nothing: its own hunting grounds are there)
+        public const int Arrows = 6; // (spent a trip)
+        public static readonly Dictionary<string, (string item, int min, int max, float chance)[]> Game = new Dictionary<string, (string, int, int, float)[]>
+        {
+            ["meadows"] = new[] { ("DeerMeat", 2, 4, 1f), ("DeerHide", 2, 4, 1f), ("RawMeat", 1, 3, 0.8f), ("LeatherScraps", 2, 5, 0.8f), ("TrophyDeer", 1, 1, 0.15f), ("TrophyBoar", 1, 1, 0.1f) },
+            ["blackforest"] = new[] { ("DeerMeat", 2, 5, 1f), ("DeerHide", 2, 5, 1f), ("RawMeat", 1, 2, 0.5f), ("LeatherScraps", 1, 3, 0.5f), ("TrophyDeer", 1, 1, 0.15f) },
+            ["swamp"] = new[] { ("Bloodbag", 2, 5, 1f), ("Entrails", 2, 4, 0.7f), ("RawMeat", 1, 2, 0.4f) },
+            ["mountain"] = new[] { ("WolfMeat", 2, 4, 1f), ("WolfPelt", 1, 3, 1f), ("WolfFang", 1, 3, 0.7f), ("FreezeGland", 1, 2, 0.4f), ("TrophyWolf", 1, 1, 0.1f) },
+            ["plains"] = new[] { ("LoxMeat", 2, 4, 1f), ("LoxPelt", 1, 2, 0.8f), ("Needle", 1, 4, 0.6f), ("TrophyLox", 1, 1, 0.05f) },
+            ["mistlands"] = new[] { ("HareMeat", 2, 4, 1f), ("ScaleHide", 1, 2, 0.6f), ("Feathers", 2, 6, 0.6f) },
+        };
+        // Meat the stores should hold before the hunters stop going out: three meals a head, at least twenty.
+        public static int Keep(int people) => Math.Max(20, people * 3);
+        // One hunter's bag home: each beast's yield rolled, a day at a camp twice a bare stake's half day, a better archer more (bows
+        // skill 0..100: up to half again). (roll: 0..1)
+        public static Dictionary<string, int> Yield(string biome, bool camp, float bows, Func<double> roll)
+        {
+            var got = new Dictionary<string, int>();
+            if (biome == null || !Game.TryGetValue(biome.ToLowerInvariant(), out var beasts)) return got;
+            double k = (camp ? 2.0 : 1.0) * (1.0 + Math.Max(0f, Math.Min(100f, bows)) / 200.0);
+            foreach (var (item, min, max, chance) in beasts)
+            {
+                if (roll() >= chance) continue;
+                bool trophy = item.StartsWith("Trophy");
+                int n = trophy ? 1 : (int)Math.Round((min + Math.Floor(roll() * (max - min + 1))) * k);
+                if (n > 0) got[item] = (got.TryGetValue(item, out int had) ? had : 0) + n;
+            }
+            return got;
+        }
+    }
+
     public static class Gathering
     {
         public static readonly Dictionary<string, (string item, int min, int max)[]> ByBiome = new Dictionary<string, (string, int, int)[]>

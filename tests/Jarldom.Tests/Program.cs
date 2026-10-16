@@ -89,6 +89,17 @@ Check(Renown.Comfort(new int[0]) == 0 && Renown.Comfort(new[] { 4, 2 }) == 15, "
     Check(Gathering.Along("blackforest", i => 0, () => 0.0).All(x => x.n == Gathering.ByBiome["blackforest"].First(t => t.item == x.item).min), "Gathering: at least the least");
     Check(Gathering.Along("ashlands", i => 0, () => 0.5).Count == 0 && Gathering.Along(null, i => 0, () => 0.5).Count == 0, "Gathering: nothing from a biome without a list");
 }
+{
+    var hc = new Claim { Id = "abc", Colony = "col", X = 10, Z = 20, Biome = "meadows", Hunt = true, Beds = 2 };
+    var hback = Claim.Decode("abc", hc.Encode());
+    Check(hback != null && hback.Hunt && !hback.Crypt && hback.Beds == 2 && hback.Ore == 0, "Hunting camp: kept in its claim key");
+    Check(!Claim.Decode("x", new Claim { Colony = "c", Biome = "swamp", Crypt = true }.Encode()).Hunt, "Hunting camp: a crypt isn't one");
+    var all = Hunting.Yield("meadows", true, 100, () => 0.0);
+    var hbare = Hunting.Yield("meadows", false, 0, () => 0.0);
+    Check(all["DeerMeat"] == 6 && hbare["DeerMeat"] == 2 && all["TrophyDeer"] == 1 && all.ContainsKey("RawMeat"), "Hunting: a camp's day and a good archer bring three times a bare stake's novice");
+    Check(Hunting.Yield("meadows", true, 0, () => 0.99).Keys.OrderBy(k => k).SequenceEqual(new[] { "DeerHide", "DeerMeat" }) && Hunting.Yield("ashlands", true, 50, () => 0.0).Count == 0, "Hunting: only the sure things on a bad day; nothing with no list for the ground");
+    Check(Hunting.Yield("mountain", false, 0, () => 0.0).ContainsKey("WolfPelt") && Hunting.Keep(5) == 20 && Hunting.Keep(21) == 63, "Hunting: wolves in the mountains; meat kept by heads");
+}
 Check(Trading.Choose(Rank.Village, false, false, false, 40) == TradeWay.Foot, "No cart: on foot");
 Check(Trading.Choose(Rank.Village, true, false, false, 4) == TradeWay.Foot && Trading.Choose(Rank.Village, true, false, false, 10) == TradeWay.Cart, "The cart only when there's more than a pack");
 Check(Trading.Choose(Rank.Village, true, true, true, 50) == TradeWay.Cart, "Ships wait for their rank");

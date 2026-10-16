@@ -12,7 +12,7 @@ namespace Jarldom
     {
         public static bool TestElder; // (test: crypts open before the Elder is beaten)
         public static bool ElderBeaten => TestElder || ZoneSystem.instance != null && ZoneSystem.instance.GetGlobalKey("defeated_gdking");
-        public const string KeyHead = "jarldom_claim_", ColonyKey = "jarldom_claimcolony", IdKey = "jarldom_claimid";
+        public const string KeyHead = "jarldom_claim_", ColonyKey = "jarldom_claimcolony", IdKey = "jarldom_claimid", HuntKey = "jarldom_claimhunt";
         private static ZoneSystem Z => ZoneSystem.instance;
 
         public const string TakeHead = "jarldom_claimtake_";
@@ -101,7 +101,7 @@ namespace Jarldom
         public static string Ores(Claim c) => c.Left.Where(kv => kv.Value.n > 0).Any() ? string.Join(", ", c.Left.Where(kv => kv.Value.n > 0).OrderByDescending(kv => kv.Value.n).Select(kv => $"~{kv.Value.n} {Name(kv.Key)}")) : "worked out";
         public static string Name(string prefab) { GameObject p = ObjectDB.instance?.GetItemPrefab(prefab) ?? Carts_Item(prefab); return p != null ? Localization.instance.Localize(p.GetComponent<ItemDrop>().m_itemData.m_shared.m_name).ToLower() : prefab; }
         private static GameObject Carts_Item(string lower) => ObjectDB.instance?.m_items.FirstOrDefault(i => i != null && i.name.ToLowerInvariant() == lower);
-        public static string Title(Claim c) => (c.Crypt ? "Crypt claim" : c.Camp ? "Mining camp" : "Ore claim") + (c.Left.Count > 0 ? " (" + string.Join(", ", c.Left.OrderByDescending(kv => kv.Value.n).Take(2).Select(kv => Name(kv.Key).Replace(" ore", "").Replace("scrap ", ""))) + ")" : "");
+        public static string Title(Claim c) => c.Hunt ? (c.Camp ? "Hunting camp" : "Hunting stake") : (c.Crypt ? "Crypt claim" : c.Camp ? "Mining camp" : "Ore claim") + (c.Left.Count > 0 ? " (" + string.Join(", ", c.Left.OrderByDescending(kv => kv.Value.n).Take(2).Select(kv => Name(kv.Key).Replace(" ore", "").Replace("scrap ", ""))) + ")" : "");
         public static string Where(Claim c, Vector3 from) => $"{Mathf.RoundToInt(Utils.DistanceXZ(At(c), from))} m to the {ScoutTask.Compass(At(c) - from)}";
 
         // ---- deposits ----
@@ -183,8 +183,8 @@ namespace Jarldom
             if (!c.IsOwner || Time.time < b.NoClaimUntil) return null;
             b.NoClaimUntil = Time.time + 20;
             int pick = Gear.Tool(b, "pickaxe")?.m_shared.m_toolTier ?? -1;
-            var mine = Of(c).Where(x => x.Ore > 0).ToList();
-            if (mine.Count == 0) { if (Of(c).Any()) Gear.Problem = "every ore claim is worked out: drive a claim stake by a new deposit"; return null; }
+            var mine = Of(c).Where(x => !x.Hunt && x.Ore > 0).ToList();
+            if (mine.Count == 0) { if (Of(c).Any(x => !x.Hunt)) Gear.Problem = "every ore claim is worked out: drive a claim stake by a new deposit"; return null; }
             // (not off again with last trip's load still on their back, nor for ore the stores have no room for)
             if (b.Body.GetInventory().GetAllItems().Any(Carts.IsCargo)) return null;
             mine = mine.Where(x => x.Left.Keys.Any(ore => Carts_Item(ore) is GameObject p && Stock.Destination(c, Stock.Of(p), c.Position) != null)).ToList();
@@ -203,6 +203,25 @@ namespace Jarldom
             }
             return new ClaimTrip(best);
         }
+        // A hunter with nothing to hunt nearer and the stores short of meat: a hunting camp with room for another (the nearest).
+        public static Task HuntNext(Brain b)
+        {
+            Colony c = b.Colony;
+            if (!c.IsOwner || Time.time < b.NoClaimUntil) return null;
+            b.NoClaimUntil = Time.time + 20;
+            var camps = Of(c).Where(x => x.Hunt).ToList();
+            if (camps.Count == 0) return null;
+            if (RangeTask.Meat(c) >= Hunting.Keep(c.Population)) return null;
+            if (Gear.Tool(b, "bow") == null && !Gear.CanFight(b)) { Gear.Problem = "needs gear: a bow (or a weapon) to hunt with"; return null; }
+            if (Stock.Destination(c, Stock.Of(Assets.Find("DeerMeat")), c.Position) == null) { Gear.Problem = "no room in the stores for meat: add a chest (raw food)"; return null; }
+            float near = c.Radius + Hunting.NearHome;
+            var far = camps.Where(x => Utils.DistanceXZ(At(x), c.Position) >= near).ToList();
+            if (far.Count == 0) { Gear.Problem = $"the hunting camp is too near home: game keeps away from homes (put it {Mathf.RoundToInt(Hunting.NearHome)} m or more past the colony's edge)"; return null; }
+            var known = far.Where(x => Hunting.Game.ContainsKey(x.Biome.ToLowerInvariant())).ToList();
+            if (known.Count == 0) { Gear.Problem = "no game the hunters know at the hunting camp's ground"; return null; }
+            Claim best = known.Where(x => Out(c, x.Id) < Mining.Room(x)).OrderBy(x => Utils.DistanceXZ(At(x), c.Position)).FirstOrDefault();
+            return best == null ? null : new ClaimTrip(best);
+        }
         // How much the colony wants this ore now (Core's Mining.Need from what the stores hold).
         public static int Held(Colony c, string ore) => Carts_Item(ore) is GameObject p ? Crafts.InStock(c, p.name) : 0;
         public static double Need(Colony c, string ore) => Mining.Need(ore, Held(c, ore), Stock.Keep(c, "ore"), Held(c, "copperore"), Held(c, "tinore"));
@@ -220,6 +239,7 @@ namespace Jarldom
             var (wound, death) = Mining.Risk(claim.Biome, claim.Crypt, claim.Camp, guard);
             float roll = UnityEngine.Random.value;
             Brain b = Villagers.BrainFor(h); // (made now, so a wound sticks)
+            if (claim.Hunt) { HuntHome(c, h, s, b, claim, roll, wound, death); return; }
             string where = claim.Crypt ? "the crypt" : claim.Camp ? "the mining camp" : "the claim";
             if (roll < death)
             {
@@ -256,6 +276,38 @@ namespace Jarldom
             }
             if (b != null) { b.S.Bump("orehauls"); if (roll < death + wound) b.S.InjuredUntil = c.Now + Clock.Hour * 6; b.Dirty(); }
             c.Log("text", s.Name, "", told.Count == 0 ? $"{s.Name} came back from {where} {Where(claim, c.Position)} with nothing: it's worked out." : $"{s.Name} came back from {where} {Where(claim, c.Position)} with {string.Join(", ", told)}{(roll < death + wound ? ", wounded" : "")}.{(claim.Ore == 0 ? " It's worked out now." : "")}");
+        }
+        // Home from a hunting camp: the kill (by the ground and their aim), a few arrows spent; or hurt, or carried home without it.
+        private static void HuntHome(Colony c, Humanoid h, VillagerState s, Brain b, Claim claim, float roll, float wound, float death)
+        {
+            string where = $"the {Title(claim).ToLower()} {Where(claim, c.Position)}";
+            if (roll < death)
+            {
+                if (b != null) { b.S.Deaths++; b.S.InjuredUntil = c.Now + Clock.Hour * 12; b.Dirty(); }
+                c.Log("text", s.Name, "", $"{s.Name} fell at {where} and was carried home without the kill.");
+                return;
+            }
+            // (arrows: a few loosed and not found again)
+            int spent = 0;
+            foreach (ItemDrop.ItemData ammo in h.GetInventory().GetAllItems().Where(i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Ammo).ToList())
+            {
+                if (spent >= Hunting.Arrows) break;
+                int n = Math.Min(ammo.m_stack, Hunting.Arrows - spent); h.GetInventory().RemoveItem(ammo, n); spent += n;
+            }
+            var got = Hunting.Yield(claim.Biome, claim.Camp, s.Skill("Bows"), () => UnityEngine.Random.value);
+            var told = new List<string>();
+            foreach (var kv in got)
+            {
+                GameObject prefab = Assets.Find(kv.Key); if (prefab == null) continue;
+                int left = kv.Value;
+                while (left > 0) { int stack = Math.Min(left, prefab.GetComponent<ItemDrop>().m_itemData.m_shared.m_maxStackSize); if (!h.GetInventory().AddItem(prefab, stack)) break; left -= stack; }
+                if (left > 0) left -= Carts.Put(c, prefab, left);
+                for (; left > 0;) { int stack = Math.Min(left, prefab.GetComponent<ItemDrop>().m_itemData.m_shared.m_maxStackSize); ItemDrop.DropItem(prefab.GetComponent<ItemDrop>().m_itemData.Clone(), stack, h.transform.position + Vector3.up, Quaternion.identity); left -= stack; }
+                told.Add($"{kv.Value} {Localization.instance.Localize(prefab.GetComponent<ItemDrop>().m_itemData.m_shared.m_name).ToLower()}");
+            }
+            bool hurt = roll < death + wound;
+            if (b != null) { b.S.Bump("hunts"); if (got.Count > 0) b.S.Bump("kills"); if (hurt) b.S.InjuredUntil = c.Now + Clock.Hour * 6; b.Body.RaiseSkill(Skills.SkillType.Bows, 2f); b.Dirty(); }
+            c.Log("text", s.Name, "", told.Count == 0 ? $"{s.Name} came back from {where} empty-handed{(hurt ? ", and wounded" : "")}: the game kept away." : $"{s.Name} came back from {where} with {string.Join(", ", told)}{(hurt ? ", wounded" : "")}.");
         }
     }
 
@@ -350,6 +402,14 @@ namespace Jarldom
             if (colony == "") return null;
             Vector3 at = transform.position;
             int beds = CampBeds();
+            if (Hunt)
+            {
+                // (a hunting camp: no deposits to survey, only its beds and its ground)
+                Claim was = Claims.Stored(Id);
+                var hunt = new Claim { Id = Id, Colony = colony, X = at.x, Z = at.z, Hunt = true, Beds = beds, Biome = (WorldGenerator.instance?.GetBiome(at) ?? Heightmap.Biome.Meadows).ToString() };
+                if (was == null || was.Encode() != hunt.Encode()) Claims.Save(hunt);
+                return hunt;
+            }
             float reach = beds > 0 ? Mining.CampReach : Mining.CryptReach;
             // (not until the ground all round has loaded: half a survey would lose what was dug, and under-count what's left)
             float need = beds > 0 ? Mining.CampReach : Mining.BareReach + 2f; // (a crypt's inside lies over its door: found in what's loaded)
@@ -383,19 +443,33 @@ namespace Jarldom
             foreach (var l in loads) Claims.Unset(l.key); // (taken in)
             return claim;
         }
-        public string GetHoverName() => "Ore claim";
+        public bool Hunt => Z != null && Z.GetBool(Claims.HuntKey);
+        public string GetHoverName() => Hunt ? "Hunting camp" : "Ore claim";
         public string GetHoverText()
         {
             Claim c = Claims.Get(Id);
             string home = Z?.GetString(Claims.ColonyKey, "") ?? "";
             Vector3? colony = home != "" ? Outposts.Where(home) : null;
             var t = new System.Text.StringBuilder();
-            t.Append(c != null ? Claims.Title(c) : "Ore claim");
+            t.Append(c != null ? Claims.Title(c) : Hunt ? "Hunting camp" : "Ore claim");
             if (home == "" ) t.Append("\n<size=80%><color=#ff8c59>No colony to claim it for: found one first.</color></size>");
             else
             {
                 if (colony != null) t.Append($"\n<size=80%>For the colony {Mathf.RoundToInt(Utils.DistanceXZ(colony.Value, transform.position))} m to the {ScoutTask.Compass(colony.Value - transform.position)}</size>");
                 if (c == null) t.Append("\n<size=80%>Surveying...</size>");
+                else if (c.Hunt)
+                {
+                    Colony home_ = Colony.All.FirstOrDefault(x => x.Valid && x.Id.ToLowerInvariant() == home);
+                    bool tooNear = home_ != null && Utils.DistanceXZ(home_.Position, transform.position) < home_.Radius + Hunting.NearHome;
+                    bool known = Hunting.Game.ContainsKey(c.Biome.ToLowerInvariant());
+                    t.Append(tooNear ? $"\n<size=80%><color=#ff8c59>Too near home: game keeps away from homes. Put it {Mathf.RoundToInt(Hunting.NearHome)} m or more past the colony's edge.</color></size>"
+                        : !known ? "\n<size=80%><color=#ff8c59>No game the hunters know on this ground.</color></size>"
+                        : $"\n<size=80%>Game here: {string.Join(", ", Hunting.Game[c.Biome.ToLowerInvariant()].Where(g => !g.item.StartsWith("Trophy")).Select(g => Claims.Name(g.item)))}. The hunters go when the stores are short of meat.</size>");
+                    t.Append(c.Camp ? $"\n<size=80%>A camp: {c.Beds} bed{(c.Beds == 1 ? "" : "s")}, so {c.Beds} hunter{(c.Beds == 1 ? "" : "s")} at once, a day's hunting a trip.</size>"
+                        : $"\n<size=80%>A bare stake: one hunter, half a day. A camp (a bed, a chest and a fire within {Mathf.RoundToInt(Mining.CampNear)} m) hunts a whole day, a hunter a bed.</size>");
+                    var (hw, hd) = Mining.Risk(c.Biome, false, c.Camp, false);
+                    if (hw + hd > 0) t.Append($"\n<size=80%>Danger: {Mathf.RoundToInt((hw + hd) * 100)}% a trip (a guard with nothing to do goes along).</size>");
+                }
                 else
                 {
                     t.Append($"\n<size=80%>{(c.Ore > 0 ? Claims.Ores(c) + $" (a pickaxe of tier {c.Tier})" : c.Crypt ? "no iron left in the crypt" : "<color=#ff8c59>no ore within reach: drive it in right beside a deposit</color>")}</size>");
@@ -407,14 +481,24 @@ namespace Jarldom
                 }
             }
             t.Append("\n[<color=yellow><b>$KEY_Use</b></color>] Survey now");
+            t.Append($"\n[<color=yellow><b>$KEY_AltPlace + $KEY_Use</b></color>] Make it {(Hunt ? "an ore claim" : "a hunting camp")}");
             return Localization.instance.Localize(t.ToString());
         }
         public bool Interact(Humanoid user, bool hold, bool alt)
         {
             if (hold || Z == null) return false;
             if (!_v.IsOwner()) _v.ClaimOwnership();
+            if (alt)
+            {
+                Z.Set(Claims.HuntKey, !Hunt);
+                Claim h = Survey();
+                // (back to an ore claim: its record says so now, before a survey of ground not yet loaded writes it again)
+                if (!Hunt && Claims.Stored(Id) is Claim was && was.Hunt) { was.Hunt = false; Claims.Save(was); }
+                user.Message(MessageHud.MessageType.Center, Hunt ? "A hunting camp: the hunters come out here when the stores are short of meat." : "An ore claim again.");
+                return true;
+            }
             Claim c = Survey();
-            user.Message(MessageHud.MessageType.Center, c == null ? "No colony to claim it for." : c.Ore > 0 ? $"{Claims.Title(c)}: {Claims.Ores(c)}." : "No ore within reach of the stake.");
+            user.Message(MessageHud.MessageType.Center, c == null ? "No colony to claim it for." : c.Hunt ? $"{Claims.Title(c)} on {c.Biome.ToLowerInvariant()} ground." : c.Ore > 0 ? $"{Claims.Title(c)}: {Claims.Ores(c)}." : "No ore within reach of the stake.");
             return true;
         }
         public bool UseItem(Humanoid user, ItemDrop.ItemData item) => false;

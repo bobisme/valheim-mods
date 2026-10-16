@@ -547,6 +547,7 @@ namespace Jarldom
             if (prof == Prof.Shipwright && c.IsOwner && Gear.Tool(b, "hammer") != null && Time.time > b.NoBuildUntil && Shipyard.Building(c) != null) return BuildTask.Ships();
             if (prof == Prof.Miner) { Task trip = Claims.Next(b); if (trip != null) return trip; } // (ore claims out in the wilds first)
             if (prof == Prof.Herder || prof == Prof.Hunter) { Task catching = Catching.Next(b); if (catching != null) return catching; } // (an empty pasture: a wild boar for it)
+            if (prof == Prof.Hunter && NothingFor(c, Prof.Hunter)) { Task trip = Claims.HuntNext(b); if (trip != null) return trip; } // (a hunting camp out where the game is, before ranging round the edge)
             if (prof == Prof.Hunter && NothingFor(c, Prof.Hunter) && RangeTask.Wanted(b)) return new RangeTask();
             if (prof == Prof.Forager && NothingFor(c, Prof.Forager) && ForageTrip.Wanted(b)) return new ForageTrip(); // (nothing ripe in the grounds, the kitchen short of honey or berries: out for them) // (nothing in the grounds, little meat in the stores: out past the edge for some)
             if (prof == Prof.Trader && c.R.Rank >= Rank.Village && Time.time > b.NoTradeUntil && b.Body.GetInventory().GetEmptySlots() > 1 && Trade.Lots(c) >= 3) return new TradeTask(); // (three lots to sell: the trade chests' goods, the stores' treasure)
