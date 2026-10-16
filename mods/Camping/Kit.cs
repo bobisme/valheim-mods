@@ -20,7 +20,7 @@ namespace Camping
         internal static readonly Def[] All =
         {
             new Def { Name = Bedroll, From = "bed", Title = "Bedroll", Model = "bedroll", Cost = new[] { ("DeerHide", 3), ("LeatherScraps", 4) },
-                Description = "A hide to lie on and a blanket to roll up in. Sleep anywhere with a fire near: no roof needed, but not in the rain (put it under a lean-to). Sets your spawn point while it's laid out. Shift+E rolls it up again: what it cost goes back in your bag." },
+                Description = "A pile of furs and hides to lie on and a blanket to roll up in. Sleep anywhere with a fire near: no roof needed, but not in the rain (put it under a lean-to). Sets your spawn point while it's laid out. Shift+E rolls it up again: what it cost goes back in your bag." },
             new Def { Name = LeanTo, From = "woodwall", Title = "Lean-to", Model = "leanto", Cost = new[] { ("Wood", 10), ("DeerHide", 4) },
                 Description = "Hides lashed over a frame of poles, open at the front. Keeps the rain off whatever's under it: a fire, a bedroll, you. Built from what's at hand: no workbench needed." },
             new Def { Name = Tent, From = "bed", Title = "Tent", Model = "tent", Cost = new[] { ("WolfPelt", 4), ("DeerHide", 6), ("LeatherScraps", 6), ("Wood", 8) },
@@ -95,9 +95,9 @@ namespace Camping
             switch (d.Name)
             {
                 case Bedroll:
-                    // (lying flat on the ground: one can stand on it, and lie on it a hand above the ground)
-                    Box(go, pieceLayer, new Vector3(0, 0.04f, 0), new Vector3(0.95f, 0.08f, 2.0f), Quaternion.identity);
-                    Spawn(go, new Vector3(0, 0.1f, 0));
+                    // (a pile of furs and hides a hand and more deep: one can stand on it, and lie on it)
+                    Box(go, pieceLayer, new Vector3(0, 0.08f, 0), new Vector3(1.0f, 0.16f, 2.05f), Quaternion.identity);
+                    Spawn(go, new Vector3(0, 0.22f, 0));
                     break;
                 case LeanTo:
                     // (its hides: a slab from over the front posts down to the ground at the back; the two posts)
@@ -191,24 +191,27 @@ namespace Camping
             }
             catch (Exception e) { Plugin.Warn($"The {name} model: {e.Message}"); return null; }
         }
-        // (as the models number them: wood, hide, fur, wool, leather, rope, red wool, stone)
+        // (as the models number them: wood, hide, fur, wool, leather, rope, red wool, stone, darker hide, grey fur)
         private static Material[] _mats;
         private static Material[] Materials(ZNetScene scene)
         {
             if (_mats != null && _mats.All(m => m != null)) return _mats;
             Material wood = PieceMat(scene, "wood_pole");
             if (wood == null) { Plugin.Warn("No wood_pole material to draw the kit in."); return null; }
-            Texture deer = Tex(scene, "rug_deer"), wolf = Tex(scene, "rug_wolf");
+            // (the brown fur rug's and the wolf's fur for furs; hides in plain tanned shades: the deer rug's is orange, the moose rug's black)
+            Texture brown = Tex(scene, "rug_fur"), wolf = Tex(scene, "rug_wolf");
             _mats = new[]
             {
                 Grain(wood, new Color(0.8f, 0.72f, 0.64f), 0.6f, "wood"),
-                deer != null ? Textured(wood, deer, new Color(0.66f, 0.56f, 0.5f), 0.45f, "hide") : Plain(wood, new Color(0.55f, 0.4f, 0.27f), "hide"),
-                wolf != null ? Textured(wood, wolf, new Color(0.6f, 0.57f, 0.54f), 0.45f, "fur") : Plain(wood, new Color(0.32f, 0.3f, 0.28f), "fur"),
-                Plain(wood, new Color(0.74f, 0.69f, 0.58f), "wool"),
+                Plain(wood, new Color(0.58f, 0.48f, 0.37f), "hide"),
+                brown != null ? Textured(wood, brown, new Color(0.9f, 0.86f, 0.82f), 0.5f, "fur") : Plain(wood, new Color(0.4f, 0.3f, 0.2f), "fur"),
+                Plain(wood, new Color(0.66f, 0.61f, 0.52f), "wool"),
                 Plain(wood, new Color(0.2f, 0.12f, 0.07f), "leather"),
                 Plain(wood, new Color(0.55f, 0.48f, 0.35f), "rope"),
                 Plain(wood, new Color(0.48f, 0.09f, 0.06f), "red"),
                 Plain(wood, new Color(0.42f, 0.42f, 0.4f), "stone"),
+                Plain(wood, new Color(0.47f, 0.38f, 0.29f), "hide2"),
+                wolf != null ? Textured(wood, wolf, new Color(0.7f, 0.68f, 0.66f), 0.45f, "fur2") : Plain(wood, new Color(0.35f, 0.33f, 0.31f), "fur2"),
             };
             return _mats;
         }
@@ -222,7 +225,8 @@ namespace Camping
         }
         private static Material Textured(Material wood, Texture tex, Color tint, float scale, string name)
         {
-            var m = new Material(wood) { name = "Camping " + name, color = tint, mainTexture = tex }; m.mainTextureScale = Vector2.one * scale;
+            // (a rug's texture is the rug laid out on black: only its middle is sampled, so the metres the model spans stay on the hide)
+            var m = new Material(wood) { name = "Camping " + name, color = tint, mainTexture = tex }; m.mainTextureScale = Vector2.one * 0.1f; m.mainTextureOffset = Vector2.one * 0.42f;
             if (m.HasProperty("_BumpMap")) m.SetTexture("_BumpMap", null);
             // (a rug's texture is see-through past the rug's edge: only its colour is wanted, never cut out)
             if (m.HasProperty("_Cutoff")) m.SetFloat("_Cutoff", 0f);
