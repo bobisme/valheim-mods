@@ -279,6 +279,55 @@ namespace Jarldom
                 }
                 output(res); return;
             }
+            if (cmd == "templeshow")
+            {
+                // Test (anywhere, cheats): the Peak Temple's parts as real test pieces at x z facing yaw (templeshow <x> <z> [yaw] [god]).
+                if (!Cheats()) { error("cheats aren't allowed here"); return; }
+                Vector3 q = new Vector3(F(a[2]), 0, F(a[3])); ZoneSystem.instance.GetSolidHeight(q, out float gy); q.y = gy;
+                float yawS = a.Length > 4 ? F(a[4]) : 0; string god = a.Length > 5 ? a[5] : null; int n = 0;
+                foreach (var part in GreatWorks.Parts(GreatWorks.PeakTemple, god))
+                {
+                    GameObject pf = Assets.Find(part.Prefab); if (pf == null) continue;
+                    var pl = GreatWorks.Place(part, q.x, q.y, q.z, yawS);
+                    GameObject go = Put(pf, new Vector3(pl.x, pl.y, pl.z), 0); go.transform.rotation = GreatWork.Turn(part, yawS); n++;
+                }
+                output(new JObject { ["placed"] = n, ["at"] = V(q) }); return;
+            }
+            if (cmd == "alltombs")
+            {
+                // Test (read-only): every player tombstone the world holds, loaded or not: where, whose, when.
+                int th = "Player_tombstone".GetStableHashCode();
+                var all = ZDOMan.instance.GetType().GetField("m_objectsByID", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(ZDOMan.instance) as Dictionary<ZDOID, ZDO>;
+                output(new JObject { ["tombs"] = new JArray(all.Values.Where(z => z.GetPrefab() == th).Select(z => $"'{z.GetString(ZDOVars.s_ownerName, "")}' at {z.GetPosition().ToString("F1")} made {new DateTime(z.GetLong(ZDOVars.s_timeOfDeath, 0L)):yyyy-MM-dd HH:mm} id {z.m_uid}")) });
+                return;
+            }
+            if (cmd == "groundgrid")
+            {
+                // Test (read-only): the ground's height (as it stands, edits and all) on a grid round x z (groundgrid <x> <z> <r> <step>).
+                float gx = F(a[2]), gz = F(a[3]), r = F(a[4]), st = F(a[5]); var rows = new JArray();
+                for (float z = r; z >= -r; z -= st) { var line = new List<string>(); for (float x = -r; x <= r; x += st) { ZoneSystem.instance.GetGroundHeight(new Vector3(gx + x, 0, gz + z), out float h); line.Add(h.ToString("0.0")); } rows.Add(string.Join(" ", line)); }
+                output(new JObject { ["rows"] = rows, ["world"] = WorldGenerator.instance.GetHeight(gx, gz) }); return;
+            }
+            if (cmd == "peaks")
+            {
+                // Test (read-only): the highest mountain ground within r of the player (peaks <r>), each a local top, with how flat 6 m round it is.
+                float r = a.Length > 2 ? F(a[2]) : 1500f; Vector3 pp = Player.m_localPlayer.transform.position; var wg = WorldGenerator.instance;
+                var tops = new List<(float x, float z, float h, float rise)>();
+                for (float x = -r; x <= r; x += 24f) for (float z = -r; z <= r; z += 24f)
+                {
+                    if (x * x + z * z > r * r) continue;
+                    float px = pp.x + x, pz = pp.z + z;
+                    if (wg.GetBiome(px, pz) != Heightmap.Biome.Mountain) continue;
+                    float h = wg.GetHeight(px, pz);
+                    // climb to the local top (steps of 4 m)
+                    for (int k = 0; k < 20; k++) { float bh = h, bx = px, bz = pz; for (int i = 0; i < 8; i++) { float an = i * Mathf.PI / 4f, qx = px + Mathf.Sin(an) * 4f, qz = pz + Mathf.Cos(an) * 4f, qh = wg.GetHeight(qx, qz); if (qh > bh) { bh = qh; bx = qx; bz = qz; } } if (bh <= h) break; h = bh; px = bx; pz = bz; }
+                    if (tops.Any(t => Mathf.Abs(t.x - px) < 30 && Mathf.Abs(t.z - pz) < 30)) continue;
+                    float lo = h; for (int i = 0; i < 8; i++) { float an = i * Mathf.PI / 4f; lo = Mathf.Min(lo, wg.GetHeight(px + Mathf.Sin(an) * 6f, pz + Mathf.Cos(an) * 6f)); }
+                    tops.Add((px, pz, h, h - lo));
+                }
+                output(new JObject { ["peaks"] = new JArray(tops.OrderByDescending(t => t.h).Take(12).Select(t => $"{t.x:0},{t.z:0} h {t.h:0} rise6m {t.rise:0.0} dist {Mathf.Sqrt((t.x - pp.x) * (t.x - pp.x) + (t.z - pp.z) * (t.z - pp.z)):0}")) });
+                return;
+            }
             if (cmd == "drops")
             {
                 // Test: what lies on the ground around the player, by kind and 10 m cell (drops <radius> [text]).
