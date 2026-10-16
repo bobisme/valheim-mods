@@ -16,7 +16,7 @@ namespace Jarldom
         public Task Task; public Activity Activity = Activity.Idle; public string Doing = "";
         public string LastAttacker = ""; public Character Foe; private float _foeUntil;
         public bool KeepDoorsOpen; public float Stamina = 1f;
-        public bool Fighting, Combat_Bow, Fled; public int Swings, SwingsStarted; public string CombatNote = ""; public float BlockUntil, NoBlockUntil; public Character FightTarget; public float FleeUntil; public float BlindSince = -1, UnseenUntil; public Character Unseen;
+        public bool Fighting, Combat_Bow, Fled; public int Swings, SwingsStarted; public string CombatNote = ""; public float BlockUntil, NoBlockUntil; public Character FightTarget; public float FleeUntil; public float BlindSince = -1, UnseenUntil; public Character Unseen; public Character ShotAt; public float ShotHp; public int ShotsSince;
         private bool _dirty; private float _nextGreet, _nextSave, _nextNeeds, _nextGear, _nextFoes, _nextMoodSync, _nextWork, _born;
         private double _lastNeeds;
         private readonly List<Meal> _meals = new List<Meal>();
@@ -33,7 +33,7 @@ namespace Jarldom
             if (_body != null && _body.isKinematic) _body.isKinematic = false; // (a body left seated when ownership went elsewhere)
             Poses.Clear(h);
         }
-        public float NoRiteUntil, NoStoreUntil, NoFoodUntil, NoRepairUntil, NoBuildUntil, NoTradeUntil, NoCraftUntil, NoHealUntil, NoScoutUntil, NoOfferUntil, NextMischief, NoCartUntil, NoGearUntil, NoGraveUntil, LeaderGoneAt, NoUpkeepUntil, NoCatchUntil, NoClaimUntil, NoCornerUntil, NoFestUntil; public readonly HashSet<int> LampsTried = new HashSet<int>(); private float _nextStep; private bool _captureRolled; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f; public double GameDt; private double _lastWorld;
+        public float NoRiteUntil, NoStoreUntil, NoFoodUntil, NoRepairUntil, NoBuildUntil, NoTradeUntil, NoCraftUntil, NoHealUntil, NoScoutUntil, NoOfferUntil, NextMischief, NoCartUntil, NoGearUntil, NoGraveUntil, LeaderGoneAt, NoUpkeepUntil, NoCatchUntil, NoClaimUntil, NoCornerUntil, NoFestUntil, NoRangeUntil; public readonly HashSet<int> LampsTried = new HashSet<int>(); private float _nextStep; private bool _captureRolled; private int _bedMissing; private float _nextDecide; public float LastDecide, DecideDt = 0.25f; public double GameDt; private double _lastWorld;
         public bool Alive => Body != null && !Body.IsDead() && View != null && View.IsValid() && View.IsOwner() && S != null;
         public Vector3 Pos => Body.transform.position;
         public double Now => ZNet.instance.GetTimeSeconds();

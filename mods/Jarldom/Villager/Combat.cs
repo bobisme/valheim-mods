@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using HarmonyLib;
 using UnityEngine;
@@ -41,7 +42,7 @@ namespace Jarldom
                 // Fighters meet what comes within 25 m; in a raid they go out to the raiders anywhere in the colony (raiders first).
                 bool raid = fighter && !out_ && home != null && home.RaidOn;
                 float reach = fighter ? 25f : 8f;
-                foe = Character.GetAllCharacters().Where(c => c != null && !c.IsDead() && c != b.Body && !Friendly(c) && !Tribute.IsHerald(c) && BaseAI.IsEnemy(b.Body, c) && !(c == b.Unseen && Time.time < b.UnseenUntil)
+                foe = Character.GetAllCharacters().Where(c => c != null && !c.IsDead() && c != b.Body && !Friendly(c) && !Tribute.IsHerald(c) && BaseAI.IsEnemy(b.Body, c) && !(c == b.Unseen && Time.time < b.UnseenUntil) && !LetBe(c)
                         && (fighter || Hunting(c) || Vector3.Distance(c.transform.position, me) < 4f)
                         && (c.GetFaction() != Character.Faction.AnimalsVeg || b.Task is WorkTask w && w.Kind == "hunt" && w.Target == c)
                         && (Vector3.Distance(c.transform.position, me) < reach || raid && Raider(c, home)) && Follow.Near(b, c.transform.position, 25))
@@ -85,6 +86,18 @@ namespace Jarldom
             b.SetDoing("running from " + Localization.instance.Localize(from.m_name));
         }
 
+        // Arrows that never hurt it: seven loosed and not a scratch, and it's let be an hour, by everyone (one villager after another
+        // emptied a quiver at the same neck: one owned by a game no longer there, frozen where it stood, every hit sent off to nobody).
+        private static readonly Dictionary<Character, float> Untouchable = new Dictionary<Character, float>();
+        public static bool LetBe(Character c) => c != null && Untouchable.TryGetValue(c, out float until) && Time.time < until;
+        private static bool Missed(Brain b, Character t)
+        {
+            if (b.ShotAt != t || t.GetHealth() < b.ShotHp) { b.ShotAt = t; b.ShotHp = t.GetHealth(); b.ShotsSince = 0; }
+            if (++b.ShotsSince < 7) return false;
+            if (Untouchable.Count > 50) foreach (var k in Untouchable.Where(kv => kv.Key == null || Time.time > kv.Value).Select(kv => kv.Key).ToList()) Untouchable.Remove(k);
+            Untouchable[t] = Time.time + 3600f; b.ShotsSince = 0;
+            return true;
+        }
         private static int _sight = -1;
         private static int Sight => _sight != -1 ? _sight : _sight = LayerMask.GetMask("Default", "static_solid", "Default_small", "piece", "terrain", "vehicle");
         public static void Fixed(Brain b, float dt)
@@ -92,11 +105,13 @@ namespace Jarldom
             Humanoid h = b.Body;
             if (!b.Fighting || b.FightTarget == null || b.FightTarget.IsDead()) { if (b.Fighting) { b.Fighting = false; b.Move.Stop(); } Body_.Blocking(h) = false; AimAt(b.Ai) = null; return; }
             Character t = b.FightTarget;
-            if (!Follow.Near(b, t.transform.position, 25)) { b.Fighting = false; b.FightTarget = null; b.Move.Stop(); return; } // (it ran off: not chased out of the colony)
+            if (!Follow.Near(b, t.transform.position, b.Task is WorkTask rw && rw.O.Zone == RangeTask.Zone ? RangeTask.Beyond + 45 : 25)) { b.Fighting = false; b.FightTarget = null; b.Move.Stop(); return; } // (it ran off: not chased out of the colony)
             ItemDrop.ItemData weapon = h.GetCurrentWeapon();
             bool ranged = weapon != null && weapon.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Bow;
             float dist = Vector3.Distance(t.transform.position, b.Pos) - t.GetRadius();
-            float reach = ranged ? 25f : Mathf.Max(1.2f, (weapon?.m_shared.m_attack.m_attackRange ?? 1.5f) * 0.9f);
+            // (the game aims an arrow straight at the middle, and it drops on the way: from 25 m it falls short of a neck, into the
+            // grass under it; game doesn't fight back, so a hunter closes to 12 m for the shot)
+            float reach = ranged ? (Work.Prey(t) ? 12f : 25f) : Mathf.Max(1.2f, (weapon?.m_shared.m_attack.m_attackRange ?? 1.5f) * 0.9f);
             if (dist > reach) { if (!b.Move.Moving || Vector3.Distance(b.Move.Goal, t.transform.position) > 1.5f) b.Move.To(t.transform.position, reach * 0.8f, dist > 6f); return; }
             Vector3 aim = t.GetCenterPoint();
             Vector3 from = b.Pos + Vector3.up * (weapon?.m_shared.m_attack.m_attackHeight ?? 1f);
@@ -124,6 +139,7 @@ namespace Jarldom
             if (ranged) { Body_.DrawTime(h) = 10f; AimAt(b.Ai) = t; } // the AI can't hold a draw: a bow shot undrawn does nothing
             bool started = h.StartAttack(t, false);
             if (ranged) Body_.DrawTime(h) = 0f;
+            if (ranged && started && Work.Prey(t) && !Raider(t, b.Colony) && Missed(b, t)) { b.Fighting = false; b.FightTarget = null; b.Foe = null; b.Move.Stop(); b.CombatNote = "can't get an arrow into it"; return; }
             b.Swings++; if (started) b.SwingsStarted++;
             b.CombatNote = started ? "struck" : "couldn't swing:" + (h.InDodge() ? " dodge" : "") + (!h.CanMove() ? " cantmove" + (h.IsSitting() ? "(sitting)" : "") + (h.IsStaggering() ? "(stagger)" : "") : "") + (h.IsKnockedBack() ? " knocked" : "") + (h.IsStaggering() ? " stagger" : "") + (h.InMinorAction() ? " minor" : "") + (weapon == null || !weapon.HavePrimaryAttack() ? " noattack" : "") + (h.InAttack() ? " inattack" : "");
         }

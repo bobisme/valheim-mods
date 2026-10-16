@@ -60,7 +60,8 @@ namespace Jarldom
         public static bool CalledAway(Brain b, ref HashSet<int> seen)
         {
             Colony c = b.Colony;
-            bool For(Brain o, Order x) => x.Prof == o.S.Prof && o.S.Prof != Prof.Hauler || x.Kind == "fuel"; // (a hauler's carrying comes and goes all day: only a fire calls them)
+            bool helpers = Work.HelpersWanted(c, b);
+            bool For(Brain o, Order x) => x.Prof == o.S.Prof && o.S.Prof != Prof.Hauler || x.Kind == "fuel" && (o.S.Prof == Prof.Hauler || helpers); // (a hauler's carrying comes and goes all day: only a fire calls them; others only while the haulers want a hand)
             // (a craft they were kept from a while, one that fell through, isn't seen till they may try again: then it calls them back)
             var open = c.Board.All.Where(x => x.State == OrderState.Open && For(b, x) && !(x.Kind == "craft" && Time.time < b.NoCraftUntil)).ToList();
             if (seen == null) { seen = new HashSet<int>(open.Select(x => x.Id)); return false; }

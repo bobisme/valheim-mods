@@ -235,6 +235,27 @@ namespace Jarldom
                     ["walls"] = new JArray(f.Walls.Select(w => Math.Round(w, 2))), ["roof"] = Math.Round(f.Roof, 2), ["doors"] = f.Doors, ["contents"] = new JObject(f.Count.Select(kv => new JProperty(kv.Key, kv.Value))) });
                 return;
             }
+            if (cmd == "beasts")
+            {
+                // Test (read-only): game a hunter could go after near the player: health, ground and water under it, what's between its middle and 1.5 m above.
+                float r = a.Length > 2 ? F(a[2]) : 150f; Vector3 pp = Player.m_localPlayer.transform.position;
+                int m = LayerMask.GetMask("Default", "static_solid", "terrain", "piece", "Default_small");
+                output(new JObject { ["beasts"] = new JArray(Character.GetAllCharacters().Where(x => Work.Prey(x) && Utils.DistanceXZ(x.transform.position, pp) < r).Select(x => {
+                    Vector3 cp = x.GetCenterPoint(); bool over = Physics.Linecast(cp + Vector3.up * 1.5f, cp, out RaycastHit hh, m, QueryTriggerInteraction.Ignore);
+                    return $"{x.m_name} {x.GetHealth():0}/{x.GetMaxHealth():0} at {x.transform.position.ToString("F1")} centre y {cp.y:0.0} ground {ZoneSystem.instance.GetGroundHeight(x.transform.position):0.0} swim {x.IsSwimming()} radius {x.GetRadius():0.00} cover {(over ? hh.collider.name : "-")} faction {x.GetFaction()}"; })) });
+                return;
+            }
+            if (cmd == "drops")
+            {
+                // Test: what lies on the ground around the player, by kind and 10 m cell (drops <radius> [text]).
+                float r = a.Length > 2 ? F(a[2]) : 100f; string q = a.Length > 3 ? a[3].ToLowerInvariant() : "";
+                Vector3 pp = Player.m_localPlayer.transform.position;
+                var rows = Work.Drops(pp, r).Where(d => d != null && Prefab(d.m_itemData).ToLowerInvariant().Contains(q))
+                    .GroupBy(d => (Prefab(d.m_itemData), Mathf.RoundToInt(d.transform.position.x / 10) * 10, Mathf.RoundToInt(d.transform.position.z / 10) * 10))
+                    .OrderByDescending(g => g.Sum(d => d.m_itemData.m_stack)).Take(40)
+                    .Select(g => $"{g.Key.Item1} x{g.Sum(d => d.m_itemData.m_stack)} near ({g.Key.Item2}, {g.Key.Item3}) y {g.First().transform.position.y:0}");
+                output(new JObject { ["drops"] = new JArray(rows) }); return;
+            }
             if (cmd == "finditems") { string q = a[2].ToLowerInvariant(); output(new JObject { ["items"] = new JArray(ObjectDB.instance.m_items.Where(i => i != null && i.name.ToLowerInvariant().Contains(q)).Select(i => { var sh = i.GetComponent<ItemDrop>().m_itemData.m_shared; return $"{i.name} ({sh.m_itemType}, {Localization.instance.Localize(sh.m_name)}, armor {sh.m_armor}, value {sh.m_value})"; })) }); return; }
             if (cmd == "attackof") { var sh = ObjectDB.instance.GetItemPrefab(a[2]).GetComponent<ItemDrop>().m_itemData.m_shared; output(new JObject { ["anim"] = sh.m_attack?.m_attackAnimation, ["type"] = sh.m_attack?.m_attackType.ToString(), ["skill"] = sh.m_skillType.ToString(), ["damage"] = sh.m_damages.GetTotalDamage(), ["equipDur"] = sh.m_equipDuration, ["status"] = sh.m_attackStatusEffect?.name }); return; }
             if (cmd == "traders") { output(new JObject { ["traders"] = new JArray(ZNetScene.instance.m_prefabs.Where(pf => pf != null && pf.GetComponent<Trader>() != null).Select(pf => pf.name + ": " + string.Join(", ", pf.GetComponent<Trader>().m_items.Select(t => $"{t.m_prefab?.name} x{t.m_stack} {t.m_price}c{(string.IsNullOrEmpty(t.m_requiredGlobalKey) ? "" : " [" + t.m_requiredGlobalKey + "]")}")))) }); return; }

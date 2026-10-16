@@ -259,7 +259,7 @@ namespace Jarldom
         // Everything networked near a point (trees, rocks, plants, beasts), each once.
         // Game for a hunter: the game's own animals (deer), and boars, necks and hares, which it counts with the forest's monsters.
         private static readonly HashSet<string> Game = new HashSet<string> { "Boar", "Neck", "Hare", "Deer" };
-        public static bool Prey(Character c) => c != null && !c.IsDead() && !c.IsTamed() && !c.IsBoss() && !VillagerPrefab.Is(c) && !c.IsPlayer()
+        public static bool Prey(Character c) => c != null && !c.IsDead() && !Combat.LetBe(c) && !c.IsTamed() && !c.IsBoss() && !VillagerPrefab.Is(c) && !c.IsPlayer()
             && (c.GetFaction() == Character.Faction.AnimalsVeg || Game.Contains(Utils.GetPrefabName(c.gameObject)));
         // What stands in a zone: not the buildings (wild pickables lie on the item layer: kept) (a zone by a big base found its 2048 places all taken by walls and floors, and
         // the boar in the hunting grounds never); a hunting ground looks only for creatures.
@@ -541,8 +541,11 @@ namespace Jarldom
             if (prof == Prof.Builder) { Task up = Upkeep.Next(b); if (up != null) return up; } // (nothing planned: mend, rebuild, pave)
             if (prof == Prof.Miner) { Task trip = Claims.Next(b); if (trip != null) return trip; } // (ore claims out in the wilds first)
             if (prof == Prof.Herder || prof == Prof.Hunter) { Task catching = Catching.Next(b); if (catching != null) return catching; } // (an empty pasture: a wild boar for it)
+            if (prof == Prof.Hunter && NothingFor(c, Prof.Hunter) && RangeTask.Wanted(b)) return new RangeTask(); // (nothing in the grounds, little meat in the stores: out past the edge for some)
             if (prof == Prof.Trader && c.R.Rank >= Rank.Village && Time.time > b.NoTradeUntil && b.Body.GetInventory().GetEmptySlots() > 1 && Trade.Lots(c) >= 3) return new TradeTask(); // (three lots to sell: the trade chests' goods, the stores' treasure)
-            Func<Prof, bool> canDo = p => p == prof || p == Prof.Hauler && (prof == Prof.Hauler || Gear.Lacks(b, prof) != null || NothingFor(c, prof));
+            // (out of work of their own, they lend the haulers a hand: two at a time, not the whole colony off round the torches)
+            bool helping = prof != Prof.Hauler && (Gear.Lacks(b, prof) != null || NothingFor(c, prof)) && HelpersWanted(c, b);
+            Func<Prof, bool> canDo = p => p == prof || p == Prof.Hauler && (prof == Prof.Hauler || helping);
             string problem = null;
             Order o = c.IsOwner ? c.Board.Best(b.S.Vid, canDo, b.Pos.x, b.Pos.z, order => { string p = GearFor(b, order); if (p != null) problem = p; return p; }, c.Now) : Net.BestShared(c, b, canDo);
             if (problem != null) { Gear.Problem = "needs gear: " + problem; Alerts.NeedsGear(c, b, problem); }
@@ -564,6 +567,15 @@ namespace Jarldom
             b.LampsTried.Add(o.Id);
             if (!c.Board.Claim(o.Id, b.S.Vid, c.Now, out _)) return null;
             return new WorkTask(o);
+        }
+        public const int MaxHelpers = 2;
+        // Room for one more not a hauler on the haulers' work: under two at it now, or no hauler in the colony at all (then anyone).
+        public static bool HelpersWanted(Colony c, Brain b)
+        {
+            var mine = Villagers.All.Where(v => v.Alive && v.S.Colony == c.Id).ToList();
+            if (!mine.Any(v => v.S.Prof == Prof.Hauler)) return true;
+            var helpers = new HashSet<string>(mine.Where(v => v != b && v.S.Prof != Prof.Hauler).Select(v => v.S.Vid));
+            return c.Board.All.Count(o => o.State == OrderState.Claimed && o.Prof == Prof.Hauler && helpers.Contains(o.Vid)) < MaxHelpers;
         }
         private static bool NothingFor(Colony c, Prof p) => !c.Board.All.Any(o => o.State == OrderState.Open && o.Prof == p);
         internal static string GearFor(Brain b, Order o)
@@ -902,7 +914,8 @@ namespace Jarldom
         private bool Collect(Brain b)
         {
             if (_phase < 2) { _phase = 2; _waitUntil = Time.time + 1.5f; return true; } // drops fall a moment after
-            if (_phase == 2) { _collect.Clear(); _collect.AddRange(Work.Drops(b.Pos, 7f).Take(8)); _phase = 3; _collectUntil = Time.time + 60f; }
+            // (game falls where it was shot, 12 m off and more: gathered there)
+            if (_phase == 2) { _collect.Clear(); _collect.AddRange((Kind == "hunt" && _fell != null ? Work.Drops(_fell.Value, 6f) : Work.Drops(b.Pos, 7f)).Take(8)); _phase = 3; _collectUntil = Time.time + 60f; }
             _collect.RemoveAll(d => d == null);
             if (_collect.Count == 0 || Time.time > _collectUntil) return false; // (a minute to gather up; what's left lies for the haulers)
             ItemDrop next = _collect.OrderBy(d => Vector3.Distance(d.transform.position, b.Pos)).First();
@@ -1115,15 +1128,19 @@ namespace Jarldom
 
         private void Hunt(Brain b)
         {
+            if (Target != null) _fell = Target.transform.position;
             if (Target == null || Target.IsDead()) { if (Collect(b)) return; Finish(b, true); return; }
             // (run off out of the colony's reach, or not brought down in three minutes: let it go a while)
-            if (!Follow.Near(b, Target.transform.position, 25)) { b.Foe = null; Block(b, "it ran off out of reach"); return; }
-            if (_huntUntil == 0) _huntUntil = Time.time + 180f;
+            if (!Follow.Near(b, Target.transform.position, O.Zone == RangeTask.Zone ? RangeTask.Beyond + 45 : 25)) { b.Foe = null; Block(b, "it ran off out of reach"); return; }
+            if (!Gear.CanFight(b)) { b.Foe = null; Block(b, "out of arrows"); return; } // (the quiver emptied at it: home to make more, not chasing it bare-handed)
+            if (_huntUntil == 0) { _huntUntil = Time.time + 180f; _hp0 = Target.GetHealth(); _shots0 = b.Swings; }
+            // (six arrows loosed and not a scratch on it: something's in the way the eye doesn't see, a rock it stands in; let it be)
+            if (b.Swings - _shots0 >= 6 && Target.GetHealth() >= _hp0) { b.Foe = null; Block(b, "can't get an arrow into it"); return; }
             if (Time.time > _huntUntil) { b.Foe = null; Block(b, "it got away"); return; }
             b.Foe = Target;
             b.SetFoeFor(30);
         }
-        private float _guardUntil, _huntUntil;
+        private float _guardUntil, _huntUntil, _hp0; private int _shots0; private Vector3? _fell;
         // A patrol: the route's waypoints in turn (from the nearest, so two guards go apart), a pause at each to look about.
         private int _wp = -1; private bool _looking;
         private void Guard(Brain b)
