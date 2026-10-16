@@ -1,3 +1,5 @@
+0.1.163: What's killed inside the colony (a siege's greydwarfs, a neck by the shore) leaves its drops for the haulers to carry to the stores wherever it fell, not only in rooms and zones.
+
 0.1.162: Hunters range past the colony's edge for deer, boar and necks when their grounds are empty and the stores are short of meat, and carry the kill home (they used to leave it where it fell). They close to 12 m for the shot. Game no arrow can hurt is let be after seven tries. At most two non-haulers help with the haulers' fires and carrying at once, so the whole colony no longer runs off to tend the torches.
 
 0.1.161: test commands: jarldom expedition, villager and give work away from home (for testing expeditions out in the wilds).

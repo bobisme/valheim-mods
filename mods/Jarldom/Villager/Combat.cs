@@ -158,6 +158,7 @@ namespace Jarldom
             private static void Prefix(Character __instance)
             {
                 if (__instance == null || __instance.IsPlayer() || VillagerPrefab.Is(__instance)) return;
+                if (!__instance.IsTamed() && Colony.At(__instance.transform.position) is Colony home && home.IsOwner) KillSites.Mark(home, __instance.transform.position); // (what it drops is the colony's to carry in)
                 Character killer = LastHit(__instance)?.GetAttacker();
                 if (killer == null || !VillagerPrefab.Is(killer)) return;
                 Brain b = Villagers.Brain(killer);
@@ -180,5 +181,20 @@ namespace Jarldom
                 });
             }
         }
+    }
+
+    // Where something was killed in the colony in the last half hour (a siege's greydwarfs, a neck by the shore, a deer the hunter left):
+    // what it dropped is the colony's, carried in by the haulers wherever in the colony it fell, not only in its rooms and zones.
+    internal static class KillSites
+    {
+        public const float Keep = 1800f, Near = 6f;
+        private static readonly List<(string colony, Vector3 at, float t)> Spots = new List<(string, Vector3, float)>();
+        public static void Mark(Colony c, Vector3 at)
+        {
+            Spots.RemoveAll(x => Time.time - x.t > Keep);
+            if (Spots.Count < 200) Spots.Add((c.Id, at, Time.time));
+        }
+        public static bool At(Colony c, Vector3 p) => Spots.Any(x => x.colony == c.Id && Time.time - x.t < Keep && Utils.DistanceXZ(x.at, p) < Near);
+        public static void Clear() => Spots.Clear();
     }
 }

@@ -147,7 +147,7 @@ namespace Jarldom
                     if (!FirstSeen.TryGetValue(id, out float seen)) { FirstSeen[id] = Time.time; continue; }
                     if (Time.time - seen < 15f) continue; // something just dropped may be on its way somewhere
                     if (Player.GetAllPlayers().Any(pl => Vector3.Distance(pl.transform.position, drop.transform.position) < 4f)) continue;
-                    if (!c.Tends(drop.transform.position)) continue; // someone else's things lying in their own base
+                    if (!c.Tends(drop.transform.position) && !KillSites.At(c, drop.transform.position)) continue; // someone else's things lying in their own base (but what the colony's own brought down is theirs)
                     if (drop.m_itemData.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Trophy && Stock.Destination(c, drop.m_itemData, drop.transform.position) == null) continue;
                     // (only what lies where feet can get to it: not on a roof or a wall top, not up a tree)
                     if (OnTop(drop.transform.position)) continue;
