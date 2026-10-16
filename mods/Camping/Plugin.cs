@@ -15,7 +15,7 @@ namespace Camping
     {
         public const string Guid = "cx.bob.camping";
         public const string Name = "Camping";
-        public const string Version = "0.1.4";
+        public const string Version = "0.1.5";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled;
         private Harmony _harmony;

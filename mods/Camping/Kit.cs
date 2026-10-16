@@ -97,7 +97,7 @@ namespace Camping
                 case Bedroll:
                     // (a pile of furs and hides a hand and more deep: one can stand on it, and lie on it)
                     Box(go, pieceLayer, new Vector3(0, 0.08f, 0), new Vector3(1.0f, 0.16f, 2.05f), Quaternion.identity);
-                    Spawn(go, new Vector3(0, 0.22f, 0));
+                    Spawn(go, new Vector3(0, 0.22f, 0.15f)); // (a little toward its head: a sleeper's feet are off its foot end otherwise)
                     Ground(go, 1.25f, 2.4f, 1.3f);
                     break;
                 case LeanTo:
