@@ -279,6 +279,14 @@ namespace Jarldom
                 }
                 output(res); return;
             }
+            if (cmd == "putany")
+            {
+                // Test (anywhere, cheats): one piece of any mod's, as a test piece, on the ground at x z (putany <prefab> <x> <z> [yaw]).
+                if (!Cheats()) { error("cheats aren't allowed here"); return; }
+                GameObject pf = Assets.Find(a[2]); if (pf == null || pf.GetComponent<Piece>() == null) { error("no piece " + a[2]); return; }
+                Vector3 q = new Vector3(F(a[3]), 0, F(a[4])); ZoneSystem.instance.GetSolidHeight(q, out float gy); q.y = gy;
+                output(new JObject { ["put"] = V(Put(pf, q, a.Length > 5 ? F(a[5]) : 0).transform.position) }); return;
+            }
             if (cmd == "templeshow")
             {
                 // Test (anywhere, cheats): the Peak Temple's parts as real test pieces at x z facing yaw (templeshow <x> <z> [yaw] [god]).
