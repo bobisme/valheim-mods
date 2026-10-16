@@ -108,7 +108,7 @@ namespace Shieldwall
             }
         }
 
-        // The stave stands in the pedestal head up (the head is the end farthest from where a hand holds it): big, thick and heavy.
+        // A borrowed game staff stands in the socket head up (the head is the end farthest from where a hand holds it), at its own size.
         private void Build(GameObject source)
         {
             if(_stave!=null&&source==Items.Get(_stave.Prefab)&&StaveModel.Mesh(_stave.Kind)!=null){BuildOwn(_stave.Kind);return;}
@@ -120,9 +120,9 @@ namespace Shieldwall
             Vector3 shaft=Shaft(model,_look.transform,out Vector3 butt);
             Quaternion upright=Quaternion.FromToRotation(shaft,Vector3.up);
             model.transform.localRotation=upright;
-            // The butt of the shaft stands at the socket's centre, sunk 0.35 m into it.
+            // The butt of the shaft stands at the socket's centre, sunk a little into it.
             Vector3 foot=upright*butt;
-            model.transform.localPosition=new Vector3(-foot.x,-foot.y-0.35f,-foot.z);
+            model.transform.localPosition=new Vector3(-foot.x,-foot.y-BorrowedSunk,-foot.z);
             Bounds standing=Local(model,_look.transform);
             // Centre on where the shaft really is: look up the staff from below at its bottom slice only (once per kind of staff).
             string kind=source.name;
@@ -135,13 +135,10 @@ namespace Shieldwall
             standing=Local(model,_look.transform);
             if(fix.bottom==null){fix.bottom=Centre(model,_look.transform,standing,0.16f,0.3f)??Vector2.zero;Trued[kind]=fix;Plugin.Log($"Stave {kind}: shaft centred by {fix.bottom.Value.x:0.00},{fix.bottom.Value.y:0.00}");}
             model.transform.localPosition-=new Vector3(fix.bottom.Value.x,0,fix.bottom.Value.y);
-            model.transform.localPosition+=Vector3.up*(-0.35f-Local(model,_look.transform).min.y);
+            model.transform.localPosition+=Vector3.up*(-BorrowedSunk-Local(model,_look.transform).min.y);
             standing=Local(model,_look.transform);
-            // Every stave stands about four metres over its socket, and as thick for its height as a tree limb: no hand could swing it.
-            float k=Mathf.Clamp(4f/Mathf.Max(0.3f,standing.max.y),0.8f,4f);
-            _look.transform.localScale=new Vector3(Mathf.Min(k*2.1f,4.5f),k,Mathf.Min(k*2.1f,4.5f)); // a short staff grows tall, not wide
             _look.transform.localPosition=new Vector3(0,Pieces.SocketTop,0);
-            _length=Mathf.Clamp(standing.max.y*k,1.5f,5.5f);
+            _length=Mathf.Clamp(standing.max.y,0.8f,5.5f);
             var lit=new GameObject("StaveGlow");lit.transform.SetParent(transform,false);lit.transform.localPosition=new Vector3(0,Pieces.SocketTop+_length-0.4f,0);
             _light=lit.AddComponent<Light>();_light.type=LightType.Point;_light.range=6+Rank;_light.intensity=1.8f;_light.shadows=LightShadows.None;
             _light.color=_stave!=null&&Items.Colours.TryGetValue(_stave.Kind,out var c)?c.glow*1.6f:new Color(0.6f,0.6f,1f);
@@ -196,6 +193,7 @@ namespace Shieldwall
             if(found)butt=line+dir*(Vector3.Dot(butt,dir)-Vector3.Dot(line,dir));
             return dir;
         }
+        private const float BorrowedSunk=0.12f; // (how deep a borrowed staff's butt sits in the socket)
         private static readonly Dictionary<string,(Quaternion lean,Vector2? bottom)> Trued=new Dictionary<string,(Quaternion,Vector2?)>();
         // The middle of the shaft (frame x/z) in a thin slice at some fraction of its height: two orthographic side views of just that slice.
         private static Vector2? Centre(GameObject model,Transform frame,Bounds standing,float at,float band=0.08f)
