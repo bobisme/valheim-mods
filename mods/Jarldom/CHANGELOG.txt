@@ -1,3 +1,5 @@
+0.1.178: With the Camping mod, an expedition's camp has bedrolls round the fire for the crew, a lean-to over the jarl's bedroll (a tent in the mountains), and they sleep on them at night; each crew member but the guards packs a bedroll's hides. Camp pieces go round trees and rocks. A carrier who can't reach the camp chest stops trying for a while.
+
 0.1.177: Test tools only (putany).
 
 0.1.176: The Peak Temple's banners hang from the tops of the door jambs.

@@ -156,7 +156,7 @@ namespace Jarldom
             Expedition.OnTheRoad(b, l, ref _nextRole);
             // (the jarl at the crew's camp: each to their work there, not at the jarl's heels)
             if (role != "" && Expedition.AtCamp(l, _camp) && !(l.IsAttachedToShip() || l.GetStandingOnShip() != null)) { Doing = Expedition.CampWork(b, l, _camp); return; }
-            else if (_camp.Phase != 0 || _camp.Item != null || _camp.Bed != null) { _camp.Phase = 0; _camp.Item = null; _camp.Wake(b); b.Move.Stop(); }
+            else if (_camp.Phase != 0 || _camp.Item != null || _camp.Bed != null || (object)_camp.OnRoll != null) { _camp.Phase = 0; _camp.Item = null; _camp.Wake(b); b.Move.Stop(); }
             // (the jarl at sea: wait on the shore, and catch up when they land, rather than swim after the ship)
             if (l.IsAttachedToShip() || l.GetStandingOnShip() != null) { Doing = $"waiting for {l.GetPlayerName()}'s ship"; if (b.Move.Moving) b.Move.Stop(); return; }
             // Left far behind (a portal, a ship, a fall): they catch up out of sight, as companions do.

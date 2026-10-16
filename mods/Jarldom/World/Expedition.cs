@@ -21,11 +21,45 @@ namespace Jarldom
             ["scout"] = "Uncovers the map far round the jarl as the crew goes.",
             ["carrier"] = "Packs a camp's makings from the stores: 25 wood and 5 stone.",
         };
+        // (with the Camping mod: the sleepers' bedrolls, and the carrier's lean-to and the jarl's bedroll, or a tent for the cold)
+        public static string Describe(string role)
+        {
+            string text = RoleText.TryGetValue(role, out string t) ? t : "";
+            if (!CampingKit) return text;
+            if (role == "carrier") return "Packs a camp's makings from the stores: 35 wood and 5 stone, hides for a lean-to and the jarl's bedroll, and a tent's makings if there are wolf pelts (the jarl sleeps in it in the mountains).";
+            if (role != "guard") return text + " Takes a bedroll's hides from the stores to sleep on at camp.";
+            return text + " Keeps watch at night: no bedroll.";
+        }
         // What each role packs: (prefab, amount); the cook's food is any food, counted in items.
         private static readonly Dictionary<string, (string item, int n)[]> Kit = new Dictionary<string, (string, int)[]>
         {
             ["carrier"] = new[] { ("Wood", 25), ("Stone", 5) },
         };
+        // ---- the Camping mod's pieces, when it's installed: bedrolls round the fire, a lean-to over the jarl's, a tent in the cold ----
+        public const string BedrollName = "Camping_Bedroll", LeanToName = "Camping_LeanTo", TentName = "Camping_Tent";
+        public const string SlotKey = "jarldom_campslot"; // (on a camp bedroll or tent: 0 the jarl's, 1.. the sleepers' in turn)
+        public static bool CampingKit => ZNetScene.instance != null && ZNetScene.instance.GetPrefab(BedrollName) != null;
+        public static List<(ItemDrop item, int n)> CostOf(string prefab)
+        {
+            var cost = new Dictionary<ItemDrop, int>();
+            foreach (Piece.Requirement r in ZNetScene.instance?.GetPrefab(prefab)?.GetComponent<Piece>()?.m_resources ?? new Piece.Requirement[0])
+                if (r.m_resItem != null) cost[r.m_resItem] = (cost.TryGetValue(r.m_resItem, out int n) ? n : 0) + r.m_amount;
+            return cost.Select(kv => (kv.Key, kv.Value)).ToList();
+        }
+        private static (string item, int n)[] Makings(string prefab, int times = 1) => CostOf(prefab).Select(x => (x.item.gameObject.name, x.n * times)).ToArray();
+        // What a role packs with the Camping mod, on top of the kit above.
+        private static List<(string item, int n)> CampingPack(Brain b, string role, List<Container> chests)
+        {
+            var want = new List<(string, int)>();
+            if (!CampingKit || role == "guard") return want;
+            want.AddRange(Makings(BedrollName));
+            if (role != "carrier") return want;
+            want.AddRange(Makings(BedrollName)); want.AddRange(Makings(LeanToName));
+            // (a tent only from stores with the wolf pelts for it)
+            var tent = Makings(TentName);
+            if (tent.All(x => chests.Sum(ch => ch.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == x.item).Sum(i => i.m_stack)) >= x.n)) want.AddRange(tent);
+            return want;
+        }
         public const int CookFood = 10;
 
         public static string RoleOf(Brain b) => b?.View != null && b.View.IsValid() ? b.View.GetZDO().GetString(RoleKey, "") : "";
@@ -96,7 +130,7 @@ namespace Jarldom
             if (c == null || !c.Valid) return;
             Inventory bag = b.Body.GetInventory();
             var chests = Stock.ChestsFor(b).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).Select(x => x.chest).ToList();
-            int packed = 0;
+            int packed = 0; string said = null;
             if (role == "cook")
             {
                 // (the most filling first: cooked meat and stews before raw carrots; three kinds at most, so the jarl gets a mix)
@@ -109,12 +143,14 @@ namespace Jarldom
                         if (packed >= CookFood || bag.GetEmptySlots() <= 1 || bag.CountItems(kind) >= want) break;
                         packed += Stock.Take(ch, bag, food, Mathf.Min(food.m_stack, Mathf.Min(CookFood - packed, want - bag.CountItems(kind))));
                     }
-                b.Say(packed > 0 ? $"I've packed {packed} things to eat." : "There's nothing in the stores to pack: we'll eat what we find.", 5);
+                said = packed > 0 ? $"I've packed {packed} things to eat." : "There's nothing in the stores to pack: we'll eat what we find.";
             }
-            else if (Kit.TryGetValue(role, out var kit))
+            if (Kit.ContainsKey(role) || CampingKit && role != "guard")
             {
                 var got = new List<string>();
-                foreach (var (item, n) in kit)
+                var want = (Kit.TryGetValue(role, out var kit) ? kit : new (string, int)[0]).Concat(CampingPack(b, role, chests))
+                    .GroupBy(x => x.Item1).Select(g => (item: g.Key, n: g.Sum(x => x.Item2))).ToList();
+                foreach (var (item, n) in want)
                 {
                     int left = n;
                     foreach (Container ch in chests)
@@ -123,10 +159,11 @@ namespace Jarldom
                             if (left <= 0 || bag.GetEmptySlots() <= 1) break;
                             left -= Stock.Take(ch, bag, i, Mathf.Min(i.m_stack, left));
                         }
-                    if (left < n) got.Add($"{n - left} {item.ToLowerInvariant()}");
+                    if (left < n) got.Add($"{n - left} {Localization.instance.Localize(ObjectDB.instance.GetItemPrefab(item)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name ?? item).ToLowerInvariant()}");
                 }
-                b.Say(got.Count > 0 ? $"Packed: {string.Join(", ", got)}." : "The stores are bare: I've nothing to carry.", 5);
+                said = (said != null ? said + " " : "") + (got.Count > 0 ? $"Packed: {string.Join(", ", got)}." : said != null ? "No hides for a bedroll." : "The stores are bare: I've nothing to carry.");
             }
+            if (said != null) b.Say(said, 6);
         }
 
         // ---- a camp: a fire, a chest and a workbench where the jarl stands, paid from what the crew carries ----
@@ -242,7 +279,14 @@ namespace Jarldom
         {
             public Fireplace Fire; public Container Chest; public float NextLook, Next, Until; public int Phase; public Vector3 Goal; public ItemDrop Item;
             public GameObject Bed; // (a spot by the fire to sleep on at night)
-            public void Wake(Brain b) { if (Bed == null) return; b.Stand(); Object.Destroy(Bed); Bed = null; }
+            public readonly Dictionary<int, Bed> Rolls = new Dictionary<int, Bed>(); // (the camp's bedrolls and tent by slot, with the Camping mod)
+            public Bed OnRoll; public int Slot = -1; public float Since; // (tonight's bedroll, lain on)
+            public void Wake(Brain b)
+            {
+                Slot = -1; Since = 0;
+                if (Bed == null && OnRoll == null) return;
+                b.Stand(); if (Bed != null) Object.Destroy(Bed); Bed = null; OnRoll = null;
+            }
         }
         private static readonly List<Piece> Found = new List<Piece>();
         // Is the jarl at a camp (looked for every two seconds): its fire, and its chest.
@@ -250,12 +294,13 @@ namespace Jarldom
         {
             if (Time.time >= st.NextLook)
             {
-                st.NextLook = Time.time + 2f; st.Fire = null; st.Chest = null;
+                st.NextLook = Time.time + 2f; st.Fire = null; st.Chest = null; st.Rolls.Clear();
                 Found.Clear(); Piece.GetAllPiecesInRadius(jarl.transform.position, CampReach, Found);
                 foreach (Piece p in Found)
                 {
                     ZDO z = p.GetComponent<ZNetView>()?.GetZDO();
                     if (z == null || z.GetString(CampKey, null) == null) continue;
+                    if (p.GetComponent<Bed>() is Bed roll && z.GetInt(SlotKey, -1) is int slot && slot >= 0 && !st.Rolls.ContainsKey(slot)) st.Rolls[slot] = roll;
                     if (st.Fire == null && p.GetComponent<Fireplace>() is Fireplace f) st.Fire = f;
                     if (st.Chest == null && p.GetComponent<Container>() is Container ch) st.Chest = ch;
                 }
@@ -275,6 +320,26 @@ namespace Jarldom
             bool night = hour >= Schedule.SleepAt || hour < Schedule.WakeAt;
             if (night && RoleOf(b) != "guard")
             {
+                // (their own bedroll if the camp has one for them: slot 1 for the first sleeper of the crew, and on)
+                if (st.Slot < 0)
+                {
+                    var sleepers = CrewOf(Follow.LeaderId(b)).Where(m => RoleOf(m) != "guard").OrderBy(m => m.S.Vid, System.StringComparer.Ordinal).ToList();
+                    st.Slot = sleepers.IndexOf(b) + 1; st.Since = Time.time;
+                }
+                if ((object)st.OnRoll != null && (!st.Rolls.TryGetValue(st.Slot, out Bed was) || was != st.OnRoll || st.OnRoll == null)) { b.Stand(); st.OnRoll = null; } // (packed up under them)
+                if (st.Rolls.TryGetValue(st.Slot, out Bed roll) && roll != null && st.Bed == null)
+                {
+                    Transform lie = roll.m_spawnPoint != null ? roll.m_spawnPoint : roll.transform;
+                    if (st.OnRoll != roll)
+                    {
+                        // (beside it is near enough: under a lean-to the way in is low; walked a while and not there, lain on anyway)
+                        if (Utils.DistanceXZ(b.Pos, lie.position) > 1.6f && !b.Move.Failed && Time.time - st.Since < 40f)
+                        { if (!b.Move.Moving) b.Move.To(Colony.Spot(lie.position, 1.2f) ?? lie.position, 1f); return "going to my bedroll"; }
+                        b.Sit(lie, "attach_bed", Vector3.zero); st.OnRoll = roll;
+                    }
+                    Mood.Satisfy(b.S, Need.Rest, (float)(b.GameDt / Clock.Hour * 13)); // (furs under them: near a bed's rest)
+                    return "asleep on a bedroll at camp";
+                }
                 float a = k * 60f * Mathf.Deg2Rad;
                 Vector3 spot = fire + new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a)) * 2.2f;
                 if (st.Bed == null)
@@ -349,11 +414,12 @@ namespace Jarldom
                 {
                     // (a load of five kinds, or nothing more lying about: into the camp chest; else what lies about near the camp, picked up)
                     var loot = b.Body.GetInventory().GetAllItems().Where(i => !i.m_equipped && Work.Loot(i) && !(i.m_dropPrefab != null && (i.m_dropPrefab.name == "Wood" || i.m_dropPrefab.name == "Stone"))).ToList();
-                    if (st.Chest != null && loot.Count > 0 && (loot.Count >= 5 || st.Phase == 1 || st.Item == null && Time.time >= st.Next && Lying(fire).Count == 0))
+                    if (st.Chest != null && loot.Count > 0 && (st.Phase == 1 || Time.time >= st.Next) && (loot.Count >= 5 || st.Phase == 1 || st.Item == null && Time.time >= st.Next && Lying(fire).Count == 0))
                     {
                         st.Phase = 1; st.Item = null;
-                        Stock.Walk w = Stock.WalkTo(b, st.Chest);
+                        Stock.Walk w = Stock.WalkTo(b, st.Chest, 3.5f);
                         if (w == Stock.Walk.Walking) return "taking things to the camp chest";
+                        if (w == Stock.Walk.Unreachable) { st.Phase = 0; st.Next = Time.time + 60f; return "can't get to the camp chest"; } // (kept in the pack a while)
                         if (w == Stock.Walk.Reached)
                         {
                             ContainerAccess.TakeOver(st.Chest);
@@ -441,10 +507,10 @@ namespace Jarldom
             string colony = b.S.Colony ?? "";
             // (the fire on walkable ground near the spot; the chest and the bench set out from where the fire landed, on the ground there)
             Vector3 fire = Colony.Spot(_at, 1.5f) ?? _at;
-            void Put(string prefab, Vector3 spot, Quaternion r)
+            GameObject Put(string prefab, Vector3 spot, Quaternion r)
             {
                 GameObject p = ZNetScene.instance.GetPrefab(prefab);
-                if (p == null) return;
+                if (p == null) return null;
                 Vector3 at = spot;
                 if (ZoneSystem.instance.GetSolidHeight(at, out float h)) at.y = h;
                 GameObject made = Object.Instantiate(p, at, r);
@@ -453,14 +519,104 @@ namespace Jarldom
                 if (piece != null) { piece.SetCreator(jarl != null ? jarl.GetPlayerID() : 0L, Splatform.PlatformManager.DistributionPlatform.LocalUser.PlatformUserID); piece.m_placeEffect.Create(at, r, made.transform); }
                 made.GetComponent<WearNTear>()?.OnPlaced();
                 made.GetComponent<ZNetView>()?.GetZDO()?.Set(Expedition.CampKey, colony);
+                return made;
             }
             Put("fire_pit", fire, rot);
-            Put("piece_chest_wood", fire + right * 2.8f, rot * Quaternion.Euler(0, -90, 0)); // (facing the fire)
-            Put("piece_workbench", fire - right * 3.4f, rot * Quaternion.Euler(0, 90, 0));
+            // (the chest and the bench to either side, turned a little round the fire if a tree or a rock is in the way)
+            if (!Clear(fire, right, 2.8f, new Vector3(0.8f, 0.45f, 0.45f), out Vector3 chestAt, out Vector3 toChest, 0, 25, -25, 50, -50)) { chestAt = fire + right * 2.8f; toChest = right; }
+            Put("piece_chest_wood", chestAt, Quaternion.LookRotation(toChest) * Quaternion.Euler(0, 180, 0)); // (facing the fire)
+            if (!Clear(fire, -right, 3.4f, new Vector3(1f, 0.6f, 0.6f), out Vector3 benchAt, out Vector3 toBench, 0, -25, 25, -50, 50)) { benchAt = fire - right * 3.4f; toBench = -right; }
+            Put("piece_workbench", benchAt, Quaternion.LookRotation(toBench) * Quaternion.Euler(0, 180, 0));
+            Physics.SyncTransforms();
+            int rolls = Expedition.CampingKit ? Furnish(b, crew, fire, rot, Put) : 0;
             _made = true;
-            b.Say(new[] { "Camp's made, jarl.", "There: a fire, a chest and a bench. Camp.", "We'll sleep warm tonight. Camp's up." }[Random.Range(0, 3)], 6);
+            b.Say(rolls > 0 ? new[] { "Camp's made, jarl: furs down round the fire.", "There: a fire, a chest, a bench, and somewhere to sleep.", "Bedrolls out. We'll sleep warm tonight." }[Random.Range(0, 3)]
+                : new[] { "Camp's made, jarl.", "There: a fire, a chest and a bench. Camp.", "We'll sleep warm tonight. Camp's up." }[Random.Range(0, 3)], 6);
             b.Colony?.Log("text", b.S.Name, "", $"{b.S.Name} made camp out in the wilds with {Follow.Leader(b)?.GetPlayerName() ?? "the jarl"}.");
             b.S.Bump("camps"); b.Dirty();
+        }
+
+        // The Camping mod's pieces, as far as what the crew carries pays: behind the fire, the jarl's place (a tent in the cold, else
+        // a lean-to over the jarl's bedroll and the first sleeper's), the other sleepers' bedrolls round the fire's front, feet to it.
+        // Each bedroll or tent is marked with its slot: 0 the jarl's, 1.. the sleepers' in turn. How many bedrolls were laid.
+        private static int Furnish(Brain b, List<Brain> crew, Vector3 fire, Quaternion rot, System.Func<string, Vector3, Quaternion, GameObject> put)
+        {
+            int sleepers = crew.Count(m => Expedition.RoleOf(m) != "guard"), laid = 0;
+            Vector3 forward = rot * Vector3.forward, right = rot * Vector3.right;
+            Quaternion away = rot * Quaternion.Euler(0, 180, 0); // (the back pieces' open fronts to the fire)
+            Heightmap.Biome biome = WorldGenerator.instance != null ? WorldGenerator.instance.GetBiome(fire) : Heightmap.Biome.Meadows;
+            bool cold = biome == Heightmap.Biome.Mountain || biome == Heightmap.Biome.DeepNorth;
+            void Mark(GameObject go, int slot) => go?.GetComponent<ZNetView>()?.GetZDO()?.Set(Expedition.SlotKey, slot);
+            var spots = new List<(Vector3 at, Quaternion r)>(); // (the sleepers' bedrolls, in slot order)
+            Vector3? roofAt = null; Quaternion roofTurn = away;
+            // (the jarl's place behind the fire, or turned round it some way if the trees stand close)
+            float[] behind = { 180, 150, 210, 120, 240 };
+            if (cold && Clear(fire, forward, 3.9f, new Vector3(1.6f, 1.2f, 1.7f), out Vector3 tentAt, out Vector3 toTent, behind) && Pay(crew, Expedition.CostOf(Expedition.TentName)))
+            { Mark(put(Expedition.TentName, tentAt, Quaternion.LookRotation(toTent)), 0); laid++; }
+            else if (Clear(fire, forward, 3.4f, new Vector3(1.5f, 0.9f, 1.7f), out Vector3 backAt, out Vector3 toBack, behind))
+            {
+                Quaternion turn = Quaternion.LookRotation(toBack); Vector3 across = turn * Vector3.right;
+                bool roof = Pay(crew, Expedition.CostOf(Expedition.LeanToName));
+                // (bedrolls first: the lean-to's slab would be the ground under them)
+                if (Pay(crew, Expedition.CostOf(Expedition.BedrollName))) { Mark(put(Expedition.BedrollName, backAt - across * 0.7f - toBack * 0.2f, turn), 0); laid++; }
+                spots.Add((backAt + across * 0.7f - toBack * 0.2f, turn));
+                if (roof) { roofAt = backAt; roofTurn = turn; }
+            }
+            Physics.SyncTransforms();
+            // (the rest round the front of the fire, heads out; a spot with a tree in it turned aside, or left out)
+            foreach (var (deg, far) in new[] { 0f, -32f, 32f, -64f, 64f }.Select(d => (d, 3.1f)).Concat(new[] { 0f, -24f, 24f, -48f, 48f, -72f, 72f }.Select(d => (d, 4.4f))))
+            {
+                if (spots.Count >= sleepers) break;
+                if (!Clear(fire, Quaternion.AngleAxis(deg, Vector3.up) * forward, far, new Vector3(0.5f, 0.3f, 1.05f), out Vector3 at, out Vector3 dir, 0, 8, -8)) continue;
+                if (spots.Any(x => Overlap(x.at, x.r * Vector3.forward, at, dir)) || roofAt.HasValue && Utils.DistanceXZ(roofAt.Value, at) < 2.7f) continue;
+                spots.Add((at, Quaternion.LookRotation(dir)));
+            }
+            for (int i = 0; i < sleepers && i < spots.Count; i++)
+            {
+                if (!Pay(crew, Expedition.CostOf(Expedition.BedrollName))) break;
+                Mark(put(Expedition.BedrollName, spots[i].at, spots[i].r), i + 1); laid++;
+            }
+            if (roofAt.HasValue) put(Expedition.LeanToName, roofAt.Value, roofTurn);
+            return laid;
+        }
+        // Room for a piece of that half-size (x across, z along the way out) at that far out from the fire, the way given or turned
+        // by one of the offsets (degrees, tried in turn): no tree, rock or piece in it. Where it'll stand, and the way out to it.
+        internal static bool Clear(Vector3 fire, Vector3 way, float far, Vector3 half, out Vector3 at, out Vector3 dir, params float[] offsets)
+        {
+            if (_solid == -1) _solid = LayerMask.GetMask("Default", "static_solid", "Default_small", "piece", "vehicle");
+            way.y = 0; way.Normalize();
+            foreach (float deg in offsets)
+            {
+                dir = Quaternion.AngleAxis(deg, Vector3.up) * way;
+                at = fire + dir * far;
+                at.y = ZoneSystem.instance.GetGroundHeight(at);
+                if (!Physics.CheckBox(at + Vector3.up * (half.y + 0.15f), half, Quaternion.LookRotation(dir), _solid, QueryTriggerInteraction.Ignore)) return true;
+            }
+            at = fire; dir = way; return false;
+        }
+        private static int _solid = -1;
+        // Two bedrolls (a metre wide, two long) laid there those ways would lie on each other.
+        private static bool Overlap(Vector3 a, Vector3 aWay, Vector3 b, Vector3 bWay)
+        {
+            for (int i = -2; i <= 2; i++) for (int j = -2; j <= 2; j++)
+                if (Utils.DistanceXZ(a + aWay * (i * 0.45f), b + bWay * (j * 0.45f)) < 1.05f) return true;
+            return false;
+        }
+        // Paid from the crew's packs (carriers' first), only if all of it's there.
+        private static bool Pay(List<Brain> crew, List<(ItemDrop item, int n)> cost)
+        {
+            if (cost.Count == 0 || cost.Any(x => crew.Sum(m => m.Body.GetInventory().CountItems(x.item.m_itemData.m_shared.m_name)) < x.n)) return false;
+            foreach (var (item, n) in cost)
+            {
+                int left = n; string name = item.m_itemData.m_shared.m_name;
+                foreach (Brain m in crew.OrderBy(m => Expedition.RoleOf(m) == "carrier" ? 0 : 1))
+                {
+                    int take = Mathf.Min(left, m.Body.GetInventory().CountItems(name));
+                    if (take > 0) { m.Body.GetInventory().RemoveItem(name, take); left -= take; }
+                    if (left <= 0) break;
+                }
+            }
+            return true;
         }
     }
 }

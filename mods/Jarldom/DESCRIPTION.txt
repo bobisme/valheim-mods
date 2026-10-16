@@ -32,7 +32,7 @@ Ore claims: ore lies out in the wilds. Drive an ore claim (hammer, Misc) in besi
 
 Trade runs: from village rank a trader takes what the stores have to sell (amber, silver, gems) on foot, or with a cart in the colony; at jarldom rank a karve moored by the colony sails to better markets, at hold rank a longship or drakkar to the far ones. The Work tab says how the next run would go.
 
-Out with the jarl: Follow me on a villager's panel takes them along on your travels, through portals too; they fight what comes at you, and Go home sends them back.
+Out with the jarl: Follow me on a villager's panel takes them along on your travels, through portals too; they fight what comes at you, and Go home sends them back. The Expedition tab sets out with a crew, each with a role (guard, cook, scout, carrier) and packing for it; E on one of them makes camp where you stand (a fire, a chest, a workbench). With the Camping mod the crew also lays bedrolls round the fire and a lean-to over yours (a tent instead in the mountains), and sleeps on them at night.
 
 While you're away: an unloaded colony makes up the time when you return. Outposts: a second colony 300 m or more away can be linked to the first, and a carter brings its ore home.
 

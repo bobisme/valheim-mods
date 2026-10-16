@@ -626,7 +626,7 @@ namespace Jarldom.Ui
                 return y + 50;
             }
             y = Text(list, $"Pick up to {Expedition.MaxCrew} to come out with you, and what each is for. They pack for it from the stores and follow you (through portals too; they wait on the shore while you sail).", y, 16, GameUi.Dim);
-            foreach (string role in Expedition.Roles) y = Text(list, $"<color=#ffd27a>{role}</color>: {Expedition.RoleText[role]}", y, 15, GameUi.Dim, 24);
+            foreach (string role in Expedition.Roles) y = Text(list, $"<color=#ffd27a>{role}</color>: {Expedition.Describe(role)}", y, 15, GameUi.Dim, 24);
             y += 6;
             foreach (string vid in _crew.Keys.ToList()) if (!people.Any(b => b.S.Vid == vid)) _crew.Remove(vid);
             foreach (Brain b in people)
