@@ -1,3 +1,5 @@
+0.1.172: The Peak Temple is the A-frame again (Bob preferred it): the 67° roof from the plinth to the ridge, plank gables, the door between stone jambs.
+
 0.1.171: The Peak Temple is now a log hof like the mountains' own cabins: 2 m core wood walls with the gable logs running past the corners, the 67° roof on top up to a 10 m ridge, log gables with planks only in the slopes' corners, and the door set in the log front.
 
 0.1.170: Great Works face on the game's 22.5° steps, so what you build on or beside them snaps into line.
