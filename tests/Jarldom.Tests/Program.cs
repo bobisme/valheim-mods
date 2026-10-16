@@ -69,6 +69,19 @@ Check(Renown.Wealth(0, 0, 0) == 0 && Renown.Wealth(400, 0, 0) == 10 && Renown.We
 Check(Renown.Wealth(-5, -5, -5) == 0, "Wealth never negative");
 Check(Renown.Comfort(new int[0]) == 0 && Renown.Comfort(new[] { 4, 2 }) == 15, "Comfort: three times the best bed plus the average");
 // ---- Trade runs grow with the colony ----
+{
+    var stock = new Dictionary<string, int> { ["Carrot"] = 50, ["Mushroom"] = 3, ["Honey"] = 12, ["Raspberry"] = 20, ["Blueberries"] = 9, ["CarrotSoup"] = 4, ["QueensJam"] = 0 };
+    int St(string i) => stock.TryGetValue(i, out int v) ? v : 0;
+    var dishes = new List<(string, int, float, IList<(string, int)>)> {
+        ("CarrotSoup", 4, 15, new List<(string, int)> { ("Mushroom", 1), ("Carrot", 3) }),
+        ("QueensJam", 0, 14, new List<(string, int)> { ("Raspberry", 8), ("Blueberries", 6) }),
+        ("DeerStew", 0, 45, new List<(string, int)> { ("Blueberries", 1), ("Carrot", 1), ("CookedDeerMeat", 1) }) };
+    var mead = new HashSet<string> { "Honey", "Raspberry", "Blueberries" };
+    Check(Kitchen.Choose(dishes, St, new HashSet<string>(), 20) == "QueensJam", "Kitchen: the least-stocked dish the stores can make");
+    Check(Kitchen.Choose(dishes, St, mead, 20) == "CarrotSoup", "Kitchen: mead makings kept back (9 blueberries, 10 kept: no jam)");
+    Check(Kitchen.Choose(dishes, St, mead, 4) == null, "Kitchen: nothing once every dish it can make is stocked");
+    Check(Kitchen.Keep(3) == 6 && Kitchen.Keep(21) == 21 && Kitchen.Keep(80) == 30, "Kitchen: a dish kept per head, 6 to 30");
+}
 Check(Trading.Choose(Rank.Village, false, false, false, 40) == TradeWay.Foot, "No cart: on foot");
 Check(Trading.Choose(Rank.Village, true, false, false, 4) == TradeWay.Foot && Trading.Choose(Rank.Village, true, false, false, 10) == TradeWay.Cart, "The cart only when there's more than a pack");
 Check(Trading.Choose(Rank.Village, true, true, true, 50) == TradeWay.Cart, "Ships wait for their rank");

@@ -49,6 +49,18 @@ namespace Jarldom
     // then a longship to the far ones. Each needs its rank and the cart or ship to be there; the run takes the smallest that carries
     // what the stores have to sell (no ship for three lots of amber), so it grows as the colony's wealth does.
     public enum TradeWay { Foot, Cart, Karve, Longship }
+    // The cook's own cauldron meals: which dish next (null: none wanted, or none the stores can make). A dish is wanted while the
+    // stores hold fewer than Keep of it; the least-stocked first (variety at the table), then the most filling. What the mead bases
+    // take (honey, berries, thistle...) is kept back: the fermenter comes before a jam.
+    public static class Kitchen
+    {
+        public const int Reserve = 10;
+        public static int Keep(int people) => Math.Max(6, Math.Min(30, people));
+        public static string Choose(IEnumerable<(string dish, int have, float food, IList<(string item, int amount)> needs)> dishes, Func<string, int> stock, ICollection<string> reserved, int keep) =>
+            dishes.Where(d => d.have < keep && d.needs.Count > 0 && d.needs.All(n => stock(n.item) - (reserved.Contains(n.item) ? Reserve : 0) >= n.amount))
+                .OrderBy(d => d.have).ThenByDescending(d => d.food).Select(d => d.dish).FirstOrDefault();
+    }
+
     public static class Trading
     {
         public static readonly string[] Names = { "on foot", "by cart", "by karve", "by longship" };

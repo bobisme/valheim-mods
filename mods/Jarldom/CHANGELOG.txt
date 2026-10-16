@@ -1,3 +1,5 @@
+0.1.186: the cook makes cauldron meals on their own - soups, stews, jams, sausages - keeping a few of each dish per head in the stores, the least-stocked first, from what the stores hold (mead makings kept back for the fermenter); neck tails count as raw food (they went to the 'any' chests, and when those were full the hunters carried their kills about and the cook had nothing to cook).
+
 0.1.185: villagers find their beds in bay-lined longhouses (the walk aimed at the top of a raised sleeping bay, cut off, and wandered to the rocks outside); a door's far side counts if it's in the bed's room however far; no beeline back through the hall after a doorway; standing up from a bench finds floor with a way out (not the gap behind a wall bench); no more popping into bed from afar after a failed walk.
 
 0.1.184: Island outposts: an outpost with no way over land to its main colony is an island (the hall tab says so). Raids there come at half strength, and its carter takes the ore home by ship (a karve or longship at its shore) instead of by cart. An expedition's camp counts as near as long as the jarl is within 30 m across the ground, however far up or down a mountain.

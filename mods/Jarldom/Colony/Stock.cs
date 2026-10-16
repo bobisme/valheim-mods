@@ -44,7 +44,7 @@ namespace Jarldom
             if (n.Contains("Hide") || n.Contains("Pelt") || n == "LeatherScraps" || n == "Feathers" || n == "Chitin") return "hides";
             if (n.Contains("Seed") || n == "Barley" || n == "Flax") return "seeds";
             if (t == ItemDrop.ItemData.ItemType.Consumable) return item.m_shared.m_food > 0 ? "food" : "food";
-            if (n.StartsWith("Raw") || n.EndsWith("Meat") || n.Contains("Fish") || n == "Mushroom" || n == "Raspberry" || n == "Blueberries" || n == "Honey" || n == "Carrot" || n == "Turnip" || n == "Onion" || n == "Thistle" || n == "Dandelion") return "rawfood";
+            if (n.StartsWith("Raw") || n.EndsWith("Meat") || n == "NeckTail" || n.Contains("Fish") || n == "Mushroom" || n == "Raspberry" || n == "Blueberries" || n == "Honey" || n == "Carrot" || n == "Turnip" || n == "Onion" || n == "Thistle" || n == "Dandelion") return "rawfood";
             if (t == ItemDrop.ItemData.ItemType.OneHandedWeapon || t == ItemDrop.ItemData.ItemType.TwoHandedWeapon || t == ItemDrop.ItemData.ItemType.Bow || t == ItemDrop.ItemData.ItemType.Shield
                 || t == ItemDrop.ItemData.ItemType.Helmet || t == ItemDrop.ItemData.ItemType.Chest || t == ItemDrop.ItemData.ItemType.Legs || t == ItemDrop.ItemData.ItemType.Shoulder || t == ItemDrop.ItemData.ItemType.Tool || t == ItemDrop.ItemData.ItemType.Ammo) return "gear";
             return "any";

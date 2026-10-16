@@ -10,7 +10,7 @@ namespace Jarldom
     // A commission is a flag on the colony record: "craft:<item prefab>" = how many are still wanted.
     internal static class Crafts
     {
-        public const string Prefix = "craft:", BrewPrefix = "brew:", PrepPrefix = "prep:";
+        public const string Prefix = "craft:", BrewPrefix = "brew:", PrepPrefix = "prep:", MealPrefix = "meal:";
         // The way to make a thing: the game's own recipe for it first (other mods add recipes for the same thing: a recycler's, an
         // upgrade path, one asking for some mod's idol), else another.
         // (kept per item: the game's whole recipe list was gone through on every ask, a hundred a scan; made again when the list changes)
@@ -105,6 +105,40 @@ namespace Jarldom
             }
             return $"for {Name(near.m_item.name).ToLower()} the cook lacks " + string.Join(", ", missing);
         }
+        // ---- the cook's meals ----
+        // The cauldron's dishes: the game's recipes made at a cauldron whose thing is food (not a mead base or a potion). Kept until
+        // the recipe list changes.
+        private static List<Recipe> _meals; private static int _mealsCount = -1;
+        public static List<Recipe> MealRecipes()
+        {
+            int n = ObjectDB.instance?.m_recipes.Count ?? 0;
+            if (_meals != null && n == _mealsCount) return _meals;
+            _mealsCount = n;
+            return _meals = (ObjectDB.instance?.m_recipes ?? new List<Recipe>()).Where(r => r != null && r.m_enabled && r.m_item != null && r.m_craftingStation != null
+                    && r.m_craftingStation.name == "piece_cauldron" && r.m_item.m_itemData.m_shared.m_food > 0)
+                .Select(r => r.m_item.name).Distinct().Select(RecipeFor).Where(r => r != null && AtCauldron(r)).ToList();
+        }
+        // What the mead bases the colony's fermenters take are made of (kept back from the cooking pot).
+        public static HashSet<string> MeadMakings(Colony c) => new HashSet<string>(c.PiecesIn<Fermenter>(c.Radius).Take(1)
+            .SelectMany(f => f.m_conversion).Where(cv => cv.m_from != null).Select(cv => RecipeFor(cv.m_from.name)).Where(r => r != null).SelectMany(r => Needs(r).Select(q => q.item)));
+        // The next dish the cook should make (null: none), and for the craft command each dish's state.
+        public static Recipe NextMeal(Colony c, out List<string> why)
+        {
+            why = new List<string>();
+            if (!c.R.Living.Any(p => p.Prof == Prof.Cook)) { why.Add("no cook"); return null; }
+            var dishes = MealRecipes().Where(r => StationFor(c, r, c.Position) != null).ToList();
+            if (dishes.Count == 0) { why.Add("no cauldron (or none at the level any dish needs)"); return null; }
+            int keep = Kitchen.Keep(c.R.Living.Count()); var reserved = MeadMakings(c);
+            var counts = new Dictionary<string, int>();
+            int Stock_(string item) => counts.TryGetValue(item, out int v) ? v : counts[item] = InStock(c, item);
+            string pick = Kitchen.Choose(dishes.Select(r => (r.m_item.name, Stock_(r.m_item.name), r.m_item.m_itemData.m_shared.m_food, (IList<(string, int)>)Needs(r))), Stock_, reserved, keep);
+            foreach (Recipe r in dishes)
+            {
+                var lacks = Needs(r).Where(q => Stock_(q.item) - (reserved.Contains(q.item) ? Kitchen.Reserve : 0) < q.amount).Select(q => q.item + (reserved.Contains(q.item) ? " (kept for mead)" : "")).ToList();
+                why.Add($"{r.m_item.name} {Stock_(r.m_item.name)}/{keep}" + (lacks.Count > 0 ? ": lacks " + string.Join(", ", lacks) : Stock_(r.m_item.name) >= keep ? ": enough" : ": can make") + (r.m_item.name == pick ? " <- next" : ""));
+            }
+            return pick == null ? null : RecipeFor(pick);
+        }
         // Why each fermenter isn't being kept going (for the jarldom craft command).
         public static List<string> BrewWhy(Colony c) => c.PiecesIn<Fermenter>(c.Radius).Select(f =>
         {
@@ -163,6 +197,14 @@ namespace Jarldom
                 CraftingStation st = StationFor(c, brew, f.transform.position);
                 c.Board.Post("craft", BrewPrefix + brew.m_item.name, Prof.Cook, 3, st.transform.position.x, st.transform.position.y, st.transform.position.z, now, "", "fermenter");
                 break; // one at a time
+            }
+            yield return 0;
+            // A cauldron meal the stores are short of and can make: the cook makes it (one at a time).
+            Recipe meal = NextMeal(c, out _);
+            if (meal != null && Commissions(c).All(kv => kv.Key != meal.m_item.name))
+            {
+                CraftingStation st = StationFor(c, meal, c.Position);
+                c.Board.Post("craft", MealPrefix + meal.m_item.name, Prof.Cook, 2, st.transform.position.x, st.transform.position.y, st.transform.position.z, now, "", "meal");
             }
             yield return 0;
             Smithing.Scan(c, now); // (the smith's own work: missing tools, arrows, the guards' upgrades)

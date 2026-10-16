@@ -14,7 +14,7 @@ namespace Jarldom
     {
         public const string Guid = "com.bobisme.jarldom";
         public const string Name = "Jarldom";
-        public const string Version = "0.1.185";
+        public const string Version = "0.1.186";
         public const int DataVersion = 1; // raised whenever what's saved changes shape: games of different data versions mustn't write each other's colonies
         internal static Plugin Instance;
         internal ServerSettings Synced;

@@ -1082,7 +1082,7 @@ namespace Jarldom
                 case "craft":
                     if (a.Length > 2) Net.Act(c, "craft", a[2] + "|" + (a.Length > 3 ? a[3] : "1"));
                     output(new JObject { ["commissions"] = new JArray(Crafts.Commissions(c).Select(k => $"{k.Key} x{k.Value}")),
-                        ["offered"] = new JArray(Crafts.Offered(c, Player.m_localPlayer).Select(r => r.m_item.name)), ["brewing"] = new JArray(Crafts.BrewWhy(c)), ["mead"] = Crafts.MeadWhy(c) ?? "nothing in the way",
+                        ["offered"] = new JArray(Crafts.Offered(c, Player.m_localPlayer).Select(r => r.m_item.name)), ["brewing"] = new JArray(Crafts.BrewWhy(c)), ["mead"] = Crafts.MeadWhy(c) ?? "nothing in the way", ["meals"] = new JArray(Crafts.NextMeal(c, out var mealWhy) is var _m ? mealWhy : null),
                         ["prep"] = new JArray(Crafts.PrepRecipes().Select(r => $"{r.name} -> {r.m_item.name}: have {Crafts.InStock(c, r.m_item.name)}, fish {string.Join(",", Crafts.Needs(r).Where(n => Crafts.InStock(c, n.item) > 0).Select(n => n.item + " " + Crafts.InStock(c, n.item)))}, afford {Crafts.CanAfford(c, r)}, station {(Crafts.StationFor(c, r, c.Position) is CraftingStation st ? V(st.transform.position).ToString(Newtonsoft.Json.Formatting.None) + " " + (Crafts.Unusable(st) ?? "ok") : "none")}")) });
                     break;
                 case "horn": Net.Act(c, "horn", c.HornUntil > Time.time ? "off" : "on"); output(new JObject { ["horn"] = c.HornUntil > Time.time }); break;
