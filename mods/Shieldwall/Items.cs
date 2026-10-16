@@ -31,8 +31,8 @@ namespace Shieldwall
 
         private static GameObject Ensure(string prefab)
         {
-            if(Prefabs.TryGetValue(prefab,out GameObject made)&&made!=null)return made;
             Stave stave=Policy.StaveNamed(prefab);
+            if(Prefabs.TryGetValue(prefab,out GameObject made)&&made!=null){if(stave!=null&&!Dressed.Contains(prefab))Dress(made,stave);return made;}
             GameObject source=Assets.Find(stave!=null?stave.Source:"Crystal");
             ItemDrop sourceDrop=source!=null?source.GetComponent<ItemDrop>():null;
             if(sourceDrop==null)return null;
@@ -41,8 +41,8 @@ namespace Shieldwall
             var shared=(ItemDrop.ItemData.SharedData)Assets.CloneShared.Invoke(sourceDrop.m_itemData.m_shared,null);
             if(stave!=null)
             {
-                // Its own look (StaveModel); the game staff it was copied from, tinted, if that can't be had.
-                if(!StaveModel.DressItem(go,stave.Kind))Assets.Tint(go,Colours[stave.Kind].tint,Color.black); // coloured, not glowing: the light at its head does the glowing
+                // The game staff it was copied from, tinted, until it can have its own look (Dress, below).
+                Assets.Tint(go,Colours[stave.Kind].tint,Color.black); // coloured, not glowing: the light at its head does the glowing
                 shared.m_name=stave.Name;
                 shared.m_description=stave.Description+"\n\nFar too heavy and thick to swing: it is set in a stave socket by a Warstone (Use on the socket, or drag it there from your hotbar). "+
                     "Strengthen it in its socket with warshards.";
@@ -51,7 +51,7 @@ namespace Shieldwall
                 shared.m_maxQuality=Policy.MaxQuality;shared.m_useDurability=false;shared.m_teleportable=true;shared.m_value=0;
                 shared.m_damages=new HitData.DamageTypes();shared.m_damagesPerLevel=new HitData.DamageTypes();
                 Transform attach=go.transform.Find("attach");
-                if(attach!=null&&StaveModel.Mesh(stave.Kind)==null)attach.localScale=attach.localScale*1.7f; // big on the ground too
+                if(attach!=null)attach.localScale=attach.localScale*1.7f; // big on the ground too
                 Sprite icon=Assets.Icon(go,prefab,Quaternion.Euler(0,0,-35));
                 if(icon!=null)shared.m_icons=new[]{icon};
             }
@@ -67,7 +67,19 @@ namespace Shieldwall
             ItemDrop drop=go.GetComponent<ItemDrop>();
             drop.m_itemData.m_shared=shared;drop.m_itemData.m_stack=1;drop.m_itemData.m_quality=1;drop.m_itemData.m_dropPrefab=go;
             Prefabs[prefab]=go;
+            if(stave!=null)Dress(go,stave);
             return go;
+        }
+        // A stave's own look (StaveModel) and its icon drawn from it. Its materials come from a game piece, which the main menu's first
+        // database is made before, so this is tried again each time the items are registered until it takes.
+        private static readonly HashSet<string> Dressed=new HashSet<string>();
+        private static void Dress(GameObject go,Stave stave)
+        {
+            if(!StaveModel.DressItem(go,stave.Kind))return;
+            Dressed.Add(stave.Prefab);
+            Sprite icon=StaveModel.Icon(go,stave.Kind,stave.Prefab)??Assets.Icon(go,stave.Prefab,Quaternion.Euler(0,0,-35));
+            ItemDrop.ItemData.SharedData shared=go.GetComponent<ItemDrop>().m_itemData.m_shared;
+            if(icon!=null)shared.m_icons=new[]{icon}; // (the same shared data every stave of the kind holds: their icons change too)
         }
         internal static IEnumerable<string> All=>Policy.Staves.Select(s=>s.Prefab).Append(Policy.ShardPrefab);
 

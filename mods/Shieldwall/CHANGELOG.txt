@@ -1,3 +1,5 @@
+0.4.22: The war staves in your bag and on the ground now have their own models too (0.4.18 only reached them in a socket: the items were made before the game's materials existed and kept the old tinted staffs). Their inventory icons are drawn from the models: the head and the top of the shaft, big, on the diagonal, lit properly. Claude Tools: siege icons saves the staves' icons as pictures.
+
 0.4.21: A game staff set in a stave socket (a borrowed staff, such as Dundr) stands at its own size, its foot just in the socket, instead of stretched to the war staves' four metres and thickened. The war staves are unchanged.
 
 0.4.20: The Hearth stave heals the way a greydwarf shaman does: when it mends, the shaman's green prayer-fire rises from the stave's head with its healing chant, and each one it mends shows the shaman's heal on them (only the look and sound: the shaman's heal itself also mends monsters, so it isn't used). It used to show the game's health-upgrade sparkle.

@@ -90,6 +90,20 @@ namespace Shieldwall
             Warstone stone=Nearest();
             switch(sub)
             {
+                case "icons":
+                {
+                    // Test: siege icons — the war staves' inventory icons as pictures in Claude Tools' shots folder.
+                    string dir=System.IO.Path.Combine(BepInEx.Paths.BepInExRootPath,"claude","shots");System.IO.Directory.CreateDirectory(dir);
+                    var files=new JArray();
+                    foreach(var pair in StaveModel.Icons)
+                    {
+                        if(pair.Value==null)continue;
+                        string file=System.IO.Path.Combine(dir,"stave_icon_"+pair.Key+".png");
+                        System.IO.File.WriteAllBytes(file,ImageConversion.EncodeToPNG(pair.Value));files.Add(file);
+                    }
+                    output(new JObject{["icons"]=files});
+                    break;
+                }
                 case "look":
                     // Test: siege look [lit=0|1] [rock=<prefab[:i]>] [iron=<prefab[:i]>] [rockscale=n] [ironscale=n] [marks=n] [cracked=0|1] [health=0-100] (-1: the stone's own): the Warstone's materials, redressed on every stone
                     foreach(string a in args.Skip(2))

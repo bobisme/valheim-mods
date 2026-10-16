@@ -107,7 +107,7 @@ namespace Shieldwall
             if(Mesh(kind)==null||Materials(kind)==null)return false;
             foreach(Transform child in item.transform.Cast<Transform>().ToList())Object.DestroyImmediate(child.gameObject);
             foreach(Collider c in item.GetComponents<Collider>())Object.DestroyImmediate(c);
-            foreach(Renderer r in item.GetComponents<Renderer>())Object.DestroyImmediate(r);
+            foreach(Renderer r in item.GetComponents<Renderer>())if(!(r is ParticleSystemRenderer))Object.DestroyImmediate(r); // (keep a dropped item's sparkle)
             foreach(MeshFilter f in item.GetComponents<MeshFilter>())Object.DestroyImmediate(f);
             foreach(LODGroup g in item.GetComponents<LODGroup>())Object.DestroyImmediate(g);
             var attach=new GameObject("attach");attach.transform.SetParent(item.transform,false);
@@ -119,5 +119,80 @@ namespace Shieldwall
             capsule.direction=1;capsule.height=height;capsule.radius=0.16f;capsule.center=new Vector3(0,height/2,0);
             return true;
         }
+
+        // Its inventory icon: the head and the top of the shaft, big, on the diagonal (the rest of the shaft runs out of the corner), turned a
+        // little to show the head's depth; lit from the front and the side over a soft ambient, without the world's fog.
+        internal const float IconFrom=0.5f; // (how far up the staff the picture starts)
+        internal static Sprite Icon(GameObject item,StaveKind kind,string name)
+        {
+            Mesh mesh=Mesh(kind);
+            if(mesh==null)return null;
+            var stage=new GameObject("ShieldwallStaveIconStage");stage.transform.position=new Vector3(0,-3000,0);
+            bool fog=RenderSettings.fog;var ambientMode=RenderSettings.ambientMode;Color ambient=RenderSettings.ambientLight;
+            RenderTexture target=null,previous=RenderTexture.active;
+            try
+            {
+                int layer=31;for(int l=31;l>8;l--)if(string.IsNullOrEmpty(LayerMask.LayerToName(l))){layer=l;break;}
+                GameObject model=Dress(stage.transform,kind,1);
+                if(model==null)return null;
+                model.layer=layer;
+                model.transform.localRotation=Quaternion.Euler(0,0,-42)*Quaternion.Euler(0,35,0);
+                // Frame what's above IconFrom of its height, as the camera sees it (it looks along +z).
+                Vector3[] v=mesh.vertices;float top=mesh.bounds.max.y;
+                float x0=float.MaxValue,x1=float.MinValue,y0=float.MaxValue,y1=float.MinValue;
+                for(int i=0;i<v.Length;i++)
+                {
+                    if(v[i].y<top*IconFrom)continue;
+                    Vector3 w=model.transform.TransformPoint(v[i]);
+                    x0=Mathf.Min(x0,w.x);x1=Mathf.Max(x1,w.x);y0=Mathf.Min(y0,w.y);y1=Mathf.Max(y1,w.y);
+                }
+                var centre=new Vector3((x0+x1)/2,(y0+y1)/2,stage.transform.position.z);
+                var cameraObject=new GameObject("Camera");cameraObject.transform.SetParent(stage.transform,false);
+                cameraObject.transform.position=centre+Vector3.back*10;cameraObject.transform.rotation=Quaternion.identity;
+                Camera camera=cameraObject.AddComponent<Camera>();
+                camera.enabled=false;camera.cullingMask=1<<layer;camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(0,0,0,0);
+                camera.orthographic=true;camera.orthographicSize=Mathf.Max(x1-x0,y1-y0)/2*1.07f;camera.nearClipPlane=0.1f;camera.farClipPlane=30;camera.allowHDR=false;camera.allowMSAA=false;
+                foreach(var (euler,intensity) in new[]{(new Vector3(35,-35,0),1.25f),(new Vector3(15,140,0),0.55f)})
+                {
+                    var lightObject=new GameObject("Light");lightObject.transform.SetParent(stage.transform,false);lightObject.transform.rotation=Quaternion.Euler(euler);
+                    Light light=lightObject.AddComponent<Light>();light.type=LightType.Directional;light.intensity=intensity;light.shadows=LightShadows.None;light.cullingMask=1<<layer;
+                }
+                RenderSettings.fog=false;RenderSettings.ambientMode=UnityEngine.Rendering.AmbientMode.Flat;RenderSettings.ambientLight=new Color(0.5f,0.5f,0.54f);
+                // Drawn on black and on white: the pieces' shader writes no alpha, so how much the background shows through is read from the two.
+                const int size=256;
+                target=RenderTexture.GetTemporary(size,size,24,RenderTextureFormat.ARGB32);
+                Color[] Shot(Color background)
+                {
+                    camera.backgroundColor=background;camera.targetTexture=target;camera.Render();camera.targetTexture=null;
+                    RenderTexture.active=target;
+                    var read=new Texture2D(size,size,TextureFormat.RGBA32,false);
+                    read.ReadPixels(new Rect(0,0,size,size),0,0);read.Apply();
+                    Color[] pixels=read.GetPixels();Object.DestroyImmediate(read);
+                    return pixels;
+                }
+                Color[] black=Shot(new Color(0,0,0,0)),white=Shot(new Color(1,1,1,0)),result=new Color[black.Length];
+                for(int i=0;i<black.Length;i++)
+                {
+                    Color b=black[i],w=white[i];
+                    float alpha=Mathf.Clamp01(1-((w.r-b.r)+(w.g-b.g)+(w.b-b.b))/3);
+                    result[i]=alpha<0.004f?new Color(0,0,0,0):new Color(Mathf.Clamp01(b.r/alpha),Mathf.Clamp01(b.g/alpha),Mathf.Clamp01(b.b/alpha),alpha);
+                }
+                var texture=new Texture2D(size,size,TextureFormat.RGBA32,false);
+                texture.SetPixels(result);texture.Apply();
+                texture.hideFlags=HideFlags.HideAndDontSave;Assets.Owned.Add(texture);
+                Sprite sprite=Sprite.Create(texture,new Rect(0,0,size,size),new Vector2(0.5f,0.5f),100f);
+                sprite.name=name;sprite.hideFlags=HideFlags.HideAndDontSave;Assets.Owned.Add(sprite);
+                Icons[kind]=texture;
+                return sprite;
+            }
+            catch(System.Exception e){Debug.LogWarning("[Shieldwall] could not draw the "+kind+" stave's icon: "+e.Message);return null;}
+            finally
+            {
+                RenderSettings.fog=fog;RenderSettings.ambientMode=ambientMode;RenderSettings.ambientLight=ambient;
+                RenderTexture.active=previous;if(target!=null)RenderTexture.ReleaseTemporary(target);
+                Object.DestroyImmediate(stage);
+            }
+        }
+        internal static readonly Dictionary<StaveKind,Texture2D> Icons=new Dictionary<StaveKind,Texture2D>(); // (for siege icons: a look at them)
     }
 }
