@@ -46,11 +46,11 @@ def blob(name, centre, size, mat, seed=0, subdiv=2, lumps=0.12):
         v.co = Vector((v.co.x * size.x, v.co.y * size.y, v.co.z * size.z)) * (1 + r.uniform(-lumps, lumps)) + centre
     return link(name, bm, mat)
 
-def rock(name, centre, radius, seed):
+def rock(name, centre, radius, seed, mat=STONE, segs=(10, 7)):
     # a well-rounded stone off a beach or a stream bed: an egg, flattened, one end fuller than the other, swelling and dipping gently
     # (no sharp lumps), turned its own way
     r = random.Random(seed)
-    bm = bmesh.new(); bmesh.ops.create_uvsphere(bm, u_segments=10, v_segments=7, radius=1.0)
+    bm = bmesh.new(); bmesh.ops.create_uvsphere(bm, u_segments=segs[0], v_segments=segs[1], radius=1.0)
     sx, sy, sz = r.uniform(1.0, 1.4), r.uniform(0.75, 1.0), r.uniform(0.55, 0.8)
     egg = r.uniform(-0.18, 0.18)
     waves = [(Vector((r.gauss(0, 1), r.gauss(0, 1), r.gauss(0, 1))).normalized() * r.uniform(1.5, 2.8), r.uniform(0, 6.3), r.uniform(0.05, 0.1)) for _ in range(3)]
@@ -59,7 +59,7 @@ def rock(name, centre, radius, seed):
         d = v.co.normalized()
         k = (1 + sum(a * math.sin(d.dot(w) + p) for w, p, a in waves)) * (1 + egg * d.x)
         v.co = turn @ (Vector((d.x * sx, d.y * sy, d.z * sz)) * k * radius) + centre
-    return link(name, bm, STONE)
+    return link(name, bm, mat)
 
 def smooth_line(pts, rounds=2):
     # a polyline's corners cut off (Chaikin), its ends kept
@@ -161,50 +161,130 @@ def disc(name, radius, z, mat, thick=0.0, segs=40, grain=None):
 # ---------------- the stove ----------------
 ST_W, ST_D, ST_H = 0.9, 0.8, 0.75   # the body (x, game z, height)
 FB_W, FB_LO, FB_HI, FB_IN = 0.36, 0.12, 0.44, 0.35   # the firebox opening (width, bottom, top, depth in from the front)
+ST_T = 0.15   # the walls' thickness at the corners, where one wall's end stone runs through to the other's face
+def fieldstone(name, lo, hi, out, seed, bulge=0.007, skew=0.02, soot=None, keep_out=None, cuts=()):
+    # a big flattish field stone laid dry in a wall: a box from lo to hi, its edges rounded off, each corner pushed about on its own (no
+    # two stones square), its face (out, a unit axis) swelling a little and tipped a few degrees. soot(centre, normal) picks the faces
+    # the fire has blackened, cuts (points, normals) split the faces first so soot can end along them; no corner is pushed into
+    # keep_out (lo, hi: the firebox mouth)
+    r = random.Random(seed)
+    lo, hi, out = Vector(lo), Vector(hi), Vector(out)
+    size, c = hi - lo, (lo + hi) / 2
+    bm = bmesh.new(); bmesh.ops.create_cube(bm, size=1.0)
+    bmesh.ops.scale(bm, vec=size, verts=bm.verts); bmesh.ops.translate(bm, vec=c, verts=bm.verts)
+    bmesh.ops.bevel(bm, geom=list(bm.edges), offset=min(0.022, min(size) * 0.18), segments=2, affect='EDGES', profile=0.5)
+    face = max((f for f in bm.faces if f.normal.dot(out) > 0.99), key=lambda f: f.calc_area())
+    across = min(size[i] for i in range(3) if abs(out[i]) < 0.5)
+    bmesh.ops.inset_individual(bm, faces=[face], thickness=min(0.04, across * 0.25), depth=bulge)
+    fc = face.calc_center_median()
+    tip = Matrix.Rotation(r.uniform(-0.07, 0.07), 3, out.orthogonal().normalized()) @ Matrix.Rotation(r.uniform(-0.07, 0.07), 3, out.cross(out.orthogonal()).normalized())
+    for v in face.verts: v.co = tip @ (v.co - fc) + fc
+    push = {}
+    for v in bm.verts:
+        o = tuple(1 if v.co[i] > c[i] else -1 for i in range(3))
+        if o not in push: push[o] = Vector((r.uniform(-skew, skew), r.uniform(-skew, skew), r.uniform(-skew, skew) * 0.6))
+        v.co += push[o]
+        if keep_out:
+            klo, khi = keep_out
+            if all(klo[i] < v.co[i] < khi[i] for i in range(3)):
+                # (out of the mouth the shortest way, sideways or up/down)
+                moves = [(v.co.x - klo.x, 0, klo.x), (khi.x - v.co.x, 0, khi.x), (v.co.z - klo.z, 2, klo.z), (khi.z - v.co.z, 2, khi.z)]
+                _, ax, to = min(moves); v.co[ax] = to
+        v.co += Vector((r.uniform(-0.002, 0.002), r.uniform(-0.002, 0.002), r.uniform(-0.002, 0.002)))
+    for (a, b), no in cuts:
+        # (only the faces near the cut's own stretch of line)
+        lo_, hi_ = Vector((min(a.x, b.x) - 0.03, -9, min(a.z, b.z) - 0.03)), Vector((max(a.x, b.x) + 0.03, 9, max(a.z, b.z) + 0.03))
+        near = [f for f in bm.faces if any(all(lo_[i] <= v.co[i] <= hi_[i] for i in range(3)) for v in f.verts)]
+        if near: bmesh.ops.bisect_plane(bm, geom=list({e for f in near for e in f.edges}) + list({v for f in near for v in f.verts}) + near,
+                                        dist=0.0005, plane_co=a, plane_no=no)
+    bm.normal_update()
+    for f in bm.faces: f.material_index = 1 if soot and soot(f.calc_center_median(), f.normal) else 0
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    me.materials.append(mats[STONE]); me.materials.append(mats[SOOT])
+    ob = bpy.data.objects.new(name, me); bpy.context.scene.collection.objects.link(ob)
+    return ob
+
 def stove():
     fresh()
-    # a box of field stones laid in courses in mortar (the core between them is the mortar), a firebox in its front lined with soot, a
-    # bed of embers and two charred brands in it, a sooty lintel over it, a heap of rounded stones on top (on a sooty mound, so the
-    # gaps between them look deep) and a flat soot-black hearth stone in front. No chimney: a smoke sauna
-    hx, hy = ST_W / 2, ST_D / 2
-    core = box('core', (-hx + 0.03, -hy + 0.03, 0.0), (hx - 0.03, hy - 0.03, ST_H - 0.02), STONE)
-    cutter = box('cutter', (-FB_W / 2, hy - FB_IN, FB_LO), (FB_W / 2, hy + 0.2, FB_HI), SOOT)
-    cut(core, cutter)
+    # a dry-stone firebox: three rough courses of big flat field stones round a core, the joints staggered and the corners bonded (each
+    # course's corner stones run through the other way from the course below's); the front two upright jamb stones on the ground with
+    # one long lintel across them over the mouth, a low sill stone under it, a course above; soot only inside the firebox and in a band
+    # round its mouth. A bed of embers and two charred brands in it, a flat stone closing the top with a heap of rounded sauna stones on
+    # it (some fire-blackened), a flat soot-black hearth stone in front. No chimney: a smoke sauna
+    hx, hy, T = ST_W / 2, ST_D / 2, ST_T
     r = random.Random(3); k = [0]
-    def stone(cx, cy, cz, sx, sy, sz):
+    mouth = (Vector((-FB_W / 2, hy - FB_IN, FB_LO)), Vector((FB_W / 2, hy + 0.1, FB_HI)))
+    # the soot's edge on the front (x, height): a ragged line 3-6 cm out from the mouth, higher over it where the smoke rolls out; the
+    # stones round the mouth are split along it, and their faces inside it (looking out of the front or into the mouth) are soot
+    w = FB_W / 2
+    stain = [(-w - 0.045, 0.06), (-w - 0.035, 0.2), (-w - 0.055, 0.33), (-w - 0.045, FB_HI + 0.03), (-0.12, FB_HI + 0.07), (-0.03, FB_HI + 0.055),
+             (0.06, FB_HI + 0.085), (w - 0.01, FB_HI + 0.06), (w + 0.05, FB_HI + 0.02), (w + 0.04, 0.3), (w + 0.05, 0.17), (w + 0.03, 0.06),
+             (0.1, FB_LO - 0.03), (-0.08, FB_LO - 0.025)]
+    stain_cuts = [((Vector((a[0], 0, a[1])), Vector((b[0], 0, b[1]))), Vector((b[1] - a[1], 0, a[0] - b[0])).normalized()) for a, b in zip(stain, stain[1:] + stain[:1])]
+    def stained(x, z):
+        inside = False
+        for (x0, z0), (x1, z1) in zip(stain, stain[1:] + stain[:1]):
+            if (z0 > z) != (z1 > z) and x < x0 + (z - z0) * (x1 - x0) / (z1 - z0): inside = not inside
+        return inside
+    def sooty(c, n):
+        return n.y > -0.3 and c.y > hy - 0.22 and stained(c.x, c.z)
+    def lay(lo, hi, out, **kw):
         k[0] += 1
-        return blob(f'stone{k[0]}', Vector((cx, cy, cz)), Vector((sx, sy, sz)), STONE, seed=100 + k[0], lumps=0.1)
-    def course_row(face, a0, a1, z0, z1):
-        # stones along one face between a0 and a1 (along the face), from z0 to z1, their outer faces at the face's plane
-        a = a0
-        while a < a1 - 0.03:
-            l = r.uniform(0.16, 0.28)
-            if a1 - (a + l) < 0.1: l = a1 - a
-            mid, half = a + l / 2, l / 2 * 1.04
-            dep = r.uniform(0.1, 0.14); h = (z1 - z0) / 2 * 1.08
-            out = (hy if face in ('front', 'back') else hx) - dep / 2 * 1.06
-            if face == 'front': stone(mid, out, (z0 + z1) / 2, half, dep / 2, h)
-            if face == 'back': stone(mid, -out, (z0 + z1) / 2, half, dep / 2, h)
-            if face == 'right': stone(out, mid, (z0 + z1) / 2, dep / 2, half, h)
-            if face == 'left': stone(-out, mid, (z0 + z1) / 2, dep / 2, half, h)
-            a += l
-    def courses():
-        zs, z = [0.0], 0.0
-        while z < ST_H - 0.2: z += r.uniform(0.12, 0.18); zs.append(z)
-        zs.append(ST_H); return list(zip(zs, zs[1:]))
-    # the front: a sill course under the opening, two courses beside it, the lintel's course, a top course
-    edge = FB_W / 2 + 0.008
-    for z0, z1 in ((0.0, FB_LO), (FB_HI, 0.57), (0.57, ST_H)):
-        if z0 == FB_HI:
-            course_row('front', -hx, -0.31, z0, z1); course_row('front', 0.31, hx, z0, z1)
-        else: course_row('front', -hx, hx, z0, z1)
-    for z0, z1 in ((FB_LO, 0.28), (0.28, FB_HI)):
-        course_row('front', -hx, -edge, z0, z1); course_row('front', edge, hx, z0, z1)
-    box('lintel', (-0.31, hy - 0.13, FB_HI), (0.31, hy - 0.002, 0.565), SOOT, bevel=0.018, jitter=0.006, seed=5)
-    for face in ('back', 'left', 'right'):
-        for z0, z1 in courses():
-            if face == 'back': course_row(face, -hx, hx, z0, z1)
-            else: course_row(face, -hy + 0.06, hy - 0.06, z0, z1)
+        ob = fieldstone(f'stone{k[0]}', lo, hi, out, seed=100 + k[0], **kw)
+        for v in ob.data.vertices:
+            # (no stone more than a centimetre proud of the body's 0.9 x 0.8 or above 0.75)
+            v.co.x = max(-hx - 0.01, min(hx + 0.01, v.co.x)); v.co.y = max(-hy - 0.01, min(hy + 0.01, v.co.y)); v.co.z = max(0.0, min(ST_H, v.co.z))
+        return ob
+    def wall_stone(face, a, e, z0, z1, top):
+        # one stone of a course on a face, from a to e along it, 4 mm joints round it, its depth into the wall its own
+        dp = r.uniform(T, T + 0.035)
+        a, e = a + 0.004, e - 0.004
+        z0 = z0 + 0.003 if z0 > 0 else 0.0
+        z1 = z1 - (r.uniform(0.0, 0.006) if top else r.uniform(0.003, 0.014))
+        if e - a > 0.24 and r.random() < 0.35:
+            # (now and then two thin slabs one on the other in the place of one stone, the upper one shifted along)
+            zm = z0 + (z1 - z0) * r.uniform(0.4, 0.6); s = r.uniform(-0.03, 0.03)
+            wall_piece(face, a, e, z0, zm - 0.003, dp); wall_piece(face, a + max(0, s), e + min(0, s), zm + 0.003, z1, r.uniform(T, T + 0.035))
+        else: wall_piece(face, a, e, z0, z1, dp)
+    def wall_piece(face, a, e, z0, z1, dp):
+        if face == 'front': lay((a, hy - dp, z0), (e, hy, z1), (0, 1, 0), soot=sooty)
+        if face == 'back': lay((a, -hy, z0), (e, -hy + dp, z1), (0, -1, 0))
+        if face == 'right': lay((hx - dp, a, z0), (hx, e, z1), (1, 0, 0))
+        if face == 'left': lay((-hx, a, z0), (-hx + dp, e, z1), (-1, 0, 0))
+    def course(face, a0, a1, z0, z1, below=(), top=False):
+        # stones from a0 to a1, each 26-42 cm long, no joint within 7 cm of one in the course below, no sliver at the end
+        joints, a = [], a0
+        while a1 - a > 1e-4:
+            for _ in range(30):
+                e = a + r.uniform(0.2, 0.44)
+                if a1 - e < 0.17: e = a1
+                if e >= a1 or all(abs(e - j) > 0.07 for j in below): break
+            wall_stone(face, a, min(e, a1), z0, z1, top)
+            if e < a1: joints.append(e)
+            a = e
+        return joints
+    # the core the stones are laid round (soot: the joints look deep, the firebox is cut from it) and the flat stone closing its top
+    core = box('core', (-hx + 0.12, -hy + 0.12, 0.0), (hx - 0.12, hy - 0.1, 0.72), SOOT)
+    cut(core, box('cutter', (-FB_W / 2, hy - FB_IN, FB_LO), (FB_W / 2, hy + 0.2, FB_HI), SOOT))
+    box('capstone', (-hx + 0.1, -hy + 0.1, 0.7), (hx - 0.1, hy - 0.1, ST_H - 0.006), STONE, bevel=0.01, jitter=0.004, seed=6)
+    # the front: the jambs from the ground to the lintel, out to the corners; a sill under the mouth; the lintel the whole width;
+    # a course of two or three stones above
+    for sx in (-1, 1):
+        x0, x1 = sorted((sx * (FB_W / 2), sx * hx))
+        lay((x0, hy - r.uniform(0.16, 0.19), 0.0), (x1, hy, FB_HI - 0.003), (0, 1, 0), soot=sooty, keep_out=mouth, cuts=stain_cuts, bulge=0.01)
+    lay((-FB_W / 2 + 0.004, hy - 0.16, 0.0), (FB_W / 2 - 0.004, hy, FB_LO), (0, 1, 0), soot=sooty, keep_out=mouth, cuts=stain_cuts, bulge=0.004, skew=0.006)
+    lay((-hx + 0.006, hy - 0.19, FB_HI), (hx - 0.004, hy + 0.008, 0.6), (0, 1, 0), soot=sooty, keep_out=mouth, cuts=stain_cuts, bulge=0.006, skew=0.012)
+    course('front', -hx, hx, 0.603, ST_H, below=(), top=True)
+    # the back and the sides: three courses, the back's end stones running through the corners in the first and the third, the
+    # sides' in the second; the front's stones always own the front corners
+    zs = [0.0, 0.25 + r.uniform(-0.02, 0.02), 0.5 + r.uniform(-0.02, 0.02), ST_H]
+    below = {'back': (), 'left': (), 'right': ()}
+    for i, (z0, z1) in enumerate(zip(zs, zs[1:])):
+        back_owns = i % 2 == 0
+        top = i == 2
+        below['back'] = course('back', -hx if back_owns else -hx + T, hx if back_owns else hx - T, z0, z1, below['back'], top)
+        for face in ('left', 'right'):
+            below[face] = course(face, -hy + T if back_owns else -hy, hy - T, z0, z1, below[face], top)
     # the firebox: a bed of embers on its floor (top at about 0.14), lumps of coal glowing on it, two charred brands
     bed = [(math.cos(2 * math.pi * i / 16) * (FB_W / 2 - 0.02) * (1 + r.uniform(-0.05, 0.03)),
             hy - FB_IN / 2 - 0.02 + math.sin(2 * math.pi * i / 16) * (FB_IN / 2 - 0.03)) for i in range(16)]
@@ -216,29 +296,33 @@ def stove():
     for i, (x, t) in enumerate(((-0.06, 0.25), (0.07, -0.3))):
         a = Vector((x - 0.11 * math.sin(t), hy - FB_IN + 0.05, FB_LO + 0.045)); b = Vector((x + 0.11 * math.sin(t), hy - 0.05, FB_LO + 0.04))
         tube(f'brand{i}', [a, a.lerp(b, 0.5) + Vector((0, 0, 0.004)), b], 0.026 - 0.004 * i, SOOT)
-    # the heap: a sooty mound, round stones dropped onto it one by one (each resting on the mound or on stones already there), until
-    # the heap stands about 1.05 high
-    mound_r = (hx - 0.07, hy - 0.07)
-    blob('mound', Vector((0, 0, ST_H - 0.02)), Vector((mound_r[0], mound_r[1], 0.19)), SOOT, seed=9, subdiv=3, lumps=0.04)
+    # the heap: round stones, fist to head size, dropped one by one onto a hidden low mound on the capstone (each resting on the mound
+    # or on stones already there, laid at the lowest of a dozen spots), none higher than a dome rising to about 1.05 in the middle and
+    # none out past the walls; about a third of them fire-blackened
+    mound_r = (0.22, 0.18, 0.1)
+    blob('mound', Vector((0, 0, ST_H - 0.01)), Vector(mound_r), STONE, seed=9, subdiv=2, lumps=0.03)
     def ground(x, y):
         q = 1 - (x / mound_r[0]) ** 2 - (y / mound_r[1]) ** 2
-        return max(ST_H, ST_H - 0.02 + 0.19 * math.sqrt(q) if q > 0 else 0)
+        return max(ST_H, ST_H - 0.01 + mound_r[2] * math.sqrt(q) if q > 0 else 0)
+    def dome(x, y):
+        q = 1 - (x / (hx - 0.02)) ** 2 - (y / (hy - 0.02)) ** 2
+        return ST_H + 0.28 * max(0.0, q) ** 0.5
     placed = []
     def settle(x, y, rr):
-        z = ground(x, y) + rr * 0.45
+        z = ground(x, y) + rr * 0.4
         for px, py, pz, pr in placed:
             d2 = (x - px) ** 2 + (y - py) ** 2; reach = (rr + pr) * 0.85
-            if d2 < reach ** 2: z = max(z, pz + math.sqrt(reach ** 2 - d2) * 0.7)
+            if d2 < reach ** 2: z = max(z, pz + math.sqrt(reach ** 2 - d2) * 0.75)
         return z
-    for i in range(70):
-        # (each stone tried at a dozen spots, laid at the lowest: the heap fills in as gravel would)
-        rr = r.uniform(0.05, 0.1) if i < 45 else r.uniform(0.05, 0.07)
-        spots = [(r.uniform(-hx + rr * 1.3, hx - rr * 1.3), r.uniform(-hy + rr * 1.3, hy - rr * 1.3)) for _ in range(12)]
-        x, y, z = min(((x, y, settle(x, y, rr)) for x, y in spots), key=lambda t: t[2])
-        if z + rr * 0.75 > 1.06: continue
-        placed.append((x, y, z, rr))
-    print('heap stones', len(placed))
-    for i, (x, y, z, rr) in enumerate(placed): rock(f'rock{i}', Vector((x, y, z)), rr, 300 + i)
+    for i in range(600):
+        if len(placed) >= 56: break
+        rr = r.uniform(0.075, 0.11) if len(placed) < 18 else r.uniform(0.05, 0.08)
+        spots = [(r.uniform(-hx + 0.05 + rr, hx - 0.05 - rr), r.uniform(-hy + 0.05 + rr, hy - 0.05 - rr)) for _ in range(16)]
+        fits = [(x, y, z) for x, y in spots for z in [settle(x, y, rr)] if z + rr * 0.7 <= dome(x, y) + 0.02]
+        if not fits: continue
+        placed.append(min(fits, key=lambda t: t[2]) + (rr,))
+    print('heap stones', len(placed), 'top', round(max(z + rr * 0.7 for x, y, z, rr in placed), 3))
+    for i, (x, y, z, rr) in enumerate(placed): rock(f'rock{i}', Vector((x, y, z)), rr, 300 + i, SOOT if r.random() < 0.35 else STONE, segs=(9, 6))
     # the hearth: a flat stone in front, from the stove's face out to 0.6, 4 cm thick
     hearth = []
     for i in range(20):

@@ -333,8 +333,8 @@ namespace Bathhouse
             _mats = new[]
             {
                 Grain(wood, new Color(0.78f, 0.7f, 0.6f), 0.6f, "wood"),
-                Stone(wood, stone, new Color(0.82f, 0.8f, 0.77f), "stone"),
-                Stone(wood, stone, new Color(0.28f, 0.26f, 0.25f), "soot"),
+                Stone(wood, stone, new Color(0.9f, 0.84f, 0.76f), "stone"),
+                Stone(wood, stone, new Color(0.2f, 0.19f, 0.185f), "soot"),
                 Plain(wood, new Color(0.17f, 0.17f, 0.18f), "iron", gloss: 0.35f),
                 Plain(wood, new Color(0.13f, 0.2f, 0.22f), "water", gloss: 0.85f),
                 Glow(wood, new Color(1f, 0.38f, 0.08f), "ember"),
@@ -353,12 +353,13 @@ namespace Bathhouse
         private static Material Stone(Material wood, Material stone, Color tint, string name)
         {
             Material m = Plain(wood, tint, name);
-            // (a rock's own picture and bumps, in the pieces' shader: the rock shader lays moss on every upward face)
-            Material rock = ZNetScene.instance.GetPrefab("rock4_forest")?.GetComponentsInChildren<MeshRenderer>(true).Select(x => x.sharedMaterial).FirstOrDefault(x => x != null);
+            // (the hammer's stone pile's picture and bumps: dry field stone, warm grey; a rock's would be blue, and its shader lays moss on
+            // every upward face)
+            Material rock = PieceMat(ZNetScene.instance, "stone_pile");
             if (rock?.mainTexture != null)
             {
-                m.mainTexture = rock.mainTexture; m.mainTextureScale = Vector2.one * 0.6f;
-                if (m.HasProperty("_BumpMap") && rock.HasProperty("_BumpMap")) { m.SetTexture("_BumpMap", rock.GetTexture("_BumpMap")); m.SetTextureScale("_BumpMap", Vector2.one * 0.6f); }
+                m.mainTexture = rock.mainTexture; m.mainTextureScale = Vector2.one * 2f;
+                if (m.HasProperty("_BumpMap") && rock.HasProperty("_BumpMap")) { m.SetTexture("_BumpMap", rock.GetTexture("_BumpMap")); m.SetTextureScale("_BumpMap", Vector2.one * 2f); }
             }
             return m;
         }
