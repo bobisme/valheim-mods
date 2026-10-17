@@ -1,3 +1,5 @@
+0.11.3: Longhouse smoke holes are left open: the lower roof piece that sat over each one kept the smoke in.
+
 0.11.2: No change you can see: the sketch drawing now lives in a library shared with BuildShapes (which draws its shapes the same way from BuildShapes 0.12.0).
 
 0.11.1: Over a sketch, the markers and the outline's dashes are blue pencil instead of red chalk (red looked like an error).

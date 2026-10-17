@@ -40,7 +40,7 @@ namespace Hallwright
             internal string Floor="wood_floor", Wall="woodwall", Half="wood_wall_half", Quarter="wood_wall_quarter", Door="wood_door";
             internal string Post="wood_pole2", Beam="wood_beam", ShortBeam="wood_beam_1";
             internal string Roof="wood_roof_45", Ridge="wood_roof_top_45", Wedge="wood_wall_roof_45";
-            internal string Arch=null, Raven=null, Lattice=null, LoadPost=null, Window=null, SmallFloor=null, StoneFence=null, LowRoof=null, LowRidge=null;
+            internal string Arch=null, Raven=null, Lattice=null, LoadPost=null, Window=null, SmallFloor=null, StoneFence=null;
             internal double Slope=1, BeamLength=2, ShortLength=1, DoorHeight=2, JoistDrop=0.2;
             internal int SpanCells=4;
         }
@@ -524,19 +524,11 @@ namespace Hallwright
                 }
                 for(int row=0;row<wing.Length;row++)for(int col=0;col<wing.Width;col++)
                 {
-                    bool hole=flues.Contains((col,row));
-                    // A longhouse smoke hole under a steep roof gets a 26° piece: it sits lower than its neighbours,
-                    // keeping the rain off while leaving a slit for the smoke.
-                    if(hole && !(details.Norse && kit.Slope>0.5 && kit.LowRoof!=null && kit.LowRidge!=null))continue;
+                    // A smoke hole is left open: a lowered roof piece over it kept the smoke in.
+                    if(flues.Contains((col,row)))continue;
                     bool center=wing.Width%2==1 && col==wing.Width/2;
                     bool left=col<wing.Width/2;
                     double low=roofBase+Math.Min(col,wing.Width-1-col)*2*kit.Slope+Lift(col);
-                    if(hole)
-                    {
-                        if(center)Add(kit.LowRidge,wing.At(col*2+1,low,row*2+1),Anchor.Floor,yaw+90,"smoke hole roof");
-                        else Add(kit.LowRoof,wing.At(left?col*2:(col+1)*2,low,row*2+1),Anchor.RoofLow,yaw+(left?270:90),"smoke hole roof");
-                        continue;
-                    }
                     if(center)Add(kit.Ridge,wing.At(col*2+1,low,row*2+1),Anchor.Floor,yaw+90,"roof");
                     else Add(kit.Roof,wing.At(left?col*2:(col+1)*2,low,row*2+1),Anchor.RoofLow,yaw+(left?270:90),"roof");
                 }
