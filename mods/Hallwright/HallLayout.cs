@@ -677,29 +677,32 @@ namespace Hallwright
                 for(int end=0;end<2;end++)
                 {
                     double v=end*length;
-                    // A cabin's gable is logs too, each course resting on the one below and as long as fits under the roof,
-                    // in front of the boards that close the triangles at its ends.
+                    // A cabin's gable is logs halfway up, each course reaching the roof on both sides (its logs overlap to fit, every
+                    // other one a hair further out so they never flicker); boards close the gable only above them.
+                    double logTop=0;
                     if(details.Cabin && kit.Log!=null && wing.TierLift==0)
-                        for(double y=0;;y+=0.5)
+                        for(double y=0;y+0.5<=(peak-roofBase)/2+0.25+1e-9;y+=0.5)
                         {
-                            int n=(int)Math.Floor(width/2-(y+0.5)/kit.Slope+1e-9);
-                            if(n<1)break;
+                            double reach=width-2*(y+0.25)/kit.Slope;
+                            if(reach<2-1e-9)break;
+                            int n=(int)Math.Ceiling(reach/2-1e-9);
                             for(int i=0;i<n;i++)
                             {
-                                double u=width/2-n+1+2*i;
+                                double u=n==1?width/2:width/2-reach/2+1+(reach-2)*i/(n-1);
                                 if(flues.Any(f=>f.row==(end==0?0:wing.Length-1) && f.col*2<u+1-1e-9 && f.col*2+2>u-1+1e-9))continue;
-                                Add(kit.Log,wing.At(u,roofBase+y,v),Anchor.Bottom,yaw,"gable log");
+                                Add(kit.Log,wing.At(u,roofBase+y,v+(i%2==1?(end==0?-0.015:0.015):0)),Anchor.Bottom,yaw,"gable log");
                             }
+                            logTop=y+0.5;
                         }
                     for(int col=0;col<wing.Width;col++)
                     {
                         double low=Math.Min(col,wing.Width-1-col)*2*kit.Slope+Lift(col);
                         for(int h=0;h<low-0.001;h+=2)
-                            Add(h+2<=low?kit.Wall:kit.Half,wing.At(col*2+1,roofBase+h,v),Anchor.Bottom,yaw,"gable");
+                            if(Math.Min(h+2,low)>logTop+1e-9)Add(h+2<=low?kit.Wall:kit.Half,wing.At(col*2+1,roofBase+h,v),Anchor.Bottom,yaw,"gable");
                         bool center=wing.Width%2==1 && col==wing.Width/2;
                         // The chimney's own wall closes the gable triangle under a flue at the wing's end.
                         if(flues.Contains((col,end==0?0:wing.Length-1)))continue;
-                        if(!center)Add(kit.Wedge,wing.At(col*2+1,roofBase+low,v),Anchor.Bottom,yaw+(col<wing.Width/2?0:180),"gable");
+                        if(!center && low+2*kit.Slope>logTop+1e-9)Add(kit.Wedge,wing.At(col*2+1,roofBase+low,v),Anchor.Bottom,yaw+(col<wing.Width/2?0:180),"gable");
                         // Odd-width peak is an intentional small triangular gable vent.
                         else if(detail>0)
                         {

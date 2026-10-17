@@ -535,16 +535,19 @@ foreach(var (w,d) in new[]{(8,10),(10,8),(6,6)})
   Check(ends.Count==courses && courses>0,"Each log at a corner has its end crossing past it");
   Check(ends.All(p=>Math.Abs(Math.Abs(p.At.X-c.X)+Math.Abs(p.At.Z-c.Z)-0.515)<1e-9),"Log ends reach half a metre past the corner");
  }
- // Gable logs: each course rests on a wider one and stays under the roof.
- var wing=cabin.Wings.Single();double span=wing.Width*2;
+ // Gable logs: halfway up the gable, each course reaching the roof on both sides; boards only above them.
+ var wing=cabin.Wings.Single();double span=wing.Width*2,rise=span/2*2;
+ double Across(V3 p)=>wing.Across?p.Z-wing.Z*2:p.X-wing.X*2;
  var gableLogs=cabin.Parts.Where(p=>p.Role=="gable log").ToList();
  Check(gableLogs.Count>0,"Log gables");
- foreach(var g in gableLogs)
+ double logTop=gableLogs.Max(g=>g.At.Y)+0.5-3;
+ Check(logTop<=rise/2+0.25+1e-9 && logTop>=rise/2-0.5,"Logs reach halfway up the gable");
+ foreach(var course in gableLogs.GroupBy(g=>(Math.Round(g.At.Y,3),Math.Round(wing.Across?g.At.X:g.At.Z))))
  {
-  double across=wing.Across?g.At.Z-wing.Z*2:g.At.X-wing.X*2,y=g.At.Y-3;
-  Check(Math.Abs(across-span/2)+1<=span/2-(y+0.5)/2+1e-9,"A gable log stays under the roof line");
-  Check(y<1e-9 || gableLogs.Any(q=>Math.Abs(q.At.Y-(g.At.Y-0.5))<1e-9 && Math.Abs(q.At.X-g.At.X)<2-1e-9 && Math.Abs(q.At.Z-g.At.Z)<2-1e-9),"A gable log rests on the course below");
+  double y=course.Key.Item1-3,reach=span-2*(y+0.25)/2;
+  Check(Math.Abs(course.Min(g=>Across(g.At))-1-(span-reach)/2)<1e-6 && Math.Abs(course.Max(g=>Across(g.At))+1-(span+reach)/2)<1e-6,"A gable course reaches the roof at both ends");
  }
+ Check(!cabin.Parts.Any(p=>p.Role=="gable" && p.Prefab=="woodwall" && p.At.Y+2<=3+logTop+1e-9),"No boards hidden behind the logs");
  Check(cabin.Parts.Where(p=>p.Role=="chimney").All(p=>p.Prefab=="wood_wall_log"),"A log chimney");
  Check(!cabin.Parts.Any(p=>p.Role=="post"),"Log walls carry their own corners");
  Check(cabin.Parts.Count(p=>p.Role=="stone footing")>0,"Cabin stands on a stone footing");

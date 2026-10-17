@@ -1,3 +1,5 @@
+0.12.3: A mountain cabin's gable logs go halfway up the gable, and every course reaches the roof on both sides (its logs overlap to fit); the boards behind them are gone, and only the upper half of the gable is boarded.
+
 0.12.2: Mountain cabin, as a log cabin is built: every log course runs half a metre past the corners, crossing the other wall's; logs fill the gables, each course resting on the one below and as long as fits under the roof; the chimney is a crib of stacked logs; the footing is two courses of fieldstone fence with a dressed stone filling each outside corner. Stone keep corners are filled the same way, every course. Under timber halls, temples and cabins the stone foundation is stone pillars at the corners, every 4 m along the walls and on a 4 m grid inside, with beams spanning them under the floor, instead of stone under every floor tile: far less stone.
 
 0.12.1: A mountain cabin's gables are boarded, like the ends of a real log cabin's roof: the logs stacked in the gable had nothing holding them.
