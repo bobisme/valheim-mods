@@ -52,7 +52,7 @@ namespace Jarldom
                 case "rest": Lost.Rested(this, Get(a, 0), Get(a, 1), who); break;
                 case "among": Among.Owned(this, arg, who); break;
                 case "ascend": Ascension.Begin(this, a[0], who); break;
-                case "rule": if (Get(a, 1) == "rite") Thing.RuleRite(this, Int(a, 0), who, a.Length > 2 ? string.Join("|", a.Skip(2)) : null); else Thing.Rule(this, Int(a, 0), Get(a, 1) == "yes", who, a.Length > 2 ? string.Join("|", a.Skip(2)) : null); break;
+                case "rule": if (Get(a, 1) == "fine" || Get(a, 1) == "outlaw") Thing.RuleJustice(this, Int(a, 0), Get(a, 1), who, a.Length > 2 ? string.Join("|", a.Skip(2)) : null); else if (Get(a, 1) == "rite") Thing.RuleRite(this, Int(a, 0), who, a.Length > 2 ? string.Join("|", a.Skip(2)) : null); else Thing.Rule(this, Int(a, 0), Get(a, 1) == "yes", who, a.Length > 2 ? string.Join("|", a.Skip(2)) : null); break;
                 case "thingcall": Thing.Call(this, who); break;
                 case "thingspoke": Thing.Speak(this, arg == "" ? null : arg); break;
                 case "thingend": if (Thing.Held(this)) Thing.Close(this, "adjourned by " + who); break;

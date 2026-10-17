@@ -442,7 +442,7 @@ namespace Jarldom
         {
             if (!IsOwner) { Net.SendFallen(this, s, bag, at, why, false); return; }
             R.Fallen.RemoveAll(f => f.Vid == s.Vid);
-            double away = Mining.Decode(why, out _, out double dig, out _) ? dig : why.StartsWith(Mining.Escort) && double.TryParse(why.Substring(Mining.Escort.Length), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double guarding) ? guarding : why.StartsWith(Carts.Prefix) && double.TryParse(why.Substring(Carts.Prefix.Length), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double trip) ? trip : Trading.Decode(why, out _, out TradeWay way) ? Clock.DayLength * Trading.AwayDays(way) : Clock.DayLength; // (a carter's round trip; a trader's day, longer by sea)
+            double away = Mining.Decode(why, out _, out double dig, out _) ? dig : why.StartsWith(Mining.Escort) && double.TryParse(why.Substring(Mining.Escort.Length), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double guarding) ? guarding : why.StartsWith(Carts.Prefix) && double.TryParse(why.Substring(Carts.Prefix.Length), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double trip) ? trip : Trading.Decode(why, out _, out TradeWay way) ? Clock.DayLength * Trading.AwayDays(way) : Justice.Decode(why, out double outlawed) ? outlawed : Clock.DayLength; // (a carter's round trip; a trader's day, longer by sea; an outlaw's season)
             R.Fallen.Add(new Fallen { Vid = s.Vid, State = s.Save(), Gear = bag ?? new byte[0], At = Now + away - Plugin.Instance.RespawnSeconds.Value, X = at.x, Y = at.y, Z = at.z, Killer = why });
             _dirty = true; Flush();
         }
@@ -458,11 +458,12 @@ namespace Jarldom
                 VillagerState s;
                 try { s = VillagerState.Load(f.State); } catch { s = null; }
                 if (s == null) { R.Fallen.Remove(f); continue; }
-                if (string.IsNullOrEmpty(s.Bed) && now - f.At < wait * 3 && !f.Killer.StartsWith("trade:")) continue; // (no bed to rise at: slower, by the pillars)
+                if (string.IsNullOrEmpty(s.Bed) && now - f.At < wait * 3 && !f.Killer.StartsWith("trade:") && !f.Killer.StartsWith(Justice.OutlawPrefix)) continue; // (no bed to rise at: slower, by the pillars)
                 if (Villagers.Body(s.Vid) != null) { R.Fallen.Remove(f); continue; } // already up somewhere
                 bool carter = f.Killer.StartsWith(Carts.Prefix);
                 bool miner = f.Killer.StartsWith(Mining.Prefix) || f.Killer.StartsWith(Mining.Escort);
-                bool trader = f.Killer.StartsWith("trade:") || carter || miner;
+                bool outlaw = f.Killer.StartsWith(Justice.OutlawPrefix);
+                bool trader = f.Killer.StartsWith("trade:") || carter || miner || outlaw;
                 if (RaidOn && !trader) continue; // (no one rises while a raid is on: up at their bed in the thick of it, they only fell again, and again, until Hel kept them)
                 // (one back from the road comes walking in from the colony's edge, on the side they went; the dead rise at their bed)
                 Vector3? at = trader ? Road(f) ?? Spot(Position + Seat.transform.forward * 3, 2.5f) : Survey_BedSpot(s.Bed) ?? (Vector3?)Spot(Position, 3);
@@ -474,6 +475,7 @@ namespace Jarldom
                 R.Fallen.Remove(f);
                 if (!trader) Assets.Effect("vfx_spawn", at.Value);
                 if (miner) Plugin.Guard(() => Claims.Home(this, h, s, f));
+                else if (outlaw) Log("text", s.Name, "", $"{s.FullName} came back from their outlawry, their wrong paid for.");
                 else if (trader)
                 {
                     TradeWay way = TradeWay.Foot;
@@ -535,22 +537,29 @@ namespace Jarldom
             var souls = Villagers.All.Where(b => b.S.Colony == R.Id).ToList();
             int due = Payroll.Due(souls.Select(b => b.S), Payroll.EveryDays, GuardExtra) * Plugin.Instance.WageScale.Value / 100;
             if (due <= 0) return;
+            // (a fine owed from the Thing: that much of their pay stays in the treasury)
+            int docked = souls.Sum(b => Math.Min(b.S.Count(Justice.FineKey), WageOf(b.S)));
+            due -= docked;
             Container treasury = Stock.Treasury(this);
             int coins = treasury != null ? Stock.Coins(treasury) : 0;
             // (the treasury chest open, or left stuck open: tried again every few seconds through the day, not a payday missed with the coins there)
             bool open = treasury != null && ContainerAccess.InUse(treasury);
             if (open && Payroll.CanPay(coins, due) && Day <= day) { if (R.Flag(PayRetry) == 0) Tell("Payday waits: the treasury chest is open."); R.Flags[PayRetry] = day; _dirty = true; return; }
             R.Flags.Remove(PayRetry);
-            bool paid = treasury != null && Payroll.CanPay(coins, due) && Stock.TakeCoins(treasury, due) || Outposts.Credit(this, due); // (an outpost's wages fall to its main colony)
+            bool paid = due <= 0 || treasury != null && Payroll.CanPay(coins, due) && Stock.TakeCoins(treasury, due) || Outposts.Credit(this, due); // (an outpost's wages fall to its main colony)
             if (paid)
             {
+                var fined = new List<string>();
                 foreach (Brain b in souls)
                 {
-                    int wage = (Tables.Wage(b.S.Prof, b.S.Has("greedy")) + (b.S.Prof == Prof.Guard ? GuardExtra : 0)) * Payroll.EveryDays * Plugin.Instance.WageScale.Value / 100;
-                    b.S.Hoard += Payroll.Hoarded(wage); b.S.Unpaid = 0; Mood.Remove(b.S, "unpaid"); b.Dirty();
+                    int wage = WageOf(b.S);
+                    int kept = Justice.Dock(b.S, wage);
+                    if (kept > 0) fined.Add($"{b.S.Name} {kept}");
+                    b.S.Hoard += Payroll.Hoarded(wage - kept); b.S.Unpaid = 0; Mood.Remove(b.S, "unpaid"); b.Dirty();
                 }
                 R.MissedPaydays = 0;
                 Log("payday", "", due.ToString());
+                if (fined.Count > 0) Log("text", "", "", $"Fines kept back from the wages for the treasury: {string.Join(", ", fined)} coins.", true);
             }
             else
             {
@@ -560,6 +569,8 @@ namespace Jarldom
             }
             _dirty = true;
         }
+
+        private int WageOf(VillagerState s) => (Tables.Wage(s.Prof, s.Has("greedy")) + (s.Prof == Prof.Guard ? GuardExtra : 0)) * Payroll.EveryDays * Plugin.Instance.WageScale.Value / 100;
 
         // What's owed for the paydays missed: a payday's wages for each (as they are now), paid at once from the treasury, or not at all.
         public int Owed() => R.MissedPaydays <= 0 ? 0 : R.MissedPaydays * (IsOwner ? Payroll.Due(Villagers.All.Where(b => b.S.Colony == R.Id).Select(b => b.S), Payroll.EveryDays, GuardExtra)

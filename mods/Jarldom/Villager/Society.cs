@@ -121,7 +121,13 @@ namespace Jarldom
             {
                 Container chest = Stock.ChestsFor(b).Select(x => x.chest).FirstOrDefault(ch => !ContainerAccess.InUse(ch) && ch.GetInventory().NrOfItems() > 0);
                 ItemDrop.ItemData item = chest?.GetInventory().GetAllItems().OrderBy(_ => rng.Next()).FirstOrDefault();
-                if (item != null && Stock.Take(chest, b.Body.GetInventory(), item, 1) > 0) { b.S.Bump("thefts"); b.Colony.Log("theft", b.S.Name, ""); }
+                if (item != null && Stock.Take(chest, b.Body.GetInventory(), item, 1) > 0)
+                {
+                    b.S.Bump("thefts");
+                    // (why: what weighed on them most, kept by the theft so the Thing hears it)
+                    foreach (string why in Justice.Why(b.S, now)) b.S.Bump(Justice.WhyKey + why);
+                    b.Colony.Log("theft", b.S.Name, "", string.Join(", ", Justice.Why(b.S, now)));
+                }
             }
             if (mood < -80 && b.S.LowMoodSince > 0 && now - b.S.LowMoodSince > Clock.DayLength * 2 && !b.S.Disgraced)
             {

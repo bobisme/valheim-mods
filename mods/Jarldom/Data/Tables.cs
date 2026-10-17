@@ -164,6 +164,7 @@ namespace Jarldom
             M("bathed", "Bathed on washing day", 8, 168, fades: true),
             M("plunge", "A cold plunge after the sauna", 3, 12),
             M("unwashed", "Nowhere to bathe on washing day", -4, 24),
+            M("shamed", "Judged a thief at the Thing", -6, 72),
             M("marvel", "Saw a blade out of the old songs", 6, 24),
             M("expedition", "Went out with the jarl", 8, 48),
             M("dressed", "Dressed well", 4, 0),

@@ -150,6 +150,7 @@ namespace Jarldom
             foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id))
             {
                 if (b.S.Count("thefts") > 0 || b.S.Count("brawls") > 0) view.Troublemakers.Add((b.S.Name, b.S.Count("thefts"), b.S.Count("brawls")));
+                if (b.S.Count("thefts") > 0) view.Causes[b.S.Name] = Justice.Causes(b.S);
                 if (b.S.Count("seen") > 0) view.Suspects.Add((b.S.Name, b.S.Count("seen")));
             }
             foreach (var feud in Villagers.All.Where(b => b.S.Colony == c.Id).SelectMany(b => b.S.Bonds.Where(kv => kv.Value < -50).Select(kv => (b.S.Name, Villagers.ByVid(kv.Key)?.S.Name))).Where(f => f.Item2 != null && string.CompareOrdinal(f.Item1, f.Item2) < 0).Distinct())
@@ -314,6 +315,58 @@ namespace Jarldom
             c.R.Flags[Spoken] = 0; c.R.Flags[Since] = (int)c.Now;
             if (list.Count == 0) Close(c, "");
             c.MarkDirty();
+        }
+        // A thief judged the old way, neither cast out nor let be: the bót ("fine": their next wages kept back for the treasury), or a
+        // season's outlawry ("outlaw": off for some days, back after with all they had). The hall's glad of justice done; the thief is
+        // shamed, and minds the jarl for it.
+        public static string JusticeWhy(Colony c, Petition p, string how)
+        {
+            Brain thief = p.Id == "exile" ? Villagers.All.FirstOrDefault(x => x.S.Colony == c.Id && x.S.Name == p.About) : null;
+            if (thief == null) return "they're not here";
+            if (how == "fine" && !Justice.Fineable(thief.S)) return "they were judged once before and stole again";
+            return "";
+        }
+        public static void RuleJustice(Colony c, int index, string how, string who, string key = null)
+        {
+            var list = Pending(c);
+            if (!Held(c) || index != c.R.Flag(Cur) - 1 || index < 0 || index >= list.Count || c.R.Flag(Spoken) != 1) return;
+            Petition p = list[index];
+            if (key != null && key != p.Key || p.Id != "exile" || how != "fine" && how != "outlaw") return;
+            string why = JusticeWhy(c, p, how);
+            if (why != "") { c.Tell($"Not that: {why}.", true); return; }
+            Brain thief = Villagers.All.First(x => x.S.Colony == c.Id && x.S.Name == p.About);
+            c.R.Flags["ruled:" + p.Key] = c.Day;
+            list.RemoveAt(index);
+            foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id && b != thief))
+            {
+                Mood.Add(b.S, "thingheard", b.Now);
+                b.S.Opinions[who] = Mathf.Clamp((b.S.Opinions.TryGetValue(who, out int o) ? o : 0) + JusticeOpinion, -100, 100);
+                b.Dirty();
+            }
+            int fine = Justice.Fine(thief.S, c.GuardExtra) * Plugin.Instance.WageScale.Value / 100;
+            Justice.Judged(thief.S);
+            Mood.Add(thief.S, "shamed", thief.Now);
+            thief.S.Opinions[who] = Mathf.Clamp((thief.S.Opinions.TryGetValue(who, out int t) ? t : 0) + (how == "fine" ? -5 : -10), -100, 100);
+            if (how == "fine") thief.S.Counts[Justice.FineKey] = thief.S.Count(Justice.FineKey) + fine;
+            thief.Dirty();
+            string said = how == "fine" ? $"Let {p.About} pay the bót: {fine} coins of their wages, to the treasury" : $"Let {p.About} be outlawed {Justice.OutlawDays} days, then come home";
+            c.Log("text", who, "", $"At the Thing, {who} said: \"{said}.\" ({p.Text})");
+            c.Tell($"{who}: “{said}.” The Thing cheers.", true);
+            React(c, p, 3);
+            thief.Say(how == "fine" ? new[] { "...I'll pay it.", "It's fair. I'll pay.", "So be it. My wages, then." }[UnityEngine.Random.Range(0, 3)] : new[] { "Three days, then. I'll be back.", "I'll go. And I'll come back.", "...As the jarl wills." }[UnityEngine.Random.Range(0, 3)], 5);
+            if (how == "outlaw") Villagers.Command(thief.S.Vid, "outlaw", (Clock.DayLength * Justice.OutlawDays).ToString("0", System.Globalization.CultureInfo.InvariantCulture));
+            c.R.Flags[Ruled] = c.R.Flag(Ruled) + 1;
+            c.R.Flags[Spoken] = 0; c.R.Flags[Since] = (int)c.Now;
+            if (list.Count == 0) Close(c, "");
+            c.MarkDirty();
+        }
+        public const int JusticeOpinion = 3;
+        // What a ruling does to everyone, said plainly: the moodlet a ruling gives (by its sign), and the opinion of the jarl (by its size).
+        public static string EffectText(int opinion)
+        {
+            MoodletInfo m = Tables.Moodlet(opinion >= 0 ? "thingheard" : "thingignored");
+            string days = m.Hours % 24 == 0 ? $"{m.Hours / 24:0} days" : $"{m.Hours:0} hours";
+            return $"{m.Value:+0;-0} mood for {days}{(opinion != 0 ? $", {opinion:+0;-0} opinion of you" : "")}";
         }
         public static void Rule(Colony c, int index, bool yes, string who, string key = null)
         {

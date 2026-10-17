@@ -199,7 +199,7 @@ namespace Jarldom
                     $"{e.A} was caught stealing from the stores.",
                     $"{e.A} was caught pocketing what was not theirs.",
                     $"{e.A} was caught thieving in the hall.",
-                    $"{e.A} was caught with a hand in the stores.");
+                    $"{e.A} was caught with a hand in the stores.") + (string.IsNullOrEmpty(e.Text) ? "" : $" ({e.Text}.)");
                 case "ask": return Telling(e,
                     $"{e.A} asked a thing of the jarl: {e.Text}.",
                     $"{e.A} came to the jarl with an ask: {e.Text}.",
@@ -363,6 +363,7 @@ namespace Jarldom
     public sealed class ColonyView
     {
         public int Population; public bool HasBeautyRoom, HasShrine; public int Treasury, Due; public List<(string name, int thefts, int brawls)> Troublemakers = new List<(string, int, int)>();
+        public Dictionary<string, string> Causes = new Dictionary<string, string>(); // (a thief's name → why they stole: "unpaid, hungry")
         public List<(string a, string b)> Feuds = new List<(string, string)>(); public int GuardWage; public int MissedPaydays; public bool Hungry; public int Beds;
         public List<(string name, int seen)> Suspects = new List<(string, int)>();
         public bool GreatWork; // (a village by the sea, no great work begun: the Thing may ask for a lighthouse)
@@ -379,7 +380,7 @@ namespace Jarldom
             var all = new List<Petition>();
             if (!c.HasBeautyRoom) all.Add(new Petition { Id = "beauty", Text = "Build us something fine to look at: a hall worth the name, with banners and carvings.", Yes = "Promise it", No = "Refuse", YesMood = 4, NoMood = -4 });
             foreach (var t in c.Troublemakers.Where(t => t.thefts >= 2))
-                all.Add(new Petition { Id = "exile", About = t.name, Text = $"Exile {t.name}: they have stolen {t.thefts} times.", Yes = "Exile them", No = "Forgive", YesMood = 3, NoMood = -3, YesDeed = "exiled" });
+                all.Add(new Petition { Id = "exile", About = t.name, Text = $"{t.name} has stolen from the stores {t.thefts} times{(c.Causes.TryGetValue(t.name, out string why) && why != "" ? $", when {why}" : "")}. Judge them.", Yes = "Exile them", No = "Forgive", YesMood = 3, NoMood = -3, YesDeed = "exiled" });
             foreach (var f in c.Feuds)
                 all.Add(new Petition { Id = "feud", About = f.a + "|" + f.b, Text = $"A blood feud: {f.a} and {f.b} must settle it before the Thing.", Yes = "Make them swear peace", No = "Let them fight it out", YesMood = 2, NoMood = -2 });
             if (c.MissedPaydays > 0) all.Add(new Petition { Id = "wages", Text = "Pay what is owed: the treasury came up short.", Yes = "Swear to pay", No = "Times are hard", YesMood = 5, NoMood = -6 });
@@ -403,6 +404,8 @@ namespace Jarldom
         {
             var keys = new HashSet<string>(standing.Select(p => p.Key));
             var withdrawn = pending.Where(p => !keys.Contains(p.Key)).ToList();
+            // (what still stands is told as it stands now: a thief's count of thefts, and why)
+            foreach (Petition p in pending) if (standing.FirstOrDefault(x => x.Key == p.Key) is Petition now) { p.Text = now.Text; p.Yes = now.Yes; p.No = now.No; }
             var raised = new List<Petition>();
             var waiting = new HashSet<string>(pending.Select(p => p.Key));
             if (pending.Count - withdrawn.Count < Most)

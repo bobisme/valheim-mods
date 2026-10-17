@@ -821,18 +821,22 @@ namespace Jarldom.Ui
                 Petition p = petitions[i]; int idx = i;
                 int waited = _c.Day - p.Day;
                 y = Text(list, "“" + p.Text + "”", y + 2, 18, GameUi.Text);
-                y = Text(list, $"{(p.ByName != "" ? "Raised by " + p.ByName : "Raised")} {(waited <= 0 ? "today" : waited == 1 ? "yesterday" : waited + " days ago")}. {p.Yes}: {Effect(p.YesMood)}; {p.No.ToLower()}: {Effect(p.NoMood)}.", y - 2, 14, waited >= Petitions.UnheardAfter ? GameUi.Warn : GameUi.Dim, 24);
+                y = Text(list, $"{(p.ByName != "" ? "Raised by " + p.ByName : "Raised")} {(waited <= 0 ? "today" : waited == 1 ? "yesterday" : waited + " days ago")}. {(p.Id == "exile" ? $"Fine them or outlaw them a while: {Thing.EffectText(Thing.JusticeOpinion)}; exile" : p.Yes)}: {Thing.EffectText(p.YesMood)}; {p.No.ToLower()}: {Thing.EffectText(p.NoMood)}.", y - 2, 14, waited >= Petitions.UnheardAfter ? GameUi.Warn : GameUi.Dim, 24);
                 if (Thing.Ready(_c) && Thing.Current(_c) == p)
                 {
                     float rx = 8;
-                    Btn(list, p.Yes, ref rx, y, () => Net.Act(_c, "rule", idx + "|yes|" + p.Key));
+                    if (p.Id == "exile")
+                    {
+                        Tip(Btn(list, "Fine them", ref rx, y, () => Net.Act(_c, "rule", idx + "|fine|" + p.Key), Thing.JusticeWhy(_c, p, "fine") == ""), "The bót", "Their next payday's wages stay in the treasury. " + (Thing.JusticeWhy(_c, p, "fine") is string fw && fw != "" ? "Not now: " + fw + "." : ""));
+                        Tip(Btn(list, $"Outlaw {Justice.OutlawDays} days", ref rx, y, () => Net.Act(_c, "rule", idx + "|outlaw|" + p.Key), Thing.JusticeWhy(_c, p, "outlaw") == ""), "A season's outlawry", $"Off for {Justice.OutlawDays} days, then home with all they had.");
+                    }
+                    Btn(list, p.Id == "exile" ? "Exile" : p.Yes, ref rx, y, () => Net.Act(_c, "rule", idx + "|yes|" + p.Key));
                     Btn(list, p.No, ref rx, y, () => Net.Act(_c, "rule", idx + "|no|" + p.Key));
                     y += 50;
                 }
             }
             return y;
         }
-        private static string Effect(int mood) => mood > 0 ? "pleases them" : mood < 0 ? "angers them" : "no one minds";
 
         private static float Gods(RectTransform list)
         {

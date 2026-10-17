@@ -692,6 +692,8 @@ namespace Jarldom
                         output(new JObject { ["removed"] = off });
                     }
                     break;
+                // Test: outlaw <name> [seconds]: sent off as a season's outlawry from the Thing would (no Thing held, nothing judged), back after.
+                case "outlaw": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } double secs = a.Length > 3 ? F(a[3]) : Clock.DayLength * Justice.OutlawDays; b.Command("outlaw", secs.ToString("0", System.Globalization.CultureInfo.InvariantCulture)); output(new JObject { ["outlawed"] = b.S.Name, ["seconds"] = secs }); } break;
                 case "mood": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } b.Command("mood", a[3]); output(new JObject { ["mood"] = Mood.Of(b.S, b.Now) }); } break;
                 // Test: asks (read-only): every ask here, what this player took on, what the world offers. ask <name> make [Kind] [deed] |
                 // take | done | answer | clear: make one (a kind forced: tried until it comes up), take it on as this player, mark it done

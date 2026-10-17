@@ -492,6 +492,7 @@ namespace Jarldom
                     break;
                 case "summon": Follow.End(this, new[] { "Coming.", "On my way.", "Coming, jarl.", "Right behind you.", "Coming now." }[UnityEngine.Random.Range(0, 5)]); if (Colony == null || !Colony.Valid) { Follow.HomeFrom(this); break; } Task?.Stop(this); Task = new SummonTask(Colony.Position + Colony.Seat.transform.forward * 2.5f); Task.Start(this); break;
                 case "dismiss": Dismiss(); return;
+                case "outlaw": if (double.TryParse(arg, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double secs)) Plugin.Instance.StartCoroutine(Outlawed(secs)); return; // (a season's outlawry from the Thing: off for a while, then home)
                 case "mood": Jarldom.Mood.Add(S, arg, Now); break;
                 case "opinion": { int bar = arg.LastIndexOf('|'); if (bar > 0 && int.TryParse(arg.Substring(bar + 1), out int by)) { string who = arg.Substring(0, bar); S.Opinions[who] = Mathf.Clamp((S.Opinions.TryGetValue(who, out int was) ? was : 0) + by, -100, 100); } } break;
                 case "gain": Worth.Gain(S, arg, Faith.OdinWorthBonus(Colony)); S.Bump(arg + "s"); break; // (a deed the colony did together: worth, which also ends the Dimming)
@@ -569,6 +570,12 @@ namespace Jarldom
                     break;
             }
             Dirty(); Save();
+        }
+        // (a few seconds to have their say at the Thing, then off)
+        private System.Collections.IEnumerator Outlawed(double seconds)
+        {
+            yield return new WaitForSeconds(4f);
+            if (View != null && View.IsValid() && Body != null && !Body.IsDead()) Away(Justice.OutlawCode(seconds));
         }
         // Gone for a while (a trade run): the soul and everything they carry wait in the colony's record, and come back at the pillars.
         public void Away(string why)
