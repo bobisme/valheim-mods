@@ -4,6 +4,7 @@
     <EmbeddedResource Include="Models/warstone/warstone.json.gz" LogicalName="Shieldwall.warstone.json.gz" />
     <EmbeddedResource Include="Models/socket/socket.json.gz" LogicalName="Shieldwall.socket.json.gz" />
     <EmbeddedResource Include="Models/stave/stave_*.json.gz" LogicalName="Shieldwall.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Models/stave/stave_*.png" LogicalName="Shieldwall.%(Filename)%(Extension)" />
     <EmbeddedResource Include="Models/upgrade/up_*.json.gz" LogicalName="Shieldwall.%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>

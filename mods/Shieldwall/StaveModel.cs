@@ -36,11 +36,15 @@ namespace Shieldwall
                     if(raw==null)return null;
                     using(var gz=new System.IO.Compression.GZipStream(raw,System.IO.Compression.CompressionMode.Decompress))
                     using(var text=new System.IO.StreamReader(gz))
-                        made=Look.Build(JObject.Parse(text.ReadToEnd()),"BobStave"+kind);
+                    {
+                        JObject d=JObject.Parse(text.ReadToEnd());
+                        made=Look.Build(d,"BobStave"+kind);
+                        if(made!=null&&d["head"]!=null)Heads[kind]=(float)d["head"]; // (a baked model says where its fire is)
+                    }
                 }
             }
             catch(System.Exception e){Plugin.Log("Shieldwall: the "+kind+" stave's model: "+e.Message);made=null;}
-            if(made!=null)
+            if(made!=null&&!Heads.ContainsKey(kind))
             {
                 // Where its fire is: the middle of what glows in its head (the top third), for the stave's light.
                 Vector3[] v=made.vertices;float top=made.bounds.max.y,sum=0;int n=0;
@@ -59,6 +63,8 @@ namespace Shieldwall
             if(Sets.TryGetValue(kind,out Material[] set)&&set.All(m=>m!=null))return set;
             Material hewn=Assets.Find("wood_pole")?.GetComponentsInChildren<MeshRenderer>(true).Select(r=>r.sharedMaterial).FirstOrDefault(m=>m!=null&&m.shader!=null&&m.shader.name=="Custom/Piece");
             if(hewn==null)return null;
+            Material baked=Baked(hewn,kind);
+            if(baked!=null)return Sets[kind]=new[]{baked};
             var own=Own[kind];
             Material grain=new Material(hewn){name="BobStaveWood",hideFlags=HideFlags.HideAndDontSave};grain.mainTextureScale=Vector2.one*0.6f;grain.color=hewn.color*own.wood;Assets.Owned.Add(grain);
             Material Plain(Color c,float gloss=0,float metal=0)
@@ -86,6 +92,24 @@ namespace Shieldwall
                 Lit(own.glow,own.glow*own.bright),Lit(own.crystal,own.crystal*0.3f),Plain(new Color(0.12f,0.1f,0.09f)),Plain(own.paint,0.1f),
             };
             return Sets[kind]=set;
+        }
+
+        // A baked stave (tools/bake, docs/model-baking.md): one low mesh in the game's style, its colour, normal and glow maps embedded beside it,
+        // drawn as the game draws its own pieces (the piece shader with its own small textures). Null if this stave has no maps.
+        private static Material Baked(Material hewn,StaveKind kind)
+        {
+            string at="Shieldwall.stave_"+kind.ToString().ToLowerInvariant();
+            Texture2D albedo=Look.Texture(at+"_albedo.png",false);
+            if(albedo==null)return null;
+            var m=new Material(hewn){name="BobStave"+kind+"Baked",hideFlags=HideFlags.HideAndDontSave,color=Color.white};
+            m.mainTexture=albedo;m.mainTextureScale=Vector2.one;m.mainTextureOffset=Vector2.zero;
+            Texture2D normal=Look.Texture(at+"_normal.png",true);
+            if(normal!=null&&m.HasProperty("_BumpMap")){m.SetTexture("_BumpMap",normal);m.SetTextureScale("_BumpMap",Vector2.one);m.EnableKeyword("_NORMALMAP");}
+            Texture2D glow=Look.Texture(at+"_glow.png",false);
+            if(glow!=null&&m.HasProperty("_EmissionColor")){m.SetTexture("_EmissionMap",glow);m.EnableKeyword("_EMISSION");m.SetColor("_EmissionColor",Color.white);}
+            foreach(var (k,v) in new[]{("_Glossiness",0.12f),("_Smoothness",0.12f),("_Metallic",0f)})if(m.HasProperty(k))m.SetFloat(k,v);
+            Assets.Owned.Add(m);
+            return m;
         }
 
         // The stave's look under a parent: its foot at the parent's origin, standing up its y.
