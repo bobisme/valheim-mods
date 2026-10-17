@@ -85,6 +85,14 @@ namespace Jarldom
             if (inv == null) return;
             // Anything worn that left the bag (a player took it) comes off.
             foreach (ItemDrop.ItemData worn in new[] { h.RightItem, h.LeftItem }) if (worn != null && !inv.ContainsItem(worn)) h.UnequipItem(worn, false);
+            // (bathing: stripped down, nothing in hand, till they dress again)
+            if (b.Stripped)
+            {
+                foreach (ItemDrop.ItemData i in inv.GetAllItems().Where(i => i.m_equipped && Bath.Worn(i)).ToList()) h.UnequipItem(i, false);
+                if (h.RightItem != null) h.UnequipItem(h.RightItem, false);
+                if (h.LeftItem != null) h.UnequipItem(h.LeftItem, false);
+                return;
+            }
             foreach (var type in new[] { ItemDrop.ItemData.ItemType.Helmet, ItemDrop.ItemData.ItemType.Chest, ItemDrop.ItemData.ItemType.Legs, ItemDrop.ItemData.ItemType.Shoulder, ItemDrop.ItemData.ItemType.Utility })
             {
                 ItemDrop.ItemData best = inv.GetAllItems().Where(i => i.m_shared.m_itemType == type && (i.m_durability > 0 || !i.m_shared.m_useDurability) && !b.Hauled.Contains(Classes.Prefab(i) ?? "")).OrderByDescending(i => i.GetArmor()).ThenBy(i => Weaving.IsRags(i) ? 1 : 0).ThenByDescending(i => i.m_quality).FirstOrDefault(); // (clothes over rags, armour over both; not what they carry for the stores)

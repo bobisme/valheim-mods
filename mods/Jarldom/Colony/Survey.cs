@@ -392,6 +392,11 @@ namespace Jarldom
             if (ext != null && ext.m_craftingStation != null) { string st = Prefab(ext.m_craftingStation.gameObject); yield return st.Contains("cauldron") ? "brewext" : st.Contains("forge") || st.Contains("workbench") ? "smithext" : "extension"; }
             if (n.Contains("cauldron") && p.GetComponent<CraftingStation>() != null) yield return "cauldron";
             if (p.GetComponent<Fermenter>() != null) yield return "fermenter";
+            // (a bathhouse's: the Bathhouse mod's sauna stove, or the game's own hot tub, for its heat; its bucket, plunge tub and lockers)
+            if (n == "bathhouse_stove" || n == "piece_bathtub") yield return "sauna";
+            if (n == "bathhouse_bucket") yield return "bucket";
+            if (n == "bathhouse_plungetub") yield return "plunge";
+            if (n == "bathhouse_locker") yield return "locker";
             ItemStand stand = p.GetComponent<ItemStand>();
             if (stand != null)
             {

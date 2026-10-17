@@ -189,6 +189,11 @@ Check(v.Moodlets.Single(m => m.Id == "unpaid").Stacks == 3 && Mood.Of(v, Clock.H
 Mood.Remove(v, "unpaid"); Check(!Mood.Has(v, "unpaid", 0), "Paid at last");
 Mood.Add(v, "hall", 0); Mood.Add(v, "hall", Clock.Hours(10)); Check(v.Moodlets.Count(m => m.Id == "hall") == 1 && Mood.Has(v, "hall", Clock.Hours(33)), "Refresh keeps one, from the latest");
 Mood.Expire(v, Clock.Hours(100)); Check(v.Moodlets.Count == 0, "Old moodlets expire");
+{
+    var wash = new VillagerState(); for (int i = 0; i < wash.Needs.Length; i++) wash.Needs[i] = 50;
+    Mood.Add(wash, "bathed", 0);
+    Check(Mood.Of(wash, 0) == 8 && Mood.Of(wash, Clock.Hours(84)) == 4 && Mood.Of(wash, Clock.Hours(160)) == 1 && Mood.Of(wash, Clock.Hours(169)) == 0, "Bathed on washing day fades over the week: +8, +4 at midweek, a sliver at the end");
+}
 for (int i = 0; i < v.Needs.Length; i++) v.Needs[i] = 100; Check(Mood.Of(v, 0) == 70, "Every need met: +70");
 for (int i = 0; i < v.Needs.Length; i++) v.Needs[i] = 0; Check(Mood.Of(v, 0) == -70, "Every need empty: -70");
 Check(Mood.Multiplier(-100) == 0.6f && Mood.Multiplier(0) == 1f && Math.Abs(Mood.Multiplier(100) - 1.3f) < 1e-6 && Math.Abs(Mood.Multiplier(-50) - 0.8f) < 1e-6, "Mood multiplier");
@@ -315,7 +320,16 @@ brew.Count["fermenter"] = 3; brew.Count["cauldron"] = 1;
 Check(RoomRules.Judge(RoomType.Brewhouse, brew).Points > brewed.Points, "More fermenters and a cauldron grade it higher");
 brew.Roof = 0.3f;
 Check(!RoomRules.Judge(RoomType.Brewhouse, brew).Ok, "A brewhouse must be roofed");
-Check(Tables.Rooms.Select((r, i) => (int)r.Id == i).All(x => x), "Room types and their table line up (Brewhouse appended last)");
+var bath = new RoomFacts { Walls = new[] { 1f, 1f, 1f, 1f }, Roof = 1, Doors = 1, Area = 16 };
+Check(!RoomRules.Judge(RoomType.Bathhouse, bath).Ok && RoomRules.Judge(RoomType.Bathhouse, bath).Failures.Any(f => f.Contains("sauna stove")), "A bathhouse needs a sauna stove or the hot tub");
+bath.Count["sauna"] = 1;
+var bathed = RoomRules.Judge(RoomType.Bathhouse, bath);
+Check(bathed.Ok, "A walled, roofed room with a door and a sauna stove (or the hot tub) is a bathhouse");
+bath.Count["seat"] = 3; bath.Count["bucket"] = 1; bath.Count["plunge"] = 1; bath.Count["locker"] = 2;
+Check(RoomRules.Judge(RoomType.Bathhouse, bath).Points >= bathed.Points + 20, "Benches, the bucket, a plunge tub and lockers grade it higher");
+bath.Doors = 0;
+Check(!RoomRules.Judge(RoomType.Bathhouse, bath).Ok, "A bathhouse has a door");
+Check(Tables.Rooms.Select((r, i) => (int)r.Id == i).All(x => x), "Room types and their table line up (Bathhouse appended last)");
 Check(Tables.Professions.Select((p, i) => (int)p.Id == i).All(x => x) && Tables.Zones.Select((z, i) => (int)z.Id == i).All(x => x), "Professions and zones line up with their tables (Herder, Pasture appended)");
 var small = new RoomFacts { Walls = new[] { 1f, 1f, 1f }, Roof = 1, Doors = 1, Area = 12 }; small.Count["fire"] = 1; small.Count["seat"] = 4; small.Count["table"] = 2;
 Check(RoomRules.Judge(RoomType.GreatHall, small).Failures.Any(f => f.Contains("m²")), "Halls need room");
@@ -393,6 +407,7 @@ var view = new ColonyView { Population = 5, Troublemakers = { ("Ulf", 2, 0) }, M
 var pets = Petitions.Raise(new Random(1), view);
 Check(pets.Count == 3 && pets.All(p => !string.IsNullOrEmpty(p.Text)), "The Thing raises three petitions");
 Check(Petitions.Raise(new Random(1), view, 10).Any(p => p.Id == "exile" && p.About == "Ulf"), "A thief is named");
+Check(!Petitions.Raise(new Random(1), view, 20).Any(p => p.Id == "bathhouse") && Petitions.Raise(new Random(1), new ColonyView { Population = 8, Beds = 8, NoBath = true }, 20).Any(p => p.Id == "bathhouse" && p.Text.Contains("washing day")), "Nowhere to bathe on washing day: the Thing asks for a bathhouse");
 var suspicious = new ColonyView { Population = 5, Beds = 5, HasBeautyRoom = true, HasShrine = true, GuardWage = 9, Suspects = { ("Hrafn", 2), ("Oddny", 1) } };
 var accused = Petitions.Raise(new Random(1), suspicious, 10).Where(p => p.Id == "accuse").ToList();
 Check(accused.Count == 1 && accused[0].About == "Hrafn", "The Thing names one seen twice near the mischief, not one seen once");
@@ -671,7 +686,11 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Calendar.Next(odd) == (Festival.Midsummer, 3), "With Seasons: days to the next festival by its lengths");
     var tiny = Calendar.FromWorldDay(0, 1);
     Check(tiny.YearLength == 4 && Calendar.IsDay(tiny, Festival.Sigrblot), "One-day seasons still work");
-    Check(Calendar.Line(Calendar.FromWorldDay(12)) == "Summer, day 3 of 10, year 1. Midsummer in 2 days.", "A line for the window");
+    Check(Calendar.Line(Calendar.FromWorldDay(12)) == "Frjádagr. Summer, day 3 of 10, year 1. Midsummer in 2 days.", "A line for the window");
+    Check(Calendar.Line(Calendar.FromWorldDay(13)).StartsWith("Laugardagr, washing day. "), "Laugardagr is washing day, said first");
+    Check(Calendar.WeekdayName(0) == "Sunnudagr" && Calendar.IsWashingDay(6) && Calendar.IsWashingDay(13) && !Calendar.IsWashingDay(7), "A seven-day week from the world's first day, the seventh washing day");
+    Check(Calendar.DaysToWashing(6) == 0 && Calendar.DaysToWashing(7) == 6 && Calendar.DaysToWashing(5) == 1, "Days until washing day");
+    Check(Calendar.FromSeasons(1, 3, new[] { 12, 12, 12, 12 }, 20).WorldDay == 20, "The Seasons mod's date keeps the world's day for the week");
 }
 
 {

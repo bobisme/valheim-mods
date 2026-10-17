@@ -231,12 +231,20 @@ namespace Jarldom
                 if (m.Until > 0 && m.Until <= now) continue;
                 MoodletInfo info = Tables.Moodlet(m.Id);
                 if (info == null) continue;
-                int value = info.Value * Math.Max(1, m.Stacks);
+                int value = Worth(info, m, now);
                 if (m.Id == "finemeal" && v.Has("glutton")) value *= 2;
                 if (m.Id == "festival" && v.Has("pious")) value *= 2;
                 sum += value;
             }
             return sum;
+        }
+        // A moodlet's worth now: its value for each stack, a fading one's shrinking with the hours it has left.
+        public static int Worth(MoodletInfo info, Moodlet m, double now)
+        {
+            int value = info.Value * Math.Max(1, m.Stacks);
+            if (!info.Fades || info.Hours <= 0 || m.Until <= 0) return value;
+            double left = Math.Max(0, Math.Min(1, (m.Until - now) / Clock.Hours(info.Hours)));
+            return (int)Math.Ceiling(value * left);
         }
         public static int Of(VillagerState v, double now)
         {
@@ -282,7 +290,7 @@ namespace Jarldom
                 if (m.Until > 0 && m.Until <= now) continue;
                 MoodletInfo info = Tables.Moodlet(m.Id);
                 if (info == null) continue;
-                list.Add((info.Value * Math.Max(1, m.Stacks), m.Stacks > 1 ? $"{info.Text} (x{m.Stacks})" : info.Text));
+                list.Add((Worth(info, m, now), m.Stacks > 1 ? $"{info.Text} (x{m.Stacks})" : info.Text));
             }
             return list.OrderByDescending(x => Math.Abs(x.Item1)).ToList();
         }

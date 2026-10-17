@@ -138,15 +138,35 @@ namespace Jarldom
         // (a heirloom counts three times its worth as grave goods, a saga weapon ten)
         public static float GoodsWorth(ItemDrop.ItemData item) { int r = GoodsRarity(item); return r == 4 ? 10f : r == 3 ? 3f : 1f; }
 
+        // ---- Bathhouse: its saunas for washing day (steam on the stones), and villagers in the heat as its players' company ----
+        private static readonly ApiRef Bathhouse = new ApiRef("Bathhouse.Api", "cx.bob.bathhouse");
+        public static bool BathSteam(Vector3 near)
+        {
+            var saunas = Bathhouse.Bind<Func<Vector3, float, Vector3[]>>("Saunas", 1); var steam = Bathhouse.Bind<Func<Vector3, bool>>("Steam", 1);
+            try { return saunas != null && steam != null && saunas(near, 6f).OrderBy(x => Vector3.Distance(x, near)).Take(1).Any(steam); } catch { return false; }
+        }
+        private static Action<Func<Vector3, int>> _companyTo; private static readonly Func<Vector3, int> CompanyCount = at => Bath.Company(at);
+        private static float _nextCompany;
+        public static void BathCompany()
+        {
+            if (Time.time < _nextCompany) return;
+            _nextCompany = Time.time + 5f;
+            // (once a copy of the Bathhouse mod is found: again if it's reloaded, a fresh copy knowing nobody)
+            var add = Bathhouse.Bind<Action<Func<Vector3, int>>>("AddCompany", 1);
+            if (add == null || add == _companyTo) return;
+            _companyTo = add;
+            try { add(CompanyCount); } catch { }
+        }
+
         // ---- Wayfinder: its Beacon Fire is the colony's beacon ----
         private static readonly ApiRef Wayfinder = new ApiRef("Wayfinder.Api", "com.bobisme.wayfinder");
         public static Vector3? WayfinderBeacon(Vector3 at, float radius) { var f = Wayfinder.Bind<Func<Vector3, float, Vector3?>>("NearestBeacon", 1); try { return f?.Invoke(at, radius); } catch { return null; } }
         public static bool WayfinderLight(Vector3 at, float radius) { var f = Wayfinder.Bind<Func<Vector3, float, bool>>("LightBeacon", 1); try { return f != null && f(at, radius); } catch { return false; } }
         // (v2: the next festival on Wayfinder's primstav)
-        public static void WayfinderFeast(int day, string name)
+        public static void WayfinderFeast(params (int day, string name)[] days)
         {
             var clear = Wayfinder.Bind<Action<string>>("ClearFeastDays", 2); var add = Wayfinder.Bind<Action<string, int, string>>("AddFeastDay", 2);
-            try { clear?.Invoke("Jarldom"); add?.Invoke("Jarldom", day, name); } catch { }
+            try { clear?.Invoke("Jarldom"); if (add != null) foreach (var d in days) add("Jarldom", d.day, d.name); } catch { }
         }
         public static bool WayfinderLit(Vector3 at, float radius) { var f = Wayfinder.Bind<Func<Vector3, float, bool>>("BeaconLit", 1); try { return f != null && f(at, radius); } catch { return false; } }
 

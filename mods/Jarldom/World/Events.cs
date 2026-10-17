@@ -145,6 +145,7 @@ namespace Jarldom
                 TempleGod = c.R.Rank >= Rank.Village && GreatWorks.Stage(c.R.Flags, GreatWorks.PeakTemple) == 0 && !Underway(c) ? TempleGod(c) : "",
                 TempleGodName = Tables.God(TempleGod(c))?.Name ?? "Odin",
                 UnburiedNoGround = c.R.Roster.Any(r => r.State == SoulState.Lost && !Lost.Rests(c, r.Vid)) && !c.R.Rooms.Any(r => r.Ok && r.Type == RoomType.BurialGround),
+                NoBath = Bath.Wanted(c) && Bath.Room(c) == null,
             };
             foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id))
             {

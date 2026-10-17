@@ -369,6 +369,7 @@ namespace Jarldom
         public string TempleGod = ""; // (a village with no great work under way and no Peak Temple yet: the god it would be raised to; "" none)
         public string TempleGodName = "";
         public bool DarkHome, UnburiedNoGround; // (a jarl came home by night to a shore with no beacon; the lost lie unburied and there's nowhere to lay them)
+        public bool NoBath; // (a village of some size with no bathhouse: washing day comes, and nowhere to bathe)
     }
 
     public static class Petitions
@@ -391,6 +392,7 @@ namespace Jarldom
             if (c.GreatWork) all.Add(new Petition { Id = "greatwork", About = GreatWorks.Lighthouse, Text = "Let us raise a lighthouse on the shore: a great work, sung of long after us, and every ship of ours would find home.", Yes = "Let it be raised", No = "Not in our day", YesMood = 5, NoMood = -2 });
             if (c.TempleGod != "") all.Add(new Petition { Id = "greatwork", About = GreatWorks.PeakTemple + "|" + c.TempleGod, Text = $"Let us raise a temple to {c.TempleGodName} on the highest ground we hold: a great work, nearer the gods, and they would hear us twice as well.", Yes = "Let it be raised", No = "Not in our day", YesMood = 5, NoMood = -2 });
             if (c.UnburiedNoGround) all.Add(new Petition { Id = "burial", Text = "Make a burial ground: our lost walk unburied, and there's nowhere to lay them.", Yes = "Promise it", No = "Let them walk", YesMood = 4, NoMood = -4 });
+            if (c.NoBath) all.Add(new Petition { Id = "bathhouse", Text = "Build us a bathhouse: washing day comes round each week, and there's nowhere to bathe.", Yes = "Promise it", No = "The sea is cold enough", YesMood = 3, NoMood = -3 });
             if (c.Beds < c.Population) all.Add(new Petition { Id = "beds", Text = "Build beds: some of us sleep on the hall floor.", Yes = "Promise beds", No = "Sleep by the fire", YesMood = 4, NoMood = -4 });
             return all.OrderBy(_ => rng.Next()).Take(max).ToList();
         }

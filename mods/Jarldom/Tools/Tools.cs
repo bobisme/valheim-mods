@@ -19,7 +19,7 @@ namespace Jarldom
         private static BaseUnityPlugin _tools; private static float _next;
         private const string Usage = "jarldom status | hallsound [<volume>|roar|mood <n>|auto] | among hall|sleep | roster | smite <prefab|stag> | feed <name> | greetings | dogs | dog adopt|release | corner <name> [stand] | dim <name> <days> | lost [raise <name>] | villager <name|vid> | needs <name> | renown | rooms | room check <n> | board | log [n] | saga | compat | " +
             "[cheats:] place pillars [metres] | spawn [profession] [traits..] | migrate [now|dusk] | accept [i|all] | room <type> <x1> <z1> <x2> <z2> [god] | zone <type> <x1> <z1> <x2> <z2> | " +
-            "prof <name> <profession> | mood <name> <moodlet> | worth <name> <n> | need <name> <need>=<n> | give <name> <prefab> [n] | bed <name> | goto <name> <x> <z> | time <hours> | pay | " +
+            "prof <name> <profession> | mood <name> <moodlet> | worth <name> <n> | need <name> <need>=<n> | give <name> <prefab> [n] | bed <name> | goto <name> <x> <z> | time <hours> | bathday [on|off] | pay | " +
             "favour <god> <n> | feast | thing now | ascend <name> | kill <name> | raid <event> | horn | treasury [x z] | stockpile <category> [x z] | tp <name> | remove | " +
             "act <action> <arg> (as the colony window does) | put <prefab> <x> <z> [yaw] [y] | wall <prefab> <x1> <z1> <x2> <z2> [levels] [step] | unput [prefab] [minY] (test pieces) | fill <x> <z> <prefab> [n] (into the chest there) | ground <x> <z>";
 
@@ -1013,6 +1013,17 @@ namespace Jarldom
                 case "bed": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } Bed free = c.FreeBeds().OrderBy(x => Vector3.Distance(x.transform.position, b.Pos)).FirstOrDefault(); if (free == null) { error("no free bed"); return; } b.Command("bed", Colony.IdOf(free.GetComponent<ZNetView>())); output(new JObject { ["bed"] = b.S.Bed, ["at"] = V(free.transform.position) }); } break;
                 case "goto": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } Vector3 to = new Vector3(F(a[3]), 0, F(a[4])); ZoneSystem.instance.GetSolidHeight(to, out float h); to.y = h; b.Task?.Stop(b); b.Task = new GoTask(to, "going where I was told", 1.2f); b.Task.Start(b); output(new JObject { ["to"] = V(to) }); } break;
                 case "tp": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } Vector3 to = me.transform.position + me.transform.forward * 2; b.Place(to); output(new JObject { ["at"] = V(to) }); } break;
+                case "bathday": // (bathday on|off: washing day's bathing hours now, for a test; the bathhouse and who's bathing)
+                    {
+                        if (a.Length > 2) Bath.Forced = a[2] == "on";
+                        Room room = Bath.Room(c);
+                        output(new JObject { ["forced"] = Bath.Forced, ["washingDay"] = Calendar.IsWashingDay(Year.WorldDay), ["weekday"] = Calendar.WeekdayName(Year.WorldDay), ["daysToWashing"] = Calendar.DaysToWashing(Year.WorldDay),
+                            ["hours"] = Bath.Hours(c), ["bathhouse"] = room != null ? $"{room.Id} grade {room.Grade} ({room.Points})" : "none", ["wanted"] = Bath.Wanted(c),
+                            ["seats"] = room != null ? Bath.Pieces(c, room, Bath.Bench, Bath.HotTub).SelectMany(Classes.SeatsOf).Count() : 0,
+                            ["bathing"] = new JArray(Villagers.All.Where(b => b.S.Colony == c.Id && b.Task is BathTask).Select(b => $"{b.S.Name}: {b.Task.Doing}")),
+                            ["bathedToday"] = new JArray(Villagers.All.Where(b => b.S.Colony == c.Id && Bath.BathedToday(b)).Select(b => b.S.Name)) });
+                    }
+                    break;
                 case "time":
                     {
                         double to;

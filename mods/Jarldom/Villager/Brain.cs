@@ -12,6 +12,7 @@ namespace Jarldom
     {
         public readonly Humanoid Body; public readonly MonsterAI Ai; public readonly ZNetView View; public readonly Mover Move;
         public VillagerState S; public Colony Colony;
+        public bool Stripped; // (bathing: the armour stays off till they dress again)
         public float SongUntil, LoadSince; private float _lastWorth = -1; public int DimStage = -1;
         public Task Task; public Activity Activity = Activity.Idle; public string Doing = "";
         public string LastAttacker = ""; public Character Foe; private float _foeUntil;
@@ -216,13 +217,14 @@ namespace Jarldom
                         int load = Work.Carrying(this);
                         if (load == 0) LoadSince = 0; else if (LoadSince == 0) LoadSince = Time.time;
                         if (load > 0 && Time.time - LoadSince > 300f && Time.time > NoStoreUntil) { LoadSince = Time.time; return new DepositTask(); }
+                        if (Bath.Due(this)) return new BathTask(); // (washing day: their turn in the sauna)
                         Task work = Work.Next(this); Split.Mark("work.next"); if (work != null) { Leisure.Clean(this); return work; }
                         // (nothing to do: first whatever's in the bag to the stores, a light bag being a small body to send; then some sport, or the hall)
                         if (Time.time > NoStoreUntil && Work.Carrying(this) > 0 && Body.GetInventory().GetAllItems().Where(i => Work.Stores(this, i)).Any(i => Stock.Destination(Colony, i, Pos) != null)) return new DepositTask();
                         Split.Mark("deposit?");
                         return Leisure.Next(this, Gear.Problem ?? Work.WhyIdle(this));
                     }
-                case Activity.Hall: return Work.Lamplight(this) ?? new HallTask(); // (the hauler sees to the fires and torches first)
+                case Activity.Hall: Bath.Evening(this); return Work.Lamplight(this) ?? (Bath.Due(this) ? new BathTask() : (Task)new HallTask()); // (the hauler sees to the fires and torches first; on washing day, a turn in the sauna before the hall)
                 case Activity.Shelter: return Leisure.Next(this, "out of the storm", indoors: true); // (games and talk under a roof)
                 case Activity.Defend: return new DefendTask();
                 case Activity.Follow: return new FollowTask();

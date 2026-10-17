@@ -12,6 +12,7 @@ namespace Jarldom
     public struct Date
     {
         public int Year, Day; public Season Season; public int[] Lengths; // (Day: 1-based, in its season; Lengths: days in each season)
+        public int WorldDay; // (the world's own day count, for the week)
         public int YearLength => Lengths.Sum();
         public int DayOfYear => Lengths.Take((int)Season).Sum() + Day;
         public int SeasonLength => Lengths[(int)Season];
@@ -31,14 +32,14 @@ namespace Jarldom
         {
             int len = Math.Max(1, seasonLength), year = len * 4, d = Math.Max(0, worldDay);
             int inYear = d % year;
-            return new Date { Year = d / year + 1, Season = (Season)(inYear / len), Day = inYear % len + 1, Lengths = new[] { len, len, len, len } };
+            return new Date { Year = d / year + 1, Season = (Season)(inYear / len), Day = inYear % len + 1, Lengths = new[] { len, len, len, len }, WorldDay = d };
         }
         // With it: its season and day (1-based) and each season's length; the year is counted from the world's day.
         public static Date FromSeasons(int season, int day, int[] lengths, int worldDay)
         {
             int[] l = lengths.Select(x => Math.Max(1, x)).ToArray();
             int s = Math.Max(0, Math.Min(3, season));
-            return new Date { Year = Math.Max(0, worldDay) / l.Sum() + 1, Season = (Season)s, Day = Math.Max(1, Math.Min(l[s], day)), Lengths = l };
+            return new Date { Year = Math.Max(0, worldDay) / l.Sum() + 1, Season = (Season)s, Day = Math.Max(1, Math.Min(l[s], day)), Lengths = l, WorldDay = Math.Max(0, worldDay) };
         }
 
         // The festival's day in its season: the middle of it.
@@ -58,10 +59,17 @@ namespace Jarldom
         }
         // The days a festival is readied for: the two before it.
         public static bool Preparing(Date d, out Festival f) { var (n, days) = Next(d); f = n; return days >= 1 && days <= PrepDays; }
+        // The week: seven days from the world's first day, a Sunnudagr; the seventh, Laugardagr, is washing day (its name: "bath day").
+        public static readonly string[] Weekdays = { "Sunnudagr", "Mánadagr", "Týsdagr", "Óðinsdagr", "Þórsdagr", "Frjádagr", "Laugardagr" };
+        public const int WashingDay = 6;
+        public static int Weekday(int worldDay) => (worldDay % 7 + 7) % 7;
+        public static bool IsWashingDay(int worldDay) => Weekday(worldDay) == WashingDay;
+        public static int DaysToWashing(int worldDay) => (WashingDay - Weekday(worldDay) + 7) % 7;
+        public static string WeekdayName(int worldDay) => Weekdays[Weekday(worldDay)];
         public static string Line(Date d)
         {
             var (f, days) = Next(d);
-            return $"{char.ToUpper(Name(d.Season)[0])}{Name(d.Season).Substring(1)}, day {d.Day} of {d.SeasonLength}, year {d.Year}. " +
+            return (IsWashingDay(d.WorldDay) ? "Laugardagr, washing day. " : WeekdayName(d.WorldDay) + ". ") + $"{char.ToUpper(Name(d.Season)[0])}{Name(d.Season).Substring(1)}, day {d.Day} of {d.SeasonLength}, year {d.Year}. " +
                 (days == 0 ? $"{Name(f)} is today." : days == 1 ? $"{Name(f)} is tomorrow." : $"{Name(f)} in {days} days.");
         }
     }

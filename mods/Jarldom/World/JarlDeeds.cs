@@ -208,8 +208,11 @@ namespace Jarldom
         {
             if (Time.time < _nextFeast || EnvMan.instance == null || Player.m_localPlayer == null) return;
             _nextFeast = Time.time + 60f;
-            var (f, until) = Calendar.Next(Year.Today());
-            Compat.WayfinderFeast(EnvMan.instance.GetDay() + until, Calendar.Name(f));
+            Date today = Year.Today();
+            var (f, until) = Calendar.Next(today);
+            int day = EnvMan.instance.GetDay();
+            // (and the next washing day, Laugardagr: the week's mark)
+            Compat.WayfinderFeast((day + until, Calendar.Name(f)), (day + Calendar.DaysToWashing(today.WorldDay), "Laugardagr, washing day"));
         }
         // ---- GraveGoods: an heirloom or saga weapon brought into the colony is marvelled at, once each ----
         private static float _nextMarvel; private static readonly HashSet<string> Shown = new HashSet<string>();

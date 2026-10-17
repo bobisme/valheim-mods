@@ -11,7 +11,7 @@ namespace Jarldom
 
     public enum Need { Food, Rest, Shelter, Social, Safety, Faith, Beauty }
 
-    public enum RoomType { Longhouse, GreatHall, Stockpile, Smithy, OdinShrine, Temple, HealersHouse, TreasureRoom, BurialGround, Watchtower, Brewhouse }
+    public enum RoomType { Longhouse, GreatHall, Stockpile, Smithy, OdinShrine, Temple, HealersHouse, TreasureRoom, BurialGround, Watchtower, Brewhouse, Bathhouse }
 
     public enum ZoneType { Woodlot, Mine, Fields, Foraging, Hunting, FishingDock, GuardPost, SacredBog, Pasture, Boatyard }
 
@@ -30,6 +30,7 @@ namespace Jarldom
     public sealed class MoodletInfo
     {
         public string Id, Text; public int Value; public double Hours; // Hours 0 = while the condition holds (refreshed by the system)
+        public bool Fades; // (worth less as its hours run out: all of it at first, a sliver at the end)
         public Stack Stack = Stack.Refresh; public int MaxStacks = 1;
     }
     public enum Stack { Refresh, Add, Max }
@@ -43,7 +44,7 @@ namespace Jarldom
     public sealed class RoomInfo
     {
         public RoomType Id; public string Name; public bool Enclosed, Roofed, Door, Fire, Lockable, Open;
-        public int Beds, Seats, Tables, Chests, Graves; public float MinArea, MinFloor; public bool Hearth, Forge, Altar, Brew;
+        public int Beds, Seats, Tables, Chests, Graves; public float MinArea, MinFloor; public bool Hearth, Forge, Altar, Brew, Sauna;
         public string PointsFrom;
     }
 
@@ -160,6 +161,9 @@ namespace Jarldom
             M("belovedjarl", "Follows a jarl they love", 4, 24),
             M("unjust", "An innocent was cast out", -6, 72),
             M("tavern", "A drink in the hall", 5, 12),
+            M("bathed", "Bathed on washing day", 8, 168, fades: true),
+            M("plunge", "A cold plunge after the sauna", 3, 12),
+            M("unwashed", "Nowhere to bathe on washing day", -4, 24),
             M("marvel", "Saw a blade out of the old songs", 6, 24),
             M("expedition", "Went out with the jarl", 8, 48),
             M("dressed", "Dressed well", 4, 0),
@@ -172,8 +176,8 @@ namespace Jarldom
             M("festblessed", "The festival's blessing", 4, 24),
             M("festslip", "The festival was let slip", -8, 48),
         };
-        private static MoodletInfo M(string id, string text, int value, double hours, Stack stack = Stack.Refresh, int max = 1) =>
-            new MoodletInfo { Id = id, Text = text, Value = value, Hours = hours, Stack = stack, MaxStacks = max };
+        private static MoodletInfo M(string id, string text, int value, double hours, Stack stack = Stack.Refresh, int max = 1, bool fades = false) =>
+            new MoodletInfo { Id = id, Text = text, Value = value, Hours = hours, Stack = stack, MaxStacks = max, Fades = fades };
         public static MoodletInfo Moodlet(string id) => Moodlets.FirstOrDefault(m => m.Id == id);
 
         public static readonly RankInfo[] Ranks =
@@ -200,6 +204,7 @@ namespace Jarldom
             new RoomInfo { Id = RoomType.BurialGround, Name = "Burial ground", Open = true, Graves = 3, PointsFrom = "runestones, candles" },
             new RoomInfo { Id = RoomType.Watchtower, Name = "Watchtower", Roofed = true, MinFloor = 4, PointsFrom = "height, braziers" },
             new RoomInfo { Id = RoomType.Brewhouse, Name = "Brewhouse", Roofed = true, Brew = true, PointsFrom = "fermenters, the cauldron" },
+            new RoomInfo { Id = RoomType.Bathhouse, Name = "Bathhouse", Enclosed = true, Roofed = true, Door = true, Sauna = true, PointsFrom = "sauna benches, the water bucket, a plunge tub, bath lockers, comfort" },
         };
         public static RoomInfo Of(RoomType r) => Rooms[(int)r];
 
