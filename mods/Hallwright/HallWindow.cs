@@ -60,7 +60,7 @@ namespace Hallwright
             {
                 Gap();Head("Cabin details");
                 Toggle("Fire pit under a chimney",_hallHearth,()=>{_hallHearth=!_hallHearth;HallChanged();});
-                Hint("Logs half a metre a course, their ends crossing at the corners, on a course of stone. The fire goes at the end of the room away from the door, under a timber flue through the roof, unless you Ctrl+click your own chimneys.");
+                Hint("Logs half a metre a course, their ends crossing half a metre past the corners, on two courses of stone fence with a dressed stone at each corner; logs fill the gables too. The fire goes at the end of the room away from the door, under a log chimney through the roof, unless you Ctrl+click your own chimneys.");
             }
             if(_staveTemple)
             {

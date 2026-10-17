@@ -119,8 +119,8 @@ namespace Hallwright
             {
                 if(!HallKnown("wood_wall_log") || !HallKnown("wood_pole_log"))throw new ArgumentException("A mountain cabin needs core-wood log walls and poles unlocked.");
                 kit.Log="wood_wall_log";kit.Post="wood_pole_log";kit.Beam="wood_wall_log";kit.SpanCells=5;
-                if(HallKnown("stone_wall_2x1"))kit.StoneWall="stone_wall_2x1";
-                else _hallNote=(_hallNote==null?"":_hallNote+" ")+"Stone walls aren't unlocked yet (a stonecutter); the logs start at the floor.";
+                if(HallKnown("stone_wall_1x1"))kit.StoneBlock="stone_wall_1x1";
+                if(kit.StoneFence==null)_hallNote=(_hallNote==null?"":_hallNote+" ")+"The stone fence isn't unlocked yet (carry some stone); the logs start at the floor.";
             }
             if(HallKeep)
             {
@@ -262,7 +262,19 @@ namespace Hallwright
                 _hallGuideHasFloor=true;
                 PrepareHallGround();
                 bool stone=(_hallMaterialMode==0 || _hallMaterialMode==3) && HallKnown("stone_floor_2x2");
-                if(stone && !_hallBasement && !_hallNorse && !HallStilts)
+                if(stone && !_hallBasement && !_hallNorse && !HallStilts && !HallKeep && HallKnown("stone_pillar"))
+                {
+                    // Stone piers at the corners, along the walls and inside every 4 m, beams spanning them under the floor; a footing
+                    // already stands where it runs.
+                    var footings=_hallDesign.Parts.Where(p=>p.Role=="stone footing").ToList();
+                    float under=ShapesOf(_hallKit.Beam).Min(s=>s.Key.Aabb().min.y);
+                    double top=-_hallKit.JoistDrop+under+0.05;
+                    foreach(V3 v in HallLayout.Piers(_hallDesign))
+                        if(!footings.Any(f=>Math.Abs(f.At.X-v.X)<1.2 && Math.Abs(f.At.Z-v.Z)<1.2))HallColumn(v,top,"stone_pillar","foundation");
+                    foreach(var (a,b) in HallLayout.Sills(_hallDesign))
+                        AddHallPart(new HallLayout.Part{Prefab=_hallKit.Beam,At=a+new V3(0,-_hallKit.JoistDrop,0),End=b+new V3(0,-_hallKit.JoistDrop,0),Kind=HallLayout.Anchor.Segment,Role="foundation"});
+                }
+                else if(stone && !_hallBasement && !_hallNorse && !HallStilts)
                 {
                     foreach(V3 at in _hallDesign.Cells.Select(c=>new V3(c.X*2+1,0,c.Z*2+1)).Concat(_hallDesign.PorchFloors))
                     {

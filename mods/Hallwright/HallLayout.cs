@@ -186,6 +186,38 @@ namespace Hallwright
             bool inX=x>-0.01 && x<2.01,inZ=z>-0.01 && z<2.01,cornerX=Math.Abs(x)<0.01 || Math.Abs(x-2)<0.01,cornerZ=Math.Abs(z)<0.01 || Math.Abs(z-2)<0.01;
             return inX && inZ && !(cornerX && cornerZ);
         });
+        // Under a floor: stone piers at the outside corners, every 4 m along the walls and on a 4 m grid inside, with beams on every
+        // 2 m line between them carrying the floor (instead of stone under every tile).
+        internal static HashSet<Cell> FloorCells(Design plan)
+        {
+            var cells=new HashSet<Cell>(plan.Cells);
+            foreach(V3 p in plan.PorchFloors)cells.Add(new Cell((int)Math.Floor((p.X-1)/2+0.5),(int)Math.Floor((p.Z-1)/2+0.5)));
+            return cells;
+        }
+        internal static List<V3> Piers(Design plan)
+        {
+            var cells=FloorCells(plan);var piers=new List<V3>();
+            var corners=new HashSet<(int,int)>();
+            foreach(var c in cells)for(int dx=0;dx<2;dx++)for(int dz=0;dz<2;dz++)corners.Add((c.X+dx,c.Z+dz));
+            foreach(var (x,z) in corners.OrderBy(k=>k.Item1).ThenBy(k=>k.Item2))
+            {
+                int around=new[]{new Cell(x,z),new Cell(x-1,z),new Cell(x,z-1),new Cell(x-1,z-1)}.Count(cells.Contains);
+                bool even(int n)=>(n%2+2)%2==0;
+                bool corner=around==1 || around==3 || around==2 && cells.Contains(new Cell(x,z))==cells.Contains(new Cell(x-1,z-1));
+                if(corner || around<4 && even(x+z) || around==4 && even(x) && even(z))piers.Add(new V3(x*2,0,z*2));
+            }
+            return piers;
+        }
+        internal static List<(V3 a,V3 b)> Sills(Design plan)
+        {
+            var cells=FloorCells(plan);var sills=new HashSet<(int,int,int,int)>();
+            foreach(var c in cells)
+            {
+                sills.Add((c.X,c.Z,c.X+1,c.Z));sills.Add((c.X,c.Z+1,c.X+1,c.Z+1));
+                sills.Add((c.X,c.Z,c.X,c.Z+1));sills.Add((c.X+1,c.Z,c.X+1,c.Z+1));
+            }
+            return sills.OrderBy(k=>k).Select(k=>(new V3(k.Item1*2,0,k.Item2*2),new V3(k.Item3*2,0,k.Item4*2))).ToList();
+        }
         internal static V3 Turn(V3 v,double yaw)
         {double angle=yaw*Math.PI/180;return new V3(v.X*Math.Cos(angle)+v.Z*Math.Sin(angle),v.Y,-v.X*Math.Sin(angle)+v.Z*Math.Cos(angle));}
 
@@ -408,10 +440,11 @@ namespace Hallwright
                     }
                     if(details.Cabin)
                     {
-                        // Stacked logs, half a metre a course, their ends crossing at the corners; a stone footing under them.
+                        // Stacked logs, half a metre a course, their ends crossing at the corners, on two courses of stone fence.
                         bool logWindow=shutters && storey==0 && !door && ((int)(Math.Abs(at.X)+Math.Abs(at.Z))/2)%2==0 && height>=3;
-                        if(storey==0 && !door && kit.StoneWall!=null)Add(kit.StoneWall,at+new V3(0,-1,0),Anchor.Bottom,edge.yaw,"stone footing");
-                        for(double h=storey==0 && door?kit.DoorHeight:0;h<height-0.001;h+=0.5)
+                        bool fence=storey==0 && !door && kit.StoneFence!=null && height>=2;
+                        if(fence)foreach(int h in new[]{-1,0})Add(kit.StoneFence,at+new V3(0,h,0),Anchor.Bottom,edge.yaw,"stone footing");
+                        for(double h=storey==0 && door?kit.DoorHeight:fence?1:0;h<height-0.001;h+=0.5)
                         {
                             if(logWindow && Math.Abs(h-1)<0.001)
                             {
@@ -526,6 +559,27 @@ namespace Hallwright
                 foreach(double u in new[]{-2.0,2})Rod(kit.Beam,PorchAt(u,height,0),PorchAt(u,height,2),kit.BeamLength,"porch frame");
                 Rod(kit.Beam,PorchAt(0,peak,0),PorchAt(0,peak,2),kit.BeamLength,"porch frame");
             }
+            // Outside corners of log and stone walls: each log course runs on half a metre past the corner, crossing the other wall's;
+            // a dressed stone block fills the outer corner between a cabin's fences and a keep's stone courses.
+            if(details.Cabin || details.Keep)foreach(V3 v in plan.Vertices.Distinct().ToList())
+            {
+                int cx=(int)Math.Round(v.X/2),cz=(int)Math.Round(v.Z/2);
+                var around=new[]{new Cell(cx,cz),new Cell(cx-1,cz),new Cell(cx,cz-1),new Cell(cx-1,cz-1)}.Where(set.Contains).ToList();
+                if(around.Count!=1)continue;
+                double sx=around[0].X==cx?1:-1,sz=around[0].Z==cz?1:-1;
+                if(kit.StoneBlock!=null)
+                {
+                    var courses=plan.Parts.Where(q=>(q.Role=="stone footing" || q.Role=="stone wall") && q.Prefab!=kit.StoneBlock && Math.Abs(q.At.X-v.X)<1.01 && Math.Abs(q.At.Z-v.Z)<1.01).Select(q=>Math.Round(q.At.Y,3)).Distinct().ToList();
+                    // A keep's corner rises unbroken through every course, beside arrow loops too.
+                    if(details.Keep && courses.Count>0)courses=Enumerable.Range(0,(int)courses.Max()+1).Select(y=>(double)y).ToList();
+                    foreach(double y in courses)Add(kit.StoneBlock,new V3(v.X,y,v.Z),Anchor.Bottom,0,details.Keep?"stone wall":"stone footing");
+                }
+                if(!details.Cabin)continue;
+                // Each wall's log at the corner panel gets a twin half a metre out, a hair outside it so the two never flicker.
+                foreach(var (along,outside,yaw) in new[]{(new V3(sx,0,0),new V3(0,0,-sz),0.0),(new V3(0,0,sz),new V3(-sx,0,0),90.0)})
+                    foreach(var log in plan.Parts.Where(q=>q.Role=="log wall" && (new V3(q.At.X,0,q.At.Z)-(v+along)).Length<0.01).ToList())
+                        Add(kit.Log,new V3(v.X,log.At.Y,v.Z)+along*0.5+outside*0.015,Anchor.Bottom,yaw,"log end");
+            }
             // Log and stone walls carry themselves: no posts in their corners.
             foreach(var edge in details.Cabin || details.Keep?new List<(V3 a,V3 b,double yaw)>():boundaries)
             {
@@ -565,7 +619,7 @@ namespace Hallwright
             if(details.Storeys>1)foreach(Cell c in plan.Chimneys)
                 foreach(var side in new[]{(n:new Cell(c.X,c.Z-1),a:new V3(c.X*2+1,0,c.Z*2),yaw:0.0),(n:new Cell(c.X,c.Z+1),a:new V3(c.X*2+1,0,c.Z*2+2),yaw:180.0),(n:new Cell(c.X-1,c.Z),a:new V3(c.X*2,0,c.Z*2+1),yaw:90.0),(n:new Cell(c.X+1,c.Z),a:new V3(c.X*2+2,0,c.Z*2+1),yaw:270.0)})
                     if(set.Contains(side.n) && !plan.Chimneys.Contains(side.n))
-                        for(int h=height;h<roofBase;h++)Add(kit.Half,side.a+new V3(0,h,0),Anchor.Bottom,side.yaw,"chimney");
+                        for(double h=height;h<roofBase-0.001;h+=details.Cabin && kit.Log!=null?0.5:1)Add(details.Cabin && kit.Log!=null?kit.Log:kit.Half,side.a+new V3(0,h,0),Anchor.Bottom,side.yaw,"chimney");
             // A keep's roof is its top floor, behind the battlements.
             if(details.SuppressRoof || details.Keep){plan.RoofHeight=roofBase;plan.Wings.Clear();ClearDoorways();return plan;}
             foreach(Wing wing in plan.Wings)
@@ -623,6 +677,20 @@ namespace Hallwright
                 for(int end=0;end<2;end++)
                 {
                     double v=end*length;
+                    // A cabin's gable is logs too, each course resting on the one below and as long as fits under the roof,
+                    // in front of the boards that close the triangles at its ends.
+                    if(details.Cabin && kit.Log!=null && wing.TierLift==0)
+                        for(double y=0;;y+=0.5)
+                        {
+                            int n=(int)Math.Floor(width/2-(y+0.5)/kit.Slope+1e-9);
+                            if(n<1)break;
+                            for(int i=0;i<n;i++)
+                            {
+                                double u=width/2-n+1+2*i;
+                                if(flues.Any(f=>f.row==(end==0?0:wing.Length-1) && f.col*2<u+1-1e-9 && f.col*2+2>u-1+1e-9))continue;
+                                Add(kit.Log,wing.At(u,roofBase+y,v),Anchor.Bottom,yaw,"gable log");
+                            }
+                        }
                     for(int col=0;col<wing.Width;col++)
                     {
                         double low=Math.Min(col,wing.Width-1-col)*2*kit.Slope+Lift(col);
@@ -756,8 +824,18 @@ namespace Hallwright
                     double top=low+Math.Ceiling(peak+0.8-low-1e-9);
                     var sides=new[]{(a:wing.At(u0,0,v0+1),start:shaft?roofBase:left,yaw:yaw+90),(a:wing.At(u1,0,v0+1),start:shaft?roofBase:right,yaw:yaw+270),
                         (a:wing.At(u0+1,0,v0),start:shaft && row>0?roofBase:low,yaw:yaw),(a:wing.At(u0+1,0,v1),start:shaft && row<wing.Length-1?roofBase:low,yaw:yaw+180)};
-                    foreach(var side in sides)for(double h=side.start;h<top-0.001;h++)Add(kit.Half,side.a+new V3(0,h,0),Anchor.Bottom,side.yaw,"chimney");
                     double bottom=shaft?height:sides.Min(s=>s.start);
+                    if(details.Cabin && kit.Log!=null)
+                    {
+                        // A log crib: the two pairs of sides a quarter metre apart in height, so their ends cross at the corners.
+                        for(int i=0;i<4;i++)
+                        {
+                            double phase=i<2?0:0.25;
+                            for(double h=Math.Floor((sides[i].start-phase)*2)/2+phase;h<top-0.001;h+=0.5)Add(kit.Log,sides[i].a+new V3(0,h,0),Anchor.Bottom,sides[i].yaw,"chimney");
+                        }
+                        continue;
+                    }
+                    foreach(var side in sides)for(double h=side.start;h<top-0.001;h++)Add(kit.Half,side.a+new V3(0,h,0),Anchor.Bottom,side.yaw,"chimney");
                     foreach(var (u,v) in new[]{(u0,v0),(u1,v0),(u0,v1),(u1,v1)})
                     {
                         for(double h=bottom;h<top-0.001;h+=2)Add(kit.Post,wing.At(u,Math.Min(h,top-2),v),Anchor.Bottom,0,"chimney");
