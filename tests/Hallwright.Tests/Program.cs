@@ -524,7 +524,7 @@ foreach(var (w,d) in new[]{(8,10),(10,8),(6,6)})
  var logs=cabin.Parts.Where(p=>p.Role=="log wall").ToList();
  Check(logs.Count>0 && logs.All(p=>Math.Abs(p.At.Y*2-Math.Round(p.At.Y*2))<1e-9 && p.At.Y<3),"Logs stack in half-metre courses below the eaves");
  Check(!cabin.Parts.Any(p=>p.Role=="post"),"Log walls carry their own corners");
- Check(!cabin.Parts.Any(p=>p.Role=="gable" && p.Prefab=="woodwall"),"Cabin gables are logs");
+ Check(!cabin.Parts.Any(p=>p.Role=="gable" && p.Prefab=="wood_wall_log"),"Cabin gables are boarded: logs can't hang loose above the walls");
  Check(cabin.Parts.Count(p=>p.Role=="stone footing")>0,"Cabin stands on a stone footing");
  Check(cabin.Parts.Where(p=>p.Role=="roof").All(p=>p.Prefab=="wood_roof_67" || p.Prefab=="wood_roof_top_67"),"Steep 67° roof");
  Check(cabin.Chimneys.Count==1 && cabin.Parts.Count(p=>p.Role=="hearth" && p.Prefab=="fire_pit")==1,"One fire pit under one chimney");

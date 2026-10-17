@@ -627,11 +627,7 @@ namespace Hallwright
                     {
                         double low=Math.Min(col,wing.Width-1-col)*2*kit.Slope+Lift(col);
                         for(int h=0;h<low-0.001;h+=2)
-                        {
-                            // A cabin's gable is stacked logs like its walls.
-                            if(details.Cabin && h+2<=low){for(int c=0;c<4;c++)Add(kit.Log,wing.At(col*2+1,roofBase+h+c*0.5,v),Anchor.Bottom,yaw,"gable");continue;}
                             Add(h+2<=low?kit.Wall:kit.Half,wing.At(col*2+1,roofBase+h,v),Anchor.Bottom,yaw,"gable");
-                        }
                         bool center=wing.Width%2==1 && col==wing.Width/2;
                         // The chimney's own wall closes the gable triangle under a flue at the wing's end.
                         if(flues.Contains((col,end==0?0:wing.Length-1)))continue;
