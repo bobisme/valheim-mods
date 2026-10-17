@@ -1,3 +1,5 @@
+0.12.6: The stone arch over a keep's gate stands on the jambs: its two pieces were both set over the middle of the gate.
+
 0.12.5: A stone keep's walls go on down into the ground, bonded the same, instead of standing on a slab set in from them; inside, its timber floor is on stone pillars and beams like the other styles.
 
 0.12.4: Stone keep: the stone is laid like brickwork, each course's joints a metre along from the course below's, with 1 m blocks to finish a run. Its entrance is a double gate (two gates side by side, 4 m wide) under a round arch of two stone arch pieces; the keep's storeys default to 4 m so the arch fits over the 3 m gate (4 m storeys need a 12 m stair run inside). The gate needs 5 m of straight wall around it.

@@ -617,7 +617,7 @@ foreach(int storeys in new[]{2,3,4})
  for(int y=-HallLayout.KeepFooting;y<0;y++)Check(Math.Abs(footing.Where(p=>Math.Abs(p.At.Y-y)<1e-9).Sum(p=>p.Prefab=="stone_wall_2x1"?2.0:1.0)-56)<1e-9,"A footing course under the whole wall line");
  Check(keep.Parts.Count(p=>p.Role=="entrance" && p.Prefab=="wood_gate")==2,"A double gate");
  var arches=keep.Parts.Where(p=>p.Role=="gate arch").ToList();
- Check(arches.Count==2 && arches.All(p=>Math.Abs(p.At.Y-3)<1e-9 && Math.Abs(p.At.Z)<1e-9 && Math.Abs(Math.Abs(p.At.X-6)-1)<1e-9),"A stone arch over the gate, from jamb to jamb");
+ Check(arches.Count==2 && arches.All(p=>Math.Abs(p.At.Y-3)<1e-9 && Math.Abs(p.At.Z)<1e-9 && Math.Abs(Math.Abs(p.At.X-6)-2)<1e-9),"A stone arch over the gate, each piece standing on a jamb");
  Check(!stones.Any(p=>p.At.Y<4-1e-9 && Math.Abs(p.At.Z)<1e-9 && Math.Abs(p.At.X-6)<2+(p.Prefab=="stone_wall_2x1"?1:0.5)-1e-9),"Nothing in the gateway or the arch");
  var merlons=keep.Parts.Where(p=>p.Role=="merlon").ToList();
  Check(merlons.Count==keep.BoundaryPanels && merlons.All(p=>Math.Abs(p.At.Y-(roof+1))<1e-9),"A merlon on every parapet panel");

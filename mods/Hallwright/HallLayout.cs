@@ -404,7 +404,9 @@ namespace Hallwright
                     foreach(int side in new[]{-1,1})
                     {
                         Add(kit.Door,entry.At+Turn(new V3(side,0,0),entry.Yaw),Anchor.Bottom,entry.Yaw+(side<0?180:0),"entrance");
-                        if(kit.StoneArch!=null)Add(kit.StoneArch,entry.At+Turn(new V3(side,kit.DoorHeight,0),entry.Yaw),Anchor.Bottom,entry.Yaw+(side<0?180:0),"gate arch");
+                        // The arch piece's thick end is its local +x, and its lowest snaps (the bottom anchor) are on that end: set it on the
+                        // jamb, its thin end meeting the other's over the middle.
+                        if(kit.StoneArch!=null)Add(kit.StoneArch,entry.At+Turn(new V3(side*2,kit.DoorHeight,0),entry.Yaw),Anchor.Bottom,entry.Yaw+(side<0?180:0),"gate arch");
                     }
                     // Straight wall half a metre past each side of the gate, for the jambs.
                     foreach(double t in new[]{-2.5,-1.5,-0.5,0.5,1.5,2.5})
