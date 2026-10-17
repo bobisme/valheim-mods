@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using HarmonyLib;
 using UnityEngine;
 
 namespace Jarldom
@@ -29,9 +30,19 @@ namespace Jarldom
         // The skald's singing a song of Bob's in this colony's hall now, as this game hears it (the skald's verses wait for it).
         public static bool SongOn(string colony) => Singing.TryGetValue(colony, out bool on) && on; // (jarldom hallsound <volume> | roar | mood <n>: on this game only)
 
+        // How far the game's own music is hushed for the skald's song (0 not at all, 1 silent): by how loud the song is where this player
+        // stands, so it's gone in the hall and comes back as they walk away.
+        public static float Hush;
+        [HarmonyPatch(typeof(MusicMan), "Update")]
+        private static class Quiet
+        {
+            private static void Postfix(AudioSource ___m_musicSource) { if (Hush > 0.001f && ___m_musicSource != null) ___m_musicSource.volume *= 1f - Hush; }
+        }
+
         public static void Tick()
         {
             Player me = Player.m_localPlayer;
+            Hush = 0;
             foreach (Hall h in Halls.Values) Fade(h); // (every frame: smooth)
             if (me == null || Time.time < _next) return;
             _next = Time.time + 2f;
@@ -177,6 +188,7 @@ namespace Jarldom
             h.Song.volume = Mathf.MoveTowards(h.Song.volume, want, Time.deltaTime * (want > h.Song.volume ? 0.6f : 0.4f));
             h.Muffle.cutoffFrequency = Mathf.Exp(Mathf.MoveTowards(Mathf.Log(h.Muffle.cutoffFrequency), Mathf.Log(cutoff), Time.deltaTime * 4f)); // (in octaves: a door's step smooth)
             if (h.Sung == null && h.Song.volume <= 0.001f && h.Song.isPlaying) h.Song.Pause();
+            if (h.Song.isPlaying) Hush = Mathf.Max(Hush, Mathf.Clamp01(h.Song.volume * 2f)); // (just outside the door, nearly silent too)
         }
         private static void Step(AudioSource s, float want)
         {
@@ -192,7 +204,7 @@ namespace Jarldom
         }
         public static string Sources() => string.Join("; ", Halls.Values.Where(h => h.Go != null).Select(h => $"at {h.Go.transform.position:F0}, reach {h.Src[0].minDistance:0}-{h.Src[0].maxDistance:0} m: " +
             string.Join(", ", h.Src.Select((src, i) => $"{Layers[i]} {src.volume:0.00}{(src.isPlaying ? " playing" : "")}"))
-            + (h.Song != null ? $"; song {h.Sung ?? "none"} {h.Song.volume:0.00}{(h.Song.isPlaying ? $" playing at {h.Song.time:0}s" : "")}, low-pass {h.Muffle.cutoffFrequency:0} Hz" : ""))) + $" (clips {Clips.Count}/{Layers.Length + Soundscape.AllVoices.Count()})";
-        public static void Forget() { foreach (string id in Halls.Keys.ToList()) Drop(id); }
+            + (h.Song != null ? $"; game music hushed {Hush:0.00}; song {h.Sung ?? "none"} {h.Song.volume:0.00}{(h.Song.isPlaying ? $" playing at {h.Song.time:0}s" : "")}, low-pass {h.Muffle.cutoffFrequency:0} Hz" : ""))) + $" (clips {Clips.Count}/{Layers.Length + Soundscape.AllVoices.Count()})";
+        public static void Forget() { foreach (string id in Halls.Keys.ToList()) Drop(id); Hush = 0; }
     }
 }
