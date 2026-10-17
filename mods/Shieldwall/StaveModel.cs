@@ -96,21 +96,8 @@ namespace Shieldwall
 
         // A baked stave (tools/bake, docs/model-baking.md): one low mesh in the game's style, its colour, normal and glow maps embedded beside it,
         // drawn as the game draws its own pieces (the piece shader with its own small textures). Null if this stave has no maps.
-        private static Material Baked(Material hewn,StaveKind kind)
-        {
-            string at="Shieldwall.stave_"+kind.ToString().ToLowerInvariant();
-            Texture2D albedo=Look.Texture(at+"_albedo.png",false);
-            if(albedo==null)return null;
-            var m=new Material(hewn){name="BobStave"+kind+"Baked",hideFlags=HideFlags.HideAndDontSave,color=Color.white};
-            m.mainTexture=albedo;m.mainTextureScale=Vector2.one;m.mainTextureOffset=Vector2.zero;
-            Texture2D normal=Look.Texture(at+"_normal.png",true);
-            if(normal!=null&&m.HasProperty("_BumpMap")){m.SetTexture("_BumpMap",normal);m.SetTextureScale("_BumpMap",Vector2.one);m.EnableKeyword("_NORMALMAP");}
-            Texture2D glow=Look.Texture(at+"_glow.png",false);
-            if(glow!=null&&m.HasProperty("_EmissionColor")){m.SetTexture("_EmissionMap",glow);m.EnableKeyword("_EMISSION");m.SetColor("_EmissionColor",Color.white);}
-            foreach(var (k,v) in new[]{("_Glossiness",0.12f),("_Smoothness",0.12f),("_Metallic",0f)})if(m.HasProperty(k))m.SetFloat(k,v);
-            Assets.Owned.Add(m);
-            return m;
-        }
+        private static Material Baked(Material hewn,StaveKind kind)=>
+            SharedBaked.Baked.Material(typeof(StaveModel).Assembly,"Shieldwall.stave_"+kind.ToString().ToLowerInvariant(),hewn,"BobStave"+kind+"Baked",Assets.Owned);
 
         // The stave's look under a parent: its foot at the parent's origin, standing up its y.
         internal static GameObject Dress(Transform parent,StaveKind kind,float scale)

@@ -18,6 +18,7 @@ namespace Shieldwall
         internal const float BrazierFire=1.08f;
         private static readonly Dictionary<string,Mesh> Meshes=new Dictionary<string,Mesh>();
         private static Material[] _set;
+        private static readonly Dictionary<string,Material> BakedSet=new Dictionary<string,Material>();
 
         internal static bool Has(string prefab)=>Models.ContainsKey(prefab);
         internal static (Vector3 centre,Vector3 size)? SolidOf(string prefab)=>Models.TryGetValue(prefab,out string m)&&Solid.TryGetValue(m,out var s)?s:((Vector3,Vector3)?)null;
@@ -81,11 +82,21 @@ namespace Shieldwall
             };
         }
 
+        // A baked model (tools/bake, docs/model-baking.md): one material wearing its own maps, on a copy of the hewn wood's piece material.
+        private static Material[] Baked(string model)
+        {
+            if(BakedSet.TryGetValue(model,out Material made)&&made!=null)return new[]{made};
+            Material hewn=Assets.Find("wood_pole")?.GetComponentsInChildren<MeshRenderer>(true).Select(r=>r.sharedMaterial).FirstOrDefault(m=>m!=null&&m.shader!=null&&m.shader.name=="Custom/Piece");
+            made=SharedBaked.Baked.Material(typeof(UpgradeModel).Assembly,"Shieldwall.up_"+model,hewn,"BobWarUpgrade_"+model+"Baked",Assets.Owned);
+            BakedSet[model]=made;
+            return made!=null?new[]{made}:null;
+        }
+
         // A look to build the piece from (Pieces.Build copies its meshes): null if the model can't be had. Destroy it after.
         internal static GameObject Dress(string prefab)
         {
             if(!Models.TryGetValue(prefab,out string model))return null;
-            Mesh mesh=Mesh(model);Material[] set=mesh!=null?Materials():null;
+            Mesh mesh=Mesh(model);Material[] set=mesh!=null?Baked(model)??Materials():null;
             if(set==null)return null;
             var go=new GameObject("BobWarUpgradeLook_"+model);
             go.AddComponent<MeshFilter>().sharedMesh=mesh;

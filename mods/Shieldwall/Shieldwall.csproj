@@ -6,6 +6,8 @@
     <EmbeddedResource Include="Models/stave/stave_*.json.gz" LogicalName="Shieldwall.%(Filename)%(Extension)" />
     <EmbeddedResource Include="Models/stave/stave_*.png" LogicalName="Shieldwall.%(Filename)%(Extension)" />
     <EmbeddedResource Include="Models/upgrade/up_*.json.gz" LogicalName="Shieldwall.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Models/upgrade/up_*.png" LogicalName="Shieldwall.%(Filename)%(Extension)" />
+    <Compile Include="../Shared/Baked/*.cs" Link="Shared/Baked/%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="UnityEngine.AIModule"><HintPath>$(ManagedDir)/UnityEngine.AIModule.dll</HintPath><Private>false</Private></Reference>

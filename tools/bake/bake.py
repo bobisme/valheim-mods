@@ -14,6 +14,8 @@ conf = {'__file__': CONF}
 exec(open(CONF).read(), conf)
 WORK, SHIP, NAME = conf['WORK'], conf['SHIP'], conf['NAME'](KIND)
 BUDGET, PX, DECALS = conf.get('BUDGET', 1500), conf.get('PX', 256), tuple(conf.get('DECALS', ('cut',)))
+if isinstance(BUDGET, dict): BUDGET = BUDGET[KIND]
+if isinstance(PX, dict): PX = PX[KIND]
 TEX = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tex') + '/'
 os.makedirs(WORK + '/view', exist_ok=True)
 for f in conf.get('COPY', []): shutil.copy(f, WORK)
@@ -37,9 +39,9 @@ def plain(m, colour, emit=None):
     b.inputs['Base Color'].default_value = (*lin(colour), 1); b.inputs['Roughness'].default_value = 0.8
     b.inputs['Emission Color'].default_value = (*lin(emit), 1) if emit else (0, 0, 0, 1)
     b.inputs['Emission Strength'].default_value = 1.0 if emit else 0.0
-def grained(m, texture, scale, tint):
+def grained(m, texture, scale, tint, emit=None):
     """A game texture laid on in metres (as Look.Build's uvs, times the material's mainTextureScale), tinted."""
-    plain(m, (1, 1, 1)); nt = m.node_tree; b = nt.nodes['Principled BSDF']
+    plain(m, (1, 1, 1), emit); nt = m.node_tree; b = nt.nodes['Principled BSDF']
     tc = nt.nodes.new('ShaderNodeTexCoord'); mp = nt.nodes.new('ShaderNodeMapping'); mp.inputs['Scale'].default_value = (scale,) * 3
     im = nt.nodes.new('ShaderNodeTexImage'); im.image = bpy.data.images.load(TEX + texture); im.projection = 'BOX'; im.projection_blend = 0.3
     mix = nt.nodes.new('ShaderNodeMix'); mix.data_type = 'RGBA'; mix.blend_type = 'MULTIPLY'; mix.inputs['Factor'].default_value = 1
@@ -75,7 +77,7 @@ for gi, o in enumerate(hosts):
     n = len(me.polygons)
     if quads > 0.8 and n > 24:
         # a swept or lathed part (a grid of quads): every other ring and side gone, so it stays a clean tube
-        d = lo.modifiers.new('dec', 'DECIMATE'); d.decimate_type = 'UNSUBDIV'; d.iterations = 2 if ratio < 0.4 else 1
+        d = lo.modifiers.new('dec', 'DECIMATE'); d.decimate_type = 'UNSUBDIV'; d.iterations = max(1, min(6, math.ceil(math.log2(n / max(24, n * ratio)) - 0.3)))   # (each pass about halves it)
     else:
         bm = bmesh.new(); bm.from_mesh(me)
         bmesh.ops.dissolve_limit(bm, angle_limit=math.radians(4), verts=bm.verts, edges=bm.edges)
@@ -84,7 +86,12 @@ for gi, o in enumerate(hosts):
         if n > 16:
             d = lo.modifiers.new('dec', 'DECIMATE'); d.ratio = max(ratio, 12 / n); d.use_collapse_triangulate = True
     parts.append(lo)
+    if n > 400: print('BAKE big part', o.name, n, 'quads %.2f' % quads, [m.type for m in lo.modifiers])
 bpy.context.view_layer.update(); deps = bpy.context.evaluated_depsgraph_get()
+from collections import Counter
+use = Counter()
+for o in parts: use[o.name.split('.')[0][:-3]] += len(o.evaluated_get(deps).data.polygons)
+print('BAKE parts', use.most_common(10))
 lowme = bpy.data.meshes.new('low'); bm = bmesh.new(); grp = bm.verts.layers.int.new('grp')
 for gi, o in enumerate(parts):
     m2 = bpy.data.meshes.new_from_object(o.evaluated_get(deps)); start = len(bm.verts); bm.from_mesh(m2); bm.verts.ensure_lookup_table()

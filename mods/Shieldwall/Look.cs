@@ -77,28 +77,9 @@ namespace Shieldwall
             for(int k=0;k<t.Length;k++)mesh.SetTriangles(t[k],k);
             mesh.RecalculateBounds();
             // A baked model (tools/bake) brings the tangents its normal map was baked against; the rest get Unity's own.
-            if(d["tan"] is JArray tan){float[] a=tan.ToObject<float[]>();var tangents=new Vector4[verts.Length];for(int i=0;i<verts.Length;i++)tangents[i]=new Vector4(a[4*i],a[4*i+1],a[4*i+2],a[4*i+3]);mesh.tangents=tangents;}
-            else mesh.RecalculateTangents();
+            if(!SharedBaked.Baked.Tangents(mesh,d))mesh.RecalculateTangents();
             Owned.Add(mesh);
             return mesh;
-        }
-
-        // (ImageConversion.LoadImage lives in a module the build can't reference directly (its netstandard is newer), so it's called by name.)
-        private static readonly System.Reflection.MethodInfo LoadImage=System.Type.GetType("UnityEngine.ImageConversion, UnityEngine.ImageConversionModule")
-            ?.GetMethod("LoadImage",new[]{typeof(Texture2D),typeof(byte[]),typeof(bool)});
-        // A texture embedded in the mod (a baked model's maps), or null. linear: data, not colour (a normal map).
-        internal static Texture2D Texture(string resource,bool linear)
-        {
-            using(var raw=typeof(Look).Assembly.GetManifestResourceStream(resource))
-            {
-                if(raw==null)return null;
-                var bytes=new byte[raw.Length];int got=0;while(got<bytes.Length)got+=raw.Read(bytes,got,bytes.Length-got);
-                var tex=new Texture2D(2,2,TextureFormat.RGBA32,true,linear){name=resource,hideFlags=HideFlags.HideAndDontSave};
-                if(LoadImage==null||!(bool)LoadImage.Invoke(null,new object[]{tex,bytes,true})){Object.DestroyImmediate(tex);return null;}
-                tex.wrapMode=TextureWrapMode.Clamp;tex.filterMode=FilterMode.Bilinear;tex.anisoLevel=4;
-                Owned.Add(tex);
-                return tex;
-            }
         }
 
         internal static Material[] Materials
