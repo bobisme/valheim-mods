@@ -65,7 +65,9 @@ namespace Demolisher
                 var look=new GameObject("Model");look.transform.SetParent(stake.transform,false);
                 look.AddComponent<MeshFilter>().sharedMesh=mesh;
                 // (wood, weathered boards, iron, red paint, black paint: as the model's materials are numbered)
-                look.AddComponent<MeshRenderer>().sharedMaterials=new[]{Grain(wood,new Color(0.85f,0.78f,0.72f)),Grain(wood,new Color(0.72f,0.7f,0.66f)),Plain(wood,new Color(0.16f,0.155f,0.15f)),Plain(wood,new Color(0.55f,0.06f,0.04f)),Plain(wood,new Color(0.05f,0.045f,0.04f))};
+                // Baked (docs/model-baking.md): one material wearing the model's own maps; else the model's numbered materials.
+                Material baked=SharedBaked.Baked.Material(typeof(Plugin).Assembly,"Demolisher.demostake",wood,"Demolisher stake baked",_stakeOwned);
+                look.AddComponent<MeshRenderer>().sharedMaterials=baked!=null?new[]{baked}:new[]{Grain(wood,new Color(0.85f,0.78f,0.72f)),Grain(wood,new Color(0.72f,0.7f,0.66f)),Plain(wood,new Color(0.16f,0.155f,0.15f)),Plain(wood,new Color(0.55f,0.06f,0.04f)),Plain(wood,new Color(0.05f,0.045f,0.04f))};
             }
             else BuildPoleLook(stake,bottom,top,wood);
             var piece=stake.GetComponent<Piece>();
@@ -140,7 +142,7 @@ namespace Demolisher
                         mesh.vertices=verts;mesh.normals=norms;mesh.uv=uvs;mesh.colors=Enumerable.Repeat(Color.white,verts.Length).ToArray(); // (the game's piece shader reads the vertex colour)
                         mesh.subMeshCount=t.Length;
                         for(int k=0;k<t.Length;k++)mesh.SetTriangles(t[k],k);
-                        mesh.RecalculateBounds();mesh.RecalculateTangents();
+                        mesh.RecalculateBounds();if(!SharedBaked.Baked.Tangents(mesh,d))mesh.RecalculateTangents();
                         _stakeOwned.Add(mesh);
                         return mesh;
                     }

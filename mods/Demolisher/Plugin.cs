@@ -15,7 +15,7 @@ namespace Demolisher
     {
         public const string Guid="com.bobisme.demolisher";
         public const string Name="Demolisher";
-        public const string Version="0.1.4";
+        public const string Version="0.1.5";
         internal static Plugin Instance;
         private ConfigEntry<bool> _enabled;
         private ConfigEntry<int> _perFrame;

@@ -1,3 +1,5 @@
+0.12.8: The Hallwright stake is remade in the game's own style: a low-poly model (574 triangles, down from 1,126) carrying its detail in its own small colour and normal textures, baked from the detailed model. It looks as before.
+
 0.12.7: The arch over a keep's gate is gone. A gate (Auto, or chosen) needs walls at least 4 m high: under 3 m walls the beams at the wall top crossed the gate. No beam crosses any part of a keep's 4 m double gate.
 
 0.12.6: The stone arch over a keep's gate stands on the jambs: its two pieces were both set over the middle of the gate.

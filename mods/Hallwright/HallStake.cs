@@ -67,7 +67,9 @@ namespace Hallwright
                 var look=new GameObject("Model");look.transform.SetParent(stake.transform,false);
                 look.AddComponent<MeshFilter>().sharedMesh=mesh;
                 // (wood, dark wood, iron, ochre paint: as the model's materials are numbered)
-                look.AddComponent<MeshRenderer>().sharedMaterials=new[]{Grain(wood,new Color(0.95f,0.9f,0.82f)),Grain(wood,new Color(0.55f,0.45f,0.38f)),Plain(wood,new Color(0.16f,0.155f,0.15f)),Plain(wood,new Color(0.82f,0.42f,0.1f))};
+                // Baked (docs/model-baking.md): one material wearing the model's own maps; else the model's numbered materials.
+                Material baked=SharedBaked.Baked.Material(typeof(Plugin).Assembly,"Hallwright.hallstake",wood,"Hallwright stake baked",_stakeOwned);
+                look.AddComponent<MeshRenderer>().sharedMaterials=baked!=null?new[]{baked}:new[]{Grain(wood,new Color(0.95f,0.9f,0.82f)),Grain(wood,new Color(0.55f,0.45f,0.38f)),Plain(wood,new Color(0.16f,0.155f,0.15f)),Plain(wood,new Color(0.82f,0.42f,0.1f))};
             }
             else BuildPoleLook(stake,bottom,top,wood);
             var piece=stake.GetComponent<Piece>();
@@ -143,7 +145,7 @@ namespace Hallwright
                         mesh.vertices=verts;mesh.normals=norms;mesh.uv=uvs;mesh.colors=Enumerable.Repeat(Color.white,verts.Length).ToArray(); // (the game's piece shader reads the vertex colour)
                         mesh.subMeshCount=t.Length;
                         for(int k=0;k<t.Length;k++)mesh.SetTriangles(t[k],k);
-                        mesh.RecalculateBounds();mesh.RecalculateTangents();
+                        mesh.RecalculateBounds();if(!SharedBaked.Baked.Tangents(mesh,d))mesh.RecalculateTangents();
                         _stakeOwned.Add(mesh);
                         return mesh;
                     }

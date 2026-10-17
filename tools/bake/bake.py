@@ -23,7 +23,7 @@ for f in conf.get('COPY', []): shutil.copy(f, WORK)
 # --- the detailed scene, from the model's own script ---
 sys.argv = sys.argv[:sys.argv.index('--') + 1] + conf['ARGS'](KIND)
 scope = {'__name__': '__bake__'}
-exec(open(conf['SCRIPT']).read(), scope)
+exec(open(conf['SCRIPT'](KIND) if callable(conf['SCRIPT']) else conf['SCRIPT']).read(), scope)   # (SCRIPT may be per kind)
 import bpy, bmesh
 from mathutils import Vector
 from mathutils.bvhtree import BVHTree
@@ -34,12 +34,13 @@ def lin(c): return tuple(((x / 12.92) if x <= 0.04045 else ((x + 0.055) / 1.055)
 
 # --- its materials as the game draws them (conf.look calls these) ---
 view_tints, GRAIN = {}, {}
+OFFSET, OWNUV = {}, {}   # (a grained texture's offset; materials drawn on the mesh's own uvs: name -> texture)
 def plain(m, colour, emit=None):
     m.use_nodes = True; b = m.node_tree.nodes['Principled BSDF']
     b.inputs['Base Color'].default_value = (*lin(colour), 1); b.inputs['Roughness'].default_value = 0.8
     b.inputs['Emission Color'].default_value = (*lin(emit), 1) if emit else (0, 0, 0, 1)
     b.inputs['Emission Strength'].default_value = 1.0 if emit else 0.0
-def grained(m, texture, scale, tint, emit=None):
+def grained(m, texture, scale, tint, emit=None, offset=0.0):
     """A game texture laid on in metres (as Look.Build's uvs, times the material's mainTextureScale), tinted."""
     plain(m, (1, 1, 1), emit); nt = m.node_tree; b = nt.nodes['Principled BSDF']
     tc = nt.nodes.new('ShaderNodeTexCoord'); mp = nt.nodes.new('ShaderNodeMapping'); mp.inputs['Scale'].default_value = (scale,) * 3
@@ -49,12 +50,23 @@ def grained(m, texture, scale, tint, emit=None):
     nt.links.new(im.outputs['Color'], mix.inputs['A']); mix.inputs['B'].default_value = (*tint, 1)
     nt.links.new(mix.outputs['Result'], b.inputs['Base Color'])
     GRAIN[m.name] = (texture, scale); view_tints[m.name] = list(tint)
+    if offset: mp.inputs['Location'].default_value = (offset,) * 3; OFFSET[m.name] = offset
+def uvmapped(m, texture, tint, emit=None):
+    """A game texture on the mesh's own uvs (as a model that keeps its own uvs for a part, at scale 1), tinted. (conf.look calls it by name.)"""
+    plain(m, (1, 1, 1), emit); nt = m.node_tree; b = nt.nodes['Principled BSDF']
+    tc = nt.nodes.new('ShaderNodeTexCoord'); im = nt.nodes.new('ShaderNodeTexImage'); im.image = bpy.data.images.load(TEX + texture)
+    mix = nt.nodes.new('ShaderNodeMix'); mix.data_type = 'RGBA'; mix.blend_type = 'MULTIPLY'; mix.inputs['Factor'].default_value = 1
+    nt.links.new(tc.outputs['UV'], im.inputs['Vector']); nt.links.new(im.outputs['Color'], mix.inputs['A']); mix.inputs['B'].default_value = (*tint, 1)
+    nt.links.new(mix.outputs['Result'], b.inputs['Base Color'])
+    OWNUV[m.name] = texture; view_tints[m.name] = list(tint)
+conf['uvmapped'] = uvmapped
 conf['look'](mats, KIND, plain, grained)
 
 deps = bpy.context.evaluated_depsgraph_get()
 high = [o for o in bpy.context.scene.collection.objects if o.type == 'MESH']
 for o in high:
-    if o.name in SMOOTH:
+    if o.name in SMOOTH or (isinstance(SMOOTH, tuple) and o.name.startswith(SMOOTH)) or \
+            (o.data.materials and o.data.materials[0] in mats and mats.index(o.data.materials[0]) in SMOOTH):   # (a set of names, a tuple of name prefixes, or of slot numbers)
         for p in o.data.polygons: p.use_smooth = True
 def emissive(o): return any(m and m.node_tree and m.node_tree.nodes['Principled BSDF'].inputs['Emission Strength'].default_value > 0 for m in o.data.materials)
 
@@ -188,6 +200,7 @@ print('BAKE', NAME, 'shipped verts', len(V) // 3, 'tris', len(TRI) // 3, 'maps',
 # --- for the viewer: the detailed model (game grain on metre uvs) and the baked one ---
 for o in high:
     me = o.data
+    if any(m is not None and m.name in OWNUV for m in me.materials) and me.uv_layers: continue   # (its own uvs stay)
     if not me.uv_layers: me.uv_layers.new(name='uv')
     uv = me.uv_layers.active.data
     for p in me.polygons:
@@ -201,8 +214,13 @@ for m in mats:
     nt = m.node_tree; b = nt.nodes['Principled BSDF']; tex, scale = GRAIN[m.name]
     t = nt.nodes.new('ShaderNodeTexImage'); t.image = bpy.data.images.load(TEX + tex)
     uvn = nt.nodes.new('ShaderNodeUVMap'); mp = nt.nodes.new('ShaderNodeMapping'); mp.inputs['Scale'].default_value = (scale,) * 3
+    if m.name in OFFSET: mp.inputs['Location'].default_value = (OFFSET[m.name],) * 3
     nt.links.new(uvn.outputs['UV'], mp.inputs['Vector']); nt.links.new(mp.outputs['Vector'], t.inputs['Vector'])
     nt.links.new(t.outputs['Color'], b.inputs['Base Color'])
+for m in mats:
+    if m.name not in OWNUV: continue
+    nt = m.node_tree; b = nt.nodes['Principled BSDF']
+    t = nt.nodes.new('ShaderNodeTexImage'); t.image = bpy.data.images.load(TEX + OWNUV[m.name]); nt.links.new(t.outputs['Color'], b.inputs['Base Color'])
 nt = lowmat.node_tree; b = nt.nodes['Principled BSDF']
 for n in list(nt.nodes):
     if n.type == 'TEX_IMAGE': nt.nodes.remove(n)

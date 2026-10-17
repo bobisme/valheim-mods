@@ -3,5 +3,7 @@
   <ItemGroup>
     <Reference Include="UnityEngine.AudioModule"><HintPath>$(ManagedDir)/UnityEngine.AudioModule.dll</HintPath><Private>false</Private></Reference>
     <EmbeddedResource Include="Models/stake/*.json.gz" LogicalName="Demolisher.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Models/stake/*.png" LogicalName="Demolisher.%(Filename)%(Extension)" />
+    <Compile Include="../Shared/Baked/*.cs" Link="Shared/Baked/%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>
