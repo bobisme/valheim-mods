@@ -18,7 +18,7 @@ namespace Villagewright
         private static readonly FieldInfo RightItem = AccessTools.Field(typeof(Humanoid), "m_rightItem"), PlacementGhost = AccessTools.Field(typeof(Player), "m_placementGhost");
         private GameObject _stakePrefab, _stakeHolder;
         private Material _flag;
-        private float _stakeCheck, _ringNext;
+        private float _stakeCheck, _ringNext, _selectedAt;
         private bool _wasStake;
 
         private static PieceTable HammerTable() => ObjectDB.instance?.GetItemPrefab("Hammer")?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces;
@@ -104,8 +104,13 @@ namespace Villagewright
             if (stake != _wasStake)
             {
                 _wasStake = stake;
-                if (stake) { ShowPreview = true; DrawPreview(); Say(Site == null ? "click the ground for the village's centre, then for its edge; or Shift+click round a plot. E for the settings." : "E for the settings; click to start a new site."); }
-                else if (!VillageWindow.IsOpen && !Building && BuildState != "done") ClearPreview();
+                if (stake) { _selectedAt = Time.unscaledTime; ShowPreview = true; DrawPreview(); Say(Site == null ? "click the ground for the village's centre, then for its edge; or Shift+click round a plot. E for the settings." : "E for the settings; click to start a new site."); }
+                else
+                {
+                    // Putting the stake away drops a half-marked circle (its ring followed the cursor) and takes the lines off the ground.
+                    if (Site == null) CentreMark = null;
+                    if (!VillageWindow.IsOpen && !Building) ClearPreview();
+                }
             }
             if (!stake || VillageWindow.IsOpen || Hud.IsPieceSelectionVisible() || Hud.InRadial() || global::Menu.IsVisible() || InventoryGui.IsVisible()) return;
             // A circle being drawn: its ring follows the cursor.
@@ -136,7 +141,8 @@ namespace Villagewright
         // A click with the stake (the game's placing, which never builds it).
         private void StakeClick(Player player)
         {
-            if (VillageWindow.IsOpen || !CameraHit(out Vector3 at)) return;
+            // The click that picked the stake from the build menu isn't a mark on the ground.
+            if (VillageWindow.IsOpen || Time.unscaledTime - _selectedAt < 0.3f || !CameraHit(out Vector3 at)) return;
             if (Input.GetKey(RoadModifier.Value))
             {
                 try { string said = AddRoadPoint(at); Say(Problem ?? said); }
@@ -156,7 +162,7 @@ namespace Villagewright
             {
                 // Start a new circle.
                 PlotCorners.Clear(); ClearRoad(); Site = null; Plan = null; CentreMark = at; ClearPreview();
-                Say("now click the village's edge.");
+                Say("now click the village's edge (Backspace to cancel).");
                 return;
             }
             float r = new Vector2(at.x - CentreMark.Value.x, at.z - CentreMark.Value.z).magnitude;
