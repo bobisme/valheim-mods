@@ -40,6 +40,16 @@ Each model family has a small **conf** next to its scripts, for example `mods/Sh
   - `grained(m, 'woodpole_MainTex_128.png', scale, tint)`, which lays a game texture on in metres, the way `Look.Build`'s uvs times
     the material's `mainTextureScale` do.
 
+Optional, added while baking the other families:
+
+- `SCRIPT` may be a function of the kind, when each model has its own script (Jarldom's markers).
+- `BUDGET` and `PX` may be dicts keyed by kind.
+- `grained(..., offset=, on_uv=True)` lays the texture on the part's own uvs instead of a box projection.
+- `uvmapped(m, texture, tint)` is a texture on the mesh's own uvs, as for Camping's hides. Confs reach it as the global `uvmapped`.
+- `prepare(high)` runs on the detailed parts before the bake. Bathhouse uses it to give boards the grain direction its game export
+  uses. Mark parts that should keep their own uvs on the viewer side with `o['bake_uv'] = 1`.
+- `SMOOTH` may be a set of names, a tuple of name prefixes or a set of material slot numbers.
+
 The model script must define `mats` (its material slots, in order) and may define `SMOOTH` (the names of objects drawn smooth), as
 the altar/stake/stave `lib.py` kits do. Its own `export()` at the end is harmless.
 
@@ -62,12 +72,15 @@ python3 tools/bake/viewer.py ~/.cache/bake/viewer/staves.html ~/.cache/staves/vi
 
 ## How the bake works (and why)
 
-1. **Low copy, per part.** Swept or lathed parts (tubes, shafts, rings: mostly quads) get Blender's Un-Subdivide, which drops every
-   other ring and side and keeps a clean chunky tube. A plain collapse decimate kinks thin tubes. Other parts get a planar dissolve,
+1. **Low copy, per part.** Swept or lathed parts (tubes, shafts, rings: all quads, one connected piece) get Blender's Un-Subdivide,
+   as many passes as the budget needs (each roughly halves the part). That keeps a clean chunky tube, where a plain collapse decimate
+   kinks thin tubes. A part made of separate pieces (a bucket's boards) goes through the collapse path instead, or it comes out gappy.
+   Sheets thickened by a modifier are thinned before they're thickened, so their two faces don't cross. Other parts get a planar dissolve,
    then a collapse to the budget's ratio, but never under 12 triangles each. Parts named with a `DECALS` prefix are left out of the
    mesh (cracks, carved runes, inlays, wraps, lashings, scorch). Give such parts names like that in the model script.
 2. **One atlas.** The low parts are joined, auto-smoothed at 40° (hard where it turns sharply, soft where it rounds, as the game's
-   own are), unwrapped with Smart UV Project and packed.
+   own are) and unwrapped with Smart UV Project. UV islands thinner than 3 baked texels are widened (otherwise thin threads, like
+   Frigg's loom, bake black), and then everything is packed.
 3. **Bake with the parts pulled apart.** Each part, its low copy and the surface marks that lie on it move 40 m apart, so no part
    bakes its neighbour onto itself. Without this, Blast's cage was baked onto its pots. Each mark goes with the part nearest its own
    surface, measured over points along it: a wrap's centre is inside the shaft. The bake uses selected-to-active with a cage
@@ -87,6 +100,10 @@ python3 tools/bake/viewer.py ~/.cache/bake/viewer/staves.html ~/.cache/staves/vi
   - `_BumpMap` is the normal map with `_NORMALMAP`;
   - `_EmissionMap` is the glow with `_EMISSION` and `_EmissionColor` white;
   - gloss is 0.12 and metallic 0.
+- **Shared code.** `mods/Shared/Baked/Baked.cs` (`SharedBaked.Baked`) does this for every mod: `Tangents(mesh, json)`,
+  `Texture(asm, resource, linear)` and `Material(asm, resourcePrefix, fromMaterial, name, owned)`. The last returns null when the mod
+  has no albedo map, so the old slot materials stay as the fallback. Compile it in with
+  `<Compile Include="../Shared/Baked/*.cs" Link="Shared/Baked/%(Filename)%(Extension)" />`.
 - **Embedding.** Add the PNGs as embedded resources in the csproj, for example
   `<EmbeddedResource Include="Models/stave/stave_*.png" LogicalName="Shieldwall.%(Filename)%(Extension)" />`.
 - **Other mods.** Copy that small loader and material code into the mod, or move it into `mods/Shared`.
@@ -110,15 +127,37 @@ The models are embedded, so it opens from disk; three.js comes from unpkg, so it
 
 Show Bob the viewer before shipping a new family: he judged the staves from it.
 
-## Done and to do
+## Done
 
-- **Done:** Shieldwall war staves (0.4.24).
-- **Not yet baked** (detailed models with flat colours, 1,000 to 28,000 triangles):
-  - Shieldwall: Warstone upgrades (`Models/upgrade`, the banner is 28k), Warstone, stave socket;
-  - Jarldom: shrines (`Models/altar`), marker staff, watch post, ore claim, memorial, carvings;
-  - Hallwright and Demolisher stakes;
-  - Camping (the lean-to is 17.6k);
-  - Bathhouse.
+All baked on 2026-10-17 and checked in the game with `render`. Triangles before → after:
 
-  Each needs a conf whose `look` matches its mod's materials code, uses the rock or iron textures via `gametex.py`, and gets loader
-  changes in its mod.
+| Mod | Models | Conf |
+|---|---|---|
+| Shieldwall 0.4.24 | war staves, 6,500–11,000 → 1,600–2,150 | `Models/stave/bake_conf.py` |
+| Shieldwall 0.4.25 | Warstone upgrades: banner 28,330 → 2,830, totem 14,062 → 3,700, brazier 5,528 → 1,705, obelisk 3,658 → 878 | `Models/upgrade/bake_conf.py` |
+| Hallwright 0.12.8 | stake, 1,126 → 574 (128 px) | `Models/stake/bake_conf.py` |
+| Demolisher 0.1.5 | stake, 2,022 → 562 (128 px) | `Models/stake/bake_conf.py` |
+| Camping 0.1.6 | bedroll 2,032 → 538, lean-to 17,564 → 2,200, tent 3,672 → 1,430 | `Models/bake_conf.py` |
+| Bathhouse 0.1.4 | stove 8,958 → 2,766, bench 1,232 → 448, bucket 2,750 → 798, plunge tub 2,022 → 1,117, locker 2,196 → 1,062 | `Models/bake_conf.py` |
+| Jarldom 0.1.199 | eight shrines (6,000–17,922 → 1,540–2,721), marker staff 11,222 → 1,594, watch post 4,788 → 1,108, ore claim 4,172 → 1,516, memorial 7,698 → 756 | `Models/altar/bake_conf.py`, `Models/marker/bake_conf.py` |
+
+**Left unbaked, on purpose**
+
+- Shieldwall's Warstone (1,606) and stave socket (1,278) are already within the budget and draw with the game's own tiled rock and iron.
+  The Warstone's runes, marks and cracks also change in play: through a MaterialPropertyBlock on the rune submesh, and with
+  dressings that are added and removed.
+- Jarldom's carvings (`Models/carve`) are the game's own shaft meshes with grooves cut in, drawn with the game's wood material, so
+  they already match.
+- Hel's bones and skulls are the game's own prefabs, kitbashed at runtime (`HelKit`).
+- Freyja's leaves and flowers stay geometry: painted on as texture, they vanished.
+
+**Known differences**
+
+- The Bathhouse bucket's water is matte now: it's part of the single baked material. The plunge tub still gets the game's water
+  surface on top.
+- The totem (3,700) and the stove (2,766) are over budget, because many small parts each keep a 12-triangle minimum.
+- The staves and upgrades were baked before the later tool fixes (separate boards, thickened sheets, thin islands). A re-bake would
+  only come out better.
+
+**Viewer:** `python3 tools/bake/viewer.py ~/.cache/bake/viewer/all.html ~/.cache/{staves,upgrades,jarldom-altars,jarldom-stake,stakes,camping,bathhouse}/view`
+puts all 31 models on one page.

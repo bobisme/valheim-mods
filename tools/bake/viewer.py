@@ -15,7 +15,7 @@ for v in views:
 html=r'''<!doctype html><html><head><meta charset="utf-8"><title>__TITLE__</title>
 <style>
 html,body{margin:0;height:100%;background:#1b1d21;color:#ddd;font:14px system-ui,sans-serif;overflow:hidden}
-#bar{position:absolute;top:0;left:0;right:0;height:44px;display:flex;gap:14px;align-items:center;padding:0 14px;background:#121317;border-bottom:1px solid #2a2d33;z-index:2}
+#bar{position:absolute;top:0;left:0;right:0;min-height:44px;flex-wrap:wrap;row-gap:4px;box-sizing:border-box;padding-top:5px!important;padding-bottom:5px!important;display:flex;gap:14px;align-items:center;padding:0 14px;background:#121317;border-bottom:1px solid #2a2d33;z-index:2}
 #bar button{background:#2a2d33;color:#ddd;border:1px solid #3a3e46;border-radius:4px;padding:5px 11px;cursor:pointer;font:inherit}
 #bar button.on{background:#c2621f;border-color:#e07a30;color:#fff}
 #bar label{display:flex;gap:5px;align-items:center;cursor:pointer}
@@ -28,7 +28,7 @@ html,body{margin:0;height:100%;background:#1b1d21;color:#ddd;font:14px system-ui
 </style>
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.169.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.169.0/examples/jsm/"}}</script>
 </head><body>
-<div id="bar"><span style="color:#999">Model:</span><span id="kinds"></span>
+<div id="bar"><span style="color:#999">Model:</span><span id="kinds" style="display:flex;flex-wrap:wrap;gap:4px;flex:1 1 600px"></span>
 <span style="flex:1"></span>
 <label><input type="checkbox" id="wire"> wireframe</label>
 <label><input type="checkbox" id="spin"> turntable</label>
@@ -73,7 +73,7 @@ async function load(kind){
     const n=tris(v.root);
     document.getElementById(h==='high'?'tl':'tr').innerHTML=h==='high'
       ?`<b>Detailed</b> (the model now)<br>${n.toLocaleString()} triangles, flat colours + game wood grain`
-      :`<b>Baked low-poly</b> (proposed)<br>${n.toLocaleString()} triangles, one ${META[kind].px} px colour / normal${META[kind].glow?' / glow':''} set`;
+      :`<b>Baked low-poly</b> (what ships)<br>${n.toLocaleString()} triangles, one ${META[kind].px} px colour / normal${META[kind].glow?' / glow':''} set`;
   }
   setWire();
 }
@@ -85,7 +85,7 @@ kb.children[0].classList.add('on');
 function frame(y,d,h){target.set(0,y,0);const dir=cam.position.clone().sub(target);dir.y=0;dir.normalize();cam.position.set(dir.x*d,y+h,dir.z*d);}
 document.getElementById('head').onclick=()=>frame(META[cur].head??FOCUS.y*1.6,2.6,0.4);
 document.getElementById('whole').onclick=()=>frame(FOCUS.y,FOCUS.d,0.6);
-function size(){for(const v of [L,R]){const w=v.el.clientWidth,h=v.el.clientHeight;v.r.setSize(w,h,false);}cam.aspect=L.el.clientWidth/L.el.clientHeight;cam.updateProjectionMatrix();}
+function size(){document.getElementById('views').style.top=(document.getElementById('bar').offsetHeight+1)+'px';for(const v of [L,R]){const w=v.el.clientWidth,h=v.el.clientHeight;v.r.setSize(w,h,false);}cam.aspect=L.el.clientWidth/L.el.clientHeight;cam.updateProjectionMatrix();}
 addEventListener('resize',size);size();
 const clock=new THREE.Clock();
 (function tick(){requestAnimationFrame(tick);const dt=clock.getDelta();
