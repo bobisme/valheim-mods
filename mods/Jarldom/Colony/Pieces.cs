@@ -147,13 +147,24 @@ namespace Jarldom
                         mesh.vertices = verts; mesh.normals = norms; mesh.uv = uvs; mesh.colors = Enumerable.Repeat(Color.white, verts.Length).ToArray(); // (the game's piece shader reads the vertex colour)
                         mesh.subMeshCount = t.Length;
                         for (int k = 0; k < t.Length; k++) mesh.SetTriangles(t[k], k);
-                        mesh.RecalculateBounds(); mesh.RecalculateTangents();
+                        mesh.RecalculateBounds();
+                        if (!SharedBaked.Baked.Tangents(mesh, d)) mesh.RecalculateTangents(); // (a baked model brings the tangents its normal map was baked against)
                         Carvings[folder + "." + name] = mesh;
                         return mesh;
                     }
                 }
             }
             catch (Exception e) { Plugin.Warn("Jarldom: carved shaft " + name + ": " + e.Message); return null; }
+        }
+        // A baked model's material (tools/bake, docs/model-baking.md): its own colour, normal and glow maps, embedded beside its json.gz, on a
+        // copy of the hewn wood's piece material. Null if the model isn't baked (it has no maps): then its slots are coloured as before.
+        private static readonly Dictionary<string, Material> BakedLooks = new Dictionary<string, Material>();
+        private static Material[] BakedLook(string folder, string name, Material hewn)
+        {
+            string key = folder + "." + name;
+            if (!BakedLooks.TryGetValue(key, out Material made) || made == null)
+                BakedLooks[key] = made = SharedBaked.Baked.Material(typeof(Pieces).Assembly, "Jarldom." + key, hewn, "Jarldom_" + name + "Baked", Assets.Owned);
+            return made != null ? new[] { made } : null;
         }
         // A model stood on the floor of its parent (its lowest point at y = from).
         private static Bounds Stand(Transform parent, GameObject m, float from = 0)
@@ -321,6 +332,15 @@ namespace Jarldom
             Material hewn = Assets.Find("wood_pole")?.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null && m.shader != null && m.shader.name == "Custom/Piece");
             Material rock = Assets.Find("rock4_forest")?.GetComponentsInChildren<MeshRenderer>(true).Select(r => r.sharedMaterial).FirstOrDefault(m => m != null);
             if (model == null || hewn == null) return false;
+            Material[] baked = BakedLook("altar", "altar_" + god, hewn);
+            if (baked != null)
+            {
+                var b_ = new GameObject("altar"); b_.transform.SetParent(look, false);
+                b_.AddComponent<MeshFilter>().sharedMesh = model;
+                b_.AddComponent<MeshRenderer>().sharedMaterials = baked;
+                if (god == "hel") HelKit(look);
+                return true;
+            }
             if (!AltarColours.TryGetValue(god, out var own)) own = AltarColours["odin"];
             Material grain = new Material(hewn) { name = "JarldomAltarWood", hideFlags = HideFlags.HideAndDontSave }; grain.mainTextureScale = Vector2.one * StakeGrain; Assets.Owned.Add(grain);
             Material stone = Plain(hewn, new Color(0.45f, 0.44f, 0.42f)), cut = Plain(hewn, new Color(0.08f, 0.075f, 0.07f));
@@ -454,7 +474,7 @@ namespace Jarldom
                 var m = new GameObject("post"); m.transform.SetParent(look.transform, false);
                 m.AddComponent<MeshFilter>().sharedMesh = post;
                 // (wood, rope, iron, cloth, paint, stone: as the model's materials are numbered)
-                m.AddComponent<MeshRenderer>().sharedMaterials = new[] { grain, Plain(hewn, new Color(0.62f, 0.52f, 0.34f)), Plain(hewn, new Color(0.16f, 0.155f, 0.15f)), cloth, stripe, stone };
+                m.AddComponent<MeshRenderer>().sharedMaterials = BakedLook("marker", "post", hewn) ?? new[] { grain, Plain(hewn, new Color(0.62f, 0.52f, 0.34f)), Plain(hewn, new Color(0.16f, 0.155f, 0.15f)), cloth, stripe, stone };
             }
             else
             {
@@ -499,7 +519,7 @@ namespace Jarldom
                 var m = new GameObject("claim"); m.transform.SetParent(look.transform, false);
                 m.AddComponent<MeshFilter>().sharedMesh = claim;
                 // (wood, rope, iron, stone, ore, glow: as the model's materials are numbered)
-                m.AddComponent<MeshRenderer>().sharedMaterials = new[] { grain, Plain(hewn, new Color(0.62f, 0.52f, 0.34f)), Plain(hewn, new Color(0.16f, 0.155f, 0.15f)), stone, ore, glow };
+                m.AddComponent<MeshRenderer>().sharedMaterials = BakedLook("marker", "claim", hewn) ?? new[] { grain, Plain(hewn, new Color(0.62f, 0.52f, 0.34f)), Plain(hewn, new Color(0.16f, 0.155f, 0.15f)), stone, ore, glow };
             }
             else
             {
@@ -549,7 +569,7 @@ namespace Jarldom
                 Assets.Owned.Add(cut);
             }
             // (stone, paint, rune: as the model's materials are numbered; nothing is painted now)
-            m.AddComponent<MeshRenderer>().sharedMaterials = new[] { stone, cut, cut };
+            m.AddComponent<MeshRenderer>().sharedMaterials = BakedLook("marker", "memorial", hewn) ?? new[] { stone, cut, cut };
             Finish(go, look, "Memorial stone", "A raised stone for the colony's dead. Read it (E) for the names: who went to Valhalla and the deeds that took them there, who was lost to Hel and laid to rest, and who walks still, unburied.",
                 Piece.PieceCategory.Misc, ("Stone", 20));
             go.AddComponent<MemorialStone>();
@@ -674,7 +694,7 @@ namespace Jarldom
                 var m = new GameObject("stake"); m.transform.SetParent(look.transform, false);
                 m.AddComponent<MeshFilter>().sharedMesh = stake;
                 // (wood, rope, iron, cloth, paint, leather: as the model's materials are numbered)
-                m.AddComponent<MeshRenderer>().sharedMaterials = new[] { grain, Plain(wood, new Color(0.62f, 0.52f, 0.34f)), Plain(wood, new Color(0.16f, 0.155f, 0.15f)), cloth, stripe, Plain(wood, new Color(0.26f, 0.15f, 0.09f)) };
+                m.AddComponent<MeshRenderer>().sharedMaterials = BakedLook("marker", "stake", wood) ?? new[] { grain, Plain(wood, new Color(0.62f, 0.52f, 0.34f)), Plain(wood, new Color(0.16f, 0.155f, 0.15f)), cloth, stripe, Plain(wood, new Color(0.26f, 0.15f, 0.09f)) };
             }
             else
             {

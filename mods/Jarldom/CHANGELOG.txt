@@ -1,3 +1,5 @@
+0.1.199: The shrines (Odin, Thor, Freyja, Njord, Frigg, Tyr, Ullr and Hel), the marker staff, the watch post, the ore claim and the memorial stone are remade in the game's own style: low-poly models (about 1,000 to 2,700 triangles each, down from as much as 18,000) carrying their detail in their own small colour, normal and glow textures, baked from the detailed models. They look as before.
+
 0.1.198: the skald's song no longer skips ahead like a scratched record. It's started in time with the game's clock, then plays at its own pace to its end; it's set right only after a big jump (the game paused, a night slept).
 
 0.1.197: the game's own music falls silent while the skald sings, by how loud the song is where you stand: gone in the hall, coming back as you walk away.

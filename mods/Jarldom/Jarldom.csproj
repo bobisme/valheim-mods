@@ -13,7 +13,10 @@
   <ItemGroup>
     <EmbeddedResource Include="Models/carve/*.json.gz" LogicalName="Jarldom.carve.%(Filename)%(Extension)" />
     <EmbeddedResource Include="Models/marker/*.json.gz" LogicalName="Jarldom.marker.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Models/marker/*.png" LogicalName="Jarldom.marker.%(Filename)%(Extension)" />
     <EmbeddedResource Include="Sounds/*.ogg" LogicalName="Jarldom.sound.%(Filename)%(Extension)" />
     <EmbeddedResource Include="Models/altar/*.json.gz" LogicalName="Jarldom.altar.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Models/altar/*.png" LogicalName="Jarldom.altar.%(Filename)%(Extension)" />
+    <Compile Include="../Shared/Baked/*.cs" Link="Shared/Baked/%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>
