@@ -45,7 +45,9 @@ namespace Jarldom
         private int _saga; private float _sagaAt = -10;
         public int SagaPart { get { if (R == null) return 0; if (Time.time - _sagaAt > 1f) { _sagaAt = Time.time; _saga = Wanderer.Saga(R.Flags); } return _saga; } }
 
-        private Colony(HighSeat seat) { Seat = seat; View = seat.GetComponent<ZNetView>(); _attachedAt = Time.time; }
+        // (rooms first looked at a while after the world loads: other mods' pieces - a bathhouse's sauna stove - are made a moment
+        // after the world's own, and a room looked at before would fail for want of them)
+        private Colony(HighSeat seat) { Seat = seat; View = seat.GetComponent<ZNetView>(); _attachedAt = Time.time; _nextRooms = Time.time + 15; }
         private readonly float _attachedAt; private bool _caughtUp; private float _nextLive;
 
         // From HighSeat.Awake (and a reload): the record, or a new colony when the pillars were just raised.

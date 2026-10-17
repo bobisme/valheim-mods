@@ -19,7 +19,7 @@ namespace Jarldom
         private static BaseUnityPlugin _tools; private static float _next;
         private const string Usage = "jarldom status | hallsound [<volume>|roar|mood <n>|auto] | among hall|sleep | roster | smite <prefab|stag> | feed <name> | greetings | dogs | dog adopt|release | corner <name> [stand] | dim <name> <days> | lost [raise <name>] | villager <name|vid> | needs <name> | renown | rooms | room check <n> | board | log [n] | saga | compat | " +
             "[cheats:] place pillars [metres] | spawn [profession] [traits..] | migrate [now|dusk] | accept [i|all] | room <type> <x1> <z1> <x2> <z2> [god] | zone <type> <x1> <z1> <x2> <z2> | " +
-            "prof <name> <profession> | mood <name> <moodlet> | worth <name> <n> | need <name> <need>=<n> | give <name> <prefab> [n] | bed <name> | goto <name> <x> <z> | time <hours> | bathday [on|off] | pay | " +
+            "prof <name> <profession> | mood <name> <moodlet> | unmood <moodlet> [name] | worth <name> <n> | need <name> <need>=<n> | give <name> <prefab> [n] | bed <name> | goto <name> <x> <z> | time <hours> | bathday [on|off] | pay | " +
             "favour <god> <n> | feast | thing now | ascend <name> | kill <name> | raid <event> | horn | treasury [x z] | stockpile <category> [x z] | tp <name> | remove | " +
             "act <action> <arg> (as the colony window does) | put <prefab> <x> <z> [yaw] [y] | wall <prefab> <x1> <z1> <x2> <z2> [levels] [step] | unput [prefab] [minY] (test pieces) | fill <x> <z> <prefab> [n] (into the chest there) | ground <x> <z>";
 
@@ -683,6 +683,15 @@ namespace Jarldom
                     }
                     break;
                 case "prof": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } b.Command("prof", Parse<Prof>(a[3]).ToString()); output(new JObject { ["prof"] = b.S.Prof.ToString() }); } break;
+                case "unmood": // (unmood <moodlet> [name]: takes a moodlet off one villager, or everyone in the colony)
+                    {
+                        if (a.Length < 3) { error("unmood <moodlet> [name]"); return; }
+                        var who = a.Length > 3 ? new[] { Who(a[3]) }.Where(b => b != null) : Villagers.All.Where(b => b.S.Colony == c.Id);
+                        var off = new JArray();
+                        foreach (Brain b in who.ToList()) if (b.S.Moodlets.Any(m => m.Id == a[2])) { Mood.Remove(b.S, a[2]); b.Dirty(); off.Add(b.S.Name); }
+                        output(new JObject { ["removed"] = off });
+                    }
+                    break;
                 case "mood": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } b.Command("mood", a[3]); output(new JObject { ["mood"] = Mood.Of(b.S, b.Now) }); } break;
                 // Test: asks (read-only): every ask here, what this player took on, what the world offers. ask <name> make [Kind] [deed] |
                 // take | done | answer | clear: make one (a kind forced: tried until it comes up), take it on as this player, mark it done

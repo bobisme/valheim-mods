@@ -204,7 +204,7 @@ namespace Jarldom
         }
 
         // ---- rooms ----
-        private readonly Queue<string> _roomQueue = new Queue<string>();
+        private readonly Queue<string> _roomQueue = new Queue<string>(); private readonly HashSet<string> _relooked = new HashSet<string>();
         public void CheckRoomSoon(string id) { if (!_roomQueue.Contains(id)) _roomQueue.Enqueue(id); RoomsSoon(); }
         private void RoomsDue()
         {
@@ -214,9 +214,12 @@ namespace Jarldom
             string id = _roomQueue.Dequeue();
             Room room = R.Rooms.FirstOrDefault(r => r.Id == id);
             if (room == null) return;
-            bool was = room.Ok; char grade = room.Grade;
+            bool was = room.Ok; char grade = room.Grade; int points = room.Points; string failures = room.Failures;
             Check(room);
             if (room.Ok && !was) Log("room", "", Tables.Of(room.Type).Name.ToLower());
+            // (a room that was fine and now fails: looked at again in a moment before it's believed, a piece may only be reloading)
+            if (was && !room.Ok && !_relooked.Remove(room.Id)) { _relooked.Add(room.Id); room.Ok = true; room.Grade = grade; room.Points = points; room.Failures = failures; _roomQueue.Enqueue(room.Id); _nextRooms = Time.time + 15; return; }
+            _relooked.Remove(room.Id);
             if (room.Ok != was || room.Grade != grade) Rerank();
             _dirty = true;
             if (_roomQueue.Count > 0) _nextRooms = Time.time + 1;
