@@ -15,7 +15,7 @@ namespace Bathhouse
     {
         public const string Guid = "cx.bob.bathhouse";
         public const string Name = "Bathhouse";
-        public const string Version = "0.1.2";
+        public const string Version = "0.1.3";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled;
         private Harmony _harmony;

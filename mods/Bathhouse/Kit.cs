@@ -148,6 +148,10 @@ namespace Bathhouse
                     Box(go, pieceLayer, new Vector3(0, 0.03f, 0), new Vector3(1.4f, 0.06f, 1.4f), Quaternion.identity);
                     Box(go, pieceLayer, new Vector3(0, 0.2f, 0.92f), new Vector3(0.6f, 0.4f, 0.3f), Quaternion.identity);
                     Seat(go, pieceLayer, TubSeat + Vector3.up * 0.5f, TubSeat.y - 0.25f, "Plunge tub", solid: false);
+                    // (and the whole tub answers E, its staves and step and water, not just the seat's spot: a tub is hard to aim at)
+                    go.transform.Find("SitPoint").GetComponent<BoxCollider>().size = new Vector3(1.3f, 0.12f, 1.3f);
+                    go.transform.Find("SitPoint").GetComponent<Chair>().m_useDistance = 3f; // (from the far side of it too)
+                    go.AddComponent<TubUse>();
                     Box(go, pieceLayer, new Vector3(0, 0.22f, 0.5f), new Vector3(0.5f, 0.44f, 0.24f), Quaternion.identity); // (a step inside, under the water, to climb out by)
                     Water(go, scene);
                     if (wear != null) wear.m_noRoofWear = false; // (it stands outside, full of water: the rain doesn't rot it)

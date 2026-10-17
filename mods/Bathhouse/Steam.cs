@@ -118,4 +118,15 @@ namespace Bathhouse
             return _clip;
         }
     }
+
+    // The plunge tub, looked at anywhere (its staves, its step): E sits in it, as its seat does.
+    public sealed class TubUse : MonoBehaviour, Hoverable, Interactable
+    {
+        private Chair Seat => GetComponentInChildren<Chair>();
+        public string GetHoverName() => Seat?.GetHoverName() ?? "Plunge tub";
+        public float GetHoverOffset() => 0;
+        public string GetHoverText() => Seat?.GetHoverText() ?? "";
+        public bool Interact(Humanoid user, bool hold, bool alt) => Seat != null && Seat.Interact(user, hold, alt);
+        public bool UseItem(Humanoid user, ItemDrop.ItemData item) => false;
+    }
 }

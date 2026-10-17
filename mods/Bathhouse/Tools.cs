@@ -3,6 +3,7 @@ using System.Collections;
 using System.Linq;
 using System.Reflection;
 using BepInEx;
+using HarmonyLib;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
@@ -137,6 +138,22 @@ namespace Bathhouse
                     output(new JObject { ["used"] = used, ["inLocker"] = new JArray(box.GetInventory().GetAllItems().Select(i => i.m_shared.m_name)), ["dressed"] = Bathing.Dressed(me),
                         ["equipped"] = new JArray(me.GetInventory().GetEquippedItems().Select(i => i.m_shared.m_name)), ["bagFree"] = me.GetInventory().GetEmptySlots(), ["bag"] = $"{me.GetInventory().GetWidth()}x{me.GetInventory().GetHeight()} {me.GetInventory().NrOfItems()}", ["hover"] = box.GetHoverText() });
                     break;
+                }
+                case "aim": // (aim: from eye height round the nearest plunge tub, at it, as the game finds what's looked at: what E would use)
+                {
+                    Piece tub = Room.Plunges(me.transform.position, 30).FirstOrDefault();
+                    if (tub == null) { error("no plunge tub"); yield break; }
+                    int mask = (int)AccessTools.Field(typeof(Player), "m_interactMask").GetValue(me);
+                    var o = new JObject();
+                    foreach (var (side, eye) in new[] { ("front", new Vector3(0, 1.6f, 1.9f)), ("back", new Vector3(0, 1.6f, -1.9f)), ("left", new Vector3(-1.9f, 1.6f, 0)), ("low", new Vector3(1.6f, 0.9f, 0.3f)), ("above", new Vector3(0.6f, 1.8f, 0.6f)) })
+                    {
+                        Vector3 from = tub.transform.TransformPoint(eye), to = tub.transform.TransformPoint(new Vector3(0, 0.6f, 0));
+                        var hits = Physics.RaycastAll(from, (to - from).normalized, 50f, mask).OrderBy(h => h.distance).ToArray();
+                        RaycastHit first = hits.FirstOrDefault(h => !(h.collider.attachedRigidbody && h.collider.attachedRigidbody.gameObject == me.gameObject));
+                        Interactable use = first.collider != null ? first.collider.GetComponentInParent<Interactable>() : null;
+                        o[side] = first.collider == null ? "nothing" : $"{first.collider.name} {(use as Component)?.GetType().Name ?? "none"} at {first.distance:F1} m";
+                    }
+                    output(o); break;
                 }
                 case "cells": // (cells <name|quality|x|y;...>: sets where the nearest locker's things go back to, as if put away from there)
                 {
