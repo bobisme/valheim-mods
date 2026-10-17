@@ -1,3 +1,5 @@
+0.1.4: The sauna stove, bench, bucket, plunge tub and bath locker are remade in the game's own style: low-poly models (a third to a half of the triangles) carrying their detail in their own small colour, normal and glow textures, baked from the detailed models. They look as before, except the water in the bucket is no longer glossy.
+
 0.1.3: The whole plunge tub answers E (its water, its staves, its step), from any side and a little further off, not just a small spot at the water's middle.
 
 0.1.2: The sauna stove is remade: big fieldstones laid in courses, two jamb stones and a stone lintel over the firebox (no black slab), soot only round the mouth, and a mounded heap of rounded stones on top, some fire-blackened (no hole, nothing spilling over). Its stone is the hammer's stone pile's, warm grey instead of blue. A lighter model too.

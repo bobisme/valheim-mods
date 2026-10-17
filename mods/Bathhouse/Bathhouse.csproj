@@ -5,5 +5,7 @@
     <Reference Include="UnityEngine.ParticleSystemModule"><HintPath>$(ManagedDir)/UnityEngine.ParticleSystemModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="netstandard"><HintPath>$(ManagedDir)/netstandard.dll</HintPath><Private>false</Private></Reference>
     <EmbeddedResource Include="Models/*.json.gz" LogicalName="Bathhouse.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Models/*.png" LogicalName="Bathhouse.%(Filename)%(Extension)" />
+    <Compile Include="../Shared/Baked/*.cs" Link="Shared/Baked/%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

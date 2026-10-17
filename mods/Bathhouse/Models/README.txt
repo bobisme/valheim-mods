@@ -8,3 +8,8 @@ over z -0.05..0.45, frames at x -0.9/0/0.9; bucket water y 0.23; plunge water y 
 locker chest x -0.55..0.55, z -0.275..0.275, y 0..0.5 (iron proud to x +-0.554, z 0.279, hasp staple to z 0.31), lid top y 0.50 (sit on it) over
 z -0.2..0.275; back posts x +-0.48..0.55 at z -0.275..-0.205 up to y 1.6, back boards z -0.275..-0.25; pegs at x -0.32/0/0.32, y 1.33 at
 the rail (z -0.22), tips y ~1.37 at z ~-0.04; cloth hems at y 0.70 (tunic, x -0.32) and 0.95 (towel, x +0.32).
+Since the bake (docs/model-baking.md) what ships is BAKED: the script's detailed model stays the source; tools/bake/bake.py with
+bake_conf.py makes a low-poly copy and bakes the detail into <name>_albedo/_normal[/_glow].png (256 px); <name>.json.gz is that low copy
+(one material, Kit.Baked). From the repo root: blender -b --python $PWD/tools/bake/bake.py -- $PWD/mods/Bathhouse/Models/bake_conf.py <stove|bench|bucket|plunge|locker>
+then python3 tools/bake/viewer.py ~/.cache/bake/viewer/bathhouse.html ~/.cache/bathhouse/view to compare. The game textures it
+lays on come from tools/bake/gametex.py (woodpole stone_pile).

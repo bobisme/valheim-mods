@@ -68,13 +68,13 @@ namespace Camping
             // (the meshes and materials stay: what's standing still draws with them till the next copy puts its own in their place)
             Leftovers.HandOver(Owned.Concat(new Object[] { _holder }));
         }
-        private static void Forget() { Made.Clear(); foreach (Object o in Owned) if (o != null) Object.Destroy(o); Owned.Clear(); _mats = null; }
+        private static void Forget() { Made.Clear(); foreach (Object o in Owned) if (o != null) Object.Destroy(o); Owned.Clear(); _mats = null; BakedMats.Clear(); }
 
         private static GameObject Make(ZNetScene scene, Def d)
         {
             GameObject from = scene.GetPrefab(d.From);
             if (from == null) { Plugin.Warn($"No {d.From} to make the {d.Title} from."); return null; }
-            Material[] mats = Materials(scene);
+            Material[] mats = Baked(scene, d.Model) ?? Materials(scene);
             if (mats == null) return null;
             Mesh mesh = Model(d.Model);
             if (mesh == null) return null;
@@ -196,7 +196,8 @@ namespace Camping
                         mesh.vertices = verts; mesh.normals = norms; mesh.uv = uvs; mesh.colors = Enumerable.Repeat(Color.white, verts.Length).ToArray(); // (the piece shader reads the vertex colour)
                         mesh.subMeshCount = t.Length;
                         for (int k = 0; k < t.Length; k++) mesh.SetTriangles(t[k], k);
-                        mesh.RecalculateBounds(); mesh.RecalculateTangents();
+                        mesh.RecalculateBounds();
+                        if (!SharedBaked.Baked.Tangents(mesh, j)) mesh.RecalculateTangents(); // (a baked model brings the tangents its normal map was baked against)
                         Owned.Add(mesh); Meshes[name] = mesh;
                         return mesh;
                     }
@@ -206,6 +207,15 @@ namespace Camping
         }
         // (as the models number them: wood, hide, fur, wool, leather, rope, red wool, stone, darker hide, grey fur)
         private static Material[] _mats;
+        // A baked model (tools/bake, docs/model-baking.md): one material wearing the model's own maps (<model>_albedo.png etc.), on a copy of
+        // the wood's piece material. Null if the model isn't baked.
+        private static readonly Dictionary<string, Material> BakedMats = new Dictionary<string, Material>();
+        private static Material[] Baked(ZNetScene scene, string model)
+        {
+            if (!BakedMats.TryGetValue(model, out Material m) || m == null)
+                BakedMats[model] = m = SharedBaked.Baked.Material(typeof(Plugin).Assembly, "Camping." + model, PieceMat(scene, "wood_pole"), "Camping " + model + " baked", Owned);
+            return m != null ? new[] { m } : null;
+        }
         private static Material[] Materials(ZNetScene scene)
         {
             if (_mats != null && _mats.All(m => m != null)) return _mats;

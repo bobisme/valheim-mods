@@ -1,3 +1,5 @@
+0.1.6: The bedroll, lean-to and tent are remade in the game's own style: low-poly models (the lean-to 2,200 triangles, down from 17,600) carrying their detail in their own small colour and normal textures, baked from the detailed models. They look as before.
+
 0.1.5: You lie a hand further up the bedroll, so your feet stay on it.
 
 0.1.4: You sleep with your head on the bedroll's rolled blanket, and toward the back of the tent (it was the other way round).

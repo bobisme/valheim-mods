@@ -2,5 +2,7 @@
   <PropertyGroup><AssemblyName>Camping</AssemblyName><RootNamespace>Camping</RootNamespace></PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Models/*.json.gz" LogicalName="Camping.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Models/*.png" LogicalName="Camping.%(Filename)%(Extension)" />
+    <Compile Include="../Shared/Baked/*.cs" Link="Shared/Baked/%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

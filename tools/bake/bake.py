@@ -40,13 +40,14 @@ def plain(m, colour, emit=None):
     b.inputs['Base Color'].default_value = (*lin(colour), 1); b.inputs['Roughness'].default_value = 0.8
     b.inputs['Emission Color'].default_value = (*lin(emit), 1) if emit else (0, 0, 0, 1)
     b.inputs['Emission Strength'].default_value = 1.0 if emit else 0.0
-def grained(m, texture, scale, tint, emit=None, offset=0.0):
+def grained(m, texture, scale, tint, emit=None, offset=0.0, on_uv=False):
     """A game texture laid on in metres (as Look.Build's uvs, times the material's mainTextureScale), tinted."""
     plain(m, (1, 1, 1), emit); nt = m.node_tree; b = nt.nodes['Principled BSDF']
     tc = nt.nodes.new('ShaderNodeTexCoord'); mp = nt.nodes.new('ShaderNodeMapping'); mp.inputs['Scale'].default_value = (scale,) * 3
-    im = nt.nodes.new('ShaderNodeTexImage'); im.image = bpy.data.images.load(TEX + texture); im.projection = 'BOX'; im.projection_blend = 0.3
+    im = nt.nodes.new('ShaderNodeTexImage'); im.image = bpy.data.images.load(TEX + texture)
+    if not on_uv: im.projection = 'BOX'; im.projection_blend = 0.3   # (on_uv: the uvs conf.prepare gave each part, as its game export would)
     mix = nt.nodes.new('ShaderNodeMix'); mix.data_type = 'RGBA'; mix.blend_type = 'MULTIPLY'; mix.inputs['Factor'].default_value = 1
-    nt.links.new(tc.outputs['Object'], mp.inputs['Vector']); nt.links.new(mp.outputs['Vector'], im.inputs['Vector'])
+    nt.links.new(tc.outputs['UV' if on_uv else 'Object'], mp.inputs['Vector']); nt.links.new(mp.outputs['Vector'], im.inputs['Vector'])
     nt.links.new(im.outputs['Color'], mix.inputs['A']); mix.inputs['B'].default_value = (*tint, 1)
     nt.links.new(mix.outputs['Result'], b.inputs['Base Color'])
     GRAIN[m.name] = (texture, scale); view_tints[m.name] = list(tint)
@@ -68,6 +69,7 @@ for o in high:
     if o.name in SMOOTH or (isinstance(SMOOTH, tuple) and o.name.startswith(SMOOTH)) or \
             (o.data.materials and o.data.materials[0] in mats and mats.index(o.data.materials[0]) in SMOOTH):   # (a set of names, a tuple of name prefixes, or of slot numbers)
         for p in o.data.polygons: p.use_smooth = True
+if 'prepare' in conf: conf['prepare'](high)   # (a conf may give the detailed parts uvs of their own (mark them o['bake_uv'] = 1))
 def emissive(o): return any(m and m.node_tree and m.node_tree.nodes['Principled BSDF'].inputs['Emission Strength'].default_value > 0 for m in o.data.materials)
 
 # where its fire is: the middle of what glows in the top third (the game hangs a light there); game frame (y up)
@@ -82,12 +84,37 @@ hosts = [o for o in high if o not in decals]
 total = sum(len(o.evaluated_get(deps).data.loop_triangles) for o in hosts)
 ratio = min(1.0, BUDGET / max(1, total))
 parts = []
+def islands(mesh):
+    bm_ = bmesh.new(); bm_.from_mesh(mesh); bm_.verts.ensure_lookup_table(); seen = set(); k = 0
+    for v in bm_.verts:
+        if v.index in seen: continue
+        k += 1; stack = [v]; seen.add(v.index)
+        while stack:
+            u = stack.pop()
+            for e in u.link_edges:
+                w = e.other_vert(u)
+                if w.index not in seen: seen.add(w.index); stack.append(w)
+    bm_.free(); return k
+def grid(mesh):   # (a swept, lathed or sheet part: all quads, one piece)
+    return sum(1 for p in mesh.polygons if len(p.vertices) == 4) / max(1, len(mesh.polygons)) > 0.8 and islands(mesh) == 1
 for gi, o in enumerate(hosts):
+    if o.modifiers and len(o.data.polygons) > 24 and grid(o.data):
+        # a sheet made thick (or curved) by modifiers: thin the sheet itself first, so its two faces stay apart
+        src = o.copy(); src.data = o.data.copy(); bpy.context.scene.collection.objects.link(src)
+        d = src.modifiers.new('dec', 'DECIMATE'); d.decimate_type = 'UNSUBDIV'
+        nb = len(o.data.polygons); d.iterations = max(1, min(6, math.ceil(math.log2(nb / max(12, nb * ratio)) - 0.3)))
+        try: src.modifiers.move(len(src.modifiers) - 1, 0)
+        except Exception: pass
+        bpy.context.view_layer.update()
+        me = bpy.data.meshes.new_from_object(src.evaluated_get(bpy.context.evaluated_depsgraph_get())); me.transform(o.matrix_world)
+        bpy.data.objects.remove(src)
+        lo = bpy.data.objects.new(o.name + '_lo', me); bpy.context.scene.collection.objects.link(lo); parts.append(lo)
+        continue
     me = bpy.data.meshes.new_from_object(o.evaluated_get(deps)); me.transform(o.matrix_world)
     quads = sum(1 for p in me.polygons if len(p.vertices) == 4) / max(1, len(me.polygons))
     lo = bpy.data.objects.new(o.name + '_lo', me); bpy.context.scene.collection.objects.link(lo)
     n = len(me.polygons)
-    if quads > 0.8 and n > 24:
+    if quads > 0.8 and n > 24 and islands(me) == 1:
         # a swept or lathed part (a grid of quads): every other ring and side gone, so it stays a clean tube
         d = lo.modifiers.new('dec', 'DECIMATE'); d.decimate_type = 'UNSUBDIV'; d.iterations = max(1, min(6, math.ceil(math.log2(n / max(24, n * ratio)) - 0.3)))   # (each pass about halves it)
     else:
@@ -120,6 +147,37 @@ print('BAKE', NAME, 'low tris', len(lowme.polygons), 'from', total + sum(len(o.e
 # --- one atlas ---
 bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
 bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=2.5 / PX, scale_to_bounds=False)
+def thicken():
+    """Islands thinner than a few texels (a thread's sides) get nothing baked into them but the margin's black: widen them across."""
+    bm = bmesh.from_edit_mesh(lowme); uvl = bm.loops.layers.uv.active; bm.faces.ensure_lookup_table()
+    parent = list(range(len(bm.faces)))
+    def find(i):
+        while parent[i] != i: parent[i] = parent[parent[i]]; i = parent[i]
+        return i
+    for e in bm.edges:
+        fs = e.link_faces
+        if len(fs) != 2: continue
+        def uvs(f): return {l.vert.index: l[uvl].uv.copy() for l in f.loops if l.vert in e.verts}
+        a, b = uvs(fs[0]), uvs(fs[1])
+        if all((a[k] - b[k]).length < 1e-5 for k in a): parent[find(fs[0].index)] = find(fs[1].index)
+    islands = {}
+    for f in bm.faces: islands.setdefault(find(f.index), []).append(f)
+    area = sum(abs((f.loops[1][uvl].uv - f.loops[0][uvl].uv).cross(f.loops[2][uvl].uv - f.loops[0][uvl].uv)) / 2 for f in bm.faces)
+    T = 3.0 / (2 * PX * math.sqrt(0.6 / max(area, 1e-9)))   # (3 baked texels, the atlas filled about 60%)
+    widened = 0
+    for fs in islands.values():
+        ls = [l for f in fs for l in f.loops]
+        us = [l[uvl].uv.x for l in ls]; vs = [l[uvl].uv.y for l in ls]
+        w, h = max(us) - min(us), max(vs) - min(vs)
+        cu, cv = (max(us) + min(us)) / 2, (max(vs) + min(vs)) / 2
+        if min(w, h) >= T: continue
+        widened += 1
+        for l in ls:
+            if w < T: l[uvl].uv.x = cu + (l[uvl].uv.x - cu) * (T / max(w, T * 0.05))
+            if h < T: l[uvl].uv.y = cv + (l[uvl].uv.y - cv) * (T / max(h, T * 0.05))
+    bmesh.update_edit_mesh(lowme)
+    print('BAKE', NAME, 'islands', len(islands), 'widened', widened)
+thicken()
 bpy.ops.uv.pack_islands(margin=2.5 / PX, rotate=True)
 bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -200,8 +258,9 @@ print('BAKE', NAME, 'shipped verts', len(V) // 3, 'tris', len(TRI) // 3, 'maps',
 # --- for the viewer: the detailed model (game grain on metre uvs) and the baked one ---
 for o in high:
     me = o.data
-    if any(m is not None and m.name in OWNUV for m in me.materials) and me.uv_layers: continue   # (its own uvs stay)
+    if (o.get('bake_uv') or any(m is not None and m.name in OWNUV for m in me.materials)) and me.uv_layers: continue   # (its own uvs stay)
     if not me.uv_layers: me.uv_layers.new(name='uv')
+    if me.uv_layers.active is None: continue   # (a mesh without faces takes no uvs)
     uv = me.uv_layers.active.data
     for p in me.polygons:
         n = p.normal
