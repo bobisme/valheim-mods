@@ -30,7 +30,10 @@ namespace Villagewright
             public string Name; public float X, Z; public int Seed; public string Kind; public string Built;
             public List<long> Users = new List<long>(); public List<uint> Ids = new List<uint>();
             public List<TileRecord> Tiles = new List<TileRecord>();
+            public List<RemovedPiece> Removed = new List<RemovedPiece>();
         }
+        // A construction that stood in the village's way, to put back on undo.
+        public sealed class RemovedPiece { public string Prefab; public float X, Y, Z, RX, RY, RZ, RW; public long Creator; }
         public sealed class TileRecord
         {
             public float X, Y, Z; public int Width;
@@ -50,7 +53,8 @@ namespace Villagewright
 
         private Coroutine _building;
         internal string BuildState = "idle";
-        internal int BuildPlaced, BuildTotal, BuildCleared, BuildGround, BuildClamped;
+        internal int BuildPlaced, BuildTotal, BuildCleared, BuildRemoved, BuildKept, BuildGround, BuildClamped;
+        internal bool ClearBuilt = true;   // take down other constructions in the way (else only the world's own ruins)
         internal readonly List<string> BuildProblems = new List<string>();
         internal List<Building> Designs;
         private void TickBuild() { }
@@ -76,15 +80,16 @@ namespace Villagewright
 
         private IEnumerator BuildRoutine(Plan plan, List<Building> designs)
         {
-            BuildProblems.Clear(); BuildPlaced = BuildCleared = BuildGround = BuildClamped = 0;
-            BuildTotal = designs.Sum(d => d.Pieces.Count) + plan.Props.Count;
+            BuildProblems.Clear(); BuildPlaced = BuildCleared = BuildRemoved = BuildKept = BuildGround = BuildClamped = 0;
+            BuildTotal = designs.Sum(d => d.Pieces.Count + (SignText(d.Lot.Use) != null ? 2 : 0)) + plan.Props.Count;
             var record = new VillageRecord { Name = plan.Brief.Kind + " village", X = (float)plan.Square.X, Z = (float)plan.Square.Z, Seed = plan.Brief.Seed, Kind = plan.Brief.Kind.ToString(), Built = DateTime.Now.ToString("s") };
             var all = ReadRecord(); all.World = ZNet.instance.GetWorldUID(); all.Villages.Add(record);
             void Save() { try { WriteRecord(all); } catch (Exception ex) { Warn("Village record: " + ex.Message); } }
             try
             {
                 BuildState = "clearing";
-                BuildCleared = Clear(plan, designs);
+                BuildCleared = Clear(plan, designs, record);
+                Save();
                 yield return null;
                 BuildState = "ground";
                 Ground(plan, designs, record);
@@ -105,6 +110,8 @@ namespace Villagewright
                     Place(prop.Prefab, new Vector3((float)prop.X, (float)prop.Y, (float)prop.Z), Quaternion.Euler(0, (float)prop.Yaw, 0), me, record);
                     if (++n % 150 == 0) { Save(); yield return null; }
                 }
+                // Signs by the doors of the working buildings, on a post at the street side of the wall.
+                foreach (var b in designs.Where(d => d.Problem == null)) Signpost(b.Lot, me, record);
                 Save();
                 BuildState = "done"; ShowPreview = false; ClearPreview();
                 Say($"the village is built: {BuildPlaced} pieces" + (BuildProblems.Count > 0 ? $", {BuildProblems.Count} problems (see the log)" : "") + ".");
@@ -112,10 +119,24 @@ namespace Villagewright
             finally { _building = null; if (BuildState != "done") BuildState = "stopped"; Save(); }
         }
 
-        private void Place(string prefabName, Vector3 at, Quaternion rot, long creator, VillageRecord record)
+        internal static string SignText(Use use) => use switch { Use.Smithy => "Smithy", Use.Storehouse => "Storehouse", Use.Boathouse => "Boathouse", _ => null };
+        private void Signpost(Lot lot, long me, VillageRecord record)
+        {
+            string text = SignText(lot.Use);
+            if (text == null) return;
+            double along = lot.DoorAlong + 2.6 <= lot.Width - 0.6 ? lot.DoorAlong + 2.6 : lot.DoorAlong - 2.6;
+            P2 post = lot.World(along, -0.7), face = lot.World(along, -0.95);
+            float ground = ZoneSystem.instance.GetGroundHeight(new Vector3((float)post.X, 0, (float)post.Z));
+            Place("wood_pole2", new Vector3((float)post.X, ground + 1f, (float)post.Z), Quaternion.Euler(0, (float)lot.Yaw, 0), me, record);
+            GameObject sign = Place("sign", new Vector3((float)face.X, ground + 1.55f, (float)face.Z), Quaternion.Euler(0, (float)lot.Yaw + SignTurn, 0), me, record);
+            sign?.GetComponent<Sign>()?.SetText(text);
+        }
+        internal static float SignTurn = 180f;
+
+        private GameObject Place(string prefabName, Vector3 at, Quaternion rot, long creator, VillageRecord record)
         {
             GameObject prefab = Buildings.Prefab(prefabName);
-            if (prefab == null) { if (!BuildProblems.Contains("missing " + prefabName)) { BuildProblems.Add("missing " + prefabName); Warn("This game has no " + prefabName + "; left out."); } return; }
+            if (prefab == null) { if (!BuildProblems.Contains("missing " + prefabName)) { BuildProblems.Add("missing " + prefabName); Warn("This game has no " + prefabName + "; left out."); } return null; }
             GameObject go = Instantiate(prefab, at, rot);
             var piece = go.GetComponent<Piece>();
             if (piece != null && creator != 0)
@@ -127,10 +148,12 @@ namespace Villagewright
                 record.Users.Add(view.GetZDO().m_uid.UserID); record.Ids.Add(view.GetZDO().m_uid.ID);
             }
             BuildPlaced++;
+            return go;
         }
 
-        // Natural things in the way: trees, logs, stumps, rocks, bushes and wild plants (never pieces, creatures or items).
-        private int Clear(Plan plan, List<Building> designs)
+        // Things in the way: trees, logs, stumps, rocks, bushes and wild plants, and constructions (never creatures or items). Constructions
+        // are written down to put back on undo; a chest with something in it stays, and so do player-built pieces unless ClearBuilt.
+        private int Clear(Plan plan, List<Building> designs, VillageRecord record)
         {
             int cleared = 0;
             // Everything natural inside the village itself goes (the houses, the square and the ground between them), and along its
@@ -155,7 +178,20 @@ namespace Villagewright
             {
                 if (view == null || !view.IsValid()) continue;
                 GameObject go = view.gameObject;
-                if (go.GetComponent<Piece>() != null || go.GetComponent<Character>() != null || go.GetComponent<ItemDrop>() != null) continue;
+                if (go.GetComponent<Character>() != null || go.GetComponent<ItemDrop>() != null) continue;
+                var piece = go.GetComponent<Piece>();
+                if (piece != null)
+                {
+                    if (view.GetZDO().GetInt("villagewright") != 0 || !InTheWay(go.transform.position)) continue;
+                    var box = go.GetComponent<Container>();
+                    if ((piece.GetCreator() != 0 && !ClearBuilt) || (box != null && box.GetInventory() != null && box.GetInventory().NrOfItems() > 0)) { BuildKept++; continue; }
+                    GameObject prefab = ZNetScene.instance.GetPrefab(view.GetZDO().GetPrefab());
+                    if (prefab == null) continue;
+                    Quaternion r = go.transform.rotation; Vector3 at = go.transform.position;
+                    record.Removed.Add(new RemovedPiece { Prefab = prefab.name, X = at.x, Y = at.y, Z = at.z, RX = r.x, RY = r.y, RZ = r.z, RW = r.w, Creator = piece.GetCreator() });
+                    view.ClaimOwnership(); ZNetScene.instance.Destroy(go); BuildRemoved++;
+                    continue;
+                }
                 bool natural = go.GetComponent<TreeBase>() != null || go.GetComponent<TreeLog>() != null || go.GetComponent<MineRock>() != null || go.GetComponent<MineRock5>() != null
                     || go.GetComponent<Destructible>() != null || go.GetComponent<Pickable>() != null;
                 if (!natural || view.GetZDO().GetInt("villagewright") != 0) continue;
@@ -248,6 +284,18 @@ namespace Villagewright
                 else { zdo.SetOwner(ZDOMan.GetSessionID()); ZDOMan.instance.DestroyZDO(zdo); }
                 removed++;
             }
+            // The constructions it took down go back where they stood (once: the record forgets them as they go back).
+            int returned = 0;
+            foreach (var r in v.Removed)
+            {
+                GameObject prefab = Buildings.Prefab(r.Prefab);
+                if (prefab == null) continue;
+                GameObject go = Instantiate(prefab, new Vector3(r.X, r.Y, r.Z), new Quaternion(r.RX, r.RY, r.RZ, r.RW));
+                var zdo = go.GetComponent<ZNetView>()?.GetZDO();
+                if (zdo != null && r.Creator != 0) zdo.Set(ZDOVars.s_creator, r.Creator);
+                returned++;
+            }
+            if (v.Removed.Count > 0) { v.Removed.Clear(); WriteRecord(all); }
             int restored = 0, skipped = 0, missing = 0;
             foreach (var t in v.Tiles)
             {
@@ -269,7 +317,7 @@ namespace Villagewright
             }
             if (missing > 0) throw new ArgumentException($"Removed {removed} pieces, but {missing} of the village's ground tiles aren't loaded: stand in the village and undo again to put its ground back.");
             all.Villages.RemoveAt(all.Villages.Count - 1); WriteRecord(all);
-            return $"Took the village away: {removed} pieces, {restored} ground points put back" + (skipped > 0 ? $" ({skipped} changed since, left alone)" : "") + ".";
+            return $"Took the village away: {removed} pieces, {restored} ground points put back" + (returned > 0 ? $", {returned} old constructions put back" : "") + (skipped > 0 ? $" ({skipped} changed since, left alone)" : "") + ".";
         }
     }
 }

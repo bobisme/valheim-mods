@@ -31,6 +31,8 @@ foreach (Kind kind in Enum.GetValues(typeof(Kind)))
         Check(a.Width % 2 == 0 && a.Depth % 2 == 0, $"{landName}/{kind}: {a.Name} on the 2 m grid");
         foreach (var s in plan.Streets) Check(Geometry.PolylineDistance(a.Centre, s.Points, out _, out _) > s.Width / 2 + Math.Min(a.Width, a.Depth) / 2.0 - 0.5, $"{landName}/{kind}: {a.Name} off the street");
     }
+    foreach (var pr in plan.Props.Where(o => o.Role == "field fence"))
+        foreach (var s in plan.Streets) Check(Geometry.PolylineDistance(new P2(pr.X, pr.Z), s.Points, out _, out _) > s.Width / 2, $"{landName}/{kind}: a fence at ({pr.X:0},{pr.Z:0}) stands in a street");
     Check(plan.Palisade.Count == 0 || plan.Gates.Count > 0, $"{landName}/{kind}: the palisade has a gate");
     var other = Planner.Make(site, Brief.For(kind, site.Radius, 8), land);
     Check(Describe(plan) != Describe(other), $"{landName}/{kind}: another seed makes another village");

@@ -90,7 +90,6 @@ namespace Villagewright
             if (Has("wood_window")) kit.Window = "wood_window";
             if (Has("wood_floor_1x1")) kit.SmallFloor = "wood_floor_1x1";
             if (Has("stone_fence")) kit.StoneFence = "stone_fence";
-            if (Has("wood_roof") && Has("wood_roof_top")) { kit.LowRoof = "wood_roof"; kit.LowRidge = "wood_roof_top"; }
             bool steep = lot.Steep;
             kit.Roof = steep ? "wood_roof_45" : "wood_roof"; kit.Ridge = steep ? "wood_roof_top_45" : "wood_roof_top"; kit.Wedge = steep ? "wood_wall_roof_45" : "wood_wall_roof_a";
             kit.Slope = steep ? 1 : 0.5;
@@ -181,6 +180,16 @@ namespace Villagewright
             foreach (var part in d.Parts)
             {
                 if (!Blocking.Contains(part.Role) || part.At.Y > 2.5) continue;
+                if (part.Role == "hearth")
+                {
+                    // The hearth is 4 x 3 m (turned with it), centred on a corner or a cell: every cell it reaches, with room to pass.
+                    bool turned = Math.Abs(Math.Round(part.Yaw / 90)) % 2 == 1;
+                    double hx = (turned ? 1.5 : 2) + 0.5, hz = (turned ? 2 : 1.5) + 0.5;
+                    for (int x = (int)Math.Floor((part.At.X - hx) / 2); x <= (int)Math.Floor((part.At.X + hx - 1e-6) / 2); x++)
+                        for (int z = (int)Math.Floor((part.At.Z - hz) / 2); z <= (int)Math.Floor((part.At.Z + hz - 1e-6) / 2); z++)
+                            busy.Add(new HallLayout.Cell(x, z));
+                    continue;
+                }
                 double fx = part.At.X / 2, fz = part.At.Z / 2;
                 int cx = (int)Math.Floor(fx), cz = (int)Math.Floor(fz);
                 bool onX = Math.Abs(fx - Math.Round(fx)) < 0.2, onZ = Math.Abs(fz - Math.Round(fz)) < 0.2;

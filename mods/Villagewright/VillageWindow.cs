@@ -102,6 +102,7 @@ namespace Villagewright
             Switch("Palisade", b.Palisade, () => b.Palisade = !b.Palisade);
             Switch("Dock (by water)", b.Dock, () => b.Dock = !b.Dock);
             Switch("Torches", b.Torches, () => b.Torches = !b.Torches);
+            Switch("Clear old buildings", P.ClearBuilt, () => P.ClearBuilt = !P.ClearBuilt);
             ty -= tx > 600f ? 48f : 0f;
             GameUi.Label(_window, $"Layout {b.Seed}", new Vector2(560f, ty - 4f), new Vector2(190f, 40f), 18f, GameUi.Text, GameUi.Serif);
             GameUi.Button(_window, "Another layout", new Vector2(760f, ty), new Vector2(190f, 40f), () => Change(() => b.Seed = Plugin.NewSeed()));

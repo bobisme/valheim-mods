@@ -23,7 +23,7 @@ namespace Villagewright
             try
             {
                 found.GetType().GetMethod("RegisterCommand", BindingFlags.Static | BindingFlags.Public)?.Invoke(null, new object[]{Name, "village",
-                    "village scout [range] [radius] [coast] | site <radius> [x z] | plot <x,z> <x,z> <x,z>... | options kind=hamlet|farming|fishing|market|hillfort|temple seed=N|new houses=N hall=on|off temple=on|off smithy=on|off market=on|off palisade=on|off dock=on|off torches=on|off fields=N storehouses=N gates=N detail=0..4 street=3..6 | window [close] | plan | design | status | build | undo | preview on|off | list: lay out a village on the land and build it",
+                    "village scout [range] [radius] [coast] | site <radius> [x z] | plot <x,z> <x,z> <x,z>... | options kind=hamlet|farming|fishing|market|hillfort|temple seed=N|new houses=N hall=on|off temple=on|off smithy=on|off market=on|off palisade=on|off dock=on|off torches=on|off clearbuilt=on|off fields=N storehouses=N gates=N detail=0..4 street=3..6 | window [close] | plan | design | status | build | undo | preview on|off | list: lay out a village on the land and build it",
                     new Func<string[], Action<JObject>, Action<string>, IEnumerator>(Command)});
                 found.GetType().GetMethod("RegisterFrame", BindingFlags.Static | BindingFlags.Public)?.Invoke(null, new object[] { Name, new Func<string, float[]>(Frame) });
             }
@@ -81,6 +81,7 @@ namespace Villagewright
                                     case "palisade": b.Palisade = On(v); break;
                                     case "dock": b.Dock = On(v); break;
                                     case "torches": b.Torches = On(v); break;
+                                    case "clearbuilt": ClearBuilt = On(v); break;
                                     case "fields": b.Fields = Mathf.Clamp(int.Parse(v), 0, 16); break;
                                     case "storehouses": b.Storehouses = Mathf.Clamp(int.Parse(v), 0, 6); break;
                                     case "gates": b.Gates = Mathf.Clamp(int.Parse(v), 1, 6); break;
@@ -124,7 +125,7 @@ namespace Villagewright
 
         internal JObject Status()
         {
-            var o = new JObject { ["problem"] = Problem, ["build"] = new JObject { ["state"] = BuildState, ["placed"] = BuildPlaced, ["total"] = BuildTotal, ["cleared"] = BuildCleared, ["groundPoints"] = BuildGround, ["clamped"] = BuildClamped, ["problems"] = new JArray(BuildProblems) } };
+            var o = new JObject { ["problem"] = Problem, ["build"] = new JObject { ["state"] = BuildState, ["placed"] = BuildPlaced, ["total"] = BuildTotal, ["cleared"] = BuildCleared, ["removed"] = BuildRemoved, ["kept"] = BuildKept, ["groundPoints"] = BuildGround, ["clamped"] = BuildClamped, ["problems"] = new JArray(BuildProblems) } };
             if (Site != null) o["site"] = new JObject { ["centre"] = new JArray(Math.Round(Site.Centre.X, 1), Math.Round(Site.Centre.Z, 1)), ["radius"] = Math.Round(Site.Radius, 1), ["plot"] = Site.Plot?.Count ?? 0 };
             if (Brief != null) o["brief"] = JObject.FromObject(Brief);
             if (Plan == null) return o;
