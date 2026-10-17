@@ -87,10 +87,11 @@ namespace Hallwright
         {
             RefreshHallCatalog(player);
             var kit=new HallLayout.Kit();
-            bool gate=_hallEntranceMode==2 || _hallEntranceMode==0 && _hallHeight>=3 && HallKnown("wood_gate");
-            if(gate && _hallHeight<3)throw new ArgumentException("A gate needs walls at least 3 m high. Choose Door or raise the walls.");
+            bool gate=_hallEntranceMode==2 || _hallEntranceMode==0 && _hallHeight>=4 && HallKnown("wood_gate");
+            // Under a 3 m wall the beams at its top (and a keep's floor joists) cross the 3 m gate: a gate needs a metre over it.
+            if(gate && _hallHeight<4)throw new ArgumentException("A gate needs walls at least 4 m high. Choose Door or raise the walls.");
             if(gate){kit.Door="wood_gate";kit.DoorHeight=3;}
-            else if(_hallEntranceMode==0 && _hallHeight>=3 && !HallKnown("wood_gate"))_hallNote="Gate not unlocked; Auto uses a door.";
+            else if(_hallEntranceMode==0 && _hallHeight>=4 && !HallKnown("wood_gate"))_hallNote="Gate not unlocked; Auto uses a door.";
             foreach(string name in new[]{kit.Floor,kit.Wall,kit.Half,kit.Quarter,kit.Door,kit.Post,kit.Beam,kit.ShortBeam})
                 if(!HallKnown(name))throw new ArgumentException("Unlock "+name+" before planning a timber hall.");
             if(_hallMaterialMode==2 && !HallKnown("wood_pole_log"))throw new ArgumentException("Core-wood posts are not unlocked yet.");
@@ -126,8 +127,8 @@ namespace Hallwright
             {
                 if(!HallKnown("stone_wall_2x1") || !HallKnown("stone_wall_1x1"))throw new ArgumentException("A stone keep needs stone walls unlocked (a stonecutter).");
                 kit.StoneWall="stone_wall_2x1";kit.StoneBlock="stone_wall_1x1";
-                // Its gate is a double one, under a stone arch where the walls are tall enough.
-                if(kit.Door=="wood_gate"){kit.Leaves=2;if(_hallHeight>=4 && HallKnown("stone_arch"))kit.StoneArch="stone_arch";}
+                // Its gate is a double one.
+                if(kit.Door=="wood_gate")kit.Leaves=2;
             }
             // Joists meet the underside of the floor without protruding into the stair landing.
             kit.JoistDrop=ShapesOf(kit.Beam).Max(s=>s.Key.Aabb().max.y)+0.1;

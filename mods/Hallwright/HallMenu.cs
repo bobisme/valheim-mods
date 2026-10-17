@@ -110,7 +110,7 @@ namespace Hallwright
             GUILayout.Space(12);GUILayout.Label("Entrance",_menuText);
             int opening=GUILayout.SelectionGrid(_hallEntranceMode,new[]{"Auto","Door · 2 m","Gate · 3 m"},3,_menuButton,GUILayout.Height(34));
             if(opening!=_hallEntranceMode){_hallEntranceMode=opening;changed=true;}
-            GUILayout.Label("Auto chooses an unlocked gate at 3 m or taller, otherwise a door.",_menuHint);
+            GUILayout.Label("Auto chooses an unlocked gate at 4 m or taller, otherwise a door.",_menuHint);
             if(_markers.Count>0 && _hallDoorPoints.Count==0)
             {
                 GUILayout.BeginHorizontal();

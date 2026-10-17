@@ -144,7 +144,7 @@ namespace Hallwright
             Hint(_hallDetail==0?"Clean shell and structural trusses.":_hallDetail==1?"Gable trim and repeated knee braces.":_hallDetail==2?"Radiating gable timberwork and unlocked darkwood details.":_hallDetail==3?"Rich gable patterns, layered eaves and carved belts.":"Royal knotwork, carved darkwood panels, daylight windows and layered timber bands.");
             Gap();Head("Entrance");
             Tabs(new[]{"Auto","Door · 2 m","Gate · 3 m"},_hallEntranceMode,i=>{_hallEntranceMode=i;HallChanged();});
-            Hint("Auto chooses an unlocked gate at 3 m or taller, otherwise a door.");
+            Hint("Auto chooses an unlocked gate at 4 m or taller, otherwise a door.");
             if(_markers.Count>0 && _hallDoorPoints.Count==0)
                 Buttons(("<",true,(Action)(()=>{_hallEntrance=(_hallEntrance+_markers.Count-1)%_markers.Count;HallChanged();})),($"Door on edge {_hallEntrance%_markers.Count+1} of {_markers.Count}",false,(Action)(()=>{})),(">",true,(Action)(()=>{_hallEntrance=(_hallEntrance+1)%_markers.Count;HallChanged();})));
             Hint("Shift+click near exterior walls to mark up to eight entrances; click a marker again to remove it. The first marker gets the covered porch.");

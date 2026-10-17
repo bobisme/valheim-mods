@@ -587,7 +587,7 @@ Check((stilts.EntryLanding-stilts.Door).Length>1.9 && stilts.EntryLanding.Z<-1.9
 Check(!HallLayout.Plan(Rect(8,10),new HallLayout.Kit{SmallFloor="wood_floor_1x1"},3,2,0,false,new HallLayout.Details{Stilts=true}).Parts.Any(p=>p.Role=="deck"),"No deck when it is off");
 // Stone keep: stone courses in running bond, arrow loops above the ground floor, a double gate under a stone arch, a walkable roof
 // behind merlons, stairs all the way up.
-var keepKit=new HallLayout.Kit{SmallFloor="wood_floor_1x1",StoneWall="stone_wall_2x1",StoneBlock="stone_wall_1x1",Door="wood_gate",DoorHeight=3,Leaves=2,StoneArch="stone_arch"};
+var keepKit=new HallLayout.Kit{SmallFloor="wood_floor_1x1",StoneWall="stone_wall_2x1",StoneBlock="stone_wall_1x1",Door="wood_gate",DoorHeight=3,Leaves=2};
 foreach(int storeys in new[]{2,3,4})
 {
  const int h=4;
@@ -608,7 +608,7 @@ foreach(int storeys in new[]{2,3,4})
  int loops=keep.BoundaryPanels/2;
  for(int y=0;y<=roof;y++)
  {
-  double expect=52+4-(y<4?4:0);
+  double expect=52+4-(y<3?4:0);
   if(y>=h && y<roof && y%h==1)Check(Laid(y)<expect && Laid(y)>=expect-loops-2,"Arrow loops leave gaps in their course");
   else Check(Math.Abs(Laid(y)-expect)<1e-9,$"Course {y} is closed but for the gate");
  }
@@ -616,9 +616,11 @@ foreach(int storeys in new[]{2,3,4})
  var footing=keep.Parts.Where(p=>p.Role=="keep footing").ToList();
  for(int y=-HallLayout.KeepFooting;y<0;y++)Check(Math.Abs(footing.Where(p=>Math.Abs(p.At.Y-y)<1e-9).Sum(p=>p.Prefab=="stone_wall_2x1"?2.0:1.0)-56)<1e-9,"A footing course under the whole wall line");
  Check(keep.Parts.Count(p=>p.Role=="entrance" && p.Prefab=="wood_gate")==2,"A double gate");
- var arches=keep.Parts.Where(p=>p.Role=="gate arch").ToList();
- Check(arches.Count==2 && arches.All(p=>Math.Abs(p.At.Y-3)<1e-9 && Math.Abs(p.At.Z)<1e-9 && Math.Abs(Math.Abs(p.At.X-6)-2)<1e-9),"A stone arch over the gate, each piece standing on a jamb");
- Check(!stones.Any(p=>p.At.Y<4-1e-9 && Math.Abs(p.At.Z)<1e-9 && Math.Abs(p.At.X-6)<2+(p.Prefab=="stone_wall_2x1"?1:0.5)-1e-9),"Nothing in the gateway or the arch");
+ Check(!keep.Parts.Any(p=>p.Role=="gate arch"),"No arch over the gate");
+ Check(!stones.Any(p=>p.At.Y<3-1e-9 && Math.Abs(p.At.Z)<1e-9 && Math.Abs(p.At.X-6)<2+(p.Prefab=="stone_wall_2x1"?1:0.5)-1e-9),"Nothing in the gateway");
+ Check(stones.Count(p=>Math.Abs(p.At.Y-3)<1e-9 && Math.Abs(p.At.Z)<1e-9 && Math.Abs(p.At.X-6)<2.5)>0,"Stone over the gate");
+ // No beam crosses the 4 m opening below a metre over the gate.
+ Check(!keep.Parts.Any(p=>p.Kind==HallLayout.Anchor.Segment && Enumerable.Range(0,9).Select(i=>p.At+(p.End-p.At)*(i/8.0)).Any(q=>Math.Abs(q.X-6)<1.99 && Math.Abs(q.Z)<0.35 && q.Y<3.35 && q.Y>-0.01)),"No beam across the double gate");
  var merlons=keep.Parts.Where(p=>p.Role=="merlon").ToList();
  Check(merlons.Count==keep.BoundaryPanels && merlons.All(p=>Math.Abs(p.At.Y-(roof+1))<1e-9),"A merlon on every parapet panel");
  Check(stones.Max(p=>p.At.Y)<=roof+1e-9,"The parapet is one course above the roof deck");

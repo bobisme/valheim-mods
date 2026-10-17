@@ -42,7 +42,6 @@ namespace Hallwright
             internal string Roof="wood_roof_45", Ridge="wood_roof_top_45", Wedge="wood_wall_roof_45";
             internal string Arch=null, Raven=null, Lattice=null, LoadPost=null, Window=null, SmallFloor=null, StoneFence=null;
             internal string Log=null, StoneWall=null, StoneBlock=null;   // a cabin's log courses; a keep's stone walls and merlons
-            internal string StoneArch=null;   // a keep's arch over its gate
             internal int Leaves=1;   // 2: a keep's double gate, two native gates side by side
             internal double Slope=1, BeamLength=2, ShortLength=1, DoorHeight=2, JoistDrop=0.2;
             internal int SpanCells=4;
@@ -400,13 +399,10 @@ namespace Hallwright
             {
                 if(details.Keep && kit.Leaves==2)
                 {
-                    // A double gate, a leaf to each side, under a round arch of two stone arch pieces springing from the jambs.
+                    // A double gate, a leaf to each side.
                     foreach(int side in new[]{-1,1})
                     {
                         Add(kit.Door,entry.At+Turn(new V3(side,0,0),entry.Yaw),Anchor.Bottom,entry.Yaw+(side<0?180:0),"entrance");
-                        // The arch piece's thick end is its local +x, and its lowest snaps (the bottom anchor) are on that end: set it on the
-                        // jamb, its thin end meeting the other's over the middle.
-                        if(kit.StoneArch!=null)Add(kit.StoneArch,entry.At+Turn(new V3(side*2,kit.DoorHeight,0),entry.Yaw),Anchor.Bottom,entry.Yaw+(side<0?180:0),"gate arch");
                     }
                     // Straight wall half a metre past each side of the gate, for the jambs.
                     foreach(double t in new[]{-2.5,-1.5,-0.5,0.5,1.5,2.5})
@@ -459,7 +455,7 @@ namespace Hallwright
                             V3 unit=at+Turn(new V3(half,0,0),edge.yaw);int y=h+storey*height;
                             if(storey==0 && plan.Entrances.Any(d=>
                             {
-                                V3 l=Turn(unit-d.At,-d.Yaw);double reach=kit.Leaves==2?2:1,clear=kit.DoorHeight+(kit.Leaves==2 && kit.StoneArch!=null?1:0);
+                                V3 l=Turn(unit-d.At,-d.Yaw);double reach=kit.Leaves==2?2:1,clear=kit.DoorHeight;
                                 return Math.Abs(l.Z)<0.01 && Math.Abs(l.X)<reach-0.01 && y>=0 && y<clear-0.01;
                             }))continue;
                             bool alongX=Math.Abs(edge.a.Z-edge.b.Z)<1e-6;
@@ -913,7 +909,7 @@ namespace Hallwright
                     for(int i=0;i<=8;i++)
                     {
                         V3 q=p.At+(p.End-p.At)*(i/8.0);
-                        if(plan.Entrances.Any(d=>{V3 l=Turn(q-d.At,-d.Yaw);return Math.Abs(l.X)<1-0.01 && Math.Abs(l.Z)<0.35 && q.Y>-0.01 && q.Y<kit.DoorHeight+0.35;}))return true;
+                        if(plan.Entrances.Any(d=>{V3 l=Turn(q-d.At,-d.Yaw);return Math.Abs(l.X)<(details.Keep && kit.Leaves==2?2:1)-0.01 && Math.Abs(l.Z)<0.35 && q.Y>-0.01 && q.Y<kit.DoorHeight+0.35;}))return true;
                     }
                     return false;
                 }
