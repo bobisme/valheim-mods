@@ -22,6 +22,7 @@ namespace Jarldom
         private static readonly Dictionary<string, Hall> Halls = new Dictionary<string, Hall>();
         private static readonly Dictionary<string, AudioClip> Clips = new Dictionary<string, AudioClip>();
         private static bool _loading, _loaded;
+        private const float Resync = 30f; // (seconds off the clock before a playing song is set right)
         private static float _next;
         public static string Last = ""; // (for jarldom hall sound)
         public static float? Forced; public static bool ForceRoar; public static double? ForcedMood;
@@ -83,7 +84,9 @@ namespace Jarldom
             string voiced = Soundscape.Voiced(song, ForcedFemale ?? skald?.Female ?? false);
             float length = Clips.TryGetValue(voiced, out AudioClip sc) && sc.loadState == AudioDataLoadState.Loaded ? sc.length : 0;
             double songAt = ForcedSong != null ? Time.time - ForcedSongAt : Soundscape.SongAt(hour < 4 ? hour + 24 : hour, Clock.Hour, length);
-            bool sung = songAt >= 0 && songAt < length && h.Song != null && (ForcedSong != null || Soundscape.Sung(skald != null, inHall.Count, mood));
+            // (begun in its hour, it's sung to its end: the game's clock may run a little fast of the music, and must not cut it short)
+            bool going = h.Song != null && h.Song.isPlaying && h.Song.clip == sc && h.Sung == voiced && h.Song.time < length - 0.25f;
+            bool sung = (songAt >= 0 && songAt < length || going) && h.Song != null && (ForcedSong != null || Soundscape.Sung(skald != null, inHall.Count, mood));
             Song(h, sung ? voiced : null, songAt);
             Singing[c.Id] = sung;
             float v = level.Volume * h.Gate * (sung ? 0.4f : 1f); // (the talk drops while he sings)
@@ -124,7 +127,9 @@ namespace Jarldom
             var sverb = sg.AddComponent<AudioReverbFilter>(); sverb.reverbPreset = AudioReverbPreset.Livingroom;
             return h;
         }
-        // Which song, and where in it: started (or set right, if it's drifted) there, so every game is at the same line.
+        // Which song, and where in it: started there, so every game is at the same line; once going it plays at its own pace (the game's
+        // clock isn't the music's: set right every few seconds, it skipped like a scratched record), set right only after a big jump
+        // (the game paused, a night slept).
         private static void Song(Hall h, string song, double at)
         {
             h.Sung = song;
@@ -132,7 +137,8 @@ namespace Jarldom
             h.SongAt = at; h.SongSince = Time.time;
             if (!Clips.TryGetValue(song, out AudioClip clip)) return;
             if (h.Song.clip != clip) { h.Song.Stop(); h.Song.clip = clip; }
-            if (!h.Song.isPlaying || Mathf.Abs(h.Song.time - (float)at) > 1.5f) { h.Song.time = Mathf.Clamp((float)at, 0, clip.length - 0.1f); if (!h.Song.isPlaying) h.Song.Play(); }
+            if (!h.Song.isPlaying) { h.Song.time = Mathf.Clamp((float)at, 0, clip.length - 0.1f); h.Song.Play(); }
+            else if (at >= 0 && Mathf.Abs(h.Song.time - (float)at) > Resync) h.Song.time = Mathf.Clamp((float)at, 0, clip.length - 0.1f);
         }
         private static AudioSource Source(GameObject go, AudioClip clip, float reach)
         {
