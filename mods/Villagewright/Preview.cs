@@ -63,7 +63,7 @@ namespace Villagewright
                 Line(l.Corners(0), c, 0.22f, closed: true, height: _ => (float)l.Pad + 0.4f);
                 P2 door = l.Door, outward = P2.Forward(l.Yaw) * -1.5;
                 Line(new[] { door, door + outward }, new Color(0.6f, 0.45f, 0.1f), 0.3f, height: _ => (float)l.Pad + 0.5f);
-                _labels.Add((new Vector3((float)l.Centre.X, (float)l.Pad + 3, (float)l.Centre.Z), l.Name + (l.Style == Style.Longhouse ? " (longhouse)" : l.Style == Style.Stave ? " (stave)" : "")));
+                _labels.Add((new Vector3((float)l.Centre.X, (float)l.Pad + 3, (float)l.Centre.Z), l.Name + (l.Style == Style.Longhouse ? " (longhouse)" : l.Style == Style.Stave ? " (stave)" : l.Style == Style.Cabin ? " (cabin)" : l.Style == Style.Stilts ? " (on stilts)" : "")));
             }
             foreach (var f in Plan.Fields)
                 Line(new[] { f.World(0, 0), f.World(f.Width, 0), f.World(f.Width, f.Depth), f.World(0, f.Depth) }, new Color(0.25f, 0.45f, 0.15f), 0.2f, closed: true);

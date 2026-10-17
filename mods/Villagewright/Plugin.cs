@@ -21,7 +21,7 @@ namespace Villagewright
     {
         public const string Guid = "cx.bob.villagewright";
         public const string Name = "Villagewright";
-        public const string Version = "0.1.4";
+        public const string Version = "0.1.5";
         internal static Plugin Instance;
         private Harmony _harmony;
         internal ConfigEntry<bool> Enabled;
@@ -30,6 +30,15 @@ namespace Villagewright
         // The site and brief being designed, and its plan.
         internal Site Site;
         internal Kind Kind = Kind.Hamlet;
+        // The land's houses: chosen, or (null) from the biome at the site's centre: log cabins in the mountains, stilts in the swamp.
+        internal Land? LandChoice;
+        internal Land SiteLand()
+        {
+            if (LandChoice.HasValue) return LandChoice.Value;
+            if (Site == null || WorldGenerator.instance == null) return Land.Temperate;
+            var biome = WorldGenerator.instance.GetBiome((float)Site.Centre.X, (float)Site.Centre.Z);
+            return biome == Heightmap.Biome.Mountain || biome == Heightmap.Biome.DeepNorth ? Land.Mountain : biome == Heightmap.Biome.Swamp ? Land.Swamp : Land.Temperate;
+        }
         internal Brief Brief;
         internal Plan Plan;
         internal string Problem;
@@ -71,6 +80,7 @@ namespace Villagewright
         internal Brief CurrentBrief()
         {
             if (Brief == null || Brief.Kind != Kind) Brief = Brief.For(Kind, Site?.Radius ?? 60, Brief?.Seed ?? NewSeed());
+            Brief.Land = SiteLand();
             Brief.Egress = Egress.Select(e => new P2(e.x, e.z)).ToList();
             Brief.Extension = Extension.HasValue ? new P2(Extension.Value.x, Extension.Value.z) : (P2?)null;
             // Two points on one of Fimbulwinter's roads: the village follows the road itself.

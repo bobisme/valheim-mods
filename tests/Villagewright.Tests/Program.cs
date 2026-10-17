@@ -27,7 +27,7 @@ foreach (Kind kind in Enum.GetValues(typeof(Kind)))
         var a = plan.Lots[i];
         foreach (var c in a.Corners(0)) Check(site.Contains(c), $"{landName}/{kind}: {a.Name} inside the site");
         for (int j = i + 1; j < plan.Lots.Count; j++) Check(!Geometry.Overlap(a.Corners(1).ToList(), plan.Lots[j].Corners(1).ToList()), $"{landName}/{kind}: {a.Name} clear of {plan.Lots[j].Name}");
-        Check(a.Pad > land.WaterLevel, $"{landName}/{kind}: {a.Name} above water");
+        Check(a.Pad > land.WaterLevel || a.Style == Style.Stilts && a.Pad >= land.WaterLevel, $"{landName}/{kind}: {a.Name} above water");
         Check(a.Width % 2 == 0 && a.Depth % 2 == 0, $"{landName}/{kind}: {a.Name} on the 2 m grid");
         foreach (var s in plan.Streets) Check(Geometry.PolylineDistance(a.Centre, s.Points, out _, out _) > s.Width / 2 + Math.Min(a.Width, a.Depth) / 2.0 - 0.5, $"{landName}/{kind}: {a.Name} off the street");
     }
@@ -76,9 +76,29 @@ foreach (Kind kind in Enum.GetValues(typeof(Kind)))
         if (outDir != null) File.WriteAllText(Path.Combine(outDir, name + ".svg"), Svg(plan, land));
     }
 }
+// The land's houses: log cabins in the mountains; in a swamp, houses on stilts over the ground or shallow water, the ground left alone.
+{
+    var site = Site.Circle(0, 0, 70);
+    var mountain = Planner.Make(site, With(Brief.For(Kind.Hamlet, 70, 21), Land.Mountain), new Hills());
+    var houses = mountain.Lots.Where(l => l.Use == Use.House).ToList();
+    Check(houses.Count > 0 && houses.All(l => l.Style == Style.Cabin || l.Style == Style.Longhouse) && houses.Count(l => l.Style == Style.Cabin) > houses.Count / 2, "mountain: most houses are log cabins");
+    Check(houses.Where(l => l.Style == Style.Cabin).All(l => l.Wall == 3 && l.Steep), "mountain: cabins have 3 m walls and a steep roof");
+    var marsh = new Marsh();
+    var swamp = Planner.Make(site, With(Brief.For(Kind.Hamlet, 70, 22), Land.Swamp), marsh);
+    var stilts = swamp.Lots.Where(l => l.Use == Use.House).ToList();
+    Check(stilts.Count > 0 && stilts.All(l => l.Style == Style.Stilts), "swamp: every house on stilts");
+    Check(stilts.All(l => l.Pad >= marsh.WaterLevel - 1e-9 && l.Low <= l.Pad && Math.Abs(l.Floor - l.Pad - 2.5) < 1e-9), "swamp: floors 2.5 m over the highest ground or water");
+    foreach (var l in stilts) Check(swamp.Ground.At(l.Centre.X, l.Centre.Z, marsh.Height(l.Centre.X, l.Centre.Z)) == null || swamp.Streets.Any(st => Geometry.PolylineDistance(l.Centre, st.Points, out _, out _) < st.Width), "swamp: the ground under a stilt house is left alone");
+    var fort = Planner.Make(Site.Circle(0, 0, 80), Brief.For(Kind.HillFort, 80, 12), new Hills());
+    var keep = fort.Lots.SingleOrDefault(l => l.Use == Use.Keep);
+    Check(keep != null && keep.Style == Style.Keep && keep.Wall == 4 && keep.Storeys == 2 && keep.Width >= 12 && keep.Depth >= 12, "hill fort: a stone keep with 4 m storeys");
+    Console.WriteLine($"mountain: {houses.Count(l => l.Style == Style.Cabin)} cabins of {houses.Count} houses; swamp: {stilts.Count} on stilts, {stilts.Count(l => l.Low < marsh.WaterLevel)} over water; hill fort keep {keep?.Width}x{keep?.Depth}. {string.Join(" ", swamp.Notes)}");
+    if (outDir != null) { File.WriteAllText(Path.Combine(outDir, "mountain.svg"), Svg(mountain, new Hills())); File.WriteAllText(Path.Combine(outDir, "swamp.svg"), Svg(swamp, marsh)); }
+}
 Console.WriteLine(failures == 0 ? "All village checks passed." : $"{failures} failures.");
 return failures == 0 ? 0 : 1;
 
+static Brief With(Brief b, Land land) { b.Land = land; return b; }
 static Brief WithRoad(Brief b, P2[] egress, P2? extension, List<P2> road) { b.Egress.AddRange(egress); b.Extension = extension; b.Road = road; return b; }
 static string Describe(Plan p) => string.Join(";", p.Lots.Select(l => $"{l.Use}{l.Origin}{l.Yaw:0.0}{l.Width}x{l.Depth}")) + "|" + p.Props.Count + "|" + p.Square;
 
@@ -130,4 +150,10 @@ sealed class Steep : IGround
 {
     public double WaterLevel => 30;
     public double Height(double x, double z) => 50 + 12 * Math.Sin(x / 9) * Math.Cos(z / 11);
+}
+sealed class Marsh : IGround
+{
+    public double WaterLevel => 30;
+    // Low, wet ground: pools a little under the water among hummocks a little over it.
+    public double Height(double x, double z) => 31.0 + 1.2 * Math.Sin(x / 17) * Math.Cos(z / 19) + 0.4 * Math.Sin((x - z) / 7);
 }

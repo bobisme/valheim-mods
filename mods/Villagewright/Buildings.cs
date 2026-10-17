@@ -50,7 +50,8 @@ namespace Villagewright
         private static Vector3 Anchor(string name, HallLayout.Anchor kind)
         {
             Vector3[] snaps = SnapsOf(name);
-            if (snaps.Length == 0) throw new ArgumentException("Missing snap anchor on " + name + ".");
+            // A piece without snap points (a fire pit) stands on its own origin, as in Hallwright.
+            if (snaps.Length == 0) return Vector3.zero;
             if (kind == HallLayout.Anchor.Point) return snaps[0];
             float y = snaps.Min(v => v.y);
             var low = snaps.Where(v => Mathf.Abs(v.y - y) < 0.001f).ToArray();
@@ -78,6 +79,8 @@ namespace Villagewright
             var kit = new HallLayout.Kit();
             bool grand = lot.Use == Use.Hall || lot.Use == Use.Temple;
             if (lot.Wall >= 3 && (lot.Use == Use.Hall || lot.Use == Use.Boathouse || lot.Use == Use.Storehouse) && Has("wood_gate")) { kit.Door = "wood_gate"; kit.DoorHeight = 3; }
+            // A keep's double gate needs a metre of wall over it.
+            if (lot.Style == Style.Keep && lot.Wall >= 4 && Has("wood_gate")) { kit.Door = "wood_gate"; kit.DoorHeight = 3; kit.Leaves = 2; }
             if ((grand || lot.Detail >= 1) && Has("wood_pole_log") && Has("wood_wall_log")) { kit.Post = "wood_pole_log"; kit.Beam = "wood_wall_log"; kit.SpanCells = 5; }
             if (lot.Detail >= 2)
             {
@@ -93,6 +96,15 @@ namespace Villagewright
             bool steep = lot.Steep;
             kit.Roof = steep ? "wood_roof_45" : "wood_roof"; kit.Ridge = steep ? "wood_roof_top_45" : "wood_roof_top"; kit.Wedge = steep ? "wood_wall_roof_45" : "wood_wall_roof_a";
             kit.Slope = steep ? 1 : 0.5;
+            if (lot.Style == Style.Cabin)
+            {
+                // Hallwright's mountain cabin: log walls on stone fence, a 67° roof that sheds snow.
+                kit.Log = "wood_wall_log"; kit.Post = "wood_pole_log"; kit.Beam = "wood_wall_log"; kit.SpanCells = 5;
+                if (Has("stone_wall_1x1")) kit.StoneBlock = "stone_wall_1x1";
+                if (Has("wood_roof_67") && Has("wood_roof_top_67") && Has("wood_wall_roof_67_a")) { kit.Roof = "wood_roof_67"; kit.Ridge = "wood_roof_top_67"; kit.Wedge = "wood_wall_roof_67_a"; kit.Slope = 2; }
+            }
+            if (lot.Style == Style.Stilts && Has("wood_pole_log")) kit.Post = "wood_pole_log";
+            if (lot.Style == Style.Keep) { kit.StoneWall = "stone_wall_2x1"; kit.StoneBlock = "stone_wall_1x1"; }
             kit.JoistDrop = TopOf(kit.Beam) + 0.1;
             Vector3[] ends = Ends(kit.Beam); kit.BeamLength = (ends[1] - ends[0]).magnitude;
             ends = Ends(kit.ShortBeam); kit.ShortLength = (ends[1] - ends[0]).magnitude;
@@ -108,10 +120,12 @@ namespace Villagewright
                 var corners = new[] { new V3(0, 0, 0), new V3(lot.Width, 0, 0), new V3(lot.Width, 0, lot.Depth), new V3(0, 0, lot.Depth) };
                 bool norse = lot.Style == Style.Longhouse;
                 string finial = lot.Detail >= 2 ? (Has("wood_dragon1") ? "wood_dragon1" : kit.Raven) : null;
+                bool cabin = lot.Style == Style.Cabin, stilts = lot.Style == Style.Stilts, keep = lot.Style == Style.Keep;
                 var details = new HallLayout.Details
                 {
-                    Norse = norse, Benches = norse, StoneFooting = norse && kit.StoneFence != null, Hearth = norse && Has("hearth") ? "hearth" : null,
-                    Storeys = 1, Shutters = !norse && kit.Window != null, Sweep = lot.Use == Use.Hall, Finial = finial,
+                    Norse = norse, Benches = norse, StoneFooting = norse && kit.StoneFence != null, Hearth = norse && Has("hearth") ? "hearth" : cabin && Has("fire_pit") ? "fire_pit" : null,
+                    Storeys = keep ? lot.Storeys + 1 : 1, Shutters = !norse && !keep && kit.Window != null, Sweep = lot.Use == Use.Hall && !keep, Finial = keep ? null : finial,
+                    Cabin = cabin, Stilts = stilts, Deck = stilts, Keep = keep,
                     DoorPoints = new[] { new V3(lot.DoorAlong, 0, 0) },
                 };
                 b.Design = lot.Style == Style.Stave
@@ -134,18 +148,32 @@ namespace Villagewright
                     if (b.Pieces.Any(p => p.Prefab == part.Prefab && (p.Position - position).sqrMagnitude < 0.01f && Quaternion.Angle(p.Rotation, rotation) < 5)) return;
                     b.Pieces.Add(new PiecePose { Prefab = part.Prefab, Position = position, Rotation = rotation, Role = part.Role });
                 }
-                // Foundations: the lot is levelled to its pad, so a course of stone (timber halls and the temple) or a post at each corner
-                // (longhouses, whose floor is dug in) reaches into the ground.
-                if (!norse && Has("stone_floor_2x2"))
+                // Foundations: the lot is levelled to its pad. Timber halls, cabins, the keep and the temple stand on stone pillars (at the
+                // corners and every 4 m, Hallwright's own) with beams under the floor, none where a footing already runs; longhouses, whose
+                // floor is dug in, on a post at each corner; stilt houses on log poles down to the lowest ground under them.
+                if (!norse && !stilts && Has("stone_pillar"))
                 {
-                    double depth = lot.Floor - lot.Pad;
-                    int count = Math.Max(1, (int)Math.Ceiling(depth + 0.1));
-                    foreach (var c in b.Design.Cells) for (int n = 0; n < count; n++)
-                        Add(new HallLayout.Part { Prefab = "stone_floor_2x2", At = new V3(c.X * 2 + 1, -n - 1.06, c.Z * 2 + 1), Kind = HallLayout.Anchor.Bottom, Role = "foundation" });
+                    var footings = b.Design.Parts.Where(p => p.Role == "stone footing" || p.Role == "keep footing").ToList();
+                    double top = -kit.JoistDrop - TopOf(kit.Beam) + 0.05;
+                    int count = Math.Max(1, (int)Math.Ceiling((lot.Floor - lot.Pad + top + 0.15) / 2));
+                    foreach (V3 v in HallLayout.Piers(b.Design))
+                        if (!footings.Any(f => Math.Abs(f.At.X - v.X) < 1.2 && Math.Abs(f.At.Z - v.Z) < 1.2))
+                            for (int n = 0; n < count; n++) Add(new HallLayout.Part { Prefab = "stone_pillar", At = new V3(v.X, top - 2 * (n + 1), v.Z), Kind = HallLayout.Anchor.Bottom, Role = "foundation" });
+                    foreach (var (a, c) in HallLayout.Sills(b.Design))
+                        Add(new HallLayout.Part { Prefab = kit.Beam, At = a + new V3(0, -kit.JoistDrop, 0), End = c + new V3(0, -kit.JoistDrop, 0), Kind = HallLayout.Anchor.Segment, Role = "foundation" });
                 }
-                else foreach (V3 v in b.Design.Vertices)
-                    if (!HallStairs.Blocks(b.Design, v)) Add(new HallLayout.Part { Prefab = kit.Post, At = new V3(v.X, -2, v.Z), Kind = HallLayout.Anchor.Bottom, Role = "foundation" });
-                foreach (var part in b.Design.Parts) Add(part);
+                else
+                {
+                    int count = stilts ? Math.Max(1, (int)Math.Ceiling((lot.Floor - lot.Low + 0.5) / 2)) : 1;
+                    foreach (V3 v in b.Design.Vertices)
+                        if (!HallStairs.Blocks(b.Design, v)) for (int n = 0; n < count; n++) Add(new HallLayout.Part { Prefab = kit.Post, At = new V3(v.X, -2 * (n + 1), v.Z), Kind = HallLayout.Anchor.Bottom, Role = "foundation" });
+                }
+                // A keep's walls go down as far as the ground needs: on a levelled pad, one course.
+                foreach (var part in b.Design.Parts) if (part.Role != "keep footing" || part.At.Y > -1.5) Add(part);
+                // A stilt house's stair comes down from the deck to the ground (or stops at the water).
+                if (stilts)
+                    foreach (var entry in b.Design.Entrances)
+                        for (int step = 0; step < 6 && lot.Floor - step > lot.Pad + 0.25; step++) Add(HallStairs.Exterior(entry, step));
                 // Ridge posts under wide roofs (Hallwright adds these when its support estimate says the roof would fall; we have no
                 // estimate here, so every wing wider than 6 m gets them, where they don't block a door, the stairs or a chimney).
                 if (!norse && lot.Style != Style.Stave)

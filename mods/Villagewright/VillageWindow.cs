@@ -54,6 +54,7 @@ namespace Villagewright
 
         private static void Change(Action a) { try { a(); P.Replan(); } catch (Exception ex) { P.Problem = ex.Message; } Build(); }
 
+        private static string Land(Land land) => land == Village.Land.Mountain ? "cabins" : land == Village.Land.Swamp ? "stilts" : "timber";
         private static readonly (Kind kind, string name)[] Kinds = { (Kind.Hamlet, "Hamlet"), (Kind.Farming, "Farming"), (Kind.Fishing, "Fishing"), (Kind.Market, "Market"), (Kind.HillFort, "Hill fort"), (Kind.Temple, "Temple town") };
 
         private static void Build()
@@ -89,6 +90,10 @@ namespace Villagewright
             Count("Ways out", b.Gates.ToString(), new[] { 1 }, d => b.Gates = Mathf.Clamp(b.Gates + d, 1, 6));
             Count("Intricacy", new[] { "Simple", "Crafted", "Ornate", "Grand", "King's" }[b.Detail], new[] { 1 }, d => b.Detail = Mathf.Clamp(b.Detail + d, 0, 4));
             Count("Streets", $"{b.StreetWidth:0} m", new[] { 1 }, d => b.StreetWidth = Mathf.Clamp((float)b.StreetWidth + d, 3, 6));
+            // The land: Auto reads the biome (log cabins in the mountains, houses on stilts in the swamp).
+            string[] lands = { "Auto", "Temperate", "Mountain", "Swamp" };
+            int landAt = P.LandChoice.HasValue ? (int)P.LandChoice.Value + 1 : 0;
+            Count("Houses as", landAt == 0 ? $"Auto: {Land(P.SiteLand())}" : Land(P.LandChoice.Value), new[] { 1 }, d => { int i = ((landAt + d) % 4 + 4) % 4; P.LandChoice = i == 0 ? (Land?)null : (Land)(i - 1); });
 
             float tx = 560f, ty = -150f;
             void Switch(string label, bool on, Action flip)
@@ -98,6 +103,7 @@ namespace Villagewright
             }
             Switch("Chieftain's hall", b.Hall, () => b.Hall = !b.Hall);
             Switch("Temple", b.Temple, () => b.Temple = !b.Temple);
+            Switch("Stone keep", b.Keep, () => b.Keep = !b.Keep);
             Switch("Smithy", b.Smithy, () => b.Smithy = !b.Smithy);
             Switch("Market", b.Market, () => b.Market = !b.Market);
             Switch("Palisade", b.Palisade, () => b.Palisade = !b.Palisade);

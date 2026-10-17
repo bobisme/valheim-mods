@@ -75,6 +75,8 @@ namespace Villagewright
                                     case "seed": b.Seed = v == "new" ? NewSeed() : int.Parse(v); break;
                                     case "houses": b.Houses = Mathf.Clamp(int.Parse(v), 0, 40); break;
                                     case "hall": b.Hall = On(v); break;
+                                    case "keep": b.Keep = On(v); break;
+                                    case "land": LandChoice = v == "auto" ? (Land?)null : (Land)Enum.Parse(typeof(Land), v, true); break;
                                     case "temple": b.Temple = On(v); break;
                                     case "smithy": b.Smithy = On(v); break;
                                     case "market": b.Market = On(v); break;
