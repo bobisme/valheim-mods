@@ -487,17 +487,11 @@ foreach(int doorEdge in new[]{0,1})foreach(int intricacy in new[]{0,2,4})
  Check(!Blocked(HallLayout.Plan(Rect(10,20),norseKit,2,intricacy,doorEdge,false,Norse()),2),"No beam crosses a longhouse door");
  Check(!Blocked(HallLayout.Plan(Rect(8,16),new HallLayout.Kit(),2,intricacy,doorEdge,false,new HallLayout.Details{Storeys=2}),2),"No joist crosses a door under an upper floor");
 }
-// Smoke holes under a steep roof get a lower 26° piece: rain coverage with a slit for the smoke.
-var ventKit=new HallLayout.Kit{SmallFloor="wood_floor_1x1",SpanCells=5,LowRoof="wood_roof",LowRidge="wood_roof_top"};
+// Smoke holes are left open under any roof: a lowered roof piece over one kept the smoke in.
 foreach(var width in new[]{10,8})
 {
- var vented=HallLayout.Plan(Rect(width,20),ventKit,2,2,1,false,Norse());
- var lids=vented.Parts.Where(p=>p.Role=="smoke hole roof").ToList();
- Check(vented.Chimneys.Count>0 && lids.Count==vented.Chimneys.Count,"Every smoke hole has a 26° piece");
- Check(lids.All(p=>p.Prefab==(width==10?"wood_roof_top":"wood_roof")),"A ridge hole gets the 26° ridge, a side hole the 26° roof");
- // A piece's anchor is its tile's centre (ridge) or the middle of its low edge (side): within 1 m of the hole's centre either way.
- Check(lids.All(p=>vented.Chimneys.Any(c=>Math.Abs(p.At.X-c.X*2-1)<=1.001 && Math.Abs(p.At.Z-c.Z*2-1)<=1.001)) && lids.Select(p=>(p.At.X,p.At.Z)).Distinct().Count()==lids.Count,"Each 26° piece covers its own smoke hole");
- Check(!HallLayout.Plan(Rect(width,20),new HallLayout.Kit{SmallFloor="wood_floor_1x1",SpanCells=5,Slope=0.5,Roof="wood_roof",Ridge="wood_roof_top",Wedge="wood_wall_roof_a",LowRoof="wood_roof",LowRidge="wood_roof_top"},2,2,1,false,Norse()).Parts.Any(p=>p.Role=="smoke hole roof"),"Under a 26° roof the holes stay open");
+ var vented=HallLayout.Plan(Rect(width,20),new HallLayout.Kit{SmallFloor="wood_floor_1x1",SpanCells=5},2,2,1,false,Norse());
+ Check(vented.Chimneys.Count>0 && !vented.Parts.Any(p=>p.Role=="smoke hole roof"),"Every smoke hole is open");
 }
 // Smoke holes, not chimneys: the roof tile is simply open.
 foreach(var plan in new[]{HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,Norse()),HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,new HallLayout.Details{Norse=true,Hearth="hearth",ChimneyPoints=new[]{new V3(1,0,13)}})})
@@ -521,3 +515,53 @@ foreach(int wallHeight in new[]{2,3})
 }
 Check(!HallLayout.Plan(Rect(10,20),norseKit,2,2,1,false,new HallLayout.Details{Norse=true,StoneFooting=true}).Parts.Any(p=>p.Role=="stone footing"),"No footing until stone walls are unlocked");
 Console.WriteLine($"Norse longhouse: {checks:N0} checks passed.");
+// Mountain cabin: stacked log walls on a stone footing, no corner posts, a 67° roof, a fire pit under a chimney.
+var cabinKit=new HallLayout.Kit{SmallFloor="wood_floor_1x1",Log="wood_wall_log",Post="wood_pole_log",Beam="wood_wall_log",StoneWall="stone_wall_2x1",Window="wood_window",Slope=2,Roof="wood_roof_67",Ridge="wood_roof_top_67",Wedge="wood_wall_roof_67_a"};
+HallLayout.Details CabinDetails()=>new HallLayout.Details{Cabin=true,Hearth="fire_pit",StoneFooting=true,Shutters=true};
+foreach(var (w,d) in new[]{(8,10),(10,8),(6,6)})
+{
+ var cabin=HallLayout.Plan(Rect(w,d),cabinKit,3,2,0,false,CabinDetails());
+ var logs=cabin.Parts.Where(p=>p.Role=="log wall").ToList();
+ Check(logs.Count>0 && logs.All(p=>Math.Abs(p.At.Y*2-Math.Round(p.At.Y*2))<1e-9 && p.At.Y<3),"Logs stack in half-metre courses below the eaves");
+ Check(!cabin.Parts.Any(p=>p.Role=="post"),"Log walls carry their own corners");
+ Check(!cabin.Parts.Any(p=>p.Role=="gable" && p.Prefab=="woodwall"),"Cabin gables are logs");
+ Check(cabin.Parts.Count(p=>p.Role=="stone footing")>0,"Cabin stands on a stone footing");
+ Check(cabin.Parts.Where(p=>p.Role=="roof").All(p=>p.Prefab=="wood_roof_67" || p.Prefab=="wood_roof_top_67"),"Steep 67° roof");
+ Check(cabin.Chimneys.Count==1 && cabin.Parts.Count(p=>p.Role=="hearth" && p.Prefab=="fire_pit")==1,"One fire pit under one chimney");
+ var pit=cabin.Parts.Single(p=>p.Role=="hearth");var flue=cabin.Chimneys.Single();
+ Check(Math.Abs(pit.At.X-(flue.X*2+1))<1e-9 && Math.Abs(pit.At.Z-(flue.Z*2+1))<1e-9 && Math.Abs(pit.At.Y)<1e-9,"The fire pit sits on the floor under the flue");
+ Check((pit.At-cabin.Door).Length>=3,"The fire is away from the door");
+ Check(cabin.Parts.Count(p=>p.Role=="roof")==cabin.Cells.Count-1,"Every tile roofed but the flue's");
+}
+Reject(()=>HallLayout.Plan(Rect(8,10),new HallLayout.Kit(),3,2,0,false,CabinDetails()),"cabin without logs");
+// Stilt cabin: a deck along the entrance side, railed except in front of the door, its landing off the deck.
+var stilts=HallLayout.Plan(Rect(8,10),new HallLayout.Kit{SmallFloor="wood_floor_1x1"},3,2,0,false,new HallLayout.Details{Stilts=true,Deck=true});
+var deckFloors=stilts.Parts.Where(p=>p.Role=="deck").ToList();
+Check(deckFloors.Count==4 && deckFloors.All(p=>p.At.Z<0 && p.At.Z>-2),"Four deck tiles outside the entrance wall");
+Check(stilts.PorchFloors.Count==4,"Deck tiles count as porch floor for supports");
+var rails=stilts.Parts.Where(p=>p.Role=="deck rail").ToList();
+Check(rails.Count>0 && rails.All(r=>Math.Abs(r.At.X-stilts.Door.X)>1.5),"No rail across the way in from the door");
+Check((stilts.EntryLanding-stilts.Door).Length>1.9 && stilts.EntryLanding.Z<-1.9,"The way in lands off the deck's edge");
+Check(!HallLayout.Plan(Rect(8,10),new HallLayout.Kit{SmallFloor="wood_floor_1x1"},3,2,0,false,new HallLayout.Details{Stilts=true}).Parts.Any(p=>p.Role=="deck"),"No deck when it is off");
+// Stone keep: stone courses, arrow loops above the ground floor, a walkable roof behind merlons, stairs all the way up.
+var keepKit=new HallLayout.Kit{SmallFloor="wood_floor_1x1",StoneWall="stone_wall_2x1",StoneBlock="stone_wall_1x1"};
+foreach(int storeys in new[]{2,3,4})
+{
+ var keep=HallLayout.Plan(Rect(8,10),keepKit,3,2,0,false,new HallLayout.Details{Keep=true,Storeys=storeys});
+ double roof=3*(storeys-1);
+ Check(keep.Wings.Count==0 && !keep.Parts.Any(p=>p.Role=="roof") && keep.RoofHeight>=roof,"A keep has a flat walkable roof, not a pitched one");
+ Check(keep.Parts.Where(p=>p.Role=="stone wall" || p.Role=="arrow loop" || p.Role=="merlon").All(p=>p.Prefab.StartsWith("stone_wall")),"Stone walls");
+ Check(!keep.Parts.Any(p=>p.Prefab.StartsWith("wood") && (p.Role=="wall" || p.Role=="gable")),"No timber in the outer wall");
+ Check(storeys==2 || keep.Parts.Count(p=>p.Role=="arrow loop")>0,"Arrow loops in the middle storeys");
+ Check(storeys==2 || keep.Parts.Where(p=>p.Role=="arrow loop").All(p=>p.At.Y>=3+1-1e-9),"Arrow loops only above the ground floor");
+ var merlons=keep.Parts.Where(p=>p.Role=="merlon").ToList();
+ Check(merlons.Count==keep.BoundaryPanels && merlons.All(p=>Math.Abs(p.At.Y-(roof+1))<1e-9),"A merlon on every parapet panel");
+ Check(keep.Parts.Where(p=>p.Role=="stone wall").Max(p=>p.At.Y)<=roof+1e-9,"The parapet is one course above the roof deck");
+ Check(keep.Parts.Count(p=>p.Role=="upper floor")>0 && keep.Parts.Where(p=>p.Role=="upper floor").Max(p=>p.At.Y)>=roof-1e-9,"Floors up to the roof deck");
+ Check(keep.Parts.Count(p=>p.Role=="interior stair")>=3*(storeys-1),"Stairs climb to the roof");
+ Check(keep.Parts.Where(p=>p.Role=="storey post").All(p=>p.At.Y+2<=roof+1e-9),"Posts stop under the roof deck");
+}
+Reject(()=>HallLayout.Plan(Rect(8,10),keepKit,3,2,0,false,new HallLayout.Details{Keep=true,Storeys=1}),"one-storey keep");
+Reject(()=>HallLayout.Plan(Rect(8,10),new HallLayout.Kit(),3,2,0,false,new HallLayout.Details{Keep=true,Storeys=3}),"keep without stone");
+Reject(()=>HallLayout.Plan(Rect(8,10),keepKit,3,2,0,false,new HallLayout.Details{Keep=true,Storeys=3,Porch=true}),"keep with a porch");
+Console.WriteLine($"Cabin, stilts and keep: {checks:N0} checks passed.");

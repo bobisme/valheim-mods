@@ -19,6 +19,9 @@ namespace Hallwright
         public bool Norse,Benches=true,Hearth=true,StoneFooting=true;
         public bool Sketch=true; // (drafts saved before the Sketch preview open in it)
         public float Sink=0.5f;
+        public int Variant;            // 1 cabin, 2 stilts, 3 keep (0 in drafts saved before them)
+        public bool Roof67,Deck=true;
+        public float Stilt=2.5f;
         private static bool Finite(float x)=>!float.IsNaN(x) && !float.IsInfinity(x);
         private static bool Point(float[] p)=>p!=null && p.Length==3 && p.All(x=>Finite(x) && Math.Abs(x)<1000000);
         internal bool Valid(long world,long player)=>Version==1 && World==world && Player==player &&

@@ -21,7 +21,7 @@ namespace Hallwright
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Static|BindingFlags.Public)?.Invoke(null,new object[]{Name,"hall",
-                    "hall testsite find <size> | testsite make <x> <z> <height> <size> <worldID> | testsite clear <x> <z> <size> <worldID> | catalog | rectangle <width> <length> [distance=10] | outline <x,z>... | options style=hall|longhouse|temple sink=0..2 benches=on|off hearth=on|off footing=on|off chamber=4|6|8 crowns=1|2 gallery=on|off height=2|3|4 detail=0..4 storeys=1|2|3 basement=on|off pitch=26|45 material=auto|timber|core|stone|dark raise=0..2 preview=sketch|materials|ghosts|layout roof=gabled|tiered entrance=auto|door|gate overhang=on|off porch=on|off shutters=on|off trim=on|off crest=auto|none|dragon|raven | doors clear | doors <x,z>... | chimneys clear | chimneys <x,z>... | status | resume | meshes <prefab> | stairs | entrances | pieces | ui | clear | confirm | undo | restoreground | keepground | reload: local Hallwright previews; only confirm creates shared ghosts; undo removes the last shape's unbuilt ghosts",
+                    "hall testsite find <size> | testsite make <x> <z> <height> <size> <worldID> | testsite clear <x> <z> <size> <worldID> | catalog | rectangle <width> <length> [distance=10] | outline <x,z>... | options style=hall|longhouse|temple|cabin|stilts|keep stilts=1.5..3.5 deck=on|off sink=0..2 benches=on|off hearth=on|off footing=on|off chamber=4|6|8 crowns=1|2 gallery=on|off height=2|3|4 detail=0..4 storeys=1|2|3 basement=on|off pitch=26|45|67 material=auto|timber|core|stone|dark raise=0..2 preview=sketch|materials|ghosts|layout roof=gabled|tiered entrance=auto|door|gate overhang=on|off porch=on|off shutters=on|off trim=on|off crest=auto|none|dragon|raven | doors clear | doors <x,z>... | chimneys clear | chimneys <x,z>... | status | resume | meshes <prefab> | stairs | entrances | pieces | ui | clear | confirm | undo | restoreground | keepground | reload: local Hallwright previews; only confirm creates shared ghosts; undo removes the last shape's unbuilt ghosts",
                     new Func<string[],Action<JObject>,Action<string>,IEnumerator>(HallCommand)});
                 found.GetType().GetMethod("RegisterFrame",BindingFlags.Static|BindingFlags.Public)?.Invoke(null,new object[]{Name,new Func<string,float[]>(HallFrame)});
             }
@@ -37,7 +37,7 @@ namespace Hallwright
         }
         private JObject HallReadout()=>new JObject
         {
-            ["style"]=new[]{"Timber hall","Longhouse","Stave temple"}[HallStyle],["sink"]=_hallNorse?_hallSink:(float?)null,
+            ["style"]=HallStyleNames[HallStyle],["stilts"]=HallStilts?_hallStilt:(float?)null,["sink"]=_hallNorse?_hallSink:(float?)null,
             ["platforms"]=_hallDesign?.Parts.Count(p=>p.Role=="platform")??0,["hearths"]=_hallDesign?.Hearths??0,["aislePosts"]=_hallDesign?.Parts.Count(p=>p.Role=="aisle post")??0,["footing"]=_hallNorse?_hallFooting:(bool?)null,["footingStones"]=_hallRoles.Count(r=>r=="stone footing"),
             ["dug"]=_hallGroundJob.Count(c=>c.Target<c.Displayed-0.01f),["heaped"]=_hallGroundJob.Count(c=>c.Target>c.Displayed+0.01f),["innerEntrances"]=_hallDesign?.InnerEntrances.Count,["chamberHeight"]=_staveHeight,["crowns"]=_staveCrowns,["gallery"]=_staveGallery,["roofHeight"]=_hallDesign?.RoofHeight,
             ["chamber"]=_hallDesign?.Sanctum==null?null:new JArray(_hallDesign.Sanctum.Width*2,_hallDesign.Sanctum.Length*2),
@@ -196,13 +196,13 @@ namespace Hallwright
                     string styleArg=args.Skip(2).FirstOrDefault(o=>o.StartsWith("style=",StringComparison.Ordinal));
                     if(styleArg!=null)
                     {
-                        int chosen=Array.IndexOf(new[]{"hall","longhouse","temple"},styleArg.Substring(6));
-                        if(chosen<0)throw new ArgumentException("Style is hall, longhouse or temple.");
+                        int chosen=Array.IndexOf(new[]{"hall","longhouse","temple","cabin","stilts","keep"},styleArg.Substring(6));
+                        if(chosen<0)throw new ArgumentException("Style is hall, longhouse, temple, cabin, stilts or keep.");
                         SetHallStyle(chosen);
                     }
                     bool benches=_hallBenches,hearth=_hallHearth,footing=_hallFooting;float sink=_hallSink;
                     int chamber=_staveHeight,crowns=_staveCrowns;bool temple=_staveTemple,gallery=_staveGallery;
-                    int height=_hallHeight,detail=_hallDetail,material=_hallMaterialMode,entrance=_hallEntranceMode,crest=_hallCrestMode,storeys=_hallStoreys;bool basement=_hallBasement,steep=_hallRoof45,tiered=_hallTiered,overhang=_hallOverhang,porch=_hallPorch,sweep=_hallSweep,shutters=_hallShutters;float raise=_hallRaise;
+                    int height=_hallHeight,detail=_hallDetail,material=_hallMaterialMode,entrance=_hallEntranceMode,crest=_hallCrestMode,storeys=_hallStoreys;bool basement=_hallBasement,steep=_hallRoof45,snow=_hallRoof67,deck=_hallDeck;float stilt=_hallStilt;bool tiered=_hallTiered,overhang=_hallOverhang,porch=_hallPorch,sweep=_hallSweep,shutters=_hallShutters;float raise=_hallRaise;
                     foreach(string option in args.Skip(2))
                     {
                         string[] kv=option.Split('=');if(kv.Length!=2)throw new ArgumentException("Options use key=value.");
@@ -220,7 +220,9 @@ namespace Hallwright
                             case "detail": float d=HallFloat(kv[1]);if(d!=Math.Round(d) || d<0 || d>4)throw new ArgumentException("Detail must be 0–4.");detail=(int)d;break;
                             case "storeys": float n=HallFloat(kv[1]);if(n!=Math.Round(n) || n<1 || n>3)throw new ArgumentException("Storeys must be 1–3.");storeys=(int)n;break;
                             case "basement": basement=HallBool(kv[1]);break;
-                            case "pitch": if(kv[1]!="26" && kv[1]!="45")throw new ArgumentException("Pitch is 26 or 45.");steep=kv[1]=="45";break;
+                            case "pitch": if(kv[1]!="26" && kv[1]!="45" && kv[1]!="67")throw new ArgumentException("Pitch is 26, 45 or 67.");steep=kv[1]!="26";snow=kv[1]=="67";break;
+                            case "stilts": stilt=HallFloat(kv[1]);if(stilt!=1.5f && stilt!=2.5f && stilt!=3.5f)throw new ArgumentException("Stilts are 1.5, 2.5 or 3.5 m.");break;
+                            case "deck": deck=HallBool(kv[1]);break;
                             case "raise": raise=HallFloat(kv[1]);if(raise<0 || raise>2)throw new ArgumentException("Raise is 0–2 m.");break;
                             case "roof": if(kv[1]!="gabled" && kv[1]!="tiered")throw new ArgumentException("Roof is gabled or tiered.");tiered=kv[1]=="tiered";break;
                             case "entrance": entrance=Array.IndexOf(new[]{"auto","door","gate"},kv[1]);if(entrance<0)throw new ArgumentException("Entrance is auto, door, or gate.");break;
@@ -236,7 +238,7 @@ namespace Hallwright
                     }
                     if(temple&&(storeys!=1||basement))throw new ArgumentException("Stave temples use a single open chamber. Switch to hall for storeys or a basement.");
                     _staveTemple=temple;_staveHeight=chamber;_staveCrowns=crowns;_staveGallery=gallery;
-                    _hallStoreys=storeys;_hallBasement=basement;_hallHeight=height;_hallDetail=detail;_hallMaterialMode=material;_hallRoof45=steep;_hallRaise=raise;_hallTiered=tiered;_hallEntranceMode=entrance;_hallCrestMode=crest;_hallOverhang=overhang;_hallPorch=porch;_hallSweep=sweep;_hallShutters=shutters;
+                    _hallStoreys=storeys;_hallBasement=basement;_hallHeight=height;_hallDetail=detail;_hallMaterialMode=material;_hallRoof45=steep;_hallRoof67=snow;_hallStilt=stilt;_hallDeck=deck;_hallRaise=raise;_hallTiered=tiered;_hallEntranceMode=entrance;_hallCrestMode=crest;_hallOverhang=overhang;_hallPorch=porch;_hallSweep=sweep;_hallShutters=shutters;
                     _hallSink=sink;_hallBenches=benches;_hallHearth=hearth;_hallFooting=footing;BuildHallPreview();output(HallReadout());return null;
                 }
                 if(action=="ui"){if(_markers.Count<3 && !System.IO.File.Exists(HallGroundFile))throw new ArgumentException("Draw a footprint first.");OpenHallMenu();output(HallReadout());return null;}

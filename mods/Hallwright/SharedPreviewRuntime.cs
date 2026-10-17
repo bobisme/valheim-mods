@@ -94,7 +94,7 @@ namespace Hallwright
         }
         private SharedPreview CaptureSharedPreview(bool active)
         {
-            var p=new SharedPreview{World=_sharedWorld,Revision=++_sharedRevision,Tool=active?(byte)(HallStyle+1):(byte)0,Center=SharePoint(Vector3.zero)};
+            var p=new SharedPreview{World=_sharedWorld,Revision=++_sharedRevision,Tool=active?(byte)(HallStyle<3?HallStyle+1:1):(byte)0,Center=SharePoint(Vector3.zero)};
             if(!active)return p;
             Vector3 center=(_markers.Aggregate(Vector3.zero,(a,b)=>a+b))/_markers.Count;
             center.y=_active&&_hallGuideHasFloor?_hallFloorY+(_staveTemple?(float)(_hallDesign?.RoofHeight??_staveHeight):_hallHeight*_hallStoreys)+1.5f:_markers.Max(v=>v.y)+3;

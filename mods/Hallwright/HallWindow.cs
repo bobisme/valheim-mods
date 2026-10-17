@@ -48,7 +48,20 @@ namespace Hallwright
             void Gap()=>rows.Add(new HallRow{Kind="gap"});
 
             if(_hallDesign!=null)Note($"{_hallDesign.Cells.Count*4} / {HallLayout.MaximumCells*4:N0} m² · {_hallDesign.Wings.Count} roof wings · {_output.Count} / {HallLayout.MaximumParts:N0} pieces",GameUi.Text);
-            Tabs(new[]{"Timber hall","Longhouse","Stave temple"},HallStyle,i=>{if(i!=HallStyle){SetHallStyle(i);HallChanged();}});
+            Tabs(HallStyleNames,HallStyle,i=>{if(i!=HallStyle){SetHallStyle(i);HallChanged();}});
+            if(HallStilts)
+            {
+                Gap();Head("Stilts");
+                Tabs(new[]{"1.5 m","2.5 m","3.5 m"},Mathf.Clamp(Mathf.RoundToInt(_hallStilt-1.5f),0,2),i=>{_hallStilt=1.5f+i;HallChanged();});
+                Toggle("Deck along the entrance side · 2 m",_hallDeck,()=>{_hallDeck=!_hallDeck;HallChanged();});
+                Hint("The floor stands this high over the highest ground or water under it, on log poles down to the mud. A stair comes down from the door to the ground, or to the water.");
+            }
+            if(HallCabin)
+            {
+                Gap();Head("Cabin details");
+                Toggle("Fire pit under a chimney",_hallHearth,()=>{_hallHearth=!_hallHearth;HallChanged();});
+                Hint("Logs half a metre a course, their ends crossing at the corners, on a course of stone. The fire goes at the end of the room away from the door, under a timber flue through the roof, unless you Ctrl+click your own chimneys.");
+            }
             if(_staveTemple)
             {
                 Gap();Head("Open chamber height");
@@ -72,19 +85,33 @@ namespace Hallwright
             }
             if(!_staveTemple)
             {
-                if(!_hallNorse)
+                if(HallKeep)
                 {
                     Gap();Head("Storeys");
                     Tabs(new[]{"One","Two","Three"},_hallStoreys-1,i=>{_hallStoreys=i+1;HallChanged();});
-                    Toggle("Basement · 3 m stone cellar",_hallBasement,()=>{_hallBasement=!_hallBasement;HallChanged();});
+                    Hint("Stone walls with arrow loops above the ground floor, timber floors and stairs inside, and a stair up to the roof, which you can walk on behind the battlements.");
+                }
+                else if(!_hallNorse)
+                {
+                    Gap();Head("Storeys");
+                    Tabs(new[]{"One","Two","Three"},_hallStoreys-1,i=>{_hallStoreys=i+1;HallChanged();});
+                    if(!HallStilts)Toggle("Basement · 3 m stone cellar",_hallBasement,()=>{_hallBasement=!_hallBasement;HallChanged();});
                     Hint("Stairs are placed inside the footprint with landings and open headroom. A basement needs unlocked stone, dry terrain and a clear site. Ground changes only when you Plan shell.");
                 }
-                Gap();Head("Roof silhouette");
-                Tabs(new[]{"Gabled","Tiered longhouse"},_hallTiered?1:0,i=>{_hallTiered=i==1;HallChanged();});
-                Hint("Tiered: raised central roof, low side aisles and an inner colonnade. Wings under 6 m wide stay gabled.");
+                if(!HallKeep)
+                {
+                    Gap();Head("Roof silhouette");
+                    Tabs(new[]{"Gabled","Tiered longhouse"},_hallTiered?1:0,i=>{_hallTiered=i==1;HallChanged();});
+                    Hint("Tiered: raised central roof, low side aisles and an inner colonnade. Wings under 6 m wide stay gabled.");
+                }
             }
-            Gap();Head("Roof pitch");
-            Tabs(new[]{"26° · low","45° · steep"},_hallRoof45?1:0,i=>{_hallRoof45=i==1;HallChanged();});
+            if(!HallKeep)
+            {
+                Gap();Head("Roof pitch");
+                if(_staveTemple)Tabs(new[]{"26° · low","45° · steep"},_hallRoof45?1:0,i=>{_hallRoof45=i==1;HallChanged();});
+                else Tabs(new[]{"26° · low","45° · steep","67° · sheds snow"},_hallRoof67?2:_hallRoof45?1:0,i=>{_hallRoof67=i==2;_hallRoof45=i>=1;HallChanged();});
+            }
+            if(!HallKeep){
             Gap();Head(_staveTemple?"Temple details":_hallNorse?"Longhouse details":"Hall details");
             if(_hallNorse)
             {
@@ -100,15 +127,18 @@ namespace Hallwright
             Toggle("Sweeping gable timberwork",_hallSweep,()=>{_hallSweep=!_hallSweep;HallChanged();});
             Toggle("Shuttered windows · 2 × 1 m",_hallShutters,()=>{_hallShutters=!_hallShutters;HallChanged();});
             Hint(_staveTemple?"Layered eaves extend above lower roofs where they clear. A porch needs a 4 m edge and clear space outside. All pieces use normal materials and support.":_hallNorse?"Platforms are 2 m deep in halls 10 m wide or more, 1 m at 8 m. Hearths run down the middle of wings at least 6 × 8 m, with smoke holes beside them, never above, and rows of aisle posts carry the roof. The footing is the game's stone fence, 4 stone each, built at a workbench.":"Overhangs fit around other wings and the porch. A porch needs a 4 m edge and clear ground outside. All pieces use normal materials and support.");
-            if(!_staveTemple)
+            }
+            if(!_staveTemple && !HallKeep)
             {
                 Gap();Head(_hallNorse?"Smoke holes":"Chimneys");
-                Hint(_hallNorse?"Ctrl+click a floor tile to leave the roof above it open, as the Norse let their smoke out. Up to four, besides the ones beside the hearths. Under a 45° roof each gets a lower 26° piece that keeps the rain off and leaves a slit for the smoke.":"Ctrl+click a floor tile to open the roof above it and raise a timber flue past the ridge; set your fire under it. Up to four. Upper floors leave a shaft for it.");
+                Hint(_hallNorse?"Ctrl+click a floor tile to leave the roof above it open, as the Norse let their smoke out. Up to four, besides the ones beside the hearths. They're left open, as the smoke needs.":"Ctrl+click a floor tile to open the roof above it and raise a timber flue past the ridge; set your fire under it. Up to four. Upper floors leave a shaft for it.");
                 for(int i=0;i<_hallChimneyPoints.Count;i++){int index=i;Buttons(($"Remove {(_hallNorse?"smoke hole":"chimney")} {i+1}",true,(Action)(()=>{_hallChimneyPoints.RemoveAt(index);HallChanged();})));}
             }
+            if(!HallKeep){
             Gap();Head("Ridge ends");
             Tabs(new[]{"Auto","None","Dragon","Raven"},_hallCrestMode,i=>{_hallCrestMode=i;HallChanged();});
             Hint("Auto adds unlocked carvings at Ornate and above. Carvings and swept trim appear on exposed gables.");
+            }
             Gap();Head("Intricacy");
             Tabs(HallDetails,_hallDetail,i=>{_hallDetail=i;HallChanged();});
             Hint(_hallDetail==0?"Clean shell and structural trusses.":_hallDetail==1?"Gable trim and repeated knee braces.":_hallDetail==2?"Radiating gable timberwork and unlocked darkwood details.":_hallDetail==3?"Rich gable patterns, layered eaves and carved belts.":"Royal knotwork, carved darkwood panels, daylight windows and layered timber bands.");
@@ -120,7 +150,7 @@ namespace Hallwright
             Hint("Shift+click near exterior walls to mark up to eight entrances; click a marker again to remove it. The first marker gets the covered porch.");
             for(int i=0;i<_hallDoorPoints.Count;i++){int index=i;Buttons(($"Remove entrance {i+1}"+(i==0?" · main":""),true,(Action)(()=>{_hallDoorPoints.RemoveAt(index);HallChanged();})));}
             if(_hallDoorPoints.Count>0)Buttons(("Clear entrance markers · use the edge selector",true,(Action)(()=>{_hallDoorPoints.Clear();HallChanged();})));
-            if(!(_hallNorse && _hallSink>0))
+            if(!(_hallNorse && _hallSink>0) && !HallStilts)
             {
                 Gap();Head(_hallBasement?"Ground floor lift above entrance terrain":"Foundation lift above highest ground");
                 void Raise(float by){_hallRaise=Mathf.Clamp(Mathf.Round((_hallRaise+by)*100)/100,0,2);HallChanged();}
@@ -168,7 +198,7 @@ namespace Hallwright
             if(_hallWindow!=null && Time.unscaledTime>_hallWindowOpened+0.2f && ZInput.GetButtonDown("Use")){CloseHallMenu();return;}
             if(Input.GetMouseButton(0) && _hallWindow!=null)return; // never rebuild under a press
             var rows=HallRows();
-            string shown=string.Join("\n",rows.Select(r=>r.Key))+"\n"+HallStatus+HallCanPlan+_staveTemple+_hallNorse;
+            string shown=string.Join("\n",rows.Select(r=>r.Key))+"\n"+HallStatus+HallCanPlan+HallStyle;
             if(shown==_hallWindowShown && _hallWindow!=null)return;
             BuildHallWindow(rows,shown);
         }
@@ -183,9 +213,9 @@ namespace Hallwright
             // At the right of the screen, so the preview stays in view.
             _hallWindow.anchoredPosition=new Vector2(Mathf.Max(0,GameUi.ScreenSize.x/2-w/2-24),0);
             if(fresh)_hallWindowOpened=Time.unscaledTime;
-            GameUi.Line(_hallWindow,_staveTemple?"Stave temple":_hallNorse?"Longhouse":"Hallwright",new Vector2(30,-18),w-140,32,GameUi.Warm,GameUi.Norse);
+            GameUi.Line(_hallWindow,HallStyle==0?"Hallwright":HallStyleNames[HallStyle],new Vector2(30,-18),w-140,32,GameUi.Warm,GameUi.Norse);
             GameUi.Button(_hallWindow,"X",new Vector2(w-74,-20),new Vector2(46,40),()=>HallLater(CloseHallMenu));
-            GameUi.Line(_hallWindow,_staveTemple?"A tall chamber beneath stacked Viking roofs":_hallNorse?"A Norse longhouse dug into the ground around a long hearth":"A timber hall fitted to your floor plan",new Vector2(30,-62),w-60,16,GameUi.Dim);
+            GameUi.Line(_hallWindow,HallStyleBlurb,new Vector2(30,-62),w-60,16,GameUi.Dim);
             GameUi.Braid(_hallWindow,new Vector2(0,-98),w-60);
             float bottom=150;
             RectTransform box=GameUi.Box(_hallWindow,new Vector2(22,-112),new Vector2(w-44,height-112-bottom));
@@ -205,7 +235,7 @@ namespace Hallwright
                     }
                     case "tabs":
                     {
-                        int per=row.Options.Length<=3?row.Options.Length:row.Options.Length==4?4:5;
+                        int per=row.Options.Length<=3?row.Options.Length:row.Options.Length==4?4:row.Options.Length==6?3:5;
                         float bw=(width-(per-1)*6)/per;
                         for(int i=0;i<row.Options.Length;i++)
                         {

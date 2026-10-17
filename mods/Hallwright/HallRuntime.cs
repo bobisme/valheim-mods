@@ -11,14 +11,28 @@ namespace Hallwright
         private bool _staveTemple,_staveGallery=true;
         private bool _hallNorse,_hallBenches=true,_hallHearth=true,_hallFooting=true;
         private float _hallSink=0.5f;
-        private int HallStyle=>_staveTemple?2:_hallNorse?1:0;
+        // Hallwright's other buildings, for Fimbulwinter's lands: 1 a mountain cabin of core wood, 2 a swamp cabin on stilts, 3 a stone keep.
+        private int _hallVariant;
+        private bool _hallRoof67,_hallDeck=true;
+        private float _hallStilt=2.5f;
+        private bool HallCabin=>_hallVariant==1 && !_staveTemple && !_hallNorse;
+        private bool HallStilts=>_hallVariant==2 && !_staveTemple && !_hallNorse;
+        private bool HallKeep=>_hallVariant==3 && !_staveTemple && !_hallNorse;
+        private int HallStyle=>_staveTemple?2:_hallNorse?1:_hallVariant>0?2+_hallVariant:0;
+        internal static readonly string[] HallStyleNames={"Timber hall","Longhouse","Stave temple","Mountain cabin","Stilt cabin","Stone keep"};
+        private string HallStyleBlurb=>new[]{"A timber hall fitted to your floor plan","A Norse longhouse dug into the ground around a long hearth","A tall chamber beneath stacked Viking roofs",
+            "Stacked core-wood logs on a stone footing under a steep roof that sheds snow","A cabin raised over the swamp on log stilts, with a deck and a stair","Stone walls, timber floors and a walkable roof behind battlements"}[HallStyle];
         // Ground changes when the shell is planned: a basement's cellar pit, or a dug-in longhouse.
         private bool HallDigs=>!_staveTemple && (_hallBasement || _hallNorse && _hallSink>0);
         // 0 timber hall, 1 Norse longhouse, 2 stave temple; switching sets each style's defaults.
         private void SetHallStyle(int style)
         {
             if(style==HallStyle)return;
-            _staveTemple=style==2;_hallNorse=style==1;
+            _staveTemple=style==2;_hallNorse=style==1;_hallVariant=style>=3?style-2:0;
+            if(style!=3)_hallRoof67=false;
+            if(style==3){_hallBasement=false;_hallOverhang=false;_hallPorch=false;_hallRoof67=true;_hallHeight=3;_hallShutters=true;_hallHearth=true;}
+            if(style==4){_hallBasement=false;_hallOverhang=false;_hallPorch=false;_hallRoof45=true;_hallHeight=3;_hallStoreys=1;_hallDeck=true;}
+            if(style==5){_hallBasement=false;_hallOverhang=false;_hallPorch=false;_hallTiered=false;_hallHeight=3;_hallStoreys=2;_hallEntranceMode=1;}
             if(style==2){_hallStoreys=1;_hallBasement=false;_hallDetail=2;_hallOverhang=true;_hallSweep=true;_hallPorch=true;_hallRoof45=true;_hallHeight=3;}
             if(style==1)
             {
@@ -97,10 +111,22 @@ namespace Hallwright
             if(HallKnown("stone_fence"))kit.StoneFence="stone_fence";
             else if(_hallNorse && _hallFooting)_hallNote=(_hallNote==null?"":_hallNote+" ")+"The stone fence isn't unlocked yet (carry some stone); the walls are timber to the ground.";
             else if(_hallShutters)_hallNote=(_hallNote==null?"":_hallNote+" ")+"Window shutters aren't unlocked yet (they need bronze nails); walls stay closed, with open daylight windows from Ornate.";
-            bool steep=_hallRoof45;
-            string roof=steep?"wood_roof_45":"wood_roof",ridge=steep?"wood_roof_top_45":"wood_roof_top",wedge=steep?"wood_wall_roof_45":"wood_wall_roof_a";
-            foreach(string name in new[]{roof,ridge,wedge})if(!HallKnown(name))throw new ArgumentException("The selected roof pitch needs "+name+" unlocked.");
-            kit.Roof=roof;kit.Ridge=ridge;kit.Wedge=wedge;kit.Slope=steep?1:0.5;
+            bool steep=_hallRoof45,snow=_hallRoof67 && !_staveTemple;
+            string roof=snow?"wood_roof_67":steep?"wood_roof_45":"wood_roof",ridge=snow?"wood_roof_top_67":steep?"wood_roof_top_45":"wood_roof_top",wedge=snow?"wood_wall_roof_67_a":steep?"wood_wall_roof_45":"wood_wall_roof_a";
+            if(!HallKeep)foreach(string name in new[]{roof,ridge,wedge})if(!HallKnown(name))throw new ArgumentException("The selected roof pitch needs "+name+" unlocked.");
+            kit.Roof=roof;kit.Ridge=ridge;kit.Wedge=wedge;kit.Slope=snow?2:steep?1:0.5;
+            if(HallCabin)
+            {
+                if(!HallKnown("wood_wall_log") || !HallKnown("wood_pole_log"))throw new ArgumentException("A mountain cabin needs core-wood log walls and poles unlocked.");
+                kit.Log="wood_wall_log";kit.Post="wood_pole_log";kit.Beam="wood_wall_log";kit.SpanCells=5;
+                if(HallKnown("stone_wall_2x1"))kit.StoneWall="stone_wall_2x1";
+                else _hallNote=(_hallNote==null?"":_hallNote+" ")+"Stone walls aren't unlocked yet (a stonecutter); the logs start at the floor.";
+            }
+            if(HallKeep)
+            {
+                if(!HallKnown("stone_wall_2x1") || !HallKnown("stone_wall_1x1"))throw new ArgumentException("A stone keep needs stone walls unlocked (a stonecutter).");
+                kit.StoneWall="stone_wall_2x1";kit.StoneBlock="stone_wall_1x1";
+            }
             // Joists meet the underside of the floor without protruding into the stair landing.
             kit.JoistDrop=ShapesOf(kit.Beam).Max(s=>s.Key.Aabb().max.y)+0.1;
             // Derive lengths from native snap axes instead of visual mesh bounds.
@@ -120,13 +146,20 @@ namespace Hallwright
             if(_hallBasement)foreach(string name in new[]{"stone_floor_2x2","stone_wall_2x1"})if(!HallKnown(name))throw new ArgumentException("Unlock stone floors and walls for a retaining-wall basement.");
             if((_hallBasement || _hallStoreys>1) && !HallKnown("wood_stair"))throw new ArgumentException("Unlock wooden stairs for interior storeys.");
             string hearth=null;
+            if(HallCabin && _hallHearth)
+            {
+                if(HallKnown("fire_pit"))hearth="fire_pit";
+                else _hallNote=(_hallNote==null?"":_hallNote+" ")+"The campfire isn't unlocked yet; the cabin is planned without its fire.";
+            }
+            if(HallKeep && (_hallBasement || _hallPorch || _hallOverhang))throw new ArgumentException("A keep stands on the ground: turn off the basement, porch and overhangs.");
+            if(HallStilts && _hallBasement)throw new ArgumentException("A cabin on stilts has no basement.");
             if(_hallNorse && _hallHearth)
             {
                 if(HallKnown("hearth"))hearth="hearth";
                 else _hallNote=(_hallNote==null?"":_hallNote+" ")+"The hearth isn't unlocked yet (it needs stone); the longhouse is planned without its long-fire.";
             }
             if(_hallNorse && (_hallStoreys>1 || _hallBasement || _hallPorch || _hallOverhang))throw new ArgumentException("A longhouse is one sunken storey: turn off storeys, basement, porch and overhangs, or choose Timber hall.");
-            return new HallLayout.Details{Norse=_hallNorse && !_staveTemple,Benches=_hallBenches,StoneFooting=_hallNorse && !_staveTemple && _hallFooting,Hearth=hearth,Storeys=_hallStoreys,Basement=_hallBasement,Overhang=_hallOverhang,Porch=_hallPorch,Sweep=_hallSweep,Shutters=_hallShutters,Finial=carving,DoorPoints=_hallDoorPoints,ChimneyPoints=_staveTemple?null:_hallChimneyPoints};
+            return new HallLayout.Details{Norse=_hallNorse && !_staveTemple,Benches=_hallBenches,StoneFooting=_hallNorse && !_staveTemple && _hallFooting,Hearth=hearth,Storeys=_hallStoreys+(HallKeep?1:0),Basement=_hallBasement,Cabin=HallCabin,Stilts=HallStilts,Deck=HallStilts && _hallDeck,Keep=HallKeep,Overhang=_hallOverhang,Porch=_hallPorch,Sweep=_hallSweep,Shutters=_hallShutters,Finial=carving,DoorPoints=_hallDoorPoints,ChimneyPoints=_staveTemple || HallKeep?null:_hallChimneyPoints};
         }
         private static Vector3[] HallSnaps(GameObject prefab)
         {
@@ -146,7 +179,8 @@ namespace Hallwright
         private static Vector3 HallAnchor(GameObject prefab,HallLayout.Anchor kind)
         {
             Vector3[] snaps=HallSnaps(prefab);
-            if(snaps.Length==0)throw new ArgumentException("Missing snap anchor on "+prefab.name+".");
+            // A piece without snap points (a campfire) stands on its own origin.
+            if(snaps.Length==0)return Vector3.zero;
             if(kind==HallLayout.Anchor.Point)return snaps[0];
             float y=snaps.Min(v=>v.y);
             var low=snaps.Where(v=>Mathf.Abs(v.y-y)<0.001f).ToArray();
@@ -224,11 +258,11 @@ namespace Hallwright
                 // A longhouse floor is dug in below the average ground under it: deeper uphill, on posts where a slope falls away.
                 bool sunken=_hallNorse && !_staveTemple && _hallSink>0;
                 float average=_hallDesign.Vertices.Select(v=>HallGround(HallWorld(v))).Concat(_hallDesign.Cells.Select(c=>HallGround(HallWorld(new V3(c.X*2+1,0,c.Z*2+1))))).Average();
-                _hallFloorY=_hallBasement?HallGround(HallWorld(_hallDesign.EntryLanding))+_hallRaise:sunken?average-_hallSink:highest+_hallRaise;
+                _hallFloorY=_hallBasement?HallGround(HallWorld(_hallDesign.EntryLanding))+_hallRaise:sunken?average-_hallSink:HallStilts?Mathf.Max(highest,ZoneSystem.instance.m_waterLevel)+_hallStilt:highest+_hallRaise;
                 _hallGuideHasFloor=true;
                 PrepareHallGround();
                 bool stone=(_hallMaterialMode==0 || _hallMaterialMode==3) && HallKnown("stone_floor_2x2");
-                if(stone && !_hallBasement && !_hallNorse)
+                if(stone && !_hallBasement && !_hallNorse && !HallStilts)
                 {
                     foreach(V3 at in _hallDesign.Cells.Select(c=>new V3(c.X*2+1,0,c.Z*2+1)).Concat(_hallDesign.PorchFloors))
                     {
@@ -259,7 +293,10 @@ namespace Hallwright
                     for(int stair=0;stair<6;stair++)
                     {
                         var step=HallStairs.Exterior(entry,stair);V3 low=step.At;
-                        if(_hallFloorY-stair<=HallGround(HallWorld(entry.Landing+outward*(2*stair)))+0.25)break;
+                        // A stilt cabin's stair stops at the water: a boat, or wading, does the rest.
+                        float below=HallGround(HallWorld(entry.Landing+outward*(2*stair)));
+                        if(HallStilts)below=Mathf.Max(below,ZoneSystem.instance.m_waterLevel);
+                        if(_hallFloorY-stair<=below+0.25)break;
                         AddHallPart(step);
                         HallColumn(low,low.Y,_hallKit.Post,"foundation");
                         if(stair==5)throw new ArgumentException("An entrance needs more than six stair sections. Move its marker or use flatter ground.");
@@ -327,7 +364,7 @@ namespace Hallwright
         {
             if(_hallProblem==null || Time.unscaledTime>=_hallProblemUntil)return;
             float width=Mathf.Min(800,Screen.width/scale-40);
-            string text=$"{(_staveTemple?"Temple":"Hall")} outline needs a change\n{_hallProblem}";
+            string text=$"{HallStyleNames[HallStyle]} outline needs a change\n{_hallProblem}";
             float height=_hallNotice.CalcHeight(new GUIContent(text),width);
             GUI.Box(new Rect((Screen.width/scale-width)/2,Screen.height/scale*0.22f,width,height),text,_hallNotice);
         }
@@ -403,7 +440,7 @@ namespace Hallwright
             if(_hallProblem!=null || _output.Count==0){Say(_hallProblem??"No hall preview.");return;}
             try
             {
-                string key=SubmitHall(player);int count=_output.Count;_lastPlan=key;Stop();Say($"{(_staveTemple?"Temple":"Hall")} planned: {count} shared ghosts. E builds; U removes unbuilt pieces."+(HallDigs?" Ground restoration is in Hallwright options.":""));
+                string key=SubmitHall(player);int count=_output.Count;_lastPlan=key;Stop();Say($"{HallStyleNames[HallStyle]} planned: {count} shared ghosts. E builds; U removes unbuilt pieces."+(HallDigs?" Ground restoration is in Hallwright options.":""));
             }
             catch(Exception ex){Say(ex.GetBaseException().Message);}
         }

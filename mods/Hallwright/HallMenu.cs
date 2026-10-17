@@ -12,14 +12,14 @@ namespace Hallwright
         private void HallContents(int id)
         {
             GUILayout.BeginArea(new Rect(20,14,_hallRect.width-40,_hallRect.height-28));
-            GUILayout.BeginHorizontal();GUILayout.Label(_staveTemple?"Stave temple":_hallNorse?"Longhouse":"Hallwright",_menuTitle,GUILayout.Height(32));GUILayout.FlexibleSpace();
+            GUILayout.BeginHorizontal();GUILayout.Label(HallStyle==0?"Hallwright":HallStyleNames[HallStyle],_menuTitle,GUILayout.Height(32));GUILayout.FlexibleSpace();
             if(GUILayout.Button("×",_menuClose,GUILayout.Width(38),GUILayout.Height(34)))CloseHallMenu();GUILayout.EndHorizontal();
-            GUILayout.Label(_staveTemple?"A tall chamber beneath stacked Viking roofs":_hallNorse?"A Norse longhouse dug into the ground around a long hearth":"A timber hall fitted to your floor plan",_menuHint);
+            GUILayout.Label(HallStyleBlurb,_menuHint);
             _hallScroll=GUILayout.BeginScrollView(_hallScroll);
             GUILayout.Space(12);
             if(_hallDesign!=null)GUILayout.Label($"{_hallDesign.Cells.Count*4} / {HallLayout.MaximumCells*4:N0} m² · {_hallDesign.Wings.Count} roof wings · {_output.Count} / {HallLayout.MaximumParts:N0} pieces",_menuText);
             bool changed=false;
-            int style=GUILayout.SelectionGrid(HallStyle,new[]{"Timber hall","Longhouse","Stave temple"},3,_menuButton,GUILayout.Height(34));
+            int style=GUILayout.SelectionGrid(HallStyle,HallStyleNames,3,_menuButton,GUILayout.Height(68));
             if(style!=HallStyle){SetHallStyle(style);changed=true;}
             if(_staveTemple)
             {
@@ -91,7 +91,7 @@ namespace Hallwright
             if(!_staveTemple)
             {
                 GUILayout.Label(_hallNorse?"Smoke holes":"Chimneys",_menuText);
-                GUILayout.Label(_hallNorse?"Ctrl+click a floor tile to leave the roof above it open, as the Norse let their smoke out. Up to four, besides the ones beside the hearths. Under a 45° roof each gets a lower 26° piece that keeps the rain off and leaves a slit for the smoke.":"Ctrl+click a floor tile to open the roof above it and raise a timber flue past the ridge; set your fire under it. Up to four. Upper floors leave a shaft for it.",_menuHint);
+                GUILayout.Label(_hallNorse?"Ctrl+click a floor tile to leave the roof above it open, as the Norse let their smoke out. Up to four, besides the ones beside the hearths. They're left open, as the smoke needs.":"Ctrl+click a floor tile to open the roof above it and raise a timber flue past the ridge; set your fire under it. Up to four. Upper floors leave a shaft for it.",_menuHint);
                 for(int i=0;i<_hallChimneyPoints.Count;i++)
                 {
                     GUILayout.BeginHorizontal();GUILayout.Label($"Chimney {i+1}",_menuText);

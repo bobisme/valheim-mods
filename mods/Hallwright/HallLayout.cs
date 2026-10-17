@@ -41,6 +41,7 @@ namespace Hallwright
             internal string Post="wood_pole2", Beam="wood_beam", ShortBeam="wood_beam_1";
             internal string Roof="wood_roof_45", Ridge="wood_roof_top_45", Wedge="wood_wall_roof_45";
             internal string Arch=null, Raven=null, Lattice=null, LoadPost=null, Window=null, SmallFloor=null, StoneFence=null;
+            internal string Log=null, StoneWall=null, StoneBlock=null;   // a cabin's log courses; a keep's stone walls and merlons
             internal double Slope=1, BeamLength=2, ShortLength=1, DoorHeight=2, JoistDrop=0.2;
             internal int SpanCells=4;
         }
@@ -77,6 +78,9 @@ namespace Hallwright
         internal sealed class Details
         {
             internal bool Overhang, Porch, Sweep, Basement,SuppressRoof,TallWalls,OpenGallery,Shutters,Norse,Benches,StoneFooting;
+            // A mountain cabin (stacked log walls on a stone footing), a swamp cabin on stilts (a deck along its entrance side), a stone keep
+            // (stone walls, timber floors inside, its last storey a walkable roof behind battlements).
+            internal bool Cabin, Stilts, Deck, Keep;
             internal string Hearth;
             internal int Storeys=1;
             internal string Finial;
@@ -187,13 +191,16 @@ namespace Hallwright
 
         internal static Design Plan(IReadOnlyList<V3> corners,Kit kit,int height,int detail,int entrance,bool tiered=false,Details details=null)
         {
-            if(kit==null || kit.DoorHeight<2 || kit.DoorHeight>height || kit.DoorHeight!=Math.Round(kit.DoorHeight) || height<2 || height>(details?.TallWalls==true?8:4) || detail<0 || detail>4 || kit.Slope!=1 && kit.Slope!=0.5)
+            if(kit==null || kit.DoorHeight<2 || kit.DoorHeight>height || kit.DoorHeight!=Math.Round(kit.DoorHeight) || height<2 || height>(details?.TallWalls==true?8:4) || detail<0 || detail>4 || kit.Slope!=1 && kit.Slope!=0.5 && kit.Slope!=2)
                 throw new ArgumentException("Choose walls 2–4 m high, a native roof pitch, and intricacy 0–4.");
             details=details??new Details{Finial=detail>=3?kit.Raven:null};
             // A longhouse is one roof over its full width up to 10 m, whatever the timber: its aisle posts carry the middle.
             var plan=new Design();plan.Cells.AddRange(Footprint(corners));plan.Wings.AddRange(SolveWings(plan.Cells,details.Norse?Math.Max(kit.SpanCells,5):kit.SpanCells));
             var set=new HashSet<Cell>(plan.Cells);
-            if(details.Storeys<1 || details.Storeys>3)throw new ArgumentException("Choose one to three storeys.");
+            if(details.Storeys<1 || details.Storeys>(details.Keep?4:3))throw new ArgumentException("Choose one to three storeys.");
+            if(details.Keep && (details.Storeys<2 || details.Basement || details.Porch || details.Overhang || details.Norse))throw new ArgumentException("A keep stands on the ground, without a basement, porch or overhangs.");
+            if(details.Keep && (kit.StoneWall==null || kit.StoneBlock==null))throw new ArgumentException("A keep needs stone walls unlocked.");
+            if(details.Cabin && kit.Log==null)throw new ArgumentException("A cabin needs core-wood log walls unlocked.");
             if(details.Norse && (details.Storeys>1 || details.Basement || details.Porch || details.Overhang))throw new ArgumentException("A Norse longhouse is a single sunken storey, without a basement, porch or overhangs.");
             plan.Storeys=details.Storeys;plan.StoreyHeight=height;plan.Basement=details.Basement;plan.Norse=details.Norse;
             int roofBase=height*details.Storeys;
@@ -283,6 +290,21 @@ namespace Hallwright
                     }
                 }
             }
+            // A cabin's fire pit, under a chimney at the end of the room away from the door (unless chimneys were marked).
+            if(details.Cabin && details.Hearth!=null)
+            {
+                if(details.ChimneyPoints==null || details.ChimneyPoints.Count==0)
+                {
+                    Wing wing=plan.Wings.OrderByDescending(w=>w.W*w.D).First();
+                    int col=(wing.Width-1)/2,first=wing.Length>=3?1:0,last=wing.Length>=3?wing.Length-2:wing.Length-1;
+                    Cell a=CellAt(wing,col,first),b=CellAt(wing,col,last);
+                    double Far(Cell c)=>(new V3(c.X*2+1,0,c.Z*2+1)-plan.Door).Length;
+                    var cell=Far(a)>=Far(b)?a:b;
+                    if(!plan.StairHoles.Contains(cell) && !plan.StairZone.Contains(cell))plan.Chimneys.Add(cell);
+                }
+                foreach(Cell c in plan.Chimneys.ToList())Add(details.Hearth,new V3(c.X*2+1,0,c.Z*2+1),Anchor.Bottom,0,"hearth");
+                plan.Hearths=plan.Chimneys.Count;
+            }
             // Raised platforms along the long walls: 2 m deep where the aisle stays 6 m wide around the hearth, else 1 m.
             int BenchDepth(Wing wing)
             {
@@ -318,6 +340,25 @@ namespace Hallwright
                 plan.PorchFloors.Add(at);Add(kit.Floor,at,Anchor.Floor,0,"entrance deck");plan.EntryLanding=PorchAt(0,0,2);
                 foreach(double u in new[]{-1.0,1})foreach(double v in new[]{0.0,2})plan.Vertices.Add(PorchAt(u,0,v));
             }
+            // A stilt cabin's deck: 2 m deep along the outside of the entrance edge, railed except where the stair comes up to the door.
+            if(details.Stilts && details.Deck)
+            {
+                V3 along=(eb-ea)*(1/(eb-ea).Length);
+                var deck=new List<double>();
+                for(double t=1;t<(eb-ea).Length;t+=2)if(Outside(Rect(ea+along*(t-1),ea+along*(t+1)+outward*2)))deck.Add(t);
+                foreach(double t in deck)
+                {
+                    V3 mid=ea+along*t;
+                    plan.PorchFloors.Add(mid+outward);Add(kit.Floor,mid+outward,Anchor.Floor,0,"deck");
+                    foreach(double u in new[]{-1.0,1})foreach(double v in new[]{0.0,2})
+                    {V3 corner=mid+along*u+outward*v;if(!plan.Vertices.Any(q=>(q-corner).Length<0.001))plan.Vertices.Add(corner);}
+                    // The outer edge is railed, except in front of the door where the stair comes up.
+                    if(Math.Abs(V3.Dot(mid-plan.Door,along))>1.999)Add(kit.Half,mid+outward*2,Anchor.Bottom,plan.DoorYaw,"deck rail");
+                    foreach(int side in new[]{-1,1})
+                        if(!deck.Contains(t+side*2))Add(kit.Half,mid+along*side+outward,Anchor.Bottom,plan.DoorYaw+90,"deck rail");
+                }
+                if(deck.Count>0)plan.EntryLanding=plan.Door+outward*2;
+            }
             primary.Landing=plan.EntryLanding;
             foreach(var entry in plan.Entrances)
             {
@@ -340,7 +381,7 @@ namespace Hallwright
                 bool door=opening!=null;
                 double along=door?V3.Dot(at-opening.At,Turn(new V3(1,0,0),opening.Yaw)):0;
                 if(door && Math.Abs(along)>0.1)
-                    for(int q=0;q<kit.DoorHeight;q++)Add(kit.Quarter,at+Turn(new V3(Math.Sign(along)*0.5,q,0),opening.Yaw),Anchor.Bottom,edge.yaw,"wall");
+                    for(int q=0;q<kit.DoorHeight;q++)Add(details.Keep?kit.StoneBlock:kit.Quarter,at+Turn(new V3(Math.Sign(along)*0.5,q,0),opening.Yaw),Anchor.Bottom,edge.yaw,details.Keep?"stone wall":"wall");
                 // Header starts above the actual opening: a 3 m gate must not have a wall across its upper metre.
                 for(int storey=0;storey<details.Storeys;storey++)
                 {
@@ -351,6 +392,38 @@ namespace Hallwright
                         continue;
                     }
                     bool shutters=details.Shutters && kit.Window!=null;
+                    if(details.Keep)
+                    {
+                        // Stone courses a metre high; arrow loops (a metre's gap beside a 1 m block) on every other panel above the ground
+                        // floor; the last storey is the roof's parapet, a solid course with merlons on it.
+                        bool parapet=storey==details.Storeys-1,loop=storey>0 && !parapet && !door && ((int)(Math.Abs(at.X)+Math.Abs(at.Z))/2)%2==0;
+                        int top=parapet?1:height;
+                        for(int h=storey==0 && door?(int)kit.DoorHeight:0;h<top;h++)
+                        {
+                            if(loop && h==1){Add(kit.StoneBlock,at+new V3(0,h+storey*height,0)+Turn(new V3(-0.5,0,0),edge.yaw),Anchor.Bottom,edge.yaw,"arrow loop");continue;}
+                            Add(kit.StoneWall,at+new V3(0,h+storey*height,0),Anchor.Bottom,edge.yaw,"stone wall");
+                        }
+                        if(parapet)Add(kit.StoneBlock,at+new V3(0,1+storey*height,0)+Turn(new V3(-0.5,0,0),edge.yaw),Anchor.Bottom,edge.yaw,"merlon");
+                        continue;
+                    }
+                    if(details.Cabin)
+                    {
+                        // Stacked logs, half a metre a course, their ends crossing at the corners; a stone footing under them.
+                        bool logWindow=shutters && storey==0 && !door && ((int)(Math.Abs(at.X)+Math.Abs(at.Z))/2)%2==0 && height>=3;
+                        if(storey==0 && !door && kit.StoneWall!=null)Add(kit.StoneWall,at+new V3(0,-1,0),Anchor.Bottom,edge.yaw,"stone footing");
+                        for(double h=storey==0 && door?kit.DoorHeight:0;h<height-0.001;h+=0.5)
+                        {
+                            if(logWindow && Math.Abs(h-1)<0.001)
+                            {
+                                Add(kit.Window,at+new V3(0,1+storey*height,0)+Turn(new V3(0.5,0,0),edge.yaw),Anchor.Bottom,edge.yaw,"window shutter");
+                                Add(kit.Window,at+new V3(0,1+storey*height,0)+Turn(new V3(-0.5,0,0),edge.yaw),Anchor.Bottom,edge.yaw+180,"window shutter");
+                                h+=0.5;continue;
+                            }
+                            Add(kit.Log,at+new V3(0,h+storey*height,0),Anchor.Bottom,edge.yaw,"log wall");
+                        }
+                        Rod(kit.Beam,edge.a+new V3(0,(storey+1)*height,0),edge.b+new V3(0,(storey+1)*height,0),kit.BeamLength);
+                        continue;
+                    }
                     bool window=(shutters || !details.Norse && detail>=2 && height>=3) && !door && ((int)(Math.Abs(at.X)+Math.Abs(at.Z))/2)%2==0;
                     // A stone fence footing: a course in the ground and one above the floor, centred under a half-height timber wall.
                     bool footing=storey==0 && !door && details.StoneFooting && kit.StoneFence!=null && height>=2;
@@ -453,7 +526,8 @@ namespace Hallwright
                 foreach(double u in new[]{-2.0,2})Rod(kit.Beam,PorchAt(u,height,0),PorchAt(u,height,2),kit.BeamLength,"porch frame");
                 Rod(kit.Beam,PorchAt(0,peak,0),PorchAt(0,peak,2),kit.BeamLength,"porch frame");
             }
-            foreach(var edge in boundaries)
+            // Log and stone walls carry themselves: no posts in their corners.
+            foreach(var edge in details.Cabin || details.Keep?new List<(V3 a,V3 b,double yaw)>():boundaries)
             {
                 foreach(V3 v in new[]{edge.a,edge.b})
                     for(int h=details.Basement?-3:0;h<roofBase;h+=2)
@@ -477,7 +551,9 @@ namespace Hallwright
                 foreach(V3 vertex in plan.Vertices)
                 {
                     if(HallStairs.Blocks(plan,vertex) || HallDoors.Blocks(plan,vertex) || (int)Math.Round(vertex.X/2)%2!=0 || (int)Math.Round(vertex.Z/2)%2!=0)continue;
-                    for(int h=details.Basement?-3:0;h<roofBase;h+=2)Add(kit.LoadPost??kit.Post,vertex+new V3(0,Math.Min(h,roofBase-2),0),Anchor.Bottom,0,"storey post");
+                    // A keep's posts stop under its roof deck.
+                    int postTop=details.Keep?height*(details.Storeys-1):roofBase;
+                    for(int h=details.Basement?-3:0;h<postTop;h+=2)Add(kit.LoadPost??kit.Post,vertex+new V3(0,Math.Min(h,postTop-2),0),Anchor.Bottom,0,"storey post");
                 }
                 for(int level=1;level<details.Storeys;level++)foreach(Cell c in plan.Cells)
                 {
@@ -490,7 +566,8 @@ namespace Hallwright
                 foreach(var side in new[]{(n:new Cell(c.X,c.Z-1),a:new V3(c.X*2+1,0,c.Z*2),yaw:0.0),(n:new Cell(c.X,c.Z+1),a:new V3(c.X*2+1,0,c.Z*2+2),yaw:180.0),(n:new Cell(c.X-1,c.Z),a:new V3(c.X*2,0,c.Z*2+1),yaw:90.0),(n:new Cell(c.X+1,c.Z),a:new V3(c.X*2+2,0,c.Z*2+1),yaw:270.0)})
                     if(set.Contains(side.n) && !plan.Chimneys.Contains(side.n))
                         for(int h=height;h<roofBase;h++)Add(kit.Half,side.a+new V3(0,h,0),Anchor.Bottom,side.yaw,"chimney");
-            if(details.SuppressRoof){plan.Wings.Clear();ClearDoorways();return plan;}
+            // A keep's roof is its top floor, behind the battlements.
+            if(details.SuppressRoof || details.Keep){plan.RoofHeight=roofBase;plan.Wings.Clear();ClearDoorways();return plan;}
             foreach(Wing wing in plan.Wings)
             {
                 wing.RoofBase=roofBase;
@@ -550,7 +627,11 @@ namespace Hallwright
                     {
                         double low=Math.Min(col,wing.Width-1-col)*2*kit.Slope+Lift(col);
                         for(int h=0;h<low-0.001;h+=2)
+                        {
+                            // A cabin's gable is stacked logs like its walls.
+                            if(details.Cabin && h+2<=low){for(int c=0;c<4;c++)Add(kit.Log,wing.At(col*2+1,roofBase+h+c*0.5,v),Anchor.Bottom,yaw,"gable");continue;}
                             Add(h+2<=low?kit.Wall:kit.Half,wing.At(col*2+1,roofBase+h,v),Anchor.Bottom,yaw,"gable");
+                        }
                         bool center=wing.Width%2==1 && col==wing.Width/2;
                         // The chimney's own wall closes the gable triangle under a flue at the wing's end.
                         if(flues.Contains((col,end==0?0:wing.Length-1)))continue;

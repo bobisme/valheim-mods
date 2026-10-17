@@ -25,7 +25,7 @@ namespace Hallwright
                 Corners=_markers.Select(DraftPoint).ToArray(),Doors=_hallDoorPoints.Select(p=>DraftPoint(V(p))).ToArray(),Chimneys=_hallChimneyPoints.Select(p=>DraftPoint(V(p))).ToArray(),Raise=_hallRaise,
                 Height=_hallHeight,Detail=_hallDetail,Entrance=_hallEntrance,Material=_hallMaterialMode,Opening=_hallEntranceMode,Crest=_hallCrestMode,Storeys=_hallStoreys,
                 StaveTemple=_staveTemple,StaveGallery=_staveGallery,StaveHeight=_staveHeight,StaveCrowns=_staveCrowns,Roof45=_hallRoof45,Solid=_hallSolid,ShowRoof=_hallShowRoof,Tiered=_hallTiered,Overhang=_hallOverhang,Porch=_hallPorch,Sweep=_hallSweep,Basement=_hallBasement,GuideOnly=_hallGuideOnly,Sketch=_hallSketch,Shutters=_hallShutters,
-                Norse=_hallNorse,Sink=_hallSink,Benches=_hallBenches,Hearth=_hallHearth,StoneFooting=_hallFooting};
+                Norse=_hallNorse,Sink=_hallSink,Benches=_hallBenches,Hearth=_hallHearth,StoneFooting=_hallFooting,Variant=_hallVariant,Roof67=_hallRoof67,Deck=_hallDeck,Stilt=_hallStilt};
             string text=Newtonsoft.Json.JsonConvert.SerializeObject(draft);
             if(text==_hallDraftLast)return;
             try{HallDraftStore.Write(HallDraftPath(_hallDraftWorld,_hallDraftPlayer),draft);_hallDraftLast=text;}
@@ -43,6 +43,7 @@ namespace Hallwright
                 _hallEntranceMode=draft.Opening;_hallCrestMode=draft.Crest;_hallStoreys=draft.Storeys;_hallRoof45=draft.Roof45;_hallSolid=draft.Solid;
                 _hallShowRoof=draft.ShowRoof;_hallTiered=draft.Tiered;_hallOverhang=draft.Overhang;_hallPorch=draft.Porch;_hallSweep=draft.Sweep;_hallBasement=draft.Basement;_hallGuideOnly=draft.GuideOnly;_hallSketch=draft.Sketch;_hallShutters=draft.Shutters;
                 _hallNorse=draft.Norse;_hallSink=draft.Sink;_hallBenches=draft.Benches;_hallHearth=draft.Hearth;_hallFooting=draft.StoneFooting;
+                _hallVariant=draft.Variant;_hallRoof67=draft.Roof67;_hallDeck=draft.Deck;_hallStilt=draft.Stilt;
                 BuildHallPreview();if(openMenu)OpenHallMenu();Say("Saved Hallwright draft reopened. Preview only; no ground or shared plans changed.");return true;
             }
             catch(Exception ex){Say(ex.GetBaseException().Message);return false;}
