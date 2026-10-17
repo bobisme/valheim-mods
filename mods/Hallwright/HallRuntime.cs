@@ -264,11 +264,11 @@ namespace Hallwright
                 _hallGuideHasFloor=true;
                 PrepareHallGround();
                 bool stone=(_hallMaterialMode==0 || _hallMaterialMode==3) && HallKnown("stone_floor_2x2");
-                if(stone && !_hallBasement && !_hallNorse && !HallStilts && !HallKeep && HallKnown("stone_pillar"))
+                if((stone || HallKeep) && !_hallBasement && !_hallNorse && !HallStilts && HallKnown("stone_pillar"))
                 {
                     // Stone piers at the corners, along the walls and inside every 4 m, beams spanning them under the floor; a footing
                     // already stands where it runs.
-                    var footings=_hallDesign.Parts.Where(p=>p.Role=="stone footing").ToList();
+                    var footings=_hallDesign.Parts.Where(p=>p.Role=="stone footing" || p.Role=="keep footing").ToList();
                     float under=ShapesOf(_hallKit.Beam).Min(s=>s.Key.Aabb().min.y);
                     double top=-_hallKit.JoistDrop+under+0.05;
                     foreach(V3 v in HallLayout.Piers(_hallDesign))
@@ -289,7 +289,19 @@ namespace Hallwright
                     }
                 }
                 else foreach(V3 v in _hallDesign.Vertices)if(!HallStairs.Blocks(_hallDesign,v))HallColumn(v,_hallBasement && HallExcavation.Pit(_hallDesign,v.X,v.Z)?-3:0,_hallKit.Post,"foundation");
-                foreach(var part in _hallDesign.Parts)AddHallPart(part);
+                foreach(var part in _hallDesign.Parts)
+                {
+                    // A keep's walls run down into the ground: each footing course stays while it still shows above the lowest ground
+                    // under it.
+                    if(part.Role=="keep footing")
+                    {
+                        V3 run=part.Prefab==_hallKit.StoneWall?V(Quaternion.Euler(0,(float)part.Yaw,0)*Vector3.right):new V3(0,0,0);
+                        float ground=new[]{-1.0,0,1}.Min(t=>HallGroundAfter(part.At+run*t));
+                        if(_hallFloorY+part.At.Y+1<=ground+0.01)continue;
+                        if(part.At.Y<=-HallLayout.KeepFooting+0.01 && _hallFloorY+part.At.Y>ground+0.05)throw new ArgumentException("The keep's walls would stand more than 6 m above the ground here. Use a flatter site.");
+                    }
+                    AddHallPart(part);
+                }
                 // The stone footing reaches down to the ground (after digging) wherever it falls away below the floor.
                 foreach(var footing in _hallDesign.Parts.Where(p=>p.Role=="stone footing" && Math.Abs(p.At.Y+1)<0.001).ToList())
                 {

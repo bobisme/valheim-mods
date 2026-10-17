@@ -220,6 +220,8 @@ namespace Hallwright
             }
             return sills.OrderBy(k=>k).Select(k=>(new V3(k.Item1*2,0,k.Item2*2),new V3(k.Item3*2,0,k.Item4*2))).ToList();
         }
+        // How deep a keep's walls may go on below its floor, in metre courses.
+        internal const int KeepFooting=6;
         internal static V3 Turn(V3 v,double yaw)
         {double angle=yaw*Math.PI/180;return new V3(v.X*Math.Cos(angle)+v.Z*Math.Sin(angle),v.Y,-v.X*Math.Sin(angle)+v.Z*Math.Cos(angle));}
 
@@ -447,14 +449,16 @@ namespace Hallwright
                         // course with merlons on it.
                         bool parapet=storey==details.Storeys-1,loop=storey>0 && !parapet && !door && ((int)(Math.Abs(at.X)+Math.Abs(at.Z))/2)%2==0;
                         int top=parapet?1:height;
-                        for(int h=0;h<top;h++)foreach(double half in new[]{-0.5,0.5})
+                        // Below the floor the walls go on down as the footing, as deep as the ground needs (the builder keeps those
+                        // courses that reach above it).
+                        for(int h=storey==0?-KeepFooting:0;h<top;h++)foreach(double half in new[]{-0.5,0.5})
                         {
                             if(loop && h==1 && half>0)continue;
                             V3 unit=at+Turn(new V3(half,0,0),edge.yaw);int y=h+storey*height;
                             if(storey==0 && plan.Entrances.Any(d=>
                             {
                                 V3 l=Turn(unit-d.At,-d.Yaw);double reach=kit.Leaves==2?2:1,clear=kit.DoorHeight+(kit.Leaves==2 && kit.StoneArch!=null?1:0);
-                                return Math.Abs(l.Z)<0.01 && Math.Abs(l.X)<reach-0.01 && y<clear-0.01;
+                                return Math.Abs(l.Z)<0.01 && Math.Abs(l.X)<reach-0.01 && y>=0 && y<clear-0.01;
                             }))continue;
                             bool alongX=Math.Abs(edge.a.Z-edge.b.Z)<1e-6;
                             var key=(alongX,Math.Round(alongX?unit.Z:unit.X,3),Math.Round(edge.yaw,3),y);
@@ -594,8 +598,9 @@ namespace Hallwright
                 {
                     if(!units.Contains(k))continue;
                     units.Remove(k);
-                    if(((k+y)%2+2)%2==0 && units.Remove(k+1))Add(kit.StoneWall,At(k+1),Anchor.Bottom,yaw,"stone wall");
-                    else Add(kit.StoneBlock,At(k+0.5),Anchor.Bottom,yaw,"stone wall");
+                    string role=y<0?"keep footing":"stone wall";
+                    if(((k+y)%2+2)%2==0 && units.Remove(k+1))Add(kit.StoneWall,At(k+1),Anchor.Bottom,yaw,role);
+                    else Add(kit.StoneBlock,At(k+0.5),Anchor.Bottom,yaw,role);
                 }
             }
             // Outside corners of log and stone walls: each log course runs on half a metre past the corner, crossing the other wall's;
@@ -608,10 +613,10 @@ namespace Hallwright
                 double sx=around[0].X==cx?1:-1,sz=around[0].Z==cz?1:-1;
                 if(kit.StoneBlock!=null)
                 {
-                    var courses=plan.Parts.Where(q=>(q.Role=="stone footing" || q.Role=="stone wall") && Math.Abs(q.At.X-v.X)<1.01 && Math.Abs(q.At.Z-v.Z)<1.01).Select(q=>Math.Round(q.At.Y,3)).Distinct().ToList();
+                    var courses=plan.Parts.Where(q=>(q.Role=="stone footing" || q.Role=="stone wall" || q.Role=="keep footing") && Math.Abs(q.At.X-v.X)<1.01 && Math.Abs(q.At.Z-v.Z)<1.01).Select(q=>Math.Round(q.At.Y,3)).Distinct().ToList();
                     // A keep's corner rises unbroken through every course, beside arrow loops too.
-                    if(details.Keep && courses.Count>0)courses=Enumerable.Range(0,(int)courses.Max()+1).Select(y=>(double)y).ToList();
-                    foreach(double y in courses)Add(kit.StoneBlock,new V3(v.X,y,v.Z),Anchor.Bottom,0,details.Keep?"stone wall":"stone footing");
+                    if(details.Keep && courses.Count>0)courses=Enumerable.Range(-KeepFooting,(int)courses.Max()+KeepFooting+1).Select(y=>(double)y).ToList();
+                    foreach(double y in courses)Add(kit.StoneBlock,new V3(v.X,y,v.Z),Anchor.Bottom,0,!details.Keep?"stone footing":y<0?"keep footing":"stone wall");
                 }
                 if(!details.Cabin)continue;
                 // Each wall's log at the corner panel gets a twin half a metre out, a hair outside it so the two never flicker.

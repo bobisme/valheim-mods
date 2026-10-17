@@ -612,6 +612,9 @@ foreach(int storeys in new[]{2,3,4})
   if(y>=h && y<roof && y%h==1)Check(Laid(y)<expect && Laid(y)>=expect-loops-2,"Arrow loops leave gaps in their course");
   else Check(Math.Abs(Laid(y)-expect)<1e-9,$"Course {y} is closed but for the gate");
  }
+ // Below the floor the walls go on down, bonded the same, closed under the gate too, for the builder to cut at the ground.
+ var footing=keep.Parts.Where(p=>p.Role=="keep footing").ToList();
+ for(int y=-HallLayout.KeepFooting;y<0;y++)Check(Math.Abs(footing.Where(p=>Math.Abs(p.At.Y-y)<1e-9).Sum(p=>p.Prefab=="stone_wall_2x1"?2.0:1.0)-56)<1e-9,"A footing course under the whole wall line");
  Check(keep.Parts.Count(p=>p.Role=="entrance" && p.Prefab=="wood_gate")==2,"A double gate");
  var arches=keep.Parts.Where(p=>p.Role=="gate arch").ToList();
  Check(arches.Count==2 && arches.All(p=>Math.Abs(p.At.Y-3)<1e-9 && Math.Abs(p.At.Z)<1e-9 && Math.Abs(Math.Abs(p.At.X-6)-1)<1e-9),"A stone arch over the gate, from jamb to jamb");
@@ -623,7 +626,7 @@ foreach(int storeys in new[]{2,3,4})
  Check(keep.Parts.Count(p=>p.Role=="interior stair")>=3*(storeys-1),"Stairs climb to the roof");
  Check(keep.Parts.Where(p=>p.Role=="storey post").All(p=>p.At.Y+2<=roof+1e-9),"Posts stop under the roof deck");
  foreach(var c in new[]{new V3(0,0,0),new V3(12,0,0),new V3(0,0,14),new V3(12,0,14)})
-  Check(keep.Parts.Count(p=>p.Prefab=="stone_wall_1x1" && p.Role=="stone wall" && Math.Abs(p.At.X-c.X)<1e-9 && Math.Abs(p.At.Z-c.Z)<1e-9)==(int)roof+1,"A corner stone in every course, up the parapet");
+  Check(keep.Parts.Count(p=>p.Prefab=="stone_wall_1x1" && (p.Role=="stone wall" || p.Role=="keep footing") && Math.Abs(p.At.X-c.X)<1e-9 && Math.Abs(p.At.Z-c.Z)<1e-9)==(int)roof+1+HallLayout.KeepFooting,"A corner stone in every course, up the parapet");
 }
 // A plain door in a keep: jambs of stone, bonded the same.
 var doorKeep=HallLayout.Plan(Rect(8,10),new HallLayout.Kit{SmallFloor="wood_floor_1x1",StoneWall="stone_wall_2x1",StoneBlock="stone_wall_1x1"},3,2,0,false,new HallLayout.Details{Keep=true,Storeys=2});
