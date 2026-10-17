@@ -1,0 +1,19 @@
+A sauna of your own, for the hammer (Furniture tab, at a workbench). You build the hut; the mod gives you what goes inside it.
+
+Sauna stove: a firebox of field stones under a heap of rounded rocks. Light it in a small room (roofed, walled all round, no more than 6 m across) with a sauna bench in it, and the room is a sauna. Look at the stove and it tells you whether it is one, and if not, why not. It makes no smoke indoors. 20 stone, 4 wood.
+
+Sauna bench: two tiers of planks, seats three. 12 wood.
+
+Water bucket: set it by the stove and throw water on the hot stones (E). A cloud of steam rolls up with a hiss, and for half a minute the heat works twice as fast. 3 wood, 2 resin.
+
+Plunge tub: a staved tub of cold water for a bathhouse far from the sea or a lake. Sit in it (E) or step down into it. 20 wood, 4 resin.
+
+Bath locker: a clothes chest with pegs over it. E puts away everything you wear: helmet, armour, cape, belt, and what's in your hands. E again and you're dressed. Shift+E opens it as a chest. Your things are kept in the locker, saved with the world like a chest's, and nobody else can get at them while they're in. 10 wood, 2 leather scraps.
+
+Bathing is done stripped down, as it should be: no helmet, armour or cape. Sit in a lit sauna's heat for a minute (on a bench, in a hot tub, or sat on the floor) and you're Bathed for 20 minutes: +2 comfort, 10% faster stamina regen, Rested lasts 10 minutes longer, and the wet and the cold go. Bathed, you don't feel the cold.
+
+The plunge: straight out of the sauna, within 3 minutes, into cold water (the sea, a lake, a river, or a plunge tub), still stripped down. You're Invigorated for 10 minutes: 5% faster and 10% more stamina.
+
+Company: others bathing with you (other players, and any mod's people who bathe) make both last longer: a quarter longer for each, up to twice as long.
+
+The game's own hot tub counts as a sauna's heat and seats, if you build a room round it.
