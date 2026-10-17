@@ -34,6 +34,21 @@ foreach (Kind kind in Enum.GetValues(typeof(Kind)))
     foreach (var pr in plan.Props.Where(o => o.Role == "field fence"))
         foreach (var s in plan.Streets) Check(Geometry.PolylineDistance(new P2(pr.X, pr.Z), s.Points, out _, out _) > s.Width / 2, $"{landName}/{kind}: a fence at ({pr.X:0},{pr.Z:0}) stands in a street");
     Check(plan.Palisade.Count == 0 || plan.Gates.Count > 0, $"{landName}/{kind}: the palisade has a gate");
+    if (plan.Palisade.Count > 2)
+        foreach (var f in plan.Fields)
+        {
+            var c = new[] { f.World(0, 0), f.World(f.Width, 0), f.World(f.Width, f.Depth), f.World(0, f.Depth) };
+            int n = plan.Palisade.Count;
+            bool crossed = false;
+            for (int i = 0; i < n && !crossed; i++)
+                for (int j = 0; j < 4 && !crossed; j++)
+                {
+                    P2 a = plan.Palisade[i], b = plan.Palisade[(i + 1) % n], p = c[j], q = c[(j + 1) % 4];
+                    double S(P2 o, P2 u, P2 v) => (u.X - o.X) * (v.Z - o.Z) - (u.Z - o.Z) * (v.X - o.X);
+                    crossed = S(a, b, p) * S(a, b, q) < 0 && S(p, q, a) * S(p, q, b) < 0;
+                }
+            Check(!crossed, $"{landName}/{kind}: no field split by the palisade");
+        }
     var other = Planner.Make(site, Brief.For(kind, site.Radius, 8), land);
     Check(Describe(plan) != Describe(other), $"{landName}/{kind}: another seed makes another village");
     Console.WriteLine($"{landName}/{kind}: {plan.Lots.Count} lots ({plan.Lots.Count(l => l.Use == Use.House)}/{brief.Houses} houses), {plan.Streets.Count} streets, {plan.Fields.Count} fields, {plan.Props.Count} props, palisade {plan.Palisade.Count}, gates {plan.Gates.Count}, {plan.Millis} ms. {string.Join(" ", plan.Notes)}");
