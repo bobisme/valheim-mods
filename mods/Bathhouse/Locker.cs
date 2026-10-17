@@ -23,6 +23,8 @@ namespace Bathhouse
         {
             ZNetView v = c.GetComponent<ZNetView>();
             if (v == null || !v.IsValid()) return;
+            // (not storage, to the mods that fetch from chests, Jarldom's haulers among them: what's in it is a bather's own, put away)
+            if (v.IsOwner() && !v.GetZDO().GetBool("dh_notstorage", false)) v.GetZDO().Set("dh_notstorage", true);
             v.Register<long>(Rpc, (uid, player) =>
             {
                 if (!v.IsOwner()) return;

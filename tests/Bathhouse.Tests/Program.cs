@@ -28,4 +28,12 @@ Check(Sauna.Lengthen(0)==1&&Sauna.Lengthen(1)==1.25f&&Sauna.Lengthen(4)==2&&Saun
 Check(Sauna.Plunge(200,100)&&Sauna.Plunge(280,100)&&!Sauna.Plunge(281,100)&&!Sauna.Plunge(200,0)&&!Sauna.Plunge(50,100),"The plunge counts within three minutes of the heat");
 Check(Sauna.Rested(120)==720&&Sauna.Rested(-5)==600,"Bathed adds ten minutes to Rested");
 Check(Sauna.Span(59.2f)=="1m 00s"&&Sauna.Span(65)=="1m 05s"&&Sauna.Span(9)=="9s","Spans");
+// ---- Prefab names: a save finds a thing again by its prefab's name; none shipped may go ----
+{
+    var golden=File.ReadAllLines(Path.Combine(AppContext.BaseDirectory,"prefabs.txt")).Select(l=>l.Trim()).Where(l=>l!="").ToList();
+    var shipped=PrefabNames.Shipped.ToList();
+    Check(!golden.Except(shipped).Any(),"Every prefab name ever shipped is still in Core/PrefabNames.cs (gone: "+string.Join(", ",golden.Except(shipped))+")");
+    Check(shipped.Distinct().Count()==shipped.Count,"No prefab name twice");
+    Check(!shipped.Except(golden).Any(),"New prefab names are added to tests/Bathhouse.Tests/prefabs.txt too");
+}
 Console.WriteLine($"Passed {checks} sauna checks.");

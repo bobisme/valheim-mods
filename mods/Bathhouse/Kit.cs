@@ -44,7 +44,7 @@ namespace Bathhouse
         private static readonly MethodInfo UpdateKnownRecipes = AccessTools.Method(typeof(Player), "UpdateKnownRecipesList"), UpdateAvailablePieces = AccessTools.Method(typeof(Player), "UpdateAvailablePiecesList");
         internal static readonly Dictionary<string, GameObject> Made = new Dictionary<string, GameObject>();
         private static readonly List<Object> Owned = new List<Object>();
-        private static GameObject _holder; private static ZNetScene _scene; private static float _next, _settleAt = -1; private static bool _broken;
+        private static GameObject _holder; private static ZNetScene _scene; private static float _next, _settleAt = -1; private static bool _broken, _named;
         internal static PieceTable Hammer() => ObjectDB.instance?.GetItemPrefab("Hammer")?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces;
 
         // Once a second: made for this world, and in the hammer's menu (through world loads and reloads of this mod).
@@ -71,6 +71,13 @@ namespace Bathhouse
                 changed = true;
             }
             if (changed && Player.m_localPlayer is Player p) { UpdateKnownRecipes?.Invoke(p, null); UpdateAvailablePieces?.Invoke(p, null); }
+            if (every && !_named)
+            {
+                // (what's made against what's been shipped: a shipped name no longer made is lost from saves)
+                _named = true;
+                foreach (string n in PrefabNames.Shipped.Where(n => !Ours(n))) Plugin.Warn($"ERROR: {n} was shipped but isn't made any more: it's gone from every save.");
+                foreach (Def d in All.Where(d => !PrefabNames.Shipped.Contains(d.Name))) Plugin.Warn($"{d.Name} isn't in Core/PrefabNames.cs yet.");
+            }
             if (every) { if (_settleAt < 0) _settleAt = Time.unscaledTime + 3; else if (Time.unscaledTime >= _settleAt) Leftovers.TakeOver(Owned); }
         }
         internal static void Broken() => _broken = true;
