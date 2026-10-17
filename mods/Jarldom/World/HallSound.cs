@@ -12,13 +12,22 @@ namespace Jarldom
         // Four recorded crowds (CC0, Freesound; Sounds/SOURCES.txt), each a seamless loop: a few talking, a full room, and for a roar a
         // packed bar and a group's walla on top.
         private static readonly string[] Layers = { "hall_small", "hall_big", "hall_bar", "hall_walla" };
-        private sealed class Hall { public GameObject Go; public AudioSource[] Src; public float[] Want = new float[4]; public float Gate = 1, NextGate; public string Room; }
+        private sealed class Hall
+        {
+            public GameObject Go; public AudioSource[] Src; public float[] Want = new float[4]; public float Gate = 1, NextGate; public string Room;
+            // The skald's song: its own source (and filter), loud inside, muffled outside; Sung when it should be heard now, at SongAt.
+            public Room Of; public float Reach; public AudioSource Song; public AudioLowPassFilter Muffle; public string Sung; public double SongAt; public float SongSince;
+        }
         private static readonly Dictionary<string, Hall> Halls = new Dictionary<string, Hall>();
         private static readonly Dictionary<string, AudioClip> Clips = new Dictionary<string, AudioClip>();
-        private static bool _loading;
+        private static bool _loading, _loaded;
         private static float _next;
         public static string Last = ""; // (for jarldom hall sound)
-        public static float? Forced; public static bool ForceRoar; public static double? ForcedMood; // (jarldom hallsound <volume> | roar | mood <n>: on this game only)
+        public static float? Forced; public static bool ForceRoar; public static double? ForcedMood;
+        public static int? ForcedSong; public static float ForcedSongAt; public static bool? ForcedFemale; // (jarldom hallsound song <0|1|off> [from s] [m|f]: sung now, whoever's there)
+        private static readonly Dictionary<string, bool> Singing = new Dictionary<string, bool>();
+        // The skald's singing a song of Bob's in this colony's hall now, as this game hears it (the skald's verses wait for it).
+        public static bool SongOn(string colony) => Singing.TryGetValue(colony, out bool on) && on; // (jarldom hallsound <volume> | roar | mood <n>: on this game only)
 
         public static void Tick()
         {
@@ -33,12 +42,14 @@ namespace Jarldom
                 if (Utils.DistanceXZ(c.Position, at) > c.Radius + 60) continue;
                 Room room = c.Best(RoomType.GreatHall);
                 if (room == null || !room.Ok) continue;
-                if (Clips.Count < Layers.Length) { Load(); return; }
+                if (!_loaded) { Load(); return; }
+                if (Layers.Any(l => !Clips.ContainsKey(l))) return; // (a crowd recording that wouldn't load: no hall sound at all, as before)
                 near.Add(c.Id);
                 if (!Halls.TryGetValue(c.Id, out Hall h) || h.Go == null || h.Room != room.Id) { Drop(c.Id); h = Halls[c.Id] = Make(c, room); }
                 Hear(c, room, h);
             }
             foreach (string id in Halls.Keys.Where(k => !near.Contains(k)).ToList()) Drop(id);
+            foreach (string id in Singing.Keys.Where(k => !near.Contains(k)).ToList()) Singing.Remove(id);
         }
 
         private static void Hear(Colony c, Room room, Hall h)
@@ -54,12 +65,23 @@ namespace Jarldom
             if (Forced is float f) { level.Volume = f; level.Sparse = 0; }
             // Broken up when they're low: now and then the talk dies down for a while.
             if (Time.time >= h.NextGate) { h.Gate = Random.value < level.Sparse * 0.6f ? 0.2f : 1f; h.NextGate = Time.time + Random.Range(1.5f, 4f); }
-            float v = level.Volume * h.Gate;
+            // The skald's song: a skald in the hall with folk to hear them, in the evening's hour for it, sung in the skald's own voice
+            // (the first skald by vid, if there are two: the same one on every game).
+            RosterRow skald = inHall.Select(x => c.R.Roster.FirstOrDefault(r => r.Vid == x.z.GetString(Villagers.VidKey, ""))).Where(r => r != null && r.Prof == Prof.Skald).OrderBy(r => r.Vid, System.StringComparer.Ordinal).FirstOrDefault();
+            int song = ForcedSong ?? Soundscape.SongOf(day, feasting);
+            string voiced = Soundscape.Voiced(song, ForcedFemale ?? skald?.Female ?? false);
+            float length = Clips.TryGetValue(voiced, out AudioClip sc) && sc.loadState == AudioDataLoadState.Loaded ? sc.length : 0;
+            double songAt = ForcedSong != null ? Time.time - ForcedSongAt : Soundscape.SongAt(hour < 4 ? hour + 24 : hour, Clock.Hour, length);
+            bool sung = songAt >= 0 && songAt < length && h.Song != null && (ForcedSong != null || Soundscape.Sung(skald != null, inHall.Count, mood));
+            Song(h, sung ? voiced : null, songAt);
+            Singing[c.Id] = sung;
+            float v = level.Volume * h.Gate * (sung ? 0.4f : 1f); // (the talk drops while he sings)
             h.Want[0] = v * (1 - level.Full); h.Want[1] = v * Mathf.Max(level.Full, level.Roar ? 1 : 0); // (a few talking, giving way to a full room)
             h.Want[2] = level.Roar ? level.Volume : 0; h.Want[3] = level.Roar ? level.Volume * 0.7f : 0;
             if (inHall.Count > 0 && level.LaughsPerMinute > 0 && Random.value < level.LaughsPerMinute / 30f)
                 Laugh(inHall[Random.Range(0, inHall.Count)].body.transform.position + Vector3.up * 1.6f, level.Roar);
-            Last = $"{c.R.Name}: {inHall.Count} in the hall of {c.Population}, mood {mood:0}, {(feasting ? "feasting" : night ? "evening" : "day")}: volume {level.Volume:0.00}, sparse {level.Sparse:0.00}, laughs {level.LaughsPerMinute:0.0}/min{(Soundscape.Miserable(mood) ? " (miserable: the hall is quiet)" : "")}";
+            Last = $"{c.R.Name}: {inHall.Count} in the hall of {c.Population}, mood {mood:0}, {(feasting ? "feasting" : night ? "evening" : "day")}: volume {level.Volume:0.00}, sparse {level.Sparse:0.00}, laughs {level.LaughsPerMinute:0.0}/min{(Soundscape.Miserable(mood) ? " (miserable: the hall is quiet)" : "")}; "
+                + $"song {voiced} at {songAt:0}s: {(sung ? $"sung by {skald?.Name ?? "(forced)"}" : skald == null ? "no skald in the hall" : inHall.Count < Soundscape.SongMinCrowd ? "too few to hear" : songAt < 0 ? "not its hour" : "not sung")}";
         }
 
         // A laugh in the hall: Haldor's, pitched to sound like someone else's, softer.
@@ -80,7 +102,26 @@ namespace Jarldom
             go.transform.position = new Vector3(x, room.Floor + 1.6f, z);
             var h = new Hall { Go = go, Room = room.Id, Src = Layers.Select(l => Source(go, Clips[l], reach)).ToArray() };
             var verb = go.AddComponent<AudioReverbFilter>(); verb.reverbPreset = AudioReverbPreset.Room;
+            // (the song on its own child: the muffling is its alone, the talk's as it was)
+            var sg = new GameObject("JarldomHallSong"); sg.transform.SetParent(go.transform, false);
+            h.Of = room; h.Reach = reach;
+            h.Song = sg.AddComponent<AudioSource>();
+            h.Song.loop = false; h.Song.volume = 0; h.Song.spatialBlend = 0.7f; h.Song.dopplerLevel = 0; h.Song.spread = 160f; h.Song.priority = 60;
+            h.Song.rolloffMode = AudioRolloffMode.Custom; h.Song.SetCustomCurve(AudioSourceCurveType.CustomRolloff, AnimationCurve.Constant(0, 1, 1)); h.Song.maxDistance = reach + Soundscape.SongFade + 10; // (how loud is worked out below, inside or out)
+            if (AudioMan.instance != null) h.Song.outputAudioMixerGroup = AudioMan.instance.m_ambientMixer;
+            h.Muffle = sg.AddComponent<AudioLowPassFilter>(); h.Muffle.cutoffFrequency = 22000f;
+            var sverb = sg.AddComponent<AudioReverbFilter>(); sverb.reverbPreset = AudioReverbPreset.Livingroom;
             return h;
+        }
+        // Which song, and where in it: started (or set right, if it's drifted) there, so every game is at the same line.
+        private static void Song(Hall h, string song, double at)
+        {
+            h.Sung = song;
+            if (song == null || h.Song == null) return;
+            h.SongAt = at; h.SongSince = Time.time;
+            if (!Clips.TryGetValue(song, out AudioClip clip)) return;
+            if (h.Song.clip != clip) { h.Song.Stop(); h.Song.clip = clip; }
+            if (!h.Song.isPlaying || Mathf.Abs(h.Song.time - (float)at) > 1.5f) { h.Song.time = Mathf.Clamp((float)at, 0, clip.length - 0.1f); if (!h.Song.isPlaying) h.Song.Play(); }
         }
         private static AudioSource Source(GameObject go, AudioClip clip, float reach)
         {
@@ -102,7 +143,7 @@ namespace Jarldom
         {
             string dir = System.IO.Path.Combine(BepInEx.Paths.CachePath, "jarldom-sounds");
             System.IO.Directory.CreateDirectory(dir);
-            foreach (string name in Layers)
+            foreach (string name in Layers.Concat(Soundscape.AllVoices))
             {
                 string path = System.IO.Path.Combine(dir, name + ".ogg");
                 using (var raw = typeof(HallSound).Assembly.GetManifestResourceStream("Jarldom.sound." + name + ".ogg"))
@@ -117,11 +158,25 @@ namespace Jarldom
                     Clips[name] = clip;
                 }
             }
+            _loaded = true; // (whatever failed stays failed: not tried every two seconds)
         }
         private static void Fade(Hall h)
         {
             if (h.Go == null) return;
             for (int i = 0; i < h.Src.Length; i++) Step(h.Src[i], h.Want[i]);
+            if (h.Song == null) return;
+            // (every frame, where this player stands: in the hall, the song; outside, through the walls, quieter and duller with distance)
+            float want = 0, cutoff = 22000f;
+            if (h.Sung != null && Player.m_localPlayer is Player me && h.Of != null)
+            {
+                Vector3 p = me.transform.position;
+                bool inside = Geometry.Inside(h.Of.Xz, p.x, p.z) && p.y > h.Of.Floor - 1.5f && p.y < h.Of.Floor + h.Of.Height + 1.5f;
+                float outside = Mathf.Max(0, Utils.DistanceXZ(p, h.Go.transform.position) - h.Reach);
+                (want, cutoff) = Soundscape.SongHeard(inside, outside);
+            }
+            h.Song.volume = Mathf.MoveTowards(h.Song.volume, want, Time.deltaTime * (want > h.Song.volume ? 0.6f : 0.4f));
+            h.Muffle.cutoffFrequency = Mathf.Exp(Mathf.MoveTowards(Mathf.Log(h.Muffle.cutoffFrequency), Mathf.Log(cutoff), Time.deltaTime * 4f)); // (in octaves: a door's step smooth)
+            if (h.Sung == null && h.Song.volume <= 0.001f && h.Song.isPlaying) h.Song.Pause();
         }
         private static void Step(AudioSource s, float want)
         {
@@ -136,7 +191,8 @@ namespace Jarldom
             Halls.Remove(id);
         }
         public static string Sources() => string.Join("; ", Halls.Values.Where(h => h.Go != null).Select(h => $"at {h.Go.transform.position:F0}, reach {h.Src[0].minDistance:0}-{h.Src[0].maxDistance:0} m: " +
-            string.Join(", ", h.Src.Select((src, i) => $"{Layers[i]} {src.volume:0.00}{(src.isPlaying ? " playing" : "")}")))) + $" (clips {Clips.Count}/{Layers.Length})";
+            string.Join(", ", h.Src.Select((src, i) => $"{Layers[i]} {src.volume:0.00}{(src.isPlaying ? " playing" : "")}"))
+            + (h.Song != null ? $"; song {h.Sung ?? "none"} {h.Song.volume:0.00}{(h.Song.isPlaying ? $" playing at {h.Song.time:0}s" : "")}, low-pass {h.Muffle.cutoffFrequency:0} Hz" : ""))) + $" (clips {Clips.Count}/{Layers.Length + Soundscape.AllVoices.Count()})";
         public static void Forget() { foreach (string id in Halls.Keys.ToList()) Drop(id); }
     }
 }

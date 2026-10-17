@@ -603,6 +603,13 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(roar.Roar && roar.Volume > hFull.Volume && roar.LaughsPerMinute > hFull.LaughsPerMinute, "A feast is a roar, with more laughter");
     Check(Soundscape.HallLevel(10, 10, -30, false).LaughsPerMinute == 0, "No laughing in a low hall");
     Check(Soundscape.HallLevel(3, 12, 20, false).Full < 0.3f && Soundscape.HallLevel(12, 12, 20, false).Full == 1f, "A few in the hall is a small crowd; all of them, a full hall");
+    // The skald's song: one a night, the same on every game; heard loud in the hall, duller and fainter outside.
+    Check(Soundscape.SongOf(10, false) != Soundscape.SongOf(11, false) && Soundscape.SongOf(10, true) == 1 && Soundscape.SongOf(11, true) == 1, "Songs by turns, the drinking song on a feast night");
+    Check(Soundscape.SongAt(Schedule.HallAt, 75, 190) == -1 && Math.Abs(Soundscape.SongAt(Soundscape.SongFrom + 1, 75, 190) - 75) < 1e-6 && Soundscape.SongAt(Soundscape.SongFrom + 3, 75, 190) == -1, "A song starts once the hall's filled, and ends");
+    Check(Soundscape.Sung(true, 3, 20) && !Soundscape.Sung(false, 9, 20) && !Soundscape.Sung(true, 2, 20) && !Soundscape.Sung(true, 9, -60), "Sung by the skald with folk to hear, not to a miserable hall");
+    Check(Soundscape.Voiced(0, true) == "song_ves_heill_f" && Soundscape.Voiced(1, false) == "song_drekkum" && Soundscape.AllVoices.Count() == 4, "Each song in a man's voice and a woman's");
+    var inHall = Soundscape.SongHeard(true, 0); var atDoor = Soundscape.SongHeard(false, 0); var off = Soundscape.SongHeard(false, 20); var gone = Soundscape.SongHeard(false, 60);
+    Check(inHall.volume == 1 && atDoor.volume < inHall.volume && off.volume < atDoor.volume && gone.volume == 0 && atDoor.cutoff < inHall.cutoff && off.cutoff < atDoor.cutoff, "Outside the hall the song is quieter and duller the further off");
 }
 
 {

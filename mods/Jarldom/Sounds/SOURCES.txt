@@ -5,3 +5,10 @@ hall_small.ogg   Breviceps, "Busy Room Ambience / Small crowd / People talking i
 hall_big.ogg     Breviceps, "Busy Room Ambience / People talking in background #2"             https://freesound.org/people/Breviceps/sounds/465699/
 hall_bar.ogg     EpicWizard, "Bar Crowd in Belgrade"                                           https://freesound.org/people/EpicWizard/sounds/394290/
 hall_walla.ogg   IENBA, "Small Crowd Walla" (4 s cut from each end)                             https://freesound.org/people/IENBA/sounds/653920/
+
+The skald's songs: made by Bob for Jarldom, each in a man's and a woman's voice (the skald's own). Cut to mono 44100 Hz, evened in loudness (-16 LUFS).
+
+song_ves_heill.ogg     "Ves heill!" (a man skald)
+song_ves_heill_f.ogg   "Ves heill!" (a woman skald)
+song_drekkum.ogg       "Drekkum, drengir!" (a man skald; the feast-night song)
+song_drekkum_f.ogg     "Drekkum, drengir!" (a woman skald)

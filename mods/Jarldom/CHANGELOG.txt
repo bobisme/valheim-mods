@@ -1,3 +1,5 @@
+0.1.196: the skald sings in the great hall. Of an evening, with folk there to hear, the skald sings one of Bob's two songs ("Ves heill!" and "Drekkum, drengir!", the drinking song on feast nights), in their own voice, a man's or a woman's. Every player hears the same song at the same moment. Loud inside the hall; outside, quieter and more muffled the further off. The talk in the hall drops while they sing. Waiting petitions now take their current wording each dawn.
+
 0.1.195: a thief is judged as the old law had it. At the Thing: fine them (the bót: their next wages stay in the treasury), outlaw them 3 days (they walk back in with all they had), exile, or forgive. Each theft remembers what drove them to it, and the petition says so. Rulings now say what they really do (e.g. -8 mood for 2 days, -3 opinion of you).
 
 0.1.194: a room that was fine isn't failed on one bad look (a piece still loading in): it's looked at again first, and rooms aren't judged in the first seconds after the world loads. Fixes the unfair 'nowhere to bathe' grumble.
