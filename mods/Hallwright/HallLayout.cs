@@ -42,6 +42,8 @@ namespace Hallwright
             internal string Roof="wood_roof_45", Ridge="wood_roof_top_45", Wedge="wood_wall_roof_45";
             internal string Arch=null, Raven=null, Lattice=null, LoadPost=null, Window=null, SmallFloor=null, StoneFence=null;
             internal string Log=null, StoneWall=null, StoneBlock=null;   // a cabin's log courses; a keep's stone walls and merlons
+            internal string StoneArch=null;   // a keep's arch over its gate
+            internal int Leaves=1;   // 2: a keep's double gate, two native gates side by side
             internal double Slope=1, BeamLength=2, ShortLength=1, DoorHeight=2, JoistDrop=0.2;
             internal int SpanCells=4;
         }
@@ -394,7 +396,20 @@ namespace Hallwright
             primary.Landing=plan.EntryLanding;
             foreach(var entry in plan.Entrances)
             {
-                Add(kit.Door,entry.At,Anchor.Bottom,entry.Yaw,"entrance");
+                if(details.Keep && kit.Leaves==2)
+                {
+                    // A double gate, a leaf to each side, under a round arch of two stone arch pieces springing from the jambs.
+                    foreach(int side in new[]{-1,1})
+                    {
+                        Add(kit.Door,entry.At+Turn(new V3(side,0,0),entry.Yaw),Anchor.Bottom,entry.Yaw+(side<0?180:0),"entrance");
+                        if(kit.StoneArch!=null)Add(kit.StoneArch,entry.At+Turn(new V3(side,kit.DoorHeight,0),entry.Yaw),Anchor.Bottom,entry.Yaw+(side<0?180:0),"gate arch");
+                    }
+                    // Straight wall half a metre past each side of the gate, for the jambs.
+                    foreach(double t in new[]{-2.5,-1.5,-0.5,0.5,1.5,2.5})
+                        if(!boundaries.Any(e=>Math.Abs(e.yaw-entry.Yaw)<0.01 && Math.Abs(Turn((e.a+e.b)*0.5-entry.At,-entry.Yaw).Z)<0.01 && Math.Abs(Turn((e.a+e.b)*0.5-entry.At,-entry.Yaw).X-t)<1-1e-6))
+                            throw new ArgumentException("A keep's double gate needs 5 m of straight wall, centred on it. Move the entrance away from the corner.");
+                }
+                else Add(kit.Door,entry.At,Anchor.Bottom,entry.Yaw,"entrance");
                 if(details.Basement && entry!=primary)
                 {
                     V3 outside=Turn(new V3(0,0,-1),entry.Yaw),center=entry.At+outside;
@@ -405,6 +420,7 @@ namespace Hallwright
                 }
             }
             plan.BoundaryPanels=boundaries.Count;
+            var bond=new Dictionary<(bool alongX,double line,double yaw,int y),SortedSet<int>>();
             foreach(var edge in boundaries)
             {
                 V3 at=(edge.a+edge.b)*0.5;
@@ -412,8 +428,8 @@ namespace Hallwright
                 {V3 local=Turn(at-d.At,-d.Yaw);return Math.Abs(d.Yaw-edge.yaw)<0.01 && Math.Abs(local.Z)<0.01 && Math.Abs(local.X)<1.999;});
                 bool door=opening!=null;
                 double along=door?V3.Dot(at-opening.At,Turn(new V3(1,0,0),opening.Yaw)):0;
-                if(door && Math.Abs(along)>0.1)
-                    for(int q=0;q<kit.DoorHeight;q++)Add(details.Keep?kit.StoneBlock:kit.Quarter,at+Turn(new V3(Math.Sign(along)*0.5,q,0),opening.Yaw),Anchor.Bottom,edge.yaw,details.Keep?"stone wall":"wall");
+                if(door && Math.Abs(along)>0.1 && !details.Keep)
+                    for(int q=0;q<kit.DoorHeight;q++)Add(kit.Quarter,at+Turn(new V3(Math.Sign(along)*0.5,q,0),opening.Yaw),Anchor.Bottom,edge.yaw,"wall");
                 // Header starts above the actual opening: a 3 m gate must not have a wall across its upper metre.
                 for(int storey=0;storey<details.Storeys;storey++)
                 {
@@ -426,14 +442,24 @@ namespace Hallwright
                     bool shutters=details.Shutters && kit.Window!=null;
                     if(details.Keep)
                     {
-                        // Stone courses a metre high; arrow loops (a metre's gap beside a 1 m block) on every other panel above the ground
-                        // floor; the last storey is the roof's parapet, a solid course with merlons on it.
+                        // Stone courses a metre high, laid in metre units here and bonded like brickwork below; arrow loops (a metre's
+                        // gap in a course) on every other panel above the ground floor; the last storey is the roof's parapet, a solid
+                        // course with merlons on it.
                         bool parapet=storey==details.Storeys-1,loop=storey>0 && !parapet && !door && ((int)(Math.Abs(at.X)+Math.Abs(at.Z))/2)%2==0;
                         int top=parapet?1:height;
-                        for(int h=storey==0 && door?(int)kit.DoorHeight:0;h<top;h++)
+                        for(int h=0;h<top;h++)foreach(double half in new[]{-0.5,0.5})
                         {
-                            if(loop && h==1){Add(kit.StoneBlock,at+new V3(0,h+storey*height,0)+Turn(new V3(-0.5,0,0),edge.yaw),Anchor.Bottom,edge.yaw,"arrow loop");continue;}
-                            Add(kit.StoneWall,at+new V3(0,h+storey*height,0),Anchor.Bottom,edge.yaw,"stone wall");
+                            if(loop && h==1 && half>0)continue;
+                            V3 unit=at+Turn(new V3(half,0,0),edge.yaw);int y=h+storey*height;
+                            if(storey==0 && plan.Entrances.Any(d=>
+                            {
+                                V3 l=Turn(unit-d.At,-d.Yaw);double reach=kit.Leaves==2?2:1,clear=kit.DoorHeight+(kit.Leaves==2 && kit.StoneArch!=null?1:0);
+                                return Math.Abs(l.Z)<0.01 && Math.Abs(l.X)<reach-0.01 && y<clear-0.01;
+                            }))continue;
+                            bool alongX=Math.Abs(edge.a.Z-edge.b.Z)<1e-6;
+                            var key=(alongX,Math.Round(alongX?unit.Z:unit.X,3),Math.Round(edge.yaw,3),y);
+                            if(!bond.TryGetValue(key,out var units))bond[key]=units=new SortedSet<int>();
+                            units.Add((int)Math.Floor(alongX?unit.X:unit.Z));
                         }
                         if(parapet)Add(kit.StoneBlock,at+new V3(0,1+storey*height,0)+Turn(new V3(-0.5,0,0),edge.yaw),Anchor.Bottom,edge.yaw,"merlon");
                         continue;
@@ -559,6 +585,19 @@ namespace Hallwright
                 foreach(double u in new[]{-2.0,2})Rod(kit.Beam,PorchAt(u,height,0),PorchAt(u,height,2),kit.BeamLength,"porch frame");
                 Rod(kit.Beam,PorchAt(0,peak,0),PorchAt(0,peak,2),kit.BeamLength,"porch frame");
             }
+            // A keep's courses in running bond: 2 m stones, every other course shifted a metre, a 1 m block where one won't fit.
+            foreach(var course in bond)
+            {
+                var (alongX,line,yaw,y)=course.Key;var units=course.Value;
+                V3 At(double c)=>alongX?new V3(c,y,line):new V3(line,y,c);
+                foreach(int k in units.ToList())
+                {
+                    if(!units.Contains(k))continue;
+                    units.Remove(k);
+                    if(((k+y)%2+2)%2==0 && units.Remove(k+1))Add(kit.StoneWall,At(k+1),Anchor.Bottom,yaw,"stone wall");
+                    else Add(kit.StoneBlock,At(k+0.5),Anchor.Bottom,yaw,"stone wall");
+                }
+            }
             // Outside corners of log and stone walls: each log course runs on half a metre past the corner, crossing the other wall's;
             // a dressed stone block fills the outer corner between a cabin's fences and a keep's stone courses.
             if(details.Cabin || details.Keep)foreach(V3 v in plan.Vertices.Distinct().ToList())
@@ -569,7 +608,7 @@ namespace Hallwright
                 double sx=around[0].X==cx?1:-1,sz=around[0].Z==cz?1:-1;
                 if(kit.StoneBlock!=null)
                 {
-                    var courses=plan.Parts.Where(q=>(q.Role=="stone footing" || q.Role=="stone wall") && q.Prefab!=kit.StoneBlock && Math.Abs(q.At.X-v.X)<1.01 && Math.Abs(q.At.Z-v.Z)<1.01).Select(q=>Math.Round(q.At.Y,3)).Distinct().ToList();
+                    var courses=plan.Parts.Where(q=>(q.Role=="stone footing" || q.Role=="stone wall") && Math.Abs(q.At.X-v.X)<1.01 && Math.Abs(q.At.Z-v.Z)<1.01).Select(q=>Math.Round(q.At.Y,3)).Distinct().ToList();
                     // A keep's corner rises unbroken through every course, beside arrow loops too.
                     if(details.Keep && courses.Count>0)courses=Enumerable.Range(0,(int)courses.Max()+1).Select(y=>(double)y).ToList();
                     foreach(double y in courses)Add(kit.StoneBlock,new V3(v.X,y,v.Z),Anchor.Bottom,0,details.Keep?"stone wall":"stone footing");

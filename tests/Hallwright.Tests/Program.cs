@@ -585,28 +585,51 @@ var rails=stilts.Parts.Where(p=>p.Role=="deck rail").ToList();
 Check(rails.Count>0 && rails.All(r=>Math.Abs(r.At.X-stilts.Door.X)>1.5),"No rail across the way in from the door");
 Check((stilts.EntryLanding-stilts.Door).Length>1.9 && stilts.EntryLanding.Z<-1.9,"The way in lands off the deck's edge");
 Check(!HallLayout.Plan(Rect(8,10),new HallLayout.Kit{SmallFloor="wood_floor_1x1"},3,2,0,false,new HallLayout.Details{Stilts=true}).Parts.Any(p=>p.Role=="deck"),"No deck when it is off");
-// Stone keep: stone courses, arrow loops above the ground floor, a walkable roof behind merlons, stairs all the way up.
-var keepKit=new HallLayout.Kit{SmallFloor="wood_floor_1x1",StoneWall="stone_wall_2x1",StoneBlock="stone_wall_1x1"};
+// Stone keep: stone courses in running bond, arrow loops above the ground floor, a double gate under a stone arch, a walkable roof
+// behind merlons, stairs all the way up.
+var keepKit=new HallLayout.Kit{SmallFloor="wood_floor_1x1",StoneWall="stone_wall_2x1",StoneBlock="stone_wall_1x1",Door="wood_gate",DoorHeight=3,Leaves=2,StoneArch="stone_arch"};
 foreach(int storeys in new[]{2,3,4})
 {
- var keep=HallLayout.Plan(Rect(8,10),keepKit,3,2,0,false,new HallLayout.Details{Keep=true,Storeys=storeys});
- double roof=3*(storeys-1);
+ const int h=4;
+ var keep=HallLayout.Plan(Rect(12,14),keepKit,h,2,0,false,new HallLayout.Details{Keep=true,Storeys=storeys});
+ double roof=h*(storeys-1);
  Check(keep.Wings.Count==0 && !keep.Parts.Any(p=>p.Role=="roof") && keep.RoofHeight>=roof,"A keep has a flat walkable roof, not a pitched one");
- Check(keep.Parts.Where(p=>p.Role=="stone wall" || p.Role=="arrow loop" || p.Role=="merlon").All(p=>p.Prefab.StartsWith("stone_wall")),"Stone walls");
+ var stones=keep.Parts.Where(p=>p.Role=="stone wall").ToList();
+ Check(stones.All(p=>p.Prefab.StartsWith("stone_wall")) && keep.Parts.Where(p=>p.Role=="merlon").All(p=>p.Prefab=="stone_wall_1x1"),"Stone walls");
  Check(!keep.Parts.Any(p=>p.Prefab.StartsWith("wood") && (p.Role=="wall" || p.Role=="gable")),"No timber in the outer wall");
- Check(storeys==2 || keep.Parts.Count(p=>p.Role=="arrow loop")>0,"Arrow loops in the middle storeys");
- Check(storeys==2 || keep.Parts.Where(p=>p.Role=="arrow loop").All(p=>p.At.Y>=3+1-1e-9),"Arrow loops only above the ground floor");
+ // Running bond: a 2 m stone's joints fall a metre from those of the course below.
+ foreach(var s2 in stones.Where(p=>p.Prefab=="stone_wall_2x1"))
+ {
+  bool alongX=Math.Abs(Math.Sin(s2.Yaw*Math.PI/180))<1e-6;double c=alongX?s2.At.X:s2.At.Z;
+  Check(((int)Math.Round(c-1+s2.At.Y)%2+2)%2==0,"Stones in running bond");
+ }
+ // Length laid in each course: the whole perimeter (and its corners), less the gate, the arch and the loops.
+ double Laid(int y)=>stones.Where(p=>Math.Abs(p.At.Y-y)<1e-9).Sum(p=>p.Prefab=="stone_wall_2x1"?2.0:1.0);
+ int loops=keep.BoundaryPanels/2;
+ for(int y=0;y<=roof;y++)
+ {
+  double expect=52+4-(y<4?4:0);
+  if(y>=h && y<roof && y%h==1)Check(Laid(y)<expect && Laid(y)>=expect-loops-2,"Arrow loops leave gaps in their course");
+  else Check(Math.Abs(Laid(y)-expect)<1e-9,$"Course {y} is closed but for the gate");
+ }
+ Check(keep.Parts.Count(p=>p.Role=="entrance" && p.Prefab=="wood_gate")==2,"A double gate");
+ var arches=keep.Parts.Where(p=>p.Role=="gate arch").ToList();
+ Check(arches.Count==2 && arches.All(p=>Math.Abs(p.At.Y-3)<1e-9 && Math.Abs(p.At.Z)<1e-9 && Math.Abs(Math.Abs(p.At.X-6)-1)<1e-9),"A stone arch over the gate, from jamb to jamb");
+ Check(!stones.Any(p=>p.At.Y<4-1e-9 && Math.Abs(p.At.Z)<1e-9 && Math.Abs(p.At.X-6)<2+(p.Prefab=="stone_wall_2x1"?1:0.5)-1e-9),"Nothing in the gateway or the arch");
  var merlons=keep.Parts.Where(p=>p.Role=="merlon").ToList();
  Check(merlons.Count==keep.BoundaryPanels && merlons.All(p=>Math.Abs(p.At.Y-(roof+1))<1e-9),"A merlon on every parapet panel");
- Check(keep.Parts.Where(p=>p.Role=="stone wall").Max(p=>p.At.Y)<=roof+1e-9,"The parapet is one course above the roof deck");
+ Check(stones.Max(p=>p.At.Y)<=roof+1e-9,"The parapet is one course above the roof deck");
  Check(keep.Parts.Count(p=>p.Role=="upper floor")>0 && keep.Parts.Where(p=>p.Role=="upper floor").Max(p=>p.At.Y)>=roof-1e-9,"Floors up to the roof deck");
  Check(keep.Parts.Count(p=>p.Role=="interior stair")>=3*(storeys-1),"Stairs climb to the roof");
  Check(keep.Parts.Where(p=>p.Role=="storey post").All(p=>p.At.Y+2<=roof+1e-9),"Posts stop under the roof deck");
- foreach(var c in new[]{new V3(0,0,0),new V3(8,0,0),new V3(0,0,10),new V3(8,0,10)})
- {
-  Check(keep.Parts.Count(p=>p.Prefab=="stone_wall_1x1" && Math.Abs(p.At.X-c.X)<1e-9 && Math.Abs(p.At.Z-c.Z)<1e-9)==(int)roof+1,"A corner stone in every course, up the parapet");
- }
+ foreach(var c in new[]{new V3(0,0,0),new V3(12,0,0),new V3(0,0,14),new V3(12,0,14)})
+  Check(keep.Parts.Count(p=>p.Prefab=="stone_wall_1x1" && p.Role=="stone wall" && Math.Abs(p.At.X-c.X)<1e-9 && Math.Abs(p.At.Z-c.Z)<1e-9)==(int)roof+1,"A corner stone in every course, up the parapet");
 }
+// A plain door in a keep: jambs of stone, bonded the same.
+var doorKeep=HallLayout.Plan(Rect(8,10),new HallLayout.Kit{SmallFloor="wood_floor_1x1",StoneWall="stone_wall_2x1",StoneBlock="stone_wall_1x1"},3,2,0,false,new HallLayout.Details{Keep=true,Storeys=2});
+Check(doorKeep.Parts.Count(p=>p.Role=="entrance")==1 && !doorKeep.Parts.Any(p=>p.Role=="gate arch"),"A keep with a door has no arch");
+Check(!doorKeep.Parts.Any(p=>p.Role=="stone wall" && p.At.Y<2-1e-9 && Math.Abs(p.At.Z)<1e-9 && Math.Abs(p.At.X-4)<1+(p.Prefab=="stone_wall_2x1"?1:0.5)-1e-9),"Nothing in the doorway");
+Reject(()=>HallLayout.Plan(Rect(4,10),keepKit,4,2,0,false,new HallLayout.Details{Keep=true,Storeys=2}),"double gate against a corner");
 Reject(()=>HallLayout.Plan(Rect(8,10),keepKit,3,2,0,false,new HallLayout.Details{Keep=true,Storeys=1}),"one-storey keep");
 Reject(()=>HallLayout.Plan(Rect(8,10),new HallLayout.Kit(),3,2,0,false,new HallLayout.Details{Keep=true,Storeys=3}),"keep without stone");
 Reject(()=>HallLayout.Plan(Rect(8,10),keepKit,3,2,0,false,new HallLayout.Details{Keep=true,Storeys=3,Porch=true}),"keep with a porch");

@@ -32,7 +32,7 @@ namespace Hallwright
             if(style!=3)_hallRoof67=false;
             if(style==3){_hallBasement=false;_hallOverhang=false;_hallPorch=false;_hallRoof67=true;_hallHeight=3;_hallShutters=true;_hallHearth=true;}
             if(style==4){_hallBasement=false;_hallOverhang=false;_hallPorch=false;_hallRoof45=true;_hallHeight=3;_hallStoreys=1;_hallDeck=true;}
-            if(style==5){_hallBasement=false;_hallOverhang=false;_hallPorch=false;_hallTiered=false;_hallHeight=3;_hallStoreys=2;_hallEntranceMode=1;}
+            if(style==5){_hallBasement=false;_hallOverhang=false;_hallPorch=false;_hallTiered=false;_hallHeight=4;_hallStoreys=2;_hallEntranceMode=0;}
             if(style==2){_hallStoreys=1;_hallBasement=false;_hallDetail=2;_hallOverhang=true;_hallSweep=true;_hallPorch=true;_hallRoof45=true;_hallHeight=3;}
             if(style==1)
             {
@@ -126,6 +126,8 @@ namespace Hallwright
             {
                 if(!HallKnown("stone_wall_2x1") || !HallKnown("stone_wall_1x1"))throw new ArgumentException("A stone keep needs stone walls unlocked (a stonecutter).");
                 kit.StoneWall="stone_wall_2x1";kit.StoneBlock="stone_wall_1x1";
+                // Its gate is a double one, under a stone arch where the walls are tall enough.
+                if(kit.Door=="wood_gate"){kit.Leaves=2;if(_hallHeight>=4 && HallKnown("stone_arch"))kit.StoneArch="stone_arch";}
             }
             // Joists meet the underside of the floor without protruding into the stair landing.
             kit.JoistDrop=ShapesOf(kit.Beam).Max(s=>s.Key.Aabb().max.y)+0.1;
