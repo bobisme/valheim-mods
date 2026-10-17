@@ -51,6 +51,16 @@ namespace Jarldom
             c.Z.Set(RuinsKey, string.Join(";", all));
         }
 
+        // Where builders put a lost piece back lately (this game: the colony owner's, where the rebuilding is done).
+        internal static readonly Dictionary<string, float> Rebuilt = new Dictionary<string, float>();
+        internal static string Spot(string prefab, Vector3 at) => $"{prefab}|{Mathf.RoundToInt(at.x * 2)}|{Mathf.RoundToInt(at.y * 2)}|{Mathf.RoundToInt(at.z * 2)}";
+        internal static void PutBack(string prefab, Vector3 at)
+        {
+            Rebuilt[Spot(prefab, at)] = Time.time;
+            if (Rebuilt.Count > 100) foreach (string k in Rebuilt.Where(kv => Time.time - kv.Value > 1800f).Select(kv => kv.Key).ToList()) Rebuilt.Remove(k);
+        }
+        private static bool RebuiltLately(string prefab, Vector3 at) => Rebuilt.TryGetValue(Spot(prefab, at), out float t) && Time.time - t < 1800f;
+
         // A player taking a piece down with the hammer goes through Remove: that one isn't a ruin.
         private static WearNTear _removing;
         [HarmonyPatch(typeof(WearNTear), "RPC_Remove")]
@@ -71,11 +81,20 @@ namespace Jarldom
                     Piece p = __instance.GetComponent<Piece>();
                     if (v == null || !v.IsValid() || !v.IsOwner() || p == null || p.GetCreator() == 0) return; // (a player's building, by the game that has it)
                     if (hitData != null && hitData.GetAttacker() is Character by && by.IsPlayer()) return; // (a player breaking their own on purpose)
+                    if (v.GetZDO().GetBool("jarldom_test")) return; // (a test piece: never the colony's to put back)
                     string name = Colony.NameOf(p);
                     if (name.StartsWith("Jarldom") || p.GetComponent<Plant>() != null || p.GetComponent<Ship>() != null || p.GetComponent<Vagon>() != null) return;
                     Vector3 at = p.transform.position;
                     Colony c = Colony.At(at);
                     if (c == null || !c.Tends(at)) return;
+                    // (one a builder put back that fell again by itself (nothing under it to stand on): it won't stand there, so it's let go,
+                    // not rebuilt for ever)
+                    if (hitData == null && RebuiltLately(name, at))
+                    {
+                        Rebuilt.Remove(Spot(name, at));
+                        c.Log("text", "", "", $"The {Localization.instance.Localize(p.m_name).ToLower()} the builders put back fell again: it won't stand there, and they've let it be.");
+                        return;
+                    }
                     Net.Act(c, "ruin", Entry(name, at, p.transform.rotation));
                 });
             }
@@ -268,6 +287,7 @@ namespace Jarldom
                         piece.SetCreator(c.R.Founder, Splatform.PlatformManager.DistributionPlatform.LocalUser.PlatformUserID); // (the founder's, as it was)
                         piece.m_placeEffect.Create(At, Ruin.Rot, made.transform);
                         made.GetComponent<WearNTear>()?.OnPlaced();
+                        Upkeep.PutBack(Ruin.Prefab, At);
                         Take(b);
                         b.S.Bump("rebuilt");
                         c.Log("text", b.S.Name, "", $"{b.S.Name} rebuilt the {Localization.instance.Localize(Prefab.m_name).ToLower()} that was lost.");
