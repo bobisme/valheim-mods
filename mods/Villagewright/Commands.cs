@@ -23,7 +23,7 @@ namespace Villagewright
             try
             {
                 found.GetType().GetMethod("RegisterCommand", BindingFlags.Static | BindingFlags.Public)?.Invoke(null, new object[]{Name, "village",
-                    "village scout [range] [radius] [coast] | site <radius> [x z] | plot <x,z> <x,z> <x,z>... | options kind=hamlet|farming|fishing|market|hillfort|temple seed=N|new houses=N hall=on|off temple=on|off smithy=on|off market=on|off palisade=on|off dock=on|off torches=on|off clearbuilt=on|off fields=N storehouses=N gates=N detail=0..4 street=3..6 | window [close] | plan | design | status | build | undo | preview on|off | list: lay out a village on the land and build it",
+                    "village scout [range] [radius] [coast] | site <radius> [x z] | plot <x,z> <x,z> <x,z>... | options kind=hamlet|farming|fishing|market|hillfort|temple seed=N|new houses=N hall=on|off temple=on|off smithy=on|off market=on|off palisade=on|off dock=on|off torches=on|off clearbuilt=on|off fields=N storehouses=N gates=N detail=0..4 street=3..6 | road <x,z> [<x,z>] (egress points) or road <x,z> to <x,z> (egress, extension) or road clear | window [close] | plan | design | status | build | undo | preview on|off | list: lay out a village on the land and build it",
                     new Func<string[], Action<JObject>, Action<string>, IEnumerator>(Command)});
                 found.GetType().GetMethod("RegisterFrame", BindingFlags.Static | BindingFlags.Public)?.Invoke(null, new object[] { Name, new Func<string, float[]>(Frame) });
             }
@@ -52,13 +52,13 @@ namespace Villagewright
                             if (args.Length < 3) throw new ArgumentException("village scout [range] [radius] [coast] | site <radius> [x z]");
                             Vector3 at = args.Length >= 5 ? new Vector3(F(args[3]), 0, F(args[4])) : player.transform.position;
                             at.y = ZoneSystem.instance.GetGroundHeight(at);
-                            SetCircle(at, F(args[2])); output(Status()); return null;
+                            ClearRoad(); SetCircle(at, F(args[2])); output(Status()); return null;
                         }
                     case "plot":
                         {
                             var corners = args.Skip(2).Select(a => { var p = a.Split(','); var v = new Vector3(F(p[0]), 0, F(p[1])); v.y = ZoneSystem.instance.GetGroundHeight(v); return v; }).ToList();
                             if (corners.Count < 3) throw new ArgumentException("village plot <x,z> <x,z> <x,z>...");
-                            PlotCorners.Clear(); PlotCorners.AddRange(corners); SetPlot(corners); output(Status()); return null;
+                            ClearRoad(); PlotCorners.Clear(); PlotCorners.AddRange(corners); SetPlot(corners); output(Status()); return null;
                         }
                     case "options":
                         {
@@ -90,6 +90,18 @@ namespace Villagewright
                                     default: throw new ArgumentException("Unknown option " + k);
                                 }
                             }
+                            Replan(); output(Status()); return null;
+                        }
+                    case "road":
+                        {
+                            // village road <x,z> [<x,z>] | road <x,z> to <x,z> | road clear
+                            ClearRoad();
+                            if (args.Length > 2 && args[2] != "clear")
+                                foreach (var a in args.Skip(2).Where(a => a != "to"))
+                                {
+                                    var p = a.Split(','); var v = new Vector3(F(p[0]), 0, F(p[1])); v.y = ZoneSystem.instance.GetGroundHeight(v);
+                                    AddRoadPoint(v);
+                                }
                             Replan(); output(Status()); return null;
                         }
                     case "scout":
@@ -126,6 +138,7 @@ namespace Villagewright
         internal JObject Status()
         {
             var o = new JObject { ["problem"] = Problem, ["build"] = new JObject { ["state"] = BuildState, ["placed"] = BuildPlaced, ["total"] = BuildTotal, ["cleared"] = BuildCleared, ["removed"] = BuildRemoved, ["kept"] = BuildKept, ["groundPoints"] = BuildGround, ["clamped"] = BuildClamped, ["problems"] = new JArray(BuildProblems) } };
+            if (Egress.Count > 0) o["road"] = new JObject { ["egress"] = new JArray(Egress.Select(e => new JArray(Math.Round(e.x, 1), Math.Round(e.z, 1)))), ["extension"] = Extension.HasValue ? new JArray(Math.Round(Extension.Value.x, 1), Math.Round(Extension.Value.z, 1)) : null, ["worldRoad"] = Plan?.Streets.Any(s => s.World) ?? false };
             if (Site != null) o["site"] = new JObject { ["centre"] = new JArray(Math.Round(Site.Centre.X, 1), Math.Round(Site.Centre.Z, 1)), ["radius"] = Math.Round(Site.Radius, 1), ["plot"] = Site.Plot?.Count ?? 0 };
             if (Brief != null) o["brief"] = JObject.FromObject(Brief);
             if (Plan == null) return o;

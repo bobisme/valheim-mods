@@ -47,9 +47,39 @@ foreach (Kind kind in Enum.GetValues(typeof(Kind)))
     if (outDir != null) File.WriteAllText(Path.Combine(outDir, "plot-Farming.svg"), Svg(plan, new Hills()));
     Console.WriteLine($"plot: {plan.Lots.Count} lots, {plan.Fields.Count} fields. {string.Join(" ", plan.Notes)}");
 }
+// Roads: through the village between two egress points (its own street, or the world's road followed), or one egress and a lane on to the road.
+{
+    var land = new Hills(); var site = Site.Circle(0, 0, 80);
+    var road = new List<P2>(); for (double x = -160; x <= 160; x += 4) road.Add(new P2(x, 6 + 10 * Math.Sin(x / 40)));
+    var cases = new (string name, Brief brief)[]
+    {
+        ("road-own", WithRoad(Brief.For(Kind.Market, 80, 11), new[] { new P2(-80, 0), new P2(78, 18) }, null, null)),
+        ("road-world", WithRoad(Brief.For(Kind.HillFort, 80, 12), new[] { road.First(site.Contains), road.Last(site.Contains) }, null, road)),
+        ("road-spur", WithRoad(Brief.For(Kind.Farming, 80, 13), new[] { new P2(10, -79) }, new P2(14, -124), null)),
+    };
+    foreach (var (name, brief) in cases)
+    {
+        Plan plan;
+        try { plan = Planner.Make(site, brief, land); }
+        catch (ArgumentException ex) { failures++; Console.WriteLine($"FAIL {name}: refused: {ex.Message}"); continue; }
+        var main = plan.Streets.Where(s => s.Main).ToList();
+        foreach (var e in brief.Egress) Check(main.Any(s => Geometry.PolylineDistance(e, s.Points, out _, out _) < 3), $"{name}: a street reaches the egress point {e}");
+        if (brief.Extension.HasValue) Check(main.Any(s => (s.Points[^1] - brief.Extension.Value).Length < 3), $"{name}: the lane reaches the road");
+        if (brief.Egress.Count == 2 && plan.Palisade.Count > 0) Check(plan.Gates.Count >= 2, $"{name}: a gate where the road comes in and goes out");
+        foreach (var w in plan.Streets.Where(s => s.World))
+        {
+            foreach (var l in plan.Lots) foreach (var c in l.Corners(0)) Check(Geometry.PolylineDistance(c, w.Points, out _, out _) > w.Width / 2, $"{name}: {l.Name} off the road");
+            foreach (var pt in w.Points) Check(plan.Ground.At(pt.X, pt.Z, land.Height(pt.X, pt.Z)) == null, $"{name}: the road's ground left alone at {pt}");
+            Check(Geometry.PolylineDistance(plan.Square, w.Points, out _, out _) >= plan.SquareRadius + w.Width / 2, $"{name}: the square beside the road, not on it");
+        }
+        Console.WriteLine($"{name}: {plan.Lots.Count} lots, {plan.Streets.Count} streets ({plan.Streets.Count(s => s.World)} the world's), gates {plan.Gates.Count}, square {plan.Square}. {string.Join(" ", plan.Notes)}");
+        if (outDir != null) File.WriteAllText(Path.Combine(outDir, name + ".svg"), Svg(plan, land));
+    }
+}
 Console.WriteLine(failures == 0 ? "All village checks passed." : $"{failures} failures.");
 return failures == 0 ? 0 : 1;
 
+static Brief WithRoad(Brief b, P2[] egress, P2? extension, List<P2> road) { b.Egress.AddRange(egress); b.Extension = extension; b.Road = road; return b; }
 static string Describe(Plan p) => string.Join(";", p.Lots.Select(l => $"{l.Use}{l.Origin}{l.Yaw:0.0}{l.Width}x{l.Depth}")) + "|" + p.Props.Count + "|" + p.Square;
 
 static string Svg(Plan plan, IGround g)

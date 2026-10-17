@@ -63,6 +63,7 @@ namespace Villagewright
             _window = GameUi.Window("VillagewrightWindow", new Vector2(980f, 690f));
             GameUi.Label(_window, "Villagewright", new Vector2(30f, -18f), new Vector2(400f, 44f), 34f, GameUi.Warm, GameUi.Norse);
             string site = P.Site == null ? "no site" : P.Site.Plot != null ? $"a plot of {P.Site.Plot.Count} corners" : $"a circle {P.Site.Radius * 2:0} m across";
+            if (P.Egress.Count == 2) site += ", the road through it"; else if (P.Extension.HasValue) site += ", a lane to the road"; else if (P.Egress.Count == 1) site += ", one way out to the road";
             GameUi.Label(_window, site, new Vector2(430f, -28f), new Vector2(520f, 30f), 17f, GameUi.Dim, GameUi.Sans, TMPro.TextAlignmentOptions.Right);
             GameUi.Braid(_window, new Vector2(0f, -70f), 920f);
 

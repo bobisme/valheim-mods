@@ -10,7 +10,7 @@ namespace Villagewright
 {
     // The Villagewright stake: a tall surveyor's pole with a green pennant in the hammer's build menu (Misc). It is never built.
     // Click the ground for the village's centre, then again for its edge (a circle); or Shift+click round a plot, corner by corner.
-    // E (or L) opens the settings. Backspace takes back the last corner (or the circle).
+    // Ctrl+click marks where the road meets it (egress points on the edge, an extension point outside). E (or L) opens the settings. Backspace takes back the last corner (or the circle).
     public sealed partial class Plugin
     {
         internal const string StakeName = "VillagewrightStake";
@@ -73,7 +73,7 @@ namespace Villagewright
             if (_flag != null) flag.GetComponent<MeshRenderer>().sharedMaterial = _flag;
             var piece = stake.GetComponent<Piece>();
             piece.m_name = "Villagewright stake";
-            piece.m_description = "Lay out a whole village. Click the ground for its centre, then its edge; or Shift+click round a plot. E for the settings: the kind of village, what it needs, and Build. The stake isn't built.";
+            piece.m_description = "Lay out a whole village. Click the ground for its centre, then its edge; or Shift+click round a plot. Ctrl+click where the road meets it: one or two egress points on its edge, or one and a point on the road outside it. E for the settings: the kind of village, what it needs, and Build. The stake isn't built.";
             piece.m_resources = new Piece.Requirement[0];
             piece.m_craftingStation = null;
             piece.m_category = Piece.PieceCategory.Misc;
@@ -117,7 +117,11 @@ namespace Villagewright
                 Line(Enumerable.Range(0, 72).Select(i => c + P2.Forward(i * 5) * r), new Color(1f, 0.95f, 0.8f, 0.8f), 0.25f, 0.5f, closed: true);
                 _labels.Add((new Vector3(at.x, at.y + 2, at.z), $"{r * 2:0} m across"));
             }
-            if (Input.GetKeyDown(BackKey.Value))
+            if (Input.GetKeyDown(BackKey.Value) && Input.GetKey(RoadModifier.Value))
+            {
+                if (Egress.Count > 0 || Extension.HasValue) { RemoveRoadPoint(); Say(Egress.Count == 0 ? "no road points." : $"{Egress.Count} egress point{(Egress.Count == 1 ? "" : "s")}" + (Extension.HasValue ? " and the extension." : ".")); }
+            }
+            else if (Input.GetKeyDown(BackKey.Value))
             {
                 if (PlotCorners.Count > 0) { PlotCorners.RemoveAt(PlotCorners.Count - 1); if (PlotCorners.Count >= 3) SetPlot(PlotCorners); else { Site = null; Plan = null; DrawPlotMarks(); } }
                 else { CentreMark = null; Site = null; Plan = null; ClearPreview(); }
@@ -133,10 +137,16 @@ namespace Villagewright
         private void StakeClick(Player player)
         {
             if (VillageWindow.IsOpen || !CameraHit(out Vector3 at)) return;
+            if (Input.GetKey(RoadModifier.Value))
+            {
+                try { string said = AddRoadPoint(at); Say(Problem ?? said); }
+                catch (ArgumentException ex) { Say(ex.Message); }
+                return;
+            }
             if (Input.GetKey(PlotModifier.Value))
             {
                 if (CentreMark.HasValue) { CentreMark = null; }
-                if (Site != null && PlotCorners.Count == 0) Site = null;
+                if (Site != null && PlotCorners.Count == 0) { Site = null; ClearRoad(); }
                 PlotCorners.Add(at);
                 if (PlotCorners.Count >= 3) { SetPlot(PlotCorners); Say(Problem ?? $"plot of {PlotCorners.Count} corners: {Plan.Lots.Count} buildings. Shift+click more corners, or E for the settings."); }
                 else { DrawPlotMarks(); Say($"corner {PlotCorners.Count}: Shift+click at least {3 - PlotCorners.Count} more."); }
@@ -145,7 +155,7 @@ namespace Villagewright
             if (!CentreMark.HasValue || Site != null)
             {
                 // Start a new circle.
-                PlotCorners.Clear(); Site = null; Plan = null; CentreMark = at; ClearPreview();
+                PlotCorners.Clear(); ClearRoad(); Site = null; Plan = null; CentreMark = at; ClearPreview();
                 Say("now click the village's edge.");
                 return;
             }

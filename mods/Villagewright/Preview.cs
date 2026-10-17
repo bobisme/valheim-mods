@@ -69,6 +69,8 @@ namespace Villagewright
                 Line(new[] { f.World(0, 0), f.World(f.Width, 0), f.World(f.Width, f.Depth), f.World(0, f.Depth) }, new Color(0.25f, 0.45f, 0.15f), 0.2f, closed: true);
             if (Plan.Palisade.Count > 2) Line(Plan.Palisade, ink, 0.3f, 0.6f, closed: true);
             foreach (var g in Plan.Gates) _labels.Add((new Vector3((float)g.X, GroundAt(g.X, g.Z) + 3, (float)g.Z), "gate"));
+            for (int i = 0; i < Egress.Count; i++) _labels.Add((Egress[i] + Vector3.up * 3, Egress.Count == 2 ? (i == 0 ? "road in" : "road out") : "way out to the road"));
+            if (Extension.HasValue) _labels.Add((Extension.Value + Vector3.up * 3, "on to the road"));
             _labels.Add((new Vector3((float)Plan.Square.X, (float)Plan.SquareHeight + 4, (float)Plan.Square.Z), $"{Plan.Brief.Kind} village (seed {Plan.Brief.Seed})"));
         }
 

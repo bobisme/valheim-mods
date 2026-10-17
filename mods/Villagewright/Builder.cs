@@ -145,6 +145,9 @@ namespace Villagewright
             if (view != null && view.GetZDO() != null)
             {
                 view.GetZDO().Set("villagewright", record.Seed);
+                // Fires and torches start full.
+                var fire = go.GetComponent<Fireplace>();
+                if (fire != null && !fire.m_infiniteFuel) view.GetZDO().Set(ZDOVars.s_fuel, fire.m_maxFuel);
                 record.Users.Add(view.GetZDO().m_uid.UserID); record.Ids.Add(view.GetZDO().m_uid.ID);
             }
             BuildPlaced++;
