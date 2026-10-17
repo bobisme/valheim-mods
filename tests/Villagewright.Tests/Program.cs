@@ -34,6 +34,12 @@ foreach (Kind kind in Enum.GetValues(typeof(Kind)))
     foreach (var pr in plan.Props.Where(o => o.Role == "field fence"))
         foreach (var s in plan.Streets) Check(Geometry.PolylineDistance(new P2(pr.X, pr.Z), s.Points, out _, out _) > s.Width / 2, $"{landName}/{kind}: a fence at ({pr.X:0},{pr.Z:0}) stands in a street");
     Check(plan.Palisade.Count == 0 || plan.Gates.Count > 0, $"{landName}/{kind}: the palisade has a gate");
+    foreach (var l in plan.Lots)
+    {
+        P2 front = l.World(l.DoorAlong, -1.0);
+        var blocking = plan.Props.Where(p => (new P2(p.X, p.Z) - front).Length < 1.3).Select(p => p.Prefab).ToList();
+        Check(blocking.Count == 0, $"{landName}/{kind}: nothing in front of {l.Name}'s door ({string.Join(", ", blocking)})");
+    }
     if (plan.Palisade.Count > 2)
         foreach (var f in plan.Fields)
         {
