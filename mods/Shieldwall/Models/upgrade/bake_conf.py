@@ -9,7 +9,7 @@ ARGS = lambda kind: [kind]
 NAME = lambda kind: 'up_' + kind
 BUDGET = {'banner': 2500, 'totem': 2500, 'brazier': 1800, 'obelisk': 1200}
 PX = 256
-DECALS = ('cut', 'wrap', 'lash', 'ridge', 'rivet', 'nail', 'stud')
+DECALS = ('cut', 'wrap', 'ridge', 'rivet', 'nail', 'stud')
 
 # As UpgradeModel.Materials draws them; the rock is the Warstone's (Look.RockFrom's texture at Look.RockScale).
 COLS = {'dark': (0.07, 0.06, 0.055), 'iron': (0.2, 0.195, 0.19), 'gold': (0.72, 0.5, 0.25), 'bone': (0.72, 0.68, 0.58), 'hide': (0.36, 0.25, 0.16),
@@ -22,3 +22,4 @@ def look(mats, kind, plain, grained):
         elif m.name == 'rune': grained(m, 'rock1_MainTex_256.png', 0.35, (0.35, 0.06, 0.02), emit=(0.9, 0.198, 0.054))
         elif m.name == 'glow': plain(m, (1, 0.4, 0.1), (0.9, 0.27, 0.045))
         else: plain(m, COLS[m.name])
+TOL = {'cloth': 0.045}   # (the banner: its ragged hem may lose a little; bake.py's shape check)

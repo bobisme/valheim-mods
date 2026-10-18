@@ -144,7 +144,7 @@ def skull(O, SK, horns='curl', tilt=-12, yaw=0.0, horn_mat=HIDE):
             t = i / 24; d = (pts[i + 1] - pts[i - 1]).normalized(); u = d.cross(Vector((1, 0, 0))).normalized()
             if u.length < 0.1: u = d.cross(Vector((0, 0, 1))).normalized()
             w = d.cross(u).normalized(); r = r0 * rad(t) * 1.06
-            tube('horn', [pts[i] + (u * math.cos(a) + w * math.sin(a)) * r for a in [k * 2 * math.pi / 10 for k in range(10)]], 0.0045 * SK / 1.4 * (1 - 0.6 * t), horn_mat, cyclic=True, res=1)
+            tube('ridge', [pts[i] + (u * math.cos(a) + w * math.sin(a)) * r for a in [k * 2 * math.pi / 10 for k in range(10)]], 0.0045 * SK / 1.4 * (1 - 0.6 * t), horn_mat, cyclic=True, res=1)
 
 def shield(c, r, out, mat_a=WOOD, mat_b=CLOTH, tilt=0.0, seed_=1):
     """A captured round shield, battered: planks, half painted, an iron rim with a bite out of it, the boss, nails."""

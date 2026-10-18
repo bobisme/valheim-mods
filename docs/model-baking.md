@@ -76,8 +76,20 @@ python3 tools/bake/viewer.py ~/.cache/bake/viewer/staves.html ~/.cache/staves/vi
    as many passes as the budget needs (each roughly halves the part). That keeps a clean chunky tube, where a plain collapse decimate
    kinks thin tubes. A part made of separate pieces (a bucket's boards) goes through the collapse path instead, or it comes out gappy.
    Sheets thickened by a modifier are thinned before they're thickened, so their two faces don't cross. Other parts get a planar dissolve,
-   then a collapse to the budget's ratio, but never under 12 triangles each. Parts named with a `DECALS` prefix are left out of the
-   mesh (cracks, carved runes, inlays, wraps, lashings, scorch). Give such parts names like that in the model script.
+   then a collapse toward the budget's ratio. Parts named with a `DECALS` prefix are left out of the mesh (cracks, carved runes, inlays,
+   wraps, scorch). Give such parts names like that in the model script. **Only mark things that lie flat on a surface:** lashings
+   that stand off a post, or ridge rings modelled as tubes named like the horn, came out wrong. Rename the part in the source instead.
+
+   **The shape check (added after Bob caught three bad bakes).** Every lightened part is measured against its detailed original,
+   both ways, and must also keep every face pointing the way the original surface does. Collapse ratios rise, and tube or sheet passes
+   drop, until the part fits. If nothing fits, the part stays as it was. The allowance is 3% of the part's length, but never more than
+   a third of its thickness. Thickness comes from 2·volume/area for closed parts, because a diagonal board's bounding box hides how
+   thin it is. What this caught:
+   - the brazier's octagonal slab collapsed into a wedge;
+   - the totem's horns and Ullr's skis crumpled (a fold lies near the surface, so only the facing test catches it);
+   - Hel's shroud, too coarse, let the block underneath poke through it in holes.
+
+   The price is more triangles where a part really can't go lighter (Ullr 2,400 → 3,600).
 2. **One atlas.** The low parts are joined, auto-smoothed at 40° (hard where it turns sharply, soft where it rounds, as the game's
    own are) and unwrapped with Smart UV Project. UV islands thinner than 3 baked texels are widened (otherwise thin threads, like
    Frigg's loom, bake black), and then everything is packed.
@@ -87,7 +99,8 @@ python3 tools/bake/viewer.py ~/.cache/bake/viewer/staves.html ~/.cache/staves/vi
    extrusion of 0.06 and a ray of 0.2. Shorter rays left black holes where the low copy sits far inside the detail. Colour (the
    diffuse colour pass), a tangent normal map and emission are baked at twice `PX`.
 4. **Creases.** Ambient occlusion is baked from the assembled low copy alone, with the detailed parts hidden (otherwise they wrap
-   the low copy and darken everything). The colour is multiplied by `0.45 + 0.55·AO`.
+   the low copy and darken everything). Its reach is 0.15 m, and the colour is multiplied by only `0.75 + 0.25·AO`: where parts of
+   the low copy pass through each other, the AO is black in spots.
 5. **Halve** every map to `PX` (that's the smoothing) and save. The mesh goes out in the game's frame (x, z, y), which mirrors it:
    triangles are wound the other way and the tangent's w is `-bitangent_sign`.
 
@@ -129,17 +142,21 @@ Show Bob the viewer before shipping a new family: he judged the staves from it.
 
 ## Done
 
-All baked on 2026-10-17 and checked in the game with `render`. Triangles before → after:
+All baked on 2026-10-17. Re-baked the same day with the shape check, after Bob found crumpled and holed bakes (brazier slab, totem
+horns, Hel's shroud, Ullr's skis). The fixed tool keeps more triangles. Triangles before → after:
 
 | Mod | Models | Conf |
 |---|---|---|
-| Shieldwall 0.4.24 | war staves, 6,500–11,000 → 1,600–2,150 | `Models/stave/bake_conf.py` |
-| Shieldwall 0.4.25 | Warstone upgrades: banner 28,330 → 2,830, totem 14,062 → 3,700, brazier 5,528 → 1,705, obelisk 3,658 → 878 | `Models/upgrade/bake_conf.py` |
-| Hallwright 0.12.8 | stake, 1,126 → 574 (128 px) | `Models/stake/bake_conf.py` |
-| Demolisher 0.1.5 | stake, 2,022 → 562 (128 px) | `Models/stake/bake_conf.py` |
-| Camping 0.1.6 | bedroll 2,032 → 538, lean-to 17,564 → 2,200, tent 3,672 → 1,430 | `Models/bake_conf.py` |
-| Bathhouse 0.1.4 | stove 8,958 → 2,766, bench 1,232 → 448, bucket 2,750 → 798, plunge tub 2,022 → 1,117, locker 2,196 → 1,062 | `Models/bake_conf.py` |
-| Jarldom 0.1.199 | eight shrines (6,000–17,922 → 1,540–2,721), marker staff 11,222 → 1,594, watch post 4,788 → 1,108, ore claim 4,172 → 1,516, memorial 7,698 → 756 | `Models/altar/bake_conf.py`, `Models/marker/bake_conf.py` |
+| Shieldwall 0.4.26 | war staves, 6,470–10,998 → 2,358–3,826 | `Models/stave/bake_conf.py` |
+| Shieldwall 0.4.26 | Warstone upgrades: banner 28,330 → 5,956, totem 14,062 → 3,433, brazier 5,528 → 2,510, obelisk 3,654 → 862 | `Models/upgrade/bake_conf.py` (`TOL` cloth) |
+| Hallwright 0.12.9 | stake, 1,126 → 958 (128 px) | `Models/stake/bake_conf.py` |
+| Demolisher 0.1.6 | stake, 2,022 → 1,858 (128 px) | `Models/stake/bake_conf.py` |
+| Camping 0.1.7 | bedroll 2,032 → 884, lean-to 17,564 → 3,060, tent 3,672 → 2,307 | `Models/bake_conf.py` (`TOL` sheet) |
+| Bathhouse 0.1.5 | stove 8,958 → 4,414, bench 1,232 → 448, bucket 2,750 → 1,408, plunge tub 2,022 → 1,501, locker 2,196 → 1,364 | `Models/bake_conf.py` (`TOL` rock) |
+| Jarldom 0.1.200 | eight shrines (6,312–17,922 → 2,756–5,670), marker staff 11,222 → 3,164, watch post 4,784 → 1,426, ore claim 4,172 → 1,824, memorial 7,698 → 848 | `Models/altar/bake_conf.py` (`TOL` Freyja's flowers), `Models/marker/bake_conf.py` |
+
+Thin ridge rings on horns (the totem's aurochs horns, the brazier's) are decals and come out about a pixel wide at 256 px, bone on
+bone, so they barely show in the bake.
 
 **Left unbaked, on purpose**
 

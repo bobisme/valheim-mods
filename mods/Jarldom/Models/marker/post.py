@@ -36,10 +36,10 @@ def ring(z, r, n, jit=0.0, rot=0.0, sx=1.0):
 H = 1.27  # the top of the head
 # ---- the stake: an axe-hewn post of seven faces, a touch thicker at the foot, a waist cut under its head, a pointed head ----
 post = []
-for z, r in ((0.0, 0.068), (0.5, 0.064), (0.98, 0.058)):
+for z, r in ((0.0, 0.068), (0.5, 0.064), (1.01, 0.057)):   # (up into the head: it stopped 2 cm short, a gap under the head)
     post += ring(z, r, 7, jit=0.06, rot=0.2)
 hull('post', post, WOOD)
-head = ring(1.0, 0.05, 7, rot=0.2) + ring(1.03, 0.066, 7, jit=0.04, rot=0.2) + ring(1.12, 0.066, 7, jit=0.05, rot=0.2) + ring(1.14, 0.045, 7, rot=0.2)
+head = ring(0.99, 0.05, 7, rot=0.2) + ring(1.03, 0.066, 7, jit=0.04, rot=0.2) + ring(1.12, 0.066, 7, jit=0.05, rot=0.2) + ring(1.14, 0.045, 7, rot=0.2)
 hull('head', head, WOOD)
 # a carved finial: a narrow neck, a swelling knop and a short point
 hull('neck', ring(1.13, 0.036, 8) + ring(1.17, 0.032, 8), WOOD)

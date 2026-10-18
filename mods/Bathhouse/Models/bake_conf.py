@@ -40,3 +40,4 @@ def prepare(high):
                 else: u, v = (co.x, co.z) if abs(fn.y) >= max(abs(fn.x), abs(fn.z)) else ((co.y, co.z) if abs(fn.x) >= abs(fn.z) else (co.x, co.y))
                 uv[li].uv = (u, v)
         o['bake_uv'] = 1
+TOL = {'rock': 0.015}   # (the heaped sauna stones: rough already; bake.py's shape check)

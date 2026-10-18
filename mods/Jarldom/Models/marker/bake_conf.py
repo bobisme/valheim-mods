@@ -11,7 +11,7 @@ NAME = lambda kind: kind
 SHIP = HERE
 BUDGET = {'stake': 1200, 'post': 1200, 'claim': 1500, 'memorial': 1000}
 PX = 256
-DECALS = ('cut', 'stroke', 'rune', 'wrap', 'lashing', 'lash', 'rivet', 'nail')
+DECALS = ('cut', 'stroke', 'rune', 'wrap', 'grip', 'lashing', 'lash', 'rivet', 'nail')
 
 # As Pieces draws them: the hewn grain (StakeGrain 0.6), the rock4_forest rock (its own shader) at 0.35 darkened (memorial: 0.5),
 # the rest plain.

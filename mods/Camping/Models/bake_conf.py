@@ -22,3 +22,4 @@ def look(mats, kind, plain, grained):
         elif n == 'fur': grained(m, 'rug_fur_MainTex_128.png', 0.1, (0.9, 0.86, 0.82), offset=0.42)
         elif n == 'fur2': grained(m, 'rug_wolf_MainTex_128.png', 0.1, (0.7, 0.68, 0.66), offset=0.42)
         else: plain(m, {'wool': (0.55, 0.5, 0.43), 'leather': (0.2, 0.12, 0.07), 'rope': (0.55, 0.48, 0.35), 'red': (0.48, 0.09, 0.06), 'stone': (0.42, 0.42, 0.4)}[n])
+TOL = {'sheet': 0.045}   # (the lean-to's hide: its ragged hem may lose a little; bake.py's shape check)

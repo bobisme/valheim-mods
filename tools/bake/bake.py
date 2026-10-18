@@ -14,6 +14,7 @@ conf = {'__file__': CONF}
 exec(open(CONF).read(), conf)
 WORK, SHIP, NAME = conf['WORK'], conf['SHIP'], conf['NAME'](KIND)
 BUDGET, PX, DECALS = conf.get('BUDGET', 1500), conf.get('PX', 256), tuple(conf.get('DECALS', ('cut',)))
+TOL = conf.get('TOL', {})   # (name prefix: how far that part may stray, metres, overriding the shape check's own)
 if isinstance(BUDGET, dict): BUDGET = BUDGET[KIND]
 if isinstance(PX, dict): PX = PX[KIND]
 TEX = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tex') + '/'
@@ -97,18 +98,57 @@ def islands(mesh):
     bm_.free(); return k
 def grid(mesh):   # (a swept, lathed or sheet part: all quads, one piece)
     return sum(1 for p in mesh.polygons if len(p.vertices) == 4) / max(1, len(mesh.polygons)) > 0.8 and islands(mesh) == 1
+def shape_off(lo, me):
+    """How far the lightened part (lo, its modifiers evaluated) strays from the detailed mesh me, both ways (metres)."""
+    bpy.context.view_layer.update()
+    ev = lo.evaluated_get(bpy.context.evaluated_depsgraph_get()).data
+    a = BVHTree.FromPolygons([v.co[:] for v in me.vertices], [p.vertices[:] for p in me.polygons])
+    b = BVHTree.FromPolygons([v.co[:] for v in ev.vertices], [p.vertices[:] for p in ev.polygons])
+    off = max(max(((a.find_nearest(v.co)[3] or 0) for v in ev.vertices), default=0), max(((b.find_nearest(v.co)[3] or 0) for v in me.vertices), default=0))
+    # and not folded: a fold lies close to the surface but faces another way (Ullr's skis came out crumpled). By area: along a sheet's
+    # thin edges the nearest original face is ambiguous, so a few turned slivers don't count.
+    turned = total = 0.0
+    for p in ev.polygons:
+        total += p.area
+        hit = a.find_nearest(p.center)
+        if hit[1] is not None and hit[1].dot(p.normal) < 0.5: turned += p.area
+    if total > 0 and turned > 0.05 * total: return 1e9
+    return off
+def tolerance(o, me=None):
+    """How far a part may stray: 3% of its length, but never more than a third of its thickness (a thin ring or wire stays round).
+    Thickness from volume and area (2V/A), when it's closed: a diagonal board's bounding box says nothing of how thin it is."""
+    d = sorted(Vector(o.dimensions)); thick = d[0]
+    if me is not None:
+        bm = bmesh.new(); bm.from_mesh(me)
+        area = sum(f.calc_area() for f in bm.faces); vol = abs(bm.calc_volume()) if all(e.is_manifold for e in bm.edges) else 0
+        bm.free()
+        if area > 0 and vol > 0: thick = min(thick, 2 * vol / area)
+    return min(0.03 * d[2], max(0.008, 0.35 * thick))   # (but 8 mm may always go: tighter kept cloth and wire at full weight)
 for gi, o in enumerate(hosts):
     if o.modifiers and len(o.data.polygons) > 24 and grid(o.data):
         # a sheet made thick (or curved) by modifiers: thin the sheet itself first, so its two faces stay apart
-        src = o.copy(); src.data = o.data.copy(); bpy.context.scene.collection.objects.link(src)
-        d = src.modifiers.new('dec', 'DECIMATE'); d.decimate_type = 'UNSUBDIV'
-        nb = len(o.data.polygons); d.iterations = max(1, min(6, math.ceil(math.log2(nb / max(12, nb * ratio)) - 0.3)))
-        try: src.modifiers.move(len(src.modifiers) - 1, 0)
-        except Exception: pass
-        bpy.context.view_layer.update()
-        me = bpy.data.meshes.new_from_object(src.evaluated_get(bpy.context.evaluated_depsgraph_get())); me.transform(o.matrix_world)
-        bpy.data.objects.remove(src)
-        lo = bpy.data.objects.new(o.name + '_lo', me); bpy.context.scene.collection.objects.link(lo); parts.append(lo)
+        # (as few passes off as keep it where it was: a coarse drape let the block under Hel's shroud poke through it in holes)
+        ref = bpy.data.meshes.new_from_object(o.evaluated_get(deps)); ref.transform(o.matrix_world)
+        tol = min(0.03 * max(Vector(o.dimensions)), 0.015)   # (a cloth's own thickness says nothing of how far it may move: 1.5 cm at most)
+        tol = next((t for k, t in TOL.items() if o.name.startswith(k)), tol)
+        nb = len(o.data.polygons); k = max(1, min(6, math.ceil(math.log2(nb / max(12, nb * ratio)) - 0.3)))
+        lo = None
+        while k >= 1:
+            src = o.copy(); src.data = o.data.copy(); bpy.context.scene.collection.objects.link(src)
+            d = src.modifiers.new('dec', 'DECIMATE'); d.decimate_type = 'UNSUBDIV'; d.iterations = k
+            try: src.modifiers.move(len(src.modifiers) - 1, 0)
+            except Exception: pass
+            bpy.context.view_layer.update()
+            me = bpy.data.meshes.new_from_object(src.evaluated_get(bpy.context.evaluated_depsgraph_get())); me.transform(o.matrix_world)
+            bpy.data.objects.remove(src)
+            lo = bpy.data.objects.new(o.name + '_lo', me); bpy.context.scene.collection.objects.link(lo)
+            off_ = shape_off(lo, ref)
+            if os.environ.get('BAKE_TRACE'): print('TRACE sheet try', o.name, k, round(off_, 4), 'tol', round(tol, 4))
+            if off_ <= tol: break
+            bpy.data.objects.remove(lo); lo = None; k -= 1
+        if lo is None: lo = bpy.data.objects.new(o.name + '_lo', ref); bpy.context.scene.collection.objects.link(lo)
+        parts.append(lo)
+        if os.environ.get('BAKE_TRACE') and o.name.startswith(os.environ['BAKE_TRACE']): print('TRACE sheet', o.name, nb, 'passes', k, 'tol', round(tol, 4))
         continue
     me = bpy.data.meshes.new_from_object(o.evaluated_get(deps)); me.transform(o.matrix_world)
     quads = sum(1 for p in me.polygons if len(p.vertices) == 4) / max(1, len(me.polygons))
@@ -117,14 +157,32 @@ for gi, o in enumerate(hosts):
     if quads > 0.8 and n > 24 and islands(me) == 1:
         # a swept or lathed part (a grid of quads): every other ring and side gone, so it stays a clean tube
         d = lo.modifiers.new('dec', 'DECIMATE'); d.decimate_type = 'UNSUBDIV'; d.iterations = max(1, min(6, math.ceil(math.log2(n / max(24, n * ratio)) - 0.3)))   # (each pass about halves it)
+        tol = next((t for k, t in TOL.items() if o.name.startswith(k)), tolerance(o, me))
+        # (fewer passes while it strays: a horn's thin ridge rings went flat; none if even one strays (Blender won't set 0 passes))
+        k = d.iterations
+        while k >= 1:
+            d.iterations = k
+            if shape_off(lo, me) <= tol: break
+            k -= 1
+        if k < 1: lo.modifiers.remove(d)
     else:
         bm = bmesh.new(); bm.from_mesh(me)
         bmesh.ops.dissolve_limit(bm, angle_limit=math.radians(4), verts=bm.verts, edges=bm.edges)
         bmesh.ops.triangulate(bm, faces=bm.faces); bm.to_mesh(me); bm.free()
         n = len(me.polygons)
-        if n > 16:
-            d = lo.modifiers.new('dec', 'DECIMATE'); d.ratio = max(ratio, 12 / n); d.use_collapse_triangulate = True
+        if n > 24:
+            # collapsed only as far as it keeps its shape: every corner of each within a few millimetres of the other (a blind ratio bent
+            # the brazier's slab into a wedge and crumpled the totem's horns)
+            d = lo.modifiers.new('dec', 'DECIMATE'); d.use_collapse_triangulate = True
+            tol = next((t for k, t in TOL.items() if o.name.startswith(k)), tolerance(o, me))
+            r = max(ratio, 12 / n)
+            while r < 1:
+                d.ratio = r
+                if shape_off(lo, me) <= tol: break
+                r = min(1.0, r * 1.6)
+            if r >= 1: lo.modifiers.remove(d)
     parts.append(lo)
+    if os.environ.get('BAKE_TRACE') and o.name.startswith(os.environ['BAKE_TRACE']): print('TRACE', o.name, n, 'quads %.2f' % quads, [(m.type, getattr(m, 'decimate_type', ''), getattr(m, 'iterations', ''), round(getattr(m, 'ratio', 0), 3)) for m in lo.modifiers], 'off', shape_off(lo, me))
     if n > 400: print('BAKE big part', o.name, n, 'quads %.2f' % quads, [m.type for m in lo.modifiers])
 bpy.context.view_layer.update(); deps = bpy.context.evaluated_depsgraph_get()
 from collections import Counter
@@ -219,6 +277,8 @@ for kind, typ, cs, extra in (('albedo', 'DIFFUSE', 'sRGB', {'pass_filter': {'COL
 explode(-1)
 bk.use_selected_to_active = False
 for o in high: o.select_set(False); o.hide_render = True   # (the low copy's own creases only)
+if sc.world is None: sc.world = bpy.data.worlds.new('bake')
+sc.world.light_settings.distance = 0.15   # (creases only: Blender's default 10 m let whole parts shade each other in blotches)
 target('ao', 'Non-Color'); bpy.ops.object.bake(type='AO')
 for o in high: o.hide_render = False
 
@@ -230,7 +290,7 @@ def save(a, name, cs):
     im.pixels[:] = a.ravel(); im.filepath_raw = SHIP + '/' + name + '.png'; im.file_format = 'PNG'; im.save()
     return SHIP + '/' + name + '.png'
 alb = arr(imgs['albedo']); ao = arr(imgs['ao'])
-alb[..., :3] *= (0.45 + 0.55 * ao[..., :1])
+alb[..., :3] *= (0.75 + 0.25 * ao[..., :1])   # (lightly: where parts of the low copy pass through each other its AO is black in spots)
 maps = {'albedo': save(half(alb), NAME + '_albedo', 'sRGB')}
 nrm = half(arr(imgs['normal'])); nrm[..., 3] = 1; maps['normal'] = save(nrm, NAME + '_normal', 'Non-Color')
 glow = half(arr(imgs['glow']))

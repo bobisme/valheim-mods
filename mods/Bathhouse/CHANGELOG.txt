@@ -1,9 +1,2 @@
-0.1.4: The sauna stove, bench, bucket, plunge tub and bath locker are remade in the game's own style: low-poly models (a third to a half of the triangles) carrying their detail in their own small colour, normal and glow textures, baked from the detailed models. They look as before, except the water in the bucket is no longer glossy.
+0.1.5: The sauna stove, bench, bucket, plunge tub and bath locker are re-baked with a stricter check that the low-poly models keep the detailed ones' shape.
 
-0.1.3: The whole plunge tub answers E (its water, its staves, its step), from any side and a little further off, not just a small spot at the water's middle.
-
-0.1.2: The sauna stove is remade: big fieldstones laid in courses, two jamb stones and a stone lintel over the firebox (no black slab), soot only round the mouth, and a mounded heap of rounded stones on top, some fire-blackened (no hole, nothing spilling over). Its stone is the hammer's stone pile's, warm grey instead of blue. A lighter model too.
-
-0.1.1: The bath locker isn't storage to mods that fetch from chests (Jarldom's haulers, crafting from chests): what's in it stays a bather's own. With Jarldom 0.1.193 its villagers bathe on washing day and keep you company in the sauna. The shipped piece names are kept on a list, checked at load.
-
-0.1.0: First version: a sauna stove, a sauna bench, a water bucket (steam on the stones), a plunge tub and a bath locker (E strips you down into it, E again dresses you), for a sauna hut you build yourself; the game's hot tub counts too. Sit in the heat a minute stripped down for Bathed; out and into cold water for Invigorated; others bathing with you make both last longer. Models made from scratch.

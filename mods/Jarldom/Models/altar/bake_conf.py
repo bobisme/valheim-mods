@@ -9,7 +9,7 @@ SHIP = HERE
 ARGS = lambda god: [god]
 NAME = lambda god: 'altar_' + god
 BUDGET, PX = 2500, 256
-DECALS = ('cut', 'rivet', 'lash', 'wire', 'bind', 'scorch', 'coin', 'ear')   # (small things lying on another part: painted on it)
+DECALS = ('cut', 'rivet', 'wire', 'bind', 'scorch', 'coin', 'ear')   # (not 'lash': Ullr's lashing stands off the skis)   # (small things lying on another part: painted on it)
 
 # As Pieces.AltarModel draws them: the stone and carving the rock's texture in the pieces' shader at 0.4, the wood the hewn grain
 # (Pieces.StakeGrain), the rest plain; cloth, bloom and paint each god's own (Pieces.AltarColours).
@@ -31,3 +31,4 @@ def look(mats, god, plain, grained):
         elif m.name == 'bloom': plain(m, bloom)
         elif m.name == 'paint': plain(m, paint)
         else: plain(m, COLS[m.name])
+TOL = {'bloom': 0.005, 'leaf': 0.005, 'bead': 0.004}   # (Freyja's flowers: small things, a few mm may go; bake.py's shape check)

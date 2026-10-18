@@ -82,17 +82,55 @@ def odin():
         cyl('bind', top - d * (0.03 + 0.03 * k), top - d * (0.05 + 0.03 * k), 0.024, GOLD, n=8, smooth=True)
     # a drinking horn on a little stand, rim of gold; coins on the table
     T = TABLE + 0.01
-    hull('stand', [Vector((x, y, T + z)) for x in (-0.08, 0.08) for y in (0.1, 0.16) for z in (0, 0.07)], WOOD, 1)
-    horn = [Vector((-0.17 + 0.34 * t, 0.13, T + 0.07 + 0.12 * (1 - (2 * t - 1) ** 2) * 0.6 + (0.1 if t > 0.85 else 0) * (t - 0.85) / 0.15)) for t in [i / 14 for i in range(15)]]
-    horn = [Vector((-0.2 + 0.36 * t, 0.13, T + 0.075 + 0.06 * math.sin(math.pi * t * 0.9) + 0.14 * t ** 3)) for t in [i / 14 for i in range(15)]]
-    tube('horn', horn, 0.05, BONE, taper=lambda t: 0.12 + 0.88 * t ** 1.3)
-    tube('rim', [horn[-1] + Vector((0.006, 0.05 * math.cos(a), 0.05 * math.sin(a))) for a in [i * 2 * math.pi / 14 for i in range(14)]], 0.006, GOLD, cyclic=True)
+    drinking_horn(T)
     for k in range(7):
         a = rng.uniform(0, 2 * math.pi)
         at = Vector((0.22 + rng.uniform(-0.12, 0.12), 0.05 + rng.uniform(-0.12, 0.12), T + 0.003 + 0.004 * (k % 3)))
         cyl('coin', at, at + Vector((0.0, 0.0, 0.004)), 0.018, GOLD, n=8)
     export('altar_odin')
     return dict(height=2.0)
+
+
+def drinking_horn(T, Y=0.13):
+    """Odin's drinking horn in its cradle on the table (top at T): a curved horn, tip curling up, its mouth open and lipped (mead dark
+    within), banded in gold at the mouth and capped in gold at the tip; held in a plank with two pairs of pegs."""
+    P0, P1, P2 = Vector((-0.21, Y, T + 0.1)), Vector((0.1, Y, T - 0.01)), Vector((0.14, Y, T + 0.23))
+    N = 16
+    path = [P0 * (1 - t) ** 2 + P1 * 2 * t * (1 - t) + P2 * t * t for t in [i / N for i in range(N + 1)]]
+    rad = lambda t: 0.005 + 0.04 * t ** 1.4
+    frames = []
+    for i, p in enumerate(path):
+        d = (path[min(N, i + 1)] - path[max(0, i - 1)]).normalized()
+        side = d.cross(Vector((0, 0, 1))).normalized(); frames.append((d, side, side.cross(d).normalized()))
+    bm = bmesh.new(); K = 14; wall = 0.005
+    def rim_ring(i, r, back=0.0):
+        d, s, u = frames[i]; c = path[i] - d * back
+        return [bm.verts.new(c + (s * math.cos(a) + u * math.sin(a)) * r) for a in [k * 2 * math.pi / K for k in range(K)]]
+    rings_ = [rim_ring(i, rad(i / N)) for i in range(N + 1)]
+    # (the lip turns in and the inside follows the horn down two steps, so the mouth is open)
+    rings_ += [rim_ring(i, rad(i / N) - wall) for i in (N, N - 1, N - 2)]
+    for r0, r1 in zip(rings_, rings_[1:]):
+        for k in range(K): bm.faces.new((r0[k], r0[(k + 1) % K], r1[(k + 1) % K], r1[k]))
+    bm.faces.new(list(reversed(rings_[0]))); bm.faces.new(rings_[-1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    link('horn', bm, BONE, True)
+    d, s, u = frames[N]; mouth = path[N]
+    dm, sm, um = frames[N - 1]
+    cyl('mead', path[N - 1] - dm * 0.001, path[N - 1] + dm * 0.001, rad((N - 1) / N) - wall - 0.001, DARK, n=K)
+    for back, w in ((0.004, 0.005), (0.03, 0.003)):
+        r = rad(1 - back / 0.36) + w * 0.6
+        tube('rim', [mouth - d * back + (s * math.cos(a) + u * math.sin(a)) * r for a in [k * 2 * math.pi / K for k in range(K)]], w, GOLD, cyclic=True)
+    d0 = frames[0][0]
+    cyl('tipcap', path[1] + d0 * 0.01, path[0] - d0 * 0.012, rad(1 / N) + 0.0015, GOLD, n=8, r2=0.002)
+    # the cradle: a plank, and at two places along the horn a pair of pegs either side of it, up to its middle
+    hull('stand', [Vector((x, y, T + z)) for x in (-0.14, 0.13) for y in (Y - 0.05, Y + 0.05) for z in (0, 0.022)], WOOD, 1)
+    for t in (0.3, 0.7):
+        i = round(t * N); p = path[i]; r = rad(i / N)
+        for sy in (-1, 1):
+            foot = Vector((p.x, Y + sy * (r + 0.008), T + 0.02))
+            cyl('peg', foot, Vector((foot.x, foot.y, p.z + 0.01)), 0.008, WOOD, n=6)
+        z0 = p.z - r
+        if z0 > T + 0.025: cyl('peg', Vector((p.x, Y, T + 0.02)), Vector((p.x, Y, z0 + 0.002)), 0.012, WOOD, n=6)
 
 
 def beam(name, a, b, w, h, mat, up=Vector((0, 0, 1))):
@@ -516,10 +554,19 @@ def ullr():
     tube('lash', [X + Vector((0.07 * math.cos(t) * 0.3, 0.035 * math.sin(t), 0.07 * math.cos(t))) for t in [i * 2 * math.pi / 16 for i in range(16)]], 0.008, ROPE, cyclic=True)
     # the stag's skull and antlers at the crossing
     S = X + Vector((0, 0.07, 0.2))
-    hull('skull', [S + Vector((x, y, z)) for x in (-0.05, 0.05) for y, z in ((0, 0.06), (0.02, -0.04), (0.04, -0.2))] + [S + Vector((x, 0.04, -0.21)) for x in (-0.025, 0.025)], BONE, 2)
+    # (hung nose-down on the skis: a rounded braincase, the long snout tapering down and out, the nasal bones along its front, deep
+    # sockets where the snout meets the brow, and the bony bases the antlers grow from)
+    D = Vector((0, 0.22, -1)).normalized(); side = Vector((1, 0, 0)); fwd = side.cross(D).normalized()
+    ball('skull', S + Vector((0, 0.0, 0.025)), 0.062, BONE, squash=(1.0, 0.8, 0.85), n=12)
+    snout = [(0.0, 0.05, 0.045), (0.07, 0.047, 0.042), (0.14, 0.036, 0.034), (0.2, 0.027, 0.026), (0.245, 0.02, 0.018)]
+    for (t0, w0, d0), (t1, w1, d1) in zip(snout, snout[1:]):
+        hull('skull', [S + Vector((0, 0.005, -0.01)) + D * t + side * (w * math.cos(a)) + fwd * (d * math.sin(a) + 0.006)
+                       for t, w, d in ((t0, w0, d0), (t1, w1, d1)) for a in [k * 2 * math.pi / 8 for k in range(8)]], BONE, 2)
     for sx in (-1, 1):
-        ball('eye', S + Vector((sx * 0.045, 0.02, -0.02)), 0.014, DARK, squash=(0.6, 1, 1))
+        ball('eye', S + D * 0.03 + side * (sx * 0.038) + fwd * 0.03, 0.019, DARK, squash=(0.7, 0.6, 1.0), n=8)   # (sunk where the snout meets the brow)
+        hull('skull', [S + D * t + side * (sx * x) + fwd * d for t, x, d in ((-0.01, 0.05, 0.02), (-0.01, 0.026, 0.045), (0.012, 0.056, 0.026), (0.008, 0.03, 0.05), (-0.03, 0.04, 0.03))], BONE, 1)   # (the brow ridge over it)
         base = S + Vector((sx * 0.04, 0, 0.06))
+        cyl('skull', S + Vector((sx * 0.03, 0, 0.045)), base + Vector((sx * 0.006, 0, 0.012)), 0.02, BONE, n=8, r2=0.024)   # (the pedicle)
         beam_ = [base + Vector((sx * (0.32 * t + 0.08 * math.sin(math.pi * t)), 0.12 * math.sin(math.pi * t * 0.8), 0.62 * t ** 0.85)) for t in [i / 14 for i in range(15)]]
         tube('antler', beam_, 0.026, BONE, taper=lambda t: 1 - 0.7 * t)
         for i, l in ((3, 0.16), (6, 0.18), (9, 0.15), (12, 0.12), (14, 0.1)):
