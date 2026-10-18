@@ -119,6 +119,12 @@ namespace Homespun
             try { if (Icon.Make(go) is Sprite icon) { piece.m_icon = icon; Looks.Owned.Add(icon); Looks.Owned.Add(icon.texture); } }
             catch (Exception e) { Plugin.Warn($"No icon for the {d.Title}: {e.Message}"); }
             if (go.GetComponent<CraftingStation>() is CraftingStation station) station.m_icon = piece.m_icon; // (the crafting window's picture of where you are)
+            Icon.Later(() =>
+            {
+                if (go == null || !(Icon.Make(go) is Sprite again)) return;
+                piece.m_icon = again; Looks.Owned.Add(again); Looks.Owned.Add(again.texture);
+                if (go.GetComponent<CraftingStation>() is CraftingStation st) st.m_icon = again;
+            });
             return go;
         }
 

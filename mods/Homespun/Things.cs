@@ -128,6 +128,7 @@ namespace Homespun
             drop.m_itemData.m_stack = 1; drop.m_itemData.m_quality = 1; drop.m_itemData.m_durability = s.m_maxDurability;
             Built[d.Prefab] = go;
             if (Icon.MakeItem(go, setIcon: true) is Sprite icon) { Looks.Owned.Add(icon); Looks.Owned.Add(icon.texture); }
+            Icon.Later(() => { if (go != null && Icon.MakeItem(go, setIcon: true) is Sprite again) { Looks.Owned.Add(again); Looks.Owned.Add(again.texture); } });
             return go;
         }
 
@@ -160,6 +161,7 @@ namespace Homespun
             drop.m_itemData.m_stack = 1; drop.m_itemData.m_quality = 1; drop.m_itemData.m_durability = s.m_maxDurability; drop.m_itemData.m_variant = 0;
             Built[g.Prefab] = go;
             if (Icon.MakeItem(go, setIcon: true) is Sprite icon) { Looks.Owned.Add(icon); Looks.Owned.Add(icon.texture); }
+            Icon.Later(() => { if (go != null && Icon.MakeItem(go, setIcon: true) is Sprite again) { Looks.Owned.Add(again); Looks.Owned.Add(again.texture); } });
             return go;
         }
 
