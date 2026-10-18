@@ -163,7 +163,7 @@ namespace Gary
                     Character c=go.GetComponent<Character>();State state=Get(c);Activities.Cancel(state);state.Entrance=null;state.NextBoat=0;state.BoatMissingUntil=0;
                 }
             }
-            gary.Set(Waiting,false);
+            gary.Set(Waiting,false);Away.Recalled(gary);
             GameObject loaded=ZNetScene.instance.FindInstance(gary.m_uid);
             if(loaded!=null&&loaded.GetComponent<ZNetView>().IsOwner())Personality.Mood(Get(loaded.GetComponent<Character>()),Personality.Greeting);
             return "Hello, friend! I'll follow you.";

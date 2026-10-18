@@ -14,12 +14,12 @@ namespace Gary
     {
         public const string Guid="com.bobisme.gary";
         public const string Name="Gary";
-        public const string Version="0.5.7";
+        public const string Version="0.5.8";
         internal static Plugin Instance;
         internal ConfigEntry<float> Health,GiftSeconds,GuideRange,ReforestRadius,ReforestMinutes;
         internal ConfigEntry<int> ReforestMax;
         internal ConfigEntry<bool> Reforestation,SeedPouch,Deadfall,ReplantCrops,HarvestHelp,StompFires,TreeTalk,ShowSpots,TimberWarnings,OmenSense,TrophyHall;
-        internal ConfigEntry<bool> Gifts,Guiding,Reactions,Warnings,Campfires,Building,ShowMapMarker,Boats;
+        internal ConfigEntry<bool> Gifts,Guiding,Reactions,Warnings,Campfires,Building,ShowMapMarker,Boats,LeaveWithOwner;
         internal ConfigEntry<bool> FetchGame,CopyEmotes,Nests,RainAntics,SailingAntics,CompanionFriends,ShowAndTell,FlowerCrown,ForestPouch,EarFeather;
         private ConfigEntry<KeyboardShortcut> _fetch;
         private ConfigEntry<KeyboardShortcut> _call,_wait;
@@ -49,6 +49,7 @@ namespace Gary
             }
             Health=Config.Bind("Companion","Health",150f,new ConfigDescription("Gary's injury buffer. He retreats at 20% and returns at 90%; damage never kills him.",new AcceptableValueRange<float>(40,500)));
             Boats=Config.Bind("Companion","RideBoats",true,"Gary boards a nearby boat with you, rides on a clear deck spot, and follows onto dry ground when you get off. He waits aboard if you fall into the water and rests aboard if injured.");
+            LeaveWithOwner=Config.Bind("Companion","LeaveWithOwner",true,"When a player logs out, their Gary leaves the world too and comes back to the same spot when they return. The server's setting decides.");
             ShowMapMarker=Config.Bind("Companion","MapMarker",true,"Show your Gary as a purple moving pin on the minimap and full map. Unloaded known positions are labeled last seen.");
             Gifts=Config.Bind("Forest","FoodGifts",true,"Gather real wild berries/mushrooms and loose feathers into a six-item stash and occasionally toss one near your feet, outside combat.");
             GiftSeconds=Config.Bind("Forest","FoodInterval",240f,new ConfigDescription("Average seconds between forest gifts (randomized 0.75–1.25 times this).",new AcceptableValueRange<float>(60,1800)));
@@ -96,7 +97,7 @@ namespace Gary
             }
             if(_pendingUntil>0 && Time.unscaledTime>_pendingUntil)
             {_pendingUntil=0;Tell("No reply yet. Gary must be installed on the host and participating players.");}
-            DungeonLoot.Tick();MapMarker.Tick();Tools.Tick();
+            DungeonLoot.Tick();MapMarker.Tick();Tools.Tick();Away.Tick();
             Player p=Player.m_localPlayer;
             if(p==null||p.IsDead()||p.IsTeleporting()||Busy()||_rpc==null)return;
             if(_fetch.Value.IsDown()){Fetch.Throw(p);return;}
@@ -156,6 +157,6 @@ namespace Gary
         internal static void Tell(string message) => Player.m_localPlayer?.Message(MessageHud.MessageType.TopLeft,"Gary: "+message);
         internal void Error(Exception error) => Logger.LogError(error);
         private void OnDestroy()
-        {Tools.Stop();Fetch.Clear();GaryVisuals.Clear();Unregister();_harmony?.UnpatchSelf();MapMarker.Clear();BoatRide.Clear();PlayerCollision.Clear();DungeonLoot.Clear();Companion.Clear();if(Instance==this)Instance=null;}
+        {Tools.Stop();Fetch.Clear();GaryVisuals.Clear();Unregister();_harmony?.UnpatchSelf();MapMarker.Clear();BoatRide.Clear();PlayerCollision.Clear();DungeonLoot.Clear();Away.Clear();Companion.Clear();if(Instance==this)Instance=null;}
     }
 }

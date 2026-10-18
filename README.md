@@ -843,6 +843,8 @@ running when more than 5 metres behind you. Players and Quad’s AICompanion cha
 - **F3:** summon your Gary, or recall the same Gary beside you.
 - **Shift+F3:** tell him to stay where he is. F3 resumes following.
 
+When his player logs out, Gary leaves the world too, and he comes back to the same spot when they return (Companion/LeaveWithOwner in F7; the server's setting decides).
+
 Gary follows you and fights a hostile creature **after it actually hurts you or him**. He also defends himself while waiting,
 then resumes waiting when the threat ends. He does not start fights with nearby creatures or players. At **20% health**, he stops
 fighting and tries to run **40 metres away** to recover; he returns at **90%**. Damage has a positive health floor and Gary cannot die. Healing continues slowly while escaping if the route is blocked. A persisted recovery

@@ -1,3 +1,5 @@
+0.5.8: Gary leaves the world when his player logs out, instead of standing around on the server until they return. The server parks him out of reach (his stash, nest and memories stay with him), and he comes back to the exact spot he left from, about two seconds after his player is back. He waits 10 seconds first, so a short disconnect doesn't send him away. Turn it off with Companion/LeaveWithOwner in F7 (the server's setting decides).
+
 0.5.7: Gary knows again which dungeon chests still hold loot. Since today's Valheim update the game saves chests in a new version (110, the same layout), which Gary didn't recognise, so every chest saved after the update counted as unknown and never as emptied.
 
 0.5.6: Gary no longer yelps over and over while he runs off hurt. Near the edge of a safe resting spot he kept flipping between resting and fleeing every step, and each flip back to fleeing played his alarm sound; now once he settles he stays settled until you or a foe come clearly closer.
