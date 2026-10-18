@@ -139,16 +139,34 @@ namespace Byre
         }
         // A wild one runs from a player near (half as near for one crouching), after the game's own AI has had its say: the movement set
         // last is the one the body follows. The game's own flee covers being hurt.
+        // Seeing someone far off (a villager, a player, a tame wolf) doesn't keep a wild one alerted, as it would a boar: alerted, it never
+        // tames (Tameable.TamingUpdate), so with a colony about it never would. Wary only of a player near or of being hurt.
         private static readonly Func<BaseAI, float, Vector3, bool> Flee = AccessTools.MethodDelegate<Func<BaseAI, float, Vector3, bool>>(AccessTools.Method(typeof(BaseAI), "Flee"));
+        private static readonly Action<BaseAI, bool> SetAlerted = AccessTools.MethodDelegate<Action<BaseAI, bool>>(AccessTools.Method(typeof(BaseAI), "SetAlerted"));
+        private static readonly AccessTools.FieldRef<MonsterAI, Character> Target = AccessTools.FieldRefAccess<MonsterAI, Character>("m_targetCreature");
+        private static readonly AccessTools.FieldRef<BaseAI, float> SinceHurt = AccessTools.FieldRefAccess<BaseAI, float>("m_timeSinceHurt");
         [HarmonyPatch(typeof(MonsterAI), nameof(MonsterAI.UpdateAI))]
         private static class Shy
         {
             private static void Postfix(MonsterAI __instance, float dt, bool __result)
             {
                 if (!__result || !ByAI.TryGetValue(__instance, out Livestock l) || l.Kind == null || l.Tamed) return;
-                Player p = Player.GetClosestPlayer(l.transform.position, l.Kind.FleeRange);
-                if (p == null || !Husbandry.Flees(l.Kind, false, Vector3.Distance(p.transform.position, l.transform.position), p.IsCrouching())) return;
-                Flee(__instance, dt, p.transform.position);
+                Player p = Player.GetClosestPlayer(l.transform.position, l.Kind.FleeRange * 2);
+                bool flees = p != null && Husbandry.Flees(l.Kind, false, Vector3.Distance(p.transform.position, l.transform.position), p.IsCrouching());
+                if (flees) { Flee(__instance, dt, p.transform.position); return; }
+                if (p == null && __instance.IsAlerted() && SinceHurt(__instance) > __instance.m_fleeTimeSinceHurt) { Target(__instance) = null; SetAlerted(__instance, false); }
+            }
+        }
+        // (and isn't alerted by them in the first place: calmed each frame and alerted again, its alert sound would play over and over)
+        [HarmonyPatch(typeof(MonsterAI), "SetAlerted")]
+        private static class Calm
+        {
+            private static bool Prefix(MonsterAI __instance, bool alert)
+            {
+                if (!alert || !ByAI.TryGetValue(__instance, out Livestock l) || l.Kind == null || l.Tamed) return true;
+                if (SinceHurt(__instance) <= __instance.m_fleeTimeSinceHurt || Player.GetClosestPlayer(l.transform.position, l.Kind.FleeRange * 2) != null) return true;
+                Target(__instance) = null;
+                return false;
             }
         }
     }

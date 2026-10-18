@@ -13,7 +13,7 @@ namespace Byre
     internal static class Tools
     {
         private const string ClaudeToolsGuid = "com.quad.claudetools";
-        private const string Help = "byre herds [r] | spawn <sheep|goat|lamb|kid> [tame] [n] | ready [r] | age <hours> [r] | feed [r] | use | troughs [r] | clear [r] | grip <ByreShears|ByreMilkPail> ex ey ez: check Byre. herds lists the animals within r m (40) with their kind, tameness, hunger and wool or milk; spawn puts n (1) tagged test animals 3 m ahead (tame: already tamed); ready makes the wool and milk of tame ones within r (10) ready now; age moves their clocks (last shorn or milked, and a lamb's or kid's birth) back that many game hours; feed fills them as a meal would; use is E with the tool on the nearest tame one in 5 m; troughs lists the troughs within r (30) and what's in them; clear removes the tagged test animals within r (30), nothing else; grip turns how the hand holds the shears or the pail (the equipoffset's euler angles, the grip point kept in the fist) for the next equip and the one in hand now: put the numbers found in Items.cs's Hand.";
+        private const string Help = "byre herds [r] | spawn <sheep|goat|lamb|kid> [tame] [n] | ready [r] | age <hours> [r] | feed [r] | bait [item] [n] | use | troughs [r] | troughs fill <item> [n] | clear [r] | grip <ByreShears|ByreMilkPail> ex ey ez: check Byre. herds lists the animals within r m (40) with their kind, tameness, hunger and wool or milk; spawn puts n (1) tagged test animals 3 m ahead (tame: already tamed); ready makes the wool and milk of tame ones within r (10) ready now; age moves their clocks (last shorn or milked, and a lamb's or kid's birth) back that many game hours; feed fills them as a meal would; bait drops n (4) of an item (Raspberry) at the feet of the nearest wild one within 80 m; use is E with the tool on the nearest tame one in 5 m; troughs lists the troughs within r (30) and what's in them, troughs fill puts n (10) of an item in the nearest one; clear removes the tagged test animals within r (30), nothing else; grip turns how the hand holds the shears or the pail (the equipoffset's euler angles, the grip point kept in the fist) for the next equip and the one in hand now: put the numbers found in Items.cs's Hand.";
         private static BaseUnityPlugin _tools;
         private static float _nextCheck;
 
@@ -47,6 +47,7 @@ namespace Byre
             ["tame"] = l.Tamed, ["hungry"] = !l.Fed, ["alerted"] = l.AI != null && l.AI.IsAlerted(), ["ready"] = l.Ready(), ["waitHours"] = Math.Round(l.Remaining() / (Livestock.DayLength / 24), 1),
             ["fleece"] = l.GetComponentsInChildren<SkinnedMeshRenderer>(true).FirstOrDefault(r => r.name == Animals.FleeceName)?.enabled, ["test"] = l.Test, ["owner"] = l.View != null && l.View.IsOwner(),
             ["level"] = l.Body?.GetLevel(), ["health"] = l.Body != null ? Math.Round(l.Body.GetHealth(), 1) : 0,
+            ["tamingLeft"] = !l.Tamed && l.Tame != null && l.View != null && l.View.IsValid() ? Math.Round(l.View.GetZDO().GetFloat(ZDOVars.s_tameTimeLeft, l.Tame.m_tamingTime)) : (double?)null,
         };
 
         private static IEnumerator Run(string[] a, Action<JObject> output, Action<string> error)
@@ -110,6 +111,16 @@ namespace Byre
                     yield return new WaitForSeconds(2.1f); // (the fleece looks again every 2 s)
                     output(new JObject { ["verb"] = verb, ["animals"] = done }); break;
                 }
+                case "bait":
+                {
+                    // (test: food at the feet of the nearest wild one within 80 m, without walking up and scaring it off)
+                    Livestock l = Near(here, 80).FirstOrDefault(x => !x.Tamed);
+                    GameObject food = ZNetScene.instance.GetPrefab(a.Length > 2 ? a[2] : "Raspberry");
+                    if (l == null || food == null || food.GetComponent<ItemDrop>() == null) { error("bait [item prefab] [n]: no wild one within 80 m, or no such item"); yield break; }
+                    int n = (int)F(a, 3, 4);
+                    for (int i = 0; i < n; i++) UnityEngine.Object.Instantiate(food, l.transform.position + l.transform.forward * 1.2f + Vector3.up * 0.5f, Quaternion.identity);
+                    output(new JObject { ["baited"] = Facts(l, here), ["item"] = food.name, ["n"] = n }); break;
+                }
                 case "use":
                 {
                     Livestock l = Near(here, 5).FirstOrDefault(x => x.Tamed && !x.Young);
@@ -123,6 +134,17 @@ namespace Byre
                 }
                 case "troughs":
                 {
+                    if (a.Length > 3 && a[2] == "fill")
+                    {
+                        Trough t = Live<Trough>.All.Where(x => x != null && x.Box != null && Vector3.Distance(x.transform.position, here) <= 30).OrderBy(x => Vector3.Distance(x.transform.position, here)).FirstOrDefault();
+                        GameObject food = ZNetScene.instance.GetPrefab(a[3]);
+                        if (t == null || food == null || food.GetComponent<ItemDrop>() == null) { error("troughs fill <item prefab> [n]: no trough within 30 m, or no such item"); yield break; }
+                        ContainerAccess.TakeOver(t.Box);
+                        int want = (int)F(a, 4, 10), put = 0;
+                        while (put < want && t.Box.GetInventory().AddItem(food, 1)) put++;
+                        output(new JObject { ["at"] = V(t.transform.position), ["put"] = put, ["holds"] = new JArray(t.Box.GetInventory().GetAllItems().Select(i => $"{i.m_dropPrefab?.name ?? i.m_shared.m_name} x{i.m_stack}")) });
+                        break;
+                    }
                     float r = F(a, 2, 30);
                     output(new JObject { ["troughs"] = new JArray(Live<Trough>.All.Where(t => Vector3.Distance(t.transform.position, here) <= r).Select(t => new JObject
                     {
