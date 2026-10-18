@@ -158,6 +158,23 @@ namespace Jarldom
             try { add(CompanyCount); } catch { }
         }
 
+        // ---- Homespun: cloth from field to back (Villager/Weaving.cs): the weaver tends its retting pools, flax brake and spinning wheel,
+        // weaves at its loom and sews at its table, and the colony wears its garments ----
+        private static readonly ApiRef Homespun = new ApiRef("Homespun.Api", "cx.bob.homespun");
+        public static bool HomespunOn => Homespun.Present && HomespunStations.Length > 0;
+        private static string[] _hsStations = new string[0], _hsGarments = new string[0]; private static float _hsNext;
+        private static void HomespunNames()
+        {
+            if (Time.time < _hsNext) return;
+            _hsNext = Time.time + 10f;
+            var st = Homespun.Bind<Func<string[]>>("get_Stations", 1); var ga = Homespun.Bind<Func<string[]>>("get_Garments", 1);
+            try { _hsStations = st?.Invoke() ?? new string[0]; _hsGarments = ga?.Invoke() ?? new string[0]; } catch { _hsStations = _hsGarments = new string[0]; }
+        }
+        public static string[] HomespunStations { get { HomespunNames(); return _hsStations; } }
+        public static string[] HomespunGarments { get { HomespunNames(); return _hsGarments; } }
+        // What one of an item put in at a Homespun station (or the spinning wheel) comes to, or null.
+        public static (string to, int n)? HomespunGives(string station, string from) { var f = Homespun.Bind<Func<string, string, (string, int)?>>("Gives", 1); try { return f?.Invoke(station, from); } catch { return null; } }
+
         // ---- Wayfinder: its Beacon Fire is the colony's beacon ----
         private static readonly ApiRef Wayfinder = new ApiRef("Wayfinder.Api", "com.bobisme.wayfinder");
         public static Vector3? WayfinderBeacon(Vector3 at, float radius) { var f = Wayfinder.Bind<Func<Vector3, float, Vector3?>>("NearestBeacon", 1); try { return f?.Invoke(at, radius); } catch { return null; } }

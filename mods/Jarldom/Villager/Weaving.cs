@@ -35,6 +35,8 @@ namespace Jarldom
         // The colony's own recipe for a thing (at the workbench), or null.
         public static Recipe RecipeFor(string prefab)
         {
+            if (prefab == Thread && Compat.HomespunOn) return Spindle(Thread, LineFlax, 2);
+            if (prefab == Yarn && Compat.HomespunOn) return Spindle(Yarn, HsWool, 1);
             if (Recipes.TryGetValue(prefab, out Recipe have) && have != null) return have;
             var row = Table.FirstOrDefault(t => t.item == prefab);
             if (row.item == null || ObjectDB.instance == null || ZNetScene.instance == null) return null;
@@ -47,7 +49,50 @@ namespace Jarldom
             Recipes[prefab] = r;
             return r;
         }
-        public static bool Is(Recipe r) => r != null && r.name.StartsWith("Jarldom_Weave_");
+        // With Homespun, spun by hand from its line flax or combed wool (a spindle's work) where there's no spinning wheel: the soaking and
+        // breaking are its stations' (the weaver keeps them going: Work.cs's station scan), not skipped as plain flax spun at once.
+        public const string LineFlax = "Homespun_LineFlax", HsWool = "Homespun_Wool", Yarn = "Homespun_WoolYarn", Wheel = "piece_spinningwheel", Pool = "Homespun_RettingPool", Brake = "Homespun_FlaxBrake";
+        private static Recipe Spindle(string to, string from, int n)
+        {
+            string key = "spindle:" + to;
+            if (Recipes.TryGetValue(key, out Recipe have) && have != null) return have;
+            ItemDrop item = ObjectDB.instance?.GetItemPrefab(to)?.GetComponent<ItemDrop>(), res = ObjectDB.instance?.GetItemPrefab(from)?.GetComponent<ItemDrop>();
+            CraftingStation bench = ZNetScene.instance?.GetPrefab("piece_workbench")?.GetComponent<CraftingStation>();
+            if (item == null || res == null || bench == null) return null;
+            Recipe r = ScriptableObject.CreateInstance<Recipe>();
+            r.name = "Jarldom_Weave_Spindle_" + to; r.m_item = item; r.m_amount = n; r.m_enabled = true; r.m_craftingStation = bench; r.m_minStationLevel = 1;
+            r.m_resources = new[] { new Piece.Requirement { m_resItem = res, m_amount = 1 } };
+            return Recipes[key] = r;
+        }
+        public static bool Is(Recipe r) => r != null && (r.name.StartsWith("Jarldom_Weave_") || OnLoom(r));
+        // Made at Homespun's loom or sewing table: the weaver's work.
+        public static bool OnLoom(Recipe r) => r?.m_craftingStation != null && Compat.HomespunOn && Compat.HomespunStations.Contains(Utils.GetPrefabName(r.m_craftingStation.gameObject));
+
+        // ---- Homespun's stations: the retting pool, the flax brake and the spinning wheel are the weaver's to keep ----
+        public static bool IsTextile(Smelter s)
+        {
+            if (s == null || !Compat.HomespunOn) return false;
+            string n = Utils.GetPrefabName(s.gameObject);
+            return n == Wheel || Compat.HomespunStations.Contains(n);
+        }
+        public const int Plenty = 40; // (thread or yarn in the stores: enough, the stations rest)
+        // What a textile station is fed: flax to soak (never the seed flax), soaked flax to break, line flax and wool to spin; a lox pelt is
+        // combed only while yarn runs short, and two kept back (it's a rare hide); raw flax never straight onto the wheel (soaked first).
+        public static bool FeedTextile(Colony c, Smelter s, string item)
+        {
+            int Has(string x) => Crafts.InStock(c, x);
+            string at = Utils.GetPrefabName(s.gameObject);
+            bool linenPlenty = Has(Thread) + 2 * Has(LineFlax) >= Plenty, woolPlenty = Has(Yarn) + Has(HsWool) + Has("ByreWool") >= Plenty;
+            switch (item)
+            {
+                case Flax: return at == Pool && !linenPlenty && Has(Flax) > SeedFlax(c);
+                case "Homespun_RettedFlax": return !linenPlenty && Has(item) > 0;
+                case LineFlax: return !linenPlenty && Has(item) > 0;
+                case "LoxPelt": return !woolPlenty && Has(Yarn) + Has(HsWool) < 8 && Has(item) > 2;
+                case HsWool: case "ByreWool": return !woolPlenty && Has(item) > 0;
+                default: return Has(item) > 0;
+            }
+        }
         public static IEnumerable<Recipe> All() => Table.Select(t => RecipeFor(t.item)).Where(r => r != null);
 
         // What's clothes (the colony's own and Hildir's), and what's rags.
@@ -57,7 +102,7 @@ namespace Jarldom
         public static bool IsClothes(ItemDrop.ItemData i)
         {
             string n = Classes.Prefab(i) ?? "";
-            return n.StartsWith("ArmorTunic") || n.StartsWith("ArmorDress") || n.StartsWith("HelmetHat") || n == "HelmetStrawHat";
+            return n.StartsWith("ArmorTunic") || n.StartsWith("ArmorDress") || n.StartsWith("HelmetHat") || n == "HelmetStrawHat" || n.StartsWith("Homespun_") && Compat.HomespunGarments.Contains(n);
         }
         public static bool InRags(Brain b)
         {
@@ -80,7 +125,13 @@ namespace Jarldom
             int ragged = people.Count(InRags), hatless = people.Count(Hatless);
             string make = null;
             var rng = new System.Random((int)(now / 60) ^ c.Id.GetStableHashCode());
-            if (ragged > spare.chest)
+            if (ragged > spare.chest && Compat.HomespunOn)
+            {
+                // With Homespun: a garment sewn at its table from cloth woven at its loom, the next step of it that can be made now.
+                bool women = people.Where(InRags).Count(b => b.S.Female) * 2 >= ragged;
+                make = HomespunNext(c, women, rng, thread);
+            }
+            else if (ragged > spare.chest)
             {
                 // Something to wear: colours when there's dye, plain undyed when not; a dress or a tunic as the ragged are women or men.
                 bool women = people.Where(InRags).Count(b => b.S.Female) * 2 >= ragged;
@@ -93,16 +144,44 @@ namespace Jarldom
                 if (hats.Count > 0) { make = hats[rng.Next(hats.Count)].m_item.name; c.R.Flags["weave:hatday"] = c.Day; }
             }
             // No thread to weave with: spin some from the flax in the stores, by hand if there's no spinning wheel (one feeds itself).
-            if (make == null && (ragged > spare.chest || hatless > 0) && thread < 6 && Crafts.InStock(c, Flax) - SeedFlax(c) >= 2
+            if (make == null && !Compat.HomespunOn && (ragged > spare.chest || hatless > 0) && thread < 6 && Crafts.InStock(c, Flax) - SeedFlax(c) >= 2
                 && !c.PiecesIn(c.Radius).Any(p => p.GetComponent<Smelter>() is Smelter s && s.m_conversion.Any(cv => cv.m_from != null && cv.m_from.name == Flax)))
                 make = Thread;
             if (make == null) return;
-            Vector3 at = bench.transform.position;
+            Vector3 at = (Crafts.StationFor(c, Crafts.RecipeFor(make), bench.transform.position) ?? bench).transform.position;
             c.Board.Post("craft", Prefix + make, Prof.Weaver, 2, at.x, at.y, at.z, now, "", "clothes");
         }
+        // The garments in the order tried: Homespun's own in wool, Hildir's (linen, dyed), the plain linen undertunic.
+        private static readonly string[] Women = { "Homespun_WoolDress" }, Men = { "Homespun_WoolTunic" };
+        internal static string HomespunNext(Colony c, bool women, System.Random rng, int thread)
+        {
+            int Has(string x) => x == Thread ? thread : Crafts.InStock(c, x);
+            var hildir = Table.Where(t => t.item.StartsWith(women ? "ArmorDress" : "ArmorTunic")).Select(t => t.item).OrderBy(i => i.EndsWith("10") ? 1 : 0).ThenBy(_ => rng.Next());
+            var wanted = (women ? Women : Men).Concat(hildir).Concat(new[] { "Homespun_LinenUndertunic" }).ToList();
+            // (a garment that can be sewn now first; else the first step towards one: a bolt to weave, thread to spin by hand)
+            foreach (bool now in new[] { true, false })
+                foreach (string g in wanted)
+                {
+                    string step = Step(c, g, Has, 0);
+                    if (step != null && (step == g) == now) return step;
+                }
+            return null;
+        }
+        // The next thing to make towards an item: itself if the stores hold what it takes, else (for cloth, a band, thread) what it lacks.
+        private static string Step(Colony c, string item, Func<string, int> has, int depth)
+        {
+            Recipe r = Crafts.RecipeFor(item);
+            if (r == null || depth > 3 || Crafts.StationFor(c, r, c.Position) == null) return null;
+            // (spun by hand only where there's no wheel: with one, the stations make it)
+            if (r.name.StartsWith("Jarldom_Weave_Spindle_") && c.PiecesIn(c.Radius).Any(p => Colony.NameOf(p) == Wheel)) return null;
+            foreach (var (need, amount) in Crafts.Needs(r))
+                if (has(need) < amount) return need == item ? null : Step(c, need, has, depth + 1);
+            return item;
+        }
+
         // Flax kept back for sowing, where the colony has fields (spin the last of it and there's none to grow).
         public static int SeedFlax(Colony c) => c.R.Zones.Any(z => z.Type == ZoneType.Fields) ? 10 : 0;
-        private static (int chest, int hat) Crafts_Spare(Colony c)
+        internal static (int chest, int hat) Crafts_Spare(Colony c)
         {
             var items = Stock.Chests(c).Where(x => x.category != "treasury").SelectMany(x => x.chest.GetInventory().GetAllItems()).Where(IsClothes).ToList();
             return (items.Count(i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Chest), items.Count(i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Helmet));

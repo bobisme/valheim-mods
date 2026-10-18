@@ -196,7 +196,8 @@ namespace Jarldom
                 {
                     bool needFuel = smelter.m_fuelItem != null && v.GetZDO().GetFloat(ZDOVars.s_fuel) < smelter.m_maxFuel * 0.5f && HaveInStock(c, smelter.m_fuelItem.name);
                     bool needOre = QueueSize(smelter) < smelter.m_maxOre / 2 && smelter.m_conversion.Any(cv => cv.m_from != null && Feedable(c, smelter, cv.m_from.name));
-                    if (needFuel || needOre) c.Board.Post("smelt", Key(v), Prof.Smelter, 3, p.transform.position.x, p.transform.position.y, p.transform.position.z, now, "", "station");
+                    bool textile = Weaving.IsTextile(smelter), done = Processed(smelter) > 0 && textile; // (Homespun's hold what they've made till it's taken out)
+                    if (needFuel || needOre || done) c.Board.Post("smelt", Key(v), textile ? Prof.Weaver : Prof.Smelter, done ? 4 : 3, p.transform.position.x, p.transform.position.y, p.transform.position.z, now, "", "station");
                 }
                 Fermenter ferm = p.GetComponent<Fermenter>();
                 if (ferm != null && Roofed(p.transform.position)) // (a fermenter works only under a roof)
@@ -343,8 +344,10 @@ namespace Jarldom
         // of the wood, which the builders and fires need. (Fed whenever there was wood, a kiln took every log the colony was given.)
         public const int KilnWoodLeft = 50;
         public static bool IsKiln(Smelter s) => s.m_conversion.Count > 0 && s.m_conversion.All(cv => cv.m_to != null && cv.m_to.name == "Coal");
+        public static int Processed(Smelter s) { ZNetView v = s != null ? s.GetComponent<ZNetView>() : null; return v != null && v.IsValid() && s.m_spawnStack ? v.GetZDO().GetInt(ZDOVars.s_spawnAmount) : 0; }
         public static bool Feedable(Colony c, Smelter s, string item)
         {
+            if (Weaving.IsTextile(s)) return Weaving.FeedTextile(c, s, item);
             if (!IsKiln(s)) return HaveInStock(c, item);
             int keep = Stock.Keep(c, "coal");
             return (keep == 0 || InStockCount(c, "Coal") < keep) && InStockCount(c, item) > KilnWoodLeft;
@@ -750,7 +753,7 @@ namespace Jarldom
                 case "guard": return "on patrol";
                 case "fish": return "fishing";
                 case "fuel": return "tending the fire";
-                case "smelt": return "feeding the smelter";
+                case "smelt": return _target != null && _target.GetComponent<Smelter>() is Smelter sm && Weaving.IsTextile(sm) ? "tending the " + Localization.instance.Localize(sm.m_name).ToLower() : "feeding the smelter";
                 case "cook": return "cooking";
                 case "plant": return "planting a tree";
                 case "sow": return "sowing";
@@ -1292,6 +1295,15 @@ namespace Jarldom
                 _target.GetComponent<ZNetView>().InvokeRPC("RPC_RemoveDoneItem", b.Pos, 1);
                 _waitUntil = Time.time + 0.5f;
                 if (!Work.Cook(done, "HaveDoneItem")) { _phase = 1; Kind_Collect = true; }
+                return;
+            }
+            if (_phase == 0 && _target.GetComponent<Smelter>() is Smelter held && Work.Processed(held) > 0)
+            {
+                // Made and held (a retting pool's soaked flax, the wheel's thread): take it out (it drops beside it), then gather it.
+                if (Walking(b, 2.6f)) return;
+                Body_.Anim(b.Body)?.SetTrigger("interact");
+                _target.GetComponent<ZNetView>().InvokeRPC("RPC_EmptyProcessed");
+                _waitUntil = Time.time + 0.6f; _phase = 1; Kind_Collect = true;
                 return;
             }
             if (_phase == 0 && Kind == "tap" && _target.GetComponent<Fermenter>() is Fermenter barrel)

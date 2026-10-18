@@ -450,6 +450,15 @@ namespace Jarldom
                         break;
                     }
                 case "compat": output(new JObject { ["compat"] = new JArray(Compat.Report().Select(r => new JObject { ["mod"] = r.name, ["present"] = r.present, ["version"] = r.version, ["use"] = r.use })) }); break;
+                case "weave": // (test: what the weaver sees: who's in rags, the spare clothes, and the next step with Homespun for women and for men)
+                    {
+                        var people = Villagers.All.Where(b => b.S.Colony == c.Id).ToList(); var spare = Weaving.Crafts_Spare(c); var rng = new System.Random(1);
+                        output(new JObject { ["homespun"] = Compat.HomespunOn, ["stations"] = new JArray(Compat.HomespunStations), ["ragged"] = new JArray(people.Where(Weaving.InRags).Select(b => b.S.Name)),
+                            ["spareChest"] = spare.chest, ["spareHat"] = spare.hat, ["thread"] = Crafts.InStock(c, Weaving.Thread),
+                            ["nextWomen"] = Compat.HomespunOn ? Weaving.HomespunNext(c, true, rng, Crafts.InStock(c, Weaving.Thread)) : null, ["nextMen"] = Compat.HomespunOn ? Weaving.HomespunNext(c, false, rng, Crafts.InStock(c, Weaving.Thread)) : null,
+                            ["orders"] = new JArray(c.Board.All.Where(o => o.Prof == Prof.Weaver).Select(o => $"{o.Kind} {o.Target} {o.State} {o.Blocked}")) });
+                    }
+                    break;
                 case "beds": // (test: every bed the colony counts as its own, and whose it is)
                     output(new JObject { ["beds"] = new JArray(c.AllBeds().Select(x => { string who = Colony.BedOwner(x, out string kind); Room rm = c.RoomAt(x.transform.position + Vector3.up * 0.3f);
                         return $"{V(x.transform.position)} {(rm != null ? rm.Type.ToString() : "pillars")}: {(who == "" ? "free" : kind + " " + (kind == "villager" ? c.R.Row(who)?.Name + " (" + c.R.Row(who)?.State + ")" : who))}"; })), ["free"] = c.FreeBeds().Count });
