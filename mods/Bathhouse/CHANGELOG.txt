@@ -1,2 +1,4 @@
+0.1.6: steam from a stove that stood through a hot reload (the stove's message was registered twice, and the steam never found the stove: the bucket said there was no stove by it).
+
 0.1.5: The sauna stove, bench, bucket, plunge tub and bath locker are re-baked with a stricter check that the low-poly models keep the detailed ones' shape.
 

@@ -17,10 +17,15 @@ namespace Bathhouse
         {
             _view = GetComponent<ZNetView>(); _fire = GetComponent<Fireplace>();
             _mist = transform.Find("Steam")?.GetComponentsInChildren<ParticleSystem>(true) ?? new ParticleSystem[0];
-            if (_view != null && _view.IsValid()) _view.Register(Rpc, RPC_Steam);
             Loaded.Add(this);
+            // (an older copy's, on a stove standing through a hot reload, is still registered: replaced, or Register throws)
+            if (_view != null && _view.IsValid()) { _view.Unregister(Rpc); _view.Register(Rpc, RPC_Steam); }
         }
-        private void OnDestroy() => Loaded.Remove(this);
+        private void OnDestroy()
+        {
+            Loaded.Remove(this);
+            if (_view != null && _view.IsValid()) _view.Unregister(Rpc);
+        }
 
         internal bool Lit => _fire != null && _view != null && _view.IsValid() && _fire.IsBurning();
         internal double SteamedAt => _view != null && _view.IsValid() ? _view.GetZDO().GetLong(SteamedKey, 0L) / 1000.0 : 0;
