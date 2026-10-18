@@ -31,11 +31,11 @@ namespace Byre
                 Description = "A jug of milk from a tame goat, rich and a little sour. Good for the stamina." },
             // (the shears stand on their bow, blades up: as the spindle and Godforged's hammer, a shaft along y turned to lie in the fist)
             new Def { Name = "ByreShears", From = "Club", Model = "shears", Title = "Shears", Type = ItemDrop.ItemData.ItemType.OneHandedWeapon, Stack = 1, Weight = 0.5f,
-                Hand = new Vector3(-90, 0, 0), Grip = new Vector3(0, 0.078f, 0),
+                Hand = new Vector3(180, 0, 0), Grip = new Vector3(0, 0.078f, 0), // (tuned live 2026-10-18: blades forward past the fingers)
                 Description = "Spring shears of one bent bar, the grips bound in leather. Carry them and use a tame sheep in full fleece (E) to shear it." },
             // (the pail stands on its foot, the handle bar along x at the top: turned so the bar lies where the shears' grips do)
             new Def { Name = "ByreMilkPail", From = "Club", Model = "pail", Title = "Milk pail", Type = ItemDrop.ItemData.ItemType.OneHandedWeapon, Stack = 1, Weight = 1f,
-                Hand = new Vector3(0, 90, 0), Grip = new Vector3(0, 0.29f, 0), IconLook = Quaternion.Euler(28, -35, 0),
+                Hand = new Vector3(180, 0, 90), Grip = new Vector3(0, 0.29f, 0), IconLook = Quaternion.Euler(28, -35, 0), // (Hand tuned live 2026-10-18: the handle bar through the fist, the pail hanging below)
                 Description = "A stave pail, two staves standing up to hold its handle. Carry it and use a tame goat (E) to milk it." },
         };
         internal static Recipe ShearsRecipe, PailRecipe;
