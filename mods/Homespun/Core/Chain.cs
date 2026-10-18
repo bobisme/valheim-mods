@@ -45,7 +45,8 @@ namespace Homespun
     public sealed class Garment
     {
         public string Prefab, Base, Title, Description; public float Armor, Weight = 1f, Durability = 200f;
-        public (float r, float g, float b) Tint;   // (laid over the base's own look: undyed wool, bleached linen)
+        public (float r, float g, float b) Tint;   // (the colour its look is recoloured to, worn and folded: bleached linen, undyed wool)
+        public string Model;                       // (its own folded look on the ground and in the bag: Models/<Model>.json.gz)
     }
 
     public static class Chain
@@ -85,15 +86,15 @@ namespace Homespun
 
         public static readonly Garment[] Garments =
         {
-            new Garment { Prefab = Names.Undertunic, Base = "ArmorTunic10", Title = "Linen undertunic", Armor = 1, Weight = 0.5f, Tint = (1.0f, 0.97f, 0.9f),
+            new Garment { Prefab = Names.Undertunic, Base = "ArmorTunic10", Title = "Linen undertunic", Armor = 1, Weight = 0.5f, Tint = (0.9f, 0.87f, 0.78f), Model = "undertunic",
                 Description = "A long shirt of bleached linen, worn next to the skin. Light, and it doesn't itch." },
-            new Garment { Prefab = Names.Tunic, Base = "ArmorTunic10", Title = "Wool tunic", Armor = 3, Weight = 1.5f, Tint = (0.78f, 0.72f, 0.62f),
+            new Garment { Prefab = Names.Tunic, Base = "ArmorTunic10", Title = "Wool tunic", Armor = 3, Weight = 1.5f, Tint = (0.72f, 0.62f, 0.48f), Model = "tunic",
                 Description = "A knee-length tunic of undyed wool, the neck and hem edged with a woven band." },
-            new Garment { Prefab = Names.Dress, Base = "ArmorDress10", Title = "Wool dress", Armor = 3, Weight = 1.5f, Tint = (0.78f, 0.72f, 0.62f),
+            new Garment { Prefab = Names.Dress, Base = "ArmorDress10", Title = "Wool dress", Armor = 3, Weight = 1.5f, Tint = (0.72f, 0.62f, 0.48f), Model = "dress",
                 Description = "A long dress of undyed wool, edged with a woven band." },
-            new Garment { Prefab = Names.Trousers, Base = "ArmorRagsLegs", Title = "Wool trousers", Armor = 2, Weight = 1f, Tint = (0.55f, 0.5f, 0.44f),
+            new Garment { Prefab = Names.Trousers, Base = "ArmorRagsLegs", Title = "Wool trousers", Armor = 2, Weight = 1f, Tint = (0.45f, 0.38f, 0.3f), Model = "trousers",
                 Description = "Loose trousers of grey-brown wool, gathered below the knee." },
-            new Garment { Prefab = Names.Cloak, Base = "CapeLinen", Title = "Hooded cloak", Armor = 1, Weight = 2f, Tint = (0.5f, 0.45f, 0.38f),
+            new Garment { Prefab = Names.Cloak, Base = "CapeLinen", Title = "Hooded cloak", Armor = 1, Weight = 2f, Tint = (0.33f, 0.28f, 0.23f), Model = "cloak",
                 Description = "A heavy cloak of coarse wool, vadmal, with a hood." },
         };
         public static Garment GarmentOf(string prefab) => Garments.FirstOrDefault(g => g.Prefab == prefab);

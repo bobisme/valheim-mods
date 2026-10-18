@@ -1,18 +1,19 @@
 # Homespun's looks (Homespun 0.1.0), made from scratch: the retting pool, the flax brake (with its hackle and basket), the warp-weighted
-# loom, the sewing table, and the items: retted flax, line flax, combed wool, yarn, a linen bolt, a wool bolt, a woven band, the drop spindle.
-# Run: blender -b --python ~/.cache/homespun/spun.py -- [render] [pool|brake|loom|table|retted|line|wool|yarn|linenbolt|woolbolt|band|spindle]
+# loom, the sewing table, and the items: retted flax, line flax, combed wool, yarn, a linen bolt, a wool bolt, a woven band, the drop spindle,
+# and the five garments folded as they lie on the ground (undertunic, tunic, dress, trousers, cloak).
+# Run: blender -b --python ~/.cache/homespun/spun.py -- [render] [pool|brake|...|spindle|undertunic|tunic|dress|trousers|cloak]
 # (writes ~/.cache/homespun/<name>.json.gz; previews with "render"). What ships is the bake of these (bake_conf.py, docs/model-baking.md).
 # Blender frame: z up, front +y (the game's +z, where a player stands to use the piece); the pieces stand on z 0, the items lie about the
 # origin, the spindle's shaft along z with the hand at the origin. Written in the game's frame (x, z, y): per corner position/normal/uv
 # (uvs in metres; wood's grain runs along v), triangles per material: 0 wood, 1 stone, 2 water, 3 flax, 4 linen, 5 wool, 6 iron, 7 red,
-# 8 blue, 9 retted.
+# 8 blue, 9 retted, 10 oat (undyed light wool), 11 darkwool, 12 cloakwool, 13 bronze.
 import bpy, bmesh, json, math, random, sys, gzip
 from mathutils import Vector, Matrix
 
 OUT = '/home/bob/.cache/homespun/'
-WOOD, STONE, WATER, FLAX, LINEN, WOOL, IRON, RED, BLUE, RETTED = range(10)
-NAMES = ('wood', 'stone', 'water', 'flax', 'linen', 'wool', 'iron', 'red', 'blue', 'retted')
-SMOOTH = ('rock', 'weight', 'sheaf', 'hank', 'wool', 'ball', 'cloth', 'roll', 'cop', 'whorl', 'heap', 'tie', 'basket', 'spool', 'drape')
+WOOD, STONE, WATER, FLAX, LINEN, WOOL, IRON, RED, BLUE, RETTED, OAT, DARKWOOL, CLOAKWOOL, BRONZE = range(14)
+NAMES = ('wood', 'stone', 'water', 'flax', 'linen', 'wool', 'iron', 'red', 'blue', 'retted', 'oat', 'darkwool', 'cloakwool', 'bronze')
+SMOOTH = ('rock', 'weight', 'sheaf', 'hank', 'wool', 'ball', 'cloth', 'roll', 'cop', 'whorl', 'heap', 'tie', 'basket', 'spool', 'drape', 'hood', 'brooch', 'bead', 'stalk', 'ply', 'knot', 'tuft')
 rng = random.Random(7)
 mats = []
 V = Vector
@@ -372,15 +373,35 @@ def table():
 
 # ---------------- the items ----------------
 def retted():
-    fresh()
-    sheaf('sheaf', (-0.3, 0, 0), (0.3, 0, 0.01), 0.045, RETTED, seed=1, ties=(0.3, 0.68), splay=0.45)
+    # a sheaf of retted flax: grey stalks bound round the middle with a twist of flax, their cut ends flat at one end, the tops
+    # thinning out and splaying at the other
+    fresh(); r = random.Random(1)
+    lathe('sheaf', (-0.24, 0, 0), (0.21, 0, 0), lambda t: 0.036 * (1 - 0.15 * t), RETTED, segs=10, flute=0.1, lobes=9, step=0.075)
+    for k in range(16):
+        a = 2 * math.pi * k / 16 + r.uniform(-0.15, 0.15); rr = r.uniform(0.012, 0.03)
+        y, z = math.cos(a) * rr, math.sin(a) * rr
+        tube(f'stalk_root{k}', [V((-0.24 - r.uniform(0.004, 0.022), y, z)), V((-0.2, y * 0.95, z * 0.95))], 0.0045, RETTED, res=0)
+        sp, L = r.uniform(1.0, 1.8), r.uniform(0.06, 0.13)
+        tube(f'stalk_top{k}', [V((0.19, y * 0.85, z * 0.85)), V((0.21 + L * 0.5, y * (1 + sp * 0.4), z * (1 + sp * 0.4))), V((0.21 + L, y * (1 + sp), z * (1 + sp)))], 0.003, RETTED, res=0)
+    ring('tie_band', (-0.05, 0, 0), 0.035, 0.008, (1, 0, 0), FLAX, segs=14, rsegs=5, squash=1.8)
+    tube('tie_end', smooth_line([V((-0.05, 0.03, 0.028)), V((-0.035, 0.05, 0.045)), V((-0.01, 0.055, 0.05))], 1), 0.0045, FLAX, res=0)
     finish('retted', [(30, 1.0, 0.6, 0)])
 
 def line():
-    # a strick of line flax: the long fibre combed straight, twisted at one end and folded over
-    fresh()
-    sheaf('hank', (-0.24, 0, 0), (0.26, 0, 0), 0.04, FLAX, seed=2, ties=(0.12,), splay=0.6, twist=6.0)
-    strands('hank_fold', [V((-0.2, 0, 0.0)), V((-0.29, 0, 0.01)), V((-0.33, 0, 0.045)), V((-0.27, 0, 0.075)), V((-0.16, 0, 0.065))], 0.014, FLAX, n=3, spread=0.02, seed=3)
+    # a strick of line flax: the long golden fibre twisted on itself, tied in a loose knot at one end, the other end loose and fine
+    fresh(); r = random.Random(2)
+    for ply in range(2):
+        pts = []
+        for i in range(25):
+            t = i / 24; a = 2 * math.pi * 1.6 * t + math.pi * ply; rad = 0.015 * (1 - 0.3 * t)
+            pts.append(V((-0.14 + 0.34 * t, math.cos(a) * rad, math.sin(a) * rad)))
+        tube(f'ply_{ply}', pts, 0.016, FLAX)
+    tube('knot', smooth_line([V((-0.13, 0, 0)), V((-0.17, 0.0, -0.01)), V((-0.21, 0.01, 0.012)), V((-0.22, 0.012, 0.05)), V((-0.18, 0.015, 0.075)),
+                              V((-0.14, 0.01, 0.05)), V((-0.155, -0.005, 0.008)), V((-0.2, -0.012, -0.012)), V((-0.25, -0.01, -0.008))]), 0.016, FLAX)
+    for k in range(7):
+        a = 2 * math.pi * k / 7; o = V((0, math.cos(a), math.sin(a)))
+        tube(f'tuft_tail{k}', [V((-0.245, -0.01, -0.008)) + o * 0.006, V((-0.27, -0.01, -0.008)) + o * 0.011, V((-0.3 - r.uniform(0, 0.02), -0.01, -0.008)) + o * r.uniform(0.016, 0.026)], 0.0035, FLAX, res=0)
+        tube(f'tuft_end{k}', [V((0.19, 0, 0)) + o * 0.006, V((0.23, 0, 0)) + o * 0.011, V((0.27 + r.uniform(0, 0.03), 0, 0)) + o * r.uniform(0.016, 0.03)], 0.003, FLAX, res=0)
     finish('line', [(30, 1.0, 0.6, 0)])
 
 def wool():
@@ -442,6 +463,74 @@ def spindle():
     tube('thread', [V((0, 0.006, -0.012)), V((0.002, 0.008, 0.1)), V((0, 0.006, 0.205)), V((0.0, 0.004, 0.3))], 0.0018, WOOL, res=1)
     finish('spindle', [(30, 0.8, 0.2, 0.0), (90, 0.6, 0.05, 0.0)])
 
+# ---------------- the garments, folded (as they lie on the ground and in the bag) ----------------
+def stack(name, w, d, layers, th, mat, seed, cx=0.0, cy=0.0):
+    # cloth folded and laid flat: layers of rounded slabs, each a little off the one under it. Returns the top's height
+    r = random.Random(seed); z = 0.0
+    for i in range(layers):
+        ox, oy = r.uniform(-0.006, 0.006), r.uniform(-0.006, 0.006)
+        box(f'cloth_{name}{i}', (cx - w / 2 + ox, cy - d / 2 + oy, z), (cx + w / 2 + ox, cy + d / 2 + oy, z + th), mat, bevel=min(0.012, th * 0.45), jitter=0.003, seed=seed + i)
+        z += th * 0.96
+    return z
+
+def laid(ob, deg, at):
+    turned(ob, Matrix.Rotation(math.radians(deg), 3, 'Z')); ob.data.transform(Matrix.Translation(at)); return ob
+
+def undertunic():
+    # a linen undertunic folded: a sleeve turned back across the front, the neck's keyhole slit at the top
+    fresh()
+    z = stack('body', 0.34, 0.28, 3, 0.02, LINEN, 40)
+    laid(box('cloth_sleeve', (-0.19, -0.035, 0), (0.19, 0.035, 0.013), LINEN, bevel=0.006, jitter=0.002, seed=44), -16, (0.0, -0.03, z - 0.002))
+    box('stripe_neck', (-0.005, 0.07, z - 0.001), (0.005, 0.14, z + 0.001), WOOL)
+    box('stripe_hem', (-0.17, -0.137, z - 0.001), (0.17, -0.131, z + 0.001), WOOL)
+    finish('undertunic', [(30, 0.9, 0.55, 0)])
+
+def tunic():
+    # a wool tunic folded: a sleeve back across it, a red woven band round the neck and along the hem
+    fresh()
+    z = stack('body', 0.36, 0.3, 3, 0.022, OAT, 50)
+    laid(box('cloth_sleeve', (-0.2, -0.04, 0), (0.2, 0.04, 0.015), OAT, bevel=0.007, jitter=0.002, seed=54), 14, (0.0, -0.03, z - 0.002))
+    neck = [V((0.065 * math.cos(a), 0.15 + 0.065 * math.sin(a), z + 0.001)) for a in [math.pi + math.pi * i / 10 for i in range(11)]]
+    ribbon('trim_neck', neck, 0.02, 0.02, RED, thick=0.004, normal=(0, 0, 1))
+    box('trim_hem', (-0.18, -0.15, z - 0.002), (0.18, -0.125, z + 0.003), RED, bevel=0.0015)
+    box('stripe_hem', (-0.18, -0.14, z + 0.0028), (0.18, -0.135, z + 0.0034), BLUE)
+    finish('tunic', [(30, 0.9, 0.55, 0)])
+
+def dress():
+    # a wool apron dress folded long, its pair of oval brooches still pinned on with a string of beads between them
+    fresh()
+    z = stack('body', 0.42, 0.26, 4, 0.018, OAT, 60)
+    for k, x in enumerate((-0.08, 0.08)):
+        blob(f'brooch_{k}', (x, 0.06, z), (0.034, 0.024, 0.016), BRONZE, seed=61 + k, subdiv=2, lumps=0.02)
+        ring(f'brooch_rim{k}', (x, 0.06, z + 0.001), 0.03, 0.0035, (0, 0, 1), BRONZE, segs=12, rsegs=4)
+    for i in range(9):
+        t = (i + 1) / 10; x = -0.08 + 0.16 * t; y = 0.06 - 0.07 * math.sin(math.pi * t)
+        blob(f'bead_{i}', (x, y, z + 0.006), (0.007, 0.007, 0.006), (RED, BLUE, LINEN)[i % 3], seed=70 + i, subdiv=1, lumps=0.05)
+    laid(box('strap', (-0.012, -0.06, 0), (0.012, 0.06, 0.004), OAT, bevel=0.0015), 0, (-0.08, 0.13, z - 0.001))
+    laid(box('strap_b', (-0.012, -0.06, 0), (0.012, 0.06, 0.004), OAT, bevel=0.0015), 0, (0.08, 0.13, z - 0.001))
+    finish('dress', [(30, 0.9, 0.55, 0)])
+
+def trousers():
+    # wool trousers folded in two: the legs side by side, splayed a little from the waist, the drawstring hanging out
+    fresh()
+    z = stack('waist', 0.1, 0.24, 2, 0.022, DARKWOOL, 80, cx=-0.15)
+    for k, (deg, y) in enumerate(((3, -0.058), (-3, 0.058))):
+        for i in range(2):
+            laid(box(f'cloth_leg{k}{i}', (0, -0.054, 0.022 * i), (0.32, 0.054, 0.022 * i + 0.022), DARKWOOL, bevel=0.009, jitter=0.003, seed=82 + k * 2 + i), deg, (-0.12, y, 0))
+    tube('cord', smooth_line([V((-0.19, 0.0, z)), V((-0.22, 0.02, z + 0.004)), V((-0.25, 0.01, z - 0.01)), V((-0.27, 0.04, 0.008)), V((-0.26, 0.08, 0.004))]), 0.0045, FLAX, res=1)
+    tube('cord_b', smooth_line([V((-0.19, 0.0, z)), V((-0.23, -0.03, z - 0.004)), V((-0.26, -0.05, 0.01)), V((-0.25, -0.09, 0.004))]), 0.0045, FLAX, res=1)
+    finish('trousers', [(30, 0.9, 0.55, 0)])
+
+def cloak():
+    # a hooded wool cloak folded square, the hood bunched on top with its point, the ring-pin through it
+    fresh()
+    z = stack('body', 0.36, 0.34, 3, 0.024, CLOAKWOOL, 90)
+    blob('hood', (0.02, 0.05, z + 0.012), (0.11, 0.085, 0.032), CLOAKWOOL, seed=91, subdiv=3, lumps=0.06)
+    lathe('hood_point', (0.1, 0.07, z + 0.016), (0.165, 0.085, z + 0.006), lambda t: 0.03 * (1 - t) ** 0.5 + 0.004, CLOAKWOOL, segs=10, step=0.02)
+    ring('pin_ring', (-0.1, -0.08, z + 0.004), 0.024, 0.0042, (0, 0, 1), IRON, segs=14, rsegs=5)
+    laid(cyl('pin', (0, 0, 0), (0.1, 0, 0), 0.003, 0.0012, IRON, segs=6), 35, (-0.13, -0.11, z + 0.004))
+    finish('cloak', [(30, 0.9, 0.55, 0)])
+
 # ---------------- out ----------------
 def finish(base, views):
     export(base)
@@ -483,7 +572,8 @@ def export(base):
     print(base, 'verts', len(verts) // 3, 'tris', sum(len(t) for t in tris) // 3, 'x', round(min(xs), 3), round(max(xs), 3), 'y', round(min(ys), 3), round(max(ys), 3), 'z', round(min(zs), 3), round(max(zs), 3))
 
 COLS = [(0.36, 0.24, 0.14, 1), (0.42, 0.4, 0.37, 1), (0.08, 0.16, 0.15, 1), (0.6, 0.48, 0.24, 1), (0.8, 0.76, 0.64, 1),
-        (0.5, 0.45, 0.38, 1), (0.1, 0.1, 0.11, 1), (0.45, 0.08, 0.06, 1), (0.08, 0.13, 0.32, 1), (0.48, 0.45, 0.38, 1)]
+        (0.5, 0.45, 0.38, 1), (0.1, 0.1, 0.11, 1), (0.45, 0.08, 0.06, 1), (0.08, 0.13, 0.32, 1), (0.48, 0.45, 0.38, 1),
+        (0.55, 0.47, 0.36, 1), (0.28, 0.23, 0.18, 1), (0.2, 0.16, 0.12, 1), (0.6, 0.4, 0.15, 1)]
 def preview(base, views):
     # yaw 0 looks at the piece's front (from +y)
     for m, c in zip(mats, COLS):
@@ -508,6 +598,6 @@ def preview(base, views):
         cam.rotation_euler = (V((0, 0, look)) - cam.location).to_track_quat('-Z', 'Y').to_euler()
         sc.render.filepath = OUT + f'{base}_{yaw}_{d}.png'; bpy.ops.render.render(write_still=True)
 
-KINDS = ('pool', 'brake', 'loom', 'table', 'retted', 'line', 'wool', 'yarn', 'linenbolt', 'woolbolt', 'band', 'spindle')
+KINDS = ('pool', 'brake', 'loom', 'table', 'retted', 'line', 'wool', 'yarn', 'linenbolt', 'woolbolt', 'band', 'spindle', 'undertunic', 'tunic', 'dress', 'trousers', 'cloak')
 which = [a for a in sys.argv if a in KINDS] or list(KINDS)
 for w in which: globals()[w]()

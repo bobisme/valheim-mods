@@ -9,7 +9,7 @@ namespace Homespun
     // The looks: models made in Blender (Models/spun.py), baked onto low-poly copies with their own small maps (tools/bake,
     // docs/model-baking.md) and built into the DLL as <name>.json.gz and <name>_albedo/_normal.png, drawn in a copy of the game's own
     // piece material, as Bathhouse's are. Not yet baked, a model's triangles come one list per material slot (spun.py's: wood, stone,
-    // water, flax, linen, wool, iron, red, blue, retted) and draw in the game's materials, plain or grained.
+    // water, flax, linen, wool, iron, red, blue, retted, oat, darkwool, cloakwool, bronze) and draw in the game's materials, plain or grained.
     internal static class Looks
     {
         internal static readonly List<Object> Owned = new List<Object>();
@@ -68,9 +68,9 @@ namespace Homespun
             return look;
         }
 
-        internal static void Forget() { foreach (Object o in Owned) if (o != null) Object.Destroy(o); Owned.Clear(); Meshes.Clear(); Mats.Clear(); _slots = null; }
+        internal static void Forget() { foreach (Object o in Owned) if (o != null) Object.Destroy(o); Owned.Clear(); Meshes.Clear(); Mats.Clear(); Pictures.Clear(); _slots = null; }
 
-        // (as spun.py numbers them: wood, stone, water, flax, linen, wool, iron, red, blue, retted)
+        // (as spun.py numbers them: wood, stone, water, flax, linen, wool, iron, red, blue, retted, oat, darkwool, cloakwool, bronze)
         private static Material[] Slots(ZNetScene scene)
         {
             if (_slots != null && _slots.All(m => m != null)) return _slots;
@@ -88,6 +88,10 @@ namespace Homespun
                 Plain(wood, new Color(0.55f, 0.13f, 0.1f), "red"),
                 Plain(wood, new Color(0.15f, 0.22f, 0.42f), "blue"),
                 Plain(wood, new Color(0.62f, 0.6f, 0.55f), "retted"),
+                Plain(wood, new Color(0.72f, 0.62f, 0.48f), "oat"),
+                Plain(wood, new Color(0.45f, 0.38f, 0.3f), "darkwool"),
+                Plain(wood, new Color(0.33f, 0.28f, 0.23f), "cloakwool"),
+                Plain(wood, new Color(0.62f, 0.45f, 0.2f), "bronze", 0.4f),
             };
             return _slots;
         }
@@ -108,28 +112,75 @@ namespace Homespun
             Owned.Add(m); return m;
         }
 
-        // A garment's look tinted: its own materials (on the ground, and what's worn) copied in the colour of undyed wool or linen.
-        // (What the game lays on the body's own texture for some armour, m_armorMaterial, is a texture and can't be tinted: left as it is.)
-        internal static void Tint(GameObject garment, Color tint)
+        // A garment's worn look in its own colour. The game draws clothes from pictures, and where the shader takes no colour a tint
+        // does nothing (0.1.0's dress was the base's brown), so the pictures themselves are recoloured: the materials of what the body
+        // wears (attach_skin: a skirt, a cape) are copied with their picture made ours, and so is what the game paints on the body
+        // itself (m_armorMaterial's chest or legs). The picture's light and shade stay, its colour is ours; its alpha is kept.
+        internal static void Recolour(GameObject garment, ItemDrop.ItemData.SharedData shared, Color to)
         {
             var done = new Dictionary<Material, Material>();
-            foreach (Renderer r in garment.GetComponentsInChildren<Renderer>(true))
+            foreach (Transform child in garment.transform)
             {
-                if (r.GetType().Name == "ParticleSystemRenderer") continue;
-                Material[] mats = r.sharedMaterials; bool changed = false;
-                for (int i = 0; i < mats.Length; i++)
+                if (!child.name.StartsWith("attach_")) continue;
+                foreach (Renderer r in child.GetComponentsInChildren<Renderer>(true))
                 {
-                    if (mats[i] == null) continue;
-                    if (!done.TryGetValue(mats[i], out Material m))
+                    if (r.GetType().Name == "ParticleSystemRenderer") continue;
+                    Material[] mats = r.sharedMaterials; bool changed = false;
+                    for (int i = 0; i < mats.Length; i++)
                     {
-                        m = new Material(mats[i]) { name = mats[i].name + " (Homespun)" };
-                        if (m.HasProperty("_Color")) m.color = mats[i].color * tint;
-                        done[mats[i]] = m; Owned.Add(m);
+                        if (mats[i] == null) continue;
+                        if (!done.TryGetValue(mats[i], out Material m))
+                        {
+                            m = new Material(mats[i]) { name = mats[i].name + " (Homespun)" };
+                            if (m.HasProperty("_MainTex") && m.GetTexture("_MainTex") is Texture t) m.SetTexture("_MainTex", Picture(t, to));
+                            if (m.HasProperty("_Color")) { Color c = m.color; m.color = new Color(1, 1, 1, c.a); }
+                            done[mats[i]] = m; Owned.Add(m);
+                        }
+                        mats[i] = m; changed = true;
                     }
-                    mats[i] = m; changed = true;
+                    if (changed) r.sharedMaterials = mats;
                 }
-                if (changed) r.sharedMaterials = mats;
             }
+            if (shared.m_armorMaterial != null)
+            {
+                var m = new Material(shared.m_armorMaterial) { name = shared.m_armorMaterial.name + " (Homespun)" };
+                foreach (string p in new[] { "_ChestTex", "_LegsTex", "_MainTex" }) if (m.HasProperty(p) && m.GetTexture(p) is Texture t) m.SetTexture(p, Picture(t, to));
+                Owned.Add(m); shared.m_armorMaterial = m;
+            }
+        }
+
+        private static readonly Dictionary<(int, Color), Texture2D> Pictures = new Dictionary<(int, Color), Texture2D>();
+        // A copy of a picture in a colour: each texel's brightness against the picture's average (of what isn't see-through) scales the
+        // colour, a little flattened so stains and seams still show without going black. Read back through a render texture, since the
+        // game's own aren't readable. Without a graphics device (a dedicated server draws nothing) the picture stays as it is.
+        internal static Texture Picture(Texture src, Color to)
+        {
+            if (src == null || SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null) return src;
+            if (Pictures.TryGetValue((src.GetInstanceID(), to), out Texture2D had) && had != null) return had;
+            try
+            {
+                int w = src.width, h = src.height;
+                RenderTexture rt = RenderTexture.GetTemporary(w, h, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB), was = RenderTexture.active;
+                Graphics.Blit(src, rt);
+                RenderTexture.active = rt;
+                var tex = new Texture2D(w, h, TextureFormat.RGBA32, true, false) { name = src.name + " (Homespun)", wrapMode = src.wrapMode, filterMode = src.filterMode, anisoLevel = src.anisoLevel };
+                tex.ReadPixels(new Rect(0, 0, w, h), 0, 0, false);
+                RenderTexture.active = was; RenderTexture.ReleaseTemporary(rt);
+                Color32[] px = tex.GetPixels32();
+                double sum = 0; int n = 0;
+                foreach (Color32 c in px) if (c.a > 127) { sum += 0.3 * c.r + 0.59 * c.g + 0.11 * c.b; n++; }
+                float mean = Mathf.Max(8f, n > 0 ? (float)(sum / n) : 128f);
+                for (int i = 0; i < px.Length; i++)
+                {
+                    Color32 c = px[i];
+                    float k = Mathf.Clamp(Mathf.Pow((0.3f * c.r + 0.59f * c.g + 0.11f * c.b) / mean, 0.8f), 0.25f, 1.6f);
+                    px[i] = new Color32((byte)(Mathf.Clamp01(to.r * k) * 255), (byte)(Mathf.Clamp01(to.g * k) * 255), (byte)(Mathf.Clamp01(to.b * k) * 255), c.a);
+                }
+                tex.SetPixels32(px); tex.Apply(true, false);
+                Owned.Add(tex); Pictures[(src.GetInstanceID(), to)] = tex;
+                return tex;
+            }
+            catch (Exception e) { Plugin.Warn($"Could not recolour {src.name}: {e.Message}"); return src; }
         }
     }
 }

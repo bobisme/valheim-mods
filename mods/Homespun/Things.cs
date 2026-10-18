@@ -138,7 +138,15 @@ namespace Homespun
             ItemDrop sourceDrop = scene.GetPrefab(g.Base)?.GetComponent<ItemDrop>();
             if (sourceDrop == null) { Plugin.Warn($"{g.Title}: the game has no {g.Base} to make it on"); return null; }
             GameObject go = Object.Instantiate(sourceDrop.gameObject, Holder); go.name = g.Prefab;
-            Looks.Tint(go, new Color(g.Tint.r, g.Tint.g, g.Tint.b));
+            // (on the ground and in the bag: ours, folded, in place of the base's own. What's worn, the attach_ children, stays the base's.)
+            foreach (LODGroup lod in go.GetComponentsInChildren<LODGroup>(true)) Object.DestroyImmediate(lod);
+            for (int i = go.transform.childCount - 1; i >= 0; i--) if (!go.transform.GetChild(i).name.StartsWith("attach_")) Object.DestroyImmediate(go.transform.GetChild(i).gameObject);
+            foreach (Collider c in go.GetComponents<Collider>()) Object.DestroyImmediate(c);
+            foreach (Renderer r in go.GetComponents<Renderer>()) Object.DestroyImmediate(r);
+            foreach (MeshFilter m in go.GetComponents<MeshFilter>()) Object.DestroyImmediate(m);
+            GameObject folded = Looks.Add(go.transform, scene, g.Model, "attach");
+            Bounds b = folded?.GetComponent<MeshFilter>()?.sharedMesh?.bounds ?? new Bounds(Vector3.zero, new Vector3(0.36f, 0.08f, 0.3f));
+            var box = go.AddComponent<BoxCollider>(); box.center = b.center; box.size = Vector3.Max(b.size, Vector3.one * 0.08f);
             ItemDrop drop = go.GetComponent<ItemDrop>();
             var s = (ItemDrop.ItemData.SharedData)CloneShared.Invoke(sourceDrop.m_itemData.m_shared, null);
             s.m_name = g.Title; s.m_description = g.Description; s.m_weight = g.Weight; s.m_value = 0;
@@ -146,6 +154,7 @@ namespace Homespun
             s.m_variants = 0; s.m_dlc = ""; s.m_questItem = false; s.m_teleportable = true;
             s.m_setName = ""; s.m_setSize = 0; s.m_setStatusEffect = null; s.m_equipStatusEffect = null;
             s.m_damageModifiers = new List<HitData.DamageModPair>(); s.m_movementModifier = 0;
+            Looks.Recolour(go, s, new Color(g.Tint.r, g.Tint.g, g.Tint.b)); // (worn: on our copy of the shared data, never the base's)
             drop.m_itemData.m_shared = s;
             drop.m_itemData.m_dropPrefab = go;
             drop.m_itemData.m_stack = 1; drop.m_itemData.m_quality = 1; drop.m_itemData.m_durability = s.m_maxDurability; drop.m_itemData.m_variant = 0;
