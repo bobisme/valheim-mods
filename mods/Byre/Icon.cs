@@ -173,7 +173,15 @@ namespace Byre
                 cam.cullingMask = 1 << layer;
                 rt = RenderTexture.GetTemporary(Size * 2, Size * 2, 24, RenderTextureFormat.ARGB32);
                 cam.targetTexture = rt;
-                cam.Render();
+                // The scene's light kept out (Jarldom 0.1.5): fog and the world's ambient, whatever the loading screen or the hour left them
+                // at, tint an icon wildly otherwise; a flat grey ambient, as Claude Tools' renders use.
+                bool fog = RenderSettings.fog; Color ambient = RenderSettings.ambientLight; var ambientMode = RenderSettings.ambientMode; float reflect = RenderSettings.reflectionIntensity;
+                try
+                {
+                    RenderSettings.fog = false; RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat; RenderSettings.ambientLight = new Color(0.6f, 0.61f, 0.64f); RenderSettings.reflectionIntensity = 0.3f;
+                    cam.Render();
+                }
+                finally { RenderSettings.fog = fog; RenderSettings.ambientMode = ambientMode; RenderSettings.ambientLight = ambient; RenderSettings.reflectionIntensity = reflect; }
                 RenderTexture.active = rt;
                 var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGBA32, false);
                 tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
@@ -274,6 +282,22 @@ namespace Byre
         }
 
         /// <summary>A layer no one has named, for the copy, the camera and the light alone (the highest free one; 31 if all are named).</summary>
+        // Drawn while a world loads, the game's shaders aren't set up yet (their moss, wet and light values) and icons come out lurid green
+        // and yellow (Jarldom 0.1.5, Bob 2026-10-18 on the stations' build icons): what was drawn before the player stood in the world is
+        // drawn again a few seconds after (Plugin.Update calls Tick).
+        private static readonly List<Action> Redraws = new List<Action>(); private static float _redrawAt = -1;
+        internal static void Later(Action redraw) { if (Player.m_localPlayer == null && CanDraw) Redraws.Add(redraw); }
+        internal static void Tick()
+        {
+            if (Redraws.Count == 0) return;
+            if (Player.m_localPlayer == null || EnvMan.instance == null) { _redrawAt = -1; return; }
+            if (_redrawAt < 0) { _redrawAt = Time.time + 3f; return; }
+            if (Time.time < _redrawAt) return;
+            Action[] all = Redraws.ToArray(); Redraws.Clear(); _redrawAt = -1;
+            foreach (Action a in all) { try { a(); } catch (Exception e) { Debug.LogWarning("[" + ModName + "] an icon: " + e.Message); } }
+            Debug.Log("[" + ModName + "] " + all.Length + " icons drawn again in the world's light");
+        }
+
         private static int Layer
         {
             get

@@ -8,7 +8,8 @@ using Object = UnityEngine.Object;
 
 namespace Byre
 {
-    // The models made in Blender (Models/animals.py, Models/props.py), embedded as json.gz with their baked albedo (<name>_albedo.png).
+    // The models made in Blender, embedded as json.gz with their baked albedo (<name>_albedo.png): the animals (Models/animals.py), and the
+    // goods and the trough (Models/goods.py, baked high to low by tools/bake with Models/bake_conf.py: they bring a normal map and tangents too).
     // The animals are skinned to the boar's own skeleton, in the boar mesh's own space: four bone indices and weights a vertex, indices
     // into the boar's SkinnedMeshRenderer.bones (34 of them), so they take the boar's bind poses and its animations move them unchanged.
     internal static class Models
@@ -67,13 +68,14 @@ namespace Byre
             mesh.vertices = verts; mesh.normals = norms; mesh.uv = uvs; mesh.colors = colours; // (the piece shader reads the vertex colour)
             mesh.subMeshCount = t.Length;
             for (int k = 0; k < t.Length; k++) mesh.SetTriangles(t[k], k);
-            mesh.RecalculateBounds(); mesh.RecalculateTangents();
+            mesh.RecalculateBounds();
+            if (!SharedBaked.Baked.Tangents(mesh, j)) mesh.RecalculateTangents(); // (the tangents its normal map was baked against)
             Owned.Add(mesh); Meshes[name] = mesh;
             return mesh;
         }
 
-        // A copy of a game material (the boar's creature material, a piece's, an item's) wearing a model's own baked albedo: no normal map,
-        // no glow, matte. Null if the albedo isn't embedded.
+        // A copy of a game material (the boar's creature material, a piece's) wearing a model's own baked albedo, and its normal map when it
+        // has one; no glow, matte. Null if the albedo isn't embedded.
         internal static Material Material(string model, Material from)
         {
             string key = model + "|" + (from != null ? from.shader?.name : "");
@@ -86,8 +88,9 @@ namespace Byre
             return m;
         }
 
-        // Put a static model in place of what a prefab drew: a "Model" child with it (the prefab's own renderers and LODs go).
-        internal static GameObject Replace(GameObject go, string model, Material from)
+        // Put a static model in place of what a prefab drew: a child ("Model", or an item's "attach": what the hand holds) with it (the
+        // prefab's own renderers and LODs go).
+        internal static GameObject Replace(GameObject go, string model, Material from, string child = "Model")
         {
             Mesh mesh = Static(model); Material mat = Material(model, from);
             if (mesh == null || mat == null) return null;
@@ -99,7 +102,7 @@ namespace Byre
                 if (o != go) { Object.DestroyImmediate(o); continue; }
                 Object.DestroyImmediate(r); if (go.GetComponent<MeshFilter>() is MeshFilter f) Object.DestroyImmediate(f);
             }
-            var look = new GameObject("Model") { layer = go.layer }; look.transform.SetParent(go.transform, false);
+            var look = new GameObject(child) { layer = go.layer }; look.transform.SetParent(go.transform, false);
             look.AddComponent<MeshFilter>().sharedMesh = mesh;
             look.AddComponent<MeshRenderer>().sharedMaterial = mat;
             return look;

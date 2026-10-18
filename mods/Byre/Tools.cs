@@ -13,7 +13,7 @@ namespace Byre
     internal static class Tools
     {
         private const string ClaudeToolsGuid = "com.quad.claudetools";
-        private const string Help = "byre herds [r] | spawn <sheep|goat|lamb|kid> [tame] [n] | ready [r] | age <hours> [r] | feed [r] | use | troughs [r] | clear [r]: check Byre. herds lists the animals within r m (40) with their kind, tameness, hunger and wool or milk; spawn puts n (1) tagged test animals 3 m ahead (tame: already tamed); ready makes the wool and milk of tame ones within r (10) ready now; age moves their clocks (last shorn or milked, and a lamb's or kid's birth) back that many game hours; feed fills them as a meal would; use is E with the tool on the nearest tame one in 5 m; troughs lists the troughs within r (30) and what's in them; clear removes the tagged test animals within r (30), nothing else.";
+        private const string Help = "byre herds [r] | spawn <sheep|goat|lamb|kid> [tame] [n] | ready [r] | age <hours> [r] | feed [r] | use | troughs [r] | clear [r] | grip <ByreShears|ByreMilkPail> ex ey ez: check Byre. herds lists the animals within r m (40) with their kind, tameness, hunger and wool or milk; spawn puts n (1) tagged test animals 3 m ahead (tame: already tamed); ready makes the wool and milk of tame ones within r (10) ready now; age moves their clocks (last shorn or milked, and a lamb's or kid's birth) back that many game hours; feed fills them as a meal would; use is E with the tool on the nearest tame one in 5 m; troughs lists the troughs within r (30) and what's in them; clear removes the tagged test animals within r (30), nothing else; grip turns how the hand holds the shears or the pail (the equipoffset's euler angles, the grip point kept in the fist) for the next equip and the one in hand now: put the numbers found in Items.cs's Hand.";
         private static BaseUnityPlugin _tools;
         private static float _nextCheck;
 
@@ -138,6 +138,25 @@ namespace Byre
                         l.View.ClaimOwnership(); l.View.Destroy(); n++;
                     }
                     output(new JObject { ["removed"] = n, ["radius"] = r }); break;
+                }
+                case "grip":
+                {
+                    Items.Def d = a.Length > 2 ? Items.All.FirstOrDefault(x => x.Name.Equals(a[2], StringComparison.OrdinalIgnoreCase) && x.Hand.HasValue) : null;
+                    GameObject prefab = d != null ? Kit.ItemPrefabs.FirstOrDefault(g => g.name == d.Name) : null;
+                    if (prefab == null) { error("byre grip <ByreShears|ByreMilkPail> ex ey ez"); yield break; }
+                    var e = new Vector3(F(a, 3, 0), F(a, 4, 0), F(a, 5, 0));
+                    d.Hand = e; Items.Hold(prefab, e, d);
+                    Transform grip = prefab.transform.Find("equipoffset");
+                    int turned = 0;
+                    VisEquipment vis = me.GetComponent<VisEquipment>();
+                    foreach (string field in new[] { "m_rightItemInstance", "m_leftItemInstance" })
+                    {
+                        var inst = HarmonyLib.Traverse.Create(vis).Field(field).GetValue<GameObject>();
+                        if (inst == null || !inst.name.StartsWith("attach") || me.GetCurrentWeapon()?.m_dropPrefab?.name != d.Name) continue;
+                        inst.transform.localPosition = grip.localPosition; inst.transform.localRotation = grip.localRotation; turned++;
+                    }
+                    output(new JObject { ["euler"] = new JArray(e.x, e.y, e.z), ["position"] = new JArray(Math.Round(grip.localPosition.x, 3), Math.Round(grip.localPosition.y, 3), Math.Round(grip.localPosition.z, 3)), ["turnedInHand"] = turned });
+                    break;
                 }
                 default: error(Help); break;
             }

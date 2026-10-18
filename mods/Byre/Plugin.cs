@@ -55,6 +55,7 @@ namespace Byre
             Synced?.Update();
             Guard(Kit.Tick);
             Guard(Tools.Tick);
+            Guard(Icon.Tick);
         }
         private static float _quietUntil;
         internal static void Guard(Action a)

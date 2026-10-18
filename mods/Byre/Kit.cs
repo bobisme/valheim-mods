@@ -34,7 +34,7 @@ namespace Byre
                 if (_holder == null) { _holder = new GameObject("Byre prefabs"); _holder.SetActive(false); Object.DontDestroyOnLoad(_holder); }
                 Transform h = _holder.transform;
                 // (items first: the animals eat, drop and are harvested for them by name)
-                foreach (Items.Def d in Items.All) Keep(Items.Make(h, d));
+                foreach (Items.Def d in Items.All) Keep(Items.Make(scene, h, d));
                 Content.Items(ItemPrefabs);
                 foreach (Species s in Species.All)
                 {

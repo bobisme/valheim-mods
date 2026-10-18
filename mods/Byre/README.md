@@ -60,3 +60,8 @@ Trough
 
 Items
 - [ ] Icons look like the models; shears at the forge (3 copper), pail at the workbench (6 wood); costs follow the settings.
+- [ ] The baked models (0.1.1): shears, pail, milk jug, wool fleece and trough look as in the bake viewer, the trough's legs the same wood
+  as its log; each icon shows its model whole and well framed.
+- [ ] Hold the shears and the pail (they equip like a club, harmless): the fist round the shears' leather grips, blades forward; the pail
+  hanging from its handle bar. If not, `byre grip ByreShears ex ey ez` (or ByreMilkPail) turns them live; put the numbers in Items.cs's Hand.
+- [ ] Shearing and milking still work with the tool in the bag or in hand.

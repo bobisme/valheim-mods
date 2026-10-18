@@ -37,7 +37,7 @@ namespace Byre
         {
             GameObject from = scene.GetPrefab("piece_chest_wood");
             if (from == null) { Plugin.Warn("No piece_chest_wood to make the trough from."); return null; }
-            Material wood = scene.GetPrefab("wood_pole")?.GetComponentsInChildren<Renderer>(true).SelectMany(r => r.sharedMaterials).FirstOrDefault(m => m != null && m.shader != null && m.shader.name == "Custom/Piece");
+            Material wood = Wood(scene);
             GameObject go = Object.Instantiate(from, holder, false); go.name = "ByreTrough";
             foreach (Collider old in go.GetComponentsInChildren<Collider>(true).Where(x => !x.isTrigger)) Object.DestroyImmediate(old);
             foreach (Transform t in go.GetComponentsInChildren<Transform>(true).Where(t => t != go.transform && (t.name.StartsWith("_snappoint") || t.CompareTag("snappoint"))).ToList()) Object.DestroyImmediate(t.gameObject);
@@ -59,8 +59,11 @@ namespace Byre
             go.AddComponent<Trough>();
             Sprite icon = Icon.Make(go);
             if (icon != null) { piece.m_icon = icon; Models.Owned.Add(icon); Models.Owned.Add(icon.texture); }
+            Icon.Later(() => { if (go != null && Icon.Make(go) is Sprite again) { piece.m_icon = again; Models.Owned.Add(again); Models.Owned.Add(again.texture); } });
             return go;
         }
+        // wood_pole's piece material: what the trough and the goods draw with, wearing their own bake.
+        internal static Material Wood(ZNetScene scene) => scene?.GetPrefab("wood_pole")?.GetComponentsInChildren<Renderer>(true).SelectMany(r => r.sharedMaterials).FirstOrDefault(m => m != null && m.shader != null && m.shader.name == "Custom/Piece");
         private static void Solid(GameObject go, int layer, Vector3 at, Vector3 size)
         {
             var o = new GameObject("Collider") { layer = layer }; o.transform.SetParent(go.transform, false); o.transform.localPosition = at;
