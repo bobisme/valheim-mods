@@ -132,7 +132,14 @@ namespace Jarldom
             return "";
         }
         // Free: nobody's, or claimed by a soul who no longer lives here (gone to Valhalla, lost, sent away).
-        public List<Bed> FreeBeds() => AllBeds().Where(b => { string who = BedOwner(b, out string kind); return who == "" || kind == "villager" && R.Row(who) is RosterRow r && r.State != SoulState.Active; }).ToList();
+        // (or one whose claim is stale: the claimant's own record names another bed, or none; such claims were left by moves between beds,
+        // and kept nine beds of a new longhouse empty while nine slept on the hall floor)
+        public List<Bed> FreeBeds() => AllBeds().Where(b => { string who = BedOwner(b, out string kind); return who == "" || kind == "villager" && (!(R.Row(who) is RosterRow r) || r.State != SoulState.Active || StaleClaim(b, who)); }).ToList();
+        public bool StaleClaim(Bed bed, string vid)
+        {
+            string mine = Villagers.ByVid(vid)?.S.Bed ?? R.Row(vid)?.Bed;
+            return string.IsNullOrEmpty(mine) || mine != IdOf(bed.GetComponent<ZNetView>(), false);
+        }
         private List<Bed> _bedsFrom; private readonly Dictionary<string, Bed> _bedIds = new Dictionary<string, Bed>();
         public Bed BedById(string id)
         {

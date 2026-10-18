@@ -450,6 +450,10 @@ namespace Jarldom
                         break;
                     }
                 case "compat": output(new JObject { ["compat"] = new JArray(Compat.Report().Select(r => new JObject { ["mod"] = r.name, ["present"] = r.present, ["version"] = r.version, ["use"] = r.use })) }); break;
+                case "beds": // (test: every bed the colony counts as its own, and whose it is)
+                    output(new JObject { ["beds"] = new JArray(c.AllBeds().Select(x => { string who = Colony.BedOwner(x, out string kind); Room rm = c.RoomAt(x.transform.position + Vector3.up * 0.3f);
+                        return $"{V(x.transform.position)} {(rm != null ? rm.Type.ToString() : "pillars")}: {(who == "" ? "free" : kind + " " + (kind == "villager" ? c.R.Row(who)?.Name + " (" + c.R.Row(who)?.State + ")" : who))}"; })), ["free"] = c.FreeBeds().Count });
+                    break;
                 case "roster":
                     output(new JObject { ["roster"] = new JArray(c.R.Roster.Select(r => new JObject { ["vid"] = r.Vid, ["name"] = r.Name, ["prof"] = r.Prof.ToString(), ["state"] = r.State.ToString(), ["bed"] = r.Bed, ["worth"] = r.Worth, ["at"] = new JArray(r.X, r.Y, r.Z), ["loaded"] = Villagers.Body(r.Vid) != null })), ["fallen"] = c.R.Fallen.Count, ["coming"] = new JArray(c.R.Coming.Select(n => n.Name + " (" + n.Traits + ")")) });
                     break;

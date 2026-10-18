@@ -1,3 +1,5 @@
+0.1.204: beds left with a stale claim count as free again: a villager's bed out at the edge of what's loaded read as gone, was dropped from their record while its claim stayed on the bed, and the bed then stood empty (nine slept by the hall fire beside a new longhouse's empty beds). Those without a bed take back one still tagged as theirs first. Test command: jarldom beds.
+
 0.1.203: hunters let be an animal someone is taming (it has eaten and its taming has begun), a boar or one of Byre's wild sheep and goats, and give up a hunt on one that starts being tamed; wild game is still hunted.
 
 0.1.202: villagers getting up from a seat in a room (the sauna's benches against its back wall) stand up in that room, not outside the wall behind it. The skald's song rides out a moment's gap (the skald a step out of the hall) and takes up again where it stopped, instead of jumping ahead.

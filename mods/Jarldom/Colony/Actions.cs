@@ -155,7 +155,8 @@ namespace Jarldom
             var free = FreeBeds();
             foreach (Brain b in Villagers.All.Where(b => b.S.Colony == R.Id && string.IsNullOrEmpty(b.S.Bed)))
             {
-                Bed bed = free.OrderBy(x => Vector3.Distance(x.transform.position, b.Pos)).FirstOrDefault();
+                // (a bed still tagged as theirs first: the one they had)
+                Bed bed = free.FirstOrDefault(x => BedOwner(x, out string kind) == b.S.Vid && kind == "villager") ?? free.OrderBy(x => Vector3.Distance(x.transform.position, b.Pos)).FirstOrDefault();
                 if (bed == null) break;
                 free.Remove(bed);
                 b.Command("bed", IdOf(bed.GetComponent<ZNetView>()));
