@@ -265,7 +265,13 @@ namespace Jarldom
         private static readonly HashSet<string> Game = new HashSet<string> { "Boar", "Neck", "Hare", "Deer" };
         public static bool IsGame(Character c) => c != null && (c.GetFaction() == Character.Faction.AnimalsVeg || Game.Contains(Utils.GetPrefabName(c.gameObject))) && !c.IsTamed() && !c.IsBoss();
         public static bool Prey(Character c) => c != null && !c.IsDead() && !Combat.LetBe(c) && !c.IsTamed() && !c.IsBoss() && !VillagerPrefab.Is(c) && !c.IsPlayer()
-            && (c.GetFaction() == Character.Faction.AnimalsVeg || Game.Contains(Utils.GetPrefabName(c.gameObject)));
+            && (c.GetFaction() == Character.Faction.AnimalsVeg || Game.Contains(Utils.GetPrefabName(c.gameObject))) && !BeingTamed(c);
+        // Someone is taming it (it has eaten and its taming time has begun to run down): a hunter lets it be, as he would a neighbour's beast.
+        public static bool BeingTamed(Character c)
+        {
+            Tameable t = c != null ? c.GetComponent<Tameable>() : null; ZNetView v = c != null ? c.GetComponent<ZNetView>() : null;
+            return t != null && v != null && v.IsValid() && !c.IsTamed() && v.GetZDO().GetFloat(ZDOVars.s_tameTimeLeft, t.m_tamingTime) < t.m_tamingTime;
+        }
         // What stands in a zone: not the buildings (wild pickables lie on the item layer: kept) (a zone by a big base found its 2048 places all taken by walls and floors, and
         // the boar in the hunting grounds never); a hunting ground looks only for creatures.
         private static int _things = -1, _beasts = -1;
@@ -1212,6 +1218,7 @@ namespace Jarldom
         {
             if (Target != null) _fell = Target.transform.position;
             if (Target == null || Target.IsDead()) { if (Collect(b)) return; Finish(b, true); return; }
+            if (Work.BeingTamed(Target)) { b.Foe = null; Block(b, "someone's taming it"); return; }
             // (run off out of the colony's reach, or not brought down in three minutes: let it go a while)
             if (!Follow.Near(b, Target.transform.position, O.Zone == RangeTask.Zone ? RangeTask.Beyond + 45 : 25)) { b.Foe = null; Block(b, "it ran off out of reach"); return; }
             if (!Gear.CanFight(b)) { b.Foe = null; Block(b, "out of arrows"); return; } // (the quiver emptied at it: home to make more, not chasing it bare-handed)
