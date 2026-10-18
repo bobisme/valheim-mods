@@ -13,7 +13,7 @@ namespace Jarldom
         public const double From = 14, Until = 20;
         public const float SitFor = 45f, PlungeFor = 6f, SteamEvery = 40f;
         public const string DayKey = "bathday", UnwashedKey = "unwasheday", InSauna = "in the sauna";
-        public const string Bench = "Bathhouse_Bench", HotTub = "piece_bathtub", PlungeTub = "Bathhouse_PlungeTub";
+        public const string Bench = "Bathhouse_Bench", HotTub = "piece_bathtub", PlungeTub = "Bathhouse_PlungeTub", Bucket = "Bathhouse_Bucket";
 
         public static bool Wanted(Colony c) => c.R.Rank >= Rank.Hamlet && c.Population >= 6;
         public static Room Room(Colony c) => c.Best(RoomType.Bathhouse) is Room r && r.Ok ? r : null;
@@ -73,7 +73,8 @@ namespace Jarldom
 
     internal sealed class BathTask : Task
     {
-        private Chair _chair; private Vector3? _approach; private bool _there, _plunging, _sat; private float _satAt; private int _tries; private Room _room;
+        private Chair _chair; private Vector3? _approach; private bool _there, _plunging, _sat, _threw; private float _satAt; private int _tries; private Room _room;
+        private Piece _bucket; private float _throwAt = -1; // (coming in, water on the stones from the bucket first, if nobody has lately)
         public override void Start(Brain b)
         {
             _room = Bath.Room(b.Colony);
@@ -81,7 +82,32 @@ namespace Jarldom
             if (_chair == null) { Done = true; return; }
             Seats.Take(b, _chair);
             Doing = "off to the bathhouse";
-            Go(b);
+            _bucket = Bath.SteamDue(b.Colony) ? Bath.Pieces(b.Colony, _room, Bath.Bucket).FirstOrDefault() : null;
+            if (_bucket != null) { Bath.SteamedNow(b.Colony); b.Move.To(_bucket.transform.position, 1.2f); } // (one bather's job: theirs)
+            else Go(b);
+        }
+        // At the bucket: stripped, a ladle of water on the stones, then to their seat.
+        private bool AtBucket(Brain b)
+        {
+            if (_bucket == null) return false;
+            if (_throwAt < 0)
+            {
+                float d = Utils.DistanceXZ(b.Pos, _bucket.transform.position);
+                if (d >= 1.6f && b.Move.Moving) return true;
+                // (stopped short: near enough to reach it from a step or two off; far still, walked on, unless there's no way)
+                if (d >= 3.5f) { if (b.Move.Failed) { _bucket = null; Go(b); } else b.Move.To(_bucket.transform.position, 1.2f); return true; }
+                b.Move.Stop();
+                Bath.Strip(b);
+                Vector3 to = _bucket.transform.position - b.Pos; to.y = 0;
+                if (to.sqrMagnitude > 0.01f) b.Body.transform.rotation = Quaternion.LookRotation(to);
+                Body_.Anim(b.Body)?.SetTrigger("interact");
+                if (Compat.BathSteam(_bucket.transform.position)) b.Say(new[] { "Water on the stones!", "More steam!", "Hold on to your skin!", "Now it's a bath!" }[Random.Range(0, 4)], 4);
+                _threw = true; _throwAt = Time.time;
+                return true;
+            }
+            if (Time.time - _throwAt < 1.5f) return true; // (the ladle, the hiss)
+            _bucket = null; Go(b);
+            return true;
         }
         private void Go(Brain b)
         {
@@ -91,6 +117,7 @@ namespace Jarldom
         public override void Tick(Brain b)
         {
             if (Done) return;
+            if (AtBucket(b)) return;
             if (!_there)
             {
                 if (_chair == null || _chair.m_attachPoint == null) { Finish(b); return; }
@@ -120,8 +147,8 @@ namespace Jarldom
             if (!_plunging)
             {
                 Mood.Satisfy(b.S, Need.Social, (float)(b.GameDt / Clock.Hour) * 10f);
-                // (water on the stones, a while in, if nobody has lately)
-                if (!_sat && Time.time - _satAt > 8f && Bath.SteamDue(b.Colony))
+                // (water on the stones, a while in, if nobody has lately: a sauna without a bucket, or one thrown since they came in)
+                if (!_sat && !_threw && Time.time - _satAt > 8f && Bath.SteamDue(b.Colony))
                 {
                     Bath.SteamedNow(b.Colony);
                     if (Compat.BathSteam(_chair.m_attachPoint.position)) b.Say(new[] { "Water on the stones!", "More steam!", "Hold on to your skin!", "Now it's a bath!" }[Random.Range(0, 4)], 4);
