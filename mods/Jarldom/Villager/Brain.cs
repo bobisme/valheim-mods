@@ -119,9 +119,12 @@ namespace Jarldom
             Vector3 r = Vector3.Cross(Vector3.up, f);
             Vector3 home = Colony != null ? Colony.Position + Colony.Seat.transform.forward * 3f : Vector3.zero;
             if (Colony != null && Nav.Valid(out Vector3 h, home, 3f)) home = h; // (the spot before the high seat may be under a table)
-            foreach (Vector3 d in new[] { f * 0.9f, f * 1.4f, -f * 0.9f, -f * 1.4f, r * 0.9f, -r * 0.9f })
+            // (a seat in a room is stood up from into that room: behind a bench against the back wall is outside it, a sauna's)
+            Room room = Colony?.RoomAt(p);
+            foreach (Vector3 d in new[] { f * 0.9f, f * 1.4f, f * 1.1f + r * 0.5f, f * 1.1f - r * 0.5f, f * 1.8f, -f * 0.9f, -f * 1.4f, r * 0.9f, -r * 0.9f })
             {
-                if (!Nav.Valid(out Vector3 v, p + d, 0.6f) || v.y > p.y - 0.2f || p.y - v.y > 1.5f || Utils.DistanceXZ(v, p) > 1.8f) continue;
+                if (!Nav.Valid(out Vector3 v, p + d, 0.6f) || v.y > p.y - 0.2f || p.y - v.y > 1.5f || Utils.DistanceXZ(v, p) > 2.1f) continue;
+                if (room != null && Colony.RoomAt(v) != room) continue;
                 if (Colony != null && !Pathfinding.instance.HavePath(v, home, Pathfinding.AgentType.Humanoid)) continue;
                 return v;
             }

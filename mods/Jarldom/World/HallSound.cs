@@ -17,12 +17,12 @@ namespace Jarldom
         {
             public GameObject Go; public AudioSource[] Src; public float[] Want = new float[4]; public float Gate = 1, NextGate; public string Room;
             // The skald's song: its own source (and filter), loud inside, muffled outside; Sung when it should be heard now, at SongAt.
-            public Room Of; public float Reach; public AudioSource Song; public AudioLowPassFilter Muffle; public string Sung; public double SongAt; public float SongSince;
+            public Room Of; public float Reach; public AudioSource Song; public AudioLowPassFilter Muffle; public string Sung; public double SongAt; public float SongSince, Lapsed = -1;
         }
         private static readonly Dictionary<string, Hall> Halls = new Dictionary<string, Hall>();
         private static readonly Dictionary<string, AudioClip> Clips = new Dictionary<string, AudioClip>();
         private static bool _loading, _loaded;
-        private const float Resync = 30f; // (seconds off the clock before a playing song is set right)
+        private const float Resync = 30f, SongGrace = 8f; // (seconds off the clock before a playing song is set right)
         private static float _next;
         public static string Last = ""; // (for jarldom hall sound)
         public static float? Forced; public static bool ForceRoar; public static double? ForcedMood;
@@ -86,7 +86,10 @@ namespace Jarldom
             double songAt = ForcedSong != null ? Time.time - ForcedSongAt : Soundscape.SongAt(hour < 4 ? hour + 24 : hour, Clock.Hour, length);
             // (begun in its hour, it's sung to its end: the game's clock may run a little fast of the music, and must not cut it short)
             bool going = h.Song != null && h.Song.isPlaying && h.Song.clip == sc && h.Sung == voiced && h.Song.time < length - 0.25f;
-            bool sung = (songAt >= 0 && songAt < length || going) && h.Song != null && (ForcedSong != null || Soundscape.Sung(skald != null, inHall.Count, mood));
+            bool hears = ForcedSong != null || Soundscape.Sung(skald != null, inHall.Count, mood);
+            // (the skald a step past the hall's outline by the hearth, a body counted out for a moment: sung on, unless it lasts)
+            if (hears || !going) h.Lapsed = -1; else if (h.Lapsed < 0) h.Lapsed = Time.time;
+            bool sung = (songAt >= 0 && songAt < length || going) && h.Song != null && (hears || h.Lapsed >= 0 && Time.time - h.Lapsed < SongGrace);
             Song(h, sung ? voiced : null, songAt);
             Singing[c.Id] = sung;
             float v = level.Volume * h.Gate * (sung ? 0.4f : 1f); // (the talk drops while he sings)
@@ -137,7 +140,12 @@ namespace Jarldom
             h.SongAt = at; h.SongSince = Time.time;
             if (!Clips.TryGetValue(song, out AudioClip clip)) return;
             if (h.Song.clip != clip) { h.Song.Stop(); h.Song.clip = clip; }
-            if (!h.Song.isPlaying) { h.Song.time = Mathf.Clamp((float)at, 0, clip.length - 0.1f); h.Song.Play(); }
+            if (!h.Song.isPlaying)
+            {
+                // (paused a moment and taken up again: on from where it stopped, not jumped to the clock's place, a little ahead of it)
+                if (h.Song.clip == clip && h.Song.time > 0 && Mathf.Abs(h.Song.time - (float)at) < Resync) h.Song.UnPause();
+                else { h.Song.time = Mathf.Clamp((float)at, 0, clip.length - 0.1f); h.Song.Play(); }
+            }
             else if (at >= 0 && Mathf.Abs(h.Song.time - (float)at) > Resync) h.Song.time = Mathf.Clamp((float)at, 0, clip.length - 0.1f);
         }
         private static AudioSource Source(GameObject go, AudioClip clip, float reach)

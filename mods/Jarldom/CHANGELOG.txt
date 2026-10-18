@@ -1,3 +1,5 @@
+0.1.202: villagers getting up from a seat in a room (the sauna's benches against its back wall) stand up in that room, not outside the wall behind it. The skald's song rides out a moment's gap (the skald a step out of the hall) and takes up again where it stopped, instead of jumping ahead.
+
 0.1.201: on washing day a bather coming into the sauna goes to the water bucket first, strips, and throws water on the stones (if nobody has lately), then sits.
 
 0.1.200: Fixes to the shrines and markers: Hel's shroud has no holes; Ullr's skis keep their shape and his stag skull is remade (a rounded braincase, a long snout, sunken eyes, antler bases); Odin's drinking horn is remade (curved, its mouth open with mead in it, gold-banded and gold-tipped, held in a pegged cradle instead of floating over a block); the watch post has no gap under its top; the marker staff keeps its grip wrap. Every model is re-baked with a stricter shape check.
