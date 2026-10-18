@@ -350,6 +350,32 @@
         "Godforged.dll",
         "Godforged.pdb"
       ]
+    },
+    {
+      "guid": "cx.bob.byre",
+      "name": "Byre",
+      "version": "0.1.0",
+      "description": "Livestock for the long houses: sheep in the Meadows and goats in the Mountains, to tame, breed, shear and milk.\n\nWild herds: sheep graze in small herds (two to four) on open Meadows away from the trees, goats on steep Mountain slopes. They're shy: they run from you when you come within 8 m (goats 10 m), half that if you crouch. Hurt one and it runs. They never fight back.\n\nTaming: as with boars. Drop what they eat and stay back; a fed animal calms and tames in time (sheep about 20 minutes, goats 30). Sheep eat dandelions, berries, carrots, turnips, barley and cloudberries; goats all that and thistle and onions too.\n\nBreeding: a fed, tame pair has young (lambs and kids) now and then, up to six of a kind close together. The young grow up in under two days and come tame.\n\nShears (forge, 3 copper): carry them and press E on a tame sheep in full fleece. It drops 2 or 3 wool, 1 if it was hungry. The wool grows back in two days, twice as long if it's kept hungry. Look at a sheep to see how long it has to go.\n\nMilk pail (workbench, 6 wood): carry it and press E on a tame goat. It gives a jug or two of goat's milk once a day (one, and every two days, if hungry). Goat's milk is food: a little health, good stamina.\n\nFeeding trough (workbench, 10 wood): put food in it, and hungry tame animals within 12 m walk over and eat from it, one bite at a time, each its own food. Boars, wolves and the other tames use it too.\n\nSettings (decided by the server in multiplayer): wild herds on or off, how often they come, how fast wool and milk come back, and what the shears, pail and trough cost.\n\nNeeds a restart to install or update: the animals, items and trough are saved in the world. Every player and the server need it.",
+      "notes": "0.1.0: first version. Live-checked: sheep and goat show and animate in the game, no load errors. Not yet tried in play: taming, breeding, shearing, milking, the trough, wild herd spawns. Sheep (Meadows) and goats (Mountains) in shy wild herds; tamed with food, bred into lambs and kids; shears for wool, a milk pail for goat's milk, a feeding trough. Byre.Api for other mods (IsLivestock, IsWool, Products).",
+      "restart": "Adds saved animals (sheep, goats and their young), items (wool, goat's milk, shears, milk pail) and a trough piece. Install Byre on the host or server and every player, then restart Valheim before loading the world.",
+      "cover": "Byre.cover.jpg",
+      "files": [
+        "Byre.dll",
+        "Byre.pdb"
+      ]
+    },
+    {
+      "guid": "cx.bob.homespun",
+      "name": "Homespun",
+      "version": "0.1.0",
+      "description": "Homespun cloth, from the field to the back. Flax and wool go through the steps they really went through, at stations you build at a workbench (Crafting tab), and come out as cloth and clothes.\n\nRetting pool: a plank trough of water. Put flax in and it soaks for 45 seconds a bundle, the stalks rotting loose from the fibre: retted flax. Holds 40. 16 wood, 6 stone, 4 resin.\n\nFlax brake: a hinged wooden jaw that breaks the retted stalks, with a hackle of iron teeth that combs the fibre straight: line flax, 10 seconds each. It combs a lox pelt into 4 wool, too. Holds 20. 12 wood, 10 iron nails.\n\nSpinning: the game's spinning wheel spins line flax into 2 linen thread (raw flax still gives 1, as it always has) and wool into yarn. Or carry a drop spindle (workbench: 2 wood, 1 stone) and spin as you walk: hold it and it spins what's in your bag, line flax first, then wool, a thread or yarn every minute or so.\n\nWarp-weighted loom: a frame leaned back, the warp hanging from it on stone weights. Weave a linen bolt (8 linen thread), a wool bolt (8 yarn) or 2 woven bands (2 thread, 2 yarn). 20 wood, 10 stone, 2 leather scraps.\n\nSewing table: cut and sew bolts into clothes. Linen undertunic, wool tunic, wool dress, wool trousers and a hooded wool cloak, in the colours of undyed linen and wool: light, warm work clothes, not armour. And Hildir's coloured clothes, made here from cloth (berries for the colour) instead of bought. 12 wood, 2 leather scraps, 1 bronze.\n\nWith Byre installed, its sheep's fleece spins straight into yarn, no lox pelt needed.\n\nDyeing comes later.",
+      "notes": "0.1.0: the first cut, H1. Live-checked: loads without errors, stations render in the game. Flax: retting pool, flax brake, the spinning wheel or a drop spindle, linen thread. Wool: combed from a lox pelt at the flax brake (or Byre's fleece, with Byre), spun into yarn. The warp-weighted loom weaves linen and wool bolts and woven band; the sewing table makes an undertunic, tunic, dress, trousers and hooded cloak, and Hildir's coloured clothes from cloth. A spun command for Claude Tools. Not yet tried in play: the stations' use, the spindle in hand, garments worn.",
+      "restart": "Adds saved items, recipes and pieces. Install Homespun on the host and every player, then restart Valheim before loading the world.",
+      "cover": "Homespun.cover.jpg",
+      "files": [
+        "Homespun.dll",
+        "Homespun.pdb"
+      ]
     }
   ]
 }

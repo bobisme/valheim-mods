@@ -1,0 +1,15 @@
+Homespun cloth, from the field to the back. Flax and wool go through the steps they really went through, at stations you build at a workbench (Crafting tab), and come out as cloth and clothes.
+
+Retting pool: a plank trough of water. Put flax in and it soaks for 45 seconds a bundle, the stalks rotting loose from the fibre: retted flax. Holds 40. 16 wood, 6 stone, 4 resin.
+
+Flax brake: a hinged wooden jaw that breaks the retted stalks, with a hackle of iron teeth that combs the fibre straight: line flax, 10 seconds each. It combs a lox pelt into 4 wool, too. Holds 20. 12 wood, 10 iron nails.
+
+Spinning: the game's spinning wheel spins line flax into 2 linen thread (raw flax still gives 1, as it always has) and wool into yarn. Or carry a drop spindle (workbench: 2 wood, 1 stone) and spin as you walk: hold it and it spins what's in your bag, line flax first, then wool, a thread or yarn every minute or so.
+
+Warp-weighted loom: a frame leaned back, the warp hanging from it on stone weights. Weave a linen bolt (8 linen thread), a wool bolt (8 yarn) or 2 woven bands (2 thread, 2 yarn). 20 wood, 10 stone, 2 leather scraps.
+
+Sewing table: cut and sew bolts into clothes. Linen undertunic, wool tunic, wool dress, wool trousers and a hooded wool cloak, in the colours of undyed linen and wool: light, warm work clothes, not armour. And Hildir's coloured clothes, made here from cloth (berries for the colour) instead of bought. 12 wood, 2 leather scraps, 1 bronze.
+
+With Byre installed, its sheep's fleece spins straight into yarn, no lox pelt needed.
+
+Dyeing comes later.

@@ -1324,6 +1324,31 @@ Claude Tools gets `fh`: `list`, `give <prefab|all> [n]`, `tech [tier]`, `pieces`
 recipes. Code: `Core/` (items, pieces, machine base, ports, crafts, tech, item views; looks, icons, GameUi from Wrong Universe
 and the Claude Tools templates) and one `Features/` part each, built in parallel. Not yet played in the game.
 
+## Homespun
+
+Cloth from the field to the back (`cx.bob.homespun`, 0.1.0, unreleased). Stations are built at a workbench, hammer → **Crafting**:
+
+- **Retting pool** (16 wood, 6 stone, 4 resin): flax → retted flax, 45 s each, holds 40.
+- **Flax brake** (12 wood, 10 iron nails): retted flax → line flax, a lox pelt → 4 wool, 10 s each, holds 20.
+- The game's **spinning wheel** also spins line flax → 2 linen thread and wool (or Byre's `ByreWool`) → yarn. A **drop spindle** (workbench: 2 wood, 1 stone) does the same in the hand, about a minute each.
+- **Warp-weighted loom** (20 wood, 10 stone, 2 leather scraps): linen bolt (8 thread), wool bolt (8 yarn), 2 woven bands (2 thread, 2 yarn).
+- **Sewing table** (12 wood, 2 leather scraps, 1 bronze): undertunic, tunic, dress, trousers and hooded cloak (the game's own clothes, retinted undyed), and Hildir's 27 coloured clothes from bolts.
+
+The chain is pure code in `Core/Chain.cs`, checked by `dotnet run --project tests/Homespun.Tests -c Release`. `spun status|give|finish|chain|recipes` (Claude Tools) checks it in a world. Adds items and recipes: restart to update. `Homespun.Api` (by reflection) gives other mods the names and steps. Models: `Models/spun.py`, baked.
+
+Playtest checklist (nothing has been in the game yet):
+
+- [ ] All four stations show in the Crafting tab with their icons, build at a workbench, and look right in the game's light (baked model, piece material).
+- [ ] Retting pool: add flax (E), it soaks, retted flax comes out; holds 40; the empty switch on the rack takes what's done.
+- [ ] Flax brake: retted flax → line flax; lox pelt → 4 wool; each comes out by the basket.
+- [ ] Spinning wheel: line flax → 2 thread, wool → yarn, raw flax still → 1 thread; a wheel built before the mod loaded takes them too.
+- [ ] Drop spindle: held, it spins as you walk; no attack; takes fibre only when the thread's done; how it sits in the hand (equipoffset untuned).
+- [ ] Loom and sewing table: recipes show only at the right station; garments have the right look when worn (tint) and on the ground.
+- [ ] Hildir's clothes craftable at the sewing table; the berries.
+- [ ] Multiplayer: a station owned by another player takes and gives items; leave the area and come back (an hour's progress at most).
+- [ ] With Byre: fleece spins straight to yarn.
+- [ ] Remove the mod: what's lost (items in bags, fibre queued in a wheel) is what we said.
+
 ## Build with mise
 
 Install [mise](https://mise.jdx.dev/) and run:

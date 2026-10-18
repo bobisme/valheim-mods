@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>Homespun</AssemblyName><RootNamespace>Homespun</RootNamespace></PropertyGroup>
+  <ItemGroup>
+    <Reference Include="UnityEngine.AudioModule"><HintPath>$(ManagedDir)/UnityEngine.AudioModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.ParticleSystemModule"><HintPath>$(ManagedDir)/UnityEngine.ParticleSystemModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AnimationModule"><HintPath>$(ManagedDir)/UnityEngine.AnimationModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="netstandard"><HintPath>$(ManagedDir)/netstandard.dll</HintPath><Private>false</Private></Reference>
+    <EmbeddedResource Include="Models/*.json.gz" LogicalName="Homespun.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Models/*.png" LogicalName="Homespun.%(Filename)%(Extension)" />
+    <Compile Include="../Shared/Baked/*.cs" Link="Shared/Baked/%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

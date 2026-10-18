@@ -1,0 +1,17 @@
+Livestock for the long houses: sheep in the Meadows and goats in the Mountains, to tame, breed, shear and milk.
+
+Wild herds: sheep graze in small herds (two to four) on open Meadows away from the trees, goats on steep Mountain slopes. They're shy: they run from you when you come within 8 m (goats 10 m), half that if you crouch. Hurt one and it runs. They never fight back.
+
+Taming: as with boars. Drop what they eat and stay back; a fed animal calms and tames in time (sheep about 20 minutes, goats 30). Sheep eat dandelions, berries, carrots, turnips, barley and cloudberries; goats all that and thistle and onions too.
+
+Breeding: a fed, tame pair has young (lambs and kids) now and then, up to six of a kind close together. The young grow up in under two days and come tame.
+
+Shears (forge, 3 copper): carry them and press E on a tame sheep in full fleece. It drops 2 or 3 wool, 1 if it was hungry. The wool grows back in two days, twice as long if it's kept hungry. Look at a sheep to see how long it has to go.
+
+Milk pail (workbench, 6 wood): carry it and press E on a tame goat. It gives a jug or two of goat's milk once a day (one, and every two days, if hungry). Goat's milk is food: a little health, good stamina.
+
+Feeding trough (workbench, 10 wood): put food in it, and hungry tame animals within 12 m walk over and eat from it, one bite at a time, each its own food. Boars, wolves and the other tames use it too.
+
+Settings (decided by the server in multiplayer): wild herds on or off, how often they come, how fast wool and milk come back, and what the shears, pail and trough cost.
+
+Needs a restart to install or update: the animals, items and trough are saved in the world. Every player and the server need it.

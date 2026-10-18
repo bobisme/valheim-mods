@@ -1,0 +1,1 @@
+Adds saved animals (sheep, goats and their young), items (wool, goat's milk, shears, milk pail) and a trough piece. Install Byre on the host or server and every player, then restart Valheim before loading the world.

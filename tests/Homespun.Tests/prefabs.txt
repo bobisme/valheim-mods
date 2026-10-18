@@ -1,0 +1,17 @@
+Homespun_RettingPool
+Homespun_FlaxBrake
+Homespun_Loom
+Homespun_SewingTable
+Homespun_RettedFlax
+Homespun_LineFlax
+Homespun_Wool
+Homespun_WoolYarn
+Homespun_LinenBolt
+Homespun_WoolBolt
+Homespun_Band
+Homespun_Spindle
+Homespun_LinenUndertunic
+Homespun_WoolTunic
+Homespun_WoolDress
+Homespun_WoolTrousers
+Homespun_HoodedCloak
