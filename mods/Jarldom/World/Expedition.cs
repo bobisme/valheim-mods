@@ -146,6 +146,13 @@ namespace Jarldom
             Inventory bag = b.Body.GetInventory();
             var chests = Stock.ChestsFor(b).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).Select(x => x.chest).ToList();
             int packed = 0; string said = null;
+            // (anyone going out takes something warm, if they've nothing and the stores have it: the jarl may make for the mountains)
+            if (!Cold.Has(b) && bag.GetEmptySlots() > 1)
+                foreach (Container ch in chests)
+                {
+                    ItemDrop.ItemData warm = ch.GetInventory().GetAllItems().FirstOrDefault(Cold.Warm);
+                    if (warm != null && Stock.Take(ch, bag, warm, 1) > 0) break;
+                }
             if (role == "cook")
             {
                 // (the most filling first: cooked meat and stews before raw carrots; three kinds at most, so the jarl gets a mix)

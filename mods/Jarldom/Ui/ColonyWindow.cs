@@ -173,6 +173,11 @@ namespace Jarldom.Ui
                 Vector3 wc = Zones.Centre(wl.Value.zone); float far = Utils.DistanceXZ(wc, c.Position);
                 list.Add($"The {Tables.Of(wl.Value.zone.Type).Name.ToLower()} {(far < 6 ? "by the pillars" : $"{Mathf.RoundToInt(far)} m {ScoutTask.Compass(wc - c.Position)}")} is worked thin: it gives {Mathf.RoundToInt((1 - wl.Value.yield) * 100)}% less until it rests ({wl.Value.days} days with no work there), or mark another further out.");
             }
+            // (autumn and winter, and some with nothing warm: what would keep them warm)
+            if (Chill.Wanted(Year.Today().Season) && Villagers.All.Count(b => b.S.Colony == c.Id && !Cold.Has(b)) is int chilly && chilly > 0 && Weaving.SpareWarm(c) < chilly)
+                list.Add($"{chilly} {(chilly == 1 ? "has" : "have")} nothing warm to wear this {Calendar.Name(Year.Today().Season)}, and the cold out of doors gets them down. " + (Compat.HomespunOn
+                    ? $"The weaver sews wool trousers and hooded cloaks (16 and 25 wool): the stores hold {Crafts.InStock(c, "ByreWool") + Crafts.InStock(c, Weaving.HsWool)} wool. Shear sheep (Byre), comb lox pelts at the flax brake, or put wolf or lox capes in the stores."
+                    : "Put wolf or lox capes in the stores (Homespun's weaver would sew wool ones)."));
             int homeless = people.Count(p => string.IsNullOrEmpty(p.Bed));
             if (homeless > 0) list.Add($"{homeless} {(homeless == 1 ? "has" : "have")} no bed and sleep by the hall fire: build beds in a marked longhouse (or by the pillars).");
             int meals = Stock.Food(c, c.Position).Sum(f => f.item.m_stack);

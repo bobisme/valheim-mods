@@ -19,7 +19,7 @@ namespace Jarldom
         {
             Colony c = b.Colony;
             if (c == null || Time.time < b.NoGearUntil || b.Body.GetInventory().GetEmptySlots() < 1) return null;
-            foreach (string kind in Kinds(b.S.Prof).Concat(new[] { "clothes", "hat" }).Concat(b.S.Prof == Prof.Guard ? new[] { "upgrade" } : new string[0]))
+            foreach (string kind in Kinds(b.S.Prof).Concat(new[] { "clothes", "warm", "hat" }).Concat(b.S.Prof == Prof.Guard ? new[] { "upgrade" } : new string[0]))
             {
                 Func<ItemDrop.ItemData, bool> want = Wanted(b, kind, out int count);
                 if (want == null) continue;
@@ -60,6 +60,7 @@ namespace Jarldom
                 case "weapon": return Gear.CanFight(b) ? null : (Func<ItemDrop.ItemData, bool>)Gear.GuardWeapon;
                 case "upgrade": return Smithing.GuardUpgrade(b); // (a guard: a clearly better weapon or armour the smith made)
                 case "clothes": return Weaving.InRags(b) && !Gear.Items(b).Any(i => Weaving.IsClothes(i) && i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Chest) ? (Func<ItemDrop.ItemData, bool>)(i => Weaving.IsClothes(i) && i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Chest) : null;
+                case "warm": return Cold.Wants(b) && !Cold.Has(b) ? (Func<ItemDrop.ItemData, bool>)Cold.Warm : null; // (autumn and winter: a cloak or the like from the stores)
                 case "hat": return Weaving.Hatless(b) ? (Func<ItemDrop.ItemData, bool>)(i => Weaving.IsClothes(i) && i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Helmet) : null;
                 case "bait":
                     if (Gear.Items(b).Where(Bait).Sum(i => i.m_stack) >= 5) return null;

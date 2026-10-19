@@ -168,6 +168,8 @@ namespace Jarldom
                 var fits = Table.Where(t => t.item.StartsWith("ArmorTunic") || t.item.StartsWith("ArmorDress")).Select(t => RecipeFor(t.item)).Where(r => r != null && Afford(r)).ToList();
                 if (fits.Count > 0) make = fits.OrderBy(r => r.m_item.name.StartsWith(women ? "ArmorDress" : "ArmorTunic") ? 0 : 1).ThenBy(r => r.m_item.name.EndsWith("10") ? 1 : 0).ThenBy(_ => rng.Next()).First().m_item.name;
             }
+            else if (Compat.HomespunOn && Chill.ToSew(Year.Today().Season, people.Count(b => !Cold.Has(b)), SpareWarm(c)) > 0 && WarmNext(c, thread) is string toward)
+                make = toward; // (wool trousers or a hooded cloak for each of them with nothing warm, in autumn and winter)
             else if (hatless > spare.hat + people.Count / 2 && c.R.Flag("weave:hatday") != c.Day) // (a cap now and then, not one each at once)
             {
                 var hats = Table.Where(t => t.item.StartsWith("HelmetHat")).Select(t => RecipeFor(t.item)).Where(r => r != null && Afford(r)).ToList();
@@ -197,6 +199,16 @@ namespace Jarldom
                 }
             return null;
         }
+        // Something warm or what it takes next (a bolt, a band, thread): one that can be sewn now first, the trousers (two bolts) before
+        // the cloak (three).
+        private static string WarmNext(Colony c, int thread)
+        {
+            foreach (bool now in new[] { true, false })
+                foreach (string g in new[] { Chill.Trousers, Chill.Cloak })
+                    if (Step(c, g, x => x == Thread ? thread : Crafts.InStock(c, x), 0) is string step && (step == g) == now) return step;
+            return null;
+        }
+        internal static int SpareWarm(Colony c) => Stock.Chests(c).Where(x => x.category != "treasury").SelectMany(x => x.chest.GetInventory().GetAllItems()).Count(Cold.Warm);
         // The next thing to make towards an item: itself if the stores hold what it takes, else (for cloth, a band, thread) what it lacks.
         private static string Step(Colony c, string item, Func<string, int> has, int depth)
         {

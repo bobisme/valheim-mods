@@ -1060,6 +1060,17 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(sw != null && sw.Vid == "abc" && Math.Abs(sw.X - 512.3f) < 0.06f && Math.Abs(sw.Day - 41.25) < 1e-6 && Scatter.Load("") == null && Scatter.Load("a,b,c,d") == null, "Kept in the record and read back");
 }
 
+// ---- Wool for the cold ----
+{
+    Check(Chill.Cold(false, true, false, false) && !Chill.Cold(false, true, true, false) && !Chill.Cold(false, false, false, false), "Winter out of doors is cold; under a roof, or another season, isn't");
+    Check(Chill.Cold(true, false, true, false) && !Chill.Cold(true, true, false, true), "The mountains are cold in any season and under a roof; a fire's warmth never is");
+    Check(Chill.Bites(true, false) && !Chill.Bites(true, true) && !Chill.Bites(false, false), "Cold bites only those with nothing warm on");
+    Check(Chill.Wanted(Season.Autumn) && Chill.Wanted(Season.Winter) && !Chill.Wanted(Season.Summer) && !Chill.Wanted(Season.Spring), "Something warm wanted in autumn and winter");
+    Check(Chill.ToSew(Season.Winter, 5, 2) == 3 && Chill.ToSew(Season.Winter, 1, 4) == 0 && Chill.ToSew(Season.Summer, 5, 0) == 0, "Cloaks sewn for those without, less the spares; none in summer");
+    Check(Chill.IsWool("Homespun_HoodedCloak") && Chill.IsWool("Homespun_WoolTrousers") && !Chill.IsWool("Homespun_LinenUndertunic") && !Chill.IsWool(null), "Wool garments are warm; linen isn't");
+    Check(Tables.Moodlet("chilled")?.Value < 0, "A Cold moodlet");
+}
+
 // ---- Prefab names: a save finds a thing again by its prefab's name; none shipped may go ----
 {
     var golden = File.ReadAllLines(Path.Combine(AppContext.BaseDirectory, "prefabs.txt")).Select(l => l.Trim()).Where(l => l != "").ToList();
