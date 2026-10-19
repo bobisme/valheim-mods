@@ -466,6 +466,7 @@ namespace Jarldom
                 c.Board.Post("feed", Key(v), Prof.Herder, 3, p.x, p.y, p.z, now, z.Id, "Pasture");
                 fed++;
             }
+            Herding.Post(c, z, beasts, now, Key); // (Byre's sheep shorn, its goats milked)
             int holds = Mathf.Max(2, (int)(Geometry.Area(z.Xz) / 12f));
             if (beasts.Count <= holds || c.Board.All.Any(o => o.Kind == "cull" && o.Zone == z.Id && (o.State == OrderState.Open || o.State == OrderState.Claimed))) return;
             var spare = beasts.Where(ch => ch.IsTamed() && ch.GetComponent<Growup>() == null && string.IsNullOrEmpty(ch.GetComponent<Tameable>().GetText()) && ch.GetComponentInChildren<Sadle>() == null) // (never a mount)
@@ -530,7 +531,7 @@ namespace Jarldom
                     case ZoneType.Hunting: return "no game in the hunting grounds";
                     case ZoneType.FishingDock: return c.R.Zones.Any(z => z.Type == ZoneType.FishingDock && Zones.HasWater(z)) ? "nothing to fish at the dock" : "no fishing dock reaches the water (mark one out over it)";
                     case ZoneType.GuardPost: return "between watches";
-                    case ZoneType.Pasture: return "the pasture's beasts are seen to";
+                    case ZoneType.Pasture: return Herding.Missing(c) is string lack && lack != "" ? lack : "the pasture's beasts are seen to";
                     case ZoneType.Boatyard: return Gear.Tool(b, "hammer") == null ? "needs a hammer to build ships" : Shipyard.Building(c) != null ? $"the stores lack {b.ShipShort ?? "something"} for the ship" : "no ship ordered: order one in the Work tab";
                 }
             }
@@ -642,7 +643,7 @@ namespace Jarldom
                 GameObject t = Resolve(o.Target);
                 tier = t == null ? 0 : t.GetComponent<TreeBase>()?.m_minToolTier ?? t.GetComponent<TreeLog>()?.m_minToolTier ?? t.GetComponent<MineRock5>()?.m_minToolTier ?? t.GetComponent<MineRock>()?.m_minToolTier ?? t.GetComponent<Destructible>()?.m_minToolTier ?? 0;
             }
-            if (o.Kind == "harvest" || o.Kind == "pick" || o.Kind == "fuel" || o.Kind == "smelt" || o.Kind == "cook" || o.Kind == "ferment" || o.Kind == "tap" || o.Kind == "craft" || o.Kind == "plant" || o.Kind == "sow" || o.Kind == "feed" || o.Kind == "honey" || o.Kind == "hive" || o.Kind == "guard") return o.Kind == "guard" ? Gear.Lacks(b, Prof.Guard) : null;
+            if (o.Kind == "harvest" || o.Kind == "pick" || o.Kind == "fuel" || o.Kind == "smelt" || o.Kind == "cook" || o.Kind == "ferment" || o.Kind == "tap" || o.Kind == "craft" || o.Kind == "plant" || o.Kind == "sow" || o.Kind == "feed" || o.Kind == "tend" || o.Kind == "honey" || o.Kind == "hive" || o.Kind == "guard") return o.Kind == "guard" ? Gear.Lacks(b, Prof.Guard) : null;
             return Gear.Lacks(b, o.Prof, tier);
         }
         public static int Carrying(Brain b) => b.Body.GetInventory().GetAllItems().Count(i => Stores(b, i));
@@ -779,6 +780,7 @@ namespace Jarldom
                 case "plant": return "planting a tree";
                 case "sow": return "sowing";
                 case "feed": return "feeding " + what.ToLower();
+                case "tend": return Herding.Verb(Herding.KindOf(_target)) + " the " + what.ToLower();
                 case "cull": return "culling " + what.ToLower();
                 case "ferment": return "filling the fermenter";
                 case "tap": return "tapping the mead";
@@ -862,6 +864,7 @@ namespace Jarldom
                 case "plant": PlantTree(b); break;
                 case "sow": Sow(b); break;
                 case "feed": Feed(b); break;
+                case "tend": Tend(b); break;
                 case "cull": Cull(b); break;
                 default: Finish(b, false); break;
             }
@@ -1187,6 +1190,50 @@ namespace Jarldom
             b.S.Bump("fed");
             _waitUntil = Time.time + 1f;
             Finish(b, true);
+        }
+
+        // Shearing a sheep or milking a goat of Byre's: its tool from the stores (kept after: the herder's), up to it, the Api's harvest (on the
+        // animal's owner: the wool or milk falls at its feet), then what fell picked up for the stores.
+        private void Tend(Brain b)
+        {
+            string kind = Herding.KindOf(_target);
+            if (_target == null || kind == null) { Gone(b); return; }
+            string product = Herding.Product(kind);
+            if (_phase >= 1)
+            {
+                if (Time.time < _waitUntil) return;
+                if (_phase == 1) { _collect.Clear(); _collect.AddRange(Work.Drops(_target.transform.position, 3f).Where(d => Classes.Prefab(d.m_itemData) == product)); _phase = 2; _collectUntil = Time.time + 30f; }
+                _collect.RemoveAll(d => d == null);
+                if (_collect.Count == 0 || Time.time > _collectUntil) { Finish(b, true); return; }
+                ItemDrop next = _collect.OrderBy(d => Vector3.Distance(d.transform.position, b.Pos)).First();
+                if (!InReach(b, next.transform.position)) { if (b.Move.Failed) { _collect.Remove(next); return; } if (!b.Move.Moving) b.Move.To(next.transform.position, 0.8f); return; }
+                if (!PickUp(b, next)) _collect.Remove(next);
+                return;
+            }
+            if (!Herding.Ready(_target)) { Finish(b, true); return; } // (shorn or milked meanwhile)
+            string tool = Herding.Tool(kind);
+            Inventory bag = b.Body.GetInventory();
+            if (!bag.GetAllItems().Any(i => Classes.Prefab(i) == tool))
+            {
+                if (_source == null) _source = Stock.ChestsFor(b).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).Select(x => x.chest)
+                    .FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => Classes.Prefab(i) == tool));
+                if (_source == null) { Block(b, tool == Herding.Shears ? "no shears in the stores" : "no milk pail in the stores"); return; }
+                Stock.Walk w = Stock.WalkTo(b, _source);
+                if (w == Stock.Walk.Unreachable) { _source = null; return; }
+                if (w == Stock.Walk.Walking) { if (NoHeadway(b, _source.transform.position)) Block(b, "can't reach the stores"); return; }
+                ItemDrop.ItemData have = _source.GetInventory().GetAllItems().FirstOrDefault(i => Classes.Prefab(i) == tool);
+                if (have == null || Stock.Take(_source, bag, have, 1) == 0) { Finish(b, false); return; }
+                b.Move.To(Approach(b), 1.6f);
+                return;
+            }
+            if (Walking(b, 2.2f)) return;
+            Vector3 flat = _target.transform.position - b.Pos; flat.y = 0;
+            if (flat.sqrMagnitude > 0.01f) b.Ai.LookTowards(flat.normalized);
+            Body_.Anim(b.Body)?.SetTrigger("interact");
+            if (!Herding.Harvest(_target)) { Finish(b, true); return; }
+            if (product != null) b.Hauled.Add(product); // (the colony's: to the stores, not a snack for the herder)
+            b.S.Bump(kind == "sheep" ? "shorn" : "milked");
+            _phase = 1; _waitUntil = Time.time + 1.5f; // (it falls a moment after, on the animal's owner)
         }
 
         // Culling a surplus beast for its meat and hide: the herder's weapon, the game's own blows; then gathering what it leaves.

@@ -1972,7 +1972,15 @@ namespace Jarldom
                             Vector3 centre = Zones.Centre(z); float reach = Zones.Reach(z) + 2, scan = reach + Zones.FuzzReach(z);
                             var things = Work.Things(centre, scan, beasts: z.Type == ZoneType.Hunting).ToList();
                             var beasts = things.Select(go => go.GetComponent<Character>()).Where(ch => ch != null).Select(ch => $"{Utils.GetPrefabName(ch.gameObject)} {ch.GetFaction()} works={Zones.Works(z, ch.transform.position, false, Mathf.FloorToInt(ch.transform.position.x * 4) * 73856093 ^ Mathf.FloorToInt(ch.transform.position.z * 4) * 19349663)} dead={ch.IsDead()} tame={ch.IsTamed()} at {ch.transform.position.x:0},{ch.transform.position.z:0}").ToList();
-                            res.Add(new JObject { ["zone"] = z.Type.ToString(), ["centre"] = V(centre), ["reach"] = reach, ["scan"] = scan, ["things"] = things.Count, ["beasts"] = new JArray(beasts) });
+                            var row = new JObject { ["zone"] = z.Type.ToString(), ["centre"] = V(centre), ["reach"] = reach, ["scan"] = scan, ["things"] = things.Count, ["beasts"] = new JArray(beasts) };
+                            if (z.Type == ZoneType.Pasture) // (what Work.Pasture asks of each animal near)
+                                row["herd"] = new JArray(Character.GetAllCharacters().Where(ch => ch != null && !ch.IsPlayer() && !VillagerPrefab.Is(ch) && Vector3.Distance(ch.transform.position, centre) < reach + 12).Select(ch =>
+                                {
+                                    string kind = Herding.KindOf(ch.gameObject), tool = Herding.Tool(kind);
+                                    MonsterAI ai = ch.GetComponent<MonsterAI>();
+                                    return (JToken)$"{Utils.GetPrefabName(ch.gameObject)} tame={ch.IsTamed()} breeds={ch.GetComponent<Procreation>() != null} group={ch.m_group} dist={Vector3.Distance(ch.transform.position, centre):0.0} inside={Zones.Inside(z, ch.transform.position)} hungry={ch.GetComponent<Tameable>()?.IsHungry()} food={ai?.m_consumeItems?.Any(f => f != null && Work.HaveInStock(c, f.name))} byre={Herding.Present} kind={kind} ready={Herding.Ready(ch.gameObject)} tool={tool} has={(tool != null && Herding.Has(c, tool))}";
+                                }));
+                            res.Add(row);
                         }
                         output(new JObject { ["zones"] = res }); break;
                     }

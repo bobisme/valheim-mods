@@ -33,7 +33,7 @@ namespace Jarldom
         public static bool IsTankard(ItemDrop.ItemData i) => Classes.Prefab(i).StartsWith("Tankard");
         public static bool IsWeapon(ItemDrop.ItemData i) => Usable(i) &&
             (i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.OneHandedWeapon || i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.TwoHandedWeapon || i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.TwoHandedWeaponLeft)
-            && i.m_shared.m_skillType != Skills.SkillType.Pickaxes && i.m_dropPrefab != null && !IsTankard(i) && i.m_dropPrefab.name != "Hammer" && i.m_dropPrefab.name != "Hoe" && i.m_dropPrefab.name != "Cultivator" && i.m_dropPrefab.name != "FishingRod";
+            && i.m_shared.m_skillType != Skills.SkillType.Pickaxes && i.m_dropPrefab != null && !IsTankard(i) && i.m_dropPrefab.name != "Hammer" && i.m_dropPrefab.name != "Hoe" && i.m_dropPrefab.name != "Cultivator" && i.m_dropPrefab.name != "FishingRod" && !Herding.IsTool(i.m_dropPrefab.name);
 
         public static ItemDrop.ItemData Tool(Brain b, string kind, int tier = 0)
         {

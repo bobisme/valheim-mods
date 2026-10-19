@@ -232,10 +232,12 @@ namespace Jarldom
             if (_roomQueue.Count > 0) _nextRooms = Time.time + 1;
         }
 
+        public const float ByreWall = 2f; // (metres of wall a longhouse shares with a byre for its warmth)
         public RoomVerdict Check(Room room)
         {
             room.Height = Ceiling(room);
             RoomFacts f = Measure(room);
+            if (room.Type == RoomType.Longhouse && R.Rooms.Any(o => o.Type == RoomType.Byre && o.Ok && Geometry.SharedWall(room.Xz, o.Xz) >= ByreWall)) f.Comfort += 1; // (the beasts' warmth through the wall)
             RoomVerdict v = RoomRules.Judge(room.Type, f, room.God);
             room.Ok = v.Ok; room.Grade = v.Grade; room.Points = v.Points; room.Failures = v.Ok ? v.Capped : string.Join("; ", v.Failures); // (a working temple: what holds it at B, if anything)
             room.OpenEdges = string.Join(",", v.OpenEdges); room.Checked = Now;
@@ -304,6 +306,7 @@ namespace Jarldom
                     // A door in this room's walls: near its outline. Window shutters are doors to the game; not here.
                     if (!Prefab(p.gameObject).Contains("window") && Geometry.Distance(xz, at.x, at.z) <= 1.5f && EdgeDistance(xz, at.x, at.z) <= 1.5f)
                     { f.Doors++; if (door.m_keyItem != null) f.LockableDoors++; }
+                    if (Kinds(p).Contains("gate") && Geometry.Distance(xz, at.x, at.z) <= 1.5f) f.Count["gate"] = f.C("gate") + 1; // (a byre's fence gate: in its walls or closing a stall)
                     continue;
                 }
                 if (!Geometry.Inside(xz, at.x, at.z)) continue;
@@ -407,6 +410,10 @@ namespace Jarldom
             if (n == "bathhouse_bucket") yield return "bucket";
             if (n == "bathhouse_plungetub") yield return "plunge";
             if (n == "bathhouse_locker") yield return "locker";
+            // (a byre's: Byre's trough and hay rack, its stall dividers, and the game's fence gates)
+            if (n == "byretrough" || n == "byrehayrack") yield return "feeder";
+            if (n == "byrestall") yield return "stall";
+            if (n == "wood_fence_gate" || n == "wood_gate") yield return "gate";
             ItemStand stand = p.GetComponent<ItemStand>();
             if (stand != null)
             {

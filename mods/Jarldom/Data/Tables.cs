@@ -11,7 +11,7 @@ namespace Jarldom
 
     public enum Need { Food, Rest, Shelter, Social, Safety, Faith, Beauty }
 
-    public enum RoomType { Longhouse, GreatHall, Stockpile, Smithy, OdinShrine, Temple, HealersHouse, TreasureRoom, BurialGround, Watchtower, Brewhouse, Bathhouse }
+    public enum RoomType { Longhouse, GreatHall, Stockpile, Smithy, OdinShrine, Temple, HealersHouse, TreasureRoom, BurialGround, Watchtower, Brewhouse, Bathhouse, Byre }
 
     public enum ZoneType { Woodlot, Mine, Fields, Foraging, Hunting, FishingDock, GuardPost, SacredBog, Pasture, Boatyard }
 
@@ -44,7 +44,7 @@ namespace Jarldom
     public sealed class RoomInfo
     {
         public RoomType Id; public string Name; public bool Enclosed, Roofed, Door, Fire, Lockable, Open;
-        public int Beds, Seats, Tables, Chests, Graves; public float MinArea, MinFloor; public bool Hearth, Forge, Altar, Brew, Sauna;
+        public int Beds, Seats, Tables, Chests, Graves; public float MinArea, MinFloor; public bool Hearth, Forge, Altar, Brew, Sauna, Feeder;
         public string PointsFrom;
     }
 
@@ -206,6 +206,7 @@ namespace Jarldom
             new RoomInfo { Id = RoomType.Watchtower, Name = "Watchtower", Roofed = true, MinFloor = 4, PointsFrom = "height, braziers" },
             new RoomInfo { Id = RoomType.Brewhouse, Name = "Brewhouse", Roofed = true, Brew = true, PointsFrom = "fermenters, the cauldron" },
             new RoomInfo { Id = RoomType.Bathhouse, Name = "Bathhouse", Enclosed = true, Roofed = true, Door = true, Sauna = true, PointsFrom = "sauna benches, the water bucket, a plunge tub, bath lockers, comfort" },
+            new RoomInfo { Id = RoomType.Byre, Name = "Byre", Roofed = true, Feeder = true, PointsFrom = "troughs and hay racks, stall dividers, fence gates (a passing byre warms a longhouse sharing its wall: +1 comfort)" },
         };
         public static RoomInfo Of(RoomType r) => Rooms[(int)r];
 

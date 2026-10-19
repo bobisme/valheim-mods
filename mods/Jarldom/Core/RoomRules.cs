@@ -56,6 +56,7 @@ namespace Jarldom
             if (info.MinFloor > 0 && f.FloorHeight < info.MinFloor) v.Failures.Add($"its floor is {Math.Round(f.FloorHeight, 1)} m up (needs {info.MinFloor})");
             if (info.Brew && f.C("cauldron") == 0 && f.C("fermenter") == 0) v.Failures.Add("no cauldron or fermenter");
             if (info.Sauna && f.C("sauna") == 0) v.Failures.Add("no sauna stove or hot tub (the sauna stove is the Bathhouse mod's; the hot tub is the game's own)");
+            if (info.Feeder && f.C("feeder") == 0) v.Failures.Add("no feeding trough or hay rack (the Byre mod's)");
             if (info.Forge && f.C("forge") == 0 && f.C("workbench") == 0) v.Failures.Add("no forge or workbench");
             if (info.Altar)
             {
@@ -115,6 +116,10 @@ namespace Jarldom
                     // (the heat and what's round it: benches to sit on, water for the stones, a cold plunge, somewhere to leave your things)
                     p = Math.Min(f.C("sauna"), 2) * 6 + Math.Min(f.C("seat"), 9) * 2 + Math.Min(f.C("bucket"), 1) * 4 + Math.Min(f.C("plunge"), 2) * 6
                         + Math.Min(f.C("locker"), 4) * 2 + Math.Min(f.C("rug"), 4) + f.Comfort;
+                    break;
+                case RoomType.Byre:
+                    // (somewhere to eat, stalls to stand in, gates to keep them there)
+                    p = Math.Min(f.C("feeder"), 4) * 5 + Math.Min(f.C("stall"), 10) * 3 + Math.Min(f.C("gate"), 4) * 2 + Math.Min(f.C("chest"), 2) * 2;
                     break;
                 case RoomType.Watchtower:
                     p = (int)Math.Min(40, f.FloorHeight * 4) + Math.Min(f.C("brazier"), 4) * 4;

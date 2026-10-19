@@ -419,6 +419,26 @@ namespace Jarldom
             float cx = ax + t * dx - px, cz = az + t * dz - pz;
             return (float)Math.Sqrt(cx * cx + cz * cz);
         }
+        // How much of a's outline runs along b's, within near metres (two rooms either side of one wall: their outlines lie a wall's
+        // thickness apart), in metres.
+        public static float SharedWall(IList<float> a, IList<float> b, float near = 1.2f, float step = 0.5f)
+        {
+            int n = b.Count / 2, m = a.Count / 2; float along = 0;
+            if (n < 2 || m < 2) return 0;
+            foreach (var s in EdgeSamples(a, step))
+            {
+                // (only a wall of b's running alongside: a corner's end of the next wall round doesn't count)
+                int k = (s.edge + 1) % m; float ex = a[k * 2] - a[s.edge * 2], ez = a[k * 2 + 1] - a[s.edge * 2 + 1], el = (float)Math.Sqrt(ex * ex + ez * ez);
+                for (int i = 0; i < n; i++)
+                {
+                    int j = (i + 1) % n; float fx = b[j * 2] - b[i * 2], fz = b[j * 2 + 1] - b[i * 2 + 1], fl = (float)Math.Sqrt(fx * fx + fz * fz);
+                    if (el < 1e-4f || fl < 1e-4f || Math.Abs((ex * fx + ez * fz) / (el * fl)) < 0.9f) continue;
+                    float t = ((s.x - b[i * 2]) * fx + (s.z - b[i * 2 + 1]) * fz) / (fl * fl); // (beside it, not off its end in line with it)
+                    if (t > 0 && t < 1 && Segment(s.x, s.z, b[i * 2], b[i * 2 + 1], b[j * 2], b[j * 2 + 1]) <= near) { along += step; break; }
+                }
+            }
+            return along;
+        }
         // Points along each edge every step metres (for the wall check), with the edge index.
         public static IEnumerable<(int edge, float x, float z)> EdgeSamples(IList<float> xz, float step)
         {

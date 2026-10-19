@@ -610,7 +610,7 @@ namespace Jarldom.Ui
         {
             ["chop"] = "Felling", ["mine"] = "Mining", ["harvest"] = "Harvesting", ["pick"] = "Foraging", ["hunt"] = "Hunting", ["haul"] = "Hauling",
             ["plant"] = "Planting saplings", ["sow"] = "Sowing", ["fish"] = "Fishing", ["fuel"] = "Fuelling fires", ["smelt"] = "Smelting", ["cook"] = "Cooking",
-            ["craft"] = "Commissions", ["ferment"] = "Fermenters", ["tap"] = "Tapping fermenters", ["feed"] = "Feeding beasts", ["cull"] = "Culling the herd",
+            ["craft"] = "Commissions", ["ferment"] = "Fermenters", ["tap"] = "Tapping fermenters", ["feed"] = "Feeding beasts", ["tend"] = "Shearing and milking", ["cull"] = "Culling the herd",
             ["guard"] = "Guarding", ["build"] = "Building", ["honey"] = "Keeping bees", ["hive"] = "Raiding wild hives",
         };
         private static string KindName(string k) => Kinds.TryGetValue(k, out string n) ? n : char.ToUpper(k[0]) + k.Substring(1);
