@@ -21,7 +21,8 @@ namespace Homespun
             _next = Time.unscaledTime + 3;
             Smelter wheel = ZNetScene.instance?.GetPrefab(Names.Wheel)?.GetComponent<Smelter>();
             if (wheel == null || Things.Get(Names.LineFlax) == null) return;
-            if (wheel == _wheel && Added.All(c => wheel.m_conversion.Contains(c))) return;
+            int can = Chain.At(Names.Wheel).Count(c => (Things.Get(c.From) ?? ZNetScene.instance.GetPrefab(c.From)) != null && (Things.Get(c.To) ?? ZNetScene.instance.GetPrefab(c.To)) != null);
+            if (wheel == _wheel && Added.Count == can && Added.All(c => wheel.m_conversion.Contains(c))) return; // (and again once Byre's fleece is there, if it came later)
             _wheel = wheel;
             Added.Clear();
             foreach (Conversion c in Chain.At(Names.Wheel))
