@@ -75,8 +75,9 @@ namespace Jarldom
             }
         }
 
-        // Once a second: armour on, the right thing in hand.
-        public static string Want(Brain b) => b.Task is LeisureTask lt && lt.Tool != "" ? lt.Tool : (b.Task is HallTask ht && !ht.Shelter || b.Task is LeisureTask lh && lh.Kind == "hall") && Tool(b, "tankard") != null ? "tankard" : b.Task is BuildTask || b.Task is UpkeepTask ? "hammer" : b.Task is WorkTask w ? w.Tool : Combat.Busy(b) || b.HasFoe ? (b.Combat_Bow ? "bow" : "weapon") : b.Task is DefendTask d && d.Fighter || b.Task is FollowTask && CanFight(b) ? "weapon" : ""; // (out with the jarl: weapon in hand)
+        // Once a second: armour on, the right thing in hand. In a fight, the bow or a weapon whatever they were at (a hunter met a neck
+        // on the way to the hall and swung the hall's tankard at it all night, starving).
+        public static string Want(Brain b) => b.Fighting ? (b.Combat_Bow ? "bow" : "weapon") : b.Task is LeisureTask lt && lt.Tool != "" ? lt.Tool : (b.Task is HallTask ht && !ht.Shelter || b.Task is LeisureTask lh && lh.Kind == "hall") && Tool(b, "tankard") != null ? "tankard" : b.Task is BuildTask || b.Task is UpkeepTask ? "hammer" : b.Task is WorkTask w ? w.Tool : Combat.Busy(b) || b.HasFoe ? (b.Combat_Bow ? "bow" : "weapon") : b.Task is DefendTask d && d.Fighter || b.Task is FollowTask && CanFight(b) ? "weapon" : ""; // (out with the jarl: weapon in hand)
         public static void Maintain(Brain b)
         {
             Humanoid h = b.Body;
