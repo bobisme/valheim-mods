@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using HarmonyLib;
 using UnityEngine;
 
 namespace Jarldom
@@ -22,6 +23,8 @@ namespace Jarldom
         {
             if (!c.IsOwner || !On || Time.time < _next) return;
             _next = Time.time + 10f;
+            Seen(c);
+            if (TrueLegend.Open(c.R.Flags, c.Day) >= TrueLegend.MaxOpen) return; // (enough on the maps: none told till one's found)
             if (c.R.Flag(TrueLegend.Cur) == 0) { Ask(c); return; }
             Room hall = c.Best(RoomType.GreatHall);
             if (hall == null) return;
@@ -52,6 +55,17 @@ namespace Jarldom
                 c.R.Flags.Remove(TrueLegend.Cur); c.R.Flags.Remove(TrueLegend.KindKey); c.R.Flags.Remove(TrueLegend.Heard);
             }
             c.MarkDirty();
+        }
+        // A jarl at a pinned place: found (a remote one too far off to be loaded here isn't seen, but it goes stale in time).
+        private static void Seen(Colony c)
+        {
+            foreach (string k in c.R.Flags.Keys.Where(k => k.StartsWith(TrueLegend.ToldPrefix) && !c.R.Flags.ContainsKey(TrueLegend.SeenPrefix + k.Substring(TrueLegend.ToldPrefix.Length))).ToList())
+            {
+                if (!int.TryParse(k.Substring(TrueLegend.ToldPrefix.Length), out int packed)) continue;
+                var (x, z) = TrueLegend.Unpack(packed);
+                if (!Player.GetAllPlayers().Any(p => p != null && c.AllowedName(p.GetPlayerName()) && Utils.DistanceXZ(p.transform.position, new Vector3(x, 0, z)) < TrueLegend.FoundAt)) continue;
+                c.R.Flags[TrueLegend.SeenPrefix + packed] = c.Day; c.MarkDirty();
+            }
         }
         // A new legend, from the server (once a minute at most while there's none).
         private static void Ask(Colony c)
@@ -93,7 +107,38 @@ namespace Jarldom
             at.y = ZoneSystem.instance != null ? ZoneSystem.instance.GetGroundHeight(at) : at.y;
             Minimap.instance.AddPin(at, Minimap.PinType.Icon3, label, true, false);
             me.Message(MessageHud.MessageType.TopLeft, $"Marked on your map: {label}.");
+            Tidy(me);
         }
+        // Each game, now and then: a legend's pin comes off the map once the jarl has stood there, and only the newest few are kept (a map
+        // from before the cap is thinned once). Not in a player's first moments: their pins are still loading.
+        private static float _tidyAt, _spawned; private static Player _for;
+        private static readonly AccessTools.FieldRef<Minimap, List<Minimap.PinData>> Pins = AccessTools.FieldRefAccess<Minimap, List<Minimap.PinData>>("m_pins");
+        public static void MapTick()
+        {
+            Player me = Player.m_localPlayer;
+            if (me == null || Minimap.instance == null) { _for = null; return; }
+            if (me != _for) { _for = me; _spawned = Time.time; }
+            if (Time.time - _spawned < 15f || Time.time < _tidyAt) return;
+            _tidyAt = Time.time + 5f;
+            Tidy(me);
+        }
+        private static void Tidy(Player me)
+        {
+            if (!me.m_customData.TryGetValue(PinnedKey, out string pinned) || string.IsNullOrEmpty(pinned)) return;
+            var list = pinned.Split(',').Where(p => p != "").ToList();
+            var drop = list.Where(p => int.TryParse(p, out int v) && Utils.DistanceXZ(me.transform.position, At(v)) < TrueLegend.FoundAt).ToList(); // (found)
+            drop.AddRange(TrueLegend.Excess(list.Except(drop).ToList(), TrueLegend.MaxOpen));
+            if (drop.Count == 0) return;
+            foreach (string p in drop)
+            {
+                if (!int.TryParse(p, out int v)) continue;
+                Vector3 at = At(v);
+                Minimap.PinData pin = Pins(Minimap.instance).FirstOrDefault(x => x.m_type == Minimap.PinType.Icon3 && x.m_name.EndsWith("(a legend)") && Utils.DistanceXZ(x.m_pos, at) < 2f);
+                if (pin != null) Minimap.instance.RemovePin(pin);
+            }
+            me.m_customData[PinnedKey] = string.Join(",", list.Except(drop));
+        }
+        private static Vector3 At(int packed) { var (x, z) = TrueLegend.Unpack(packed); return new Vector3(x, 0, z); }
         public static void Forget() { NextTell.Clear(); Asked.Clear(); }
     }
 }

@@ -814,6 +814,9 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     string tale = TrueLegend.Tale(1, 700, "north-west", 1, new Random(2));
     Check(tale.Contains("burial chamber") && tale.Contains("north-west") && tale.Contains("morning") && !tale.Contains("three times"), "The tale: what, where, how far");
     Check(TrueLegend.Tale(1, 700, "west", 3, new Random(2)).Contains("three times"), "The third telling says so");
+    var tlf = new Dictionary<string, int> { [TrueLegend.ToldPrefix + "1"] = 50, [TrueLegend.ToldPrefix + "2"] = 51, [TrueLegend.ToldPrefix + "3"] = 30, [TrueLegend.ToldPrefix + "4"] = 52, [TrueLegend.SeenPrefix + "2"] = 53, ["other"] = 1 };
+    Check(TrueLegend.Open(tlf, 55) == 2, "Open legends: told lately and not found (a found one and a stale one don't count)");
+    Check(string.Join(",", TrueLegend.Excess(new List<string> { "a", "b", "c", "d", "e", "f" }, 4)) == "a,b" && TrueLegend.Excess(new List<string> { "a" }, 4).Count == 0, "A map past the cap drops its oldest legend pins");
 }
 
 {

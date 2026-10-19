@@ -9,7 +9,14 @@ namespace Jarldom
     public static class TrueLegend
     {
         public const int HeardForPin = 3; public const float Near = 150f, Far = 1500f;
-        public const string Cur = "tlg:cur", KindKey = "tlg:kind", Heard = "tlg:heard", ToldPrefix = "tlg:told:";
+        public const string Cur = "tlg:cur", KindKey = "tlg:kind", Heard = "tlg:heard", ToldPrefix = "tlg:told:", SeenPrefix = "tlg:seen:";
+        // No more than MaxOpen pinned and not yet found at once (a found one is one a jarl came within FoundAt of; one told StaleDays ago
+        // no longer counts): till then no new legend is told, and a jarl's map keeps only the newest MaxOpen.
+        public const int MaxOpen = 4, StaleDays = 10; public const float FoundAt = 40f;
+        public static int Open(IDictionary<string, int> flags, int today) => flags.Count(kv => kv.Key.StartsWith(ToldPrefix, StringComparison.Ordinal)
+            && kv.Value >= today - StaleDays && !flags.ContainsKey(SeenPrefix + kv.Key.Substring(ToldPrefix.Length)));
+        // The oldest of a map's pins past the cap (the list oldest first).
+        public static List<string> Excess(IList<string> pinned, int max) => pinned.Take(Math.Max(0, pinned.Count - max)).ToList();
         // (prefab prefix, how the tale names it, the stage of the world it belongs to: the bosses slain)
         public static readonly (string prefix, string name, int stage)[] Kinds =
         {
