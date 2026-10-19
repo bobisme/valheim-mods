@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Homespun
 {
-    // The drop spindle: held in the hand, it spins whatever fibre the bag has (line flax first, then wool, then Byre's fleece), as you
+    // The drop spindle: held in the hand, it spins whatever fibre the bag has (line flax first, then line nettle, then wool, then Byre's fleece), as you
     // stand or walk: a thread or a yarn every minute or so (Core/Chain.cs). Spinning is this game's player's alone (their own bag), so
     // nothing goes over the network. The fibre is taken only when the thread is done and there's room for it.
     internal static class Spindle
@@ -26,7 +26,7 @@ namespace Homespun
             Conversion next = Chain.SpindleNext(n => bag.CountItems(Things.Get(n)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name ?? Fleece(n)));
             if (next == null)
             {
-                if (On != null || Time.time - _told > 30) { _told = Time.time; p.Message(MessageHud.MessageType.TopLeft, "Nothing to spin: line flax or wool"); }
+                if (On != null || Time.time - _told > 30) { _told = Time.time; p.Message(MessageHud.MessageType.TopLeft, "Nothing to spin: line flax, line nettle or wool"); }
                 On = null; Spun = 0;
                 return;
             }

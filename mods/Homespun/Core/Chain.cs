@@ -11,7 +11,10 @@ namespace Homespun
     //   Lox pelt ─ flax brake's combs ─▶ 4 combed wool        Byre's fleece (ByreWool), or combed wool ─ spindle / wheel ─▶ wool yarn
     //   thread, yarn ─ loom ─▶ bolts of linen and wool, tablet-woven bands ─ sewing table ─▶ garments (and Hildir's clothes)
     //
+    //   Nettle (wild in meadow clearings and at the forest's edge, or sown) ─ pool ─▶ retted nettle ─ brake ─▶ line nettle ─ spindle / wheel ─▶ 1 linen thread
+    //
     // The game's own spinning wheel still spins raw flax into one thread, as it always has; retted and combed, a flax gives two.
+    // Nettle is the cloth before flax: it grows from the start, but its fibre is shorter and coarser, so a nettle gives half a flax's thread.
     public static class Names
     {
         // Stations
@@ -20,6 +23,9 @@ namespace Homespun
         public const string Spindle = "Homespun_Spindle";  // (an item: spun in the hand)
         // Fibres, thread and cloth
         public const string RettedFlax = "Homespun_RettedFlax", LineFlax = "Homespun_LineFlax", Wool = "Homespun_Wool", Yarn = "Homespun_WoolYarn";
+        public const string Nettle = "Homespun_Nettle", RettedNettle = "Homespun_RettedNettle", LineNettle = "Homespun_LineNettle";
+        // Nettle growing: wild (grows back), the field crop (picked, gone), and the cultivator's sapling (Plants.cs)
+        public const string WildNettle = "Homespun_Pickable_Nettle", NettleCrop = "Homespun_Pickable_NettleCrop", NettleSapling = "Homespun_sapling_nettle";
         public const string LinenBolt = "Homespun_LinenBolt", WoolBolt = "Homespun_WoolBolt", Band = "Homespun_Band";
         // Garments
         public const string Undertunic = "Homespun_LinenUndertunic", Tunic = "Homespun_WoolTunic", Dress = "Homespun_WoolDress", Trousers = "Homespun_WoolTrousers", Cloak = "Homespun_HoodedCloak";
@@ -58,12 +64,16 @@ namespace Homespun
             new Conversion { Station = Names.Pool, From = Names.Flax, To = Names.RettedFlax, Seconds = PoolSeconds },
             new Conversion { Station = Names.Brake, From = Names.RettedFlax, To = Names.LineFlax, Seconds = BrakeSeconds },
             new Conversion { Station = Names.Brake, From = Names.LoxPelt, To = Names.Wool, Yield = 4, Seconds = BrakeSeconds },
+            new Conversion { Station = Names.Pool, From = Names.Nettle, To = Names.RettedNettle, Seconds = PoolSeconds },
+            new Conversion { Station = Names.Brake, From = Names.RettedNettle, To = Names.LineNettle, Seconds = BrakeSeconds },
             // (the game's wheel: raw flax stays its own 1 thread; its time is the wheel's, whatever it is)
             new Conversion { Station = Names.Wheel, From = Names.LineFlax, To = Names.Thread, Yield = 2 },
+            new Conversion { Station = Names.Wheel, From = Names.LineNettle, To = Names.Thread },
             new Conversion { Station = Names.Wheel, From = Names.Wool, To = Names.Yarn },
             new Conversion { Station = Names.Wheel, From = Names.Fleece, To = Names.Yarn, Optional = true },
             // (by hand: slow, but anywhere, and walking)
             new Conversion { Station = Names.Spindle, From = Names.LineFlax, To = Names.Thread, Yield = 2, Seconds = 60 },
+            new Conversion { Station = Names.Spindle, From = Names.LineNettle, To = Names.Thread, Seconds = 60 },
             new Conversion { Station = Names.Spindle, From = Names.Wool, To = Names.Yarn, Seconds = 45 },
             new Conversion { Station = Names.Spindle, From = Names.Fleece, To = Names.Yarn, Seconds = 45, Optional = true },
         };
@@ -145,7 +155,7 @@ namespace Homespun
         }
         public static string RawText(Dictionary<string, double> raw) => string.Join(", ", raw.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key} {Math.Round(kv.Value, 2)}"));
 
-        // The spindle in the hand: of the fibres in the bag, the first it spins (line flax before wool before fleece).
+        // The spindle in the hand: of the fibres in the bag, the first it spins (line flax before line nettle before wool before fleece).
         public static Conversion SpindleNext(Func<string, int> count) => At(Names.Spindle).FirstOrDefault(c => count(c.From) > 0);
         // Spinning by hand: time spun so far, plus this frame's; the thread or yarn is done when it reaches the conversion's time.
         public static (float spun, bool done) Spin(float spun, float dt, Conversion c)

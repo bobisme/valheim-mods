@@ -9,7 +9,7 @@ namespace Homespun
     // The looks: models made in Blender (Models/spun.py), baked onto low-poly copies with their own small maps (tools/bake,
     // docs/model-baking.md) and built into the DLL as <name>.json.gz and <name>_albedo/_normal.png, drawn in a copy of the game's own
     // piece material, as Bathhouse's are. Not yet baked, a model's triangles come one list per material slot (spun.py's: wood, stone,
-    // water, flax, linen, wool, iron, red, blue, retted, oat, darkwool, cloakwool, bronze) and draw in the game's materials, plain or grained.
+    // water, flax, linen, wool, iron, red, blue, retted, oat, darkwool, cloakwool, bronze, nettle) and draw in the game's materials, plain or grained.
     internal static class Looks
     {
         internal static readonly List<Object> Owned = new List<Object>();
@@ -68,9 +68,22 @@ namespace Homespun
             return look;
         }
 
+        // A look in its own colour: copies of its materials, their colour times by (retted and line nettle on flax's models, a sickly sapling).
+        internal static void Tint(GameObject look, Color by)
+        {
+            Renderer r = look != null ? look.GetComponent<Renderer>() : null;
+            if (r == null) return;
+            r.sharedMaterials = r.sharedMaterials.Select(m =>
+            {
+                if (m == null) return m;
+                var c = new Material(m) { name = m.name + " tinted", color = m.color * by };
+                Owned.Add(c); return c;
+            }).ToArray();
+        }
+
         internal static void Forget() { foreach (Object o in Owned) if (o != null) Object.Destroy(o); Owned.Clear(); Meshes.Clear(); Mats.Clear(); Pictures.Clear(); _slots = null; }
 
-        // (as spun.py numbers them: wood, stone, water, flax, linen, wool, iron, red, blue, retted, oat, darkwool, cloakwool, bronze)
+        // (as spun.py numbers them: wood, stone, water, flax, linen, wool, iron, red, blue, retted, oat, darkwool, cloakwool, bronze, nettle)
         private static Material[] Slots(ZNetScene scene)
         {
             if (_slots != null && _slots.All(m => m != null)) return _slots;
@@ -92,6 +105,7 @@ namespace Homespun
                 Plain(wood, new Color(0.45f, 0.38f, 0.3f), "darkwool"),
                 Plain(wood, new Color(0.33f, 0.28f, 0.23f), "cloakwool"),
                 Plain(wood, new Color(0.62f, 0.45f, 0.2f), "bronze", 0.4f),
+                Plain(wood, new Color(0.24f, 0.36f, 0.15f), "nettle"),
             };
             return _slots;
         }

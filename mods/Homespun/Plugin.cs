@@ -12,13 +12,13 @@ namespace Homespun
     // into line flax; it and wool (Byre's fleece, or wool combed from a lox pelt) are spun on a drop spindle in the hand or on the game's
     // spinning wheel; thread and yarn are woven on a warp-weighted loom into bolts of linen and wool and tablet-woven bands; and those
     // are sewn at a sewing table into undertunics, tunics, dresses, trousers and cloaks, and Hildir's own clothes. The chain itself
-    // (what each step takes and gives) is Core/Chain.cs; Things.cs makes the items and recipes, Kit.cs the stations.
+    // (what each step takes and gives) is Core/Chain.cs; Things.cs makes the items and recipes, Kit.cs the stations, Plants.cs the nettle that grows.
     [BepInPlugin(Guid, Name, Version)]
     public sealed class Plugin : BaseUnityPlugin
     {
         public const string Guid = "cx.bob.homespun";
         public const string Name = "Homespun";
-        public const string Version = "0.1.3";
+        public const string Version = "0.1.4";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled;
         private Harmony _harmony;

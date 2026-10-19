@@ -14,13 +14,20 @@ namespace Homespun
     // the spindle at the workbench, bolts and bands at the loom, garments and Hildir's clothes at the sewing table (Core/Chain.cs).
     internal static class Things
     {
-        internal sealed class ItemDef { public string Prefab, Title, Description, Base, Model; public float Weight; public int Stack; }
+        internal sealed class ItemDef { public string Prefab, Title, Description, Base, Model; public float Weight; public int Stack; public Color? Tint; }
         internal static readonly ItemDef[] Materials =
         {
             new ItemDef { Prefab = Names.RettedFlax, Base = "LinenThread", Model = "retted", Title = "Retted flax", Weight = 0.3f, Stack = 50,
                 Description = "Flax soaked till the stalks rot loose from the fibre in them. Break and comb it at a flax brake." },
             new ItemDef { Prefab = Names.LineFlax, Base = "LinenThread", Model = "line", Title = "Line flax", Weight = 0.2f, Stack = 50,
                 Description = "The long fibre combed out of retted flax, a pale gold strick of it. Spun on a drop spindle or a spinning wheel, a strick makes two linen threads." },
+            // (nettle: the plant's own bundle; retted and combed, flax's looks in nettle's greyer green)
+            new ItemDef { Prefab = Names.Nettle, Base = "LinenThread", Model = "nettle", Title = "Nettle", Weight = 0.3f, Stack = 50,
+                Description = "Stinging nettle, cut with a glove on. Soaked and combed as flax is, it spins into linen thread: coarser and shorter in the fibre, a nettle gives half what a flax does. Sow it with the cultivator." },
+            new ItemDef { Prefab = Names.RettedNettle, Base = "LinenThread", Model = "retted", Tint = new Color(0.85f, 0.97f, 0.8f), Title = "Retted nettle", Weight = 0.3f, Stack = 50,
+                Description = "Nettle soaked till the stalks rot loose from the fibre, and the sting with them. Break and comb it at a flax brake." },
+            new ItemDef { Prefab = Names.LineNettle, Base = "LinenThread", Model = "line", Tint = new Color(0.85f, 0.97f, 1.15f), Title = "Line nettle", Weight = 0.2f, Stack = 50,
+                Description = "The fibre combed out of retted nettle, greyer and coarser than flax's. Spun on a drop spindle or a spinning wheel, a strick makes one linen thread." },
             new ItemDef { Prefab = Names.Wool, Base = "LinenThread", Model = "wool", Title = "Combed wool", Weight = 0.1f, Stack = 50,
                 Description = "Wool combed out of a lox's pelt, ready to spin into yarn." },
             new ItemDef { Prefab = Names.Yarn, Base = "LinenThread", Model = "yarn", Title = "Wool yarn", Weight = 0.1f, Stack = 50,
@@ -33,7 +40,7 @@ namespace Homespun
                 Description = "A narrow patterned band woven on cards, for the neck and hem of a tunic or a dress." },
         };
         internal static readonly ItemDef SpindleDef = new ItemDef { Prefab = Names.Spindle, Base = "Club", Model = "spindle", Title = "Drop spindle", Weight = 0.3f, Stack = 1,
-            Description = "A stick through a stone whorl. Hold it, and with line flax or wool in your bag you spin as you go, standing or walking: slower than a spinning wheel, but anywhere." };
+            Description = "A stick through a stone whorl. Hold it, and with line flax, line nettle or wool in your bag you spin as you go, standing or walking: slower than a spinning wheel, but anywhere." };
         internal static readonly (string item, int n)[] SpindleCost = { ("Wood", 2), ("Stone", 1) };
 
         private static GameObject _holder;
@@ -80,6 +87,7 @@ namespace Homespun
                 }
                 ObjectDB db = ObjectDB.instance != null && ObjectDB.instance.GetItemPrefab("Wood") != null ? ObjectDB.instance : null;
                 ItemReload.Replace(scene, db, items);
+                Plants.Register(scene); // (nettle: they give and are sown from the item)
                 Kit.Ensure(force: true); // (the stations: their queues name these items)
                 if (db != null) AddRecipes(scene, db);
             }
@@ -101,6 +109,7 @@ namespace Homespun
             // (the model under "attach": what the hand holds, and what lies on the ground)
             GameObject attach = Looks.Add(go.transform, scene, d.Model, "attach");
             if (attach == null) attach = new GameObject("attach");
+            else if (d.Tint is Color tint) Looks.Tint(attach, tint);
             attach.transform.SetParent(go.transform, false); attach.layer = go.layer;
             Bounds b = attach.GetComponent<MeshFilter>()?.sharedMesh?.bounds ?? new Bounds(Vector3.zero, Vector3.one * 0.2f);
             var box = go.AddComponent<BoxCollider>(); box.center = b.center; box.size = Vector3.Max(b.size, Vector3.one * 0.08f); // (what it's picked up by)
@@ -201,6 +210,7 @@ namespace Homespun
         // Unloading: recipes out; the items stay registered inside a world (ItemReload: the next copy replaces them by name).
         internal static void Unload()
         {
+            Plants.Unload();
             if (ObjectDB.instance != null) foreach (Recipe r in Recipes.Values) ObjectDB.instance.m_recipes.Remove(r);
             foreach (Recipe r in Recipes.Values) if (r != null) Object.Destroy(r);
             Recipes.Clear();

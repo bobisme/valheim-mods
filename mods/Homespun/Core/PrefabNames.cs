@@ -25,6 +25,12 @@ namespace Homespun
             "Homespun_WoolDress",
             "Homespun_WoolTrousers",
             "Homespun_HoodedCloak",
+            "Homespun_Nettle",
+            "Homespun_RettedNettle",
+            "Homespun_LineNettle",
+            "Homespun_Pickable_Nettle",
+            "Homespun_Pickable_NettleCrop",
+            "Homespun_sapling_nettle",
         };
     }
 }

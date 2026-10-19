@@ -21,9 +21,9 @@ namespace Homespun
         internal static readonly Def[] All =
         {
             new Def { Name = Names.Pool, From = Names.Wheel, Title = "Retting pool", Model = "pool", Cost = new[] { ("Wood", 16), ("Stone", 6), ("Resin", 4) },
-                Description = "A plank trough of water with stones to hold the flax under. Lay flax in it and leave it to soak: the stalks rot loose from the fibre inside them. A full pool takes a day." },
+                Description = "A plank trough of water with stones to hold the flax under. Lay flax or nettle in it and leave it to soak: the stalks rot loose from the fibre inside them. A full pool takes a day." },
             new Def { Name = Names.Brake, From = Names.Wheel, Title = "Flax brake", Model = "brake", Cost = new[] { ("Wood", 12), ("IronNails", 10) },
-                Description = "A hinged wooden blade to break retted flax, and an iron-toothed hackle to comb the fibre out: line flax, ready to spin. Its combs card the wool out of a lox pelt too." },
+                Description = "A hinged wooden blade to break retted flax and nettle, and an iron-toothed hackle to comb the fibre out, ready to spin. Its combs card the wool out of a lox pelt too." },
             new Def { Name = Names.Loom, From = "piece_workbench", Title = "Warp-weighted loom", Model = "loom", Cost = new[] { ("Wood", 20), ("Stone", 10), ("LeatherScraps", 2) },
                 Description = "A standing loom leaning on the wall, its warp hung from the beam and kept taut by stone weights. Weaves linen thread and wool yarn into bolts of cloth, and patterned bands on cards." },
             new Def { Name = Names.Table, From = "piece_workbench", Title = "Sewing table", Model = "table", Cost = new[] { ("Wood", 12), ("LeatherScraps", 2), ("Bronze", 1) },
@@ -66,7 +66,7 @@ namespace Homespun
             {
                 // (what's made against what's been shipped: a shipped name no longer made is lost from saves)
                 _named = true;
-                var made = new HashSet<string>(All.Select(d => d.Name).Concat(Things.AllItems));
+                var made = new HashSet<string>(All.Select(d => d.Name).Concat(Things.AllItems).Concat(Plants.All));
                 foreach (string n in PrefabNames.Shipped.Where(n => !made.Contains(n))) Plugin.Warn($"ERROR: {n} was shipped but isn't made any more: it's gone from every save.");
                 foreach (string n in made.Where(n => !PrefabNames.Shipped.Contains(n))) Plugin.Warn($"{n} isn't in Core/PrefabNames.cs yet.");
             }
@@ -169,7 +169,7 @@ namespace Homespun
         // Numbers from spun.py (game frame, metres, +z the front where you stand).
         private static void MakePool(GameObject go, int layer)
         {
-            Smelter s = Queue(go, "Retting pool", "Lay in flax", Chain.PoolHolds, Chain.PoolSeconds, Names.Pool);
+            Smelter s = Queue(go, "Retting pool", "Lay in flax or nettle", Chain.PoolHolds, Chain.PoolSeconds, Names.Pool);
             // (the trough's walls and floor; the drying rack at its right end)
             Box(go, layer, new Vector3(-0.25f, 0.02f, 0), new Vector3(1.9f, 0.04f, 0.9f));
             Box(go, layer, new Vector3(-0.25f, 0.25f, 0.43f), new Vector3(1.9f, 0.5f, 0.06f));

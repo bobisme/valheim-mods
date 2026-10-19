@@ -1,18 +1,19 @@
 # Homespun's looks (Homespun 0.1.0), made from scratch: the retting pool, the flax brake (with its hackle and basket), the warp-weighted
 # loom, the sewing table, and the items: retted flax, line flax, combed wool, yarn, a linen bolt, a wool bolt, a woven band, the drop spindle,
-# and the five garments folded as they lie on the ground (undertunic, tunic, dress, trousers, cloak).
+# and the five garments folded as they lie on the ground (undertunic, tunic, dress, trousers, cloak). Nettle (0.1.4): a cut bundle of it,
+# and the plant standing (wild, and grown from the cultivator).
 # Run: blender -b --python ~/.cache/homespun/spun.py -- [render] [pool|brake|...|spindle|undertunic|tunic|dress|trousers|cloak]
 # (writes ~/.cache/homespun/<name>.json.gz; previews with "render"). What ships is the bake of these (bake_conf.py, docs/model-baking.md).
 # Blender frame: z up, front +y (the game's +z, where a player stands to use the piece); the pieces stand on z 0, the items lie about the
 # origin, the spindle's shaft along z with the hand at the origin. Written in the game's frame (x, z, y): per corner position/normal/uv
 # (uvs in metres; wood's grain runs along v), triangles per material: 0 wood, 1 stone, 2 water, 3 flax, 4 linen, 5 wool, 6 iron, 7 red,
-# 8 blue, 9 retted, 10 oat (undyed light wool), 11 darkwool, 12 cloakwool, 13 bronze.
+# 8 blue, 9 retted, 10 oat (undyed light wool), 11 darkwool, 12 cloakwool, 13 bronze, 14 nettle (the leaf's dark green).
 import bpy, bmesh, json, math, random, sys, gzip
 from mathutils import Vector, Matrix
 
 OUT = '/home/bob/.cache/homespun/'
-WOOD, STONE, WATER, FLAX, LINEN, WOOL, IRON, RED, BLUE, RETTED, OAT, DARKWOOL, CLOAKWOOL, BRONZE = range(14)
-NAMES = ('wood', 'stone', 'water', 'flax', 'linen', 'wool', 'iron', 'red', 'blue', 'retted', 'oat', 'darkwool', 'cloakwool', 'bronze')
+WOOD, STONE, WATER, FLAX, LINEN, WOOL, IRON, RED, BLUE, RETTED, OAT, DARKWOOL, CLOAKWOOL, BRONZE, NETTLE = range(15)
+NAMES = ('wood', 'stone', 'water', 'flax', 'linen', 'wool', 'iron', 'red', 'blue', 'retted', 'oat', 'darkwool', 'cloakwool', 'bronze', 'nettle')
 SMOOTH = ('rock', 'weight', 'sheaf', 'hank', 'wool', 'ball', 'cloth', 'roll', 'cop', 'whorl', 'heap', 'tie', 'basket', 'spool', 'drape', 'hood', 'brooch', 'bead', 'stalk', 'ply', 'knot', 'tuft')
 rng = random.Random(7)
 mats = []
@@ -398,8 +399,8 @@ def line():
         tube(f'ply_{ply}', pts, 0.016, FLAX)
     tube('knot', smooth_line([V((-0.13, 0, 0)), V((-0.17, 0.0, -0.01)), V((-0.21, 0.01, 0.012)), V((-0.22, 0.012, 0.05)), V((-0.18, 0.015, 0.075)),
                               V((-0.14, 0.01, 0.05)), V((-0.155, -0.005, 0.008)), V((-0.2, -0.012, -0.012)), V((-0.25, -0.01, -0.008))]), 0.016, FLAX)
-    for k in range(7):
-        a = 2 * math.pi * k / 7; o = V((0, math.cos(a), math.sin(a)))
+    for k in range(5):
+        a = 2 * math.pi * k / 5; o = V((0, math.cos(a), math.sin(a)))
         tube(f'tuft_tail{k}', [V((-0.245, -0.01, -0.008)) + o * 0.006, V((-0.27, -0.01, -0.008)) + o * 0.011, V((-0.3 - r.uniform(0, 0.02), -0.01, -0.008)) + o * r.uniform(0.016, 0.026)], 0.0035, FLAX, res=0)
         tube(f'tuft_end{k}', [V((0.19, 0, 0)) + o * 0.006, V((0.23, 0, 0)) + o * 0.011, V((0.27 + r.uniform(0, 0.03), 0, 0)) + o * r.uniform(0.016, 0.03)], 0.003, FLAX, res=0)
     finish('line', [(30, 1.0, 0.6, 0)])
@@ -462,6 +463,79 @@ def spindle():
     lathe('cop', (0, 0, -0.123), (0, 0, -0.01), lambda t: 0.009 + 0.017 * math.sin(math.pi * min(1, t * 1.35)) ** 0.8, WOOL, segs=12, flute=0.03, lobes=3, twist=20)
     tube('thread', [V((0, 0.006, -0.012)), V((0.002, 0.008, 0.1)), V((0, 0.006, 0.205)), V((0.0, 0.004, 0.3))], 0.0018, WOOL, res=1)
     finish('spindle', [(30, 0.8, 0.2, 0.0), (90, 0.6, 0.05, 0.0)])
+
+# ---------------- nettle: the plant, and a cut bundle of it ----------------
+def leaf(name, base, along, up, L, W, mat=NETTLE, teeth=3, droop=0.3, fold=0.25, seed=0):
+    # a nettle leaf: heart-shaped at the stalk, drawn out to a point, its edge toothed like a saw; folded up a little along its midrib
+    # and drooping towards its tip. Two sheets back to back 1.5 mm apart (no edge between them: a plant has a hundred of these, and
+    # the bake can't thin a leaf). base where it joins the stem, along its way out (flattened against up), L long, W wide
+    r = random.Random(seed); along = V(along).normalized(); up = V(up).normalized()
+    side = up.cross(along).normalized(); up = along.cross(side).normalized()
+    half = lambda t: W / 2 * math.sin(math.pi * t ** 0.6) * (1 - 0.15 * t)   # (widest a third of the way out)
+    n = 2 * teeth; edge = []
+    for k in range(n + 1):
+        t = 0.06 + 0.9 * k / n; h = half(t) * (1.0 if k % 2 else 0.8) + r.uniform(-0.002, 0.002)
+        edge.append((L * (t + (0.03 if k % 2 else 0)), h))
+    outline = [(0.0, 0.0)] + [(x, -y) for x, y in edge] + [(L * 1.02, 0.0)] + [(x, y) for x, y in reversed(edge)]
+    place = lambda x, y, z: V(base) + along * x + side * y + up * (z + fold * abs(y) - droop * L * (x / L) ** 2)
+    bm = bmesh.new()
+    for z, flip in ((0.00075, False), (-0.00075, True)):
+        verts = [bm.verts.new(place(x, y, z)) for x, y in outline]
+        f = bm.faces.new(verts); f.normal_update()
+        if (f.normal.dot(up) < 0) != flip: f.normal_flip()   # (the top sheet faces up, the bottom one down)
+        bmesh.ops.triangulate(bm, faces=[f], quad_method='BEAUTY', ngon_method='BEAUTY')
+    return link(name, bm, mat)
+
+def stalk(name, pts, seed, nodes=5, size=1.0, droop=0.7, flowers=True, tip=2):
+    # a nettle stem up pts (from its foot), with pairs of leaves at its nodes, each pair turned a quarter from the last, smaller
+    # towards the top; and strings of the green flowers hanging from the upper nodes
+    rr = random.Random(seed); pts = smooth_line([V(p) for p in pts], 2)
+    tube(name, pts, 0.0065 * size, NETTLE, res=0)
+    L = sum(((b - a).length for a, b in zip(pts, pts[1:])))
+    def at(d):
+        for a, b in zip(pts, pts[1:]):
+            seg = (b - a).length
+            if d <= seg: return a.lerp(b, d / seg), (b - a).normalized()
+            d -= seg
+        return pts[-1], (pts[-1] - pts[-2]).normalized()
+    turn = rr.uniform(0, math.pi)
+    for node in range(nodes):
+        t = 0.22 + 0.7 * node / max(1, nodes - 1) + rr.uniform(-0.03, 0.03); p, ax = at(t * L)
+        side0 = ax.cross(V((math.cos(turn), math.sin(turn), 0))).normalized()
+        for k in (0, 1):
+            out = (side0 if k == 0 else -side0) + ax * 0.35
+            ln = (0.17 - 0.08 * t) * size * rr.uniform(0.9, 1.1)
+            leaf(f'{name}_leaf{node}{k}', p, out, ax, ln, ln * 0.62, droop=droop * (1.3 - 0.6 * t), seed=seed * 100 + node * 2 + k)
+            if flowers and 0.45 < t < 0.85:
+                s = p + out.normalized() * 0.008
+                tube(f'{name}_flowers{node}{k}', [s, s + out.normalized() * 0.03 - V((0, 0, 0.01)), s + out.normalized() * 0.05 - V((0, 0, 0.06))], 0.0022, NETTLE, res=0)
+        turn += math.pi / 2 + rr.uniform(-0.2, 0.2)
+    # (the tip: young leaves folded up round it)
+    p, ax = pts[-1], (pts[-1] - pts[-2]).normalized()
+    for k in range(tip):
+        a = turn + 2 * math.pi * k / tip; o = V((math.cos(a), math.sin(a), 0))
+        leaf(f'{name}_tip{k}', p, o * 0.6 + ax, ax, 0.05 * size, 0.03 * size, droop=0.1, teeth=2, seed=seed * 100 + 90 + k)
+
+def nettleplant():
+    # a stand of stinging nettle, as it grows at a clearing's edge: five stems from one root clump, the tallest at hip height, leaning
+    # out a little each its own way. Stands on z 0
+    fresh(); r = random.Random(21)
+    for k in range(5):
+        a = 2 * math.pi * k / 5 + r.uniform(-0.3, 0.3); rad = r.uniform(0.03, 0.13)
+        foot = V((math.cos(a) * rad, math.sin(a) * rad, -0.02)); lean = V((math.cos(a), math.sin(a), 0)) * r.uniform(0.04, 0.14)
+        h = r.uniform(0.6, 0.95)
+        stalk(f'stalk{k}', [foot, foot + lean * 0.3 + V((0, 0, h * 0.5)), foot + lean + V((r.uniform(-0.03, 0.03), r.uniform(-0.03, 0.03), h))], seed=k + 1)
+    finish('nettleplant', [(0, 2.2, 0.9, 0.45), (60, 1.6, 1.3, 0.35)])
+
+def nettle():
+    # a bundle of cut nettle: a handful of stems laid together, their leaves wilting, tied round with a twist of flax near the cut ends
+    fresh(); r = random.Random(23)
+    for k in range(4):
+        a = 2 * math.pi * k / 4; y, z = math.cos(a) * 0.011, math.sin(a) * 0.011
+        x0 = -0.2 - r.uniform(0, 0.02); x1 = 0.2 + r.uniform(0, 0.05)
+        stalk(f'stalk{k}', [V((x0, y, z)), V((0, y * 1.3, z * 1.3)), V((x1, y * 2.6, z * 2.6 + r.uniform(-0.01, 0.01)))], seed=40 + k, nodes=4, size=0.7, droop=0.9, flowers=False)
+    ring('tie_band', (-0.14, 0, 0), 0.018, 0.005, (1, 0, 0), FLAX, segs=12, rsegs=5, squash=1.6)
+    finish('nettle', [(30, 1.0, 0.6, 0)])
 
 # ---------------- the garments, folded (as they lie on the ground and in the bag) ----------------
 def stack(name, w, d, layers, th, mat, seed, cx=0.0, cy=0.0):
@@ -573,7 +647,7 @@ def export(base):
 
 COLS = [(0.36, 0.24, 0.14, 1), (0.42, 0.4, 0.37, 1), (0.08, 0.16, 0.15, 1), (0.6, 0.48, 0.24, 1), (0.8, 0.76, 0.64, 1),
         (0.5, 0.45, 0.38, 1), (0.1, 0.1, 0.11, 1), (0.45, 0.08, 0.06, 1), (0.08, 0.13, 0.32, 1), (0.48, 0.45, 0.38, 1),
-        (0.55, 0.47, 0.36, 1), (0.28, 0.23, 0.18, 1), (0.2, 0.16, 0.12, 1), (0.6, 0.4, 0.15, 1)]
+        (0.55, 0.47, 0.36, 1), (0.28, 0.23, 0.18, 1), (0.2, 0.16, 0.12, 1), (0.6, 0.4, 0.15, 1), (0.1, 0.2, 0.06, 1)]
 def preview(base, views):
     # yaw 0 looks at the piece's front (from +y)
     for m, c in zip(mats, COLS):
@@ -587,7 +661,7 @@ def preview(base, views):
     sc = bpy.context.scene; sc.render.engine = 'CYCLES'; sc.cycles.samples = 24; sc.cycles.device = 'CPU'
     sc.render.resolution_x, sc.render.resolution_y = 640, 480
     w = bpy.data.worlds.new('w'); sc.world = w; w.use_nodes = True; w.node_tree.nodes['Background'].inputs[0].default_value = (0.55, 0.62, 0.7, 1)
-    ground = -0.002 if base in ('pool', 'brake', 'loom', 'table') else -0.12 if base == 'spindle' else -0.08
+    ground = -0.002 if base in ('pool', 'brake', 'loom', 'table', 'nettleplant') else -0.12 if base == 'spindle' else -0.08
     bpy.ops.mesh.primitive_plane_add(size=12, location=(0, 0, ground if base != 'spindle' else -0.2)); g = bpy.context.active_object; gm = bpy.data.materials.new('ground'); gm.use_nodes = True
     gm.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (0.3, 0.36, 0.22, 1); g.data.materials.append(gm)
     sun = bpy.data.objects.new('sun', bpy.data.lights.new('sun', 'SUN')); sun.data.energy = 2.4; sun.rotation_euler = (math.radians(50), 0, math.radians(150)); sc.collection.objects.link(sun)
@@ -598,6 +672,6 @@ def preview(base, views):
         cam.rotation_euler = (V((0, 0, look)) - cam.location).to_track_quat('-Z', 'Y').to_euler()
         sc.render.filepath = OUT + f'{base}_{yaw}_{d}.png'; bpy.ops.render.render(write_still=True)
 
-KINDS = ('pool', 'brake', 'loom', 'table', 'retted', 'line', 'wool', 'yarn', 'linenbolt', 'woolbolt', 'band', 'spindle', 'undertunic', 'tunic', 'dress', 'trousers', 'cloak')
+KINDS = ('pool', 'brake', 'loom', 'table', 'retted', 'line', 'wool', 'yarn', 'linenbolt', 'woolbolt', 'band', 'spindle', 'undertunic', 'tunic', 'dress', 'trousers', 'cloak', 'nettle', 'nettleplant')
 which = [a for a in sys.argv if a in KINDS] or list(KINDS)
 for w in which: globals()[w]()

@@ -77,14 +77,16 @@ namespace Homespun
                         if (k > 0) bag[n] = k;
                     }
                     output(new JObject { ["stations"] = stations, ["spindle"] = new JObject { ["holding"] = Spindle.Holding(me), ["spinning"] = Spindle.On?.From ?? "", ["spun"] = Math.Round(Spindle.Spun, 1), ["of"] = Spindle.On?.Seconds ?? 0 },
-                        ["bag"] = bag, ["items"] = Things.AllItems.Count(n => Things.Get(n) != null), ["pieces"] = Kit.Made.Count, ["byre"] = ZNetScene.instance.GetPrefab(Names.Fleece) != null });
+                        ["bag"] = bag, ["items"] = Things.AllItems.Count(n => Things.Get(n) != null), ["pieces"] = Kit.Made.Count, ["byre"] = ZNetScene.instance.GetPrefab(Names.Fleece) != null,
+                        ["nettle"] = new JObject { ["made"] = Plants.All.Count(x => Plants.Get(x) != null), ["sown"] = Plants.Cultivator(ZNetScene.instance)?.m_pieces.Contains(Plants.Get(Plants.Sapling)) ?? false,
+                            ["wild"] = ZoneSystem.instance?.m_vegetation.Count(v => v.m_prefab != null && v.m_prefab == Plants.Get(Plants.Wild)) ?? 0 } });
                     break;
                 }
                 case "give":
                 {
                     if (!Cheats()) { error("spun give makes items: only in single player, for the host, or for a server admin with devcommands on"); yield break; }
                     string what = a.Length > 2 ? a[2] : "all"; int n = (int)F(a, 3, 10);
-                    string[] fibre = { Names.Flax, Names.RettedFlax, Names.LineFlax, Names.LoxPelt, Names.Wool, Names.Yarn, Names.Thread, Names.Fleece };
+                    string[] fibre = { Names.Flax, Names.RettedFlax, Names.LineFlax, Names.Nettle, Names.RettedNettle, Names.LineNettle, Names.LoxPelt, Names.Wool, Names.Yarn, Names.Thread, Names.Fleece };
                     string[] cloth = { Names.LinenBolt, Names.WoolBolt, Names.Band, Names.Spindle };
                     string[] garments = Chain.Garments.Select(g => g.Prefab).ToArray();
                     string[] list = what == "fibre" ? fibre : what == "cloth" ? cloth : what == "garments" ? garments : what == "hildir" ? Chain.Hildir.Select(h => h.item).ToArray()
