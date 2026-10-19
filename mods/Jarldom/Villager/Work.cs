@@ -295,7 +295,7 @@ namespace Jarldom
             var seen = new HashSet<ItemDrop>();
             for (int i = 0; i < n; i++) { ItemDrop d = Hits[i].GetComponentInParent<ItemDrop>(); if (d != null && !Lost.IsRemains(d.m_itemData) && seen.Add(d)) yield return d; } // (someone's remains are for the jarl to bring home)
         }
-        private static bool _learned;
+        private static bool _learned; private static int _learnedFrom; // (the cultivator's piece count when learned: another mod adding a crop later, or reloaded, is learned again)
         // Which grown prefabs are crops, and the sapling and seeds to replant each: from the cultivator's own pieces.
         public static readonly Dictionary<string, (GameObject sapling, string seed, int amount)> Replant = new Dictionary<string, (GameObject, string, int)>();
         // Tree saplings the cultivator plants (beech, pine, fir, birch, oak...), with their seeds.
@@ -491,10 +491,11 @@ namespace Jarldom
 
         internal static void LearnCrops()
         {
-            if (_learned || ObjectDB.instance == null) return;
+            if (ObjectDB.instance == null) return;
             PieceTable table = ObjectDB.instance.GetItemPrefab("Cultivator")?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces;
-            if (table == null) return;
-            _learned = true;
+            if (table == null || _learned && _learnedFrom == table.m_pieces.Count && !Replant.Values.Any(r => r.sapling == null)) return; // (a crop gone: its mod reloaded, its new sapling to learn)
+            if (_learned) { Crops.Clear(); Replant.Clear(); Saplings.Clear(); }
+            _learned = true; _learnedFrom = table.m_pieces.Count;
             foreach (GameObject sapling in table.m_pieces)
             {
                 Plant plant = sapling != null ? sapling.GetComponent<Plant>() : null;
