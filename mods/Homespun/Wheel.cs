@@ -41,7 +41,8 @@ namespace Homespun
             }
             Plugin.Log($"The spinning wheel spins {string.Join(", ", Added.Select(c => c.m_from.name))} too");
         }
-        // Unloading: the wheel spins only its own again (what's in a wheel's queue of ours stays queued, and spins once we're back).
+        // Unloading: the wheel spins only its own again (a hot reload: what's queued of ours spins once the new copy is back; uninstalled, the
+        // game spins it to nothing, having no conversion for it).
         internal static void Unload()
         {
             foreach (Smelter s in Object.FindObjectsByType<Smelter>(FindObjectsSortMode.None).Append(_wheel).Where(s => s != null)) s.m_conversion.RemoveAll(c => Added.Contains(c));

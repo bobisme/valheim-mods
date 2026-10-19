@@ -13,3 +13,5 @@ Sewing table: cut and sew bolts into clothes. Linen undertunic, wool tunic, wool
 With Byre installed, its sheep's fleece spins straight into yarn, no lox pelt needed.
 
 Dyeing comes later.
+
+Removing Homespun: as with any mod that adds things, its items and pieces are gone for good once a character or a place is loaded without it (the game drops what it doesn't know from bags, chests and the ground, and takes down the pieces). Line flax or wool waiting in a spinning wheel is spun to nothing. Hildir's clothes you sewed are the game's own and stay.

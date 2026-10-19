@@ -1,3 +1,5 @@
+0.1.3: the description says what removing Homespun does (tested on a copy): its items in bags and chests and on the ground, and its pieces, are gone once loaded without it, as with any mod that adds things; fibres waiting in a spinning wheel spin to nothing. Nothing else changed.
+
 0.1.2: the spinning wheel spins Byre's fleece even when Byre's items come after the wheel was first set up (it was only ever checked once, so a game where Byre loaded later had a wheel that wouldn't take fleece).
 
 0.1.1: retted flax is a sheaf of grey stalks tied round the middle, line flax a twisted golden strick. The five garments lie folded in their own looks (the undertunic pale linen, the tunic with its red band, the dress with its brooches and beads, the trousers with their drawstring, the cloak with its hood and ring-pin), and their icons are drawn from those. Worn, their pictures are recoloured to bleached linen or undyed wool. The stations' build icons and the items' icons are drawn again once you're in the world, in flat light (0.1.0's came out green or neon).
