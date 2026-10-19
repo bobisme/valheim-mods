@@ -75,11 +75,14 @@ namespace Jarldom
             string n = Utils.GetPrefabName(s.gameObject);
             return n == Wheel || Compat.HomespunStations.Contains(n);
         }
+        // (the game's wheel spins only under a roof: one out in the rain is neither fed nor counted on to spin)
+        public static bool Works(Smelter s) => s != null && (!s.m_requiresRoof || Cover.IsUnderRoof(s.m_roofCheckPoint != null ? s.m_roofCheckPoint.position : s.transform.position + Vector3.up));
         public const int Plenty = 40; // (thread or yarn in the stores: enough, the stations rest)
         // What a textile station is fed: flax to soak (never the seed flax), soaked flax to break, line flax and wool to spin; a lox pelt is
         // combed only while yarn runs short, and two kept back (it's a rare hide); raw flax never straight onto the wheel (soaked first).
         public static bool FeedTextile(Colony c, Smelter s, string item)
         {
+            if (!Works(s)) return false;
             int Has(string x) => Crafts.InStock(c, x);
             string at = Utils.GetPrefabName(s.gameObject);
             bool linenPlenty = Has(Thread) + 2 * Has(LineFlax) >= Plenty, woolPlenty = Has(Yarn) + Has(HsWool) + Has("ByreWool") >= Plenty;
@@ -87,11 +90,32 @@ namespace Jarldom
             {
                 case Flax: return at == Pool && !linenPlenty && Has(Flax) > SeedFlax(c);
                 case "Homespun_RettedFlax": return !linenPlenty && Has(item) > 0;
-                case LineFlax: return !linenPlenty && Has(item) > 0;
+                case LineFlax: return Has(Thread) < Plenty && Has(item) > 0; // (spun while thread's short: line flax waiting isn't thread)
                 case "LoxPelt": return !woolPlenty && Has(Yarn) + Has(HsWool) < 8 && Has(item) > 2;
-                case HsWool: case "ByreWool": return !woolPlenty && Has(item) > 0;
+                case HsWool: case "ByreWool": return Has(Yarn) < Plenty && Has(item) > 0;
                 default: return Has(item) > 0;
             }
+        }
+        // How many to bring at once: no more than FeedTextile's keep-back leaves (two lox pelts kept, the seed flax), and pelts only as many
+        // as the yarn wants (four combed wool a pelt).
+        public static int FeedCap(Colony c, string item)
+        {
+            int Has(string x) => Crafts.InStock(c, x);
+            switch (item)
+            {
+                case "LoxPelt": return Math.Max(0, Math.Min(Has(item) - 2, (8 - Has(Yarn) - Has(HsWool) + 3) / 4));
+                case Flax: return Math.Max(0, Has(Flax) - SeedFlax(c));
+                default: return int.MaxValue;
+            }
+        }
+        // What a textile station is fed first: the fibre the stores are shorter of (wool, counted as yarn to come, against linen), so a
+        // brake with flax to break still combs the odd lox pelt.
+        public static List<string> FeedOrder(Colony c, List<string> wants)
+        {
+            int Has(string x) => Crafts.InStock(c, x);
+            bool woolFirst = Has(Yarn) + Has(HsWool) + Has("ByreWool") < Has(Thread) + 2 * Has(LineFlax);
+            bool Wool(string x) => x == "LoxPelt" || x == HsWool || x == "ByreWool";
+            return wants.OrderBy(x => Wool(x) == woolFirst ? 0 : 1).ToList();
         }
         public static IEnumerable<Recipe> All() => Table.Select(t => RecipeFor(t.item)).Where(r => r != null);
 
@@ -106,8 +130,10 @@ namespace Jarldom
         }
         public static bool InRags(Brain b)
         {
-            ItemDrop.ItemData chest = b.Body.GetInventory().GetAllItems().FirstOrDefault(i => i.m_equipped && i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Chest);
-            return chest == null || IsRags(chest);
+            if (b.Stripped) return false; // (bathing: the clothes are in the bag)
+            var bag = b.Body.GetInventory().GetAllItems();
+            ItemDrop.ItemData chest = bag.FirstOrDefault(i => i.m_equipped && i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Chest);
+            return (chest == null || IsRags(chest)) && !bag.Any(i => !i.m_equipped && IsClothes(i) && i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Chest); // (and none on hand to put on)
         }
         public static bool Hatless(Brain b) => !b.Body.GetInventory().GetAllItems().Any(i => i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Helmet);
 
@@ -172,8 +198,8 @@ namespace Jarldom
         {
             Recipe r = Crafts.RecipeFor(item);
             if (r == null || depth > 3 || Crafts.StationFor(c, r, c.Position) == null) return null;
-            // (spun by hand only where there's no wheel: with one, the stations make it)
-            if (r.name.StartsWith("Jarldom_Weave_Spindle_") && c.PiecesIn(c.Radius).Any(p => Colony.NameOf(p) == Wheel)) return null;
+            // (spun by hand only where there's no wheel that works: with one, the stations make it)
+            if (r.name.StartsWith("Jarldom_Weave_Spindle_") && c.PiecesIn(c.Radius).Any(p => Colony.NameOf(p) == Wheel && Works(p.GetComponent<Smelter>()))) return null;
             foreach (var (need, amount) in Crafts.Needs(r))
                 if (has(need) < amount) return need == item ? null : Step(c, need, has, depth + 1);
             return item;

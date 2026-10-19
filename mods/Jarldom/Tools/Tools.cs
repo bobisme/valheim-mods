@@ -456,7 +456,9 @@ namespace Jarldom
                         output(new JObject { ["homespun"] = Compat.HomespunOn, ["stations"] = new JArray(Compat.HomespunStations), ["ragged"] = new JArray(people.Where(Weaving.InRags).Select(b => b.S.Name)),
                             ["spareChest"] = spare.chest, ["spareHat"] = spare.hat, ["thread"] = Crafts.InStock(c, Weaving.Thread),
                             ["nextWomen"] = Compat.HomespunOn ? Weaving.HomespunNext(c, true, rng, Crafts.InStock(c, Weaving.Thread)) : null, ["nextMen"] = Compat.HomespunOn ? Weaving.HomespunNext(c, false, rng, Crafts.InStock(c, Weaving.Thread)) : null,
-                            ["orders"] = new JArray(c.Board.All.Where(o => o.Prof == Prof.Weaver).Select(o => $"{o.Kind} {o.Target} {o.State} {o.Blocked}")) });
+                            ["orders"] = new JArray(c.Board.All.Where(o => o.Prof == Prof.Weaver).Select(o => $"{o.Kind} {o.Target} {o.State} {o.Blocked}")),
+                            ["stock"] = new JObject(new[] { "Flax", "Homespun_RettedFlax", Weaving.LineFlax, Weaving.Thread, "LoxPelt", Weaving.HsWool, "ByreWool", Weaving.Yarn, "Homespun_LinenBolt", "Homespun_WoolBolt", "Homespun_Band" }.Select(n => new JProperty(n, Crafts.InStock(c, n)))),
+                            ["weavers"] = new JArray(people.Where(b => b.S.Prof == Prof.Weaver).Select(b => $"{b.S.Name}: {b.Doing}; carries {string.Join(", ", b.Body.GetInventory().GetAllItems().Where(i => !i.m_equipped).Select(i => Classes.Prefab(i) + " x" + i.m_stack))}")) });
                     }
                     break;
                 case "beds": // (test: every bed the colony counts as its own, and whose it is)
@@ -630,6 +632,16 @@ namespace Jarldom
                         if (it == null) { error("no " + a[3]); return; }
                         it.m_durability = it.GetMaxDurability() * float.Parse(a[4], CultureInfo.InvariantCulture); b.Body.GetInventory().m_onChanged?.Invoke();
                         output(new JObject { ["worn"] = $"{a[3]} {it.m_durability:0}/{it.GetMaxDurability():0}" });
+                    }
+                    break;
+                case "strip": // (test: "strip <name>": that villager's chest garment taken away (gone, not stored: a spare would dress them again), so they're in rags)
+                    {
+                        Brain b = Who(a[2]); if (b == null) { error("who?"); return; }
+                        Inventory inv = b.Body.GetInventory();
+                        ItemDrop.ItemData it = inv.GetAllItems().FirstOrDefault(i => i.m_equipped && i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Chest);
+                        if (it == null) { error("nothing worn"); return; }
+                        b.Body.UnequipItem(it, false); inv.RemoveItem(it);
+                        output(new JObject { ["stripped"] = Classes.Prefab(it), ["rags"] = Weaving.InRags(b) });
                     }
                     break;
                 case "sowspots": // (test: "sowspots <zone n>": the season's chosen crop and where the next crops would go)

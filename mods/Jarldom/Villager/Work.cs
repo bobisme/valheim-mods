@@ -196,7 +196,7 @@ namespace Jarldom
                 {
                     bool needFuel = smelter.m_fuelItem != null && v.GetZDO().GetFloat(ZDOVars.s_fuel) < smelter.m_maxFuel * 0.5f && HaveInStock(c, smelter.m_fuelItem.name);
                     bool needOre = QueueSize(smelter) < smelter.m_maxOre / 2 && smelter.m_conversion.Any(cv => cv.m_from != null && Feedable(c, smelter, cv.m_from.name));
-                    bool textile = Weaving.IsTextile(smelter), done = Processed(smelter) > 0 && textile; // (Homespun's hold what they've made till it's taken out)
+                    bool textile = Weaving.IsTextile(smelter), done = textile && Processed(smelter) is int made && made > 0 && (made >= 5 || QueueSize(smelter) == 0); // (Homespun's hold what they've made till it's taken out: a few at a time, or the last)
                     if (needFuel || needOre || done) c.Board.Post("smelt", Key(v), textile ? Prof.Weaver : Prof.Smelter, done ? 4 : 3, p.transform.position.x, p.transform.position.y, p.transform.position.z, now, "", "station");
                 }
                 Fermenter ferm = p.GetComponent<Fermenter>();
@@ -1328,6 +1328,7 @@ namespace Jarldom
                     if (smelter.m_fuelItem != null && sv.GetZDO().GetFloat(ZDOVars.s_fuel) < smelter.m_maxFuel * 0.5f) wants.Add(smelter.m_fuelItem.name);
                     if (Work.QueueSize(smelter) < smelter.m_maxOre / 2) wants.AddRange(smelter.m_conversion.Where(cv => cv.m_from != null && Work.Feedable(b.Colony, smelter, cv.m_from.name)).Select(cv => cv.m_from.name));
                 }
+                if (smelter != null && Weaving.IsTextile(smelter)) wants = Weaving.FeedOrder(b.Colony, wants);
                 if (cook != null) wants.AddRange(cook.m_conversion.Where(cv => cv.m_from != null).Select(cv => cv.m_from.name));
                 Fermenter cask = _target.GetComponent<Fermenter>();
                 if (cask != null) wants.AddRange(cask.m_conversion.Where(cv => cv.m_from != null).Select(cv => cv.m_from.name));
@@ -1359,6 +1360,7 @@ namespace Jarldom
                 else if (sm != null) room = Mathf.Clamp(sm.m_maxOre - Work.QueueSize(sm), 0, 5);
                 else if (oven != null) room = Mathf.Clamp(Work.CookFreeCount(oven), 1, 5); // (a spit's empty slots, filled in one trip)
                 else if (_target.GetComponent<Fermenter>() != null) room = 1;
+                if (sm != null && Weaving.IsTextile(sm)) room = Math.Min(room, Weaving.FeedCap(b.Colony, _carry));
                 _fetched = have != null && room > 0 ? Stock.Take(_source, bag, have, room) : 0;
                 if (_fetched == 0) { Finish(b, false); return; }
                 _phase = 2; b.Move.To(Approach(b), 1.4f);
