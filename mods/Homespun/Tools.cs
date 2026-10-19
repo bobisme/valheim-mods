@@ -26,7 +26,7 @@ namespace Homespun
             try
             {
                 found.GetType().GetMethod("RegisterCommand", BindingFlags.Public | BindingFlags.Static)?.Invoke(null, new object[]{Plugin.Name, "spun",
-                    "spun status | give <item|fibre|cloth|garments|hildir|all> [n] | finish [radius] | chain [item] | recipes: check Homespun. status shows the retting pools, flax brakes and spinning wheels within 30 m (what's queued, done, and how far on) and the spindle in hand; give puts items of the chain in the bag (an item's prefab or one of the groups; cheats only); finish runs the stations near you an hour on, as if you'd been away (cheats only), and finishes the thread on the spindle; chain shows what an item (or every garment) comes to in what's gathered, with and without Byre's fleece; recipes lists Homespun's recipes and where each is made.",
+                    "spun status | give <item|fibre|cloth|garments|hildir|all> [n] | finish [radius] | feed <item> [n] | drops [rolls] | fresh [meadows|forest] [n] [edge] | chain [item] | recipes: check Homespun. status shows the retting pools, flax brakes and spinning wheels within 30 m (what's queued, done, and how far on) and the spindle in hand; give puts items of the chain in the bag (an item's prefab or one of the groups; cheats only); finish runs the stations near you an hour on, as if you'd been away (cheats only), and finishes the thread on the spindle; feed puts an item straight into the nearest station within 20 m that takes it, as if from a bag (cheats only); drops rolls a greydwarf's drops many times and counts the nettle; fresh lists the nearest ground of a biome the world hasn't made yet (where wild nettle can still grow), for a trip; chain shows what an item (or every garment) comes to in what's gathered, with and without Byre's fleece; recipes lists Homespun's recipes and where each is made.",
                     (Func<string[], Action<JObject>, Action<string>, IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: spun command added");
             }
@@ -121,6 +121,60 @@ namespace Homespun
                     if (Spindle.On != null) Spindle.Spun = Spindle.On.Seconds;
                     yield return new WaitForSeconds(2.5f);
                     output(new JObject { ["ran"] = ran, ["spindle"] = Spindle.On != null });
+                    break;
+                }
+                case "feed":
+                {
+                    if (!Cheats()) { error("spun feed makes items: only in single player, for the host, or for a server admin with devcommands on"); yield break; }
+                    string item = a.Length > 2 ? a[2] : Names.Nettle; int n = (int)F(a, 3, 1);
+                    Smelter s = UnityEngine.Object.FindObjectsByType<Smelter>(FindObjectsSortMode.None)
+                        .Where(x => x != null && Vector3.Distance(x.transform.position, at) < 20 && x.m_conversion.Any(c => c?.m_from != null && c.m_from.name == item))
+                        .OrderBy(x => Vector3.Distance(x.transform.position, at)).FirstOrDefault();
+                    ZNetView view = s != null ? s.GetComponent<ZNetView>() : null;
+                    if (view == null || !view.IsValid()) { error($"no station within 20 m takes {item}"); yield break; }
+                    for (int i = 0; i < n; i++) view.InvokeRPC("RPC_AddOre", item, false); // (name, cheated)
+                    yield return new WaitForSeconds(0.5f);
+                    output(Station(s, at));
+                    break;
+                }
+                case "drops":
+                {
+                    CharacterDrop drops = ZNetScene.instance.GetPrefab("Greydwarf")?.GetComponent<CharacterDrop>();
+                    if (drops == null) { error("no greydwarf drops"); yield break; }
+                    int rolls = (int)F(a, 2, 1000);
+                    var times = new System.Collections.Generic.Dictionary<string, int>(); var counts = new System.Collections.Generic.Dictionary<string, int>();
+                    for (int i = 0; i < rolls; i++)
+                        foreach (var d in drops.GenerateDropList().Where(d => d.Key != null))
+                        {
+                            times[d.Key.name] = (times.TryGetValue(d.Key.name, out int t) ? t : 0) + 1;
+                            counts[d.Key.name] = (counts.TryGetValue(d.Key.name, out int c) ? c : 0) + d.Value;
+                        }
+                    // (each drop: how often in the rolls, and how many on average when it drops; the world's loot modifiers scale every one)
+                    output(new JObject { ["rolls"] = rolls, ["drops"] = new JObject(times.Keys.Select(k => new JProperty(k, $"{100f * times[k] / rolls:0.#}% x{(float)counts[k] / times[k]:0.##}"))) });
+                    break;
+                }
+                case "fresh":
+                {
+                    bool forest = a.Length > 2 && a[2].StartsWith("f");
+                    Heightmap.Biome want = forest ? Heightmap.Biome.BlackForest : Heightmap.Biome.Meadows;
+                    int n = (int)F(a, 3, 5);
+                    MethodInfo made = typeof(ZoneSystem).GetMethod("IsZoneGenerated", BindingFlags.NonPublic | BindingFlags.Instance);
+                    var found = new JArray();
+                    // (rings out from here a zone (64 m) apart, the zone's centre: the biome there, and the world not yet made there)
+                    for (int r = 1; r < 80 && found.Count < n; r++)
+                        for (int i = 0; i < r * 8 && found.Count < n; i++)
+                        {
+                            float ang = i * Mathf.PI * 2 / (r * 8);
+                            Vector3 p = at + new Vector3(Mathf.Cos(ang), 0, Mathf.Sin(ang)) * r * 64f;
+                            var zone = ZoneSystem.GetZone(p); Vector3 c = ZoneSystem.GetZonePos(zone);
+                            if (WorldGenerator.instance.GetBiome(c) != want || (bool)made.Invoke(ZoneSystem.instance, new object[] { zone })) continue;
+                            if (a.Contains("edge") && WorldGenerator.instance.GetBiomeArea(c) != Heightmap.BiomeArea.Edge) continue; // (as the game decides a zone's area for its vegetation)
+                            float h = WorldGenerator.instance.GetHeight(c.x, c.z);
+                            if (h < ZoneSystem.instance.m_waterLevel + 1) continue;
+                            string spot = $"{c.x:0} {h + 1:0.0} {c.z:0}";
+                            if (!found.Any(t => (string)t == spot)) found.Add(spot);
+                        }
+                    output(new JObject { ["biome"] = want.ToString(), ["fresh"] = found });
                     break;
                 }
                 case "chain":

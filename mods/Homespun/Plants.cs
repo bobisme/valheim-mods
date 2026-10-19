@@ -127,7 +127,7 @@ namespace Homespun
             foreach (var (name, biome, area, max, inForest) in new[]
             {
                 ("Homespun_nettle_meadows", Heightmap.Biome.Meadows, Heightmap.BiomeArea.Everything, 1.5f, true),
-                ("Homespun_nettle_forest_edge", Heightmap.Biome.BlackForest, Heightmap.BiomeArea.Edge, 1.5f, false),
+                ("Homespun_nettle_forest_edge", Heightmap.Biome.BlackForest, Heightmap.BiomeArea.Edge, 3f, false), // (more tries: the edge is half other ground and the forest's trees block most spots)
             })
             {
                 var v = new ZoneSystem.ZoneVegetation
@@ -150,7 +150,7 @@ namespace Homespun
             if (drops == null) return;
             drops.m_drops.RemoveAll(d => d == null || d.m_prefab == null || d.m_prefab != nettle && d.m_prefab.name == Names.Nettle); // (an earlier copy's)
             if (drops.m_drops.Any(d => d.m_prefab == nettle)) return;
-            _drop = new CharacterDrop.Drop { m_prefab = nettle, m_chance = GreydwarfChance, m_amountMin = 1, m_amountMax = 3, m_levelMultiplier = false }; // (1 or 2: the max isn't reached)
+            _drop = new CharacterDrop.Drop { m_prefab = nettle, m_chance = GreydwarfChance, m_amountMin = 1, m_amountMax = 2, m_levelMultiplier = false }; // (1 or 2: Game.ScaleDrops counts the max in, and scales it by the world's loot setting)
             drops.m_drops.Add(_drop);
         }
 
