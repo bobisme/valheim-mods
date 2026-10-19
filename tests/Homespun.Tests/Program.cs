@@ -102,6 +102,11 @@ Check(Chain.Span(65)=="1m 05s"&&Chain.Span(9.2f)=="10s","Spans");
     Check(Near(redTunic["Raspberry"],10)&&Near(redTunic[Names.Fleece],17),"A red tunic: two bolts' fleece, and 10 raspberries ("+Chain.RawText(redTunic)+")");
 }
 
+// ---- Tapestries: hung pieces woven from dyed bolts ----
+{
+    Check(new[]{Names.Frieze,Names.Hanging}.All(PrefabNames.Shipped.Contains),"The tapestries are shipped");
+    Check(Dye.Variants.Contains("Homespun_WoolBolt_Yellow")&&Dye.Variants.Contains("Homespun_WoolBolt_Red")&&Dye.Variants.Contains("Homespun_WoolBolt_Blue"),"The dyed bolts the tapestries take are made");
+}
 // ---- Prefab names: a save finds a thing again by its prefab's name; none shipped may go ----
 {
     var golden=File.ReadAllLines(Path.Combine(AppContext.BaseDirectory,"prefabs.txt")).Select(l=>l.Trim()).Where(l=>l!="").ToList();

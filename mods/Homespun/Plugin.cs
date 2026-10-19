@@ -19,7 +19,7 @@ namespace Homespun
     {
         public const string Guid = "cx.bob.homespun";
         public const string Name = "Homespun";
-        public const string Version = "0.2.0";
+        public const string Version = "0.2.1";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled;
         private Harmony _harmony;

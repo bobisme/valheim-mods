@@ -62,6 +62,8 @@ namespace Homespun
             "Homespun_HoodedCloak_Red",
             "Homespun_HoodedCloak_Yellow",
             "Homespun_HoodedCloak_Purple",
+            "Homespun_TapestryFrieze",
+            "Homespun_TapestryHanging",
         };
     }
 }

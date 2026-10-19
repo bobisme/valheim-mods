@@ -28,6 +28,7 @@ namespace Homespun
         // Nettle growing: wild (grows back), the field crop (picked, gone), and the cultivator's sapling (Plants.cs)
         public const string WildNettle = "Homespun_Pickable_Nettle", NettleCrop = "Homespun_Pickable_NettleCrop", NettleSapling = "Homespun_sapling_nettle";
         // Dyeing (Core/Dye.cs): the vat, and the lichen that gives purple (on stones in the Mountains and the Black Forest)
+        public const string Frieze = "Homespun_TapestryFrieze", Hanging = "Homespun_TapestryHanging"; // (hall tapestries: Core/Tapestry.cs)
         public const string Vat = "Homespun_DyeVat", Lichen = "Homespun_Lichen", WildLichen = "Homespun_Pickable_Lichen";
         public const string LinenBolt = "Homespun_LinenBolt", WoolBolt = "Homespun_WoolBolt", Band = "Homespun_Band";
         // Garments

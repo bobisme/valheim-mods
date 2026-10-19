@@ -2,20 +2,20 @@
 # loom, the sewing table, and the items: retted flax, line flax, combed wool, yarn, a linen bolt, a wool bolt, a woven band, the drop spindle,
 # and the five garments folded as they lie on the ground (undertunic, tunic, dress, trousers, cloak). Nettle (0.1.4): a cut bundle of it,
 # and the plant standing (wild, and grown from the cultivator). Dyeing (0.2.0): the dye vat, and lichen (the item, and the stone it
-# grows on in the Mountains).
+# grows on in the Mountains). Tapestries: an Oseberg-style procession frieze and an Overhogdal-style hanging.
 # Run: blender -b --python ~/.cache/homespun/spun.py -- [render] [pool|brake|...|spindle|undertunic|tunic|dress|trousers|cloak]
 # (writes ~/.cache/homespun/<name>.json.gz; previews with "render"). What ships is the bake of these (bake_conf.py, docs/model-baking.md).
 # Blender frame: z up, front +y (the game's +z, where a player stands to use the piece); the pieces stand on z 0, the items lie about the
 # origin, the spindle's shaft along z with the hand at the origin. Written in the game's frame (x, z, y): per corner position/normal/uv
 # (uvs in metres; wood's grain runs along v), triangles per material: 0 wood, 1 stone, 2 water, 3 flax, 4 linen, 5 wool, 6 iron, 7 red,
 # 8 blue, 9 retted, 10 oat (undyed light wool), 11 darkwool, 12 cloakwool, 13 bronze, 14 nettle (the leaf's dark green), 15 lichen
-# (its pale grey-green), 16 xanthoria (the orange crust lichen).
+# (its pale grey-green), 16 xanthoria (the orange crust lichen), 17 weld (the yellow dye, for the tapestries' figures).
 import bpy, bmesh, json, math, random, sys, gzip
 from mathutils import Vector, Matrix
 
 OUT = '/home/bob/.cache/homespun/'
-WOOD, STONE, WATER, FLAX, LINEN, WOOL, IRON, RED, BLUE, RETTED, OAT, DARKWOOL, CLOAKWOOL, BRONZE, NETTLE, LICHEN, XANTHORIA = range(17)
-NAMES = ('wood', 'stone', 'water', 'flax', 'linen', 'wool', 'iron', 'red', 'blue', 'retted', 'oat', 'darkwool', 'cloakwool', 'bronze', 'nettle', 'lichen', 'xanthoria')
+WOOD, STONE, WATER, FLAX, LINEN, WOOL, IRON, RED, BLUE, RETTED, OAT, DARKWOOL, CLOAKWOOL, BRONZE, NETTLE, LICHEN, XANTHORIA, WELD = range(18)
+NAMES = ('wood', 'stone', 'water', 'flax', 'linen', 'wool', 'iron', 'red', 'blue', 'retted', 'oat', 'darkwool', 'cloakwool', 'bronze', 'nettle', 'lichen', 'xanthoria', 'weld')
 SMOOTH = ('rock', 'weight', 'sheaf', 'hank', 'wool', 'ball', 'cloth', 'roll', 'cop', 'whorl', 'heap', 'tie', 'basket', 'spool', 'drape', 'hood', 'brooch', 'bead', 'stalk', 'ply', 'knot', 'tuft', 'hoop', 'crust')
 rng = random.Random(7)
 mats = []
@@ -770,7 +770,7 @@ def export(base):
 
 COLS = [(0.36, 0.24, 0.14, 1), (0.42, 0.4, 0.37, 1), (0.08, 0.16, 0.15, 1), (0.6, 0.48, 0.24, 1), (0.8, 0.76, 0.64, 1),
         (0.5, 0.45, 0.38, 1), (0.1, 0.1, 0.11, 1), (0.45, 0.08, 0.06, 1), (0.08, 0.13, 0.32, 1), (0.48, 0.45, 0.38, 1),
-        (0.55, 0.47, 0.36, 1), (0.28, 0.23, 0.18, 1), (0.2, 0.16, 0.12, 1), (0.6, 0.4, 0.15, 1), (0.1, 0.2, 0.06, 1), (0.34, 0.38, 0.26, 1), (0.7, 0.28, 0.03, 1)]
+        (0.55, 0.47, 0.36, 1), (0.28, 0.23, 0.18, 1), (0.2, 0.16, 0.12, 1), (0.6, 0.4, 0.15, 1), (0.1, 0.2, 0.06, 1), (0.34, 0.38, 0.26, 1), (0.7, 0.28, 0.03, 1), (0.66, 0.46, 0.06, 1)]
 def preview(base, views):
     # yaw 0 looks at the piece's front (from +y)
     for m, c in zip(mats, COLS):
@@ -784,7 +784,7 @@ def preview(base, views):
     sc = bpy.context.scene; sc.render.engine = 'CYCLES'; sc.cycles.samples = 24; sc.cycles.device = 'CPU'
     sc.render.resolution_x, sc.render.resolution_y = 640, 480
     w = bpy.data.worlds.new('w'); sc.world = w; w.use_nodes = True; w.node_tree.nodes['Background'].inputs[0].default_value = (0.55, 0.62, 0.7, 1)
-    ground = -0.002 if base in ('pool', 'brake', 'loom', 'table', 'nettleplant', 'vat', 'lichenplant') else -0.12 if base == 'spindle' else -0.08
+    ground = -2.3 if base in ('frieze', 'hanging') else -0.002 if base in ('pool', 'brake', 'loom', 'table', 'nettleplant', 'vat', 'lichenplant') else -0.12 if base == 'spindle' else -0.08
     bpy.ops.mesh.primitive_plane_add(size=12, location=(0, 0, ground if base != 'spindle' else -0.2)); g = bpy.context.active_object; gm = bpy.data.materials.new('ground'); gm.use_nodes = True
     gm.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (0.3, 0.36, 0.22, 1); g.data.materials.append(gm)
     sun = bpy.data.objects.new('sun', bpy.data.lights.new('sun', 'SUN')); sun.data.energy = 2.4; sun.rotation_euler = (math.radians(50), 0, math.radians(150)); sc.collection.objects.link(sun)
@@ -795,6 +795,186 @@ def preview(base, views):
         cam.rotation_euler = (V((0, 0, look)) - cam.location).to_track_quat('-Z', 'Y').to_euler()
         sc.render.filepath = OUT + f'{base}_{yaw}_{d}.png'; bpy.ops.render.render(write_still=True)
 
-KINDS = ('pool', 'brake', 'loom', 'table', 'retted', 'line', 'wool', 'yarn', 'linenbolt', 'woolbolt', 'band', 'spindle', 'undertunic', 'tunic', 'dress', 'trousers', 'cloak', 'nettle', 'nettleplant', 'vat', 'lichen', 'lichenplant')
+
+# ---------------- tapestries: hung on a rod as the game's banners are ----------------
+# The origin is the top centre of the rod; the cloth hangs down from it (-z), as wide as it is along y, its picture facing +x (the
+# game's +x). The figures are 'weave' decals laid a hair in front of the cloth: the bake takes them into its picture only. Each is
+# made of convex pieces (a horse is a body, a neck, a head, legs), each piece cut fine and laid onto the cloth's folds.
+TH = 0.008   # (the cloth's thickness: solidified about its middle)
+
+def sheet(name, W, H, top, fold, nx, nz):
+    # the cloth: a grid hung from z top down H, y across -W/2..W/2, pushed in x by fold(y, depth) (its folds)
+    bm = bmesh.new(); g = []
+    for i in range(nx + 1):
+        y = -W / 2 + W * i / nx; col = []
+        for k in range(nz + 1):
+            d = H * k / nz
+            col.append(bm.verts.new((fold(y, d), y, top - d)))
+        g.append(col)
+    for i in range(nx):
+        for k in range(nz):
+            bm.faces.new((g[i][k], g[i][k + 1], g[i + 1][k + 1], g[i + 1][k]))
+    bm.normal_update()
+    ob = link(name, bm, LINEN)
+    m = ob.modifiers.new('solid', 'SOLIDIFY'); m.thickness = TH; m.offset = 0
+    return ob
+
+class Weave:
+    # the decals of one tapestry: pieces in (u along y, v up) laid onto the cloth's front at x = fold(u, top - v) + lift
+    # (the cloth as sheet() makes it: faceted between its grid's points, so the figures follow the facets and never sink behind them)
+    def __init__(self, tag, top, fold, W, H, nx, nz):
+        self.tag, self.top, self.k = tag, top, 0
+        self.W, self.H, self.nx, self.nz, self.f = W, H, nx, nz, fold
+    def fold(self, u, d):
+        x = min(max((u + self.W / 2) / self.W * self.nx, 0), self.nx - 1e-6); z = min(max(d / self.H * self.nz, 0), self.nz - 1e-6)
+        i, k = int(x), int(z); a, b = x - i, z - k
+        g = lambda i_, k_: self.f(-self.W / 2 + self.W * i_ / self.nx, self.H * k_ / self.nz)
+        return (g(i, k) * (1 - a) + g(i + 1, k) * a) * (1 - b) + (g(i, k + 1) * (1 - a) + g(i + 1, k + 1) * a) * b
+    def front(self, u, v, up=0.0):
+        d = self.top - v; e = 0.002
+        slope = (self.fold(u + e, d) - self.fold(u - e, d)) / (2 * e)
+        return self.fold(u, d) + (TH / 2) * math.sqrt(1 + slope * slope) + 0.0015 + up
+    def piece(self, pts, mat, cut=0.025, up=0.0):
+        bm = bmesh.new(); vs = [bm.verts.new((0, u, v)) for u, v in pts]
+        bm.faces.new(vs)
+        size = max(max(u for u, _ in pts) - min(u for u, _ in pts), max(v for _, v in pts) - min(v for _, v in pts))
+        n = min(12, int(size / cut))
+        if n > 0: bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=n, use_grid_fill=True)
+        bmesh.ops.triangulate(bm, faces=bm.faces[:])
+        for v in bm.verts: v.co.x = self.front(v.co.y, v.co.z, up)   # (up: a piece over another, the mane on the neck)
+        for f in bm.faces:
+            f.normal_update()
+            if f.normal.x < 0: f.normal_flip()
+        self.k += 1
+        return link(f'weave_{self.tag}{self.k}', bm, mat)
+    def quad(self, a, b, c, d, mat): return self.piece([a, b, c, d], mat)
+    def tri(self, a, b, c, mat): return self.piece([a, b, c], mat)
+    def rect(self, u0, v0, u1, v1, mat, most=0.1):
+        # (a long border strip in short lengths, each laid onto the folds on its own)
+        nu, nv = max(1, math.ceil((u1 - u0) / most)), max(1, math.ceil((v1 - v0) / most))
+        for i in range(nu):
+            for k in range(nv):
+                a, b = u0 + (u1 - u0) * i / nu, u0 + (u1 - u0) * (i + 1) / nu
+                c, d = v0 + (v1 - v0) * k / nv, v0 + (v1 - v0) * (k + 1) / nv
+                self.piece([(a, c), (b, c), (b, d), (a, d)], mat)
+    def disc(self, u, v, r, mat, n=8):
+        return self.piece([(u + r * math.cos(2 * math.pi * i / n), v + r * math.sin(2 * math.pi * i / n)) for i in range(n)], mat)
+    def bar(self, a, b, w, mat):
+        # a thin straight stroke from a to b (a leg, a spear)
+        a, b = V((a[0], a[1], 0)), V((b[0], b[1], 0)); d = (b - a).normalized(); n = V((-d.y, d.x, 0)) * (w / 2)
+        return self.piece([((a + n).x, (a + n).y), ((b + n).x, (b + n).y), ((b - n).x, (b - n).y), ((a - n).x, (a - n).y)], mat)
+
+    # ---- the figures, each standing on (u, v): s is its height, facing +u (to the right, seen from the front) ----
+    def horse(self, u, v, s, body, mane=None, step=0):
+        L = s * 1.1
+        self.quad((u - L * 0.45, v + s * 0.42), (u + L * 0.35, v + s * 0.45), (u + L * 0.32, v + s * 0.72), (u - L * 0.42, v + s * 0.7), body)
+        self.quad((u + L * 0.22, v + s * 0.55), (u + L * 0.4, v + s * 0.6), (u + L * 0.55, v + s * 1.0), (u + L * 0.38, v + s * 1.02), body)
+        self.quad((u + L * 0.42, v + s * 0.86), (u + L * 0.75, v + s * 0.78), (u + L * 0.76, v + s * 0.9), (u + L * 0.5, v + s * 1.04), body)
+        if mane: self.piece([(u + L * 0.2, v + s * 0.73), (u + L * 0.3, v + s * 0.73), (u + L * 0.42, v + s * 1.06), (u + L * 0.34, v + s * 1.07)], mane, up=0.0015)
+        sw = (0.08 if step % 2 else -0.08) * L
+        for fx, k in ((-0.36, -1), (-0.24, 1), (0.18, -1), (0.28, 1)):
+            self.bar((u + L * fx, v + s * 0.47), (u + L * fx + sw * k, v), s * 0.07, body)
+        self.tri((u - L * 0.42, v + s * 0.68), (u - L * 0.5, v + s * 0.66), (u - L * 0.62, v + s * 0.22), body)
+    def man(self, u, v, s, tunic, legs, spear=None, shield=None):
+        self.disc(u, v + s * 0.9, s * 0.08, legs, n=6)
+        self.quad((u - s * 0.13, v + s * 0.36), (u + s * 0.13, v + s * 0.36), (u + s * 0.08, v + s * 0.8), (u - s * 0.08, v + s * 0.8), tunic)
+        self.bar((u - s * 0.05, v + s * 0.34), (u - s * 0.12, v), s * 0.06, legs)
+        self.bar((u + s * 0.05, v + s * 0.34), (u + s * 0.13, v), s * 0.06, legs)
+        if spear: self.bar((u + s * 0.2, v + s * 0.05), (u + s * 0.34, v + s * 1.15), s * 0.035, spear)
+        if shield: self.disc(u - s * 0.24, v + s * 0.58, s * 0.13, shield, n=8)
+    def wagon(self, u, v, s, box_, wheel):
+        self.quad((u - s * 0.6, v + s * 0.42), (u + s * 0.6, v + s * 0.42), (u + s * 0.66, v + s * 0.74), (u - s * 0.66, v + s * 0.74), box_)
+        for wu in (-0.38, 0.38):
+            self.disc(u + s * wu, v + s * 0.2, s * 0.2, wheel, n=10)
+        self.bar((u + s * 0.62, v + s * 0.5), (u + s * 1.0, v + s * 0.56), s * 0.04, wheel)
+    def elk(self, u, v, s, body):
+        self.horse(u, v, s, body)
+        L = s * 1.1
+        for a in ((0.44, 0.28), (0.62, 0.3), (0.34, 0.2)):
+            self.bar((u + L * 0.5, v + s * 1.02), (u + L * a[0], v + s * (1.02 + a[1])), s * 0.05, body)
+    def bird(self, u, v, s, mat):
+        self.quad((u - s * 0.35, v), (u + s * 0.25, v - s * 0.05), (u + s * 0.35, v + s * 0.08), (u - s * 0.2, v + s * 0.12), mat)
+        self.tri((u - s * 0.1, v + s * 0.1), (u + s * 0.12, v + s * 0.1), (u - s * 0.15, v + s * 0.55), mat)
+        self.tri((u + s * 0.36, v + s * 0.06), (u + s * 0.5, v + s * 0.03), (u + s * 0.38, v + s * 0.13), mat)
+    def ship(self, u, v, s, hull_, sail):
+        self.quad((u - s * 0.7, v + s * 0.1), (u + s * 0.7, v + s * 0.1), (u + s * 0.85, v + s * 0.3), (u - s * 0.85, v + s * 0.3), hull_)
+        self.bar((u + s * 0.82, v + s * 0.28), (u + s * 1.0, v + s * 0.55), s * 0.07, hull_)
+        self.bar((u - s * 0.82, v + s * 0.28), (u - s * 1.0, v + s * 0.55), s * 0.07, hull_)
+        self.bar((u, v + s * 0.32), (u, v + s * 0.48), s * 0.05, hull_)
+        self.quad((u - s * 0.4, v + s * 0.5), (u + s * 0.4, v + s * 0.5), (u + s * 0.36, v + s * 1.0), (u - s * 0.36, v + s * 1.0), sail)
+    def tree(self, u, v, s, trunk, leaves):
+        self.rect(u - s * 0.05, v, u + s * 0.05, v + s * 0.3, trunk)
+        for w, h in ((0.4, 0.3), (0.32, 0.56), (0.22, 0.8)):
+            self.tri((u - s * w, v + s * h), (u + s * w, v + s * h), (u, v + s * (h + 0.24)), leaves)
+    def zigzag(self, u0, u1, v, h, mat, n):
+        # a row of small triangles, points up and down in turn (a border's pattern)
+        w = (u1 - u0) / n
+        for i in range(n):
+            a = u0 + i * w
+            if i % 2: self.tri((a + w * 0.1, v + h), (a + w * 0.9, v + h), (a + w * 0.5, v), mat)
+            else: self.tri((a + w * 0.1, v), (a + w * 0.9, v), (a + w * 0.5, v + h), mat)
+
+def rod(W):
+    # the rod it hangs from (round knobs at its ends), and cord loops round it holding the cloth's top edge
+    pole('rod', (0, -W / 2 - 0.09, 0), (0, W / 2 + 0.09, 0), 0.016, seed=91, bend=0.003)
+    for k, y in enumerate((-W / 2 - 0.09, W / 2 + 0.09)):
+        blob(f'knob{k}', (0, y, 0), (0.026, 0.026, 0.026), WOOD, seed=90 + k, subdiv=1, lumps=0.05)
+    n = max(4, int(W / 0.35))
+    for i in range(n):
+        y = -W / 2 + 0.06 + (W - 0.12) * i / (n - 1)
+        ring(f'loop_{i}', (0, y, -0.014), 0.026, 0.0045, (0, 1, 0), DARKWOOL, segs=8, rsegs=3)
+
+def frieze():
+    # an Oseberg-style procession: a long narrow band (3.0 wide, 0.55 tall) on a rod; between red borders edged with blue teeth, horses
+    # in red and blue, a wagon, and men on foot with spears and round shields walk left to right on undyed linen, birds over them
+    fresh()
+    W, H, top = 3.0, 0.55, -0.03
+    fold = lambda y, d: 0.006 * math.sin(y * 9.0) * min(1.0, d / 0.2)
+    sheet('cloth_frieze', W, H, top, fold, 28, 2)
+    rod(W)
+    w = Weave('fz', top, fold, W, H, 28, 2); m = 0.02
+    lo, hi = top - H + m, top - m
+    w.rect(-W / 2 + m, hi - 0.03, W / 2 - m, hi, RED); w.zigzag(-W / 2 + m, W / 2 - m, hi - 0.06, 0.025, BLUE, 60)
+    w.rect(-W / 2 + m, lo, W / 2 - m, lo + 0.03, RED); w.zigzag(-W / 2 + m, W / 2 - m, lo + 0.035, 0.025, BLUE, 60)
+    g = lo + 0.075; s = 0.3
+    w.man(-1.36, g, s, WELD, DARKWOOL, spear=DARKWOOL)
+    w.horse(-1.05, g, s * 0.95, RED, mane=WELD, step=0)
+    w.man(-0.74, g, s, BLUE, DARKWOOL, spear=DARKWOOL, shield=RED)
+    w.horse(-0.43, g, s * 0.95, BLUE, mane=WELD, step=1)
+    w.wagon(0.02, g, s * 0.8, RED, DARKWOOL)
+    w.horse(0.48, g, s * 0.95, RED, mane=BLUE, step=0)
+    w.man(0.82, g, s, RED, DARKWOOL, spear=DARKWOOL, shield=WELD)
+    w.horse(1.1, g, s * 0.95, BLUE, mane=WELD, step=1)
+    w.man(1.38, g, s, WELD, DARKWOOL, spear=DARKWOOL, shield=BLUE)
+    for u in (-1.22, -0.6, 0.26, 0.97):
+        w.bird(u, g + s * 1.02, 0.08, DARKWOOL)
+    finish('frieze', [(90, 4.2, -0.3, -0.3), (60, 2.6, -0.2, -0.3), (110, 1.4, -0.25, -0.3)])
+
+def hanging():
+    # an Overhogdal-style hanging (1.4 wide, 1.8 tall) on a rod, softly folded: a blue border with a red line inside it, and rows of
+    # beasts and things in red and blue on undyed linen (elks, a ship under sail and a tree, birds, horses and a man), red teeth between
+    fresh()
+    W, H, top = 1.4, 1.8, -0.03
+    fold = lambda y, d: 0.022 * math.sin(y * 22.0 + 0.6) * (0.35 + 0.65 * min(1.0, d / 1.0))
+    sheet('cloth_hanging', W, H, top, fold, 28, 4)
+    rod(W)
+    w = Weave('hg', top, fold, W, H, 28, 4); m = 0.02
+    l, r, b, t = -W / 2 + m, W / 2 - m, top - H + m, top - m
+    B = 0.06
+    w.rect(l, t - B, r, t, BLUE); w.rect(l, b, r, b + B, BLUE)
+    w.rect(l, b + B, l + B, t - B, BLUE); w.rect(r - B, b + B, r, t - B, BLUE)
+    i = 0.025; L, R, Bo, T = l + B + 0.02, r - B - 0.02, b + B + 0.02, t - B - 0.02
+    w.rect(L, T - i, R, T, RED); w.rect(L, Bo, R, Bo + i, RED)
+    w.rect(L, Bo + i, L + i, T - i, RED); w.rect(R - i, Bo + i, R, T - i, RED)
+    rows = [T - 0.4, T - 0.78, T - 1.12, T - 1.48]   # (each row's ground line, top down)
+    for k, u in enumerate((-0.36, 0.0, 0.36)): w.elk(u - 0.06, rows[0], 0.24, RED if k % 2 == 0 else BLUE)
+    w.ship(-0.2, rows[1], 0.26, BLUE, RED); w.tree(0.34, rows[1], 0.32, RED, BLUE)
+    for k, u in enumerate((-0.4, -0.13, 0.14, 0.41)): w.bird(u, rows[2] + 0.08, 0.24, RED if k % 2 else BLUE)
+    for k, u in enumerate((-0.34, 0.04)): w.horse(u, rows[3], 0.26, BLUE if k % 2 == 0 else RED, step=k)
+    w.man(0.4, rows[3], 0.26, RED, BLUE, spear=BLUE)
+    for v in rows[:3]: w.zigzag(L + 0.04, R - 0.04, v - 0.05, 0.022, RED, 28)
+    finish('hanging', [(90, 4.6, -0.9, -0.95), (55, 3.4, -0.6, -0.95), (90, 1.9, -0.6, -0.6)])
+
+KINDS = ('pool', 'brake', 'loom', 'table', 'retted', 'line', 'wool', 'yarn', 'linenbolt', 'woolbolt', 'band', 'spindle', 'undertunic', 'tunic', 'dress', 'trousers', 'cloak', 'nettle', 'nettleplant', 'vat', 'lichen', 'lichenplant', 'frieze', 'hanging')
 which = [a for a in sys.argv if a in KINDS] or list(KINDS)
 for w in which: globals()[w]()

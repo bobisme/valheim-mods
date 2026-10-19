@@ -17,6 +17,7 @@ namespace Homespun
         internal sealed class Def
         {
             public string Name, From, Title, Model, Description; public (string item, int n)[] Cost;
+            public bool Hung; // (a tapestry: furniture, hung as the game's banners are, and comfort)
         }
         internal static readonly Def[] All =
         {
@@ -30,6 +31,10 @@ namespace Homespun
                 Description = "A plank table with shears, needles and thread. Cuts and sews bolts of cloth into shirts, tunics, dresses, trousers and cloaks, and Hildir's clothes besides." },
             new Def { Name = Names.Vat, From = "piece_chest_wood", Title = "Dye vat", Model = "vat", Cost = new[] { ("Wood", 12), ("Stone", 3), ("Resin", 2) },
                 Description = "A stave tub for dyeing. Put in bolts of cloth or clothes with a dyestuff: blueberries dye blue, raspberries red, dandelions yellow, and the lichen off mountain and forest stones purple. A bolt takes a measure of dye, a garment the bolts it was sewn from." },
+            new Def { Name = Names.Frieze, From = "piece_banner01", Title = "Procession tapestry", Model = "frieze", Hung = true, Cost = Tapestry.FriezeCost,
+                Description = "A long woven band for a hall's wall, as the one buried with the Oseberg ship: horses, a wagon and spearmen in procession, in madder red, woad blue and weld yellow on linen. Woven from dyed bolts." },
+            new Def { Name = Names.Hanging, From = "piece_banner01", Title = "Wall hanging", Model = "hanging", Hung = true, Cost = Tapestry.HangingCost,
+                Description = "A woven hanging as at Överhogdal: rows of elk and horses, a ship and birds round a tree, red and blue on linen. Woven from dyed bolts." },
         };
         internal static bool Ours(string name) => All.Any(d => d.Name == name);
 
@@ -111,12 +116,14 @@ namespace Homespun
                 case Names.Loom: MakeLoom(go, layer, d); break;
                 case Names.Table: MakeTable(go, layer, d); break;
                 case Names.Vat: MakeVat(go, layer, scene, d); break;
+                case Names.Frieze: Box(go, layer, Tapestry.FriezeCentre, Tapestry.FriezeSize); break;
+                case Names.Hanging: Box(go, layer, Tapestry.HangingCentre, Tapestry.HangingSize); break;
             }
             var piece = go.GetComponent<Piece>();
             piece.m_name = d.Title; piece.m_description = d.Description;
-            piece.m_category = Piece.PieceCategory.Crafting;
+            piece.m_category = d.Hung ? Piece.PieceCategory.Furniture : Piece.PieceCategory.Crafting;
             piece.m_craftingStation = scene.GetPrefab("piece_workbench")?.GetComponent<CraftingStation>();
-            piece.m_groundPiece = false; piece.m_groundOnly = false; piece.m_clipEverything = false; piece.m_comfort = 0; piece.m_comfortGroup = Piece.ComfortGroup.None;
+            piece.m_groundPiece = false; piece.m_groundOnly = false; piece.m_clipEverything = false; piece.m_comfort = d.Hung ? Tapestry.Comfort : 0; piece.m_comfortGroup = d.Hung ? Piece.ComfortGroup.Banner : Piece.ComfortGroup.None;
             piece.m_resources = d.Cost.Select(c => Req(scene, c.item, c.n)).Where(r => r != null).ToArray();
             piece.m_enabled = true;
             try { if (Icon.Make(go) is Sprite icon) { piece.m_icon = icon; Looks.Owned.Add(icon); Looks.Owned.Add(icon.texture); } }
