@@ -318,7 +318,8 @@ namespace Jarldom
             var spots = new List<(Vector3, GameObject)>();
             var seeds = Replant.Where(kv => !SeedsPlenty(c, kv.Key)).Select(kv => kv.Value).GroupBy(r => r.seed).Select(g => g.First()).Where(r => HaveInStock(c, r.seed)).ToList();
             if (ChosenNow(c, z) is var chosen && chosen != null && HaveInStock(c, chosen.Value.seed)) seeds = new List<(GameObject, string, int)> { chosen.Value }; // (the jarl's crop for the season, while there are seeds for it; else what there is)
-            bool flaxWanted = Villagers.All.Any(v => v.S.Colony == c.Id && v.S.Prof == Prof.Weaver) && InStockCount(c, Weaving.Flax) < 30;
+            bool flaxWanted = FlaxWanted(c);
+            if (!flaxWanted && seeds.Any(r => r.seed != Weaving.Flax)) seeds.RemoveAll(r => r.seed == Weaving.Flax && (chosen == null || chosen.Value.seed != Weaving.Flax)); // (food first: thousands of flax in the stores sowed every field with it, and the colony starved)
             if (seeds.Count == 0) return spots;
             var taken = Things(centre, reach).Where(go => go.GetComponent<Plant>() != null || go.GetComponent<Pickable>() != null).Select(go => go.transform.position).ToList();
             taken.AddRange(c.Board.All.Where(o => o.Kind == "sow" && o.Zone == z.Id && o.State != OrderState.Done && o.State != OrderState.Cancelled).Select(o => new Vector3(o.X, o.Y, o.Z)));
@@ -332,7 +333,7 @@ namespace Jarldom
                     p.y = ZoneSystem.instance.GetGroundHeight(p);
                     if (p.y < ZoneSystem.instance.m_waterLevel + 0.3f) continue;
                     Heightmap.Biome biome = WorldGenerator.instance != null ? WorldGenerator.instance.GetBiome(p) : Heightmap.Biome.Meadows;
-                    var fits = seeds.Where(r => r.sapling.GetComponent<Plant>() is Plant pl && ((pl.m_biome & biome) != 0 || Weaving.GrowsHere(r.sapling, p))).OrderBy(r => r.seed == Weaving.Flax && flaxWanted ? 0 : 1).ThenByDescending(r => InStockCount(c, r.seed)).ToList(); // (flax grows in the colony's fields anywhere; first, while a weaver wants it)
+                    var fits = seeds.Where(r => r.sapling.GetComponent<Plant>() is Plant pl && ((pl.m_biome & biome) != 0 || Weaving.GrowsHere(r.sapling, p))).OrderBy(r => r.seed == Weaving.Flax && flaxWanted ? 0 : 1).ThenBy(r => EatenRaw(r.sapling) ? 0 : 1).ThenByDescending(r => InStockCount(c, r.seed)).ToList(); // (flax grows in the colony's fields anywhere; first, while a weaver wants it; then what's eaten as it's picked)
                     if (fits.Count == 0) return spots;
                     spots.Add((p, fits[0].sapling));
                     taken.Add(p);
@@ -340,6 +341,26 @@ namespace Jarldom
             return spots;
         }
         private static int InStockCount(Colony c, string item) => Stock.Count(c, item);
+        // Flax is sown while a weaver wants it (the stores short of it), else only where nothing else will grow.
+        public static bool FlaxWanted(Colony c) => Villagers.All.Any(v => v.S.Colony == c.Id && v.S.Prof == Prof.Weaver) && InStockCount(c, Weaving.Flax) < 30;
+        // A food crop to put in a harvested flax plant's place while flax isn't wanted: the one the stores hold most seeds of that grows there.
+        public static (GameObject sapling, string seed, int amount)? FoodInstead(Colony c, Vector3 at)
+        {
+            Heightmap.Biome biome = WorldGenerator.instance != null ? WorldGenerator.instance.GetBiome(at) : Heightmap.Biome.Meadows;
+            var r = Replant.Where(kv => !SeedsPlenty(c, kv.Key)).Select(kv => kv.Value).Where(x => x.seed != Weaving.Flax && x.sapling != null && x.sapling.GetComponent<Plant>() is Plant pl && (pl.m_biome & biome) != 0 && HaveInStock(c, x.seed))
+                .OrderBy(x => EatenRaw(x.sapling) ? 0 : 1).ThenByDescending(x => InStockCount(c, x.seed)).ToList();
+            return r.Count > 0 ? r[0] : ((GameObject, string, int)?)null;
+        }
+        // Does what it grows feed someone as it's picked (a carrot does, a turnip wants the cook)?
+        private static readonly Dictionary<string, bool> _eaten = new Dictionary<string, bool>();
+        public static bool EatenRaw(GameObject sapling)
+        {
+            if (sapling == null) return false;
+            if (_eaten.TryGetValue(sapling.name, out bool e)) return e;
+            string pick = Replant.FirstOrDefault(kv => kv.Value.sapling == sapling).Key;
+            ItemDrop d = pick != null ? ZNetScene.instance?.GetPrefab(pick)?.GetComponent<Pickable>()?.m_itemPrefab?.GetComponent<ItemDrop>() : null;
+            return _eaten[sapling.name] = d != null && Stock.Edible(d.m_itemData);
+        }
         // A charcoal kiln burns wood into coal: only while the stores want coal (the Work tab's limit, 100 unless set) and never the last
         // of the wood, which the builders and fires need. (Fed whenever there was wood, a kiln took every log the colony was given.)
         public const int KilnWoodLeft = 50;
@@ -1011,6 +1032,7 @@ namespace Jarldom
                 if (!Work.Replant.TryGetValue(_crop ?? "", out var plant)) { Finish(b, true); return; }
                 if (Work.SeedsPlenty(b.Colony, _crop) && Work.Replant.TryGetValue(Work.FoodCrop(_crop), out var food)) plant = food; // (seeds enough: food in its place)
                 Zone field = b.Colony.R.Zones.FirstOrDefault(z => z.Type == ZoneType.Fields && Zones.Inside(z, _cropAt));
+                if (plant.seed == Weaving.Flax && !Work.FlaxWanted(b.Colony) && Work.FoodInstead(b.Colony, _cropAt) is var instead && instead != null) plant = instead.Value; // (flax not wanted: food in its place)
                 if (Work.ChosenNow(b.Colony, field) is var chosen && chosen != null && (Work.HaveInStock(b.Colony, chosen.Value.seed) || b.Body.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == chosen.Value.seed))) plant = chosen.Value; // (the season's chosen crop in its place)
                 if (!Replanting(b, plant)) Finish(b, true);
                 return;

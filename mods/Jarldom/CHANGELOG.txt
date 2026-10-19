@@ -1,3 +1,5 @@
+0.1.209: fields grow food, not flax nobody wants. Farmers sowed whichever seed the stores held most of, and replanted each harvest with the same crop: with thousands of flax stored, every field went to flax and the colony starved. Flax is now sown and replanted only while a weaver is short of it (or chosen for the season in the zone's window); otherwise a food crop, those eaten as picked (carrots) before those the cook needs (turnips).
+
 0.1.208: a villager in a fight takes up the bow or a weapon whatever they were at. Two hunters met a neck on the way to the hall and swung the hall's tankard at it all night, starving and sleepless.
 
 0.1.207: legends no longer crowd the map. At most four legend pins at once on a jarl's map (the newest kept; a map from before is thinned once), a pin comes off once the jarl has stood at the place, and no new legend is told in the hall while four are pinned and not yet found (one told ten days ago no longer counts).
