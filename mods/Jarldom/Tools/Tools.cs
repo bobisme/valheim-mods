@@ -1579,7 +1579,7 @@ namespace Jarldom
                     output(new JObject { ["stations"] = new JArray(c.PiecesIn(c.Radius).Where(p => p.GetComponent<Smelter>() != null || p.GetComponent<CookingStation>() != null || p.GetComponent<Fireplace>() != null).Select(p =>
                     {
                         ZDO z = p.GetComponent<ZNetView>().GetZDO(); Smelter sm = p.GetComponent<Smelter>();
-                        return $"{Utils.GetPrefabName(p.gameObject)} at {p.transform.position:F0}: fuel {z.GetFloat(ZDOVars.s_fuel):0.#}" + (sm != null ? $", ore queued {Work.QueueSize(sm)}, processed {z.GetInt(ZDOVars.s_spawnAmount)}" : "");
+                        return $"{Utils.GetPrefabName(p.gameObject)} at {p.transform.position:F0}: fuel {z.GetFloat(ZDOVars.s_fuel):0.#}" + (sm != null ? $", ore queued {Work.QueueSize(sm)}, processed {z.GetInt(ZDOVars.s_spawnAmount)}, feeds {string.Join("/", sm.m_conversion.Where(cv => cv.m_from != null && Work.Feedable(c, sm, cv.m_from.name)).Select(cv => cv.m_from.name))}{(Weaving.IsTextile(sm) ? $", textile works={Weaving.Works(sm)} roofAt={(sm.m_roofCheckPoint != null ? V(sm.m_roofCheckPoint.position).ToString(Newtonsoft.Json.Formatting.None) : "none")} takes={string.Join("/", sm.m_conversion.Where(cv => cv.m_from != null).Select(cv => cv.m_from.name))}" : "")}" : "") + (c.LeftAloneAt(p.transform.position) ? ", LEFT ALONE (no one could get to it)" : "");
                     })) });
                     break;
                 case "perf":
