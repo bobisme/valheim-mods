@@ -625,13 +625,14 @@ namespace Jarldom
                             ["lacking"] = new JArray(Villagers.All.Where(b => b.S.Colony == c.Id && b.Body != null && Smithing.Kind(b.S.Prof) != null && Gear.Lacks(b, b.S.Prof) != null).Select(b => $"{b.S.Name} ({b.S.Prof}): {Gear.Lacks(b, b.S.Prof)}")) });
                     }
                     break;
-                case "wear": // (test: "wear <name> <prefab> <fraction>": that villager's item worn down to a fraction of its durability)
+                case "wear": // (test: "wear <name> <prefab> <fraction> [mends]": that villager's item worn down to a fraction of its durability)
                     {
                         Brain b = Who(a[2]); if (b == null) { error("who?"); return; }
                         ItemDrop.ItemData it = b.Body.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == a[3]);
                         if (it == null) { error("no " + a[3]); return; }
-                        it.m_durability = it.GetMaxDurability() * float.Parse(a[4], CultureInfo.InvariantCulture); b.Body.GetInventory().m_onChanged?.Invoke();
-                        output(new JObject { ["worn"] = $"{a[3]} {it.m_durability:0}/{it.GetMaxDurability():0}" });
+                        if (a.Length > 4) { it.m_durability = it.GetMaxDurability() * float.Parse(a[4], CultureInfo.InvariantCulture); b.Body.GetInventory().m_onChanged?.Invoke(); } // (without a fraction: only read)
+                        if (a.Length > 5) it.m_customData[Fray.MendsKey] = a[5]; // ("wear <name> <prefab> <fraction> <mends>": as if mended that often)
+                        output(new JObject { ["worn"] = $"{a[3]} {it.m_durability:0}/{it.GetMaxDurability():0}", ["mends"] = Fraying.Mends(it), ["frays"] = Fraying.Frays(it) });
                     }
                     break;
                 case "strip": // (test: "strip <name>": that villager's chest garment taken away (gone, not stored: a spare would dress them again), so they're in rags)

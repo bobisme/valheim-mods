@@ -1071,6 +1071,18 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Tables.Moodlet("chilled")?.Value < 0, "A Cold moodlet");
 }
 
+// ---- Clothes wear out ----
+{
+    Check(Math.Abs(Fray.LifeHours(10) - 50) < 0.01f && Math.Abs(Fray.PerHour(200, 10, 1) - 4) < 0.01f, "One length of wear lasts half a ten-day season of work (50 hours)");
+    Check(Math.Abs(Fray.Rate(true, true, false, false) - 2.25f) < 0.01f && Math.Abs(Fray.Rate(false, false, false, true) - 0.5f) < 0.01f && Fray.Rate(false, false, true, false) > 1, "Heavy work and rain fray faster, the cold too; a hat half as fast");
+    Check(Fray.Heavy(Prof.Miner) && Fray.Heavy(Prof.Farmer) && !Fray.Heavy(Prof.Hauler) && !Fray.Heavy(Prof.Weaver), "Felling, mining, farming are heavy work; hauling and weaving aren't");
+    Check(Fray.Counted(0.5) == 0.5 && Fray.Counted(9) == 1 && Fray.Counted(-1) == 0, "A skipped night wears an hour at most");
+    Check(Fray.Mendable(0.3f, 0) && Fray.Mendable(0.3f, 1) && !Fray.Mendable(0.3f, 2) && !Fray.Mendable(0.5f, 0), "Mended while worn thin, twice at most");
+    Check(Fray.Threadbare(0.2f) && !Fray.Threadbare(0.3f), "Threadbare below a quarter");
+    Check(Fray.Mends("2") == 2 && Fray.Mends(null) == 0 && Fray.Mends("x") == 0, "Mendings read back from the item");
+    Check(Tables.Moodlet("threadbare")?.Value < 0, "A threadbare moodlet");
+}
+
 // ---- Prefab names: a save finds a thing again by its prefab's name; none shipped may go ----
 {
     var golden = File.ReadAllLines(Path.Combine(AppContext.BaseDirectory, "prefabs.txt")).Select(l => l.Trim()).Where(l => l != "").ToList();

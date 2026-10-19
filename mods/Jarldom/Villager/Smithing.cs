@@ -178,7 +178,7 @@ namespace Jarldom
         // Worn things in the colony (those this game runs) and the station that can mend the most of them.
         private static List<(Brain owner, ItemDrop.ItemData item)> Worn(Brain smith) =>
             Villagers.All.Where(o => o.S.Colony == smith.S.Colony && o.Body != null && o.View != null && o.View.IsValid() && o.View.IsOwner())
-                .SelectMany(o => RepairTask.Worn(o).Select(i => (o, i))).ToList();
+                .SelectMany(o => RepairTask.Worn(o).Where(i => !Fraying.Frays(i)).Select(i => (o, i))).ToList(); // (not clothes: each mends their own at the sewing table)
         private static CraftingStation Station(Brain b)
         {
             var worn = Worn(b);
@@ -206,6 +206,7 @@ namespace Jarldom
             var mended = new List<string>();
             foreach (var (owner, item) in Worn(b).Where(x => RepairTask.Can(_at, x.item)))
             {
+                if (!Fraying.Mend(b.Colony, item)) continue; // (clothes: thread from the stores)
                 b.Body.RaiseSkill(Skills.SkillType.Crafting, 1f - item.m_durability / item.GetMaxDurability());
                 item.m_durability = item.GetMaxDurability();
                 owner.Body.GetInventory().m_onChanged?.Invoke(); owner.Dirty();

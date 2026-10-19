@@ -169,6 +169,7 @@ namespace Jarldom
             M("expedition", "Went out with the jarl", 8, 48),
             M("dressed", "Dressed well", 4, 0),
             M("chilled", "Cold, with nothing warm to wear", -6, 4),
+            M("threadbare", "Clothes worn threadbare", -3, 0),
             M("sport", "Had some sport", 4, 24),
             M("skal", "Toasted with the jarl", 6, 12),
             M("midsummer", "Danced round the Midsummer fire", 14, 72),

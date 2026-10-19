@@ -296,6 +296,8 @@ namespace Jarldom
             if (!Expect.Met(Colony, S)) { if (!Jarldom.Mood.Has(S, "plainfare", now)) Jarldom.Mood.Add(S, "plainfare", now); } else Jarldom.Mood.Remove(S, "plainfare"); // (expectations rise with the colony's standing)
             if (!Weaving.InRags(this)) { if (!Jarldom.Mood.Has(S, "dressed", now)) Jarldom.Mood.Add(S, "dressed", now); } else Jarldom.Mood.Remove(S, "dressed");
             Cold.Tick(this, sheltered, warm, now); // (winter out of doors, or the mountains, with nothing warm on)
+            Fraying.Tick(this, hours, !sheltered && EnvMan.IsWet(), Cold.Mountain(Pos) || Year.Today().Season == Season.Winter && !sheltered && !warm); // (clothes fray with the hours worked in them)
+            if (Fraying.Threadbare(this)) { if (!Jarldom.Mood.Has(S, "threadbare", now)) Jarldom.Mood.Add(S, "threadbare", now); } else Jarldom.Mood.Remove(S, "threadbare");
             if (S.Worthy && !Jarldom.Mood.Has(S, "valkyries", now)) Jarldom.Mood.Add(S, "valkyries", now);
             if (!Jarldom.Mood.Has(S, "gary", now) && Held == null && Compat.Gary(Pos, 5f) is Character gary)
             {

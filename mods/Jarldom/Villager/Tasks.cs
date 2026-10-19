@@ -338,9 +338,10 @@ namespace Jarldom
     {
         private CraftingStation _at;
         public static List<ItemDrop.ItemData> Worn(Brain b) => b.Body.GetInventory().GetAllItems()
-            .Where(i => i.m_shared.m_useDurability && i.m_shared.m_canBeReparied && i.m_durability < i.GetMaxDurability() * 0.35f).ToList();
+            .Where(i => i.m_shared.m_useDurability && i.m_shared.m_canBeReparied && i.m_durability < i.GetMaxDurability() * 0.35f && (!Fraying.Frays(i) || Fraying.CanMend(b.Colony, i))).ToList(); // (clothes: while they can still be mended)
         public static bool Can(CraftingStation st, ItemDrop.ItemData item)
         {
+            if (Fraying.Frays(item) && Fraying.MendsAt(st)) return true; // (the sewing table mends all clothes)
             Recipe recipe = ObjectDB.instance?.GetRecipe(item);
             if (st == null || recipe == null || recipe.m_craftingStation == null && recipe.m_repairStation == null) return false;
             bool right = recipe.m_repairStation != null && recipe.m_repairStation.m_name == st.m_name || recipe.m_craftingStation != null && recipe.m_craftingStation.m_name == st.m_name;
@@ -365,6 +366,7 @@ namespace Jarldom
             int n = 0;
             foreach (ItemDrop.ItemData item in Worn(b).Where(i => Can(_at, i)))
             {
+                if (!Fraying.Mend(b.Colony, item)) continue; // (clothes: thread from the stores)
                 b.Body.RaiseSkill(Skills.SkillType.Crafting, 1f - item.m_durability / item.GetMaxDurability());
                 item.m_durability = item.GetMaxDurability();
                 n++;

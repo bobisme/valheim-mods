@@ -562,8 +562,8 @@ namespace Jarldom
                 if (b.Body.GetInventory().GetAllItems().Where(i => Stores(b, i)).Any(i => Stock.Destination(c, i, b.Pos) != null)) return new DepositTask();
                 b.NoStoreUntil = Time.time + 30; b.Say(new[] { "Where do I put all this? (no stockpile for it)", "My arms are full. Where does it go? (no stockpile for it)", "Nowhere to stack this. (no stockpile for it)", "The hall has no shelf for all this. (no stockpile for it)", "Too much to carry and nowhere to put it. (no stockpile for it)" }[UnityEngine.Random.Range(0, 5)], 5);
             }
-            // (worn gear: to a station to mend it, unless there's a smith to do it, and nothing's quite broken yet)
-            if (Time.time > b.NoRepairUntil && RepairTask.Worn(b) is var worn && worn.Count > 0 && (b.S.Prof == Prof.Smith || !Smithing.HasSmith(c) || worn.Any(i => i.m_durability <= 0))) return new RepairTask();
+            // (worn gear: to a station to mend it, unless there's a smith to do it, and nothing's quite broken yet; clothes they mend themselves)
+            if (Time.time > b.NoRepairUntil && RepairTask.Worn(b) is var worn && worn.Count > 0 && (b.S.Prof == Prof.Smith || !Smithing.HasSmith(c) || worn.Any(i => i.m_durability <= 0) || worn.Any(Fraying.Frays))) return new RepairTask();
             Task grave = GraveTask.Next(b); if (grave != null) return grave;
             Task outfit = OutfitTask.Next(b); if (outfit != null) return outfit;
             Task corner = CornerTask.Next(b); if (corner != null) return corner;
