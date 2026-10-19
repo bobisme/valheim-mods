@@ -18,6 +18,8 @@ namespace Byre
             "ByreShears",
             "ByreMilkPail",
             "ByreTrough",
+            "ByreHayRack",
+            "ByreStall",
         };
     }
 }

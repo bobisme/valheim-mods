@@ -400,6 +400,71 @@ def trough():
                 lathe(f'leg', a, b, lambda t: 0.021 + 0.004 * t, WOOD, segs=9, flute=0.03, lobes=3, seed=int(sx * 10) + lx + 3 * ly, step=0.05)
     finish('trough', [(0, 3.0, 1.2, 0.25), (35, 2.8, 1.9, 0.25), (90, 2.2, 0.8, 0.25), (210, 2.8, 1.6, 0.25), (20, 1.3, 1.4, 0.35)])
 
+def rack():
+    # A hay rack standing in the byre: a slatted V-crib on four legs, hay heaped in it, 1.4 m along x, its rails 1.05 m up. Front +y, back -y.
+    fresh()
+    r = random.Random(31)
+    L, TOPZ, BOTZ, W = 0.7, 1.05, 0.55, 0.36
+    for sx in (-L, L):
+        # the end boards: a V of plank, and the legs down from it
+        bm = bmesh.new()
+        quad = [(-W, TOPZ + 0.04), (W, TOPZ + 0.04), (0.07, BOTZ - 0.07), (-0.07, BOTZ - 0.07)]
+        a = [bm.verts.new((sx - 0.025, y, z)) for y, z in quad]; b = [bm.verts.new((sx + 0.025, y, z)) for y, z in quad]
+        bm.faces.new(a); bm.faces.new(list(reversed(b)))
+        for k in range(4): j = (k + 1) % 4; bm.faces.new((a[j], a[k], b[k], b[j]))
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+        bmesh.ops.bevel(bm, geom=list(bm.edges), offset=0.006, segments=1, affect='EDGES', profile=0.5)
+        link('end', bm, WOOD, grain=(0, 0, 1))
+        for ly in (-1, 1):
+            a = V((sx, ly * W * 0.85, TOPZ - 0.02)); b = V((sx + (0.05 if sx > 0 else -0.05), ly * (W + 0.08), 0.0))
+            lathe('leg', a, b, lambda t: 0.032 + 0.005 * t, WOOD, segs=8, flute=0.03, lobes=3, seed=int(sx * 10) + ly, step=0.06)
+    for ly in (-1, 1):
+        box('rail', (-L - 0.05, ly * W - 0.035, TOPZ - 0.03), (L + 0.05, ly * W + 0.035, TOPZ + 0.04), WOOD, grain=(1, 0, 0), bevel=0.008, jitter=0.003, seed=40 + ly)
+        box('brace', (-L + 0.02, ly * (W + 0.02) - 0.02, 0.2), (L - 0.02, ly * (W + 0.02) + 0.02, 0.26), WOOD, grain=(1, 0, 0), bevel=0.006, jitter=0.003, seed=44 + ly)
+    box('keel', (-L, -0.07, BOTZ - 0.07), (L, 0.07, BOTZ), WOOD, grain=(1, 0, 0), bevel=0.008, jitter=0.002, seed=48)
+    # the slats: from the keel up to each rail, round and a little uneven
+    n = 9
+    for ly in (-1, 1):
+        for k in range(n):
+            x = -L + 0.09 + k * (2 * L - 0.18) / (n - 1) + r.uniform(-0.01, 0.01)
+            a = V((x, ly * 0.05, BOTZ - 0.02)); b = V((x + r.uniform(-0.015, 0.015), ly * (W - 0.01), TOPZ))
+            lathe('slat', a, b, lambda t: 0.017, WOOD, segs=7, flute=0.04, lobes=3, seed=60 + k + 20 * ly, step=0.08)
+    # the hay: heaped in the V, standing proud of the rails in the middle, tufts poking through the slats
+    bm = bmesh.new(); bmesh.ops.create_icosphere(bm, subdivisions=5, radius=1.0)
+    dirs = [(V((r.gauss(0, 1), r.gauss(0, 0.6), r.gauss(0, 0.5))).normalized() * r.uniform(80, 200), r.uniform(0, 6.3)) for _ in range(9)]
+    for v in bm.verts:
+        d = v.co.normalized()
+        p = V((d.x * (L - 0.06), d.y * (W - 0.05) * (0.45 + 0.55 * max(0, d.z + 0.3)), d.z * 0.26)) + V((0, 0, 0.86))
+        streak = sum(abs(math.sin(p.dot(w) + ph)) for w, ph in dirs) / len(dirs)
+        v.co = p + d * (0.016 * streak ** 3 + r.uniform(0, 0.003))
+    link('hay', bm, HAY)
+    for k in range(50):
+        x, y = r.uniform(-0.55, 0.55), r.uniform(-0.18, 0.18); a = r.uniform(0, math.pi); Ls = r.uniform(0.06, 0.16)
+        d = V((math.cos(a), math.sin(a) * 0.7, r.uniform(-0.2, 0.2))) * Ls / 2
+        c = V((x, y, 1.08 + 0.04 * max(0, 1 - (x / 0.6) ** 2)))
+        tube(f'wisp{k}', [c - d, c, c + d], 0.002, HAY, res=1)
+    finish('rack', [(0, 3.2, 1.6, 0.7), (35, 3.0, 2.2, 0.7), (90, 2.6, 1.2, 0.7), (200, 3.0, 1.8, 0.7)])
+
+def stall():
+    # A stall divider: two posts and three planks between them with a cap rail, 2 m along x, 1.3 m high, 0.12 thick: a byre's stalls
+    # are rows of these off a wall, closed with the game's fence gate.
+    fresh()
+    r = random.Random(57)
+    H, L = 1.3, 1.0
+    for sx in (-L, L):
+        box('post', (sx - 0.07, -0.07, 0.0), (sx + 0.07, 0.07, H + 0.06), WOOD, grain=(0, 0, 1), bevel=0.012, jitter=0.004, seed=int(sx * 10) + 3)
+        box('cap', (sx - 0.08, -0.08, H + 0.06), (sx + 0.08, 0.08, H + 0.1), WOOD, grain=(1, 0, 0), bevel=0.012, jitter=0.003, seed=int(sx * 10) + 5)
+    for k, (z0, z1) in enumerate(((0.12, 0.42), (0.47, 0.77), (0.82, 1.12))):
+        box('plank', (-L + 0.06, -0.025 + r.uniform(-0.004, 0.004), z0 + r.uniform(-0.01, 0.01)), (L - 0.06, 0.025 + r.uniform(-0.004, 0.004), z1 + r.uniform(-0.01, 0.01)),
+            WOOD, grain=(1, 0, 0), bevel=0.01, jitter=0.004, seed=70 + k)
+    box('rail', (-L + 0.05, -0.05, 1.14), (L - 0.05, 0.05, 1.24), WOOD, grain=(1, 0, 0), bevel=0.012, jitter=0.003, seed=80)
+    # iron nails holding the planks to the posts
+    for sx in (-L + 0.1, L - 0.1):
+        for z in (0.27, 0.62, 0.97):
+            for sy in (-1, 1):
+                lathe('nail', V((sx, sy * 0.025, z)), V((sx, sy * 0.032, z)), lambda t: 0.011, IRON, segs=8, step=0.5)
+    finish('stall', [(0, 3.6, 1.4, 0.65), (35, 3.4, 2.0, 0.65), (90, 2.6, 1.2, 0.65)])
+
 def finish(base, views):
     if __name__ == '__bake__':
         # (each part in triangles: the bake then collapses it as far as it keeps its shape, rather than halving a lathe's rings and sides,
@@ -471,6 +536,6 @@ def preview(base, views):
         cam.rotation_euler = (V((0, 0, look)) - cam.location).to_track_quat('-Z', 'Y').to_euler()
         sc.render.filepath = OUT + f'{base}_{yaw}_{d}.png'; bpy.ops.render.render(write_still=True)
 
-KINDS = ('shears', 'pail', 'milk', 'wool', 'trough')
+KINDS = ('shears', 'pail', 'milk', 'wool', 'trough', 'rack', 'stall')
 which = [a for a in sys.argv if a in KINDS] or list(KINDS)
 for w in which: globals()[w]()

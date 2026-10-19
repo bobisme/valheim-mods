@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -7,7 +8,7 @@ namespace Byre
     // prefab names; they never change (Core/PrefabNames.cs).
     public static class Api
     {
-        public const int Version = 1;
+        public const int Version = 2;
         // Is this one of Byre's animals (a sheep, goat, lamb or kid; a prefab name, or a live animal)?
         public static bool IsLivestock(string prefab) => Species.Of(prefab) != null;
         public static bool IsLivestock(GameObject go) => go != null && IsLivestock(Utils.GetPrefabName(go));
@@ -22,5 +23,37 @@ namespace Byre
         // A live animal: tame? its wool or milk ready? (false for one that isn't ours)
         public static bool IsTame(GameObject go) => go != null && go.GetComponent<Livestock>() is Livestock l && l.Tamed;
         public static bool IsReady(GameObject go) => go != null && go.GetComponent<Livestock>() is Livestock l && !l.Young && l.Ready();
+
+        // ---- Version 2: for villagers (Jarldom's herders) ----
+        // What a kind gives and what in the bag takes it (ByreWool with ByreShears; ByreGoatMilk with ByreMilkPail); null for an unknown kind.
+        public static string Product(string kind) => Species.ByKey(kind)?.Product;
+        public static string Tool(string kind) => Species.ByKey(kind)?.Tool;
+        // A live animal's kind ("sheep", "goat"), grown or young; null for one that isn't ours.
+        public static string KindOf(GameObject go) => go != null && go.GetComponent<Livestock>() is Livestock l ? l.Kind?.Key : null;
+        public static bool IsYoung(GameObject go) => go != null && go.GetComponent<Livestock>() is Livestock l && l.Young;
+        // Game seconds until its wool or milk is ready (0: ready now).
+        public static double Remaining(GameObject go) => go != null && go.GetComponent<Livestock>() is Livestock l ? l.Remaining() : 0;
+        // Byre's live animals within radius of a point, nearest first (grown and young, wild and tame).
+        public static List<GameObject> HerdsNear(Vector3 at, float radius)
+        {
+            var near = new List<Livestock>(); Live<Livestock>.Near(at, radius, near);
+            return near.Where(l => l != null).OrderBy(l => Vector3.Distance(l.transform.position, at)).Select(l => l.gameObject).ToList();
+        }
+        // Shear or milk it, as a player with the tool would (no tool asked for: the caller has seen to that): on its owner, once per
+        // regrowth, the yield dropped at its feet. False if it isn't a grown, tame animal of ours with its wool or milk ready.
+        public static bool Harvest(GameObject go)
+        {
+            if (go == null || !(go.GetComponent<Livestock>() is Livestock l) || l.Kind == null || !Husbandry.CanHarvest(l.Tamed, l.Young) || !l.Ready() || l.View == null || !l.View.IsValid()) return false;
+            l.View.InvokeRPC("Byre_Harvest");
+            return true;
+        }
+        // Can it pull a plow or a cart (cattle, when they come: none of the kinds yet)?
+        public static bool CanPull(GameObject go) => false;
+        // The feeders within radius (troughs and hay racks), as their containers: fill one and hungry tame animals near come to eat.
+        public static List<Container> FeedersNear(Vector3 at, float radius)
+        {
+            var near = new List<Trough>(); Live<Trough>.Near(at, radius, near);
+            return near.Where(t => t != null && t.Box != null).Select(t => t.Box).ToList();
+        }
     }
 }

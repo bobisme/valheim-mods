@@ -9,3 +9,5 @@ ByreGoatMilk
 ByreShears
 ByreMilkPail
 ByreTrough
+ByreHayRack
+ByreStall

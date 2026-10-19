@@ -8,11 +8,11 @@ SCRIPT = WORK + '/goods.py'
 SHIP = HERE
 ARGS = lambda kind: [kind]
 NAME = lambda kind: kind
-BUDGET = {'shears': 600, 'pail': 900, 'milk': 500, 'wool': 500, 'trough': 1400}
-PX = {'shears': 128, 'pail': 128, 'milk': 128, 'wool': 256, 'trough': 256}   # (the fleece's locks want the room)
+BUDGET = {'shears': 600, 'pail': 900, 'milk': 500, 'wool': 500, 'trough': 1400, 'rack': 1600, 'stall': 500}
+PX = {'shears': 128, 'pail': 128, 'milk': 128, 'wool': 256, 'trough': 256, 'rack': 256, 'stall': 128}   # (the fleece's locks want the room)
 DECALS = ('wisp', 'wrap')   # (the loose straws on the trough's hay, the shears' grip bindings: texture only)
 # (how far the low copy may stray: the shears' blades, the pail's staves and the trough's log kept true, wool and hay rough already)
-TOL = {'shears': 0.0012, 'grip': 0.0025, 'log': 0.01, 'fleece': 0.006, 'band': 0.004, 'hay': 0.01, 'hoop': 0.004, 'staves': 0.0015, 'cord': 0.003}
+TOL = {'slat': 0.004, 'plank': 0.004, 'post': 0.004, 'end': 0.004, 'shears': 0.0012, 'grip': 0.0025, 'log': 0.01, 'fleece': 0.006, 'band': 0.004, 'hay': 0.01, 'hoop': 0.004, 'staves': 0.0015, 'cord': 0.003}
 
 # As Byre's props draw (wood_pole's Custom/Piece material wearing the bake): wood grained along each part's grain, the rest plain:
 # forged iron, a dark tanned leather, goat's milk, greasy undyed wool, red-brown earthenware, hay and a hemp cord.

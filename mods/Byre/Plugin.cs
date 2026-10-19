@@ -16,12 +16,12 @@ namespace Byre
     {
         public const string Guid = "cx.bob.byre";
         public const string Name = "Byre";
-        public const string Version = "0.1.2";
+        public const string Version = "0.2.0";
         internal static Plugin Instance;
         internal ServerSettings Synced;
         internal ConfigEntry<bool> Spawning;
         internal ConfigEntry<float> SheepChance, GoatChance, SpawnInterval, RegrowFactor;
-        internal ConfigEntry<string> ShearsCost, PailCost, TroughCost;
+        internal ConfigEntry<string> ShearsCost, PailCost, TroughCost, HayRackCost, StallCost;
         private Harmony _harmony;
 
         private void Awake()
@@ -36,11 +36,15 @@ namespace Byre
             ShearsCost = Synced.Bind("3 - Costs", "Shears", "Copper:3", "What the shears cost (made at the forge). " + Costs.Help);
             PailCost = Synced.Bind("3 - Costs", "MilkPail", "Wood:6", "What the milk pail costs (made at the workbench). " + Costs.Help);
             TroughCost = Synced.Bind("3 - Costs", "Trough", "Wood:10", "What the feeding trough costs to build (by a workbench). " + Costs.Help);
+            HayRackCost = Synced.Bind("3 - Costs", "HayRack", "Wood:12", "What the hay rack costs to build (by a workbench). " + Costs.Help);
+            StallCost = Synced.Bind("3 - Costs", "StallDivider", "Wood:6", "What a stall divider costs to build (by a workbench). " + Costs.Help);
             ShearsCost.SettingChanged += (s, e) => Costs.Apply(Items.ShearsRecipe, ShearsCost.Value, Logger);
             PailCost.SettingChanged += (s, e) => Costs.Apply(Items.PailRecipe, PailCost.Value, Logger);
             TroughCost.SettingChanged += (s, e) => Costs.Apply(Kit.TroughPiece, TroughCost.Value, Logger);
+            HayRackCost.SettingChanged += (s, e) => Costs.Apply(Kit.RackPiece, HayRackCost.Value, Logger);
+            StallCost.SettingChanged += (s, e) => Costs.Apply(Kit.StallPiece, StallCost.Value, Logger);
             _harmony = new Harmony(Guid); _harmony.PatchAll(typeof(Plugin).Assembly);
-            Logger.LogInfo($"{Name} {Version} loaded: sheep and goats, shears, a milk pail and a feeding trough.");
+            Logger.LogInfo($"{Name} {Version} loaded: sheep and goats, shears, a milk pail, a feeding trough, a hay rack and stall dividers.");
         }
         private void OnDestroy()
         {

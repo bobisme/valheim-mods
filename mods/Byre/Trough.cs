@@ -33,38 +33,50 @@ namespace Byre
             return null;
         }
 
-        internal static GameObject Make(ZNetScene scene, Transform holder)
+        // The trough, and the hay rack (the same feeder, standing on legs, hay heaped in a slatted crib): a container piece made from the
+        // wood chest, wearing its own model, its own block of collider, a Trough on it.
+        internal static GameObject Make(ZNetScene scene, Transform holder) => Feeder(scene, holder, "ByreTrough", "trough", "Trough", "Feeding trough",
+            "A hollowed log on trestles. Put food in it: hungry tame animals near (twelve paces) come and eat, one at a time, each what it eats.",
+            new Vector3(0, 0.22f, 0), new Vector3(1.85f, 0.44f, 0.5f), 4, Plugin.Instance.TroughCost);
+        internal static GameObject MakeRack(ZNetScene scene, Transform holder) => Feeder(scene, holder, "ByreHayRack", "rack", "Hay rack", "Hay rack",
+            "A slatted crib on legs, for the byre. Put food in it: hungry tame animals near (twelve paces) come and eat from it, as from a trough.",
+            new Vector3(0, 0.55f, 0), new Vector3(1.6f, 1.1f, 0.85f), 6, Plugin.Instance.HayRackCost);
+        private static GameObject Feeder(ZNetScene scene, Transform holder, string name, string model, string boxName, string title, string text, Vector3 at, Vector3 size, int slots, BepInEx.Configuration.ConfigEntry<string> cost)
         {
             GameObject from = scene.GetPrefab("piece_chest_wood");
-            if (from == null) { Plugin.Warn("No piece_chest_wood to make the trough from."); return null; }
+            if (from == null) { Plugin.Warn($"No piece_chest_wood to make the {title.ToLowerInvariant()} from."); return null; }
             Material wood = Wood(scene);
-            GameObject go = Object.Instantiate(from, holder, false); go.name = "ByreTrough";
+            GameObject go = Object.Instantiate(from, holder, false); go.name = name;
             foreach (Collider old in go.GetComponentsInChildren<Collider>(true).Where(x => !x.isTrigger)) Object.DestroyImmediate(old);
             foreach (Transform t in go.GetComponentsInChildren<Transform>(true).Where(t => t != go.transform && (t.name.StartsWith("_snappoint") || t.CompareTag("snappoint"))).ToList()) Object.DestroyImmediate(t.gameObject);
-            GameObject look = Models.Replace(go, "trough", wood);
+            GameObject look = Models.Replace(go, model, wood);
             if (look == null) { Object.DestroyImmediate(go); return null; }
             int layer = LayerMask.NameToLayer("piece");
-            Solid(go, layer, new Vector3(0, 0.22f, 0), new Vector3(1.85f, 0.44f, 0.5f)); // (the log on its trestles, knee high, as one block)
+            Solid(go, layer, at, size);
             Container c = go.GetComponent<Container>();
-            c.m_name = "Trough"; c.m_width = 4; c.m_height = 1; c.m_open = null; c.m_closed = null; c.m_autoDestroyEmpty = false;
+            c.m_name = boxName; c.m_width = slots; c.m_height = 1; c.m_open = null; c.m_closed = null; c.m_autoDestroyEmpty = false;
             if (go.GetComponent<WearNTear>() is WearNTear w) { w.m_new = look; w.m_worn = look; w.m_broken = look; w.m_fragmentRoots = new GameObject[0]; w.m_materialType = WearNTear.MaterialType.Wood; }
             Piece piece = go.GetComponent<Piece>();
-            piece.m_name = "Feeding trough";
-            piece.m_description = "A hollowed log on trestles. Put food in it: hungry tame animals near (twelve paces) come and eat, one at a time, each what it eats.";
+            piece.m_name = title;
+            piece.m_description = text;
             piece.m_category = Piece.PieceCategory.Misc;
             piece.m_craftingStation = Costs.FindStation("piece_workbench", out _);
-            piece.m_resources = Costs.Parse((string)Plugin.Instance.TroughCost.DefaultValue, null, forRecipe: false) ?? new Piece.Requirement[0];
-            Costs.Apply(piece, Plugin.Instance.TroughCost.Value, Plugin.Instance.Logs);
+            piece.m_resources = Costs.Parse((string)cost.DefaultValue, null, forRecipe: false) ?? new Piece.Requirement[0];
+            Costs.Apply(piece, cost.Value, Plugin.Instance.Logs);
             piece.m_enabled = true;
             go.AddComponent<Trough>();
+            Icons(go, piece);
+            return go;
+        }
+        internal static void Icons(GameObject go, Piece piece)
+        {
             Sprite icon = Icon.Make(go);
             if (icon != null) { piece.m_icon = icon; Models.Owned.Add(icon); Models.Owned.Add(icon.texture); }
             Icon.Later(() => { if (go != null && Icon.Make(go) is Sprite again) { piece.m_icon = again; Models.Owned.Add(again); Models.Owned.Add(again.texture); } });
-            return go;
         }
         // wood_pole's piece material: what the trough and the goods draw with, wearing their own bake.
         internal static Material Wood(ZNetScene scene) => scene?.GetPrefab("wood_pole")?.GetComponentsInChildren<Renderer>(true).SelectMany(r => r.sharedMaterials).FirstOrDefault(m => m != null && m.shader != null && m.shader.name == "Custom/Piece");
-        private static void Solid(GameObject go, int layer, Vector3 at, Vector3 size)
+        internal static void Solid(GameObject go, int layer, Vector3 at, Vector3 size)
         {
             var o = new GameObject("Collider") { layer = layer }; o.transform.SetParent(go.transform, false); o.transform.localPosition = at;
             o.AddComponent<BoxCollider>().size = size;

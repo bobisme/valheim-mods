@@ -12,6 +12,10 @@ Milk pail (workbench, 6 wood): carry it and press E on a tame goat. It gives a j
 
 Feeding trough (workbench, 10 wood): put food in it, and hungry tame animals within 12 m walk over and eat from it, one bite at a time, each its own food. Boars, wolves and the other tames use it too.
 
-Settings (decided by the server in multiplayer): wild herds on or off, how often they come, how fast wool and milk come back, and what the shears, pail and trough cost.
+Hay rack (workbench, 12 wood): a slatted crib on legs, six slots, fed from like the trough. Stall divider (workbench, 6 wood): a plank partition 2 m long and chest high that snaps end to end, to walls and to floors; rows of them off a wall make stalls, closed with the game's fence gate.
 
-Needs a restart to install or update: the animals, items and trough are saved in the world. Every player and the server need it.
+With Jarldom: a herder shears and milks the colony's animals in a pasture, with shears or a pail from the stores, and carries the wool and milk home. A Byre room (roofed, with a trough or hay rack; stalls and gates grade it up) warms a longhouse that shares a wall with it.
+
+Settings (decided by the server in multiplayer): wild herds on or off, how often they come, how fast wool and milk come back, and what the shears, pail, trough, hay rack and stall divider cost.
+
+Needs a restart to install or update: the animals, items and pieces are saved in the world. Every player and the server need it.

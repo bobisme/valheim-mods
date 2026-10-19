@@ -9,11 +9,12 @@ namespace Byre
 {
     // Everything Byre adds, made once per world from the game's own prefabs as the scene wakes (the scene's postfix; ObjectDB's register
     // for the items, whichever comes first; a once-a-second look in case both came before this mod), and put where the game finds it by
-    // name: the scene (saved animals, items, troughs), ObjectDB (bags, recipes), the hammer (the trough), every zone's spawner (herds).
+    // name: the scene (saved animals, items, troughs, racks, stalls), ObjectDB (bags, recipes), the hammer (the pieces), every zone's spawner (herds).
     internal static class Kit
     {
         internal static readonly Dictionary<string, GameObject> Made = new Dictionary<string, GameObject>();
-        internal static Piece TroughPiece;
+        internal static Piece TroughPiece, RackPiece, StallPiece;
+        internal static IEnumerable<Piece> Pieces => new[] { TroughPiece, RackPiece, StallPiece }.Where(x => x != null);
         private static GameObject _holder;
         private static ZNetScene _scene;
         private static float _next;
@@ -43,8 +44,9 @@ namespace Byre
                     GameObject young = Keep(Animals.Make(scene, h, s, true, adult, null));
                     Animals.Breed(adult, young);
                 }
-                GameObject trough = Keep(Trough.Make(scene, h));
-                if (trough != null) { TroughPiece = trough.GetComponent<Piece>(); Plugin.Instance.Synced.NeedsServer(trough); }
+                GameObject trough = Keep(Trough.Make(scene, h)), rack = Keep(Trough.MakeRack(scene, h)), stall = Keep(Barn.MakeStall(scene, h));
+                TroughPiece = trough?.GetComponent<Piece>(); RackPiece = rack?.GetComponent<Piece>(); StallPiece = stall?.GetComponent<Piece>();
+                foreach (Piece p in Pieces) Plugin.Instance.Synced.NeedsServer(p.gameObject);
                 foreach (GameObject go in Made.Values) if (go.GetComponent<ItemDrop>() == null) Register(scene, go);
                 Items.Recipes(Made, null);
                 Animals.Spawns(h, Made);
@@ -61,7 +63,7 @@ namespace Byre
             ((Dictionary<int, GameObject>)NamedField.GetValue(scene))[prefab.name.GetStableHashCode()] = prefab;
         }
 
-        // Once a second: made (if the hooks were missed), the trough in the hammer's menu, the herds on or off.
+        // Once a second: made (if the hooks were missed), the trough, hay rack and stall divider in the hammer's menu, the herds on or off.
         internal static void Tick()
         {
             if (Time.unscaledTime < _next) return;
@@ -75,10 +77,13 @@ namespace Byre
                 if (ItemPrefabs.Any(i => !ObjectDB.instance.m_items.Contains(i))) { Content.Items(ItemPrefabs); Items.Recipes(Made, null); }
             }
             PieceTable hammer = ObjectDB.instance?.GetItemPrefab("Hammer")?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces;
-            if (hammer != null && TroughPiece != null && !hammer.m_pieces.Contains(TroughPiece.gameObject))
+            if (hammer != null && Pieces.Any(x => !hammer.m_pieces.Contains(x.gameObject)))
             {
-                hammer.m_pieces.RemoveAll(p => p == null || p.name == TroughPiece.name);
-                hammer.m_pieces.Add(TroughPiece.gameObject);
+                foreach (Piece piece in Pieces.Where(x => !hammer.m_pieces.Contains(x.gameObject)))
+                {
+                    hammer.m_pieces.RemoveAll(p => p == null || p.name == piece.name);
+                    hammer.m_pieces.Add(piece.gameObject);
+                }
                 if (Player.m_localPlayer is Player p) UpdateAvailablePieces?.Invoke(p, null);
             }
             if (Plugin.Instance == null) return;
@@ -90,7 +95,7 @@ namespace Byre
 
         private static void Forget()
         {
-            Made.Clear(); TroughPiece = null; _checked = false;
+            Made.Clear(); TroughPiece = RackPiece = StallPiece = null; _checked = false;
             Animals.Forget(); Trough.Forget(); Livestock.ByAI.Clear();
             if (_holder != null) Object.Destroy(_holder); _holder = null;
             Models.Forget();
@@ -108,7 +113,8 @@ namespace Byre
                     if (named.TryGetValue(hash, out GameObject had) && had == go) named.Remove(hash);
                 }
             }
-            if (TroughPiece != null) ObjectDB.instance?.GetItemPrefab("Hammer")?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces?.m_pieces.Remove(TroughPiece.gameObject);
+            PieceTable hammer = ObjectDB.instance?.GetItemPrefab("Hammer")?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_buildPieces;
+            if (hammer != null) foreach (Piece piece in Pieces) hammer.m_pieces.Remove(piece.gameObject);
             foreach (SpawnSystem s in Object.FindObjectsByType<SpawnSystem>(FindObjectsSortMode.None)) s.m_spawnLists.RemoveAll(l => l == null || (_holder != null && l.gameObject == _holder));
             Forget(); _scene = null;
         }
