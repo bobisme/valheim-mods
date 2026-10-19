@@ -1068,6 +1068,7 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Chill.Wanted(Season.Autumn) && Chill.Wanted(Season.Winter) && !Chill.Wanted(Season.Summer) && !Chill.Wanted(Season.Spring), "Something warm wanted in autumn and winter");
     Check(Chill.ToSew(Season.Winter, 5, 2) == 3 && Chill.ToSew(Season.Winter, 1, 4) == 0 && Chill.ToSew(Season.Summer, 5, 0) == 0, "Cloaks sewn for those without, less the spares; none in summer");
     Check(Chill.IsWool("Homespun_HoodedCloak") && Chill.IsWool("Homespun_WoolTrousers") && !Chill.IsWool("Homespun_LinenUndertunic") && !Chill.IsWool(null), "Wool garments are warm; linen isn't");
+    Check(Chill.IsWool("Homespun_WoolTunic_Blue") && Chill.IsWool("Homespun_HoodedCloak_Purple") && !Chill.IsWool("Homespun_LinenUndertunic_Red") && !Chill.IsWool("Homespun_WoolTunicX"), "Dyed wool is as warm (Homespun 0.2.0 names them for the undyed one and the colour)");
     Check(Tables.Moodlet("chilled")?.Value < 0, "A Cold moodlet");
 }
 

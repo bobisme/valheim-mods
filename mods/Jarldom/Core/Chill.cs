@@ -1,3 +1,5 @@
+using System.Linq;
+
 namespace Jarldom
 {
     // Wool for the cold. Winter out of doors is cold; the Mountains and the far north are cold whatever the season, a roof or not; a
@@ -7,7 +9,8 @@ namespace Jarldom
     public static class Chill
     {
         public const string Tunic = "Homespun_WoolTunic", Dress = "Homespun_WoolDress", Trousers = "Homespun_WoolTrousers", Cloak = "Homespun_HoodedCloak";
-        public static bool IsWool(string prefab) => prefab == Tunic || prefab == Dress || prefab == Trousers || prefab == Cloak;
+        // (and dyed: Homespun's dyed garments are named for the undyed one and the colour, Homespun_WoolTunic_Blue)
+        public static bool IsWool(string prefab) => prefab != null && new[] { Tunic, Dress, Trousers, Cloak }.Any(w => prefab == w || prefab.StartsWith(w + "_"));
 
         // Is it cold here: winter outdoors, or always up in the mountains or the north; never by a fire.
         public static bool Cold(bool mountain, bool winter, bool sheltered, bool byFire) => !byFire && (mountain || winter && !sheltered);

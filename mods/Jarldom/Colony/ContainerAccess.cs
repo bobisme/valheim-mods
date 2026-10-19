@@ -40,7 +40,7 @@ namespace Jarldom
         }
 
         /// <summary>Other mods' special pieces, by prefab name (add yours and those you know of).</summary>
-        private static readonly string[] SpecialPrefabs = { "piece_ledgerchest", "piece_recycler", "BobStaveSocket", "TreasureChest", "JarldomPyre" };
+        private static readonly string[] SpecialPrefabs = { "piece_ledgerchest", "piece_recycler", "BobStaveSocket", "TreasureChest", "JarldomPyre", "Homespun_DyeVat" };
 
         /// <summary>
         /// Built, with a Container, but not for keeping things: the game's Obliterator (what is in it burns when the lever is pulled), other
