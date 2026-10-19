@@ -83,11 +83,11 @@ namespace Jarldom
             switch (type)
             {
                 case RoomType.Longhouse:
-                    p = f.Comfort * 2 + Math.Min(f.C("bed"), 8) + Math.Min(f.C("bedchest"), 8) * 2 + Math.Min(f.C("rug"), 6) * 2 + Math.Min(f.C("banner"), 4);
+                    p = f.Comfort * 2 + Math.Min(f.C("bed"), 8) + Math.Min(f.C("bedchest"), 8) * 2 + Math.Min(f.C("rug"), 6) * 2 + Math.Min(f.C("banner"), 4) + Math.Min(f.C("tapestry"), 4) * 2;
                     break;
                 case RoomType.GreatHall:
                     p = Math.Min(f.C("seat"), 24) + Math.Min(f.C("table"), 8) * 2 + Math.Min(f.C("banner"), 8) * 2 + Math.Min(f.C("carving"), 8) * 3
-                        + Math.Min(f.C("trophy"), 12) * 2 + f.C("gilded") * 4 + (f.C("highseat") > 0 ? 8 : 0) + Math.Min(f.C("rug"), 6) + f.Comfort;
+                        + Math.Min(f.C("trophy"), 12) * 2 + f.C("gilded") * 4 + Math.Min(f.C("tapestry"), 6) * 4 + (f.C("highseat") > 0 ? 8 : 0) + Math.Min(f.C("rug"), 6) + f.Comfort;
                     break;
                 case RoomType.Stockpile:
                     p = Math.Min(f.C("chest"), 20) * 2 + Math.Min(f.C("itemstand"), 10) * 2;
@@ -98,7 +98,7 @@ namespace Jarldom
                 case RoomType.OdinShrine:
                 case RoomType.Temple:
                     p = Math.Min(f.C("raven"), 6) * 4 + Math.Min(f.C("trophy"), 10) * 2 + Math.Min(f.C("candle"), 8) * 2 + Math.Min(f.C("brazier"), 6) * 3
-                        + Math.Min(f.C("carving"), 6) * 3 + f.C("gilded") * 4 + Math.Min(f.C("banner"), 4) * 2 + 6;
+                        + Math.Min(f.C("carving"), 6) * 3 + f.C("gilded") * 4 + Math.Min(f.C("banner"), 4) * 2 + Math.Min(f.C("tapestry"), 4) * 3 + 6;
                     break;
                 case RoomType.HealersHouse:
                     p = f.Comfort * 3 + Math.Min(f.C("bed"), 6) * 2;

@@ -288,6 +288,8 @@ hallFacts.Walls[2] = 0.4f; verdict = RoomRules.Judge(RoomType.GreatHall, hallFac
 Check(!verdict.Ok && verdict.OpenEdges.Single() == 2 && verdict.Failures[0].Contains("gap"), "A missing wall shows where");
 hallFacts.Walls[2] = 1; hallFacts.Count["banner"] = 4; hallFacts.Count["carving"] = 2; hallFacts.Count["seat"] = 10;
 Check(RoomRules.Judge(RoomType.GreatHall, hallFacts).Points > verdict.Points, "Seats and banners raise the grade");
+{ int before = RoomRules.Judge(RoomType.GreatHall, hallFacts).Points; hallFacts.Count["tapestry"] = 2; int after = RoomRules.Judge(RoomType.GreatHall, hallFacts).Points; hallFacts.Count.Remove("tapestry");
+  Check(after - before == 8, "Two of Homespun's tapestries add 8 to a great hall, a banner's worth four times over"); }
 hallFacts.Count["highseat"] = 1; hallFacts.Count["gilded"] = 6; hallFacts.Count["trophy"] = 10; hallFacts.Count["rug"] = 6; hallFacts.Comfort = 8;
 Check(RoomRules.Judge(RoomType.GreatHall, hallFacts).Grade == 'S', "Gilding and the high seat make an S hall");
 // Storeys: a ground floor at 35 (3 m to the floor above) and an upper room at 38 over the same outline (from a real house).

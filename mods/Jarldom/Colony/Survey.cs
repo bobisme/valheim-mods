@@ -383,6 +383,7 @@ namespace Jarldom
             if (Classes.Warms(p)) { yield return "fire"; if (n.Contains("hearth")) yield return "hearth"; if (n.Contains("brazier")) yield return "brazier"; }
             else if (Classes.IsLight(p) || n.Contains("candle")) yield return "candle";
             if (n.Contains("banner")) yield return "banner";
+            if (n.StartsWith("homespun_tapestry")) yield return "tapestry"; // (Homespun's woven hangings: dyed wool, worth more than a banner)
             if (n.StartsWith("jarldomgilded")) yield return "gilded";
             if (n.Contains("raven")) { yield return "raven"; yield return "carving"; }
             else if (n.Contains("carving") || n.Contains("darkwood_wolf") || n.Contains("dragon") || n.Contains("statue")) yield return "carving";
