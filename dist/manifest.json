@@ -376,6 +376,19 @@
         "Homespun.dll",
         "Homespun.pdb"
       ]
+    },
+    {
+      "guid": "cx.bob.shipyard",
+      "name": "Shipyard",
+      "version": "0.1.0",
+      "description": "Shipyard (Naust): build boats at the shore, in stages you can see.\n\nSlipway: building stocks in the hammer's Misc tab (workbench; 20 wood, 6 stone). Build it with its bow end towards the water. Press E to lay down a keel, then E again to put in what the stage under way needs from your bag. Any player can put in, as much as they have; a stage is only built once it's paid in full, and what's put in towards it is kept on the slipway. Each finished stage stands on the stocks: keel and stems, then ribs, then the strakes, then the thwarts and oars.\n\nLaunching: when she's finished, E launches her into the water ahead of the slipway's bow end, wherever it's first deep enough within 24 m. With no water there, she waits on the stocks.\n\nF\u00e6ring: a little four-oared rowing boat, quick and light, for two (one at the steering oar, one on the fore thwart). Rowed, never sailed: forward stops at rowing pace, which is faster than a karve's. 50 wood, 10 resin, 8 leather scraps in all, over four stages. Broken up, she gives her makings back, as the game's ships do.\n\nTaking the slipway down gives back everything put into the boat on it, finished stages and all. In a world where building costs nothing, E builds each stage for nothing, and taking the slipway down gives nothing back, as with the hammer.\n\nComing: the knarr (a wide cargo ship), a boathouse that keeps moored ships from wearing, repairs at the slipway, and Jarldom's shipwright building on it.\n\nRemoving Shipyard: as with any mod that adds things, its slipways and boats are gone once a place is loaded without it (what was put into a slipway with them).",
+      "notes": "0.1.0: first release. A slipway (hammer, Misc: 20 wood, 6 stone) where boats are built at the shore in stages you can see, and paid for by anyone, from their bag: the f\u00e6ring first, a four-oared rowing boat for two in four stages (keel and stems, ribs, strakes, thwarts and oars; 50 wood, 10 resin, 8 leather scraps in all). Finished, E launches her ahead of the slipway's bow end, where the water is deep enough all along her length. Rowed, never sailed. Taken down, the slipway gives back all that was put in; where building costs nothing, stages cost nothing and nothing comes back. Its own models for the slipway and each stage. Live-checked: laying, paying and launching by E and by the test commands, all four stages on the stocks, the f\u00e6ring floating level at her waterline in waves, rowing (about 2.7 m/s, stops at rowing pace; back and stop) with a player at the helm, the take-down refund (22 wood, 2 resin for two stages; checked before the free-build rule, so in Creative it now gives nothing back). Not yet tried: building with real materials by hand, sitting on the fore thwart, the ladder, steering, a second player putting in.",
+      "restart": "Adds saved pieces and boats. Install Shipyard on the host and every player.",
+      "cover": "Shipyard.cover.jpg",
+      "files": [
+        "Shipyard.dll",
+        "Shipyard.pdb"
+      ]
     }
   ]
 }
