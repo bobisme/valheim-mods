@@ -1,20 +1,22 @@
 # Homespun's looks (Homespun 0.1.0), made from scratch: the retting pool, the flax brake (with its hackle and basket), the warp-weighted
 # loom, the sewing table, and the items: retted flax, line flax, combed wool, yarn, a linen bolt, a wool bolt, a woven band, the drop spindle,
 # and the five garments folded as they lie on the ground (undertunic, tunic, dress, trousers, cloak). Nettle (0.1.4): a cut bundle of it,
-# and the plant standing (wild, and grown from the cultivator).
+# and the plant standing (wild, and grown from the cultivator). Dyeing (0.2.0): the dye vat, and lichen (the item, and the stone it
+# grows on in the Mountains).
 # Run: blender -b --python ~/.cache/homespun/spun.py -- [render] [pool|brake|...|spindle|undertunic|tunic|dress|trousers|cloak]
 # (writes ~/.cache/homespun/<name>.json.gz; previews with "render"). What ships is the bake of these (bake_conf.py, docs/model-baking.md).
 # Blender frame: z up, front +y (the game's +z, where a player stands to use the piece); the pieces stand on z 0, the items lie about the
 # origin, the spindle's shaft along z with the hand at the origin. Written in the game's frame (x, z, y): per corner position/normal/uv
 # (uvs in metres; wood's grain runs along v), triangles per material: 0 wood, 1 stone, 2 water, 3 flax, 4 linen, 5 wool, 6 iron, 7 red,
-# 8 blue, 9 retted, 10 oat (undyed light wool), 11 darkwool, 12 cloakwool, 13 bronze, 14 nettle (the leaf's dark green).
+# 8 blue, 9 retted, 10 oat (undyed light wool), 11 darkwool, 12 cloakwool, 13 bronze, 14 nettle (the leaf's dark green), 15 lichen
+# (its pale grey-green), 16 xanthoria (the orange crust lichen).
 import bpy, bmesh, json, math, random, sys, gzip
 from mathutils import Vector, Matrix
 
 OUT = '/home/bob/.cache/homespun/'
-WOOD, STONE, WATER, FLAX, LINEN, WOOL, IRON, RED, BLUE, RETTED, OAT, DARKWOOL, CLOAKWOOL, BRONZE, NETTLE = range(15)
-NAMES = ('wood', 'stone', 'water', 'flax', 'linen', 'wool', 'iron', 'red', 'blue', 'retted', 'oat', 'darkwool', 'cloakwool', 'bronze', 'nettle')
-SMOOTH = ('rock', 'weight', 'sheaf', 'hank', 'wool', 'ball', 'cloth', 'roll', 'cop', 'whorl', 'heap', 'tie', 'basket', 'spool', 'drape', 'hood', 'brooch', 'bead', 'stalk', 'ply', 'knot', 'tuft')
+WOOD, STONE, WATER, FLAX, LINEN, WOOL, IRON, RED, BLUE, RETTED, OAT, DARKWOOL, CLOAKWOOL, BRONZE, NETTLE, LICHEN, XANTHORIA = range(17)
+NAMES = ('wood', 'stone', 'water', 'flax', 'linen', 'wool', 'iron', 'red', 'blue', 'retted', 'oat', 'darkwool', 'cloakwool', 'bronze', 'nettle', 'lichen', 'xanthoria')
+SMOOTH = ('rock', 'weight', 'sheaf', 'hank', 'wool', 'ball', 'cloth', 'roll', 'cop', 'whorl', 'heap', 'tie', 'basket', 'spool', 'drape', 'hood', 'brooch', 'bead', 'stalk', 'ply', 'knot', 'tuft', 'hoop', 'crust')
 rng = random.Random(7)
 mats = []
 V = Vector
@@ -537,6 +539,127 @@ def nettle():
     ring('tie_band', (-0.14, 0, 0), 0.018, 0.005, (1, 0, 0), FLAX, segs=12, rsegs=5, squash=1.6)
     finish('nettle', [(30, 1.0, 0.6, 0)])
 
+# ---------------- dyeing: the dye vat, and lichen ----------------
+def hull(name, pts, mat, grain=None):
+    # the solid round a handful of points (a tub's stave, a hewn block)
+    bm = bmesh.new()
+    for p in pts: bm.verts.new(V(p))
+    bmesh.ops.convex_hull(bm, input=bm.verts)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    return link(name, bm, mat, grain)
+
+# A stave tub of dye (outer radius 0.425 at its foot, 0.4 at the rim, rim at z 0.66; inside radius 0.375 at the rim, its floor at
+# z 0.13; the dye's surface for the C# at z 0.52) on three flat stones, two iron hoops round it, a stirring paddle leaning in it, and a
+# length of undyed wool hung over the rim on its right (+x) to drip.
+VAT_RIM, VAT_FOOT, VAT_R0, VAT_R1, VAT_TH = 0.66, 0.09, 0.425, 0.4, 0.025
+def vat():
+    fresh(); r = random.Random(31)
+    for k, a in enumerate((90, 210, 330)):
+        a = math.radians(a + r.uniform(-12, 12))
+        rk = rock(f'rock_{k}', (math.cos(a) * 0.3, math.sin(a) * 0.3, 0.03), 0.16, seed=310 + k)
+        for v in rk.data.vertices: v.co.z = min(v.co.z, 0.1 + 0.15 * (v.co.z - 0.1)) if v.co.z > 0.1 else v.co.z
+    n = 20; R = lambda z: VAT_R0 + (VAT_R1 - VAT_R0) * (z - VAT_FOOT) / (VAT_RIM - VAT_FOOT)
+    for k in range(n):
+        a0, a1 = 2 * math.pi * (k + 0.008) / n, 2 * math.pi * (k + 0.992) / n
+        top = VAT_RIM + r.uniform(-0.012, 0.006)
+        pts = []
+        for z in (VAT_FOOT, top):
+            for rr in (R(z), R(z) - VAT_TH):
+                for a in (a0, a1): pts.append((math.cos(a) * rr, math.sin(a) * rr, z))
+        hull(f'stave_{k}', pts, WOOD, (0, 0, 1))
+    cyl('floor', (0, 0, VAT_FOOT + 0.02), (0, 0, 0.13), R(0.1) - VAT_TH + 0.004, R(0.13) - VAT_TH + 0.004, WOOD, segs=20)
+    for k, z in enumerate((0.2, 0.54)):
+        ring(f'hoop_{k}', (0, 0, z), R(z) + 0.006, 0.007, (0, 0, 1), IRON, segs=24, rsegs=4, squash=2.6)
+    # (the paddle: its blade down in the dye at the back, the handle leaning out over the front-left rim)
+    foot, top = V((0.08, -0.12, 0.2)), V((-0.3, 0.3, 1.12))
+    pole('paddle_shaft', foot + (top - foot) * 0.12, top, 0.017, seed=33, bend=0.006)
+    d = (top - foot).normalized(); side = d.cross(V((0, 0, 1))).normalized(); flat = d.cross(side).normalized()
+    c = foot + d * 0.06
+    hull('paddle_blade', [c + d * u + side * w + flat * t for u in (-0.1, 0.12) for w in (-0.055, 0.055) for t in (-0.008, 0.008)], WOOD, tuple(d))
+    # (the wool hung over the rim at the back, then turned to the right side)
+    zr = VAT_RIM + 0.012
+    path = [(-0.3, 0.5), (-0.33, 0.6), (-0.37, zr - 0.01), (-0.395, zr), (-0.42, zr - 0.012), (-0.435, zr - 0.06), (-0.44, 0.48), (-0.442, 0.36), (-0.44, 0.27)]
+    cl = drape('cloth', -0.13, 0.13, path, OAT, folds=2, amp=0.012, thick=0.008, nx=8)
+    turned(cl, Matrix.Rotation(math.radians(90), 3, 'Z'))
+    finish('vat', [(0, 2.6, 1.8, 0.4), (60, 2.2, 1.6, 0.4), (200, 2.4, 2.4, 0.3), (0, 1.0, 2.0, 0.3)])
+
+def crust(name, at, normal, radius, mat, target, seed, lift=0.002, segs=14):
+    # a patch of crust lichen on a surface: a ragged disc (lobed at its edge) in its tangent plane, each point dropped onto the target
+    # (a BVH tree) and lifted a hair off it. Lies flat: the bake takes it into the stone's colour only
+    rr = random.Random(seed); normal = V(normal).normalized()
+    t1 = normal.cross(V((0.3, 0.1, 1)) if abs(normal.z) < 0.9 else V((1, 0, 0))).normalized(); t2 = normal.cross(t1)
+    c0 = target.ray_cast(V(at) + normal * 0.1, -normal, 0.3)
+    base = c0[0] if c0[0] is not None else V(at)
+    def drop(p):
+        hit = target.ray_cast(p + normal * 0.1, -normal, 0.3)
+        return (hit[0] + hit[1] * lift) if hit[0] is not None and (hit[0] - base).length < radius * 2 else None
+    bm = bmesh.new(); centre = bm.verts.new(drop(V(at)) or base + normal * lift)
+    rings = []
+    ph = rr.uniform(0, 6.3); lobes = rr.randint(3, 6)
+    for f in (0.55, 1.0):
+        ring_ = []
+        for k in range(segs):
+            a = 2 * math.pi * k / segs
+            rad = radius * f * (0.75 + 0.25 * math.sin(lobes * a + ph)) * rr.uniform(0.85, 1.1)
+            p = drop(V(at) + (t1 * math.cos(a) + t2 * math.sin(a)) * rad)
+            if p is None: p = drop(V(at) + (t1 * math.cos(a) + t2 * math.sin(a)) * rad * 0.4) or centre.co.copy()
+            ring_.append(bm.verts.new(p))
+        rings.append(ring_)
+    for k in range(segs):
+        j = (k + 1) % segs
+        bm.faces.new((centre, rings[0][k], rings[0][j]))
+        bm.faces.new((rings[0][k], rings[1][k], rings[1][j], rings[0][j]))
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    for f in bm.faces:
+        f.normal_update()
+        if f.normal.dot(normal) < 0: f.normal_flip()
+    return link(name, bm, mat)
+
+def tufts(name, centre, size, n, seed, orange=0):
+    # foliose lichen: a heap of small curled lobes, flattened, each a lumpy blob turned its own way
+    rr = random.Random(seed); out = []
+    for k in range(n):
+        off = V((rr.uniform(-1, 1), rr.uniform(-1, 1), 0)) * size * 0.6
+        s = size * rr.uniform(0.35, 0.6)
+        mat = XANTHORIA if k < orange else LICHEN
+        out.append(blob(f'tuft_{name}{k}', V(centre) + off + V((0, 0, s * 0.3)), (s, s * rr.uniform(0.6, 0.9), s * 0.5), mat, seed=seed * 10 + k, subdiv=2, lumps=0.35))
+    return out
+
+def lichen():
+    # a handful of torn-off lichen: curly grey-green lobes, a few orange flecks among them (about 0.12 across)
+    fresh()
+    tufts('hand', (0, 0, 0), 0.07, 9, seed=41, orange=2)
+    finish('lichen', [(30, 0.6, 0.35, 0)])
+
+def lichenplant():
+    # a weathered stone in the Mountains crusted with lichen (about 0.6 across and 0.35 high, sunk a little in the ground): grey-green
+    # patches over its top and sides, orange ones in the sun, and a few raised clumps to pick
+    fresh(); r = random.Random(51)
+    st = rock('stone', (0, 0, 0), 0.28, seed=57, segs=(9, 6))   # (few faces, edges kept sharp: broken, not water-worn)
+    me = st.data
+    for v in me.vertices: v.co.z = v.co.z * 1.55 + 0.12   # (taller than a stream stone, sunk a little)
+    zs = [v.co.z for v in me.vertices]; top = max(zs) - 0.07
+    for v in me.vertices:
+        if v.co.z > top: v.co.z = top + (v.co.z - top) * 0.35   # (weathered flat on top)
+        v.co += V((r.uniform(-0.012, 0.012), r.uniform(-0.012, 0.012), r.uniform(-0.008, 0.008)))
+    me.update()
+    from mathutils.bvhtree import BVHTree
+    tree = BVHTree.FromObject(st, bpy.context.evaluated_depsgraph_get())
+    spots = []
+    for k in range(90):
+        a = r.uniform(0, 2 * math.pi); el = r.uniform(0.1, 1.45)
+        d = V((math.cos(a) * math.cos(el), math.sin(a) * math.cos(el), math.sin(el)))
+        hit = tree.ray_cast(V((0, 0, 0.12)) + d * 1.0, -d, 2.0)
+        if hit[0] is not None and hit[0].z > 0.03: spots.append((hit[0], hit[1]))
+    for k, (p, nrm) in enumerate(spots[:34]):
+        orange = nrm.z > 0.4 and k % 3 == 0
+        crust(f'crust_{k}', p, nrm, r.uniform(0.03, 0.05) if orange else r.uniform(0.05, 0.1), XANTHORIA if orange else LICHEN, tree, seed=500 + k)
+    tops = sorted(spots, key=lambda s: -s[0].z)[:6]
+    for k, (p, nrm) in enumerate(tops[::2]):
+        tufts(f'clump{k}', p - V((0, 0, 0.01)), 0.07, 5, seed=60 + k, orange=1 if k == 0 else 0)
+    finish('lichenplant', [(0, 1.6, 0.9, 0.15), (120, 1.4, 1.1, 0.15), (240, 1.4, 1.0, 0.15)])
+
 # ---------------- the garments, folded (as they lie on the ground and in the bag) ----------------
 def stack(name, w, d, layers, th, mat, seed, cx=0.0, cy=0.0):
     # cloth folded and laid flat: layers of rounded slabs, each a little off the one under it. Returns the top's height
@@ -647,7 +770,7 @@ def export(base):
 
 COLS = [(0.36, 0.24, 0.14, 1), (0.42, 0.4, 0.37, 1), (0.08, 0.16, 0.15, 1), (0.6, 0.48, 0.24, 1), (0.8, 0.76, 0.64, 1),
         (0.5, 0.45, 0.38, 1), (0.1, 0.1, 0.11, 1), (0.45, 0.08, 0.06, 1), (0.08, 0.13, 0.32, 1), (0.48, 0.45, 0.38, 1),
-        (0.55, 0.47, 0.36, 1), (0.28, 0.23, 0.18, 1), (0.2, 0.16, 0.12, 1), (0.6, 0.4, 0.15, 1), (0.1, 0.2, 0.06, 1)]
+        (0.55, 0.47, 0.36, 1), (0.28, 0.23, 0.18, 1), (0.2, 0.16, 0.12, 1), (0.6, 0.4, 0.15, 1), (0.1, 0.2, 0.06, 1), (0.34, 0.38, 0.26, 1), (0.7, 0.28, 0.03, 1)]
 def preview(base, views):
     # yaw 0 looks at the piece's front (from +y)
     for m, c in zip(mats, COLS):
@@ -661,7 +784,7 @@ def preview(base, views):
     sc = bpy.context.scene; sc.render.engine = 'CYCLES'; sc.cycles.samples = 24; sc.cycles.device = 'CPU'
     sc.render.resolution_x, sc.render.resolution_y = 640, 480
     w = bpy.data.worlds.new('w'); sc.world = w; w.use_nodes = True; w.node_tree.nodes['Background'].inputs[0].default_value = (0.55, 0.62, 0.7, 1)
-    ground = -0.002 if base in ('pool', 'brake', 'loom', 'table', 'nettleplant') else -0.12 if base == 'spindle' else -0.08
+    ground = -0.002 if base in ('pool', 'brake', 'loom', 'table', 'nettleplant', 'vat', 'lichenplant') else -0.12 if base == 'spindle' else -0.08
     bpy.ops.mesh.primitive_plane_add(size=12, location=(0, 0, ground if base != 'spindle' else -0.2)); g = bpy.context.active_object; gm = bpy.data.materials.new('ground'); gm.use_nodes = True
     gm.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (0.3, 0.36, 0.22, 1); g.data.materials.append(gm)
     sun = bpy.data.objects.new('sun', bpy.data.lights.new('sun', 'SUN')); sun.data.energy = 2.4; sun.rotation_euler = (math.radians(50), 0, math.radians(150)); sc.collection.objects.link(sun)
@@ -672,6 +795,6 @@ def preview(base, views):
         cam.rotation_euler = (V((0, 0, look)) - cam.location).to_track_quat('-Z', 'Y').to_euler()
         sc.render.filepath = OUT + f'{base}_{yaw}_{d}.png'; bpy.ops.render.render(write_still=True)
 
-KINDS = ('pool', 'brake', 'loom', 'table', 'retted', 'line', 'wool', 'yarn', 'linenbolt', 'woolbolt', 'band', 'spindle', 'undertunic', 'tunic', 'dress', 'trousers', 'cloak', 'nettle', 'nettleplant')
+KINDS = ('pool', 'brake', 'loom', 'table', 'retted', 'line', 'wool', 'yarn', 'linenbolt', 'woolbolt', 'band', 'spindle', 'undertunic', 'tunic', 'dress', 'trousers', 'cloak', 'nettle', 'nettleplant', 'vat', 'lichen', 'lichenplant')
 which = [a for a in sys.argv if a in KINDS] or list(KINDS)
 for w in which: globals()[w]()

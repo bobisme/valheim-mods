@@ -14,7 +14,10 @@ namespace Homespun
     internal static class Plants
     {
         internal const string Wild = Names.WildNettle, Crop = Names.NettleCrop, Sapling = Names.NettleSapling;
-        internal static readonly string[] All = { Wild, Crop, Sapling };
+        internal const string WildLichen = Names.WildLichen;
+        internal static readonly string[] All = { Wild, Crop, Sapling, WildLichen };
+        internal const int LichenGives = 2;                            // (and one more, half the time)
+        internal const float LichenRegrowMinutes = 600;               // (slow: lichen is)
         internal const float GrowSeconds = 3000, GrowSecondsMax = 4000; // (a weed: sooner than the game's crops, 4000-5000)
         internal const int CropGives = 2, WildGives = 1;                 // (and one more, half the time)
         internal const float WildRegrowMinutes = 300, GreydwarfChance = 0.1f;
@@ -34,6 +37,9 @@ namespace Homespun
             GameObject wild = Get(Wild) ?? Make(scene, "Pickable_Dandelion", Wild, nettle, wildOne: true);
             GameObject crop = Get(Crop) ?? Make(scene, "Pickable_Carrot", Crop, nettle, wildOne: false);
             GameObject sapling = Get(Sapling) ?? Sow(scene, crop, nettle);
+            GameObject lichen = Things.Get(Names.Lichen);
+            GameObject stone = lichen == null ? null : Get(WildLichen) ?? Make(scene, "Pickable_Dandelion", WildLichen, lichen, wildOne: true, "lichenplant", "Lichen");
+            if (stone != null) PieceReload.ReplacePrefab(scene, stone, null);
             PieceTable table = Cultivator(scene);
             foreach (GameObject go in new[] { wild, crop }) if (go != null) PieceReload.ReplacePrefab(scene, go, null);
             if (sapling != null) PieceReload.ReplacePrefab(scene, sapling, table);
@@ -43,7 +49,7 @@ namespace Homespun
 
         // A pickable nettle: the game's own with our plant in its look. Wild, it's hidden when picked and grows back; a crop is removed
         // when picked (nothing to hide and no regrowth: the game's own crops are, where a hidden one would stay in the save for ever).
-        private static GameObject Make(ZNetScene scene, string from, string name, GameObject nettle, bool wildOne)
+        private static GameObject Make(ZNetScene scene, string from, string name, GameObject nettle, bool wildOne, string model = "nettleplant", string title = "Nettle")
         {
             GameObject src = scene.GetPrefab(from);
             if (src == null) { Plugin.Warn($"No {from} to make the {name} from"); return null; }
@@ -53,16 +59,24 @@ namespace Homespun
             foreach (Collider c in go.GetComponents<Collider>()) Object.DestroyImmediate(c);
             foreach (Renderer r in go.GetComponents<Renderer>()) Object.DestroyImmediate(r);
             foreach (MeshFilter m in go.GetComponents<MeshFilter>()) Object.DestroyImmediate(m);
-            GameObject look = Looks.Add(go.transform, scene, "nettleplant", "visual");
-            // (what E finds, and what a scythe swings at: about the plant, as the game's crops have)
-            var hit = go.AddComponent<CapsuleCollider>(); hit.radius = 0.25f; hit.height = 0.8f; hit.center = new Vector3(0, 0.4f, 0);
+            GameObject look = Looks.Add(go.transform, scene, model, "visual");
+            if (model == "lichenplant")
+            {
+                // (the stone: Models/README's bounds. Picked, the stone stays, with nothing to pick till the lichen grows back)
+                var rock = go.AddComponent<BoxCollider>(); rock.center = new Vector3(-0.03f, 0.15f, 0); rock.size = new Vector3(0.55f, 0.37f, 0.5f);
+            }
+            else
+            {
+                // (what E finds, and what a scythe swings at: about the plant, as the game's crops have)
+                var hit = go.AddComponent<CapsuleCollider>(); hit.radius = 0.25f; hit.height = 0.8f; hit.center = new Vector3(0, 0.4f, 0);
+            }
             Pickable p = go.GetComponent<Pickable>();
             p.m_itemPrefab = nettle;
-            p.m_amount = wildOne ? WildGives : CropGives;
+            p.m_amount = model == "lichenplant" ? LichenGives : wildOne ? WildGives : CropGives;
             p.m_extraDrops = OneMore(nettle);
-            p.m_overrideName = "Nettle";
-            p.m_hideWhenPicked = wildOne ? look : null;
-            p.m_respawnTimeMinutes = wildOne ? WildRegrowMinutes : 0;
+            p.m_overrideName = title;
+            p.m_hideWhenPicked = wildOne && model != "lichenplant" ? look : null;
+            p.m_respawnTimeMinutes = model == "lichenplant" ? LichenRegrowMinutes : wildOne ? WildRegrowMinutes : 0;
             Made[name] = go;
             return go;
         }
@@ -119,10 +133,10 @@ namespace Homespun
         // yet made get them (the game plants a zone once, when it's first visited).
         internal static void AddVegetation()
         {
-            ZoneSystem zones = ZoneSystem.instance; GameObject wild = Get(Wild);
+            ZoneSystem zones = ZoneSystem.instance; GameObject wild = Get(Wild), stone = Get(WildLichen);
             if (zones == null || wild == null) return;
-            if (zones.m_vegetation.Exists(v => v.m_prefab == wild)) return;
-            zones.m_vegetation.RemoveAll(v => v.m_name != null && v.m_name.StartsWith("Homespun_nettle")); // (an earlier copy of the mod's)
+            if (zones.m_vegetation.Exists(v => v.m_prefab == wild) && (stone == null || zones.m_vegetation.Exists(v => v.m_prefab == stone))) return;
+            zones.m_vegetation.RemoveAll(v => v.m_name != null && v.m_name.StartsWith("Homespun_")); // (an earlier copy of the mod's)
             Added.Clear();
             foreach (var (name, biome, area, max, inForest) in new[]
             {
@@ -139,6 +153,24 @@ namespace Homespun
                     m_minAltitude = 1, m_maxAltitude = 80, m_maxTilt = 25,
                     // (the forest factor: low under trees. Clearings in the Meadows: where it's high. Untuned.)
                     m_inForest = inForest, m_forestTresholdMin = inForest ? 1.0f : 0, m_forestTresholdMax = inForest ? 10f : 1,
+                };
+                zones.m_vegetation.Add(v); Added.Add(v);
+            }
+            if (stone == null) return;
+            // Lichen-crusted stones: scattered on the Mountains' slopes, and now and then in the Black Forest. Untuned.
+            foreach (var (name, biome, max, low, high) in new[]
+            {
+                ("Homespun_lichen_mountain", Heightmap.Biome.Mountain, 2f, 50f, 1000f),
+                ("Homespun_lichen_forest", Heightmap.Biome.BlackForest, 1f, 1f, 1000f),
+            })
+            {
+                var v = new ZoneSystem.ZoneVegetation
+                {
+                    m_name = name, m_prefab = stone, m_enable = true, m_min = 0, m_max = max,
+                    m_groupSizeMin = 1, m_groupSizeMax = 3, m_groupRadius = 4,
+                    m_scaleMin = 0.8f, m_scaleMax = 1.3f, m_randTilt = 10,
+                    m_biome = biome, m_biomeArea = Heightmap.BiomeArea.Everything, m_blockCheck = true,
+                    m_minAltitude = low, m_maxAltitude = high, m_maxTilt = 35, m_groundOffset = 0,
                 };
                 zones.m_vegetation.Add(v); Added.Add(v);
             }

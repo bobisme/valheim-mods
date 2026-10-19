@@ -28,6 +28,8 @@ namespace Homespun
                 Description = "A standing loom leaning on the wall, its warp hung from the beam and kept taut by stone weights. Weaves linen thread and wool yarn into bolts of cloth, and patterned bands on cards." },
             new Def { Name = Names.Table, From = "piece_workbench", Title = "Sewing table", Model = "table", Cost = new[] { ("Wood", 12), ("LeatherScraps", 2), ("Bronze", 1) },
                 Description = "A plank table with shears, needles and thread. Cuts and sews bolts of cloth into shirts, tunics, dresses, trousers and cloaks, and Hildir's clothes besides." },
+            new Def { Name = Names.Vat, From = "piece_chest_wood", Title = "Dye vat", Model = "vat", Cost = new[] { ("Wood", 12), ("Stone", 3), ("Resin", 2) },
+                Description = "A stave tub for dyeing. Put in bolts of cloth or clothes with a dyestuff: blueberries dye blue, raspberries red, dandelions yellow, and the lichen off mountain and forest stones purple. A bolt takes a measure of dye, a garment the bolts it was sewn from." },
         };
         internal static bool Ours(string name) => All.Any(d => d.Name == name);
 
@@ -108,6 +110,7 @@ namespace Homespun
                 case Names.Brake: MakeBrake(go, layer); break;
                 case Names.Loom: MakeLoom(go, layer, d); break;
                 case Names.Table: MakeTable(go, layer, d); break;
+                case Names.Vat: MakeVat(go, layer, scene, d); break;
             }
             var piece = go.GetComponent<Piece>();
             piece.m_name = d.Title; piece.m_description = d.Description;
@@ -201,6 +204,16 @@ namespace Homespun
         {
             Craft(go, d.Title);
             Box(go, layer, new Vector3(0, 0.4f, 0), new Vector3(1.5f, 0.8f, 0.75f));
+        }
+        // (Models/README: the tub 0.43 m round to the rim at 0.66, the dye at 0.52 inside 0.38; the cloth over the rim at +x)
+        private static void MakeVat(GameObject go, int layer, ZNetScene scene, Def d)
+        {
+            Container box = go.GetComponent<Container>();
+            box.m_name = d.Title; box.m_width = Dye.VatWidth; box.m_height = Dye.VatHeight; box.m_privacy = Container.PrivacySetting.Public; box.m_checkGuardStone = false;
+            box.m_autoDestroyEmpty = false; box.m_defaultItems = new DropTable();
+            Box(go, layer, new Vector3(0, 0.33f, 0), new Vector3(0.84f, 0.66f, 0.84f));
+            VatLook.AddDye(go, scene, 0.38f, 0.52f);
+            go.AddComponent<DyeVat>();
         }
         private static void Craft(GameObject go, string title)
         {

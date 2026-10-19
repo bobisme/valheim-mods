@@ -26,7 +26,7 @@ namespace Homespun
             try
             {
                 found.GetType().GetMethod("RegisterCommand", BindingFlags.Public | BindingFlags.Static)?.Invoke(null, new object[]{Plugin.Name, "spun",
-                    "spun status | give <item|fibre|cloth|garments|hildir|all> [n] | finish [radius] | feed <item> [n] | drops [rolls] | fresh [meadows|forest] [n] [edge] | chain [item] | recipes: check Homespun. status shows the retting pools, flax brakes and spinning wheels within 30 m (what's queued, done, and how far on) and the spindle in hand; give puts items of the chain in the bag (an item's prefab or one of the groups; cheats only); finish runs the stations near you an hour on, as if you'd been away (cheats only), and finishes the thread on the spindle; feed puts an item straight into the nearest station within 20 m that takes it, as if from a bag (cheats only); drops rolls a greydwarf's drops many times and counts the nettle; fresh lists the nearest ground of a biome the world hasn't made yet (where wild nettle can still grow), for a trip; chain shows what an item (or every garment) comes to in what's gathered, with and without Byre's fleece; recipes lists Homespun's recipes and where each is made.",
+                    "spun status | give <item|fibre|cloth|garments|hildir|dyes|dyed|all> [n] | finish | steep [radius] | feed <item> [n] | drops [rolls] | fresh [meadows|forest|mountain] [n] [edge] | chain [item] | recipes: check Homespun. status shows the retting pools, flax brakes and spinning wheels within 30 m (what's queued, done, and how far on), the dye vats (what's in them and what they're doing) and the spindle in hand; steep finishes the batch in the dye vats within 60 m now (cheats only); give puts items of the chain in the bag (an item's prefab or one of the groups; cheats only); finish runs the stations near you an hour on, as if you'd been away (cheats only), and finishes the thread on the spindle; feed puts an item straight into the nearest station within 20 m that takes it, as if from a bag (cheats only); drops rolls a greydwarf's drops many times and counts the nettle; fresh lists the nearest ground of a biome the world hasn't made yet (where wild nettle and lichen can still grow), for a trip; chain shows what an item (or every garment) comes to in what's gathered, with and without Byre's fleece; recipes lists Homespun's recipes and where each is made.",
                     (Func<string[], Action<JObject>, Action<string>, IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: spun command added");
             }
@@ -79,7 +79,10 @@ namespace Homespun
                     output(new JObject { ["stations"] = stations, ["spindle"] = new JObject { ["holding"] = Spindle.Holding(me), ["spinning"] = Spindle.On?.From ?? "", ["spun"] = Math.Round(Spindle.Spun, 1), ["of"] = Spindle.On?.Seconds ?? 0 },
                         ["bag"] = bag, ["items"] = Things.AllItems.Count(n => Things.Get(n) != null), ["pieces"] = Kit.Made.Count, ["byre"] = ZNetScene.instance.GetPrefab(Names.Fleece) != null,
                         ["nettle"] = new JObject { ["made"] = Plants.All.Count(x => Plants.Get(x) != null), ["sown"] = Plants.Cultivator(ZNetScene.instance)?.m_pieces.Contains(Plants.Get(Plants.Sapling)) ?? false,
-                            ["wild"] = ZoneSystem.instance?.m_vegetation.Count(v => v.m_prefab != null && v.m_prefab == Plants.Get(Plants.Wild)) ?? 0 } });
+                            ["wild"] = ZoneSystem.instance?.m_vegetation.Count(v => v.m_prefab != null && v.m_prefab == Plants.Get(Plants.Wild)) ?? 0,
+                            ["lichen"] = ZoneSystem.instance?.m_vegetation.Count(v => v.m_prefab != null && v.m_prefab == Plants.Get(Plants.WildLichen)) ?? 0 },
+                        ["vats"] = new JArray(UnityEngine.Object.FindObjectsByType<DyeVat>(FindObjectsSortMode.None).Where(v => Vector3.Distance(v.transform.position, at) < 30)
+                            .Select(v => new JObject { ["at"] = V(v.transform.position), ["status"] = v.Status(), ["holds"] = string.Join(", ", DyeVat.Contents(v.GetComponent<Container>().GetInventory()).Select(c => $"{c.stack} {c.prefab}")) })) });
                     break;
                 }
                 case "give":
@@ -89,7 +92,9 @@ namespace Homespun
                     string[] fibre = { Names.Flax, Names.RettedFlax, Names.LineFlax, Names.Nettle, Names.RettedNettle, Names.LineNettle, Names.LoxPelt, Names.Wool, Names.Yarn, Names.Thread, Names.Fleece };
                     string[] cloth = { Names.LinenBolt, Names.WoolBolt, Names.Band, Names.Spindle };
                     string[] garments = Chain.Garments.Select(g => g.Prefab).ToArray();
+                    string[] dyes = Dye.Dyes.Select(d => d.Stuff).ToArray();
                     string[] list = what == "fibre" ? fibre : what == "cloth" ? cloth : what == "garments" ? garments : what == "hildir" ? Chain.Hildir.Select(h => h.item).ToArray()
+                        : what == "dyes" ? dyes : what == "dyed" ? Dye.Variants.ToArray()
                         : what == "all" ? fibre.Concat(cloth).Concat(garments).ToArray() : new[] { what };
                     var given = new JObject();
                     foreach (string item in list)
@@ -137,6 +142,42 @@ namespace Homespun
                     output(Station(s, at));
                     break;
                 }
+                case "steep":
+                {
+                    if (!Cheats()) { error("spun steep moves vat clocks: only in single player, for the host, or for a server admin with devcommands on"); yield break; }
+                    var ran = new JArray();
+                    foreach (DyeVat v in UnityEngine.Object.FindObjectsByType<DyeVat>(FindObjectsSortMode.None).Where(v => Vector3.Distance(v.transform.position, at) < 60))
+                    {
+                        ZNetView view = v.GetComponent<ZNetView>();
+                        if (view == null || !view.IsValid()) continue;
+                        if (!view.IsOwner()) view.ClaimOwnership();
+                        view.GetZDO().Set(DyeVat.Since, ZNet.instance.GetTime().AddSeconds(-Dye.SteepSeconds - 1).Ticks);
+                        ran.Add(V(v.transform.position));
+                    }
+                    yield return new WaitForSeconds(1.5f);
+                    output(new JObject { ["steeped"] = ran });
+                    break;
+                }
+                case "vat":
+                {
+                    // (test: "vat put <item> [n]" makes items straight into the nearest vat within 60 m; "vat clear" empties it)
+                    if (!Cheats()) { error("spun vat makes items: only in single player, for the host, or for a server admin with devcommands on"); yield break; }
+                    DyeVat v = UnityEngine.Object.FindObjectsByType<DyeVat>(FindObjectsSortMode.None).Where(x => Vector3.Distance(x.transform.position, at) < 60).OrderBy(x => Vector3.Distance(x.transform.position, at)).FirstOrDefault();
+                    ZNetView view = v != null ? v.GetComponent<ZNetView>() : null;
+                    if (view == null || !view.IsValid()) { error("no dye vat within 60 m"); yield break; }
+                    if (!view.IsOwner()) view.ClaimOwnership();
+                    Inventory inv = v.GetComponent<Container>().GetInventory();
+                    if (a.Length > 2 && a[2] == "clear") inv.RemoveAll();
+                    else if (a.Length > 3 && a[2] == "put")
+                    {
+                        GameObject p = Things.Get(a[3]) ?? ZNetScene.instance.GetPrefab(a[3]);
+                        if (p?.GetComponent<ItemDrop>() == null) { error("no item " + a[3]); yield break; }
+                        inv.AddItem(p, (int)F(a, 4, 1));
+                    }
+                    yield return new WaitForSeconds(0.2f);
+                    output(new JObject { ["at"] = V(v.transform.position), ["status"] = v.Status(), ["holds"] = string.Join(", ", DyeVat.Contents(inv).Select(c => $"{c.stack} {c.prefab}")) });
+                    break;
+                }
                 case "drops":
                 {
                     CharacterDrop drops = ZNetScene.instance.GetPrefab("Greydwarf")?.GetComponent<CharacterDrop>();
@@ -155,8 +196,8 @@ namespace Homespun
                 }
                 case "fresh":
                 {
-                    bool forest = a.Length > 2 && a[2].StartsWith("f");
-                    Heightmap.Biome want = forest ? Heightmap.Biome.BlackForest : Heightmap.Biome.Meadows;
+                    bool forest = a.Length > 2 && a[2].StartsWith("f"), mountain = a.Length > 2 && a[2].StartsWith("mo");
+                    Heightmap.Biome want = forest ? Heightmap.Biome.BlackForest : mountain ? Heightmap.Biome.Mountain : Heightmap.Biome.Meadows;
                     int n = (int)F(a, 3, 5);
                     MethodInfo made = typeof(ZoneSystem).GetMethod("IsZoneGenerated", BindingFlags.NonPublic | BindingFlags.Instance);
                     var found = new JArray();

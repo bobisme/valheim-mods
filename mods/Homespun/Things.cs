@@ -14,7 +14,7 @@ namespace Homespun
     // the spindle at the workbench, bolts and bands at the loom, garments and Hildir's clothes at the sewing table (Core/Chain.cs).
     internal static class Things
     {
-        internal sealed class ItemDef { public string Prefab, Title, Description, Base, Model; public float Weight; public int Stack; public Color? Tint; }
+        internal sealed class ItemDef { public string Prefab, Title, Description, Base, Model; public float Weight; public int Stack; public Color? Tint, Dyed; }
         internal static readonly ItemDef[] Materials =
         {
             new ItemDef { Prefab = Names.RettedFlax, Base = "LinenThread", Model = "retted", Title = "Retted flax", Weight = 0.3f, Stack = 50,
@@ -38,7 +38,20 @@ namespace Homespun
                 Description = "A roll of vadmal, coarse woollen cloth, the north's own: warm, and once as good as money." },
             new ItemDef { Prefab = Names.Band, Base = "LinenThread", Model = "band", Title = "Tablet-woven band", Weight = 0.1f, Stack = 20,
                 Description = "A narrow patterned band woven on cards, for the neck and hem of a tunic or a dress." },
+            new ItemDef { Prefab = Names.Lichen, Base = "LinenThread", Model = "lichen", Title = "Lichen", Weight = 0.1f, Stack = 50,
+                Description = "Crusty lichen scraped from a stone in the mountains or the deep forest. Steeped in a dye vat, it dyes cloth purple." },
         };
+        // Each colour of the bolts (Core/Dye.cs), as the undyed bolt with its look repainted.
+        internal static readonly ItemDef[] DyedBolts = Materials.Where(d => Dye.Read(d.Prefab) != null)
+            .SelectMany(d => Dye.Dyes.Select(c => new ItemDef { Prefab = Dye.Variant(d.Prefab, c), Base = d.Base, Model = d.Model, Title = Dye.Title(d.Title, c), Weight = d.Weight, Stack = d.Stack,
+                Description = Dye.Description(d.Description, c), Dyed = Paint(c) })).ToArray();
+        // Each colour of the garments: the undyed garment in the dye's colour, worn and folded.
+        internal static readonly Garment[] DyedGarments = Chain.Garments.SelectMany(g => Dye.Dyes.Select(c => new Garment
+        {
+            Prefab = Dye.Variant(g.Prefab, c), Base = g.Base, Title = Dye.Title(g.Title, c), Description = Dye.Description(g.Description, c),
+            Armor = g.Armor, Weight = g.Weight, Durability = g.Durability, Tint = c.Colour, Model = g.Model,
+        })).ToArray();
+        internal static Color Paint(Dyestuff d) => new Color(d.Colour.r, d.Colour.g, d.Colour.b);
         internal static readonly ItemDef SpindleDef = new ItemDef { Prefab = Names.Spindle, Base = "Club", Model = "spindle", Title = "Drop spindle", Weight = 0.3f, Stack = 1,
             Description = "A stick through a stone whorl. Hold it, and with line flax, line nettle or wool in your bag you spin as you go, standing or walking: slower than a spinning wheel, but anywhere." };
         internal static readonly (string item, int n)[] SpindleCost = { ("Wood", 2), ("Stone", 1) };
@@ -49,7 +62,7 @@ namespace Homespun
         private static readonly MethodInfo CloneShared = typeof(object).GetMethod("MemberwiseClone", BindingFlags.Instance | BindingFlags.NonPublic);
         private static bool _registering;
 
-        internal static IEnumerable<string> AllItems => Materials.Select(d => d.Prefab).Append(Names.Spindle).Concat(Chain.Garments.Select(g => g.Prefab));
+        internal static IEnumerable<string> AllItems => Materials.Concat(DyedBolts).Select(d => d.Prefab).Append(Names.Spindle).Concat(Chain.Garments.Concat(DyedGarments).Select(g => g.Prefab));
         internal static GameObject Get(string prefab) => Built.TryGetValue(prefab, out GameObject go) ? go : null;
         internal static bool Ours(ItemDrop.ItemData item) => item?.m_dropPrefab != null && Built.ContainsKey(item.m_dropPrefab.name);
         internal static Transform Holder
@@ -75,12 +88,12 @@ namespace Homespun
             try
             {
                 var items = new List<GameObject>();
-                foreach (ItemDef d in Materials.Append(SpindleDef))
+                foreach (ItemDef d in Materials.Append(SpindleDef).Concat(DyedBolts))
                 {
                     try { if (Make(scene, d) is GameObject go) items.Add(go); }
                     catch (Exception e) { Plugin.Warn($"Could not make the {d.Title}: {e}"); }
                 }
-                foreach (Garment g in Chain.Garments)
+                foreach (Garment g in Chain.Garments.Concat(DyedGarments))
                 {
                     try { if (Sew(scene, g) is GameObject go) items.Add(go); }
                     catch (Exception e) { Plugin.Warn($"Could not make the {g.Title}: {e}"); }
@@ -110,6 +123,7 @@ namespace Homespun
             GameObject attach = Looks.Add(go.transform, scene, d.Model, "attach");
             if (attach == null) attach = new GameObject("attach");
             else if (d.Tint is Color tint) Looks.Tint(attach, tint);
+            else if (d.Dyed is Color dyed) Looks.Repaint(attach, dyed);
             attach.transform.SetParent(go.transform, false); attach.layer = go.layer;
             Bounds b = attach.GetComponent<MeshFilter>()?.sharedMesh?.bounds ?? new Bounds(Vector3.zero, Vector3.one * 0.2f);
             var box = go.AddComponent<BoxCollider>(); box.center = b.center; box.size = Vector3.Max(b.size, Vector3.one * 0.08f); // (what it's picked up by)
@@ -155,6 +169,7 @@ namespace Homespun
             foreach (Renderer r in go.GetComponents<Renderer>()) Object.DestroyImmediate(r);
             foreach (MeshFilter m in go.GetComponents<MeshFilter>()) Object.DestroyImmediate(m);
             GameObject folded = Looks.Add(go.transform, scene, g.Model, "attach");
+            if (folded != null && Dye.Read(g.Prefab)?.dye != null) Looks.Repaint(folded, new Color(g.Tint.r, g.Tint.g, g.Tint.b));
             Bounds b = folded?.GetComponent<MeshFilter>()?.sharedMesh?.bounds ?? new Bounds(Vector3.zero, new Vector3(0.36f, 0.08f, 0.3f));
             var box = go.AddComponent<BoxCollider>(); box.center = b.center; box.size = Vector3.Max(b.size, Vector3.one * 0.08f);
             ItemDrop drop = go.GetComponent<ItemDrop>();

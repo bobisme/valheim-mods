@@ -81,6 +81,20 @@ namespace Homespun
             }).ToArray();
         }
 
+        // A look dyed: copies of its materials with their pictures in the colour (Picture: the light and shade kept), or plain in it.
+        internal static void Repaint(GameObject look, Color to)
+        {
+            Renderer r = look != null ? look.GetComponent<Renderer>() : null;
+            if (r == null) return;
+            r.sharedMaterials = r.sharedMaterials.Select(m =>
+            {
+                if (m == null) return m;
+                var c = new Material(m) { name = m.name + " dyed" };
+                if (c.mainTexture is Texture t) { c.mainTexture = Picture(t, to); c.color = Color.white; } else c.color = to;
+                Owned.Add(c); return c;
+            }).ToArray();
+        }
+
         internal static void Forget() { foreach (Object o in Owned) if (o != null) Object.Destroy(o); Owned.Clear(); Meshes.Clear(); Mats.Clear(); Pictures.Clear(); _slots = null; }
 
         // (as spun.py numbers them: wood, stone, water, flax, linen, wool, iron, red, blue, retted, oat, darkwool, cloakwool, bronze, nettle)

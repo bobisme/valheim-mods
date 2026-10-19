@@ -11,14 +11,15 @@ namespace Homespun
     // Homespun: cloth made at home, from the field to the garment. Flax soaks in a retting pool and is broken and combed at a flax brake
     // into line flax; it and wool (Byre's fleece, or wool combed from a lox pelt) are spun on a drop spindle in the hand or on the game's
     // spinning wheel; thread and yarn are woven on a warp-weighted loom into bolts of linen and wool and tablet-woven bands; and those
-    // are sewn at a sewing table into undertunics, tunics, dresses, trousers and cloaks, and Hildir's own clothes. The chain itself
-    // (what each step takes and gives) is Core/Chain.cs; Things.cs makes the items and recipes, Kit.cs the stations, Plants.cs the nettle that grows.
+    // are sewn at a sewing table into undertunics, tunics, dresses, trousers and cloaks, and Hildir's own clothes. A dye vat dyes bolts
+    // and garments blue, red, yellow or purple with berries, dandelions or lichen (Core/Dye.cs, DyeVat.cs). The chain itself
+    // (what each step takes and gives) is Core/Chain.cs; Things.cs makes the items and recipes, Kit.cs the stations, Plants.cs the nettle and lichen that grow.
     [BepInPlugin(Guid, Name, Version)]
     public sealed class Plugin : BaseUnityPlugin
     {
         public const string Guid = "cx.bob.homespun";
         public const string Name = "Homespun";
-        public const string Version = "0.1.6";
+        public const string Version = "0.2.0";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled;
         private Harmony _harmony;
@@ -26,12 +27,12 @@ namespace Homespun
         private void Awake()
         {
             Instance = this;
-            Enabled = Config.Bind("General", "Enabled", true, "Put the retting pool, flax brake, loom and sewing table in the hammer's Crafting tab.");
+            Enabled = Config.Bind("General", "Enabled", true, "Put the retting pool, flax brake, loom, sewing table and dye vat in the hammer's Crafting tab.");
             Things.BindCosts(Config);
             _harmony = new Harmony(Guid); _harmony.PatchAll(typeof(Plugin).Assembly);
             Safe("register", Things.Register);
             Safe("repoint", Things.Repoint); // (a hot reload: items already in the world get this copy's prefabs)
-            Logger.LogInfo($"{Name} {Version} loaded: a retting pool, a flax brake, a loom and a sewing table in the hammer's Crafting tab, and a drop spindle at the workbench.");
+            Logger.LogInfo($"{Name} {Version} loaded: a retting pool, a flax brake, a loom, a sewing table and a dye vat in the hammer's Crafting tab, and a drop spindle at the workbench.");
         }
         private void OnDestroy()
         {

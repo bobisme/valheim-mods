@@ -10,6 +10,7 @@ namespace Homespun
     //   Flax ─ retting pool (a day's soak for a full pool) ─▶ retted flax ─ flax brake ─▶ line flax ─ spindle / spinning wheel ─▶ 2 linen thread
     //   Lox pelt ─ flax brake's combs ─▶ 4 combed wool        Byre's fleece (ByreWool), or combed wool ─ spindle / wheel ─▶ wool yarn
     //   thread, yarn ─ loom ─▶ bolts of linen and wool, tablet-woven bands ─ sewing table ─▶ garments (and Hildir's clothes)
+    //   bolts, garments + blueberries, raspberries, dandelions or lichen ─ dye vat ─▶ blue, red, yellow, purple (Core/Dye.cs)
     //
     //   Nettle (wild in meadow clearings and at the forest's edge, or sown) ─ pool ─▶ retted nettle ─ brake ─▶ line nettle ─ spindle / wheel ─▶ 1 linen thread
     //
@@ -26,6 +27,8 @@ namespace Homespun
         public const string Nettle = "Homespun_Nettle", RettedNettle = "Homespun_RettedNettle", LineNettle = "Homespun_LineNettle";
         // Nettle growing: wild (grows back), the field crop (picked, gone), and the cultivator's sapling (Plants.cs)
         public const string WildNettle = "Homespun_Pickable_Nettle", NettleCrop = "Homespun_Pickable_NettleCrop", NettleSapling = "Homespun_sapling_nettle";
+        // Dyeing (Core/Dye.cs): the vat, and the lichen that gives purple (on stones in the Mountains and the Black Forest)
+        public const string Vat = "Homespun_DyeVat", Lichen = "Homespun_Lichen", WildLichen = "Homespun_Pickable_Lichen";
         public const string LinenBolt = "Homespun_LinenBolt", WoolBolt = "Homespun_WoolBolt", Band = "Homespun_Band";
         // Garments
         public const string Undertunic = "Homespun_LinenUndertunic", Tunic = "Homespun_WoolTunic", Dress = "Homespun_WoolDress", Trousers = "Homespun_WoolTrousers", Cloak = "Homespun_HoodedCloak";
@@ -128,7 +131,7 @@ namespace Homespun
         };
 
         // Every recipe at our stations: ours, and Hildir's clothes at the sewing table.
-        public static IEnumerable<Make> AllMakes() => Makes.Concat(Hildir.Select(h => new Make { Station = Names.Table, Item = h.item, Needs = h.needs }));
+        public static IEnumerable<Make> AllMakes() => Makes.Concat(Dye.DyedMakes()).Concat(Hildir.Select(h => new Make { Station = Names.Table, Item = h.item, Needs = h.needs }));
 
         // What a thing comes to in what's gathered (flax, fleece, pelts, berries...), following the cheapest of our ways to make each
         // step (for the tests, and `spun chain`). Fractions: a band is made two at a time.
@@ -148,6 +151,8 @@ namespace Homespun
                 Conversion c = Conversions.Where(x => x.To == what && x.Station != Names.Spindle && (fleece || !x.Optional))
                     .OrderByDescending(x => x.Optional).ThenByDescending(x => x.Yield).FirstOrDefault();
                 if (c != null) { Add(c.From, n / c.Yield, depth + 1); return; }
+                // (dyed in the vat: the undyed thing, and its measures of dyestuff)
+                if (Dye.Read(what) is var dyed && dyed?.dye is Dyestuff d) { Add(dyed.Value.undyed, n, depth + 1); Add(d.Stuff, n * Dye.Measures(what) * d.PerMeasure, depth + 1); return; }
                 total[what] = (total.TryGetValue(what, out double had) ? had : 0) + n;
             }
             Add(item, 1, 0);
