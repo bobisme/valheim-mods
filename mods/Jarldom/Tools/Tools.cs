@@ -457,7 +457,7 @@ namespace Jarldom
                             ["spareChest"] = spare.chest, ["spareHat"] = spare.hat, ["thread"] = Crafts.InStock(c, Weaving.Thread),
                             ["nextWomen"] = Compat.HomespunOn ? Weaving.HomespunNext(c, true, rng, Crafts.InStock(c, Weaving.Thread)) : null, ["nextMen"] = Compat.HomespunOn ? Weaving.HomespunNext(c, false, rng, Crafts.InStock(c, Weaving.Thread)) : null,
                             ["orders"] = new JArray(c.Board.All.Where(o => o.Prof == Prof.Weaver).Select(o => $"{o.Kind} {o.Target} {o.State} {o.Blocked}")),
-                            ["stock"] = new JObject(new[] { "Flax", "Homespun_RettedFlax", Weaving.LineFlax, Weaving.Thread, "LoxPelt", Weaving.HsWool, "ByreWool", Weaving.Yarn, "Homespun_LinenBolt", "Homespun_WoolBolt", "Homespun_Band" }.Select(n => new JProperty(n, Crafts.InStock(c, n)))),
+                            ["stock"] = new JObject(new[] { "Flax", "Homespun_RettedFlax", Weaving.LineFlax, Fibre.Nettle, Fibre.RettedNettle, Fibre.LineNettle, Weaving.Thread, "LoxPelt", Weaving.HsWool, "ByreWool", Weaving.Yarn, "Homespun_LinenBolt", "Homespun_WoolBolt", "Homespun_Band" }.Select(n => new JProperty(n, Crafts.InStock(c, n)))),
                             ["weavers"] = new JArray(people.Where(b => b.S.Prof == Prof.Weaver).Select(b => $"{b.S.Name}: {b.Doing}; carries {string.Join(", ", b.Body.GetInventory().GetAllItems().Where(i => !i.m_equipped).Select(i => Classes.Prefab(i) + " x" + i.m_stack))}")) });
                     }
                     break;

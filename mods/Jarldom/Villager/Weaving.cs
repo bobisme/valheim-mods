@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Jarldom
 {
     // Clothes. Everyone is reborn in rags; a colony dresses itself the Norse way: flax grown in its fields (the colony's farmers know it,
-    // whatever the biome), spun into linen thread (at a spinning wheel, or by hand with a spindle), woven into tunics and dresses at
+    // whatever the biome), or with Homespun nettle too (Core/Fibre.cs), spun into linen thread (at a spinning wheel, or by hand with a spindle), woven into tunics and dresses at
     // the workbench by a weaver and dyed with what the land gives (blueberries for blue as woad gave, raspberries for red as madder,
     // dandelions for yellow as weld, bark for brown, nettle-green from thistle), with a shawl or cape, or amber beads. Caps from hides.
     // The clothes are the game's own (Hildir's tunics, dresses and hats), so they look as they should. Once Hildir is known, the
@@ -35,8 +35,8 @@ namespace Jarldom
         // The colony's own recipe for a thing (at the workbench), or null.
         public static Recipe RecipeFor(string prefab)
         {
-            if (prefab == Thread && Compat.HomespunOn) return Spindle(Thread, LineFlax, 2);
-            if (prefab == Yarn && Compat.HomespunOn) return Spindle(Yarn, HsWool, 1);
+            if (prefab == Thread && Compat.HomespunOn) return Spindle(Thread, 2, (LineFlax, 1), (LineNettle, 2)); // (a line flax spins two threads, a line nettle one)
+            if (prefab == Yarn && Compat.HomespunOn) return Spindle(Yarn, 1, (HsWool, 1));
             if (Recipes.TryGetValue(prefab, out Recipe have) && have != null) return have;
             var row = Table.FirstOrDefault(t => t.item == prefab);
             if (row.item == null || ObjectDB.instance == null || ZNetScene.instance == null) return null;
@@ -49,19 +49,22 @@ namespace Jarldom
             Recipes[prefab] = r;
             return r;
         }
-        // With Homespun, spun by hand from its line flax or combed wool (a spindle's work) where there's no spinning wheel: the soaking and
-        // breaking are its stations' (the weaver keeps them going: Work.cs's station scan), not skipped as plain flax spun at once.
-        public const string LineFlax = "Homespun_LineFlax", HsWool = "Homespun_Wool", Yarn = "Homespun_WoolYarn", Wheel = "piece_spinningwheel", Pool = "Homespun_RettingPool", Brake = "Homespun_FlaxBrake";
-        private static Recipe Spindle(string to, string from, int n)
+        // With Homespun, spun by hand from its line flax or nettle or combed wool (a spindle's work) where there's no spinning wheel: the
+        // soaking and breaking are its stations' (the weaver keeps them going: Work.cs's station scan), not skipped as plain flax spun at once.
+        public const string LineFlax = Fibre.LineFlax, LineNettle = Fibre.LineNettle, Nettle = Fibre.Nettle, HsWool = "Homespun_Wool", Yarn = "Homespun_WoolYarn", Wheel = "piece_spinningwheel", Pool = "Homespun_RettingPool", Brake = "Homespun_FlaxBrake";
+        // (of more than one fibre: any one of them, the first the stores have enough of, as the game's "any one" recipes. A Homespun
+        // from before nettle has no line nettle: line flax only.)
+        private static Recipe Spindle(string to, int n, params (string from, int amount)[] froms)
         {
             string key = "spindle:" + to;
             if (Recipes.TryGetValue(key, out Recipe have) && have != null) return have;
-            ItemDrop item = ObjectDB.instance?.GetItemPrefab(to)?.GetComponent<ItemDrop>(), res = ObjectDB.instance?.GetItemPrefab(from)?.GetComponent<ItemDrop>();
+            ItemDrop item = ObjectDB.instance?.GetItemPrefab(to)?.GetComponent<ItemDrop>();
+            var res = froms.Select(f => ObjectDB.instance?.GetItemPrefab(f.from)?.GetComponent<ItemDrop>() is ItemDrop d ? new Piece.Requirement { m_resItem = d, m_amount = f.amount } : null).Where(q => q != null).ToArray();
             CraftingStation bench = ZNetScene.instance?.GetPrefab("piece_workbench")?.GetComponent<CraftingStation>();
-            if (item == null || res == null || bench == null) return null;
+            if (item == null || res.Length == 0 || bench == null) return null;
             Recipe r = ScriptableObject.CreateInstance<Recipe>();
             r.name = "Jarldom_Weave_Spindle_" + to; r.m_item = item; r.m_amount = n; r.m_enabled = true; r.m_craftingStation = bench; r.m_minStationLevel = 1;
-            r.m_resources = new[] { new Piece.Requirement { m_resItem = res, m_amount = 1 } };
+            r.m_resources = res; r.m_requireOnlyOneIngredient = res.Length > 1;
             return Recipes[key] = r;
         }
         public static bool Is(Recipe r) => r != null && (r.name.StartsWith("Jarldom_Weave_") || OnLoom(r));
@@ -78,25 +81,26 @@ namespace Jarldom
         // (the game's wheel spins only under a roof: one out in the rain is neither fed nor counted on to spin)
         public static bool Works(Smelter s) => s != null && (!s.m_requiresRoof || Cover.IsUnderRoof(s.m_roofCheckPoint != null ? s.m_roofCheckPoint.position : s.transform.position + Vector3.up));
         public const int Plenty = 40; // (thread or yarn in the stores: enough, the stations rest)
-        // What a textile station is fed: flax to soak (never the seed flax), soaked flax to break, line flax and wool to spin; a lox pelt is
-        // combed only while yarn runs short, and two kept back (it's a rare hide); raw flax never straight onto the wheel (soaked first).
+        // What a textile station is fed: flax and nettle to soak (never what's kept for seed), soaked to break, line flax and nettle and
+        // wool to spin; a lox pelt is combed only while yarn runs short, and two kept back (it's a rare hide); raw flax never straight onto
+        // the wheel (soaked first).
         public static bool FeedTextile(Colony c, Smelter s, string item)
         {
             if (!Works(s)) return false;
             int Has(string x) => Crafts.InStock(c, x);
             string at = Utils.GetPrefabName(s.gameObject);
-            bool linenPlenty = Has(Thread) + 2 * Has(LineFlax) >= Plenty, woolPlenty = Has(Yarn) + Has(HsWool) + Has("ByreWool") >= Plenty;
+            bool linenPlenty = Fibre.ThreadToCome(Has(Thread), Has(LineFlax), Has(LineNettle)) >= Plenty, woolPlenty = Has(Yarn) + Has(HsWool) + Has("ByreWool") >= Plenty;
             switch (item)
             {
-                case Flax: return at == Pool && !linenPlenty && Has(Flax) > SeedFlax(c);
-                case "Homespun_RettedFlax": return !linenPlenty && Has(item) > 0;
-                case LineFlax: return Has(Thread) < Plenty && Has(item) > 0; // (spun while thread's short: line flax waiting isn't thread)
+                case Flax: case Nettle: return at == Pool && !linenPlenty && Has(item) > SeedKept(c);
+                case Fibre.RettedFlax: case Fibre.RettedNettle: return !linenPlenty && Has(item) > 0;
+                case LineFlax: case LineNettle: return Has(Thread) < Plenty && Has(item) > 0; // (spun while thread's short: line fibre waiting isn't thread)
                 case "LoxPelt": return !woolPlenty && Has(Yarn) + Has(HsWool) < 8 && Has(item) > 2;
                 case HsWool: case "ByreWool": return Has(Yarn) < Plenty && Has(item) > 0;
                 default: return Has(item) > 0;
             }
         }
-        // How many to bring at once: no more than FeedTextile's keep-back leaves (two lox pelts kept, the seed flax), and pelts only as many
+        // How many to bring at once: no more than FeedTextile's keep-back leaves (two lox pelts kept, the seed flax and nettle), and pelts only as many
         // as the yarn wants (four combed wool a pelt).
         public static int FeedCap(Colony c, string item)
         {
@@ -104,7 +108,7 @@ namespace Jarldom
             switch (item)
             {
                 case "LoxPelt": return Math.Max(0, Math.Min(Has(item) - 2, (8 - Has(Yarn) - Has(HsWool) + 3) / 4));
-                case Flax: return Math.Max(0, Has(Flax) - SeedFlax(c));
+                case Flax: case Nettle: return Math.Max(0, Has(item) - SeedKept(c));
                 default: return int.MaxValue;
             }
         }
@@ -113,7 +117,7 @@ namespace Jarldom
         public static List<string> FeedOrder(Colony c, List<string> wants)
         {
             int Has(string x) => Crafts.InStock(c, x);
-            bool woolFirst = Has(Yarn) + Has(HsWool) + Has("ByreWool") < Has(Thread) + 2 * Has(LineFlax);
+            bool woolFirst = Has(Yarn) + Has(HsWool) + Has("ByreWool") < Fibre.ThreadToCome(Has(Thread), Has(LineFlax), Has(LineNettle));
             bool Wool(string x) => x == "LoxPelt" || x == HsWool || x == "ByreWool";
             return wants.OrderBy(x => Wool(x) == woolFirst ? 0 : 1).ToList();
         }
@@ -170,7 +174,7 @@ namespace Jarldom
                 if (hats.Count > 0) { make = hats[rng.Next(hats.Count)].m_item.name; c.R.Flags["weave:hatday"] = c.Day; }
             }
             // No thread to weave with: spin some from the flax in the stores, by hand if there's no spinning wheel (one feeds itself).
-            if (make == null && !Compat.HomespunOn && (ragged > spare.chest || hatless > 0) && thread < 6 && Crafts.InStock(c, Flax) - SeedFlax(c) >= 2
+            if (make == null && !Compat.HomespunOn && (ragged > spare.chest || hatless > 0) && thread < 6 && Crafts.InStock(c, Flax) - SeedKept(c) >= 2
                 && !c.PiecesIn(c.Radius).Any(p => p.GetComponent<Smelter>() is Smelter s && s.m_conversion.Any(cv => cv.m_from != null && cv.m_from.name == Flax)))
                 make = Thread;
             if (make == null) return;
@@ -200,13 +204,16 @@ namespace Jarldom
             if (r == null || depth > 3 || Crafts.StationFor(c, r, c.Position) == null) return null;
             // (spun by hand only where there's no wheel that works: with one, the stations make it)
             if (r.name.StartsWith("Jarldom_Weave_Spindle_") && c.PiecesIn(c.Radius).Any(p => Colony.NameOf(p) == Wheel && Works(p.GetComponent<Smelter>()))) return null;
-            foreach (var (need, amount) in Crafts.Needs(r))
+            var needs = Crafts.Needs(r);
+            if (r.m_requireOnlyOneIngredient) // (any one of them: thread from line flax or line nettle)
+                return needs.Any(n => has(n.item) >= n.amount) ? item : needs.Where(n => n.item != item).Select(n => Step(c, n.item, has, depth + 1)).FirstOrDefault(s => s != null);
+            foreach (var (need, amount) in needs)
                 if (has(need) < amount) return need == item ? null : Step(c, need, has, depth + 1);
             return item;
         }
 
-        // Flax kept back for sowing, where the colony has fields (spin the last of it and there's none to grow).
-        public static int SeedFlax(Colony c) => c.R.Zones.Any(z => z.Type == ZoneType.Fields) ? 10 : 0;
+        // Flax and nettle kept back for sowing, where the colony has fields (each; Core/Fibre.cs).
+        public static int SeedKept(Colony c) => Fibre.Kept(c.R.Zones.Any(z => z.Type == ZoneType.Fields));
         internal static (int chest, int hat) Crafts_Spare(Colony c)
         {
             var items = Stock.Chests(c).Where(x => x.category != "treasury").SelectMany(x => x.chest.GetInventory().GetAllItems()).Where(IsClothes).ToList();

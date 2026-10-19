@@ -878,6 +878,16 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(cf.Count == 1 && cf.ContainsKey(CropChoice.Key("z2", Season.Summer)), "A zone removed: its choices only");
 }
 
+// ---- Fibre crops: flax, and Homespun's nettle ----
+{
+    Check(Fibre.Is("Flax") && Fibre.Is("Homespun_Nettle") && !Fibre.Is("Carrot") && !Fibre.Is("Homespun_LineNettle") && !Fibre.Is(null), "Flax and nettle are the fibre crops");
+    Check(Fibre.Wanted(true, 0, 0) && Fibre.Wanted(true, 29, 0) && !Fibre.Wanted(true, 30, 0) && !Fibre.Wanted(false, 0, 0), "Fibre is wanted while a weaver's stores are short of it");
+    Check(!Fibre.Wanted(true, 20, 10) && Fibre.Wanted(true, 10, 19), "Flax and nettle counted together (30 nettle in the stores: flax isn't sown over food either)");
+    Check(Fibre.Kept(true) == 10 && Fibre.Kept(false) == 0, "Ten of each kept for sowing where there are fields");
+    Check(Fibre.ThreadToCome(4, 3, 5) == 4 + 6 + 5, "A line flax waiting is two threads to come, a line nettle one");
+    Check(new[] { "Homespun_Nettle", "Carrot", "Flax" }.OrderBy(Fibre.SowRank).First() == "Flax", "Where both grow, flax is sown before nettle");
+}
+
 // ---- Quad's Arena: wagers on the jarl, and the Champion ----
 {
     var wrng = new Random(3);

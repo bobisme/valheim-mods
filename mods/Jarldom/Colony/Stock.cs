@@ -42,7 +42,7 @@ namespace Jarldom
             if (n.EndsWith("Ore") || n.EndsWith("Scrap") || n == "BlackMetalScrap" || n == "FlametalOreNew") return "ore";
             if (n == "Copper" || n == "Tin" || n == "Bronze" || n == "Iron" || n == "Silver" || n == "BlackMetal" || n.StartsWith("Flametal") || n.EndsWith("Nails")) return "metal";
             if (n.Contains("Hide") || n.Contains("Pelt") || n == "LeatherScraps" || n == "Feathers" || n == "Chitin") return "hides";
-            if (n.Contains("Seed") || n == "Barley" || n == "Flax") return "seeds";
+            if (n.Contains("Seed") || n == "Barley" || Fibre.Is(n)) return "seeds"; // (flax and Homespun's nettle are their own seed)
             if (t == ItemDrop.ItemData.ItemType.Consumable) return item.m_shared.m_food > 0 ? "food" : "food";
             if (n.StartsWith("Raw") || n.EndsWith("Meat") || n == "NeckTail" || n.Contains("Fish") || n == "Mushroom" || n == "Raspberry" || n == "Blueberries" || n == "Honey" || n == "Carrot" || n == "Turnip" || n == "Onion" || n == "Thistle" || n == "Dandelion") return "rawfood";
             if (t == ItemDrop.ItemData.ItemType.OneHandedWeapon || t == ItemDrop.ItemData.ItemType.TwoHandedWeapon || t == ItemDrop.ItemData.ItemType.Bow || t == ItemDrop.ItemData.ItemType.Shield
