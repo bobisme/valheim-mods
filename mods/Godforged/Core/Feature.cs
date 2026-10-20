@@ -41,6 +41,7 @@ namespace Godforged
             new Draupnir(),
             new Brisingamen(),
             new Gjallarhorn(),
+            new Skidbladnir(),
         };
     }
 }

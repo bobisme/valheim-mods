@@ -6,8 +6,9 @@ Gungnir: Odin's spear, a dwarf's work with a huge angular head. Throw it and, wi
 Draupnir: Odin's ring. Carry it, and every ninth dawn it drips eight rings' worth of coins.
 Brísingamen: Freyja's necklace. Carry it, and when you're healed, friends near you are healed too.
 Gjallarhorn: Heimdall's horn. Blow it, and everyone hears it and sees where you stand; those beside you take heart.
+Skíðblaðnir: Freyr's ship, folded small enough to carry. Use it by the water and a karve unfolds afloat close by, her sail always drawing as if the wind were behind her. Use it beside her, with her hold empty and nobody aboard, and she folds back up (what she carries is never folded away). She stays where you moor her. She's the game's own karve, so she stays one if Godforged is removed; sunk or taken apart she gives back no wood, and the relic can unfold her anew.
 Thor's kit: Mjölnir, Járngreipr and the game's own Megingjord together, and the lightning leaps from foe to foe.
 
 A thrown relic is never lost: if it can't come home (you fell, your bag is full) it drops where it is. Everyone sees the throw, the return and the lightning. Native Linux and Windows.
 
-In multiplayer the server decides the relics' strengths, reaches, timers and costs (its values replace a player's own while they play there; a cost changed in the file applies at once). The thunder's volume, Gungnir's wind and Járngreipr's look stay each player's own.
+In multiplayer the server decides the relics' strengths, reaches, timers, Skíðblaðnir's fair wind and the costs (its values replace a player's own while they play there; a cost changed in the file applies at once). The thunder's volume, Gungnir's wind and Járngreipr's look stay each player's own.
