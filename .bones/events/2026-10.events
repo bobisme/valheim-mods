@@ -1726,3 +1726,5 @@
 1792472154423619	claude	itc:AQ		item.move	bn-2d24	{"state":"done"}	blake3:t_qhcB6-A26UuIw3g3nFGINS1qAzNgkpjMOX6hJfmGo
 1792472154427961	claude	itc:AQ		item.move	bn-ly9l	{"state":"done"}	blake3:4RNz2AaxPsTBQ-q1GcQAjPu_U4Pa-PUqaQu1hdV4hS4
 1792472154430022	claude	itc:AQ		item.move	bn-3c6c	{"state":"done"}	blake3:z0nigfJV4HwtJRqbOANMXP4QuyCY5Fin6zT1rGUdW0k
+1792472818784546	claude	itc:AQ		item.comment	bn-1kmy	{"body":"Fixed in Bob's Animations 0.3.8: clip.py gains elbow(side, toward), an elbow direction for _place_arm instead of the captured one (down and back, from the hands-on-knees capture). fold_arms wrists come in to x ±0.07 at chest height, elbows end at x ±0.18. Checked in game on Ketilrid (slim, clothed), Steinunn (slim) and Hrafn (broad), front and side."}	blake3:FfDS1apn5qNVM-dUYvXx2QHyYRD-w8jIlg1gQ4XQoJ8
+1792472818821834	claude	itc:AQ		item.move	bn-1kmy	{"state":"done"}	blake3:utntig9gQoakGqGlTNaYuBwiqGxVm25aUauxeo7Qllo
