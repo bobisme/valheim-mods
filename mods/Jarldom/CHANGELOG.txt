@@ -1,3 +1,5 @@
+0.1.225: with Shieldwall 0.4.27 or later, a siege at the colony's Warstone is fought from its stave towers. The guards take the towers by the stone, one to a tower, the raised ones first; the hunters and the brave still go to the guard posts. A gothi in reach of the stone (40 m) chants every half minute, and the ward is a tenth stronger while they do; its tooltip says so. With an older Shieldwall, nothing changes.
+
 0.1.224: the weaver gets round to the clothes. Tending the textile stations always had work waiting and came before every garment, so the ship's sail and clothes for the ragged were never made. Now the sail and clothes for the ragged come first; warm clothes in the cold and thread for the ragged take turns with the tending (nearest first); caps still wait.
 
 0.1.223: a garment that wears through turns into rags. The tunic, dress or trousers was thrown away and nothing put in its place, so its wearer went bare-chested till the weaver's next garment came (the stores' rags were never fetched): now rags are left in its place and worn till then. A worn-through hat or cloak is still just gone.

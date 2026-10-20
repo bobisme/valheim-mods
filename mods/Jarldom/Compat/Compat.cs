@@ -22,7 +22,7 @@ namespace Jarldom
             ("FeedFromChests", new[] { "com.quad.feedfromchests", "com.dhack.feedfromchests" }, "smelters fed from chests"),
             ("Farmhand", new[] { "com.bobisme.farmhand" }, "rows and batches (not yet)"),
             ("Omens", new[] { "com.bobisme.omens" }, "Odin's favour is the gods' Fate"),
-            ("Shieldwall", new[] { "com.bobisme.shieldwall" }, "a siege at the colony's Warstone is a raid: villagers defend it"),
+            ("Shieldwall", new[] { "com.bobisme.shieldwall" }, "a siege at the colony's Warstone is a raid: villagers defend it, guards man the stave towers and a gothi chants for the ward"),
             ("Respite", new[] { "com.bobisme.respite" }, "one raid clock for the world: warbands and Fuling bands wait their turn, and gather outside the colony first"),
             ("TrophyHall", new[] { "com.bobisme.trophyhall" }, "trophies grade the great hall"),
             ("SkalTavern", new[] { "com.quad.skaltavern", "com.dhack.skaltavern" }, "a Skål! at feasts; its ale, mead and wine drunk in the hall from its chests"),
@@ -271,6 +271,18 @@ namespace Jarldom
             catch { return false; }
         }
 
+        // The stave sockets near the stone (Shieldwall 0.4.27: Api 2), the raised ones first: where the guards stand in a siege.
+        public static IList<Vector3> TowerPosts(Vector3 at, float radius)
+        {
+            Func<Vector3, float, IList<Vector3>> posts = Shieldwall.Bind<Func<Vector3, float, IList<Vector3>>>("TowerPosts", 2);
+            return posts == null ? new Vector3[0] : Safe(() => posts(at, radius)) ?? new Vector3[0];
+        }
+        // The gothi's chant: the stone's ward a little stronger for a while (Shieldwall Api 2). Whether a stone took it.
+        public static bool WardBonus(Vector3 at, float radius, string source, float mult, float seconds)
+        {
+            Func<Vector3, float, string, float, float, int> set = Shieldwall.Bind<Func<Vector3, float, string, float, float, int>>("SetWardBonus", 2);
+            return set != null && Safe(() => set(at, radius, source, mult, seconds)) > 0;
+        }
         // Paid off: the siege ends (on the stone's owner's game; Shieldwall 0.4.12 and later). How many ended.
         public static int CallOffSiege(Vector3 at, float radius)
         {

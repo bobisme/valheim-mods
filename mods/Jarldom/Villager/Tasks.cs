@@ -762,15 +762,26 @@ namespace Jarldom
         }
     }
 
-    // A raid: fighters to their posts, everyone else into the great hall (door shut) or back to the pillars.
+    // A raid: fighters to their posts, everyone else into the great hall (door shut) or back to the pillars. In a Shieldwall siege the
+    // guards take the stave towers first (one to a tower, the raised ones first), and a gothi in reach of the stone chants for its ward.
     internal sealed class DefendTask : Task
     {
-        private Vector3 _to; private bool _shelter; public bool Fighter;
+        private Vector3 _to; private bool _shelter, _tower; public bool Fighter;
+        private Vector3 _stone; private float _chantAt; private bool _chanting;
+        // The towers taken: by whom, until when (kept up while they hold it; a fallen guard's tower is free again in a while).
+        private static readonly Dictionary<Vector3, (string vid, float until)> Manned = new Dictionary<Vector3, (string, float)>();
+        public const string ChantSource = "a gothi's chant"; public const float ChantBonus = 1.1f, ChantReach = 40f;
         public override void Start(Brain b)
         {
             bool fighter = Fighter = Gear.CanFight(b) && (b.S.Prof == Prof.Guard || b.S.Prof == Prof.Hunter || b.S.Has("brave"));
             Room hall = b.Colony.Best(RoomType.GreatHall);
-            if (fighter)
+            bool siege = Compat.Siege(b.Colony.Position, b.Colony.Radius, out _stone) && _stone != Vector3.zero;
+            if (!siege) _stone = Vector3.zero;
+            if (fighter && siege && b.S.Prof == Prof.Guard && Tower(b) is Vector3 tower)
+            {
+                _to = tower; _tower = true; Doing = "manning a stave tower";
+            }
+            else if (fighter)
             {
                 Zone post = b.Colony.R.Zones.Where(z => z.Type == ZoneType.GuardPost).OrderBy(z => Geometry.Distance(z.Xz, b.Pos.x, b.Pos.z)).FirstOrDefault();
                 _to = post != null ? Zones.Centre(post) : b.Colony.RaidAt != Vector3.zero ? b.Colony.RaidAt : b.Colony.Position; // a guard post, else the stone under siege
@@ -784,7 +795,28 @@ namespace Jarldom
         {
             b.KeepDoorsOpen = false;
             if (!b.Move.Moving && Vector3.Distance(b.Pos, _to) > 5f) b.Move.To(Colony.Spot(_to, 2f) ?? _to, 2f, true);
-            if (!b.Move.Moving) Doing = _shelter ? "hiding in the hall" : "holding";
+            if (_tower) Manned[_to] = (b.S.Vid, Time.time + 30f);
+            if (!b.Move.Moving) Doing = _tower ? "holding a stave tower" : _chanting ? "chanting for the Warstone's ward" : _shelter ? "hiding in the hall" : "holding";
+            if (b.S.Prof == Prof.Gothi && _stone != Vector3.zero) Chant(b);
+        }
+        // The nearest free stave tower by the stone (none taken by another guard who still holds it).
+        private Vector3? Tower(Brain b)
+        {
+            foreach (var k in Manned.Where(m => m.Value.until < Time.time || m.Value.vid == b.S.Vid).Select(m => m.Key).ToList()) Manned.Remove(k);
+            var free = Compat.TowerPosts(_stone, 60f).Where(p => !Manned.ContainsKey(p)).ToList();
+            if (free.Count == 0) return null;
+            Vector3 post = free[0];
+            Manned[post] = (b.S.Vid, Time.time + 30f);
+            return post;
+        }
+        // In reach of the stone (the ward's least reach), every half minute: a chant, and the ward a tenth stronger for the next minute.
+        private void Chant(Brain b)
+        {
+            if (Time.time < _chantAt || Vector3.Distance(b.Pos, _stone) > ChantReach) return;
+            _chantAt = Time.time + 30f;
+            if (!(_chanting = Compat.WardBonus(_stone, 10f, ChantSource, ChantBonus, 60f))) return;
+            Body_.Anim(b.Body)?.SetTrigger("emote_cheer");
+            b.Say(new[] { "Odin, hold the stone! Let the ward stand!", "Gods, see us! Make the ward strong!", "The ward holds! The gods are with us!", "Stand, stone, stand! The gods hear us!" }[UnityEngine.Random.Range(0, 4)], 5);
         }
     }
 
