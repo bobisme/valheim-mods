@@ -1102,9 +1102,21 @@ namespace Jarldom
                 Stock.Take(_seedChest, bag, seeds, Mathf.Max(plant.amount, 5));
                 _seedsFetched = true; return true;
             }
-            Stock.Walk pw = Stock.WalkNear(b, _cropAt, 1.6f, 1.0f);
+            Stock.Walk pw = _closeIn > 0 ? (Vector3.Distance(b.Pos, _cropAt) <= 1.6f ? Stock.Walk.Reached : Stock.Walk.Unreachable) : Stock.WalkNear(b, _cropAt, 1.6f, 1.0f);
+            // Crops cut holes in the navmesh: a gap in a full field is off it, so the last metres straight in, through the rows as a player walks.
+            if (pw == Stock.Walk.Unreachable && _closeIn < 3f && Utils.DistanceXZ(b.Pos, _cropAt) < 5f && Steer.SafeSpot(Vector3.MoveTowards(b.Pos, _cropAt, 1f)))
+            {
+                if (_closeIn == 0) b.Move.Stop();
+                Vector3 dir = _cropAt - b.Pos; dir.y = 0;
+                b.Ai.MoveTowards(dir.normalized, false);
+                _closeIn += b.DecideDt;
+                return true;
+            }
             if (pw == Stock.Walk.Unreachable) { _plantFail = "can't reach the spot"; return false; }
+            if (_closeIn > 0) { b.Ai.StopMoving(); _closeIn = 0; }
             if (pw == Stock.Walk.Walking) return true;
+            // Sown already (a harvester replants where a sow order was posted mid-harvest): two crops on one spot leave neither room to grow.
+            if (Work.Things(_cropAt, 0.6f).Any(go => go != _target && (go.GetComponent<Plant>() != null || go.GetComponent<Pickable>() != null && Work.Replant.ContainsKey(Utils.GetPrefabName(go))))) return false;
             Heightmap hm = Heightmap.FindHeightmap(_cropAt);
             if (plant.sapling.GetComponent<Plant>()?.m_needCultivatedGround != false && (hm == null || !hm.IsCultivated(_cropAt)))
             {

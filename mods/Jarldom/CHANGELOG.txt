@@ -1,3 +1,5 @@
+0.1.218: farmers sow the gaps in a full field. Crops cut holes in the navmesh, so an empty spot between them was off it and the sow job sat blocked ("can't reach the spot"): the farmer now walks the last metres straight in, as harvesters already did. A spot that's been sown meanwhile (a harvester replants where a sow job was posted mid-harvest) is left alone: two crops on one spot left neither room to grow.
+
 0.1.217: Homespun's tapestries count in room grades: a great hall 4 points each (up to 6), a longhouse 2 (up to 4), a temple 3 (up to 4); a banner is worth 2 in a hall. Live-checked: a procession tapestry in the great hall took it from 43 to 49 points (its comfort too).
 
 0.1.216: Homespun 0.2.0's dyed wool garments are as warm as undyed, and haulers leave Homespun's dye vat alone (it's a chest to the game, but not the stores).
