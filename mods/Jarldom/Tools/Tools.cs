@@ -1101,6 +1101,19 @@ namespace Jarldom
                 case "pay": c.Payday(c.Day); output(new JObject { ["log"] = c.R.Log.Last().Text, ["missed"] = c.R.MissedPaydays }); break;
                 case "favour": Faith.Add(c, a[2], int.Parse(a[3]), "test"); output(new JObject { ["favour"] = new JObject(c.R.Favour.Select(kv => new JProperty(kv.Key, kv.Value))), ["odin"] = Faith.Odin(c) }); break;
                 case "feast": Feast.Call(c, me?.GetPlayerName() ?? "test"); output(new JObject { ["ready"] = Feast.Ready(c, out _, out _), ["lastFeast"] = c.R.LastFeast }); break;
+                case "vadmal":
+                    {
+                        // Test: vadmal <name> <coins>: that villager pays a bót of that many coins in wool bolts now, as "Fine them" at the Thing does
+                        // (their own bolts, then the stores' bought from their hoard); nothing else of a ruling
+                        Brain who = Villagers.All.FirstOrDefault(x => x.S.Colony == c.Id && a.Length > 2 && x.S.Name.StartsWith(a[2], StringComparison.OrdinalIgnoreCase));
+                        if (who == null) { error("vadmal <name> <coins>: no such villager"); return; }
+                        int hoard = who.S.Hoard, bolts = Thing.PayInCloth(c, who, a.Length > 3 ? int.Parse(a[3]) : 10);
+                        output(new JObject { ["who"] = who.S.Name, ["bolts"] = bolts, ["hoard"] = $"{hoard} -> {who.S.Hoard}", ["treasuryBolts"] = Stock.Treasury(c)?.GetInventory().CountItems(Assets.Find(Vadmal.WoolBolt)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name ?? "") ?? -1,
+                            ["bagBolts"] = who.Body.GetInventory().GetAllItems().Where(i => Prefab(i) == Vadmal.WoolBolt).Sum(i => i.m_stack),
+                            // (and what a trader would pack of the stores' bolts, at what price a stack)
+                            ["forSale"] = new JArray(Trade.BoltsForSale(c).Select(x => x.prefab + " x" + x.n + " at " + (Stock.Chests(c).SelectMany(y => y.chest.GetInventory().GetAllItems()).FirstOrDefault(i => Prefab(i) == x.prefab) is ItemDrop.ItemData one ? Trade.Price(one) + " coins a stack of " + one.m_stack : "?"))) });
+                    }
+                    break;
                 case "thing":
                     {
                         // Test: thing (raise today's matters now) | call | end | rule <yes|no> | speak (as if the teller spoke).

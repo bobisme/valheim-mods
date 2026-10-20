@@ -370,7 +370,7 @@ namespace Jarldom
         }
         // The bót in vadmal (Core/Vadmal.cs): wool bolts into the treasury at a fixed rate, the thief's own first, then the stores' bought
         // out of their hoard. How many bolts went (0: none, no Homespun, no treasury, or no room in it).
-        private static int PayInCloth(Colony c, Brain thief, int owed)
+        internal static int PayInCloth(Colony c, Brain thief, int owed)
         {
             Container treasury = Stock.Treasury(c);
             if (!Compat.HomespunOn || treasury == null || ContainerAccess.InUse(treasury)) return 0;
