@@ -52,8 +52,10 @@ namespace Jarldom
         // The losses to wolves and weather: by the ground, per beast.
         public static float Loss(string biome) { switch ((biome ?? "").ToLowerInvariant()) { case "mountain": return 0.12f; case "blackforest": return 0.08f; default: return 0.04f; } }
         // A summer's end (roll: 0..1): who comes home (a third grow a star stronger, to three), how many were lost, and the young (one for
-        // every two that came home, of the kinds that have young).
-        public static (List<(string prefab, int level, string name)> home, int lost, List<string> young) Summer(IList<(string prefab, int level, string name)> beasts, string biome, Func<double> roll)
+        // every two that came home, of the kinds that have young). Another mod's beasts (Byre's): youngOf gives a grown one's young (null
+        // for none, and for the young themselves).
+        public static (List<(string prefab, int level, string name)> home, int lost, List<string> young) Summer(IList<(string prefab, int level, string name)> beasts, string biome, Func<double> roll,
+            Func<string, string> youngOf = null)
         {
             var home = new List<(string, int, string)>(); int lost = 0;
             foreach (var b in beasts)
@@ -64,8 +66,25 @@ namespace Jarldom
             }
             var young = new List<string>();
             foreach (var g in home.GroupBy(b => b.Item1))
-                if (Young.TryGetValue(g.Key, out string y)) for (int i = 0; i < g.Count() / 2; i++) young.Add(y);
+            {
+                string y = Young.TryGetValue(g.Key, out string v) ? v : youngOf?.Invoke(g.Key);
+                if (y != null) for (int i = 0; i < g.Count() / 2; i++) young.Add(y);
+            }
             return (home, lost, young);
         }
+        // What the herd gave up there and the herder carries down (Byre's beasts; productOf: a grown one's wool, milk or feathers, null for
+        // none): a summer's fleece or feathers, six a beast; of the milk only the last milking, two a beast (the rest was drunk up there,
+        // and made into the herder's own butter and cheese).
+        // The young taken up come down grown (grownOf: what a young one grows into; null, it stays as it is). How many grew up.
+        public static int GrowUp(List<(string prefab, int level, string name)> home, Func<string, string> grownOf)
+        {
+            int grew = 0;
+            for (int i = 0; i < home.Count; i++)
+                if (grownOf?.Invoke(home[i].prefab) is string g) { home[i] = (g, home[i].level, home[i].name); grew++; }
+            return grew;
+        }
+        public static int SummerYield(string product) => product == null ? 0 : product.EndsWith("Milk") ? 2 : 6;
+        public static List<(string item, int n)> Yield(IEnumerable<(string prefab, int level, string name)> home, Func<string, string> productOf) =>
+            productOf == null ? new List<(string, int)>() : home.Select(b => productOf(b.prefab)).Where(p => p != null).GroupBy(p => p).Select(g => (g.Key, g.Count() * SummerYield(g.Key))).ToList();
     }
 }

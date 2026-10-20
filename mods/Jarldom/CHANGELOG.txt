@@ -1,3 +1,5 @@
+0.1.226: with Byre, a shieling summers its sheep, goats and cattle as it does the game's beasts. Two of a kind have a lamb, kid or calf up there, and the young taken up come down grown. The herder carries down the summer's wool and feathers (six a beast) and the last milking (two a beast), and they go to the stores. Without Byre, nothing changes.
+
 0.1.225: with Shieldwall 0.4.27 or later, a siege at the colony's Warstone is fought from its stave towers. The guards take the towers by the stone, one to a tower, the raised ones first; the hunters and the brave still go to the guard posts. A gothi in reach of the stone (40 m) chants every half minute, and the ward is a tenth stronger while they do; its tooltip says so. With an older Shieldwall, nothing changes.
 
 0.1.224: the weaver gets round to the clothes. Tending the textile stations always had work waiting and came before every garment, so the ship's sail and clothes for the ragged were never made. Now the sail and clothes for the ragged come first; warm clothes in the cold and thread for the ragged take turns with the tending (nearest first); caps still wait.

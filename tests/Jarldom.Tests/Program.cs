@@ -119,6 +119,18 @@ Check(Hunting.Word(0) == "plentiful" && Hunting.Word(8) == "hunted out for now",
     var bad = Shielings.Summer(beasts, "mountain", () => 0.01);
     Check(bad.lost == 5 && bad.home.Count == 0 && bad.young.Count == 0, "Shieling: the wolves can take them all");
     Check(Shielings.GoodGround("Mountain") && Shielings.GoodGround("meadows") && !Shielings.GoodGround("swamp"), "Shieling: meadow, forest and mountain ground");
+    // Byre's beasts: their young, the young growing up, and the summer's wool and milk.
+    Func<string, string> byreYoung = x => x == "Byre_Sheep" ? "Byre_Lamb" : x == "Byre_Goat" ? "Byre_Kid" : null, byreGrown = x => x == "Byre_Lamb" ? "Byre_Sheep" : null,
+        byreProduct = x => x == "Byre_Sheep" ? "ByreWool" : x == "Byre_Goat" ? "ByreGoatMilk" : null;
+    var flock = new List<(string, int, string)> { ("Byre_Sheep", 1, ""), ("Byre_Sheep", 1, ""), ("Byre_Goat", 1, ""), ("Byre_Lamb", 1, "") };
+    var summered = Shielings.Summer(flock, "meadows", () => 0.5, byreYoung);
+    Check(summered.young.Count(y => y == "Byre_Lamb") == 1 && summered.young.Count == 1, "Shieling: Byre's sheep have lambs (a pair, one); a lone goat none, a lamb none");
+    Check(Shielings.Summer(flock, "meadows", () => 0.5).young.Count == 0, "Shieling: without Byre, no young of its kinds");
+    var yielded = Shielings.Yield(summered.home, byreProduct);
+    Check(yielded.Single(y => y.item == "ByreWool").n == 12 && yielded.Single(y => y.item == "ByreGoatMilk").n == 2 && yielded.Count == 2, "Shieling: a summer's fleece (6 a sheep) and the last milking (2 a goat); nothing from a lamb");
+    Check(Shielings.Yield(summered.home, null).Count == 0, "Shieling: without Byre, nothing carried down");
+    var grownHome = summered.home.ToList();
+    Check(Shielings.GrowUp(grownHome, byreGrown) == 1 && grownHome.Count(b => b.prefab == "Byre_Sheep") == 3 && !grownHome.Any(b => b.prefab == "Byre_Lamb"), "Shieling: the lamb comes down a sheep");
 }
 Check(Relics.Cap('A', false) == 'B' && Relics.Cap('S', false) == 'B' && Relics.Cap('C', false) == 'C' && Relics.Cap('S', true) == 'S', "Relics: a temple held at B without its relic");
 Check(Relics.Of.Count == Tables.Gods.Length && Tables.Gods.All(g => Relics.Of.ContainsKey(g.Id)) && Relics.GodOf(Relics.StormStone) == "thor" && Relics.GodOf("Wishbone") == "hel", "Relics: one for every god");

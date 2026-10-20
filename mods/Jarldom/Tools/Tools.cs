@@ -1794,7 +1794,7 @@ namespace Jarldom
                     {
                         if (a.Length > 2 && (a[2] == "summer" || a[2] == "autumn" || a[2] == "real")) Shieling.TestSeason = a[2] == "summer" ? Season.Summer : a[2] == "autumn" ? Season.Autumn : (Season?)null; // (test: the herder's season)
                         if (a.Length > 2 && a[2] == "clean") // (test: shieling clean: the test herd's boars, by name, out of the world)
-                            foreach (Character ch in Character.GetAllCharacters().Where(ch => ch != null && (ch.GetComponent<ZNetView>()?.GetZDO()?.GetString(ZDOVars.s_tamedName, "") ?? "").StartsWith("test boar", StringComparison.OrdinalIgnoreCase)).ToList()) { ch.GetComponent<ZNetView>().ClaimOwnership(); ZNetScene.instance.Destroy(ch.gameObject); }
+                            foreach (Character ch in Character.GetAllCharacters().Where(ch => ch != null && (ch.GetComponent<ZNetView>()?.GetZDO()?.GetString(ZDOVars.s_tamedName, "") ?? "").StartsWith("test ", StringComparison.OrdinalIgnoreCase)).ToList()) { ch.GetComponent<ZNetView>().ClaimOwnership(); ZNetScene.instance.Destroy(ch.gameObject); }
                         if (a.Length > 2 && a[2] == "replace") // (test: shieling replace: the herd taken off its shieling's pen and set out again, near the player)
                         {
                             foreach (Claim x in Claims.Of(c).Where(x => x.Shieling)) { Herd hh = Shieling.Get(x.Id); if (hh == null || !hh.Up) continue; foreach (Character ch in Character.GetAllCharacters().Where(ch => ch != null && ch.GetComponent<ZNetView>()?.GetZDO()?.GetString(Shieling.TagKey, "") == x.Id).ToList()) { ch.GetComponent<ZNetView>().ClaimOwnership(); ZNetScene.instance.Destroy(ch.gameObject); } hh.Placed = false; Shieling.Save(hh); }
@@ -1810,6 +1810,21 @@ namespace Jarldom
                             Zone pz = c.R.Zones.FirstOrDefault(z => z.Type == ZoneType.Pasture); if (pz == null) { error("no pasture"); return; }
                             Vector3 pc = Zones.Centre(pz);
                             for (int i = 0; i < int.Parse(a[3]); i++) { Character ch = Shieling.Spawn("Boar", Colony.Spot(pc, 3f) ?? pc, 1, "Test boar " + (i + 1), null); ch?.GetComponent<ZNetView>()?.GetZDO()?.Set(TestKey, true); }
+                        }
+                        if (a.Length > 4 && a[2] == "summered") // (shieling summered <herder> <prefab:n,...>: as if the herder had just brought these down from the first shieling; what's set out is named "Test ...")
+                        {
+                            Brain hb = Who(a[3]); if (hb == null) { error("who?"); return; }
+                            Claim sc = Claims.Of(c).FirstOrDefault(x => x.Shieling) ?? new Claim { Id = "testshieling", Colony = c.Id, X = c.Position.x + 400, Z = c.Position.z, Biome = "meadows", Shieling = true, Beds = 1 }; // (no shieling: a pretend one, its record gone after)
+                            var test = new Herd { Claim = sc.Id, Colony = c.Id.ToLowerInvariant(), Up = true, Fetching = true, Year = Year.Today().Year };
+                            foreach (string part in a[4].Split(',')) { string[] pn = part.Split(':'); for (int i = 0; i < (pn.Length > 1 ? int.Parse(pn[1]) : 1); i++) test.Beasts.Add((pn[0], 1, $"Test {pn[0]} {i + 1}")); }
+                            Herd was = Shieling.Get(sc.Id);
+                            var before = new HashSet<Character>(Character.GetAllCharacters());
+                            Shieling.Save(test);
+                            Shieling.Home(c, hb.Body, hb.S, sc);
+                            if (was != null) Shieling.Save(was); else Claims.Unset(Shieling.KeyHead + sc.Id);
+                            foreach (Character ch in Character.GetAllCharacters().Where(ch => ch != null && !before.Contains(ch))) { ZDO z = ch.GetComponent<ZNetView>()?.GetZDO(); if (z == null) continue; z.Set(TestKey, true); if (z.GetString(ZDOVars.s_tamedName, "") == "") z.Set(ZDOVars.s_tamedName, "Test young"); }
+                            output(new JObject { ["log"] = c.R.Log.LastOrDefault()?.Text, ["bag"] = new JArray(hb.Body.GetInventory().GetAllItems().Select(i => $"{Classes.Prefab(i)}:{i.m_stack}")), ["hauled"] = new JArray(hb.Hauled.ToArray()) });
+                            return;
                         }
                         if (a.Length > 3 && (a[2] == "up" || a[2] == "down"))
                         {

@@ -105,7 +105,9 @@ namespace Jarldom
             Herd h = Get(claim.Id);
             string where = $"the shieling {Claims.Where(claim, c.Position)}";
             if (h == null || !h.Fetching) { c.Log("text", s.Name, "", $"{s.Name} came back from {where}: the herd is up there for the summer."); return; }
-            var (home, lost, young) = Shielings.Summer(h.Beasts, claim.Biome, () => Random.value);
+            var (home, lost, young) = Shielings.Summer(h.Beasts, claim.Biome, () => Random.value, Herding.YoungOf);
+            var yield = Shielings.Yield(home, Herding.Present ? (System.Func<string, string>)Herding.ProductOf : null); // (the grown ones' only: before the young grow up)
+            int grew = Shielings.GrowUp(home, Herding.GrownOf);
             Zone pasture = c.R.Zones.FirstOrDefault(z => z.Type == ZoneType.Pasture);
             Vector3 pen = pasture != null ? Zones.Centre(pasture) : c.Position + c.Seat.transform.forward * 6f;
             int stronger = home.Count(b => h.Beasts.Any(o => o.name == b.name && o.prefab == b.prefab && o.level < b.level));
@@ -115,10 +117,30 @@ namespace Jarldom
             var told = new List<string> { $"{home.Count} beast{(home.Count == 1 ? "" : "s")}" };
             if (young.Count > 0) told.Add($"{young.Count} young born up there");
             if (stronger > 0) told.Add($"{stronger} grown stronger");
+            if (grew > 0) told.Add($"{grew} young grown up");
+            // (the summer's wool and milk: in the herder's bag, for the stores; what doesn't fit, set down in the pen)
+            Brain hb = Villagers.BrainFor(body);
+            foreach (var (item, n) in yield)
+            {
+                GameObject p = ObjectDB.instance?.GetItemPrefab(item);
+                if (p == null || n <= 0) continue;
+                int left = n;
+                while (left > 0)
+                {
+                    int stack = Mathf.Min(left, p.GetComponent<ItemDrop>().m_itemData.m_shared.m_maxStackSize);
+                    ItemDrop.ItemData got = body.GetInventory().AddItem(item, stack, 1, 0, 0L, "", false);
+                    if (got == null) { ItemDrop d = Object.Instantiate(p, (Colony.Spot(pen, 2f) ?? pen) + Vector3.up, Quaternion.identity).GetComponent<ItemDrop>(); d.SetStack(stack); }
+                    left -= stack;
+                }
+                hb?.Hauled.Add(item);
+                told.Add($"{n} {Things(item)}");
+            }
             c.Log("text", s.Name, "", $"{s.Name} brought the herd down from {where}: {string.Join(", ", told)}{(lost > 0 ? $". The wolves had {lost}." : ".")}");
             Brain b = Villagers.BrainFor(body);
             if (b != null) { b.S.Bump("shielings"); b.Dirty(); }
         }
+
+        private static string Things(string item) => ObjectDB.instance?.GetItemPrefab(item)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name is string n ? Localization.instance.Localize(n).ToLowerInvariant() : item;
 
         // The stake's hover lines for a shieling.
         public static string Hover(Claim c, string home)

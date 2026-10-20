@@ -31,6 +31,16 @@ namespace Jarldom
         public static bool Harvest(GameObject go) => go != null && (HarvestFn?.Invoke(go) ?? false);
         public static string Verb(string kind) => kind == "sheep" ? "shearing" : "milking";
 
+        // By prefab name, for the shieling's herd (kept as names while it's up there): a grown beast's young and what it gives, a young
+        // one's grown kind (null for any that isn't Byre's).
+        private static Func<string[]> KindsFn => Byre.Bind<Func<string[]>>("get_Kinds", 1);
+        private static Func<string, string> GrownFn => Byre.Bind<Func<string, string>>("Grown", 1);
+        private static Func<string, string> YoungFn => Byre.Bind<Func<string, string>>("Young", 1);
+        private static string KindOfGrown(string prefab) => Present ? KindsFn?.Invoke()?.FirstOrDefault(k => GrownFn?.Invoke(k) == prefab) : null;
+        public static string YoungOf(string prefab) => KindOfGrown(prefab) is string k ? YoungFn?.Invoke(k) : null;
+        public static string GrownOf(string prefab) => Present ? KindsFn?.Invoke()?.Where(k => YoungFn?.Invoke(k) == prefab).Select(k => GrownFn?.Invoke(k)).FirstOrDefault() : null;
+        public static string ProductOf(string prefab) => KindOfGrown(prefab) is string k ? Product(k) : null;
+
         // The pasture's work for the herder: one order for each animal ready, while the stores or a herder has its tool; a few at a time.
         public static void Post(Colony c, Zone z, IEnumerable<Character> beasts, double now, Func<ZNetView, string> key)
         {
