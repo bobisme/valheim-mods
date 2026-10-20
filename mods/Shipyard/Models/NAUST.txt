@@ -1,0 +1,60 @@
+Shipyard naust: a 22 m timber boat shed at the shore. Its land end stands on the ground and is closed by a plank wall. Its sea end
+is open over the water, so a ship floats in and out there. A 1.0 m slot runs open along the whole ridge, so a standing mast (up to
+12 m) passes through the roof.
+Made by naust.py in Blender, baked low-poly by tools/bake (docs/model-baking.md). naust.py copies the helpers and export from
+yard.py. It is kept apart from yard.py/bake_conf.py/README.txt and has its own work directory, ~/.cache/shipyard_naust.
+
+  Export (high, untextured; add "render" for previews):
+    mkdir -p ~/.cache/shipyard_naust && cp mods/Shipyard/Models/naust.py ~/.cache/shipyard_naust/
+    blender -b --python ~/.cache/shipyard_naust/naust.py -- [render] naust      (writes ~/.cache/shipyard_naust/naust.json.gz)
+    previews: ~/.cache/shipyard_naust/naust_{sea34,side,inside,land34,bare34}.png ("bare34" has no water or shore)
+  Bake (what ships: naust.json.gz, naust_albedo.png, naust_normal.png here):
+    blender -b --python $PWD/tools/bake/bake.py -- $PWD/mods/Shipyard/Models/naust_bake_conf.py naust
+    (Run it from the main checkout: tools/bake/tex is git-ignored and a worktree doesn't have it. The bake copies naust.py itself.)
+
+Materials (slots, as yard.py): 0 pine (wall and gable boards), 1 oak (posts, plates, tie beams, short posts, rafters, ridge timbers,
+braces, rail, bollards), 2 tar (the roof planks), 3 iron (bolt heads: decals, baked into the texture only).
+The look is grey, weathered timber. naust_bake_conf.py tints the game's woodpole picture (which is brown) with tints over 1 in
+green and blue to cancel the brown: pine light grey, oak darker grey, tarred planks near black.
+
+Triangles: high 8,060 -> baked 3,140 (BUDGET 2600 asked: with less than that, every bevelled timber collapses to a plain 12-triangle
+box; at 3500 they stayed at 20 and the bake came to 4,028). Texture 512 px. At the slipway's 256 px, this 22 m shed's ~1,450 UV
+islands came out 1-2 texels thick, and whole wall boards baked as black stripes. 512 is the faering strakes' size, and it bakes clean.
+
+Frame (game: +x right, +y up, +z toward the sea / the open end). Origin on the centreline at ground/water level, mid-length.
+Bounds (baked): x -3.987..3.988, y -4.011..6.046, z -11.004..11.010.
+  Posts: 7 a side at z -10.70, -7.13, -3.57, 0, 3.57, 7.13, 10.70; x ±3.45..3.75 (0.30 square), y -4.0 .. 3.25.
+  Under the water, a diagonal brace in each bay on the posts' outer faces (y -3.6 .. -0.75).
+  Wall plates x ±3.45..3.80, y 3.25..3.55, the whole length.
+  Side walls: lapped horizontal boards on the posts' INNER faces (the frame shows outside), x ±3.39..3.45, y -0.5 .. 3.30.
+    Below y -0.5 they're open (only posts and braces), so water flows through.
+  Land-end wall: upright board-on-board planks, z -11.00..-10.92, x ±3.75, y -0.5 up to under the roof (to y 6.0 across the slot).
+    Two girts inside at y 0.2..0.4 and 1.9..2.1 (z -10.92..-10.78).
+  Roof: tarred planks lapped down the slope (11 a side), each half one plane from the eave (x ±4.0, y 3.5) up to the ridge timber's
+    outer face (x ±0.8, y 5.85): 36.3 degrees. The laps stand up to about 0.09 above that plane. Barge boards at both gables.
+  Ridge timbers (slot framing): x ±0.50..0.80, y 5.70..6.00, the whole length. Nothing else crosses the slot.
+  Mast slot: x -0.5..+0.5 is clear from the water up, z -10.78..+11.0. No cross-ties. Checked on the baked mesh: the only triangles
+    inside |x| < 0.5 above y -0.5 are the land-end wall and its girts.
+  In each of the 7 frames: a tie beam on each side, y 3.27..3.52, from the post in to x ±0.51, ending at a short post
+    (x ±0.51..0.76, y 3.52..5.70) that carries that side's ridge timber. There is a rafter to the plate, a knee brace from the post to
+    the tie beam, and knee braces along the length (post to plate, short post to ridge timber).
+  Mooring: a rail along the inside of the posts on each side, x ±3.22..3.37, y 0.42..0.72, z -10.7..11.0. On it are three horn
+    cleats (bollards) a side at z -6.53, 0.60, 7.73: a block at x ±2.98..3.22, y 0.30..0.95, with its horn along z at x ±3.07, y ~0.82
+    (a line ties off at about (±3.0, 0.8, z)).
+
+Suggested colliders (BoxCollider, piece frame; centre / size / rotation about z):
+  Roof, right half:   centre ( 2.38, 4.65, 0)   size (3.97, 0.20, 22.0)   rot z -36.3   (top face ~0.07 above the roof plane,
+  Roof, left half:    centre (-2.38, 4.65, 0)   size (3.97, 0.20, 22.0)   rot z +36.3    where the laps are: solid and walkable)
+  Ridge timbers:      centre (±0.65, 5.85, 0)   size (0.30, 0.30, 22.0)   (two boxes: the slot's edges, 1.0 m apart, stay open)
+  Side wall right:    centre ( 3.57, 1.525, 0)  size (0.36, 4.05, 22.0)   (x 3.39..3.75, y -0.5..3.55: boards, posts and plate)
+  Side wall left:     centre (-3.57, 1.525, 0)  size (0.36, 4.05, 22.0)
+  Land-end wall:      centre (0, 1.50, -10.93)  size (7.50, 4.00, 0.16)   (y -0.5..3.5; above that, the gable triangle sits under
+                      the roof boxes and needs none. If players could squeeze in there, add centre (0, 4.6, -10.93) size (1.8, 2.2, 0.16).)
+  Optional: each post below the wall: centre (±3.6, -2.25, z_post) size (0.30, 3.50, 0.30); the mooring rails as ledges:
+            centre (±3.295, 0.57, 0.15) size (0.15, 0.30, 21.7).
+  Inside volume (a moored ship counts as sheltered): centre (0, 1.25, 0.0) size (6.40, 6.50, 21.5)
+            (x ±3.2 between the rails, y -2.0..4.5, z -10.75..10.75: land-end frame to sea-end frame). Use it as a trigger or an
+            OverlapBox, not a solid collider. The roof covers it all except the 1 m slot.
+
+Not done: no door. The only way in is from the sea end, or round the sides below y -0.5 (open on purpose, for the water).
+If players should walk in from the land, cut a door into the land-end wall (and split its collider).

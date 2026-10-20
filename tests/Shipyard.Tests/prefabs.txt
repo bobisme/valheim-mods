@@ -1,2 +1,4 @@
 Shipyard_Slipway
 Shipyard_Faering
+Shipyard_Knarr
+Shipyard_Naust

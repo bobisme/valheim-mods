@@ -41,8 +41,26 @@ Check(all.Refund()["Wood"]==50,"A finished one taken down gives it all back");
 // ---- Launching ----
 Check(Launching.Spot(f,d=>d<6?0:d-6)==7+2.7f,"The first stretch along with 0.6 m under the keel, all the hull's length: its middle");
 Check(Launching.Spot(f,d=>d>=3&&d<4?2:d<10?0:d-10)==11+2.7f,"A deep hole too short for the hull is passed over");
-Check(Launching.Spot(f,d=>d<20?0:5)==null,"Deep water too near the end of reach to take the hull: no launch");
+Check(Launching.Spot(f,d=>d<17?0:5)==17+2.7f&&Launching.Spot(f,d=>d<18.5f?0:5)==null,"Deep water too near the end of reach (18 m past the stocks, and the hull's length) to take the hull: no launch");
 Check(Launching.Spot(f,d=>0)==null,"No water within reach: no launch");
+
+// ---- The knarr ----
+var k=Hulls.Of(Hulls.Knarr)!;
+Check(k.Stages.Select(s=>s.Name).SequenceEqual(new[]{"keel","ribs","strakes","deck","mast"}),"A knarr goes keel, ribs, strakes, deck, mast");
+Check(k.CargoWidth*k.CargoHeight>6*3*2,"The knarr's hold is more than twice the longship's (6x3)");
+Check(Hulls.Total(k)["BronzeNails"]==120&&!Hulls.Total(k).ContainsKey("IronNails"),"Bronze-nailed: after the karve, before the longship");
+Check(k.Draught>f.Draught&&k.KeelDepth>f.KeelDepth&&k.Length>f.Length,"Deeper, longer: needs deeper water to launch");
+Check(Launching.Spot(k,d=>d<4?0:1.0f)==null&&Launching.Spot(k,d=>d<4?0:2f)==4+8,"Water deep enough for a færing isn't for a knarr");
+Check(f.Cradle==null&&k.Cradle!=null,"The knarr stands on a cradle of its own on the stocks");
+
+// ---- Sailing ----
+Check(Sailing.WindFactor(f,0.1f)==1f&&Sailing.WindFactor(null!,1f)==1f,"Other hulls sail as the game has them");
+Check(Sailing.WindFactor(k,0f)<0.65f&&Sailing.WindFactor(k,0.2f)<0.65f,"The knarr is slow in light airs");
+Check(Sailing.WindFactor(k,1f)>1.2f&&Sailing.WindFactor(k,0.9f)>1.2f,"And strong in a gale (more than the longship's sail)");
+for(float w=0;w<1;w+=0.05f)Check(Sailing.WindFactor(k,w+0.05f)>=Sailing.WindFactor(k,w),"More wind never less sail: "+w);
+// Measured against the longship (sail force = lerp(0.25,1,w) * factor): the knarr's speed under sail (force ~ v², so v ~ sqrt) is under
+// the longship's below a fresh breeze, and over it in a strong one
+Check(Sailing.WindFactor(k,0.3f)<0.8f&&Sailing.WindFactor(k,0.8f)>1.1f,"Below the longship at 0.3 wind, above it at 0.8");
 
 // ---- Prefab names ----
 {

@@ -18,7 +18,15 @@ namespace Shipyard
         // (Models/README: the top of the keel blocks above the slipway's origin; a hull's keel bottom is 0.45 below its waterline origin)
         internal const float BlockTop = 0.55f, KeelDepth = 0.45f;
         private ZNetView _view; private Transform _hull; private string _shown;
+        private int _choice; // (the hull a keel would be laid for: Shift+E goes through them; this player's own, not the world's)
+        private Hull Chosen => Hulls.All[Math.Abs(_choice) % Hulls.All.Length];
         private float _next;
+
+        internal static readonly List<Slipway> All = new List<Slipway>();
+        internal const float RepairReach = 30f; // (a ship this near a slipway is in the shipyard: the hammer mends her there, no workbench needed)
+        internal static bool Near(Vector3 at, float reach) => All.Any(s => s != null && Vector3.Distance(s.transform.position, at) <= reach);
+        private void OnEnable() { if (!All.Contains(this)) All.Add(this); }
+        private void OnDisable() => All.Remove(this);
 
         private void Awake()
         {
@@ -52,10 +60,17 @@ namespace Shipyard
             _hull = null;
             if (b.Empty || b.Stage == 0) return;
             _hull = new GameObject("hull").transform; _hull.SetParent(transform, false);
-            _hull.localPosition = new Vector3(0, BlockTop + KeelDepth, 0);
-            for (int i = 0; i < Math.Min(b.Stage, b.Hull.Stages.Length); i++)
-                if (Looks.Add(_hull, ZNetScene.instance, b.Hull.Stages[i].Model, b.Hull.Stages[i].Name) is GameObject part)
+            _hull.localPosition = new Vector3(0, BlockTop + b.Hull.KeelDepth, 0);
+            var parts = new List<(string model, string name, Vector3 at)>();
+            if (b.Hull.Cradle != null) parts.Add((b.Hull.Cradle, "cradle", Vector3.zero));
+            for (int i = 0; i < Math.Min(b.Stage, b.Hull.Stages.Length); i++) parts.Add((b.Hull.Stages[i].Model, b.Hull.Stages[i].Name, Vector3.zero));
+            if (b.Finished && b.Hull.Yard != null) parts.Add((b.Hull.Yard, "yard", new Vector3(0, 0, b.Hull.MastZ))); // (the sail furled on its yard, up)
+            foreach (var (model, name, at) in parts)
+                if (Looks.Add(_hull, ZNetScene.instance, model, name) is GameObject part)
+                {
+                    part.transform.localPosition = at;
                     foreach (Transform t in part.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = gameObject.layer;
+                }
         }
 
         // ---- looking and E ----
@@ -65,13 +80,16 @@ namespace Shipyard
         {
             Build b = Now();
             string text = "Slipway";
-            if (b.Empty) return Localization.instance.Localize(text + "\n[<color=yellow><b>$KEY_Use</b></color>] Lay a keel: " + Hulls.All[0].Title.ToLower());
+            if (b.Empty)
+                return Localization.instance.Localize(text + "\n[<color=yellow><b>$KEY_Use</b></color>] Lay a keel: " + Chosen.Title.ToLower() + " (" + Costs(Chosen) + ")"
+                    + (Hulls.All.Length > 1 ? "\n[<color=yellow><b>$KEY_AltPlace + $KEY_Use</b></color>] Another hull" : ""));
             text += $"\n{b.Hull.Title}";
             if (b.Finished) return Localization.instance.Localize(text + ", finished\n[<color=yellow><b>$KEY_Use</b></color>] Launch her");
             text += $": {b.Current.Title.ToLower()} (stage {b.Stage + 1} of {b.Hull.Stages.Length})";
             text += "\nNeeds " + string.Join(", ", b.Needs().Select(n => $"{n.n} {ItemName(n.item)}" + (b.Had(n.item) > 0 ? $" ({b.Had(n.item)} in)" : "")));
             return Localization.instance.Localize(text + "\n[<color=yellow><b>$KEY_Use</b></color>] " + (Player.m_localPlayer is Player p && Free(p) ? "Build it" : "Put in from your bag"));
         }
+        private static string Costs(Hull h) => string.Join(", ", Hulls.Total(h).Select(kv => $"{kv.Value} {ItemName(kv.Key)}")) + $" in {h.Stages.Length} stages";
         internal static string ItemName(string prefab)
         {
             string n = ObjectDB.instance?.GetItemPrefab(prefab)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name;
@@ -82,7 +100,8 @@ namespace Shipyard
         {
             if (hold || !(user is Player p) || _view == null || !_view.IsValid()) return false;
             Build b = Now();
-            if (b.Empty) { _view.InvokeRPC("Shipyard_Lay", Hulls.All[0].Name); return true; }
+            if (b.Empty && alt) { _choice++; return true; }
+            if (b.Empty) { _view.InvokeRPC("Shipyard_Lay", Chosen.Name); return true; }
             if (b.Finished) { _view.InvokeRPC("Shipyard_Launch"); return true; }
             if (Free(p)) { foreach (var (item, n) in b.Needs()) _view.InvokeRPC("Shipyard_Pay", item, n); return true; } // (as the hammer builds there: for nothing)
             int gave = Give(p, b);
@@ -112,6 +131,31 @@ namespace Shipyard
             return gave;
         }
 
+        // ---- for other mods (Api.cs): the same rules, worked on this game (it takes the slipway over first) ----
+        internal bool Lay(string hull)
+        {
+            if (_view == null || !_view.IsValid() || Hulls.Of(hull) == null || !Now().Empty) return false;
+            if (!_view.IsOwner()) _view.ClaimOwnership();
+            Keep(new Build { Hull = Hulls.Of(hull) });
+            return true;
+        }
+        internal int Put(string item, int n)
+        {
+            if (_view == null || !_view.IsValid() || n <= 0) return 0;
+            if (!_view.IsOwner()) _view.ClaimOwnership();
+            Build b = Now();
+            int took = b.Take(new[] { (item, n) }).Where(x => x.item == item).Sum(x => x.n);
+            if (took > 0) Keep(b);
+            return took;
+        }
+        internal bool LaunchNow()
+        {
+            if (_view == null || !_view.IsValid() || !Now().Finished || !(Where(Now().Hull) is Vector3)) return false;
+            if (!_view.IsOwner()) _view.ClaimOwnership();
+            RPC_Launch(0);
+            return Now().Empty;
+        }
+
         // ---- the owner's side ----
         private void RPC_Lay(long sender, string hull)
         {
@@ -130,7 +174,7 @@ namespace Shipyard
             if (b.Stage > stage && !b.Finished) Tell(sender, $"{b.Hull.Stages[stage].Title} done. Next: {b.Current.Title.ToLower()}");
             else if (b.Stage > stage) Tell(sender, $"The {b.Hull.Title.ToLower()} is finished: launch her");
         }
-        private void Tell(long to, string text) => ZRoutedRpc.instance.InvokeRoutedRPC(to, "ShowMessage", (int)MessageHud.MessageType.Center, text);
+        private void Tell(long to, string text) { if (to != 0) ZRoutedRpc.instance.InvokeRoutedRPC(to, "ShowMessage", (int)MessageHud.MessageType.Center, text); }
         private void RPC_Refund(long sender, string item, int n)
         {
             Player p = Player.m_localPlayer;
@@ -143,7 +187,7 @@ namespace Shipyard
             if (!_view.IsOwner()) return;
             Build b = Now();
             if (!b.Finished) return;
-            if (!(Where(b.Hull) is Vector3 at)) { Tell(sender, $"No water deep enough within {Launching.Reach:0} m ahead of the bow end"); return; }
+            if (!(Where(b.Hull) is Vector3 at)) { Tell(sender, $"No water deep enough for her within {Launching.Reach(b.Hull):0} m ahead of the bow end"); return; }
             GameObject boat = ZNetScene.instance.GetPrefab(b.Hull.Prefab);
             if (boat == null) { Tell(sender, "The game doesn't know the " + b.Hull.Title.ToLower()); return; }
             Object.Instantiate(boat, at, transform.rotation);
@@ -155,9 +199,12 @@ namespace Shipyard
         {
             float sea = ZoneSystem.instance.m_waterLevel;
             Vector3 fwd = transform.forward; fwd.y = 0; fwd.Normalize();
+            // (water with a boat already in it is no place to put another: as if dry; a boat is its hull, what's stood on and bumped)
+            int boats = LayerMask.GetMask("vehicle");
             float? d = Launching.Spot(h, m =>
             {
                 Vector3 p = transform.position + fwd * m;
+                if (Physics.CheckCapsule(new Vector3(p.x, sea - 1f, p.z), new Vector3(p.x, sea + 2f, p.z), h.Length > 8 ? 2.6f : 1.0f, boats, QueryTriggerInteraction.Ignore)) return 0;
                 return sea - ZoneSystem.instance.GetGroundHeight(p);
             });
             if (d == null) return null;
@@ -182,6 +229,19 @@ namespace Shipyard
                 GameObject go = Object.Instantiate(prefab, at + UnityEngine.Random.insideUnitSphere * 0.5f, Quaternion.identity);
                 go.GetComponent<ItemDrop>().SetStack(k);
             }
+        }
+    }
+
+    // Ships are mended (and broken up) with the hammer at a slipway as at a workbench: the game asks for the ship's crafting station in
+    // reach of the player; a slipway near the ship does as well.
+    [HarmonyLib.HarmonyPatch(typeof(Player), "CheckCanRemovePiece")]
+    internal static class RepairAtSlipway
+    {
+        private static bool Prefix(Piece piece, ref bool __result)
+        {
+            if (piece == null || piece.GetComponent<Ship>() == null || !Slipway.Near(piece.transform.position, Slipway.RepairReach)) return true;
+            __result = true;
+            return false;
         }
     }
 }

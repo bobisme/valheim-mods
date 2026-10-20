@@ -12,22 +12,42 @@ namespace Shipyard
     {
         public string Name, Title, Prefab; public Stage[] Stages;
         public float Draught, Length; // (how deep the water under it must be to launch it, all along its length)
+        public float KeelDepth; // (the keel's bottom below the hull's origin, its waterline: how high it stands on the stocks)
+        public string Cradle; // (the blocks and shores it stands on, on the slipway only; null: the slipway's own blocks do)
+        public int CargoWidth, CargoHeight; // (its hold, in slots; 0: none)
+        public string Yard, Sail; public float MastZ; // (a sailing hull's yard with the sail furled on it, and the sail set: models turned with the
+                                                     // wind about the mast's axis, MastZ along the hull; null: rowed)
     }
 
     public static class Hulls
     {
-        public const string Faering = "faering";
+        public const string Faering = "faering", Knarr = "knarr";
         public static readonly Hull[] All =
         {
             new Hull
             {
-                Name = Faering, Title = "Færing", Prefab = Names.Faering, Draught = 0.6f, Length = 5.4f,
+                Name = Faering, Title = "Færing", Prefab = Names.Faering, Draught = 0.6f, Length = 5.4f, KeelDepth = 0.45f,
                 Stages = new[]
                 {
                     new Stage { Name = "keel", Title = "Keel and stems", Model = "faering_keel", Cost = new[] { ("Wood", 10), ("Resin", 2) } },
                     new Stage { Name = "ribs", Title = "Ribs", Model = "faering_ribs", Cost = new[] { ("Wood", 12) } },
                     new Stage { Name = "strakes", Title = "Strakes", Model = "faering_strakes", Cost = new[] { ("Wood", 20), ("Resin", 8), ("LeatherScraps", 4) } },
                     new Stage { Name = "fit", Title = "Thwarts and oars", Model = "faering_fit", Cost = new[] { ("Wood", 8), ("LeatherScraps", 4) } },
+                },
+            },
+            // The knarr: a broad, deep cargo ship (Skuldelev 1), with one big square sail. Bronze-nailed, so after the karve; the longship
+            // (iron) stays the faster ship, the knarr the one that carries.
+            new Hull
+            {
+                Name = Knarr, Title = "Knarr", Prefab = Names.Knarr, Draught = 1.4f, Length = 16f, KeelDepth = 1.1f, Cradle = "knarr_cradle", Yard = "knarr_yard", Sail = "knarr_sail", MastZ = 0.6f,
+                CargoWidth = 8, CargoHeight = 6,
+                Stages = new[]
+                {
+                    new Stage { Name = "keel", Title = "Keel and stems", Model = "knarr_keel", Cost = new[] { ("FineWood", 10), ("Resin", 6) } },
+                    new Stage { Name = "ribs", Title = "Ribs and beams", Model = "knarr_ribs", Cost = new[] { ("FineWood", 12), ("BronzeNails", 20) } },
+                    new Stage { Name = "strakes", Title = "Strakes", Model = "knarr_strakes", Cost = new[] { ("FineWood", 14), ("BronzeNails", 80), ("Resin", 16) } },
+                    new Stage { Name = "deck", Title = "Decks and hold", Model = "knarr_deck", Cost = new[] { ("Wood", 30), ("BronzeNails", 20) } },
+                    new Stage { Name = "mast", Title = "Mast, sail and rigging", Model = "knarr_mast", Cost = new[] { ("FineWood", 4), ("DeerHide", 15), ("LeatherScraps", 10) } },
                 },
             },
         };
@@ -109,16 +129,31 @@ namespace Shipyard
         // Where a finished boat goes in: along the slipway's length (its bow end first), the first stretch with water deep enough under
         // the keel all along the hull, within reach. depthAt(metres along) gives the water's depth there (<= 0: dry). The metres along
         // to the hull's middle; null if there's no such water.
-        public const float Reach = 24f, Step = 0.5f;
+        public const float Step = 0.5f;
+        public static float Reach(Hull h) => 18f + h.Length; // (past the slipway's end, and room for the whole hull)
         public static float? Spot(Hull h, Func<float, float> depthAt)
         {
-            for (float d = 0; d + h.Length <= Reach; d += Step)
+            for (float d = 0; d + h.Length <= Reach(h); d += Step)
             {
                 bool deep = true;
                 for (float m = d; m <= d + h.Length + 0.001f && deep; m += Step) deep = depthAt(m) >= h.Draught;
                 if (deep) return d + h.Length / 2;
             }
             return null;
+        }
+    }
+
+    // How a hull sails. The game's sail force grows with the wind's strength (a quarter of it in a calm, all of it in a gale); a hull's
+    // own curve multiplies that. The knarr's big, heavy sail barely draws in light airs and comes into its own in strong wind.
+    public static class Sailing
+    {
+        public const float KnarrForceFactor = 0.05f; // (the longship's sail force; the curve below scales it)
+        public static float WindFactor(Hull h, float windIntensity)
+        {
+            if (h == null || h.Name != Hulls.Knarr) return 1f;
+            float w = Math.Max(0f, Math.Min(1f, windIntensity));
+            float t = Math.Max(0f, Math.Min(1f, (w - 0.25f) / 0.6f)); t = t * t * (3 - 2 * t); // (smoothstep 0.25..0.85)
+            return 0.6f + 0.65f * t;
         }
     }
 }
