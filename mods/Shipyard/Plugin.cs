@@ -17,7 +17,7 @@ namespace Shipyard
     {
         public const string Guid = "cx.bob.shipyard";
         public const string Name = "Shipyard";
-        public const string Version = "0.3.0";
+        public const string Version = "0.3.1";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled;
         private Harmony _harmony;

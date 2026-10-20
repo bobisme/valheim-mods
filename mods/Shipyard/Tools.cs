@@ -27,7 +27,7 @@ namespace Shipyard
             try
             {
                 found.GetType().GetMethod("RegisterCommand", BindingFlags.Public | BindingFlags.Static)?.Invoke(null, new object[]{Plugin.Name, "yard",
-                    "yard [at x z] status | lay [hull] | pay [stages] | launch | use | api [hull] | down | bump | mend | ships | row [forward|backward|leave] [n] | sink: check Shipyard (at x z first: as if standing there, for the slipway and boats nearest that spot). status shows the slipways within 150 m (the build, the stage, what it needs) and the boats; lay lays a keel on the nearest slipway; pay puts in the stage under way (or that many stages) from nothing (cheats only); launch launches the finished boat on the nearest slipway as E does; use is E on it, as the player (cheats only); api builds a whole boat on it through Shipyard.Api and launches it (cheats only); mend is the hammer's repair on the nearest boat, as the player (a slipway near her stands for a workbench); bump knocks the nearest boat as the shore does and says if a naust kept it off (cheats only); down takes the nearest slipway down as the hammer does and lists what lies around it after (cheats only); ships lists the boats loaded (where, how high the hull rides over the sea, speed, owner); row works the nearest færing's oars as its helm does, taking the helm first, and leave lets go of it (cheats only; the game rows only with someone aboard); sink removes the boats loaded within 150 m (test boats; cheats only).",
+                    "yard [at x z] status | lay [hull] | pay [stages] | launch | use | api [hull] | down | bump | mend | ships | row [forward|backward|leave] [n] | sink: check Shipyard (at x z first: as if standing there, for the slipway and boats nearest that spot). status shows the slipways within 150 m (the build, the stage, what it needs) and the boats; lay lays a keel on the nearest slipway; pay puts in the stage under way (or that many stages) from nothing (cheats only); launch launches the finished boat on the nearest slipway as E does; use is E on it, as the player (cheats only); api builds a whole boat on it through Shipyard.Api and launches it (cheats only); mend is the hammer's repair on the nearest boat, as the player (a slipway near her stands for a workbench); bump knocks the nearest boat as the shore does and says if a naust kept it off (cheats only); down takes the nearest slipway down as the hammer does and lists what lies around it after (cheats only); ships lists the boats loaded (where, how high the hull rides over the sea, speed, owner); row works the helm of the boat the player stands on (any kind, to compare) or else the nearest of ours, taking the helm first, a step forward or backward per n (forward 0: just how she goes), and leave lets go of it (cheats only; the game rows and sails only with someone at the helm); sink removes the boats loaded within 150 m (test boats; cheats only).",
                     (Func<string[], Action<JObject>, Action<string>, IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: yard command added");
             }
@@ -193,14 +193,18 @@ namespace Shipyard
                     // the nearest færing's oars, as its helm sets them: forward (stop, slow) or backward (back, stop); the game rows only
                     // with someone aboard
                     if (!Cheats()) { error("yard row steers a boat: only where cheats are allowed"); yield break; }
-                    Ship ship = UnityEngine.Object.FindObjectsByType<Ship>(FindObjectsSortMode.None).Where(Yard.IsOurs).OrderBy(x => Vector3.Distance(x.transform.position, at)).FirstOrDefault();
-                    if (ship == null) { error("no færing loaded"); yield break; }
+                    // (the ship the player stands on, any kind, for comparing; else the nearest of ours)
+                    Ship ship = UnityEngine.Object.FindObjectsByType<Ship>(FindObjectsSortMode.None).Where(x => Vector3.Distance(x.transform.position, me.transform.position) < 10).OrderBy(x => Vector3.Distance(x.transform.position, me.transform.position)).FirstOrDefault()
+                        ?? UnityEngine.Object.FindObjectsByType<Ship>(FindObjectsSortMode.None).Where(Yard.IsOurs).OrderBy(x => Vector3.Distance(x.transform.position, at)).FirstOrDefault();
+                    if (ship == null) { error("no boat loaded"); yield break; }
                     if (a.Length > 2 && a[2] == "leave") { me.AttachStop(); yield return new WaitForSeconds(0.5f); output(new JObject { ["helm"] = me.IsAttached() }); break; }
                     // (and only with a hand on the tiller: the player takes it, if near enough)
                     if (!me.IsAttached() && ship.GetComponentInChildren<ShipControlls>() is ShipControlls helm) { helm.Interact(me, false, false); yield return new WaitForSeconds(1f); }
                     for (int i = 0; i < (int)F(a, 3, 1); i++) { if (a.Length > 2 && a[2] == "backward") ship.Backward(); else ship.Forward(); }
                     yield return new WaitForSeconds(0.5f);
-                    output(new JObject { ["helm"] = me.IsAttached(), ["boats"] = Boats(at) });
+                    Rigidbody body = ship.GetComponent<Rigidbody>();
+                    output(new JObject { ["helm"] = me.IsAttached(), ["ship"] = Utils.GetPrefabName(ship.gameObject), ["setting"] = ship.GetSpeedSetting().ToString(), ["at"] = V(ship.transform.position),
+                        ["speed"] = Math.Round(Vector3.Dot(body.velocity, ship.transform.forward), 2), ["wind"] = Math.Round(EnvMan.instance.GetWindIntensity(), 2), ["windAngle"] = Math.Round(Vector3.Angle(EnvMan.instance.GetWindDir(), ship.transform.forward)) });
                     break;
                 }
                 case "sink":
