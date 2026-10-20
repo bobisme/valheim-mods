@@ -191,6 +191,26 @@ namespace Wayfinder
             Place();
             Vector2 size=_text.GetPreferredValues(text,640,0);
             _notes.sizeDelta=new Vector2(Mathf.Min(700,size.x+60),size.y+22);
+            ClearOfEffects();
+        }
+        // The game's status-effect icons (top right, growing leftward) are drawn over us: with several of them the notes ran under
+        // them. Slid left until the box clears the leftmost icon.
+        private static readonly Vector3[] Corners=new Vector3[4];
+        private static void ClearOfEffects()
+        {
+            var list=Hud.instance!=null?Hud.instance.m_statusEffectListRoot:null;
+            if(list==null)return;
+            float left=float.MaxValue,bottom=float.MaxValue;
+            foreach(RectTransform icon in list)
+            {
+                if(!icon.gameObject.activeInHierarchy)continue;
+                icon.GetWorldCorners(Corners);left=Mathf.Min(left,Corners[0].x);bottom=Mathf.Min(bottom,Corners[0].y);
+            }
+            if(left==float.MaxValue)return;
+            _notes.GetWorldCorners(Corners);
+            float margin=12*_root.lossyScale.x,over=Corners[2].x-(left-margin);
+            if(over<=0||Corners[0].y>=bottom)return; // (clear of them already, or below them)
+            _notes.anchoredPosition-=new Vector2(over/_root.lossyScale.x,0);
         }
         internal static string Biome(Heightmap.Biome b)
         {
