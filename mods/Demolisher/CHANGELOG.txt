@@ -1,2 +1,4 @@
+0.1.7: a hot reload no longer leaves the old copy's demolition stake behind (one a reload, till the game restarted).
+
 0.1.6: The demolition stake is re-baked with a stricter check that the low-poly model keeps the detailed one's shape.
 
