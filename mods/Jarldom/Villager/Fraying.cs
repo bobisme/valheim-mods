@@ -26,7 +26,11 @@ namespace Jarldom
                 i.m_durability = Mathf.Max(0, i.m_durability - Fray.PerHour(i.GetMaxDurability(), season, rate) * (float)h);
                 if (i.m_durability > 0) continue;
                 string name = Localization.instance.Localize(i.m_shared.m_name).ToLower();
+                var slot = i.m_shared.m_itemType;
                 b.Body.UnequipItem(i, false); bag.RemoveItem(i);
+                // What's left of it is rags, worn till the weaver's next garment (Gear.Maintain puts them on); a hat or cloak is just gone.
+                string rags = slot == ItemDrop.ItemData.ItemType.Chest ? "ArmorRagsChest" : slot == ItemDrop.ItemData.ItemType.Legs ? "ArmorRagsLegs" : null;
+                if (rags != null && !bag.GetAllItems().Any(x => Classes.Prefab(x) == rags) && Assets.Find(rags) is GameObject rp) bag.AddItem(rp, 1);
                 b.Say(new[] { $"My {name} has worn through.", $"That's the end of my {name}: more holes than cloth.", $"My {name} is rags now.", $"My {name} fell apart at the seams." }[Random.Range(0, 4)], 5);
                 b.S.Bump("wornout");
             }
