@@ -18,7 +18,7 @@ namespace Godforged
     {
         public const string Guid="cx.bob.godforged";
         public const string Name="Godforged";
-        public const string Version="0.3.4";
+        public const string Version="0.3.5";
         internal static Plugin Instance;
         internal static ConfigEntry<float> Volume;
         // The server's say in multiplayer over the relics' strengths, reaches, timers and costs (look and sound stay each player's own).

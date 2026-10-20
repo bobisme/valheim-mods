@@ -1,3 +1,5 @@
+0.3.5: Api 3: FairWind(ship) says whether a ship sails with Skíðblaðnir's fair wind (Wayfinder's HUD asks it).
+
 0.3.4: Skíðblaðnir, Freyr's ship folded small (used). By the water a karve unfolds afloat close by, and her sail always draws as if the wind were behind her (FairWind, a server setting). Used beside her, with her hold empty and nobody aboard, she folds back up. One ship per relic; she stays where she's moored. She's the game's karve, so removing Godforged leaves her one. Sunk or taken apart she gives back no wood, and the relic unfolds her anew.
 
 0.3.3: In multiplayer the server decides the relics' gameplay settings: Mjölnir's strike, chain and return, Draupnir's coins, Brísingamen's share and range, Gjallarhorn's watch and rest, and every cost and station. Its values replace a player's own while they play there. A cost or station changed in the file now applies at once, with no restart. Volume, Gungnir's wind and Járngreipr's look stay each player's own.
