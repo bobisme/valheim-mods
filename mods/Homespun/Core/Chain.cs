@@ -33,6 +33,8 @@ namespace Homespun
         public const string LinenBolt = "Homespun_LinenBolt", WoolBolt = "Homespun_WoolBolt", Band = "Homespun_Band";
         // Garments
         public const string Undertunic = "Homespun_LinenUndertunic", Tunic = "Homespun_WoolTunic", Dress = "Homespun_WoolDress", Trousers = "Homespun_WoolTrousers", Cloak = "Homespun_HoodedCloak";
+        // Beyond clothes (H3): a wool sail (Shipyard's knarr takes it), and nalbound mittens and socks (the utility slot)
+        public const string Sail = "Homespun_Sail", Nalbinding = "Homespun_Nalbinding";
         // The game's (and Byre's) that the chain uses
         public const string Flax = "Flax", Thread = "LinenThread", LoxPelt = "LoxPelt", Fleece = "ByreWool";
     }
@@ -57,6 +59,8 @@ namespace Homespun
         public string Prefab, Base, Title, Description; public float Armor, Weight = 1f, Durability = 200f;
         public (float r, float g, float b) Tint;   // (the colour its look is recoloured to, worn and folded: bleached linen, undyed wool)
         public string Model;                       // (its own folded look on the ground and in the bag: Models/<Model>.json.gz)
+        public bool Frost;                         // (it keeps out the cold, as a wolf fur cape does: frost resistant)
+        public bool Hood;                          // (its hood keeps off the rain: no wet from it, though the sea still soaks you)
     }
 
     public static class Chain
@@ -96,6 +100,8 @@ namespace Homespun
             new Make { Station = Names.Table, Item = Names.Dress, Needs = new[] { (Names.WoolBolt, 2), (Names.Band, 1) } },
             new Make { Station = Names.Table, Item = Names.Trousers, Needs = new[] { (Names.WoolBolt, 2), (Names.Thread, 2) } },
             new Make { Station = Names.Table, Item = Names.Cloak, Needs = new[] { (Names.WoolBolt, 3), (Names.Band, 1) } },
+            new Make { Station = Names.Table, Item = Names.Sail, Needs = new[] { (Names.WoolBolt, 6), (Names.Thread, 4) } },
+            new Make { Station = Names.Table, Item = Names.Nalbinding, Needs = new[] { (Names.Yarn, 6) } },
         };
 
         public static readonly Garment[] Garments =
@@ -108,8 +114,8 @@ namespace Homespun
                 Description = "A long dress of undyed wool, edged with a woven band." },
             new Garment { Prefab = Names.Trousers, Base = "ArmorRagsLegs", Title = "Wool trousers", Armor = 2, Weight = 1f, Tint = (0.45f, 0.38f, 0.3f), Model = "trousers",
                 Description = "Loose trousers of grey-brown wool, gathered below the knee." },
-            new Garment { Prefab = Names.Cloak, Base = "CapeLinen", Title = "Hooded cloak", Armor = 1, Weight = 2f, Tint = (0.33f, 0.28f, 0.23f), Model = "cloak",
-                Description = "A heavy cloak of coarse wool, vadmal, with a hood." },
+            new Garment { Prefab = Names.Cloak, Base = "CapeLinen", Title = "Hooded cloak", Armor = 1, Weight = 2f, Tint = (0.33f, 0.28f, 0.23f), Model = "cloak", Frost = true, Hood = true,
+                Description = "A heavy cloak of coarse wool, vadmal, with a hood. It keeps out the cold, the mountains' too, and its hood keeps off the rain." },
         };
         public static Garment GarmentOf(string prefab) => Garments.FirstOrDefault(g => g.Prefab == prefab);
 

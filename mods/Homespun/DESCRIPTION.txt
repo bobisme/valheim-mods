@@ -12,6 +12,10 @@ Warp-weighted loom: a frame leaned back, the warp hanging from it on stone weigh
 
 Sewing table: cut and sew bolts into clothes. Linen undertunic, wool tunic, wool dress, wool trousers and a hooded wool cloak, in the colours of undyed linen and wool: light, warm work clothes, not armour. And Hildir's coloured clothes, made here from cloth (berries for the colour) instead of bought. 12 wood, 2 leather scraps, 1 bronze.
 
+What the clothes do: light on armour, they are for the weather and for looking well. The hooded cloak keeps out the cold as a wolf fur cape does, and its hood keeps the rain off (the sea still soaks you). Nalbound mittens and socks (sewing table: 6 yarn), worn in the utility slot, keep off the chill of a night or a cold wind, though not the mountains' freezing. Dressed in two dyed pieces or more, you rest the better for it: +1 comfort.
+
+Wool sail (sewing table: 6 wool bolts, 4 linen thread; dyed bolts make it in their colour): with Shipyard, a knarr's mast stage takes one in place of hides and sails under its colour. With Wayfinder, use a sail on any other ship's helm to rig her with it, seen by everyone; use it again to take it down.
+
 With Byre installed, its sheep's fleece spins straight into yarn, no lox pelt needed.
 
 Dye vat: a stave tub. Open it as you would a chest, put in bolts of cloth or clothes and one dyestuff, and a minute later they come out dyed: blueberries dye blue, raspberries red, dandelions yellow, and lichen purple. A bolt takes a measure of dye (5 berries or dandelions, 3 lichen), a garment the bolts it was sewn from. Dyed bolts sew into garments of their colour at the sewing table, and a garment can be dyed again in another colour. Its wear and mending go with it. Dyed things are items of their own, so their colour shows worn, dropped and in a chest, for every player. 12 wood, 3 stone, 2 resin.

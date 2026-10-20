@@ -64,6 +64,12 @@ namespace Homespun
             "Homespun_HoodedCloak_Purple",
             "Homespun_TapestryFrieze",
             "Homespun_TapestryHanging",
+            "Homespun_Sail",
+            "Homespun_Sail_Blue",
+            "Homespun_Sail_Red",
+            "Homespun_Sail_Yellow",
+            "Homespun_Sail_Purple",
+            "Homespun_Nalbinding",
         };
     }
 }

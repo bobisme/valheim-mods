@@ -26,7 +26,7 @@ namespace Homespun
             try
             {
                 found.GetType().GetMethod("RegisterCommand", BindingFlags.Public | BindingFlags.Static)?.Invoke(null, new object[]{Plugin.Name, "spun",
-                    "spun status | give <item|fibre|cloth|garments|hildir|dyes|dyed|all> [n] | finish | steep [radius] | feed <item> [n] | drops [rolls] | fresh [meadows|forest|mountain] [n] [edge] | chain [item] | recipes: check Homespun. status shows the retting pools, flax brakes and spinning wheels within 30 m (what's queued, done, and how far on), the dye vats (what's in them and what they're doing) and the spindle in hand; steep finishes the batch in the dye vats within 60 m now (cheats only); give puts items of the chain in the bag (an item's prefab or one of the groups; cheats only); finish runs the stations near you an hour on, as if you'd been away (cheats only), and finishes the thread on the spindle; feed puts an item straight into the nearest station within 20 m that takes it, as if from a bag (cheats only); drops rolls a greydwarf's drops many times and counts the nettle; fresh lists the nearest ground of a biome the world hasn't made yet (where wild nettle and lichen can still grow), for a trip; chain shows what an item (or every garment) comes to in what's gathered, with and without Byre's fleece; recipes lists Homespun's recipes and where each is made.",
+                    "spun status | give <item|fibre|cloth|garments|hildir|dyes|dyed|all> [n] | wear [prefab|-prefab...] | stow <prefab...>|back | finish | steep [radius] | feed <item> [n] | drops [rolls] | fresh [meadows|forest|mountain] [n] [edge] | chain [item] | recipes: check Homespun. status shows the retting pools, flax brakes and spinning wheels within 30 m (what's queued, done, and how far on), the dye vats (what's in them and what they're doing) and the spindle in hand; steep finishes the batch in the dye vats within 60 m now (cheats only); give puts items of the chain in the bag (an item's prefab or one of the groups; cheats only); finish runs the stations near you an hour on, as if you'd been away (cheats only), and finishes the thread on the spindle; feed puts an item straight into the nearest station within 20 m that takes it, as if from a bag (cheats only); drops rolls a greydwarf's drops many times and counts the nettle; fresh lists the nearest ground of a biome the world hasn't made yet (where wild nettle and lichen can still grow), for a trip; chain shows what an item (or every garment) comes to in what's gathered, with and without Byre's fleece; recipes lists Homespun's recipes and where each is made.",
                     (Func<string[], Action<JObject>, Action<string>, IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: spun command added");
             }
@@ -38,6 +38,14 @@ namespace Homespun
             _tools = null;
         }
         // The game's own test: single player or the host, or devcommands on and a server admin.
+        private static readonly System.Collections.Generic.List<(Vector3 at, string prefab, int n)> Stowed = new System.Collections.Generic.List<(Vector3, string, int)>();
+        // A free cell of the bag's own rows (gear-slot mods add rows below that the bag's CanAddItem counts, and then it says full).
+        private static Vector2i? FreeCell(Inventory bag)
+        {
+            for (int y = 0; y < Mathf.Min(4, bag.GetHeight()); y++)
+                for (int x = 0; x < bag.GetWidth(); x++) if (bag.GetItemAt(x, y) == null) return new Vector2i(x, y);
+            return null;
+        }
         private static bool Cheats() => ZNet.instance != null && (ZNet.instance.IsServer() || global::Console.instance != null && global::Console.instance.IsCheatsEnabled());
         private static JArray V(Vector3 v) => new JArray(Math.Round(v.x, 1), Math.Round(v.y, 1), Math.Round(v.z, 1));
         private static float F(string[] a, int i, float or) => a.Length > i && float.TryParse(a[i], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float v) ? v : or;
@@ -90,7 +98,7 @@ namespace Homespun
                     if (!Cheats()) { error("spun give makes items: only in single player, for the host, or for a server admin with devcommands on"); yield break; }
                     string what = a.Length > 2 ? a[2] : "all"; int n = (int)F(a, 3, 10);
                     string[] fibre = { Names.Flax, Names.RettedFlax, Names.LineFlax, Names.Nettle, Names.RettedNettle, Names.LineNettle, Names.LoxPelt, Names.Wool, Names.Yarn, Names.Thread, Names.Fleece };
-                    string[] cloth = { Names.LinenBolt, Names.WoolBolt, Names.Band, Names.Spindle };
+                    string[] cloth = { Names.LinenBolt, Names.WoolBolt, Names.Band, Names.Spindle, Names.Sail, Names.Nalbinding };
                     string[] garments = Chain.Garments.Select(g => g.Prefab).ToArray();
                     string[] dyes = Dye.Dyes.Select(d => d.Stuff).ToArray();
                     string[] list = what == "fibre" ? fibre : what == "cloth" ? cloth : what == "garments" ? garments : what == "hildir" ? Chain.Hildir.Select(h => h.item).ToArray()
@@ -105,6 +113,117 @@ namespace Homespun
                         given[item] = me.GetInventory().AddItem(p, count) ? count : 0;
                     }
                     output(new JObject { ["given"] = given });
+                    break;
+                }
+                case "wear":
+                {
+                    // spun wear [prefab...]: what the player wears and what it does (frost resistance, cold, wet, comfort); with prefabs, put
+                    // those on first (from the bag; given if not there, where cheats are allowed)
+                    foreach (string arg in a.Skip(2))
+                    {
+                        // (-prefab: take it off)
+                        if (arg.StartsWith("-"))
+                        {
+                            ItemDrop.ItemData on = me.GetInventory().GetEquippedItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == arg.Substring(1));
+                            if (on != null) me.UnequipItem(on, true);
+                            continue;
+                        }
+                        string item = arg;
+                        ItemDrop.ItemData have = me.GetInventory().GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == item);
+                        if (have == null && Cheats() && (Things.Get(item) ?? ZNetScene.instance.GetPrefab(item)) is GameObject p && FreeCell(me.GetInventory()) is Vector2i cell)
+                            have = me.GetInventory().AddItem(item, 1, 1, 0, 0L, "", new Vector2i(cell.x, cell.y), false);
+                        if (have == null) { error("no " + item + " in the bag (full?)"); yield break; }
+                        if (!me.IsItemEquiped(have)) me.EquipItem(have, true);
+                    }
+                    yield return null;
+                    var mods = (HitData.DamageModifiers)HarmonyLib.AccessTools.Method(typeof(Character), "GetDamageModifiers").Invoke(me, new object[] { null });
+                    SEMan se = me.GetSEMan();
+                    output(new JObject
+                    {
+                        ["worn"] = new JArray(me.GetInventory().GetEquippedItems().Where(i => i.m_dropPrefab != null).Select(i => i.m_dropPrefab.name)),
+                        ["frost"] = mods.GetModifier(HitData.DamageType.Frost).ToString(),
+                        ["cold"] = se.HaveStatusEffect(SEMan.s_statusEffectCold), ["freezing"] = se.HaveStatusEffect(SEMan.s_statusEffectFreezing),
+                        ["wet"] = se.HaveStatusEffect(SEMan.s_statusEffectWet), ["comfort"] = SE_Rested.CalculateComfortLevel(me),
+                        ["underRoof"] = HarmonyLib.Traverse.Create(me).Field("m_underRoof").GetValue<bool>(), ["envCold"] = EnvMan.IsCold(), ["envFreezing"] = EnvMan.IsFreezing(), ["envWet"] = EnvMan.IsWet(), ["env"] = EnvMan.instance?.GetCurrentEnvironment()?.m_name,
+                    });
+                    break;
+                }
+                case "containers":
+                {
+                    // spun containers [r]: every container within r of the player (any kind: chests, carts, lockers, villagers' things) and what is in it
+                    var list = new JArray();
+                    foreach (Container c in UnityEngine.Object.FindObjectsByType<Container>(FindObjectsSortMode.None).Where(c => Vector3.Distance(c.transform.position, me.transform.position) < F(a, 2, 5)))
+                        list.Add(new JObject { ["prefab"] = Utils.GetPrefabName(c.gameObject), ["at"] = c.transform.position.ToString(), ["path"] = c.transform.parent != null ? Utils.GetPrefabName(c.transform.root.gameObject) : "",
+                            ["items"] = new JArray(c.GetInventory()?.GetAllItems().Select(i => (i.m_dropPrefab != null ? i.m_dropPrefab.name : i.m_shared.m_name) + " x" + i.m_stack) ?? Enumerable.Empty<string>()) });
+                    output(new JObject { ["containers"] = list });
+                    break;
+                }
+                case "take":
+                {
+                    // spun take <prefab...>: Homespun's own test things taken out of the bag (taken off first); nothing else is touched
+                    var gone = new JArray();
+                    foreach (string prefab in a.Skip(2).Where(x => x.StartsWith("Homespun_")))
+                        foreach (ItemDrop.ItemData it in me.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == prefab).ToList())
+                        {
+                            if (me.IsItemEquiped(it)) me.UnequipItem(it, false);
+                            me.GetInventory().RemoveItem(it); gone.Add(prefab + " x" + it.m_stack);
+                        }
+                    output(new JObject { ["taken"] = gone });
+                    break;
+                }
+                case "tomb":
+                {
+                    // spun tomb: everything in the player's tombstone within 4 m back into the bag (as Take all does); what didn't fit is left in it
+                    TombStone tomb = UnityEngine.Object.FindObjectsByType<TombStone>(FindObjectsSortMode.None).OrderBy(t => Vector3.Distance(t.transform.position, me.transform.position)).FirstOrDefault();
+                    if (tomb == null || Vector3.Distance(tomb.transform.position, me.transform.position) > 4) { error("no tombstone within 4 m"); yield break; }
+                    Inventory grave = tomb.GetComponent<Container>().GetInventory();
+                    me.GetInventory().MoveAll(grave);
+                    output(new JObject { ["left"] = new JArray(grave.GetAllItems().Select(i => (i.m_dropPrefab != null ? i.m_dropPrefab.name : i.m_shared.m_name) + " x" + i.m_stack)), ["bag"] = me.GetInventory().GetAllItems().Count });
+                    break;
+                }
+                case "stow":
+                {
+                    // spun stow <prefab...>: those stacks from the bag into the nearest chest within 5 m with room (to make room for a test);
+                    // spun stow back: what was stowed, back to the bag
+                    Container chest = null;
+                    if (a.Length > 2 && a[2] == "back")
+                    {
+                        // (spun stow back [x z prefab:n...]: the record, or those taken from the container at x z: the record is lost on a reload)
+                        var want = a.Length > 5 ? a.Skip(5).Select(w => w.Split(':')).Select(w => (spot: new Vector3(F(a, 3, 0), me.transform.position.y, F(a, 4, 0)), prefab: w[0], n: int.Parse(w[1]))).ToList()
+                            : Stowed.ToList();
+                        var back = new JArray();
+                        foreach (var (spot, prefab, n) in want)
+                        {
+                            Container from = Physics.OverlapSphere(spot, 1.5f).Select(c => c.GetComponentInParent<Container>()).Where(c => c != null && c.GetInventory() != null)
+                                .FirstOrDefault(c => c.GetInventory().CountItems(ObjectDB.instance.GetItemPrefab(prefab)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name) >= n);
+                            ItemDrop.ItemData it = from?.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == prefab).OrderByDescending(i => i.m_stack).FirstOrDefault();
+                            if (it == null) { back.Add(prefab + " x" + n + " NOT back: no container near " + spot + " has them"); continue; }
+                            int had = me.GetInventory().CountItems(it.m_shared.m_name);
+                            // (into a free cell of the bag's own rows: with gear-slot mods the bag's CanAddItem counts their rows and says full)
+                            Inventory bag = me.GetInventory();
+                            if (FreeCell(bag) is Vector2i cell) bag.MoveItemToThis(from.GetInventory(), it, n, cell.x, cell.y);
+                            bool ok = me.GetInventory().CountItems(it.m_shared.m_name) >= had + n;
+                            if (ok) Stowed.RemoveAll(st => st.prefab == prefab && st.n == n);
+                            back.Add(prefab + " x" + n + (ok ? " back from " + Utils.GetPrefabName(from.gameObject) : " NOT back (bag full?)"));
+                        }
+                        output(new JObject { ["back"] = back, ["left"] = Stowed.Count });
+                        break;
+                    }
+                    var moved = new JArray();
+                    foreach (string arg in a.Skip(2))
+                    {
+                        // (prefab:n: only a stack of that many)
+                        string prefab = arg.Split(':')[0]; int only = arg.Contains(":") ? int.Parse(arg.Split(':')[1]) : 0;
+                        ItemDrop.ItemData it = me.GetInventory().GetAllItems().FirstOrDefault(i => !i.m_equipped && i.m_dropPrefab != null && i.m_dropPrefab.name == prefab && (only == 0 || i.m_stack == only));
+                        if (it == null) { moved.Add(prefab + ": not in the bag"); continue; }
+                        chest = Physics.OverlapSphere(me.transform.position, 5f).Select(c => c.GetComponentInParent<Container>()).Where(c => c != null && c.GetInventory() != null && c.GetInventory().GetEmptySlots() > 0 && Utils.GetPrefabName(c.gameObject).StartsWith("piece_chest"))
+                            .OrderBy(c => Vector3.Distance(c.transform.position, me.transform.position)).FirstOrDefault();
+                        if (chest == null) { moved.Add(prefab + ": no chest with room within 5 m"); continue; }
+                        int n = it.m_stack;
+                        chest.GetInventory().MoveItemToThis(me.GetInventory(), it);
+                        Stowed.Add((chest.transform.position, prefab, n)); moved.Add(prefab + " x" + n + " -> " + Utils.GetPrefabName(chest.gameObject) + " at " + chest.transform.position);
+                    }
+                    output(new JObject { ["stowed"] = moved, ["held"] = Stowed.Count });
                     break;
                 }
                 case "finish":

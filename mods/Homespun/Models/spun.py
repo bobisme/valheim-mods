@@ -466,6 +466,29 @@ def spindle():
     tube('thread', [V((0, 0.006, -0.012)), V((0.002, 0.008, 0.1)), V((0, 0.006, 0.205)), V((0.0, 0.004, 0.3))], 0.0018, WOOL, res=1)
     finish('spindle', [(30, 0.8, 0.2, 0.0), (90, 0.6, 0.05, 0.0)])
 
+def sail():
+    # a wool sail folded for carrying: a deep stack of cloth, its bolt-rope round it twice and a coil of it on top
+    fresh()
+    for i in range(6):
+        box(f'cloth_{i}', (-0.3 + rng.uniform(-0.01, 0.01), -0.2 + rng.uniform(-0.01, 0.01), -0.09 + 0.03 * i),
+            (0.3 + rng.uniform(-0.01, 0.01), 0.2 + rng.uniform(-0.01, 0.01), -0.06 + 0.03 * i), WOOL, bevel=0.014, jitter=0.004, seed=60 + i)
+    for k, x in enumerate((-0.16, 0.16)):
+        box(f'tie_{k}', (x - 0.008, -0.208, -0.095), (x + 0.008, 0.208, 0.095), FLAX, bevel=0.003)
+    for k in range(3): ring(f'coil_{k}', (0.02 * k - 0.02, 0.0, 0.1 + 0.012 * k), 0.07 - 0.008 * k, 0.008, (0, 0, 1), FLAX, segs=18, rsegs=5)
+    finish('sail', [(30, 1.4, 0.7, 0)])
+
+def nalbinding():
+    # a pair of nalbound mittens and a pair of socks, thick and lumpy as the stitch makes them, lying together
+    fresh()
+    for k, (x, y) in enumerate(((-0.07, 0.05), (0.06, 0.07))):
+        blob(f'mitten_{k}', (x, y, 0), (0.05, 0.085, 0.018), WOOL, seed=70 + k, subdiv=2, lumps=0.08)
+        blob(f'thumb_{k}', (x + 0.045 * (1 if k else -1), y - 0.01, 0.002), (0.016, 0.035, 0.014), WOOL, seed=72 + k, subdiv=2, lumps=0.08)
+        ring(f'cuff_{k}', (x, y - 0.085, 0), 0.04, 0.008, (0, 1, 0), DARKWOOL, segs=14, rsegs=4, squash=0.45)
+    for k, x in enumerate((-0.09, 0.08)):
+        blob(f'sockleg_{k}', (x, -0.08, 0.016), (0.035, 0.07, 0.018), DARKWOOL, seed=74 + k, subdiv=2, lumps=0.08)
+        blob(f'sockfoot_{k}', (x + 0.03, -0.14, 0.014), (0.05, 0.03, 0.018), DARKWOOL, seed=76 + k, subdiv=2, lumps=0.08)
+    finish('nalbinding', [(30, 0.8, 0.45, 0)])
+
 # ---------------- nettle: the plant, and a cut bundle of it ----------------
 def leaf(name, base, along, up, L, W, mat=NETTLE, teeth=3, droop=0.3, fold=0.25, seed=0):
     # a nettle leaf: heart-shaped at the stalk, drawn out to a point, its edge toothed like a saw; folded up a little along its midrib
@@ -975,6 +998,6 @@ def hanging():
     for v in rows[:3]: w.zigzag(L + 0.04, R - 0.04, v - 0.05, 0.022, RED, 28)
     finish('hanging', [(90, 4.6, -0.9, -0.95), (55, 3.4, -0.6, -0.95), (90, 1.9, -0.6, -0.6)])
 
-KINDS = ('pool', 'brake', 'loom', 'table', 'retted', 'line', 'wool', 'yarn', 'linenbolt', 'woolbolt', 'band', 'spindle', 'undertunic', 'tunic', 'dress', 'trousers', 'cloak', 'nettle', 'nettleplant', 'vat', 'lichen', 'lichenplant', 'frieze', 'hanging')
+KINDS = ('pool', 'brake', 'loom', 'table', 'retted', 'line', 'wool', 'yarn', 'linenbolt', 'woolbolt', 'band', 'spindle', 'undertunic', 'tunic', 'dress', 'trousers', 'cloak', 'nettle', 'nettleplant', 'vat', 'lichen', 'lichenplant', 'frieze', 'hanging', 'sail', 'nalbinding')
 which = [a for a in sys.argv if a in KINDS] or list(KINDS)
 for w in which: globals()[w]()

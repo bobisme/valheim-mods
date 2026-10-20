@@ -30,6 +30,7 @@ namespace Homespun
         {
             (Names.LinenBolt, 1), (Names.WoolBolt, 1),
             (Names.Undertunic, 1), (Names.Tunic, 2), (Names.Dress, 2), (Names.Trousers, 2), (Names.Cloak, 3),
+            (Names.Sail, 6),
         };
 
         public static Dyestuff Of(string name) => Dyes.FirstOrDefault(d => d.Name == name);

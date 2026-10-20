@@ -77,7 +77,20 @@ Check(Chain.Span(65)=="1m 05s"&&Chain.Span(9.2f)=="10s","Spans");
         int bolts=m.Needs.Where(n=>n.item==Names.LinenBolt||n.item==Names.WoolBolt).Sum(n=>n.n);
         Check(bolts==0||Dye.Measures(m.Item)==bolts,$"A garment takes a measure of dye for each bolt in it ({m.Item})");
     }
-    Check(Dye.Variants.Count()==28&&Dye.Variants.All(PrefabNames.Shipped.Contains),"Every dyed thing is shipped (7 things, 4 colours)");
+    Check(Dye.Variants.Count()==32&&Dye.Variants.All(PrefabNames.Shipped.Contains),"Every dyed thing is shipped (8 things, 4 colours)");
+
+    // H3: the sail, the mittens, and what clothes do worn
+    Check(Chain.AllMakes().Any(m=>m.Item==Names.Sail&&m.Station==Names.Table&&m.Needs.Contains((Names.WoolBolt,6))),"A sail is sewn from six bolts of wool");
+    Check(Chain.AllMakes().Any(m=>m.Item=="Homespun_Sail_Red"&&m.Needs.Contains(("Homespun_WoolBolt_Red",6))),"A red sail from red bolts");
+    Check(Dye.Measures("Homespun_Sail_Blue")==6&&Dye.Into(Names.Sail,redD)=="Homespun_Sail_Red","A sail dyes in the vat, six measures");
+    Check(Wear.Sail(Names.Sail)&&Wear.Sail("Homespun_Sail_Purple")&&!Wear.Sail(Names.WoolBolt),"Sails, any colour");
+    Check(Chain.AllMakes().Any(m=>m.Item==Names.Nalbinding&&m.Needs.Contains((Names.Yarn,6))),"Mittens and socks looped from yarn");
+    Check(PrefabNames.Shipped.Contains(Names.Sail)&&PrefabNames.Shipped.Contains(Names.Nalbinding),"The sail and the mittens are shipped");
+    Check(Wear.Warm(Names.Cloak)&&Wear.Warm("Homespun_HoodedCloak_Red")&&!Wear.Warm(Names.Tunic)&&!Wear.Warm("CapeLinen"),"The cloak keeps out the cold, every colour of it");
+    Check(Wear.Hooded("Homespun_HoodedCloak_Blue")&&!Wear.Hooded(Names.Dress),"The cloak's hood keeps off the rain");
+    Check(Wear.Mittens(Names.Nalbinding)&&!Wear.Mittens(Names.Cloak),"Mittens");
+    Check(Wear.Fine("Homespun_WoolTunic_Blue")&&!Wear.Fine(Names.Tunic)&&!Wear.Fine("ArmorTunic1")&&!Wear.Fine("Homespun_WoolBolt_Blue"),"Fine: a dyed garment of ours");
+    Check(Wear.Comfort(new[]{"Homespun_WoolTunic_Blue","Homespun_WoolTrousers_Red"})==1&&Wear.Comfort(new[]{"Homespun_WoolTunic_Blue",Names.Trousers})==0,"Two dyed pieces worn: comfort +1");
     Check(new[]{Names.Vat,Names.Lichen,Names.WildLichen}.All(PrefabNames.Shipped.Contains),"The vat and the lichen are shipped");
     Check(Dye.Title("Bolt of wool",blueD)=="Bolt of blue wool"&&Dye.Title("Wool tunic",redD)=="Red wool tunic"&&Dye.Title("Hooded cloak",Dye.Of("Purple")!)=="Purple hooded cloak","Names");
     Check(!Dye.Description("Loose trousers of grey-brown wool, gathered below the knee.",blueD).Contains("grey-brown"),"A dyed thing isn't said to be undyed");
@@ -97,7 +110,7 @@ Check(Chain.Span(65)=="1m 05s"&&Chain.Span(9.2f)=="10s","Spans");
 
     var dyedTunic=Chain.AllMakes().Single(m=>m.Item=="Homespun_WoolTunic_Red");
     Check(dyedTunic.Station==Names.Table&&dyedTunic.Needs.Contains(("Homespun_WoolBolt_Red",2))&&dyedTunic.Needs.Contains((Names.Band,1)),"A red tunic is sewn from red bolts and an undyed band");
-    Check(Chain.AllMakes().Count(m=>Dye.Read(m.Item)?.dye!=null)==20,"Each of the five garments in each of the four colours at the sewing table");
+    Check(Chain.AllMakes().Count(m=>Dye.Read(m.Item)?.dye!=null)==24,"Each of the five garments and the sail in each of the four colours at the sewing table");
     var redTunic=Chain.Raw("Homespun_WoolTunic_Red");
     Check(Near(redTunic["Raspberry"],10)&&Near(redTunic[Names.Fleece],17),"A red tunic: two bolts' fleece, and 10 raspberries ("+Chain.RawText(redTunic)+")");
 }

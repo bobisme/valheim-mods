@@ -14,7 +14,7 @@ namespace Homespun
     // the spindle at the workbench, bolts and bands at the loom, garments and Hildir's clothes at the sewing table (Core/Chain.cs).
     internal static class Things
     {
-        internal sealed class ItemDef { public string Prefab, Title, Description, Base, Model; public float Weight; public int Stack; public Color? Tint, Dyed; }
+        internal sealed class ItemDef { public string Prefab, Title, Description, Base, Model; public float Weight; public int Stack; public Color? Tint, Dyed; public bool Utility; }
         internal static readonly ItemDef[] Materials =
         {
             new ItemDef { Prefab = Names.RettedFlax, Base = "LinenThread", Model = "retted", Title = "Retted flax", Weight = 0.3f, Stack = 50,
@@ -40,7 +40,12 @@ namespace Homespun
                 Description = "A narrow patterned band woven on cards, for the neck and hem of a tunic or a dress." },
             new ItemDef { Prefab = Names.Lichen, Base = "LinenThread", Model = "lichen", Title = "Lichen", Weight = 0.1f, Stack = 50,
                 Description = "Crusty lichen scraped from a stone in the mountains or the deep forest. Steeped in a dye vat, it dyes cloth purple." },
+            new ItemDef { Prefab = Names.Sail, Base = "LinenThread", Model = "sail", Title = "Wool sail", Weight = 6f, Stack = 1,
+                Description = "A square sail of wool cloth, its edges roped. A knarr built on a slipway is rigged with one; dyed, she sails under its colour." },
         };
+        // Nalbound mittens and socks: worn in the utility slot (as a belt is), nothing to see.
+        internal static readonly ItemDef NalbindingDef = new ItemDef { Prefab = Names.Nalbinding, Base = "BeltStrength", Model = "nalbinding", Title = "Nalbound mittens and socks", Weight = 0.3f, Stack = 1, Utility = true,
+            Description = "Mittens and socks looped from wool yarn with a bone needle, thick and warm. Worn, they keep off the chill of a night or a cold wind; not the mountains' freezing." };
         // Each colour of the bolts (Core/Dye.cs), as the undyed bolt with its look repainted.
         internal static readonly ItemDef[] DyedBolts = Materials.Where(d => Dye.Read(d.Prefab) != null)
             .SelectMany(d => Dye.Dyes.Select(c => new ItemDef { Prefab = Dye.Variant(d.Prefab, c), Base = d.Base, Model = d.Model, Title = Dye.Title(d.Title, c), Weight = d.Weight, Stack = d.Stack,
@@ -49,7 +54,7 @@ namespace Homespun
         internal static readonly Garment[] DyedGarments = Chain.Garments.SelectMany(g => Dye.Dyes.Select(c => new Garment
         {
             Prefab = Dye.Variant(g.Prefab, c), Base = g.Base, Title = Dye.Title(g.Title, c), Description = Dye.Description(g.Description, c),
-            Armor = g.Armor, Weight = g.Weight, Durability = g.Durability, Tint = c.Colour, Model = g.Model,
+            Armor = g.Armor, Weight = g.Weight, Durability = g.Durability, Tint = c.Colour, Model = g.Model, Frost = g.Frost, Hood = g.Hood,
         })).ToArray();
         internal static Color Paint(Dyestuff d) => new Color(d.Colour.r, d.Colour.g, d.Colour.b);
         internal static readonly ItemDef SpindleDef = new ItemDef { Prefab = Names.Spindle, Base = "Club", Model = "spindle", Title = "Drop spindle", Weight = 0.3f, Stack = 1,
@@ -62,7 +67,7 @@ namespace Homespun
         private static readonly MethodInfo CloneShared = typeof(object).GetMethod("MemberwiseClone", BindingFlags.Instance | BindingFlags.NonPublic);
         private static bool _registering;
 
-        internal static IEnumerable<string> AllItems => Materials.Concat(DyedBolts).Select(d => d.Prefab).Append(Names.Spindle).Concat(Chain.Garments.Concat(DyedGarments).Select(g => g.Prefab));
+        internal static IEnumerable<string> AllItems => Materials.Concat(DyedBolts).Select(d => d.Prefab).Append(Names.Spindle).Append(Names.Nalbinding).Concat(Chain.Garments.Concat(DyedGarments).Select(g => g.Prefab));
         internal static GameObject Get(string prefab) => Built.TryGetValue(prefab, out GameObject go) ? go : null;
         internal static bool Ours(ItemDrop.ItemData item) => item?.m_dropPrefab != null && Built.ContainsKey(item.m_dropPrefab.name);
         internal static Transform Holder
@@ -88,7 +93,7 @@ namespace Homespun
             try
             {
                 var items = new List<GameObject>();
-                foreach (ItemDef d in Materials.Append(SpindleDef).Concat(DyedBolts))
+                foreach (ItemDef d in Materials.Append(SpindleDef).Append(NalbindingDef).Concat(DyedBolts))
                 {
                     try { if (Make(scene, d) is GameObject go) items.Add(go); }
                     catch (Exception e) { Plugin.Warn($"Could not make the {d.Title}: {e}"); }
@@ -146,6 +151,13 @@ namespace Homespun
                 s.m_skillType = Skills.SkillType.None; s.m_attackForce = 0; s.m_backstabBonus = 1;
                 s.m_setName = ""; s.m_setSize = 0; s.m_setStatusEffect = null; s.m_equipStatusEffect = null;
             }
+            if (d.Utility)
+            {
+                // (a belt no more: none of its strength, nothing worn to see; what it does is Warmth.cs's)
+                s.m_setName = ""; s.m_setSize = 0; s.m_setStatusEffect = null; s.m_equipStatusEffect = null;
+                s.m_armor = 0; s.m_armorPerLevel = 0; s.m_useDurability = false; s.m_movementModifier = 0;
+                s.m_damageModifiers = new List<HitData.DamageModPair>();
+            }
             drop.m_itemData.m_shared = s;
             drop.m_itemData.m_dropPrefab = go; // (without it the item is saved with no name and lost)
             drop.m_itemData.m_stack = 1; drop.m_itemData.m_quality = 1; drop.m_itemData.m_durability = s.m_maxDurability;
@@ -179,6 +191,7 @@ namespace Homespun
             s.m_variants = 0; s.m_dlc = ""; s.m_questItem = false; s.m_teleportable = true;
             s.m_setName = ""; s.m_setSize = 0; s.m_setStatusEffect = null; s.m_equipStatusEffect = null;
             s.m_damageModifiers = new List<HitData.DamageModPair>(); s.m_movementModifier = 0;
+            if (g.Frost) s.m_damageModifiers.Add(new HitData.DamageModPair { m_type = HitData.DamageType.Frost, m_modifier = HitData.DamageModifier.Resistant }); // (as a wolf fur cape: no cold, no freezing)
             Looks.Recolour(go, s, new Color(g.Tint.r, g.Tint.g, g.Tint.b)); // (worn: on our copy of the shared data, never the base's)
             drop.m_itemData.m_shared = s;
             drop.m_itemData.m_dropPrefab = go;

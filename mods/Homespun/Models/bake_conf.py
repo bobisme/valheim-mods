@@ -1,5 +1,5 @@
 # Homespun's bake (tools/bake/bake.py, docs/model-baking.md): blender -b --python $PWD/tools/bake/bake.py -- $PWD/mods/Homespun/Models/bake_conf.py <kind>
-# (pool brake loom table retted line wool yarn linenbolt woolbolt band spindle undertunic tunic dress trousers cloak nettle nettleplant vat lichen lichenplant frieze hanging)
+# (pool brake loom table retted line wool yarn linenbolt woolbolt band spindle undertunic tunic dress trousers cloak nettle nettleplant vat lichen lichenplant frieze hanging sail nalbinding)
 import os
 HERE = os.path.dirname(os.path.abspath(__file__))
 WORK = '/home/bob/.cache/homespun'               # (spun.py writes its own exports here)
@@ -11,7 +11,7 @@ NAME = lambda kind: kind
 BUDGET = {'pool': 1500, 'brake': 1300, 'loom': 1800, 'table': 1300,
           'retted': 600, 'line': 700, 'wool': 200, 'yarn': 300, 'linenbolt': 350, 'woolbolt': 200, 'band': 250, 'spindle': 250,
           'undertunic': 200, 'tunic': 300, 'dress': 450, 'trousers': 350, 'cloak': 400,
-          'nettle': 1200, 'nettleplant': 2400, 'vat': 1500, 'lichen': 400, 'lichenplant': 1200, 'frieze': 800, 'hanging': 800}
+          'nettle': 1200, 'nettleplant': 2400, 'vat': 1500, 'lichen': 400, 'lichenplant': 1200, 'frieze': 800, 'hanging': 800, 'sail': 300, 'nalbinding': 500}
 PX = {k: 512 if k in ('frieze', 'hanging') else 256 if k in ('pool', 'brake', 'loom', 'table', 'nettleplant', 'vat', 'lichenplant') else 128 for k in BUDGET}
 DECALS = ('wrap', 'stripe', 'weave', 'crust')
 TOL = {'hank': 0.01, 'sheaf': 0.01, 'stalk': 0.004, 'tuft': 0.004, 'ply': 0.006, 'knot': 0.006}   # (bundles of fibre: rough already)
