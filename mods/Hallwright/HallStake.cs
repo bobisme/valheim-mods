@@ -18,6 +18,7 @@ namespace Hallwright
         internal const string StakeName="HallwrightStake";
         private static readonly MethodInfo UpdateKnownRecipes=AccessTools.Method(typeof(Player),"UpdateKnownRecipesList"),UpdateAvailablePieces=AccessTools.Method(typeof(Player),"UpdateAvailablePiecesList");
         private GameObject _stakePrefab,_stakeHolder;
+        private const string OldStakeKey="Hallwright.oldStakeHolder"; // (handed to the next copy, which destroys it once its own stake is registered)
         private readonly List<Object> _stakeOwned=new List<Object>();
         private float _stakeCheck;
         private bool _hallViaStake;
@@ -42,6 +43,9 @@ namespace Hallwright
             }
             if(table.m_pieces.Contains(_stakePrefab) && scene.GetPrefab(StakeName)==_stakePrefab)return;
             PieceReload.ReplacePrefab(scene,_stakePrefab,table);
+            // (an older copy's stake, no longer registered now: its holder goes)
+            if(AppDomain.CurrentDomain.GetData(OldStakeKey) is GameObject old && old!=_stakeHolder)Destroy(old);
+            AppDomain.CurrentDomain.SetData(OldStakeKey,null);
             Player player=Player.m_localPlayer;
             if(player!=null){UpdateKnownRecipes?.Invoke(player,null);UpdateAvailablePieces?.Invoke(player,null);}
         }
@@ -193,6 +197,7 @@ namespace Hallwright
         {
             PieceReload.UnloadPiece(_stakePrefab,HammerTable());
             // The prefab stays registered until the next copy of this mod replaces it (see PieceReload); its holder goes with it then.
+            if(_stakeHolder!=null)AppDomain.CurrentDomain.SetData(OldStakeKey,_stakeHolder);
             foreach(var owned in _stakeOwned)if(owned!=null)Destroy(owned);
             _stakeOwned.Clear();
         }
