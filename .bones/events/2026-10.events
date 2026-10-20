@@ -1771,3 +1771,7 @@
 1792528142239517	claude	itc:AQ		item.create	bn-3lvl	{"description":"Bob's world always has Jarldom; L2/L3 acceptance asks for a run without it.","kind":"task","labels":["needs-player","larder"],"title":"Larder: check it with Jarldom not installed (no errors, haulers absent)"}	blake3:5vgt36FRtiV8I6TX3jpRiRYuUHlX-lcKntKLO94fR7g
 1792528361965779	claude	itc:AQ		item.comment	bn-sqa	{"body":"Checked 2026-10-20 after restarts (single player, Wayfinder 0.1.9+ installed): placed a BobBeaconFire in the colony, 'wayfinder beacon light' lit it, 'jarldom beacon' then reported it (wayfinder: true, lit: true); removed it, and Jarldom fell back to its bonfire at 350,57,1131. Not run from a second client (Api is owner-routed by design)."}	blake3:VhKvta35Q7gcnR9tlQPuYQQn89gsDe2C4y6RR-ebGaE
 1792528362052799	claude	itc:AQ		item.move	bn-sqa	{"state":"done"}	blake3:fIuXKaXxlAWcVjHqqjQmLbOixjOOXqXrwn1jSFrWTfo
+1792528384145460	claude	itc:AQ		item.comment	bn-1yn	{"body":"Already shipped: GraveGoods.Api (Version 1: Rarity(ItemData) -> 0..4 or -1, Name(ItemData)) in Grave Goods 0.1.1 (e44e33c). Closing."}	blake3:99ayWv7x01o2c1Py7P11sQc0vtDrBmc-HGMRvfE2-d0
+1792528384170549	claude	itc:AQ		item.move	bn-1yn	{"state":"done"}	blake3:d0xDejqAPWM1dyacCe13gG6wiHMkL4HmDnWvCtGRhus
+1792528736491535	claude	itc:AQ		item.move	bn-1zx	{"state":"done"}	blake3:IPgSR2_OWU4o4W5LhQztdA01pHdp6sZRkmSGPJlqJ3s
+1792528994210294	claude	itc:AQ		item.move	bn-fdi	{"state":"done"}	blake3:vDj566OHr9yzTM9c8vtn1ijNpjWNK7uQGBUG2DgFG9k
