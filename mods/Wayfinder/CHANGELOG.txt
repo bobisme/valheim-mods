@@ -1,3 +1,5 @@
+0.1.14: the notes really do slide out from under the status-effect icons now (0.1.13's test of whether they sat beside the icons was upside down, so they never moved).
+
 0.1.13: the notes under the compass (the primstav's forecast and feast-day, the course, the wind) slide left out from under the game's status-effect icons when there are many of them; before, the line's end was hidden behind Rested and the rest.
 
 0.1.12: rig a ship with Homespun's wool (0.3.0): use a wool sail on her helm and her sail takes its colour, for everyone; the sail she had, if it was wool, comes back to your bag; use the same sail again to take it down and have her own back. Shipyard's knarr rigs hers at the slipway. Test command: wayfinder rig <colour|undyed|-> [x z] on a test ship. Live-checked: a test karve rigged yellow, the sail set at half in yellow wool; the karve's own pennant untouched. Not yet tried: using the sail on a helm by hand, a second player seeing it.

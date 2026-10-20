@@ -209,7 +209,7 @@ namespace Wayfinder
             if(left==float.MaxValue)return;
             _notes.GetWorldCorners(Corners);
             float margin=12*_root.lossyScale.x,over=Corners[2].x-(left-margin);
-            if(over<=0||Corners[0].y>=bottom)return; // (clear of them already, or below them)
+            if(over<=0||Corners[1].y<=bottom)return; // (clear of them already, or wholly below them)
             _notes.anchoredPosition-=new Vector2(over/_root.lossyScale.x,0);
         }
         internal static string Biome(Heightmap.Biome b)
