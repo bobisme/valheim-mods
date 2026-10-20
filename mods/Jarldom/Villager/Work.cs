@@ -577,7 +577,8 @@ namespace Jarldom
             if (prof == Prof.Smith && c.IsOwner) { Task mend = MendTask.Next(b); if (mend != null) return mend; } // (everyone's worn gear, before new work)
             if (prof == Prof.Builder && c.IsOwner && Compat.GhostCount(c.Position, c.Radius) > 0 && Gear.Tool(b, "hammer") != null && Time.time > b.NoBuildUntil) return new BuildTask();
             if (prof == Prof.Builder) { Task up = Upkeep.Next(b); if (up != null) return up; } // (nothing planned: mend, rebuild, pave)
-            if (prof == Prof.Shipwright && c.IsOwner && Gear.Tool(b, "hammer") != null && Time.time > b.NoBuildUntil && Shipyard.Building(c) != null) return BuildTask.Ships();
+            if (prof == Prof.Shipwright && c.IsOwner && Gear.Tool(b, "hammer") != null && Time.time > b.NoBuildUntil && Shipyard.Building(c) is var ship && ship != null)
+                return ship.Value.id == Shipyard.SlipwayId ? new SlipwayTask() : (Task)BuildTask.Ships();
             if (prof == Prof.Miner) { Task trip = Claims.Next(b); if (trip != null) return trip; } // (ore claims out in the wilds first)
             if (prof == Prof.Herder) { Task summer = Shieling.Next(b); if (summer != null) return summer; } // (the herd up to the shieling for the summer, and down again)
             if (prof == Prof.Herder || prof == Prof.Hunter) { Task catching = Catching.Next(b); if (catching != null) return catching; } // (an empty pasture: a wild boar for it)

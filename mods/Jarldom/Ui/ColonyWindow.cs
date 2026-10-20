@@ -735,10 +735,11 @@ namespace Jarldom.Ui
                 Shipyard.Kind k = Shipyard.Of(building.Value.prefab);
                 Brain w = Villagers.All.FirstOrDefault(b => b.S.Colony == _c.Id && b.S.Prof == Prof.Shipwright && (b.Task?.Doing ?? "").Contains("boatyard"));
                 y = Text(list, $"A {k?.Name ?? "ship"} is planned at the boatyard{(w != null ? $": {w.S.Name} is at work on it" : wright ? ": the shipwright builds it from the stores" : ": no one is a shipwright (People tab)")} ({Shipyard.Cost(k)}).", y, 15);
+                if (building.Value.id == Shipyard.SlipwayId) return y + 30; // (on a slipway: taken down, what's in it comes back)
                 float cx = 8; Btn(list, "Cancel the ship", ref cx, y, () => { object bo = Compat.Find("com.quad.buildorders", "com.dhack.buildorders"); bo?.GetType().GetMethod("TryRemoveGhostPlan")?.Invoke(bo, new object[] { Player.m_localPlayer, Shipyard.Plan(_c, k), 0, null }); Build(); });
                 return y + 52;
             }
-            y = Text(list, "A shipwright builds the colony's ships at a boatyard (mark one out over the shore, with a workbench by it), from the stores. Trade runs go by karve or longship once one lies at the shore.", y, 15, GameUi.Dim);
+            y = Text(list, "A shipwright builds the colony's ships at a boatyard (mark one out over the shore, with a workbench by it), from the stores. Trade runs go by karve or longship once one lies at the shore." + (Compat.ShipyardOn ? " With a slipway at the boatyard (Shipyard), a færing or a knarr is built on it stage by stage; a knarr carries a longship's trade." : ""), y, 15, GameUi.Dim);
             float x = 8;
             foreach (Shipyard.Kind k in Shipyard.Kinds)
             {

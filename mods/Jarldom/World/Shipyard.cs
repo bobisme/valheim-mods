@@ -10,21 +10,52 @@ namespace Jarldom
     // one lies at the colony's shore. One ship at a time.
     internal static class Shipyard
     {
-        public sealed class Kind { public string Prefab, Name; public float Draught; public int Blows; }
-        public static readonly Kind[] Kinds =
+        // (Hull: one of the Shipyard mod's, built on its slipway stage by stage, not laid out with BuildOrders; Blows: a stage's, then)
+        public sealed class Kind { public string Prefab, Name, Hull; public float Draught; public int Blows; }
+        private static readonly Kind[] Game =
         {
             new Kind { Prefab = "Raft", Name = "raft", Draught = 0.6f, Blows = 12 },
             new Kind { Prefab = "Karve", Name = "karve", Draught = 1.0f, Blows = 40 },
             new Kind { Prefab = "VikingShip", Name = "longship", Draught = 1.6f, Blows = 80 },
         };
-        public static bool IsShip(string prefab) => Kinds.Any(k => k.Prefab == prefab);
+        private static Kind[] _withSlipways; private static float _kindsAt = -1;
+        public static Kind[] Kinds
+        {
+            get
+            {
+                if (_withSlipways != null && Time.time < _kindsAt) return _withSlipways;
+                _kindsAt = Time.time + 10;
+                var hulls = Compat.ShipyardOn ? Compat.ShipyardHulls : new string[0];
+                _withSlipways = Game.Concat(hulls.Select(h => new Kind { Prefab = Compat.ShipyardPrefab(h), Name = (Compat.ShipyardTitle(h) ?? h).ToLower(), Hull = h, Blows = h == "knarr" ? 30 : 12 })
+                    .Where(k => k.Prefab != null)).ToArray();
+                return _withSlipways;
+            }
+        }
+        public static bool IsShip(string prefab) => Game.Any(k => k.Prefab == prefab); // (the game's, laid out as plans; a slipway's isn't a plan)
         public static Kind Of(string prefab) => Kinds.FirstOrDefault(k => k.Prefab == prefab);
+        public static Kind OfHull(string hull) => Kinds.FirstOrDefault(k => k.Hull == hull);
         public static string Plan(Colony c, Kind k) => $"Ship: {k.Name} for {c.R.Name}";
 
         public static List<Zone> Yards(Colony c) => c.R.Zones.Where(z => z.Type == ZoneType.Boatyard).ToList();
-        // The ship being built (its plan's id and prefab), if there is one: a ship's ghost in or near the colony.
+        // The Shipyard mod's slipways at the colony's boatyards (in one, or just by it on the shore).
+        public static List<Vector3> Slipways(Colony c)
+        {
+            if (!Compat.ShipyardOn) return new List<Vector3>();
+            return Yards(c).SelectMany(y => Compat.Slipways(Zones.Centre(y), YardReach(y))).Distinct().ToList();
+        }
+        private static float YardReach(Zone y)
+        {
+            Vector3 c = Zones.Centre(y); float r = 0;
+            for (int i = 0; i + 1 < y.Xz.Count; i += 2) r = Mathf.Max(r, Utils.DistanceXZ(c, new Vector3(y.Xz[i], 0, y.Xz[i + 1])));
+            return r + 12f; // (just by it on the shore counts)
+        }
+        public const string SlipwayId = "slipway";
+        // The ship being built (its plan's id and prefab), if there is one: a ship's ghost in or near the colony, or a hull on a slipway at
+        // the boatyard (its id "slipway", at the slipway).
         public static (string id, string prefab, Vector3 at)? Building(Colony c)
         {
+            foreach (Vector3 sw in Slipways(c))
+                if (Compat.SlipwayHull(sw) is string hull && OfHull(hull) is Kind k) return (SlipwayId, k.Prefab, sw);
             foreach (string g in Compat.NextGhosts(c.Position, c.Radius + 40f, 600))
             {
                 string[] f = g.Split('|');
@@ -62,6 +93,14 @@ namespace Jarldom
         {
             Player me = Player.m_localPlayer;
             if (me == null) return "no player";
+            if (k.Hull != null)
+            {
+                if (Building(c) is var on && on.HasValue) return $"a {Of(on.Value.prefab)?.Name ?? "ship"} is being built already";
+                if (Yards(c).Count == 0) return "no boatyard: mark one out over the shore (\"Mark rooms and zones\", Boatyard)";
+                if (Slipways(c).Count == 0) return "no slipway at the boatyard: build one there (hammer, Misc), its bow end to the water";
+                if (!c.R.Living.Any(r => r.Prof == Prof.Shipwright)) return "no one is a shipwright: give someone the trade (People tab)";
+                return "";
+            }
             if (Compat.Find("com.quad.buildorders", "com.dhack.buildorders") == null) return "it needs Quad's BuildOrders mod, which lays out the plan";
             if (Building(c) is var b && b.HasValue) return $"a {Of(b.Value.prefab)?.Name ?? "ship"} is being built already";
             var yards = Yards(c);
@@ -77,14 +116,33 @@ namespace Jarldom
             if (!c.R.Living.Any(r => r.Prof == Prof.Shipwright)) return "no one is a shipwright: give someone the trade (People tab)";
             return "";
         }
-        public static string Cost(Kind k) => string.Join(", ", (Assets.Find(k.Prefab)?.GetComponent<Piece>()?.m_resources ?? new Piece.Requirement[0])
+        public static string Cost(Kind k) => k?.Hull != null ? SlipwayCost(k) : string.Join(", ", (Assets.Find(k?.Prefab)?.GetComponent<Piece>()?.m_resources ?? new Piece.Requirement[0])
             .Where(r => r.m_resItem != null && r.m_amount > 0).Select(r => $"{r.m_amount} {Localization.instance.Localize(r.m_resItem.m_itemData.m_shared.m_name).ToLower()}"));
-        // On the jarl's game (BuildOrders lays plans for the player beside them): the plan at the boatyard.
+        // A slipway hull's cost, all its stages together.
+        private static string SlipwayCost(Kind k)
+        {
+            var total = new Dictionary<string, int>();
+            foreach (string stage in Compat.ShipyardStageCosts(k.Hull))
+                foreach (string kv in stage.Split(','))
+                {
+                    int at = kv.LastIndexOf(':');
+                    if (at > 0 && int.TryParse(kv.Substring(at + 1), out int n)) total[kv.Substring(0, at)] = (total.TryGetValue(kv.Substring(0, at), out int had) ? had : 0) + n;
+                }
+            return string.Join(", ", total.Select(kv => $"{kv.Value} {Localization.instance.Localize(Assets.Find(kv.Key)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name ?? kv.Key).ToLower()}")) + " over its stages";
+        }
+        // On the jarl's game (BuildOrders lays plans for the player beside them): the plan at the boatyard; or a keel laid on a slipway there.
         public static bool Order(Colony c, Kind k)
         {
             Player me = Player.m_localPlayer;
             string why = WhyNot(c, k);
             if (why != "") { me?.Message(MessageHud.MessageType.Center, $"No {k.Name} yet: {why}."); return false; }
+            if (k.Hull != null)
+            {
+                Vector3 sw = Slipways(c).OrderBy(x => Vector3.Distance(x, c.Position)).First();
+                if (!Compat.SlipwayStart(sw, k.Hull)) { me?.Message(MessageHud.MessageType.Center, $"No {k.Name} yet: the slipway has a build on it already."); return false; }
+                me?.Message(MessageHud.MessageType.Center, $"A {k.Name}'s keel is laid on the slipway: the shipwright builds her stage by stage from the stores ({Cost(k)}).");
+                return true;
+            }
             Zone yard = Yards(c).First(y => Launch(c, y, k, out _, out _));
             Launch(c, yard, k, out Vector3 at, out Quaternion rot);
             object bo = Compat.Find("com.quad.buildorders", "com.dhack.buildorders");

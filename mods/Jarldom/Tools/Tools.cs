@@ -1827,7 +1827,8 @@ namespace Jarldom
                 case "ship": // (test: "ship" the boatyard's state; "ship <raft|karve|longship>" orders one, as the Work tab's button does)
                     {
                         var bk = Shipyard.Building(c);
-                        if (a.Length > 2) { Shipyard.Kind k = Shipyard.Kinds.FirstOrDefault(x => x.Name == a[2]); if (k == null) { error("raft, karve or longship"); return; } output(new JObject { ["why"] = Shipyard.WhyNot(c, k), ["ordered"] = Shipyard.Order(c, k) }); break; }
+                        if (a.Length > 3 && a[2] == "work") { Brain w = Who(a[3]); if (w == null) { error("who?"); return; } w.Task?.Stop(w); w.Task = bk.HasValue && bk.Value.id == Shipyard.SlipwayId ? new SlipwayTask() : (Task)BuildTask.Ships(); w.Task.Start(w); output(new JObject { ["doing"] = w.Task.Doing, ["done"] = w.Task.Done }); break; } // (test: that one to the ship now, whatever the hour)
+                        if (a.Length > 2) { Shipyard.Kind k = Shipyard.Kinds.FirstOrDefault(x => x.Name == a[2]); if (k == null) { error("raft, karve or longship (or a Shipyard hull: " + string.Join(", ", Shipyard.Kinds.Where(x => x.Hull != null).Select(x => x.Name)) + ")"); return; } output(new JObject { ["why"] = Shipyard.WhyNot(c, k), ["ordered"] = Shipyard.Order(c, k) }); break; }
                         output(new JObject { ["yards"] = Shipyard.Yards(c).Count, ["building"] = bk.HasValue ? $"{bk.Value.prefab} at {bk.Value.at.x:0.0},{bk.Value.at.y:0.0},{bk.Value.at.z:0.0}" : null,
                             ["why"] = new JArray(Shipyard.Kinds.Select(k => $"{k.Name}: {(Shipyard.WhyNot(c, k) is string w && w != "" ? w : "ok")} ({Shipyard.Cost(k)})")),
                             ["launch"] = new JArray(Shipyard.Kinds.Select(k => Shipyard.Yards(c).Count > 0 && Shipyard.Launch(c, Shipyard.Yards(c)[0], k, out Vector3 la, out Quaternion lr) ? $"{k.Name} {la.x:0.0},{la.z:0.0} yaw {lr.eulerAngles.y:0}" : $"{k.Name}: none")) });

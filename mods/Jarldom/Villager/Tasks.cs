@@ -500,6 +500,90 @@ namespace Jarldom
     }
 
     // A trade run: the colony's surplus valuables to the traders, coins back at the traders' own prices (never better), a day later.
+    // The shipwright at a Shipyard slipway (World/Shipyard.cs): the stage under way's makings fetched from the stores, carried to the stocks
+    // and worked in with the hammer a good while; every stage paid in full (the slipway takes no more than it needs), the next begun; the
+    // boat launched when she's finished. One stage a task.
+    internal sealed class SlipwayTask : Task
+    {
+        private Vector3 _at; private Shipyard.Kind _kind; private List<(string item, int amount)> _needs; private int _blows; private float _next;
+        private bool _launch;
+        public override bool Interruptible => _blows == 0;
+        private static int Have(Brain b, string item) => b.Body.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == item && !i.m_equipped).Sum(i => i.m_stack);
+        public override void Start(Brain b)
+        {
+            var on = Shipyard.Building(b.Colony);
+            if (!on.HasValue || on.Value.id != Shipyard.SlipwayId) { Done = true; b.NoBuildUntil = Time.time + 30; return; }
+            _at = on.Value.at; _kind = Shipyard.Of(on.Value.prefab);
+            _launch = Compat.SlipwayFinished(_at);
+            _needs = Compat.SlipwayNeeds(_at).ToList();
+            Doing = $"building a {_kind?.Name ?? "ship"} at the boatyard";
+        }
+        public override void Tick(Brain b)
+        {
+            if (Done) return;
+            // fetch what the stage still needs (all of it before going to the stocks: a stage is paid in full)
+            var missing = _launch ? new List<(string item, int amount)>() : _needs.Where(n => Have(b, n.item) < n.amount).ToList();
+            if (missing.Count > 0 && _blows == 0)
+            {
+                var chests = Stock.ChestsFor(b).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).ToList();
+                foreach (var (item, amount) in missing)
+                    if (chests.Sum(x => x.chest.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == item).Sum(i => i.m_stack)) + Have(b, item) < amount)
+                    {
+                        Done = true; b.NoBuildUntil = Time.time + 60;
+                        string lacking = Localization.instance.Localize(Assets.Find(item)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name ?? item).ToLower(), ship = _kind?.Name ?? "ship";
+                        b.Say(new[] { $"The stores have too little {lacking} for the {ship}.", $"I can't go on with the {ship}: we're short of {lacking}.", $"No {lacking} in the stores for the {ship}." }[UnityEngine.Random.Range(0, 3)], 6);
+                        b.ShipShort = lacking; return;
+                    }
+                var (want, count) = missing[0];
+                Container from = chests.Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want));
+                if (from == null) { Done = true; b.NoBuildUntil = Time.time + 20; return; }
+                Stock.Walk walk = Stock.WalkTo(b, from, 2.4f);
+                if (walk != Stock.Walk.Reached) return;
+                ItemDrop.ItemData stack = from.GetInventory().GetAllItems().First(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want);
+                if (Stock.Take(from, b.Body.GetInventory(), stack, count - Have(b, want)) == 0) { Done = true; b.NoBuildUntil = Time.time + 30; }
+                return;
+            }
+            // to the stocks (worked from beside them: the hull stands high on them)
+            if (Utils.DistanceXZ(b.Pos, _at) > 5f) { if (!b.Move.Moving) b.Move.To(_at, 3.5f); if (b.Move.Failed && Utils.DistanceXZ(b.Pos, _at) > 9f) { Done = true; b.NoBuildUntil = Time.time + 20; } return; }
+            b.Move.Stop();
+            Vector3 d = _at - b.Pos; d.y = 0; if (d.sqrMagnitude > 0.01f) b.Ai.LookTowards(d.normalized);
+            if (Time.time < _next) return;
+            _next = Time.time + 1.2f / Mathf.Max(0.4f, b.Productivity());
+            ItemDrop.ItemData hammer = Gear.Tool(b, "hammer");
+            if (hammer == null) { Done = true; b.NoBuildUntil = Time.time + 30; return; }
+            if (!b.Body.IsItemEquiped(hammer)) b.Body.EquipItem(hammer, false);
+            Body_.Anim(b.Body)?.SetTrigger("swing_hammer");
+            if (_launch)
+            {
+                Done = true;
+                if (Compat.SlipwayLaunch(_at) && _kind != null) Plugin.Guard(() => Shipyard.Launched(b, _kind, _at));
+                else { b.NoBuildUntil = Time.time + 60; b.Say(new[] { "She's finished, but there's no water deep enough ahead of the stocks to launch her.", "No deep water clear of boats ahead of the slipway: she waits on the stocks." }[UnityEngine.Random.Range(0, 2)], 6); }
+                return;
+            }
+            if (++_blows < (_kind?.Blows ?? 12))
+            {
+                if (_blows % 10 == 0) b.Say(new[] { "Another strake on.", "Ribs first, then planks.", "Tar, and more tar.", "She's taking shape.", "Mind the keel, it's the backbone of her." }[UnityEngine.Random.Range(0, 5)], 4);
+                return;
+            }
+            // the stage's makings worked in: as much as the slipway takes of each, out of the bag
+            Inventory bag = b.Body.GetInventory();
+            int stage = Compat.SlipwayStage(_at);
+            foreach (var (item, amount) in _needs)
+            {
+                int took = Compat.SlipwayPut(_at, item, Math.Min(amount, Have(b, item)));
+                for (int left = took; left > 0;)
+                {
+                    ItemDrop.ItemData st = bag.GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == item && !i.m_equipped);
+                    if (st == null) break;
+                    int n = Math.Min(left, st.m_stack); bag.RemoveItem(st, n); left -= n;
+                }
+            }
+            b.Dirty();
+            if (Compat.SlipwayStage(_at) > stage) { b.Body.RaiseSkill(Skills.SkillType.Crafting, 0.5f); b.S.Bump("built"); b.Say(new[] { "That's that stage done.", "On to the next part of her.", "Good work, that." }[UnityEngine.Random.Range(0, 3)], 4); }
+            Done = true;
+        }
+    }
+
     internal sealed class TradeTask : Task
     {
         private Vector3 _edge; private bool _packed; private TradeWay _way; private readonly TradeWay? _test;
@@ -558,9 +642,9 @@ namespace Jarldom
         // Lots waiting to be sold: everything in the trade chests, and the stores' treasure.
         public static int Lots(Colony c) => Stock.TradeChests(c).Sum(ch => ch.GetInventory().GetAllItems().Count(Goods))
             + Stock.Chests(c).Where(x => x.category != "treasury").Sum(x => x.chest.GetInventory().GetAllItems().Count(Sellable));
-        // A ship of the colony's lying at its shore, no one aboard: a karve, or a longship (the drakkar too).
+        // A ship of the colony's lying at its shore, no one aboard: a karve, or a longship (the drakkar too, and Shipyard's knarr: a cargo ship).
         public static Ship Ship(Colony c, bool longship) => c.PiecesIn(c.Radius + 40).Select(p => p.GetComponent<Ship>()).FirstOrDefault(s => s != null && !s.HasPlayerOnboard()
-            && (longship ? Utils.GetPrefabName(s.gameObject).StartsWith("VikingShip") : Utils.GetPrefabName(s.gameObject) == "Karve"));
+            && (longship ? Utils.GetPrefabName(s.gameObject).StartsWith("VikingShip") || Utils.GetPrefabName(s.gameObject) == "Shipyard_Knarr" : Utils.GetPrefabName(s.gameObject) == "Karve"));
         // Where to go aboard a ship moored off the shore: the first dry ground walking back from it towards the colony (the ship may lie
         // well out; a spot beside it is water).
         public static Vector3? Shore(Vector3 ship, Vector3 home)

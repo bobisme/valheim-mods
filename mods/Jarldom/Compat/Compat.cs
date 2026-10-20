@@ -175,6 +175,22 @@ namespace Jarldom
         // What one of an item put in at a Homespun station (or the spinning wheel) comes to, or null.
         public static (string to, int n)? HomespunGives(string station, string from) { var f = Homespun.Bind<Func<string, string, (string, int)?>>("Gives", 1); try { return f?.Invoke(station, from); } catch { return null; } }
 
+        // ---- Shipyard: its slipways, where the shipwright builds a færing or a knarr in stages (World/Shipyard.cs) ----
+        private static readonly ApiRef ShipyardMod = new ApiRef("Shipyard.Api", "cx.bob.shipyard");
+        public static bool ShipyardOn => ShipyardMod.Present;
+        public static string[] ShipyardHulls { get { var f = ShipyardMod.Bind<Func<string[]>>("get_Hulls", 1); try { return f?.Invoke() ?? new string[0]; } catch { return new string[0]; } } }
+        public static string ShipyardTitle(string hull) { var f = ShipyardMod.Bind<Func<string, string>>("Title", 1); try { return f?.Invoke(hull); } catch { return null; } }
+        public static string ShipyardPrefab(string hull) { var f = ShipyardMod.Bind<Func<string, string>>("Prefab", 1); try { return f?.Invoke(hull); } catch { return null; } }
+        public static string[] ShipyardStageCosts(string hull) { var f = ShipyardMod.Bind<Func<string, string[]>>("StageCosts", 1); try { return f?.Invoke(hull) ?? new string[0]; } catch { return new string[0]; } }
+        public static Vector3[] Slipways(Vector3 at, float r) { var f = ShipyardMod.Bind<Func<Vector3, float, Vector3[]>>("SlipwaysNear", 1); try { return f?.Invoke(at, r) ?? new Vector3[0]; } catch { return new Vector3[0]; } }
+        public static string SlipwayHull(Vector3 slipway) { var f = ShipyardMod.Bind<Func<Vector3, string>>("Hull", 1); try { return f?.Invoke(slipway); } catch { return null; } }
+        public static int SlipwayStage(Vector3 slipway) { var f = ShipyardMod.Bind<Func<Vector3, int>>("Stage", 1); try { return f?.Invoke(slipway) ?? -1; } catch { return -1; } }
+        public static bool SlipwayFinished(Vector3 slipway) { var f = ShipyardMod.Bind<Func<Vector3, bool>>("Finished", 1); try { return f != null && f(slipway); } catch { return false; } }
+        public static (string item, int n)[] SlipwayNeeds(Vector3 slipway) { var f = ShipyardMod.Bind<Func<Vector3, (string, int)[]>>("Needs", 1); try { return f?.Invoke(slipway) ?? new (string, int)[0]; } catch { return new (string, int)[0]; } }
+        public static bool SlipwayStart(Vector3 slipway, string hull) { var f = ShipyardMod.Bind<Func<Vector3, string, bool>>("StartBuild", 1); try { return f != null && f(slipway, hull); } catch { return false; } }
+        public static int SlipwayPut(Vector3 slipway, string item, int n) { var f = ShipyardMod.Bind<Func<Vector3, string, int, int>>("Contribute", 1); try { return f?.Invoke(slipway, item, n) ?? 0; } catch { return 0; } }
+        public static bool SlipwayLaunch(Vector3 slipway) { var f = ShipyardMod.Bind<Func<Vector3, bool>>("Launch", 1); try { return f != null && f(slipway); } catch { return false; } }
+
         // ---- Wayfinder: its Beacon Fire is the colony's beacon ----
         private static readonly ApiRef Wayfinder = new ApiRef("Wayfinder.Api", "com.bobisme.wayfinder");
         public static Vector3? WayfinderBeacon(Vector3 at, float radius) { var f = Wayfinder.Bind<Func<Vector3, float, Vector3?>>("NearestBeacon", 1); try { return f?.Invoke(at, radius); } catch { return null; } }
