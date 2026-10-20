@@ -155,6 +155,22 @@ namespace Wayfinder
             me.m_customData[key]=string.Join(";",Fleet_.Select(k=>$"{k.Id.UserID}|{k.Id.ID}|{k.At.x.ToString("0.0",CultureInfo.InvariantCulture)}|{k.At.z.ToString("0.0",CultureInfo.InvariantCulture)}|{Policy.Clean(k.Name)}"));
         }
 
+        // Ships taken out of the fleet (test boats removed): their pins off the map. How many were in it.
+        internal static int Forget(Player me,System.Func<ZDOID,bool> which)
+        {
+            int n=0;
+            for(int i=Fleet_.Count-1;i>=0;i--)if(which(Fleet_[i].Id)){RemovePin(Fleet_[i]);Fleet_.RemoveAt(i);n++;}
+            if(n>0&&FleetKey() is string key&&me!=null)SaveFleet(me,key);
+            return n;
+        }
+
+        internal static string FleetText(Player me)=>FleetKey() is string key&&me.m_customData.TryGetValue(key,out string text)?text:"";
+        internal static void SetFleet(Player me,string text)
+        {
+            if(!(FleetKey() is string key))return;
+            me.m_customData[key]=text;ClearPins();Fleet_.Clear();_fleetFor=null; // (read again on the next update)
+        }
+
         internal static void Stop(){ClearPins();Fleet_.Clear();_fleetFor=null;Helm.Clear();_helmText=null;Fittings.Stop();Masthead.Stop();}
     }
 

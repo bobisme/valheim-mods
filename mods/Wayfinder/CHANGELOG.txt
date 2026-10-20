@@ -1,3 +1,5 @@
+0.1.11: test tools only. wayfinder remove also takes test boats that sailed out of reach, and drops them from your fleet (no more map pins for them); wayfinder fleet [set <text>] shows the fleet as saved, and can put a saved one back.
+
 0.1.10: The primstav shows the next feast-day within a fortnight under its forecast (Jarldom's festivals: Sigrblot, Midsummer, Winter Nights, Yule). Api v2: AddFeastDay, ClearFeastDays. Test tool: wayfinder feast [name days].
 
 0.1.9: Wayfinder.Api for other mods: NearestBeacon, LightBeacon, BeaconLit. Jarldom's watch lights your Beacon Fire when you sail home at night. Test tool: wayfinder beacon [light].

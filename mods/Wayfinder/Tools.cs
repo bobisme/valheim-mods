@@ -28,7 +28,7 @@ namespace Wayfinder
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name,"wayfinder",
-                    "wayfinder info | course [add x z [name] | here [name] | clear | reverse | skip] | weather | give <compass|sunstone|line|stave|raven|all> | take | place <vane|beacon|mark> [ahead=6] | remove | boat [prefab] [x z yaw] | name <text> | map [large|small] [zoom] | raven | climb | ship: check Wayfinder. give/take put test items in the player's inventory and take them back; place/remove put test pieces ahead of the player and take them away.",
+                    "wayfinder info | course [add x z [name] | here [name] | clear | reverse | skip] | weather | give <compass|sunstone|line|stave|raven|all> | take | place <vane|beacon|mark> [ahead=6] | remove | fleet [set <saved text>] | boat [prefab] [x z yaw] | name <text> | map [large|small] [zoom] | raven | climb | ship: check Wayfinder. give/take put test items in the player's inventory and take them back; place/remove put test pieces ahead of the player and take them away.",
                     (Func<string[],Action<JObject>,Action<string>,IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: wayfinder command added");
             }
@@ -134,12 +134,28 @@ namespace Wayfinder
                 }
                 case "remove":
                 {
-                    // wayfinder remove [prefab...]: test objects that are loaded, all of them or only those prefabs
+                    // wayfinder remove [prefab...]: test objects that are loaded, all of them or only those prefabs; and test boats anywhere
+                    // (one sailed off out of reach), forgotten from the fleet too
                     int n=0;
                     var only=new System.Collections.Generic.HashSet<string>(args.Skip(2));
+                    var gone=new System.Collections.Generic.HashSet<ZDOID>();
                     foreach(ZNetView v in Object.FindObjectsByType<ZNetView>(FindObjectsSortMode.None))
-                        if(v!=null&&v.IsValid()&&v.GetZDO().GetBool(TestKey)&&(only.Count==0||only.Contains(Utils.GetPrefabName(v.gameObject)))){v.ClaimOwnership();ZNetScene.instance.Destroy(v.gameObject);n++;}
-                    output(new JObject{["removed"]=n});
+                        if(v!=null&&v.IsValid()&&v.GetZDO().GetBool(TestKey)&&(only.Count==0||only.Contains(Utils.GetPrefabName(v.gameObject)))){gone.Add(v.GetZDO().m_uid);v.ClaimOwnership();ZNetScene.instance.Destroy(v.gameObject);n++;}
+                    foreach(GameObject p in ZNetScene.instance.m_prefabs.Where(x=>x!=null&&x.GetComponent<Ship>()!=null&&(only.Count==0||only.Contains(x.name))))
+                    {
+                        var found=new System.Collections.Generic.List<ZDO>();int index=0;
+                        while(!ZDOMan.instance.GetAllZDOsWithPrefabIterative(p.name,found,ref index)){}
+                        foreach(ZDO zdo in found)
+                            if(zdo.GetBool(TestKey)&&ZNetScene.instance.FindInstance(zdo)==null){gone.Add(zdo.m_uid);zdo.SetOwner(ZDOMan.GetSessionID());ZDOMan.instance.DestroyZDO(zdo);n++;}
+                    }
+                    output(new JObject{["removed"]=n,["forgotten"]=Ships.Forget(me,gone.Contains)});
+                    break;
+                }
+                case "fleet":
+                {
+                    // wayfinder fleet [set <saved text>]: the ships kept track of, as saved; set puts a saved list back (a test undone)
+                    if(args.Length>3&&args[2]=="set")Ships.SetFleet(me,string.Join(" ",args.Skip(3)));
+                    output(new JObject{["fleet"]=Ships.FleetText(me)});
                     break;
                 }
                 case "map":
