@@ -474,6 +474,7 @@ namespace Jarldom
                     S.Opinions[arg] = Mathf.Clamp((S.Opinions.TryGetValue(arg, out int o) ? o : 0) + 20, -100, 100);
                     S.Bump("rings"); Say(new[] { "I'll wear it with pride.", "A fine ring. I'll wear it always.", "This ring will be seen in the hall.", "Thank you. It's mine now, and I'm proud of it.", "A gold ring, for me! I'll wear it with pride." }[UnityEngine.Random.Range(0, 5)], 5);
                     break;
+                case "caddie": if (long.TryParse(arg.Split('|')[0], out long golfer) && golfer != 0) { Follow.Start(this, golfer, arg.Contains("|") ? arg.Substring(arg.IndexOf('|') + 1) : ""); View.GetZDO().Set(Follow.CaddieKey, true); Say(new[] { "I'll carry your club, jarl.", "To the course, then. I'll carry.", "Caddie, is it? Lead on.", "I'll watch your shots, jarl. Closely." }[UnityEngine.Random.Range(0, 4)], 5); } break;
                 case "follow": if (long.TryParse(arg.Split('|')[0], out long leader) && leader != 0) Follow.Start(this, leader, arg.Contains("|") ? arg.Substring(arg.IndexOf('|') + 1) : ""); else { Follow.End(this, new[] { "Home, then.", "Back to the hall, then.", "Home we go.", "Enough roaming. Home.", "Home, and gladly." }[UnityEngine.Random.Range(0, 5)]); Follow.HomeFrom(this); } break;
                 case "expedition": // ("<leader id>|<role>|<leader name>")
                     {

@@ -8,7 +8,7 @@ namespace Jarldom
     // goes into the saga. The follow is kept on the body (a player id), so whichever game owns them next knows.
     internal static class Follow
     {
-        public const string Key = "jarldom_follow", NameKey = "jarldom_followname", KillsKey = "jarldom_followkills", SinceKey = "jarldom_followsince";
+        public const string Key = "jarldom_follow", NameKey = "jarldom_followname", KillsKey = "jarldom_followkills", SinceKey = "jarldom_followsince", CaddieKey = "jarldom_caddie";
         public const float Keep = 4f, Reach = 30f;
         public static long LeaderId(Brain b) => b.View.GetZDO().GetLong(Key, 0L);
         public static Player Leader(Brain b)
@@ -42,7 +42,7 @@ namespace Jarldom
             int kills = b.S.Count("kills") - z.GetInt(KillsKey, b.S.Count("kills"));
             string jarl = z.GetString(NameKey, "the jarl");
             double hours = (ZNet.instance.GetTime().Ticks - z.GetLong(SinceKey, ZNet.instance.GetTime().Ticks)) / (double)System.TimeSpan.TicksPerSecond / Clock.Hour;
-            z.Set(Key, 0L);
+            z.Set(Key, 0L); z.Set(CaddieKey, false);
             Expedition.Ended(b);
             b.Task?.Stop(b); b.Task = null;
             if (hours >= 0.5 || kills > 0)
@@ -116,6 +116,7 @@ namespace Jarldom
     internal sealed class FollowTask : Task
     {
         private float _nextHungry, _nextCheer, _nextRole; private bool _watching; private Vector3? _seat;
+        private readonly Caddie.State _caddie = new Caddie.State();
         private readonly Expedition.CampState _camp = new Expedition.CampState();
         public override void Start(Brain b) { Doing = "following the jarl"; }
         public override void Stop(Brain b) { _camp.Wake(b); base.Stop(b); }
@@ -149,6 +150,7 @@ namespace Jarldom
             if (l == null) { Done = true; return; }
             if (ArenaWatch.On(l, out Vector3 ring) && Utils.DistanceXZ(b.Pos, ring) < ArenaWatch.Near) { Watch(b, l, ring); return; }
             if (_watching) { _watching = false; _seat = null; b.Move.Stop(); }
+            if (Caddie.Tick(b, l, _caddie)) { Doing = _caddie.Doing; return; }
             Vector3 to = l.transform.position;
             float d = Vector3.Distance(b.Pos, to);
             string role = Expedition.RoleOf(b);

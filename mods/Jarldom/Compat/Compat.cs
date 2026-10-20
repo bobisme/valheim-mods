@@ -254,6 +254,27 @@ namespace Jarldom
         }
         public static bool ArenaPresent => Arena.Present && Arena.Version >= 1;
 
+        // ---- Meadow Golf (Bob's): a caddie on the course (Api 1: polled, read-only) ----
+        private static readonly ApiRef Golf = new ApiRef("MeadowGolf.Api", "com.bobisme.golf");
+        private delegate bool BallFn(long player, out Vector3 at, out int strokes, out bool still, out bool done);
+        public static bool GolfPresent => Golf.Present && Golf.Version >= 1;
+        public static bool GolfBall(long player, out Vector3 at, out int strokes, out bool still, out bool done)
+        {
+            at = Vector3.zero; strokes = 0; still = done = false;
+            var f = Golf.Bind<BallFn>("BallOf", 1);
+            try { return f != null && f(player, out at, out strokes, out still, out done); } catch { return false; }
+        }
+        public static Vector3 GolfCup(long player)
+        {
+            var f = Golf.Bind<Func<long, Vector3>>("CupOf", 1);
+            return f == null ? Vector3.zero : Safe(() => f(player));
+        }
+        public static bool HoldsClub(Player p)
+        {
+            var f = Golf.Bind<Func<Player, bool>>("HoldsClub", 1);
+            return f != null && Safe(() => f(p));
+        }
+
         // ---- Shieldwall: a siege at the colony's Warstone is a raid ----
         private static readonly ApiRef Shieldwall = new ApiRef("Shieldwall.Api", "com.bobisme.shieldwall");
         public static bool Siege(Vector3 at, float radius, out Vector3 stone)

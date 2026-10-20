@@ -89,6 +89,7 @@ namespace Jarldom
                 case "summon": Villagers.Command(a[0], "summon", ""); break;
                 case "asked": Asks.Logged(this, a); break;
                 case "follow": Villagers.Command(a[0], "follow", Get(a, 1) + "|" + who); break;
+                case "caddie": Villagers.Command(a[0], "caddie", Get(a, 1) + "|" + who); break;
                 case "expedition": // ("start|<leader id>|vid:role,vid:role..." or "home|<leader id>")
                     if (a[0] == "start" && a.Length > 2)
                         foreach (string m in a[2].Split(',').Take(Expedition.MaxCrew)) { string[] vr = m.Split(':'); if (vr.Length == 2) Villagers.Command(vr[0], "expedition", a[1] + "|" + vr[1] + "|" + who); }

@@ -148,6 +148,7 @@ namespace Jarldom.Ui
                 bool following = Z.GetLong(Follow.Key, 0L) != 0;
                 long me = Player.m_localPlayer.GetPlayerID();
                 Small(right, following ? (Z.GetLong(Follow.Key, 0L) == me ? "Go home" : "Stop following") : "Follow me", ref bx, ry, () => Net.Act(c, "follow", vid + "|" + (following ? 0 : me)), "Out with the jarl: they keep up with you wherever you go (through portals too) and fight what comes at you. Give them food with a hotbar key. The saga tells of it when they come home.");
+                if (!following && Compat.GolfPresent) Small(right, "Caddie for me", ref bx, ry, () => Net.Act(c, "caddie", vid + "|" + me), "Out on the golf course with you (Meadow Golf): they follow you, hand you the club at your ball with a word on the shot, and have something to say about how it went. Go home sends them back.");
                 Small(right, "Come to the pillars", ref bx, ry, () => Net.Act(c, "summon", vid), "They stop what they're doing and come to the high-seat pillars.");
                 ry += 44; bx = 10;
                 Small(right, _confirm ? "Yes, send them away" : "Dismiss", ref bx, ry, () => { if (_confirm) { Net.Act(c, "dismiss", vid); Close(); } else { _confirm = true; Build(); } });

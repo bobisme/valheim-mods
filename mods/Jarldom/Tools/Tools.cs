@@ -1142,7 +1142,7 @@ namespace Jarldom
                         ["heralds"] = new JArray(Character.GetAllCharacters().Where(Tribute.IsHerald).Select(h => $"{h.transform.position.x:0},{h.transform.position.y:0},{h.transform.position.z:0}")),
                         ["event"] = RandEventSystem.instance?.GetCurrentRandomEvent()?.m_name ?? "" });
                     break;
-                case "follow": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } bool stop = a.Length > 3 && a[3] == "stop"; b.Command("follow", stop ? "0" : me.GetPlayerID() + "|" + me.GetPlayerName()); output(new JObject { ["following"] = Follow.LeaderId(b) != 0, ["doing"] = b.Doing }); } break;
+                case "follow": { Brain b = Who(a[2]); if (b == null) { error("who?"); return; } bool stop = a.Length > 3 && a[3] == "stop"; b.Command(a.Length > 3 && a[3] == "caddie" ? "caddie" : "follow", stop ? "0" : me.GetPlayerID() + "|" + me.GetPlayerName()); output(new JObject { ["following"] = Follow.LeaderId(b) != 0, ["doing"] = b.Doing }); } break;
                 case "purge":
                     {
                         // Test only: the stores and every villager's bag keep at most N of an item (the rest is gone).
