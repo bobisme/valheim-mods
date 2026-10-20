@@ -11,7 +11,7 @@ namespace Shieldwall
     internal static class Net
     {
         private const string Call_="bob_sw_call_v1",Damage_="bob_sw_damage_v1",Say_="bob_sw_say_v1",Hello_="bob_sw_hello_v1",
-            Horn_="bob_sw_horn_v1",Choose_="bob_sw_choose_v1",Tally_="bob_sw_tally_v1",Saga_="bob_sw_saga_v1";
+            Horn_="bob_sw_horn_v1",Choose_="bob_sw_choose_v1",Tally_="bob_sw_tally_v1",Saga_="bob_sw_saga_v1",Bonus_="bob_sw_wardbonus_v1";
         private static ZRoutedRpc _rpc;
         private static readonly Dictionary<string,object> Handlers=new Dictionary<string,object>();
         private static bool _hostAnswered;
@@ -55,6 +55,19 @@ namespace Shieldwall
             if(loaded!=null&&loaded.View.IsOwner()){Director.OnCall(loaded,cause);return true;}
             _rpc.InvokeRoutedRPC(stone.GetOwner(),Call_,stone.m_uid,(int)cause);
             return true;
+        }
+        // Another mod's ward bonus (Api.SetWardBonus), written on the stone by its owner.
+        internal static void WardBonus(Warstone stone,string source,float mult,float seconds)
+        {
+            ZDO z=stone.Z;if(z==null)return;
+            if(z.GetOwner()==0)stone.View.ClaimOwnership();
+            if(stone.View.IsOwner())Ward.SetBonus(stone,source,mult,seconds);
+            else _rpc?.InvokeRoutedRPC(z.GetOwner(),Bonus_,z.m_uid,source,mult,seconds);
+        }
+        private static void OnBonus(long sender,ZDOID id,string source,float mult,float seconds)
+        {
+            Warstone stone=Find(id);
+            if(stone!=null&&stone.View.IsOwner())Ward.SetBonus(stone,source,mult,seconds);
         }
         // The horn sounded at the war council, with the boasts sworn.
         internal static void Horn(Warstone stone,int boasts)
@@ -156,8 +169,9 @@ namespace Shieldwall
             _rpc.Register<ZDOID,string,string>(Choose_,OnChoose);
             _rpc.Register<ZDOID,long,string>(Tally_,OnTally);
             _rpc.Register<string,string,Vector3,float>(Saga_,OnSaga);
+            _rpc.Register<ZDOID,string,float,float>(Bonus_,OnBonus);
             var table=AccessTools.Field(typeof(ZRoutedRpc),"m_functions").GetValue(_rpc) as IDictionary;
-            foreach(string name in new[]{Call_,Damage_,Say_,Hello_,Horn_,Choose_,Tally_,Saga_})Handlers[name]=table?[name.GetStableHashCode()];
+            foreach(string name in new[]{Call_,Damage_,Say_,Hello_,Horn_,Choose_,Tally_,Saga_,Bonus_})Handlers[name]=table?[name.GetStableHashCode()];
         }
         internal static void Unregister()
         {

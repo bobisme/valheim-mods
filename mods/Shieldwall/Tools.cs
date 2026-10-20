@@ -307,6 +307,26 @@ namespace Shieldwall
                     else Net.Choose(stone,args[2],Player.m_localPlayer.GetPlayerName());
                     output(new JObject{["boons"]=new JArray(stone.Boons.ToArray()),["boonOffer"]=new JArray(stone.BoonOffer)});
                     break;
+                case "posts":
+                {
+                    // posts [radius=40]: the stave sockets near the player (Api.TowerPosts), raised ones first.
+                    float r=args.Length>2&&float.TryParse(args[2],out float pr)?pr:40;
+                    Vector3 me=Player.m_localPlayer!=null?Player.m_localPlayer.transform.position:Vector3.zero;
+                    output(new JObject{["posts"]=new JArray(Api.TowerPosts(me,r).Select(v=>$"{v.x:0.0},{v.y:0.0},{v.z:0.0}").ToArray())});
+                    break;
+                }
+                case "wardbonus":
+                {
+                    // wardbonus [mult=1.1] [seconds=60] [source=test]: Api.SetWardBonus at the stones within 60 m.
+                    float mult=args.Length>2&&float.TryParse(args[2],System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out float bm)?bm:1.1f;
+                    float secs=args.Length>3&&float.TryParse(args[3],out float bs)?bs:60;
+                    string src=args.Length>4?args[4]:"test";
+                    Vector3 me=Player.m_localPlayer!=null?Player.m_localPlayer.transform.position:Vector3.zero;
+                    int took=Api.SetWardBonus(me,60,src,mult,secs);
+                    output(new JObject{["stones"]=took,["bonus"]=Api.WardBonus(me,60),["raw"]=stone?.Z?.GetString(Stone.WardBonusKey,""),
+                        ["ward"]=Player.m_localPlayer?.GetSEMan().GetStatusEffect(Ward.EffectName.GetStableHashCode())?.m_tooltip});
+                    break;
+                }
                 case "prefabs":
                 {
                     // prefabs <part of a name>: the game's prefabs that match (finding effects and projectiles to use).

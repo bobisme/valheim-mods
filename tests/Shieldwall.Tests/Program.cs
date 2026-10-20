@@ -170,6 +170,11 @@ Check(chiefs.Select(c=>c.name).Distinct().Count()>40&&chiefs.All(c=>c.name.Conta
 Check(Policy.Chief(77)==Policy.Chief(77),"The same seed, the same warchief");
 Check(Enum.GetValues(typeof(Trick)).Cast<Trick>().All(t=>Policy.Does(t).Length>0),"Every trick is told");
 
+// Other mods' ward bonuses (Api.SetWardBonus): they multiply, between none and half again.
+Check(Policy.WardBonus(new float[0])==1&&Math.Abs(Policy.WardBonus(new[]{1.1f,1.2f})-1.32f)<0.001f&&Policy.WardBonus(new[]{2f,2f})==1.5f&&Policy.WardBonus(new[]{0.5f})==1,"Ward bonuses multiply, kept between 1 and 1.5");
+var unboosted=Policy.WardOf(5,true);var boosted=Policy.Boosted(unboosted,1.1f);
+Check(Math.Abs((boosted.HealthRegen-1)-(unboosted.HealthRegen-1)*1.1f)<0.001f&&boosted.Carry>=unboosted.Carry&&boosted.Comfort==unboosted.Comfort&&Policy.Boosted(unboosted,1).HealthRegen==unboosted.HealthRegen,"A bonus grows the ward's gains, not its comfort");
+
 var rng=new Policy.Rng(7);var rolls=Enumerable.Range(0,1000).Select(_=>rng.Next()).ToList();
 Check(rolls.All(r=>r>=0&&r<1)&&rolls.Average()>0.45&&rolls.Average()<0.55,"Rolls are even");
 Console.WriteLine($"Passed {checks} Warstone, horde, pacing, reward, stave and aiming checks.");

@@ -77,6 +77,14 @@ namespace Shieldwall
                 Carry=(float)Math.Floor(full.Carry/2),Armor=(float)Math.Floor(full.Armor/2),Comfort=0,
             };
         }
+        // Bonuses from other mods (Api.SetWardBonus) multiply, kept between 1 and 1.5; the ward's gains (over 1 for the regens) grow by it.
+        internal static float WardBonus(IEnumerable<float> mults)=>Math.Max(1f,Math.Min(1.5f,mults.Where(m=>m>0).Aggregate(1f,(a,m)=>a*m)));
+        internal static WardStats Boosted(WardStats w,float bonus)
+        {
+            if(bonus<=1.0001f)return w;
+            return new WardStats{HealthRegen=1+(w.HealthRegen-1)*bonus,StaminaRegen=1+(w.StaminaRegen-1)*bonus,EitrRegen=1+(w.EitrRegen-1)*bonus,
+                Carry=(float)Math.Round(w.Carry*bonus),Armor=(float)Math.Round(w.Armor*bonus),Comfort=w.Comfort};
+        }
         internal static IEnumerable<string> Describe(WardStats w)
         {
             if(w.HealthRegen>1)yield return $"Health regeneration +{Math.Round((w.HealthRegen-1)*100)}%";

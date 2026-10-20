@@ -1,2 +1,4 @@
+0.4.27: For other mods (Jarldom's guards and gothi): Shieldwall.Api 2 lists the stave sockets near a stone, the raised ones first (where defenders stand in a siege), and lets a mod strengthen a Warstone's ward for a while (a gothi's chant: a tenth stronger). Several such bonuses multiply, to half again at most. The ward's tooltip says who strengthened it. Nothing changes without such a mod.
+
 0.4.26: The Warstone upgrades' bakes are fixed: the horned brazier's stone slab is a slab again (it had folded into a wedge), and the trophy totem's horns keep their shape and their lashings (they had crumpled). The war staves are re-baked with the same care.
 

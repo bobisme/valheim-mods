@@ -25,8 +25,9 @@ namespace Shieldwall
                 .OrderByDescending(w=>w.Strength).FirstOrDefault();
             if(stone==null){_signature="";return;} // the effect runs down on its own
             bool hearth=AtHearth(stone);
-            WardStats ward=Policy.WardOf(stone.Strength+Policy.BoonWard(stone.Boons),hearth);
-            string signature=$"{stone.Strength}|{hearth}|{stone.Cracked}|{Policy.BoonWard(stone.Boons)}";
+            float bonus=Bonus(stone);
+            WardStats ward=Policy.Boosted(Policy.WardOf(stone.Strength+Policy.BoonWard(stone.Boons),hearth),bonus);
+            string signature=$"{stone.Strength}|{hearth}|{stone.Cracked}|{Policy.BoonWard(stone.Boons)}|{bonus:0.00}";
             int hash=EffectName.GetStableHashCode();
             if(signature==_signature&&me.GetSEMan().GetStatusEffect(hash) is StatusEffect active){active.ResetTime();return;}
             me.GetSEMan().RemoveStatusEffect(hash,true);
@@ -38,12 +39,46 @@ namespace Shieldwall
             se.m_icon=Stone.Station!=null?Stone.Station.m_icon:null;
             se.m_tooltip=string.Join("\n",Policy.Describe(ward))+$"\nReaches {Policy.WardReach(stone.Strength):0} m from the stone."+
                 (hearth?"\nThe stone stands at a hearth: full strength.":"\nHalf strength: set the stone under a roof with a fire near for the full ward.")+
-                (stone.Cracked?"\nThe stone is cracked: hold a siege to mend it.":"");
+                (stone.Cracked?"\nThe stone is cracked: hold a siege to mend it.":"")+
+                (bonus>1.001f?$"\nStrengthened {bonus*100-100:0}% ({BonusSources(stone)}).":"");
             se.m_ttl=60;
             se.m_healthRegenMultiplier=ward.HealthRegen;se.m_staminaRegenMultiplier=ward.StaminaRegen;se.m_eitrRegenMultiplier=ward.EitrRegen;
             se.m_addMaxCarryWeight=ward.Carry;se.m_addArmor=ward.Armor;
             _template=se;
             me.GetSEMan().AddStatusEffect(se,true);
+        }
+        // Other mods' bonuses on the stone (Api.SetWardBonus): "source=mult@until" each, until in the world's seconds; the live ones multiply.
+        internal static float Bonus(Warstone stone)
+        {
+            double now=ZNet.instance!=null?ZNet.instance.GetTimeSeconds():0;
+            return Policy.WardBonus(Parse(stone.Z?.GetString(Stone.WardBonusKey,"")??"").Where(b=>b.until>now).Select(b=>b.mult));
+        }
+        private static string BonusSources(Warstone stone)
+        {
+            double now=ZNet.instance!=null?ZNet.instance.GetTimeSeconds():0;
+            return string.Join(", ",Parse(stone.Z?.GetString(Stone.WardBonusKey,"")??"").Where(b=>b.until>now).Select(b=>b.source));
+        }
+        internal static void SetBonus(Warstone stone,string source,float mult,float seconds)
+        {
+            ZDO z=stone.Z;if(z==null||string.IsNullOrEmpty(source))return;
+            source=source.Replace("=","").Replace("@","").Replace(";","");
+            double now=ZNet.instance!=null?ZNet.instance.GetTimeSeconds():0;
+            var kept=Parse(z.GetString(Stone.WardBonusKey,"")).Where(b=>b.until>now&&b.source!=source).ToList();
+            if(seconds>0&&mult>0)kept.Add((source,mult,now+seconds));
+            z.Set(Stone.WardBonusKey,string.Join(";",kept.Select(b=>$"{b.source}={b.mult.ToString(System.Globalization.CultureInfo.InvariantCulture)}@{b.until.ToString("0",System.Globalization.CultureInfo.InvariantCulture)}")));
+        }
+        private static System.Collections.Generic.List<(string source,float mult,double until)> Parse(string text)
+        {
+            var list=new System.Collections.Generic.List<(string,float,double)>();
+            foreach(string part in text.Split(new[]{';'},System.StringSplitOptions.RemoveEmptyEntries))
+            {
+                int eq=part.IndexOf('='),at=part.IndexOf('@');
+                if(eq<=0||at<eq)continue;
+                if(float.TryParse(part.Substring(eq+1,at-eq-1),System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out float m)&&
+                   double.TryParse(part.Substring(at+1),System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out double u))
+                    list.Add((part.Substring(0,eq),m,u));
+            }
+            return list;
         }
         // Under a roof, with a burning fire near: checked every few seconds (a physics query near the stone, not a scene search).
         internal static bool AtHearth(Warstone stone)

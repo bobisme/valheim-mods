@@ -18,7 +18,7 @@ namespace Shieldwall
             WaveAtKey="bob_sw_waveat",BreatherKey="bob_sw_breather",SpawnedKey="bob_sw_spawned",StageKey="bob_sw_stage",CauseKey="bob_sw_cause",CooldownKey="bob_sw_cooldown",
             CalledKey="bob_sw_called",HeldKey="bob_sw_held",BaseKey="bob_sw_base",FallenKey="bob_sw_fallen",KillsKey="bob_sw_kills",QuietKey="bob_sw_quiet",
             BoastsKey="bob_sw_boasts",BoonsKey="bob_sw_boons",OfferKey="bob_sw_offer",TallyKey="bob_sw_tally",LowKey="bob_sw_low",LowWaveKey="bob_sw_lowwave",
-            SagaKey="bob_sw_saga",SagaTopicKey="bob_sw_sagatopic",ChiefsKey="bob_sw_chiefs",ChiefFellKey="bob_sw_chieffell";
+            SagaKey="bob_sw_saga",SagaTopicKey="bob_sw_sagatopic",ChiefsKey="bob_sw_chiefs",ChiefFellKey="bob_sw_chieffell",WardBonusKey="bob_sw_wardbonus";
         private static GameObject _prefab;
         internal static GameObject Prefab=>_prefab;
         internal static CraftingStation Station=>_prefab!=null?_prefab.GetComponent<CraftingStation>():null;
