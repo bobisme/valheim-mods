@@ -50,15 +50,17 @@ namespace Jarldom
             JarlDeeds.FeastHeld(c, day);
             c.R.Deeds += Renown.Deed("feast");
             string glutton = null;
+            int hung = Tapestries(c, c.Best(RoomType.GreatHall)); string mood = Finery.FeastMood(hung); // (a hall hung with Homespun's tapestries: the finer feast)
             foreach (Brain b in Villagers.All.Where(b => b.S.Colony == c.Id))
             {
-                Mood.Add(b.S, "feast", b.Now); Mood.Satisfy(b.S, Need.Food, 100); Mood.Satisfy(b.S, Need.Social, 40);
+                Mood.Add(b.S, mood, b.Now); Mood.Satisfy(b.S, Need.Food, 100); Mood.Satisfy(b.S, Need.Social, 40);
                 Worth.Gain(b.S, "feast"); b.S.Bump("feasts");
                 if (b.S.Has("glutton")) glutton = b.S.Name;
                 if (b.S.Count("feasts") >= 5 && string.IsNullOrEmpty(b.S.Byname)) { b.S.Byname = Names.Byname("feaster"); c.Log("byname", b.S.Name, b.S.Byname); }
                 b.Dirty();
             }
             c.Log("feast", glutton ?? "", "");
+            if (mood != "feast") c.Log("text", "", "", $"The hall was hung with {hung} tapestries for the feast, and no one will soon forget it.");
             // With a temple (or Odin's shrine), the feast is a festival to its god: faith twice over, the god's favour, worth.
             Room temple = c.R.Rooms.Where(r => r.Ok && (r.Type == RoomType.Temple || r.Type == RoomType.OdinShrine)).OrderByDescending(r => r.Points).FirstOrDefault();
             if (temple != null)
@@ -71,6 +73,9 @@ namespace Jarldom
             }
             Compat.SkalToast(c);
         }
+        // The tapestries hung in a room (what the room grades count as "tapestry": Homespun's woven hangings).
+        public static int Tapestries(Colony c, Room hall) => hall == null ? 0 : c.PiecesIn(c.Radius).Count(p => p != null && Geometry.Inside(hall.Xz, p.transform.position.x, p.transform.position.z)
+            && p.transform.position.y > hall.Floor - 1f && p.transform.position.y < hall.Floor + hall.Height + 1f && Colony.Kinds(p).Contains("tapestry"));
         private static void Take(List<(Container chest, ItemDrop.ItemData item)> from, int amount)
         {
             foreach (var (chest, item) in from.OrderBy(x => x.item.m_shared.m_food))
@@ -347,9 +352,12 @@ namespace Jarldom
             Justice.Judged(thief.S);
             Mood.Add(thief.S, "shamed", thief.Now);
             thief.S.Opinions[who] = Mathf.Clamp((thief.S.Opinions.TryGetValue(who, out int t) ? t : 0) + (how == "fine" ? -5 : -10), -100, 100);
-            if (how == "fine") thief.S.Counts[Justice.FineKey] = thief.S.Count(Justice.FineKey) + fine;
+            int bolts = how == "fine" ? PayInCloth(c, thief, fine) : 0; // (with Homespun: as much of it as wool bolts can pay, now)
+            if (how == "fine" && fine - bolts * Vadmal.BoltCoins > 0) thief.S.Counts[Justice.FineKey] = thief.S.Count(Justice.FineKey) + fine - bolts * Vadmal.BoltCoins;
             thief.Dirty();
-            string said = how == "fine" ? $"Let {p.About} pay the bót: {fine} coins of their wages, to the treasury" : $"Let {p.About} be outlawed {Justice.OutlawDays} days, then come home";
+            string said = how == "fine" ? (bolts == 0 ? $"Let {p.About} pay the bót: {fine} coins of their wages, to the treasury"
+                    : $"Let {p.About} pay the bót: {fine} coins, {bolts} bolt{(bolts == 1 ? "" : "s")} of vadmal to the treasury now{(fine > bolts * Vadmal.BoltCoins ? $" and {fine - bolts * Vadmal.BoltCoins} of their wages" : "")}")
+                : $"Let {p.About} be outlawed {Justice.OutlawDays} days, then come home";
             c.Log("text", who, "", $"At the Thing, {who} said: \"{said}.\" ({p.Text})");
             c.Tell($"{who}: “{said}.” The Thing cheers.", true);
             React(c, p, 3);
@@ -359,6 +367,35 @@ namespace Jarldom
             c.R.Flags[Spoken] = 0; c.R.Flags[Since] = (int)c.Now;
             if (list.Count == 0) Close(c, "");
             c.MarkDirty();
+        }
+        // The bót in vadmal (Core/Vadmal.cs): wool bolts into the treasury at a fixed rate, the thief's own first, then the stores' bought
+        // out of their hoard. How many bolts went (0: none, no Homespun, no treasury, or no room in it).
+        private static int PayInCloth(Colony c, Brain thief, int owed)
+        {
+            Container treasury = Stock.Treasury(c);
+            if (!Compat.HomespunOn || treasury == null || ContainerAccess.InUse(treasury)) return 0;
+            int paid = 0;
+            Inventory bag = thief.Body.GetInventory();
+            foreach (ItemDrop.ItemData i in bag.GetAllItems().Where(i => Classes.Prefab(i) == Vadmal.WoolBolt && !i.m_equipped).ToList())
+            {
+                int n = Vadmal.Pay(owed - paid * Vadmal.BoltCoins, i.m_stack).bolts;
+                if (n <= 0) break;
+                ItemDrop.ItemData part = i.Clone(); part.m_stack = n;
+                ContainerAccess.TakeOver(treasury);
+                if (!treasury.GetInventory().CanAddItem(part, n) || !treasury.GetInventory().AddItem(part)) break;
+                bag.RemoveItem(i, n); paid += n;
+            }
+            foreach (var x in Stock.Chests(c).Where(Dyeing.Stockpile))
+                foreach (ItemDrop.ItemData i in x.chest.GetInventory().GetAllItems().Where(i => Classes.Prefab(i) == Vadmal.WoolBolt).ToList())
+                {
+                    int n = Math.Min(Vadmal.Pay(owed - paid * Vadmal.BoltCoins, i.m_stack).bolts, Vadmal.Buys(thief.S.Hoard, i.m_stack));
+                    if (n <= 0) break;
+                    ContainerAccess.TakeOver(treasury);
+                    int moved = Stock.Take(x.chest, treasury.GetInventory(), i, n);
+                    thief.S.Hoard -= moved * Vadmal.BoltCoins; paid += moved;
+                }
+            if (paid > 0) treasury.GetInventory().m_onChanged?.Invoke();
+            return paid;
         }
         public const int JusticeOpinion = 3;
         // What a ruling does to everyone, said plainly: the moodlet a ruling gives (by its sign), and the opinion of the jarl (by its size).

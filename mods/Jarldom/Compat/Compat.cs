@@ -162,18 +162,39 @@ namespace Jarldom
         // weaves at its loom and sews at its table, and the colony wears its garments ----
         private static readonly ApiRef Homespun = new ApiRef("Homespun.Api", "cx.bob.homespun");
         public static bool HomespunOn => Homespun.Present && HomespunStations.Length > 0;
-        private static string[] _hsStations = new string[0], _hsGarments = new string[0]; private static float _hsNext;
+        private static string[] _hsStations = new string[0], _hsGarments = new string[0], _hsDyes = new string[0]; private static float _hsNext;
         private static void HomespunNames()
         {
             if (Time.time < _hsNext) return;
             _hsNext = Time.time + 10f;
             var st = Homespun.Bind<Func<string[]>>("get_Stations", 1); var ga = Homespun.Bind<Func<string[]>>("get_Garments", 1);
-            try { _hsStations = st?.Invoke() ?? new string[0]; _hsGarments = ga?.Invoke() ?? new string[0]; } catch { _hsStations = _hsGarments = new string[0]; }
+            var dy = Homespun.Bind<Func<string[]>>("get_Dyes", 2);
+            try { _hsStations = st?.Invoke() ?? new string[0]; _hsGarments = ga?.Invoke() ?? new string[0]; _hsDyes = dy?.Invoke() ?? new string[0]; } catch { _hsStations = _hsGarments = _hsDyes = new string[0]; }
         }
         public static string[] HomespunStations { get { HomespunNames(); return _hsStations; } }
         public static string[] HomespunGarments { get { HomespunNames(); return _hsGarments; } }
         // What one of an item put in at a Homespun station (or the spinning wheel) comes to, or null.
         public static (string to, int n)? HomespunGives(string station, string from) { var f = Homespun.Bind<Func<string, string, (string, int)?>>("Gives", 1); try { return f?.Invoke(station, from); } catch { return null; } }
+        // Dyeing (Homespun 0.2.0 and later, Api version 2; Villager/Dyeing.cs): its colours, a thing's colour, what it becomes dyed, the
+        // dyestuff for a colour and how many a measure, the measures a thing takes. Without it: no colours, nothing dyed.
+        public static string[] HomespunDyes { get { HomespunNames(); return _hsDyes; } }
+        public static bool HomespunDyeing => HomespunOn && HomespunDyes.Length > 0;
+        private static readonly Dictionary<string, string> _hsDyeOf = new Dictionary<string, string>(); private static Delegate _hsDyedFn;
+        // A thing's colour ("Blue"), or null: undyed, or not a thing that's dyed. (asked of every garment a villager sorts: kept per prefab)
+        public static string HomespunDye(string prefab)
+        {
+            if (string.IsNullOrEmpty(prefab) || !prefab.StartsWith("Homespun_")) return null;
+            var f = Homespun.Bind<Func<string, (string, string)?>>("Dyed", 2);
+            if (f == null) return null;
+            if (f != _hsDyedFn) { _hsDyeOf.Clear(); _hsDyedFn = f; } // (a reloaded Homespun: asked afresh)
+            if (_hsDyeOf.TryGetValue(prefab, out string kept)) return kept;
+            string dye; try { dye = f(prefab)?.Item2; } catch { dye = null; }
+            return _hsDyeOf[prefab] = dye;
+        }
+        public static bool HomespunDyeable(string prefab) { var f = Homespun.Bind<Func<string, (string, string)?>>("Dyed", 2); try { return f?.Invoke(prefab) != null; } catch { return false; } }
+        public static string HomespunDyedAs(string prefab, string dye) { var f = Homespun.Bind<Func<string, string, string>>("DyedAs", 2); try { return f?.Invoke(prefab, dye); } catch { return null; } }
+        public static (string stuff, int perMeasure)? HomespunDyestuff(string dye) { var f = Homespun.Bind<Func<string, (string, int)?>>("Dyestuff", 2); try { return f?.Invoke(dye); } catch { return null; } }
+        public static int HomespunMeasures(string prefab) { var f = Homespun.Bind<Func<string, int>>("Measures", 2); try { return f?.Invoke(prefab) ?? 0; } catch { return 0; } }
 
         // ---- Shipyard: its slipways, where the shipwright builds a færing or a knarr in stages (World/Shipyard.cs) ----
         private static readonly ApiRef ShipyardMod = new ApiRef("Shipyard.Api", "cx.bob.shipyard");

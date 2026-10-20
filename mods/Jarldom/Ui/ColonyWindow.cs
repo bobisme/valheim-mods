@@ -373,6 +373,7 @@ namespace Jarldom.Ui
             y = Text(list, $"A {Tables.Of(r.Rank).Name.ToLower()} of {_c.Population} {(_c.Population == 1 ? "soul" : "souls")}. Room for {_c.Cap} in all: as many as there are beds ({_c.Beds}), up to {Tables.Of(r.Rank).Cap} at this rank. Unlocked: {Tables.Of(r.Rank).Unlocks}.", y);
             if (r.Rank < Rank.Hold) { Rank next = r.Rank + 1; string miss = Ranks.Missing(next, _c.Population, _c.WorkingRooms()); y = Text(list, $"To become a {Tables.Of(next).Name.ToLower()}: {(miss == "" ? "ready at the next check" : miss)}.", y, 16, GameUi.Dim); }
             y = GreatWorksSection(list, y);
+            y = ColoursSection(list, y);
             y = Heading(list, "The colony", y);
             Container treasury = Stock.Treasury(_c);
             y = Text(list, $"Treasury: {(treasury == null ? "<color=#ff8c59>none chosen</color> (the hammer's \"Mark rooms and zones\": look at a chest, Shift+E)" : Stock.Coins(treasury) + " coins" + Where(treasury.transform.position))}. Wages due every {Payroll.EveryDays} days: {Payroll.Due(Villagers.All.Where(b => b.S.Colony == _c.Id).Select(b => b.S), Payroll.EveryDays, _c.GuardExtra) * Plugin.Instance.WageScale.Value / 100} coins.{(r.MissedPaydays > 0 ? $" <color=#ff8c59>{r.MissedPaydays} missed paydays.</color>" : "")}", y);
@@ -407,7 +408,7 @@ namespace Jarldom.Ui
             y = Text(list, feast == "" ? "A feast can be held tonight." : "Feast: " + feast + ".", y, 16, GameUi.Dim);
             y += 6;
             float bx = 8;
-            Tip(Btn(list, "Hold a feast", ref bx, y, () => Net.Act(_c, "feast", ""), feast == ""), "A feast", "Tonight in the great hall: food from the hall's chests (three kinds or more) and mead if there is some. Everyone's mood rises for days, and it's a deed for renown.");
+            Tip(Btn(list, "Hold a feast", ref bx, y, () => Net.Act(_c, "feast", ""), feast == ""), "A feast", "Tonight in the great hall: food from the hall's chests (three kinds or more) and mead if there is some. Everyone's mood rises for days, and it's a deed for renown." + (Compat.HomespunOn ? $" With {Finery.HungFeast} or more of Homespun's tapestries hung in the hall, it's a feast to remember (a better mood, for longer)." : ""));
             Tip(Btn(list, "Give out free beds", ref bx, y, () => Net.Act(_c, "autobeds", "")), "Free beds", "Everyone sleeping by the hall fire takes the nearest bed no one has. (It happens by itself at dusk too.)");
             y += 50; bx = 8;
             Tip(Btn(list, _c.R.Treasury == "" ? "Treasury: none yet" : "Treasury: chosen", ref bx, y, () => Player.m_localPlayer?.Message(MessageHud.MessageType.Center, "Take the hammer's \"Mark rooms and zones\", look at a chest and press Shift+E to make it the treasury."), true), "The treasury", "Wages are paid from the treasury every five days, and feasts, ransoms, tribute and hired swords are paid from it. Its coins count to renown. To choose it: the hammer's \"Mark rooms and zones\", look at a chest, Shift+E.");
@@ -460,6 +461,25 @@ namespace Jarldom.Ui
         private static string _confirm = "", _rename; private static Colony _renameFor;
         private static void Confirm(string what) { _confirm = _confirm == what ? "" : what; Build(); }
         // Great works (Core/GreatWorks.cs): what the Thing chose, where it stands and how far it's come.
+        // The colony's colours (Homespun's dyes): chosen here, the weaver dyes to them, the colony dresses in them (Villager/Dyeing.cs).
+        private static float ColoursSection(RectTransform list, float y)
+        {
+            if (!Compat.HomespunDyeing) return y;
+            var chosen = Dyeing.Of(_c);
+            y = Heading(list, "The colony's colours", y);
+            y = Text(list, chosen.Count == 0 ? "None chosen. Choose one or two of Homespun's dyes: the weaver dyes the colony's plain garments to them at a dye vat, villagers take them in place of their plain clothes (the jarls' sworn and the worthiest first), and at the festivals each wears the finest they have."
+                : $"{char.ToUpper(Dyeing.Titles(chosen)[0])}{Dyeing.Titles(chosen).Substring(1)}. " + Dyeing.Plan(_c), y, 15, GameUi.Dim);
+            float bx = 8;
+            foreach (string dye in Compat.HomespunDyes)
+            {
+                string d = dye; bool on = chosen.Contains(d);
+                Tip(Btn(list, (on ? "• " : "") + Dyeing.Title(d), ref bx, y, () => { Net.Act(_c, "colours", string.Join("|", Colours.Toggle(chosen, d))); Dyeing.Forget(_c); }),
+                    char.ToUpper(Dyeing.Title(d)[0]) + Dyeing.Title(d).Substring(1), on ? "Click to drop it from the colony's colours." : chosen.Count >= Colours.Most ? $"In place of {Dyeing.Title(chosen[Colours.Most - 1])}, as the second colour." : chosen.Count == 0 ? "The colony's colour." : "The colony's second colour.");
+            }
+            if (chosen.Count > 0) Tip(Btn(list, "Plain", ref bx, y, () => { Net.Act(_c, "colours", "off"); Dyeing.Forget(_c); }), "Plain", "No colours: the weaver dyes nothing, and what's dyed stays as it is.");
+            return y + 50;
+        }
+
         private static float GreatWorksSection(RectTransform list, float y)
         {
             bool any = GreatWorks.All.Any(w => GreatWorks.Stage(_c.R.Flags, w) != 0);
@@ -833,7 +853,7 @@ namespace Jarldom.Ui
                     float rx = 8;
                     if (p.Id == "exile")
                     {
-                        Tip(Btn(list, "Fine them", ref rx, y, () => Net.Act(_c, "rule", idx + "|fine|" + p.Key), Thing.JusticeWhy(_c, p, "fine") == ""), "The bót", "Their next payday's wages stay in the treasury. " + (Thing.JusticeWhy(_c, p, "fine") is string fw && fw != "" ? "Not now: " + fw + "." : ""));
+                        Tip(Btn(list, "Fine them", ref rx, y, () => Net.Act(_c, "rule", idx + "|fine|" + p.Key), Thing.JusticeWhy(_c, p, "fine") == ""), "The bót", "Their next payday's wages stay in the treasury. " + (Compat.HomespunOn ? $"Wool bolts pay it at once, {Vadmal.BoltCoins} coins a bolt: theirs first, then the stores' out of their hoard. " : "") + (Thing.JusticeWhy(_c, p, "fine") is string fw && fw != "" ? "Not now: " + fw + "." : ""));
                         Tip(Btn(list, $"Outlaw {Justice.OutlawDays} days", ref rx, y, () => Net.Act(_c, "rule", idx + "|outlaw|" + p.Key), Thing.JusticeWhy(_c, p, "outlaw") == ""), "A season's outlawry", $"Off for {Justice.OutlawDays} days, then home with all they had.");
                     }
                     Btn(list, p.Id == "exile" ? "Exile" : p.Yes, ref rx, y, () => Net.Act(_c, "rule", idx + "|yes|" + p.Key));

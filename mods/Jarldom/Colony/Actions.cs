@@ -47,6 +47,14 @@ namespace Jarldom
                     break;
                 case "check": CheckRoomSoon(a[0]); break;
                 case "feast": Feast.Call(this, who); break;
+                case "colours": // (one or two of Homespun's dyes, "Blue|Red"; "off": none. Villager/Dyeing.cs)
+                    {
+                        if (!Compat.HomespunDyeing) { TellPlayer(who, $"{R.Name} is run by a game without Homespun's dyes: no colours there."); return; }
+                        var was = Dyeing.Of(this); var now = Colours.Parse(arg, Compat.HomespunDyes);
+                        Colours.Set(R.Flags, now); Dyeing.Forget(this);
+                        if (!now.SequenceEqual(was)) Log("text", who, "", now.Count == 0 ? $"{who} set the colony's colours aside." : $"{who} chose {Dyeing.Titles(now)} for the colony's colours.");
+                    }
+                    break;
                 case "horn": HornUntil = a[0] == "on" ? Time.time + 300 : 0; if (a[0] == "on") { Assets.Effect("sfx_fader_bell", Position); Tell("The war horn sounds!", true); } else Tell("The all-clear."); break;
                 case "offer": Faith.Received(this, Get(a, 0), Int(a, 1), Get(a, 2), who); break;
                 case "rest": Lost.Rested(this, Get(a, 0), Get(a, 1), who); break;

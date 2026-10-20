@@ -54,6 +54,7 @@ namespace Jarldom
         }
         public void Dirty() => _dirty = true;
         public string ShipShort; // (a shipwright: what the stores lacked for the ship, last time)
+        public string DyeShort; public float NoDyeUntil; // (a weaver: the dyestuff the stores lacked for the colony's colours, last time)
         public void Save()
         {
             if (!View.IsValid() || !View.IsOwner()) return;
@@ -297,6 +298,7 @@ namespace Jarldom
             if (!Weaving.InRags(this)) { if (!Jarldom.Mood.Has(S, "dressed", now)) Jarldom.Mood.Add(S, "dressed", now); } else Jarldom.Mood.Remove(S, "dressed");
             Cold.Tick(this, sheltered, warm, now); // (winter out of doors, or the mountains, with nothing warm on)
             Fraying.Tick(this, hours, !sheltered && EnvMan.IsWet(), Cold.Mountain(Pos) || Year.Today().Season == Season.Winter && !sheltered && !warm); // (clothes fray with the hours worked in them)
+            if (Finery.Glad(Compat.HomespunDyeing && Dyeing.FestivalToday(), Body.GetInventory().GetAllItems().Where(i => i.m_equipped).Select(i => Dyeing.Fine(i, Dyeing.Of(Colony))).DefaultIfEmpty(0).Max())) { if (!Jarldom.Mood.Has(S, "finery", now)) Jarldom.Mood.Add(S, "finery", now); } else Jarldom.Mood.Remove(S, "finery"); // (a festival's day, in dyed clothes)
             if (Fraying.Threadbare(this)) { if (!Jarldom.Mood.Has(S, "threadbare", now)) Jarldom.Mood.Add(S, "threadbare", now); } else Jarldom.Mood.Remove(S, "threadbare");
             if (S.Worthy && !Jarldom.Mood.Has(S, "valkyries", now)) Jarldom.Mood.Add(S, "valkyries", now);
             if (!Jarldom.Mood.Has(S, "gary", now) && Held == null && Compat.Gary(Pos, 5f) is Character gary)

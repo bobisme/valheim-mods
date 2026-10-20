@@ -613,6 +613,19 @@ namespace Jarldom
             foreach (var x in stores)
                 foreach (ItemDrop.ItemData item in x.chest.GetInventory().GetAllItems().Where(Trade.Sellable).ToList())
                     if (bag.GetEmptySlots() > 1 && packed < room && Stock.Take(x.chest, bag, item, item.m_stack) > 0) packed++;
+            // (and with Homespun, the stores' bolts of cloth past a few of each kept for the weaver: vadmal, Core/Vadmal.cs)
+            foreach (var (prefab, n) in Trade.BoltsForSale(c))
+            {
+                int left = n;
+                foreach (var x in stores)
+                    foreach (ItemDrop.ItemData item in x.chest.GetInventory().GetAllItems().Where(i => Classes.Prefab(i) == prefab).ToList())
+                    {
+                        if (left <= 0 || bag.GetEmptySlots() <= 1 || packed >= room) break;
+                        int price = Trade.Price(item), had = item.m_stack, moved = Stock.Take(x.chest, bag, item, Math.Min(left, item.m_stack));
+                        if (moved <= 0) continue;
+                        _goods.Add(new Trade.Packed { Name = item.m_shared.m_name, N = moved, Coins = price * moved / had }); packed++; left -= moved;
+                    }
+            }
             if (!bag.GetAllItems().Any(Trade.Sellable) && _goods.Count == 0) { Done = true; b.NoTradeUntil = Time.time + 60; return; }
             // (by cart or ship: to it, and the rest is loaded there; on foot a little way down the road and gone: the world past a
             // player's own ground stands still, so a walk to the far edge could stall)
@@ -641,7 +654,14 @@ namespace Jarldom
         public static int Price(ItemDrop.ItemData i) => Trading.GoodsPrice(i.m_dropPrefab != null ? i.m_dropPrefab.name : null, Stock.Category(i), i.m_shared.m_value, i.m_stack, i.m_quality);
         // Lots waiting to be sold: everything in the trade chests, and the stores' treasure.
         public static int Lots(Colony c) => Stock.TradeChests(c).Sum(ch => ch.GetInventory().GetAllItems().Count(Goods))
-            + Stock.Chests(c).Where(x => x.category != "treasury").Sum(x => x.chest.GetInventory().GetAllItems().Count(Sellable));
+            + Stock.Chests(c).Where(x => x.category != "treasury").Sum(x => x.chest.GetInventory().GetAllItems().Count(Sellable)) + BoltsForSale(c).Count;
+        // The stores' bolts of cloth for sale (Homespun's wool and linen, dyed or not), each kind past what's kept for the weaver's sewing.
+        public static List<(string prefab, int n)> BoltsForSale(Colony c)
+        {
+            if (!Compat.HomespunOn) return new List<(string, int)>();
+            return Stock.Chests(c).Where(x => x.category != "treasury").SelectMany(x => x.chest.GetInventory().GetAllItems()).Select(Classes.Prefab).Where(Vadmal.IsBolt).Distinct()
+                .Select(p => (p, Vadmal.ForSale(Stock.Count(c, p)))).Where(x => x.Item2 > 0).ToList();
+        }
         // A ship of the colony's lying at its shore, no one aboard: a karve, or a longship (the drakkar too, and Shipyard's knarr: a cargo ship).
         public static Ship Ship(Colony c, bool longship) => c.PiecesIn(c.Radius + 40).Select(p => p.GetComponent<Ship>()).FirstOrDefault(s => s != null && !s.HasPlayerOnboard()
             && (longship ? Utils.GetPrefabName(s.gameObject).StartsWith("VikingShip") || Utils.GetPrefabName(s.gameObject) == "Shipyard_Knarr" : Utils.GetPrefabName(s.gameObject) == "Karve"));
@@ -668,7 +688,7 @@ namespace Jarldom
             var lines = new List<string>();
             Rank rank = c.R.Rank;
             if (rank < Rank.Village) { lines.Add("Trade runs start at village rank: a trader takes amber, silver, gems and the like from the stores and comes back with coins."); return lines; }
-            if (Stock.TradeChests(c).Count == 0) lines.Add("To sell the colony's own goods (wood, crops, hides, ore, metal, food, gear), mark a chest for trade goods (Shift+E on it with the staff) and fill it: a trader sells what's in it. From the stores they take only treasure.");
+            if (Stock.TradeChests(c).Count == 0) lines.Add("To sell the colony's own goods (wood, crops, hides, ore, metal, food, gear), mark a chest for trade goods (Shift+E on it with the staff) and fill it: a trader sells what's in it. From the stores they take only treasure" + (Compat.HomespunOn ? $", and bolts of cloth past {Vadmal.KeptForSewing} of each kind (a bolt of wool {Vadmal.WoolTenths / 10} coins, linen {Vadmal.LinenTenths / 10}, dyed half again)" : "") + ".");
             bool cart = Carts.CartNear(c) != null, karve = Ship(c, false) != null, longship = Ship(c, true) != null;
             int lots = Lots(c);
             TradeWay now = Trading.Choose(rank, cart, karve, longship, lots), most = Trading.Choose(rank, cart, karve, longship, int.MaxValue);

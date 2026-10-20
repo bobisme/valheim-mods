@@ -106,7 +106,7 @@ namespace Jarldom
         {
             if (stack <= 0) return 0;
             if (gameValue > 0) return gameValue * stack;
-            int tenths = prefab != null && TenthsOf.TryGetValue(prefab, out int t) ? t : kind != null && TenthsByKind.TryGetValue(kind, out int k) ? k : TenthsByKind["any"];
+            int tenths = Vadmal.Tenths(prefab) ?? (prefab != null && TenthsOf.TryGetValue(prefab, out int t) ? t : kind != null && TenthsByKind.TryGetValue(kind, out int k) ? k : TenthsByKind["any"]); // (Homespun's bolts: Core/Vadmal.cs)
             if (kind == "gear") tenths *= Math.Max(1, quality);
             return tenths * stack / 10;
         }

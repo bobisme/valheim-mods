@@ -49,6 +49,7 @@ namespace Jarldom
             Player p = Player.m_localPlayer;
             return p == null ? (ZNet.instance != null ? Colony.Nearest(ZNet.instance.GetReferencePosition(), 400) : null) ?? Colony.All.FirstOrDefault() : Colony.Nearest(p.transform.position, 400); // (a dedicated server: where it's looking)
         }
+        private static string Wearing(Brain b) => b.S.Name + (b.S.Sworn != "" ? " (sworn)" : "") + $" worth {b.S.Worth:0}: " + string.Join(", ", Gear.Items(b).Where(Weaving.IsClothes).Select(i => Classes.Prefab(i) + (i.m_equipped ? "*" : "")));
         private static JArray V(Vector3 v) => new JArray(Math.Round(v.x, 1), Math.Round(v.y, 1), Math.Round(v.z, 1));
         private static float F(string s) => float.Parse(s, CultureInfo.InvariantCulture);
         private static Brain Who(string name) => Villagers.All.FirstOrDefault(b => b.S.Vid == name || b.S.Name.Equals(name, StringComparison.OrdinalIgnoreCase) || b.S.FullName.Equals(name.Replace('_', ' '), StringComparison.OrdinalIgnoreCase))
@@ -459,6 +460,27 @@ namespace Jarldom
                             ["orders"] = new JArray(c.Board.All.Where(o => o.Prof == Prof.Weaver).Select(o => $"{o.Kind} {o.Target} {o.State} {o.Blocked}")),
                             ["stock"] = new JObject(new[] { "Flax", "Homespun_RettedFlax", Weaving.LineFlax, Fibre.Nettle, Fibre.RettedNettle, Fibre.LineNettle, Weaving.Thread, "LoxPelt", Weaving.HsWool, "ByreWool", Weaving.Yarn, "Homespun_LinenBolt", "Homespun_WoolBolt", "Homespun_Band" }.Select(n => new JProperty(n, Crafts.InStock(c, n)))),
                             ["weavers"] = new JArray(people.Where(b => b.S.Prof == Prof.Weaver).Select(b => $"{b.S.Name}: {b.Doing}; carries {string.Join(", ", b.Body.GetInventory().GetAllItems().Where(i => !i.m_equipped).Select(i => Classes.Prefab(i) + " x" + i.m_stack))}")) });
+                    }
+                    break;
+                case "colours": // ("colours": the colony's colours and what the dyer would do; "colours blue red" chooses them (one or two), "colours off" none)
+                case "dye": // ("dye": the same; "dye <name>": that weaver goes to the dye vat now, if there's dyeing to do)
+                    {
+                        if (cmd == "colours" && a.Length > 2) { Net.Act(c, "colours", string.Join("|", a.Skip(2))); Dyeing.Forget(c); }
+                        string sent = null;
+                        if (cmd == "dye" && a.Length > 2) { Brain w = Who(a[2]); if (w == null) { error("who?"); return; } Task t = DyeTask.Next(w, force: true); if (t != null) { w.Task?.Stop(w); w.Task = t; t.Start(w); } sent = t?.Doing ?? "nothing to dye: " + (w.DyeShort != null ? "the stores lack " + w.DyeShort : Dyeing.Plan(c)); }
+                        Container vat = Dyeing.VatNear(c, c.Position); var colours = Dyeing.Of(c);
+                        output(new JObject { ["dyeing"] = Compat.HomespunDyeing, ["dyes"] = new JArray(Compat.HomespunDyes), ["colours"] = new JArray(colours), ["plan"] = Dyeing.Plan(c), ["sent"] = sent,
+                            ["vat"] = vat == null ? null : $"{vat.transform.position:F0}: " + string.Join(", ", Dyeing.Contents(vat).Select(x => $"{x.stack} {x.prefab}")) + (Dyeing.Steeping(vat) ? " (steeping)" : ""),
+                            ["inColours"] = new JObject(colours.Select(d => new JProperty(d, Dyeing.In(c, d)))), ["waiting"] = new JObject(colours.Select(d => new JProperty(d, Dyeing.Waiting(c, d).Count))),
+                            ["weavers"] = new JArray(Villagers.All.Where(b => b.S.Colony == c.Id && b.S.Prof == Prof.Weaver).Select(b => $"{b.S.Name}: {b.Doing}{(b.DyeShort != null ? "; short of " + b.DyeShort : "")}")),
+                            ["wearing"] = new JArray(Villagers.All.Where(b => b.S.Colony == c.Id).Select(Wearing)) });
+                    }
+                    break;
+                case "finery": // ("finery on|off": as if today were a festival's day (for tests only): who wears what, and who's glad of it)
+                    {
+                        if (a.Length > 2) Dyeing.TestFestival = a[2] == "on";
+                        output(new JObject { ["festivalToday"] = Dyeing.FestivalToday(), ["test"] = Dyeing.TestFestival, ["colours"] = new JArray(Dyeing.Of(c)),
+                            ["people"] = new JArray(Villagers.All.Where(b => b.S.Colony == c.Id).Select(b => $"{b.S.Name}: " + string.Join(", ", Gear.Items(b).Where(Weaving.IsClothes).Select(i => $"{Classes.Prefab(i)}{(i.m_equipped ? "*" : "")} fine {Dyeing.Fine(i, Dyeing.Of(c))}{(Dyeing.KeptBy(b, i) ? " (kept by)" : "")}")) + (Mood.Has(b.S, "finery", b.Now) ? "; in finery" : ""))) });
                     }
                     break;
                 case "beds": // (test: every bed the colony counts as its own, and whose it is)

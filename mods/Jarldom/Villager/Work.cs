@@ -547,7 +547,7 @@ namespace Jarldom
                 case Prof.Skald: return "resting until the evening's songs";
                 case Prof.Trader: return c.R.Rank < Rank.Village ? "trade runs wait for village rank" : "nothing to sell in the stores (amber, silver, gems)";
                 case Prof.Carter: return "no ore or metal at the outpost to cart";
-                case Prof.Weaver: return !c.PiecesIn(c.Radius).Any(x => Colony.NameOf(x) == "piece_workbench") ? "no workbench to weave at" : Crafts.InStock(c, Weaving.Thread) < 4 && Crafts.InStock(c, Weaving.Flax) < 2 && Crafts.InStock(c, Fibre.Nettle) < 2 ? (Compat.HomespunOn ? "no flax, nettle or linen thread (farmers sow flax and nettle; a trader can buy flax seed)" : "no flax or linen thread (farmers sow flax; a trader can buy seed)") : "everyone's dressed";
+                case Prof.Weaver: return !c.PiecesIn(c.Radius).Any(x => Colony.NameOf(x) == "piece_workbench") ? "no workbench to weave at" : Crafts.InStock(c, Weaving.Thread) < 4 && Crafts.InStock(c, Weaving.Flax) < 2 && Crafts.InStock(c, Fibre.Nettle) < 2 ? (Compat.HomespunOn ? "no flax, nettle or linen thread (farmers sow flax and nettle; a trader can buy flax seed)" : "no flax or linen thread (farmers sow flax; a trader can buy seed)") : b.DyeShort != null ? $"the stores lack {b.DyeShort}" : "everyone's dressed";
                 default: return "idle";
             }
         }
@@ -557,7 +557,7 @@ namespace Jarldom
         {
             Colony c = b.Colony;
             Gear.Problem = null;
-            if (Time.time > b.NoStoreUntil && (Carrying(b) >= 4 || b.Body.GetInventory().GetEmptySlots() <= 2 && Carrying(b) > 0))
+            if (Time.time > b.NoStoreUntil && (Carrying(b) >= 4 || b.Body.GetInventory().GetEmptySlots() <= 2 && Carrying(b) > 0 || Dyeing.Carries(b))) // (the dyer's cloth back from the vat at once)
             {
                 if (b.Body.GetInventory().GetAllItems().Where(i => Stores(b, i)).Any(i => Stock.Destination(c, i, b.Pos) != null)) return new DepositTask();
                 b.NoStoreUntil = Time.time + 30; b.Say(new[] { "Where do I put all this? (no stockpile for it)", "My arms are full. Where does it go? (no stockpile for it)", "Nowhere to stack this. (no stockpile for it)", "The hall has no shelf for all this. (no stockpile for it)", "Too much to carry and nowhere to put it. (no stockpile for it)" }[UnityEngine.Random.Range(0, 5)], 5);
@@ -574,6 +574,7 @@ namespace Jarldom
             if (prof == Prof.Gothi) { Task rite = GothiTask.Next(b); if (rite != null) return rite; }
             if (prof == Prof.Carter) { Task cart = Carts.Next(b); if (cart != null) return cart; }
             if (prof == Prof.Hauler) { Task fest = FestHaulTask.Next(b); if (fest != null) return fest; } // (a festival coming: the hall readied)
+            if (prof == Prof.Weaver && c.IsOwner) { Task dye = DyeTask.Next(b); if (dye != null) return dye; } // (the colony's colours, at the dye vat)
             if (prof == Prof.Smith && c.IsOwner) { Task mend = MendTask.Next(b); if (mend != null) return mend; } // (everyone's worn gear, before new work)
             if (prof == Prof.Builder && c.IsOwner && Compat.GhostCount(c.Position, c.Radius) > 0 && Gear.Tool(b, "hammer") != null && Time.time > b.NoBuildUntil) return new BuildTask();
             if (prof == Prof.Builder) { Task up = Upkeep.Next(b); if (up != null) return up; } // (nothing planned: mend, rebuild, pave)
@@ -651,7 +652,7 @@ namespace Jarldom
         public static int Carrying(Brain b) => b.Body.GetInventory().GetAllItems().Count(i => Stores(b, i));
         // What goes to the stores from this villager's bag: loot, and gear they picked up off the ground for the colony (not theirs).
         // (a weaver keeps their spun thread by them)
-        public static bool Stores(Brain b, ItemDrop.ItemData i) => !CornerTask.Keepsake(i) && !(b.S.Prof == Prof.Weaver && Classes.Prefab(i) == Weaving.Thread && i.m_stack <= 20) && Loot(i) || !i.m_equipped && i.m_dropPrefab != null && (b.Hauled.Contains(i.m_dropPrefab.name) || Surplus(b, i) || Spare(b, i));
+        public static bool Stores(Brain b, ItemDrop.ItemData i) => !CornerTask.Keepsake(i) && !(b.S.Prof == Prof.Weaver && Classes.Prefab(i) == Weaving.Thread && i.m_stack <= 20) && Loot(i) || !i.m_equipped && i.m_dropPrefab != null && (b.Hauled.Contains(i.m_dropPrefab.name) || Surplus(b, i) || Spare(b, i) || Dyeing.Astray(b, i));
         // A second of what they already have and use: a tankard past their one, a weaker bow, armour or clothes beaten by what they
         // wear in that slot, a second tool of a kind, a weaker weapon (for the stores, where someone without will find it).
         private static readonly string[] SpareKinds = { "pickaxe", "axe", "hammer", "hoe", "cultivator", "rod" };
@@ -663,7 +664,7 @@ namespace Jarldom
             var t0 = i.m_shared.m_itemType;
             if (t0 == ItemDrop.ItemData.ItemType.Bow) return bag.Any(o => o != i && o.m_shared.m_itemType == t0 && Gear.Usable(o) && o.GetDamage().GetTotalDamage() >= i.GetDamage().GetTotalDamage());
             if (t0 == ItemDrop.ItemData.ItemType.Helmet || t0 == ItemDrop.ItemData.ItemType.Chest || t0 == ItemDrop.ItemData.ItemType.Legs || t0 == ItemDrop.ItemData.ItemType.Shoulder)
-                return bag.Any(o => o != i && o.m_equipped && o.m_shared.m_itemType == t0 && Gear.Usable(o) && o.GetArmor() >= i.GetArmor());
+                return bag.Any(o => o != i && o.m_equipped && o.m_shared.m_itemType == t0 && Gear.Usable(o) && o.GetArmor() >= i.GetArmor()) && !Dyeing.KeptBy(b, i); // (but finer clothes kept by for the festivals)
             // (a second tool of a kind, past the one they'd use: two pickaxes while a miner has none)
             if (Gear.Is("pickaxe", i) && b.S.Prof != Prof.Miner) return true; // (only miners dig: a woodcutter's pickaxe is a miner's without one)
             foreach (string kind in SpareKinds) if (Gear.Is(kind, i)) return Gear.Tool(b, kind) is ItemDrop.ItemData use && use != i;

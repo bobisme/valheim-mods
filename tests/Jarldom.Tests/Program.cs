@@ -1086,6 +1086,57 @@ Check(Names.Byname("starkill", "Troll") == "Troll-bane" && Names.Byname("unlucky
     Check(Tables.Moodlet("threadbare")?.Value < 0, "A threadbare moodlet");
 }
 
+// ---- The colony's colours (Homespun's dyes) ----
+{
+    var dyes = new[] { "Blue", "Red", "Yellow", "Purple" };
+    var flags = new Dictionary<string, int>();
+    Check(Colours.Chosen(flags, dyes).Count == 0, "No colours till the jarl chooses");
+    Colours.Set(flags, new[] { "Red", "Blue", "Yellow" });
+    Check(Colours.Chosen(flags, dyes).SequenceEqual(new[] { "Red", "Blue" }), "One or two colours, first colour first");
+    var saved = new ColonyRecord { Id = "cc" }; foreach (var kv in flags) saved.Flags[kv.Key] = kv.Value;
+    Check(Colours.Chosen(ColonyRecord.Load(saved.Save()).Flags, dyes).SequenceEqual(new[] { "Red", "Blue" }), "The colours are kept in the colony's flags (no change to what's saved)");
+    Check(Colours.Chosen(flags, new[] { "Blue" }).SequenceEqual(new[] { "Blue" }), "A colour Homespun no longer has is left out");
+    Colours.Set(flags, new string[0]);
+    Check(Colours.Chosen(flags, dyes).Count == 0 && !flags.Keys.Any(k => k.StartsWith("colour:")), "Plain: the colours cleared");
+    Check(Colours.Parse("blue RED purple", dyes).SequenceEqual(new[] { "Blue", "Red" }) && Colours.Parse("Yellow|Blue", dyes).SequenceEqual(new[] { "Yellow", "Blue" }), "Colours from words, any case, two at most");
+    Check(Colours.Parse("off", dyes).Count == 0 && Colours.Parse("", dyes).Count == 0 && Colours.Parse("green", dyes).Count == 0, "\"off\" or no dye named: none");
+    Check(Colours.Toggle(new List<string>(), "Blue").SequenceEqual(new[] { "Blue" }) && Colours.Toggle(new[] { "Blue" }, "Red").SequenceEqual(new[] { "Blue", "Red" }), "A dye clicked: the first colour, then the second");
+    Check(Colours.Toggle(new[] { "Blue", "Red" }, "Yellow").SequenceEqual(new[] { "Blue", "Yellow" }) && Colours.Toggle(new[] { "Blue", "Red" }, "Blue").SequenceEqual(new[] { "Red" }), "A third takes the second's place; one chosen, clicked again, goes");
+    Check(Colours.Next(new[] { "Blue", "Red" }, d => d == "Blue" ? 3 : 1) == "Red" && Colours.Next(new[] { "Blue", "Red" }, _ => 2) == "Blue" && Colours.Next(new string[0], _ => 0) == null, "The dyer dyes to the colour the colony has fewest garments in (the first on a tie)");
+    var pick = Colours.Pick(new[] { 2, 2, 1, 3 }, 5, 40);
+    Check(pick.picked.SequenceEqual(new[] { 0, 1, 2 }) && pick.stuff == 25, "A batch: as far as the dyestuff over the ten kept goes (a tunic 10 berries, an undertunic 5; the cloak's 15 too many)");
+    Check(Colours.Pick(new[] { 1, 1, 1, 1, 1, 1 }, 3, 100).picked.Count == Colours.Batch && Colours.Pick(new[] { 2 }, 5, Colours.StuffKept + 9).picked.Count == 0, "Four garments a vat-load at most; none with only the kept dyestuff and a little");
+    Func<string, string> dyeOf = p => p == "Blueberries" ? "Blue" : p == "Raspberry" ? "Red" : null;
+    Func<string, string, int> need = (p, d) => p == "Homespun_WoolTunic" ? 10 : p == "Homespun_LinenUndertunic" ? 5 : 0;
+    Check(Colours.Steeping(new[] { ("Homespun_WoolTunic", 1), ("Blueberries", 10) }, dyeOf, need) && !Colours.Steeping(new[] { ("Homespun_WoolTunic", 1), ("Blueberries", 9) }, dyeOf, need), "The vat steeps with dye enough for one thing in it");
+    Check(!Colours.Steeping(new[] { ("Homespun_WoolTunic", 1), ("Blueberries", 10), ("Raspberry", 10) }, dyeOf, need) && !Colours.Steeping(new[] { ("Homespun_WoolTunic_Blue", 1), ("Blueberries", 4) }, dyeOf, need) && !Colours.Steeping(new (string, int)[0], dyeOf, need), "Not with two dyes, nothing it dyes, or empty");
+    var souls = new[] { (n: "a", sworn: false, worth: 50f, at: 1.0), (n: "b", sworn: true, worth: 5f, at: 9.0), (n: "c", sworn: false, worth: 50f, at: 0.5), (n: "d", sworn: false, worth: 2f, at: 0.1) };
+    Check(string.Concat(Colours.ByStanding(souls, s => s.sworn, s => s.worth, s => s.at).Select(s => s.n)) == "bcad", "Finer cloth first to the jarls' sworn, then the worthiest, then the longest here");
+    Check(Colours.Turn(0, 1) && Colours.Turn(1, 2) && !Colours.Turn(2, 2) && !Colours.Turn(0, 0), "Their turn while more are spare than those above who want one");
+}
+
+// ---- Fine clothes: festivals and the feast ----
+{
+    var colours = new[] { "Blue", "Red" };
+    Check(Finery.Of(null, colours) == 0 && Finery.Of("Yellow", colours) == 1 && Finery.Of("Red", colours) == 2 && Finery.Of("Blue", colours) == 3, "Plain, dyed, the second colour, the first");
+    Check(Finery.Of("Red", new[] { "Red" }) == 3 && Finery.Of("Red", new string[0]) == 1, "An only colour is the first; with none chosen, dyed is dyed");
+    Check(Finery.FirstToday(true, Prof.Farmer) && !Finery.FirstToday(true, Prof.Guard) && !Finery.FirstToday(false, Prof.Farmer), "On a festival's day the finest is worn (a guard keeps their armour on)");
+    Check(Finery.Glad(true, 1) && !Finery.Glad(true, 0) && !Finery.Glad(false, 3), "Festival finery: on the day, in something dyed");
+    Check(Finery.KeptBy(3, 0, 3, true) && !Finery.KeptBy(3, 0, 3, false) && !Finery.KeptBy(1, 2, 1, true) && !Finery.KeptBy(2, 2, 2, true), "A finer garment than what's worn is kept by (one a slot); a plainer one goes to the stores");
+    Check(Finery.FeastMood(0) == "feast" && Finery.FeastMood(Finery.HungFeast - 1) == "feast" && Finery.FeastMood(Finery.HungFeast) == "feasthung", "A feast under the hall's tapestries is the finer feast");
+    Check(Tables.Moodlet("feasthung")?.Value > Tables.Moodlet("feast").Value && Tables.Moodlet("feasthung").Hours >= Tables.Moodlet("feast").Hours && Tables.Moodlet("finery")?.Value > 0, "The tapestried feast's moodlet beats the plain one's; festival finery cheers");
+}
+
+// ---- Vadmal: cloth as money ----
+{
+    Check(Vadmal.Tenths("Homespun_WoolBolt") == 100 && Vadmal.Tenths("Homespun_LinenBolt") == 80 && Vadmal.Tenths("Homespun_WoolBolt_Blue") == 150 && Vadmal.Tenths("Homespun_LinenBolt_Purple") == 120, "Bolts priced: wool 10 coins, linen 8, dyed half again");
+    Check(Vadmal.Tenths("Homespun_WoolTunic") == null && Vadmal.Tenths("Homespun_WoolBolt_Blue_X") == null && Vadmal.Tenths("Homespun_WoolBoltX") == null && Vadmal.Tenths(null) == null, "Only bolts are bolts");
+    Check(Trading.GoodsPrice("Homespun_WoolBolt", "any", 0, 3) == 30 && Trading.GoodsPrice("Homespun_LinenBolt_Red", "any", 0, 2) == 24 && Trading.GoodsPrice("Wood", "wood", 0, 30) == 3, "The trader sells bolts at their price (the rest as before)");
+    Check(Vadmal.Pay(25, 5) == (2, 5) && Vadmal.Pay(25, 1) == (1, 15) && Vadmal.Pay(5, 3) == (0, 5) && Vadmal.Pay(0, 3) == (0, 0) && Vadmal.Pay(20, 0) == (0, 20), "The bót in wool: whole bolts, never past what's owed; the rest from wages");
+    Check(Vadmal.Buys(25, 5) == 2 && Vadmal.Buys(100, 3) == 3 && Vadmal.Buys(5, 3) == 0, "The stores' bolts bought out of the thief's hoard");
+    Check(Vadmal.ForSale(10) == 10 - Vadmal.KeptForSewing && Vadmal.ForSale(3) == 0, "The trader leaves a few of each bolt for the weaver");
+}
+
 // ---- Prefab names: a save finds a thing again by its prefab's name; none shipped may go ----
 {
     var golden = File.ReadAllLines(Path.Combine(AppContext.BaseDirectory, "prefabs.txt")).Select(l => l.Trim()).Where(l => l != "").ToList();
