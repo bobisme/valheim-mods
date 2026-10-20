@@ -11,6 +11,11 @@ namespace Shipyard
     internal static class Looks
     {
         internal static readonly List<Object> Owned = new List<Object>();
+        // What's made for one world's pieces (their icons, and looks made per piece): destroyed with those prefabs when the next world's
+        // are made. In Owned they piled up, a set a world load, as the kit makes its pieces again for each world.
+        internal static readonly List<Object> WorldOwned = new List<Object>();
+        internal static void ForgetWorld() { foreach (Object o in WorldOwned) if (o != null) Object.Destroy(o); WorldOwned.Clear(); }
+        internal static List<Object> AllOwned() => Owned.Concat(WorldOwned).ToList();
         private static readonly Dictionary<string, Mesh> Meshes = new Dictionary<string, Mesh>();
         private static readonly Dictionary<string, Material[]> Mats = new Dictionary<string, Material[]>();
 
@@ -66,6 +71,6 @@ namespace Shipyard
         }
 
         internal static Material PieceMat(ZNetScene scene, string prefab) => scene?.GetPrefab(prefab)?.GetComponentsInChildren<Renderer>(true).SelectMany(r => r.sharedMaterials).FirstOrDefault(m => m != null && m.shader != null && m.shader.name == "Custom/Piece");
-        internal static void Forget() { foreach (Object o in Owned) if (o != null) Object.Destroy(o); Owned.Clear(); Meshes.Clear(); Mats.Clear(); Sails.Forget(); }
+        internal static void Forget() { foreach (Object o in Owned) if (o != null) Object.Destroy(o); Owned.Clear(); ForgetWorld(); Meshes.Clear(); Mats.Clear(); Sails.Forget(); }
     }
 }

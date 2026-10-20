@@ -1,3 +1,5 @@
+0.3.4: each world load no longer keeps another set of the boats' and pieces' icons and the hulls' water masks (they piled up until the game restarted).
+
 0.3.3: Api.StageCosts gives the wool sail in place of the hides when Homespun is in, as the slipway asks for it (Jarldom's ship costs said 15 deer hide). Live-checked: Jarldom's knarr cost reads 1 wool sail.
 
 0.3.2: wool sails, with Homespun 0.3.0. The knarr's mast stage takes a Homespun wool sail in place of the deer hide (any colour; taken down, the same colour comes back), and she sails under its colour: the stripes in the dye's colour, brown for undyed wool, on the stocks and once launched. Test commands: yard pay [stages] [colour], yard clear. Live-checked: a knarr paid with a blue sail shows blue and white stripes furled on the stocks. Not yet tried: a launched knarr's sail colour at sea (the boatyard's water was taken), paying the sail by hand.

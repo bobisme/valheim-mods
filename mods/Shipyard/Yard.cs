@@ -35,7 +35,7 @@ namespace Shipyard
             _next = Time.unscaledTime + 1;
             ZNetScene scene = ZNetScene.instance; PieceTable table = Hammer(scene);
             if (scene == null || table == null || Plugin.Instance == null) return;
-            if (scene != _scene) { Made.Clear(); if (_holder != null) Object.Destroy(_holder); _holder = null; _scene = scene; }
+            if (scene != _scene) { Made.Clear(); if (_holder != null) Object.Destroy(_holder); _holder = null; Looks.ForgetWorld(); _scene = scene; }
             bool every = true, changed = false;
             foreach (string name in new[] { Names.Faering, Names.Knarr, Names.Slipway, Names.Naust })
             {
@@ -55,13 +55,13 @@ namespace Shipyard
                 changed = true;
             }
             if (changed && Player.m_localPlayer is Player p) UpdateAvailablePieces?.Invoke(p, null);
-            if (every) { if (_settleAt < 0) _settleAt = Time.unscaledTime + 3; else if (Time.unscaledTime >= _settleAt) Leftovers.TakeOver(Looks.Owned); }
+            if (every) { if (_settleAt < 0) _settleAt = Time.unscaledTime + 3; else if (Time.unscaledTime >= _settleAt) Leftovers.TakeOver(Looks.AllOwned()); }
         }
         internal static void Unload()
         {
             PieceTable table = Hammer(ZNetScene.instance);
             foreach (GameObject prefab in Made.Values) PieceReload.UnloadPiece(prefab, table);
-            Leftovers.HandOver(Looks.Owned.Concat(new Object[] { _holder }));
+            Leftovers.HandOver(Looks.AllOwned().Concat(new Object[] { _holder }));
         }
 
         private static void Strip(GameObject go)
@@ -109,8 +109,8 @@ namespace Shipyard
             piece.m_resources = SlipwayCost.Select(c => Req(scene, c.item, c.n)).Where(r => r != null).ToArray();
             piece.m_enabled = true;
             go.AddComponent<Slipway>();
-            try { if (Icon.Make(go) is Sprite icon) { piece.m_icon = icon; Looks.Owned.Add(icon); Looks.Owned.Add(icon.texture); } } catch (Exception e) { Plugin.Warn("No slipway icon: " + e.Message); }
-            Icon.Later(() => { if (go != null && Icon.Make(go) is Sprite again) { piece.m_icon = again; Looks.Owned.Add(again); Looks.Owned.Add(again.texture); } });
+            try { if (Icon.Make(go) is Sprite icon) { piece.m_icon = icon; Looks.WorldOwned.Add(icon); Looks.WorldOwned.Add(icon.texture); } } catch (Exception e) { Plugin.Warn("No slipway icon: " + e.Message); }
+            Icon.Later(() => { if (go != null && Icon.Make(go) is Sprite again) { piece.m_icon = again; Looks.WorldOwned.Add(again); Looks.WorldOwned.Add(again.texture); } });
             return go;
         }
 
@@ -157,8 +157,8 @@ namespace Shipyard
             piece.m_resources = NaustCost.Select(c => Req(scene, c.item, c.n)).Where(r => r != null).ToArray();
             piece.m_enabled = true;
             go.AddComponent<Naust>();
-            try { if (Icon.Make(go) is Sprite icon) { piece.m_icon = icon; Looks.Owned.Add(icon); Looks.Owned.Add(icon.texture); } } catch (Exception e) { Plugin.Warn("No naust icon: " + e.Message); }
-            Icon.Later(() => { if (go != null && Icon.Make(go) is Sprite again) { piece.m_icon = again; Looks.Owned.Add(again); Looks.Owned.Add(again.texture); } });
+            try { if (Icon.Make(go) is Sprite icon) { piece.m_icon = icon; Looks.WorldOwned.Add(icon); Looks.WorldOwned.Add(icon.texture); } } catch (Exception e) { Plugin.Warn("No naust icon: " + e.Message); }
+            Icon.Later(() => { if (go != null && Icon.Make(go) is Sprite again) { piece.m_icon = again; Looks.WorldOwned.Add(again); Looks.WorldOwned.Add(again.texture); } });
             return go;
         }
 
@@ -214,7 +214,7 @@ namespace Shipyard
             piece.m_name = hull.Title; piece.m_description = "A little four-oared rowing boat, quick and light: two aboard, no sail.";
             piece.m_resources = Hulls.Total(hull).Select(kv => Req(scene, kv.Key, kv.Value)).Where(r => r != null).ToArray(); // (broken up, it gives its makings back)
             piece.m_enabled = true;
-            try { if (Icon.Make(go) is Sprite icon) { piece.m_icon = icon; Looks.Owned.Add(icon); Looks.Owned.Add(icon.texture); } } catch (Exception) { }
+            try { if (Icon.Make(go) is Sprite icon) { piece.m_icon = icon; Looks.WorldOwned.Add(icon); Looks.WorldOwned.Add(icon.texture); } } catch (Exception) { }
             return go;
         }
         // ---- the knarr ----
@@ -293,7 +293,7 @@ namespace Shipyard
             piece.m_name = hull.Title; piece.m_description = "A broad, deep cargo ship with one big square sail. Her hold carries more than twice a longship's; slow in light airs, strong in a gale.";
             piece.m_resources = Hulls.Total(hull).Select(kv => Req(scene, kv.Key, kv.Value)).Where(r => r != null).ToArray();
             piece.m_enabled = true;
-            try { if (Icon.Make(go) is Sprite icon) { piece.m_icon = icon; Looks.Owned.Add(icon); Looks.Owned.Add(icon.texture); } } catch (Exception) { }
+            try { if (Icon.Make(go) is Sprite icon) { piece.m_icon = icon; Looks.WorldOwned.Add(icon); Looks.WorldOwned.Add(icon.texture); } } catch (Exception) { }
             return go;
         }
         // The sea kept out of a hull: the karve's water mask (stripped with its looks; its material hides the water behind it), made
@@ -319,7 +319,7 @@ namespace Shipyard
             if (!(karve.transform.Find("ship/visual_new/watermask_waternmask")?.GetComponent<MeshRenderer>()?.sharedMaterial is Material wm))
             { Plugin.Warn($"No water mask on the Karve: the sea will show inside the hull ({shape.Name})"); return; }
             var go = new GameObject("watermask") { layer = shipRoot.gameObject.layer }; go.transform.SetParent(shipRoot, false);
-            Mesh m = MaskMesh(shape); Looks.Owned.Add(m);
+            Mesh m = MaskMesh(shape); Looks.WorldOwned.Add(m);
             go.AddComponent<MeshFilter>().sharedMesh = m;
             var r = go.AddComponent<MeshRenderer>(); r.sharedMaterial = wm; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
