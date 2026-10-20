@@ -97,8 +97,9 @@ namespace Godforged
         {
             foreach(ItemDef d in All)
             {
-                d.CCost=config.Bind("9 - Costs",d.Prefab,d.Cost,$"What the {d.Name} takes to make: \"Item:amount, Item:amount\" (game prefab names). Needs a restart.");
-                d.CStation=config.Bind("9 - Costs",d.Prefab+"Station",d.Station+":"+d.Level,$"Where the {d.Name} is made, and the station's level: \"forge:1\". Needs a restart.");
+                d.CCost=Plugin.Synced.Bind("9 - Costs",d.Prefab,d.Cost,$"What the {d.Name} takes to make: \"Item:amount, Item:amount\" (game prefab names).");
+                d.CStation=Plugin.Synced.Bind("9 - Costs",d.Prefab+"Station",d.Station+":"+d.Level,$"Where the {d.Name} is made, and the station's level: \"forge:1\".");
+                d.CCost.SettingChanged+=(_,__)=>Recost();d.CStation.SettingChanged+=(_,__)=>Recost();
             }
         }
 
@@ -199,6 +200,12 @@ namespace Godforged
             ((Dictionary<int,GameObject>)NamedField.GetValue(scene))[prefab.name.GetStableHashCode()]=prefab;
         }
 
+        // A cost or station changed (by the server, or in the file): the recipes made again from it.
+        private static void Recost()
+        {
+            foreach(ItemDef d in All)d.Recipe=null;
+            if(ZNetScene.instance!=null&&ObjectDB.instance!=null)Plugin.Safe("recost",()=>AddRecipes(ZNetScene.instance,ObjectDB.instance));
+        }
         private static void AddRecipes(ZNetScene scene,ObjectDB db)
         {
             foreach(ItemDef d in All)

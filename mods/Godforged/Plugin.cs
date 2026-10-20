@@ -18,15 +18,18 @@ namespace Godforged
     {
         public const string Guid="cx.bob.godforged";
         public const string Name="Godforged";
-        public const string Version="0.3.2";
+        public const string Version="0.3.3";
         internal static Plugin Instance;
         internal static ConfigEntry<float> Volume;
+        // The server's say in multiplayer over the relics' strengths, reaches, timers and costs (look and sound stay each player's own).
+        internal static ServerSettings Synced;
         private Harmony _harmony;
 
         private void Awake()
         {
             Instance=this;
             Volume=Config.Bind("0 - General","Volume",0.9f,new ConfigDescription("How loud the thunder is.",new AcceptableValueRange<float>(0,1)));
+            Synced=new ServerSettings(Guid,Config,Logger);
             foreach(Feature f in Features.All)Safe(f.Name+" settings",()=>f.Bind(Config));
             Things.BindCosts(Config);
             _harmony=new Harmony(Guid);_harmony.PatchAll(typeof(Plugin).Assembly);
@@ -55,6 +58,7 @@ namespace Godforged
         }
         private void Update()
         {
+            Step("settings",()=>Synced?.Update());
             Step("tools",Tools.Tick);
             Step("net",Net.Tick);
             foreach(Feature f in Features.All)Step(f.Name,f.Tick);
@@ -69,6 +73,7 @@ namespace Godforged
             Sound.Clear();
             _harmony?.UnpatchSelf();
             Things.Unload();
+            Synced?.Dispose();
             if(Instance==this)Instance=null;
         }
     }

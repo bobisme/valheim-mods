@@ -9,3 +9,5 @@ Gjallarhorn: Heimdall's horn. Blow it, and everyone hears it and sees where you 
 Thor's kit: Mjölnir, Járngreipr and the game's own Megingjord together, and the lightning leaps from foe to foe.
 
 A thrown relic is never lost: if it can't come home (you fell, your bag is full) it drops where it is. Everyone sees the throw, the return and the lightning. Native Linux and Windows.
+
+In multiplayer the server decides the relics' strengths, reaches, timers and costs (its values replace a player's own while they play there; a cost changed in the file applies at once). The thunder's volume, Gungnir's wind and Járngreipr's look stay each player's own.

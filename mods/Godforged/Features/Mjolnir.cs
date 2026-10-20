@@ -26,17 +26,17 @@ namespace Godforged
         internal override void Bind(ConfigFile c)
         {
             const string s="1 - Mjölnir";
-            _strike=c.Bind(s,"StrikeDamage",60f,"Lightning damage where a thrown Mjölnir lands, at the centre.");
-            _radius=c.Bind(s,"StrikeRadius",4f,"How far the strike reaches, in metres.");
-            _chain=c.Bind(s,"ChainTargets",4,"With Thor's kit (Mjölnir, Járngreipr and Megingjord), how many more foes the lightning leaps to.");
-            _chainRange=c.Bind(s,"ChainRange",12f,"How far each leap reaches, in metres.");
-            _chainShare=c.Bind(s,"ChainDamage",0.6f,"Each leap's damage, as a share of the strike's.");
-            _buildings=c.Bind(s,"StrikeHurtsBuildings",false,"Whether the lightning damages buildings.");
-            _split=c.Bind(s,"StrikeSplitsTrees",80f,"Chop damage the strike does to trees, logs and stumps (only to them). 0: none.");
-            _splitTier=c.Bind(s,"StrikeSplitTier",4,"The strike's tool tier against trees (the game's: 2 iron, 3 black metal, 4 and up anything).");
-            _returnShare=c.Bind(s,"ReturnDamage",0.6f,"On its way home, Mjölnir hits what it passes through for this share of its own damage. 0: none.");
-            _returnBuildings=c.Bind(s,"ReturnHurtsBuildings",false,"Whether Mjölnir on its way home damages buildings.");
-            _burn=c.Bind(s,"BareHandBurn",3f,"Health lost each second holding Mjölnir without Járngreipr (never below 1). 0: none.");
+            _strike=Plugin.Synced.Bind(s,"StrikeDamage",60f,"Lightning damage where a thrown Mjölnir lands, at the centre.");
+            _radius=Plugin.Synced.Bind(s,"StrikeRadius",4f,"How far the strike reaches, in metres.");
+            _chain=Plugin.Synced.Bind(s,"ChainTargets",4,"With Thor's kit (Mjölnir, Járngreipr and Megingjord), how many more foes the lightning leaps to.");
+            _chainRange=Plugin.Synced.Bind(s,"ChainRange",12f,"How far each leap reaches, in metres.");
+            _chainShare=Plugin.Synced.Bind(s,"ChainDamage",0.6f,"Each leap's damage, as a share of the strike's.");
+            _buildings=Plugin.Synced.Bind(s,"StrikeHurtsBuildings",false,"Whether the lightning damages buildings.");
+            _split=Plugin.Synced.Bind(s,"StrikeSplitsTrees",80f,"Chop damage the strike does to trees, logs and stumps (only to them). 0: none.");
+            _splitTier=Plugin.Synced.Bind(s,"StrikeSplitTier",4,"The strike's tool tier against trees (the game's: 2 iron, 3 black metal, 4 and up anything).");
+            _returnShare=Plugin.Synced.Bind(s,"ReturnDamage",0.6f,"On its way home, Mjölnir hits what it passes through for this share of its own damage. 0: none.");
+            _returnBuildings=Plugin.Synced.Bind(s,"ReturnHurtsBuildings",false,"Whether Mjölnir on its way home damages buildings.");
+            _burn=Plugin.Synced.Bind(s,"BareHandBurn",3f,"Health lost each second holding Mjölnir without Járngreipr (never below 1). 0: none.");
         }
 
         // Held without Járngreipr, it burns: a little health each second, with a crackle, never below 1.

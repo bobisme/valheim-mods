@@ -24,8 +24,8 @@ namespace Godforged
         internal override void Bind(ConfigFile c)
         {
             const string s="4 - Draupnir";
-            _coins=c.Bind(s,"Coins",80,"Coins it drips (eight rings' worth).");
-            _every=c.Bind(s,"EveryDays",9,"Every how many days it drips, at dawn.");
+            _coins=Plugin.Synced.Bind(s,"Coins",80,"Coins it drips (eight rings' worth).");
+            _every=Plugin.Synced.Bind(s,"EveryDays",9,"Every how many days it drips, at dawn.");
         }
 
         internal override void Tick()

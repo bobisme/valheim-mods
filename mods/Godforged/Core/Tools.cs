@@ -53,7 +53,7 @@ namespace Godforged
             {
                 case "list":
                     output(new JObject{["items"]=new JArray(Things.All.Select(d=>new JObject{["prefab"]=d.Prefab,["name"]=d.Name,["built"]=d.Built!=null,
-                        ["type"]=d.Shared?.m_itemType.ToString(),["recipe"]=d.Recipe!=null&&ObjectDB.instance!=null&&ObjectDB.instance.m_recipes.Contains(d.Recipe),
+                        ["type"]=d.Shared?.m_itemType.ToString(),["recipe"]=d.Recipe!=null&&ObjectDB.instance!=null&&ObjectDB.instance.m_recipes.Contains(d.Recipe),["cost"]=d.Recipe!=null?string.Join(", ",d.Recipe.m_resources.Select(r=>$"{r.m_resItem?.name}:{r.m_amount}"))+$" at {d.Recipe.m_craftingStation?.name}:{d.Recipe.m_minStationLevel}":"",
                         ["icon"]=d.Shared?.m_icons!=null&&d.Shared.m_icons.Length>0&&d.Shared.m_icons[0]!=null}))});
                     return null;
                 case "give":

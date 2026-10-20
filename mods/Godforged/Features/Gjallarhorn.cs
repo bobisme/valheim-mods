@@ -27,10 +27,10 @@ namespace Godforged
         internal override void Bind(ConfigFile c)
         {
             const string s="6 - Gjallarhorn";
-            _cooldown=c.Bind(s,"CooldownSeconds",300f,"How long it rests between blasts.");
-            _radius=c.Bind(s,"WatchRadius",30f,"Friends this near take Heimdall's Watch.");
-            _watchSeconds=c.Bind(s,"WatchSeconds",60f,"How long Heimdall's Watch lasts.");
-            _regen=c.Bind(s,"WatchStaminaRegen",1.5f,"Heimdall's Watch: stamina comes back this many times as fast.");
+            _cooldown=Plugin.Synced.Bind(s,"CooldownSeconds",300f,"How long it rests between blasts.");
+            _radius=Plugin.Synced.Bind(s,"WatchRadius",30f,"Friends this near take Heimdall's Watch.");
+            _watchSeconds=Plugin.Synced.Bind(s,"WatchSeconds",60f,"How long Heimdall's Watch lasts.");
+            _regen=Plugin.Synced.Bind(s,"WatchStaminaRegen",1.5f,"Heimdall's Watch: stamina comes back this many times as fast.");
         }
         internal override void Start()=>Net.Register(Rpc,(sender,pkg)=>Heard(pkg.ReadVector3(),pkg.ReadString()));
         internal override void Register(ZNetScene scene)

@@ -24,8 +24,8 @@ namespace Godforged
         internal override void Bind(ConfigFile c)
         {
             const string s="5 - Brísingamen";
-            _share=c.Bind(s,"Share",0.5f,new ConfigDescription("How much of a heal friends nearby get.",new AcceptableValueRange<float>(0f,1f)));
-            _range=c.Bind(s,"Range",20f,"How near, in metres.");
+            _share=Plugin.Synced.Bind(s,"Share",0.5f,"How much of a heal friends nearby get.",new AcceptableValueRange<float>(0f,1f));
+            _range=Plugin.Synced.Bind(s,"Range",20f,"How near, in metres.");
         }
         internal override void Start()=>Net.Register(GlintRpc,(sender,pkg)=>{int n=pkg.ReadInt();for(int i=0;i<n;i++)Glint(pkg.ReadVector3());});
 
