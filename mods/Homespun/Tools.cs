@@ -158,6 +158,17 @@ namespace Homespun
                     output(new JObject { ["containers"] = list });
                     break;
                 }
+                case "drop":
+                {
+                    // spun drop <prefab> [metres=1.5]: one of that from the bag dropped on the ground ahead, as the player drops it (no cheats: it's theirs)
+                    ItemDrop.ItemData it = me.GetInventory().GetAllItems().FirstOrDefault(i => !i.m_equipped && i.m_dropPrefab != null && i.m_dropPrefab.name == (a.Length > 2 ? a[2] : ""));
+                    if (it == null) { error("spun drop: none of that in the bag"); yield break; }
+                    Vector3 spot = me.transform.position + me.transform.forward * F(a, 3, 1.5f) + Vector3.up;
+                    ItemDrop dropped = ItemDrop.DropItem(it, 1, spot, Quaternion.identity);
+                    me.GetInventory().RemoveItem(it, 1);
+                    output(new JObject { ["dropped"] = dropped != null ? Utils.GetPrefabName(dropped.gameObject) : null, ["at"] = V(spot) });
+                    break;
+                }
                 case "take":
                 {
                     // spun take <prefab...>: Homespun's own test things taken out of the bag (taken off first); nothing else is touched
