@@ -1,19 +1,24 @@
 # Larder's looks (dairy first), made from scratch: the butter churn (with its stool, a dish of butter and the paddle), the lever cheese
 # press (bench, hoop, follower, beam, hung stone, whey bucket), and the items: butter, cheese, skyr.
-# Run: blender -b --python ~/.cache/larder/larder.py -- [render] [churn|press|butter|cheese|skyr]
+# Run: blender -b --python ~/.cache/larder/larder.py -- [render] [churn|press|butter|cheese|skyr|smokehouse|saltpan|saltbarrel|dryingrack|
+#      smokedmeat|saltmeat|stockfish|salt]
 # (writes ~/.cache/larder/<name>.json.gz; previews <name>_<yaw>_<distance>.png with "render"). What ships is the bake of these
 # (bake_conf.py, docs/model-baking.md). Blender frame: z up, front +y (the game's +z, where a player stands to use the piece); the pieces
 # stand on z 0, the items lie about the origin. Written in the game's frame (x, z, y): per corner position/normal/uv (uvs in metres;
 # wood's grain runs along v), triangles per material: 0 wood, 1 stone, 2 iron, 3 butter, 4 rind, 5 curd, 6 skyr, 7 blueberry, 8 rope,
-# 9 horn, 10 whey.
+# 9 horn, 10 whey, 11 soot, 12 sootstone, 13 salt, 14 smoked, 15 meat, 16 fat, 17 fish, 18 smudge.
+# Preserves (after the dairy): the smokehouse, the salt pan, the salt barrel, the stockfish rack, and the items smokedmeat, saltmeat,
+# stockfish, salt.
 import bpy, bmesh, json, math, random, sys, gzip
 from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
 
 OUT = '/home/bob/.cache/larder/'
-WOOD, STONE, IRON, BUTTER, RIND, CURD, SKYR, BERRY, ROPE, HORN, WHEY = range(11)
-NAMES = ('wood', 'stone', 'iron', 'butter', 'rind', 'curd', 'skyr', 'blueberry', 'rope', 'horn', 'whey')
-SMOOTH = ('rock', 'hoop', 'band', 'pat', 'berry', 'rope', 'skyr', 'spoon', 'curd', 'dish', 'bowl', 'cheese', 'knob', 'stream')
+WOOD, STONE, IRON, BUTTER, RIND, CURD, SKYR, BERRY, ROPE, HORN, WHEY, SOOT, SOOTSTONE, SALT, SMOKED, MEAT, FAT, FISH, SMUDGE = range(19)
+NAMES = ('wood', 'stone', 'iron', 'butter', 'rind', 'curd', 'skyr', 'blueberry', 'rope', 'horn', 'whey',
+         'soot', 'sootstone', 'salt', 'smoked', 'meat', 'fat', 'fish', 'smudge')
+SMOOTH = ('rock', 'hoop', 'band', 'pat', 'berry', 'rope', 'skyr', 'spoon', 'curd', 'dish', 'bowl', 'cheese', 'knob', 'stream',
+          'haunch', 'bone', 'string', 'heap', 'crust', 'scoop', 'lip', 'handle_ring', 'ash', 'fish')
 rng = random.Random(7)
 mats = []
 V = Vector
@@ -361,6 +366,402 @@ def skyr():
     tube('spoon_handle', smooth_line([foot, foot.lerp(top, 0.5) + V((0, 0, 0.006)), top], 1), 0.0045, HORN, res=1)
     finish('skyr', [(30, 0.55, 0.35, 0), (-60, 0.5, 0.3, 0)])
 
+# ================ preserves: smoke, salt, stockfish ================
+def plank(name, a, b, wdir, w, th, mat=WOOD, jitter=0.003, seed=0, chamfer=0.0, nrm=None):
+    # a hewn board from a to b (its middle line), w wide along wdir, th thick; chamfer cuts its long edges
+    a, b = V(a), V(b); L = (b - a).normalized(); wd = V(wdir); wd = (wd - L * wd.dot(L)).normalized()
+    n = L.cross(wd).normalized() if nrm is None else V(nrm).normalized()
+    r = random.Random(seed); pts = []
+    sec = [(-1, -1), (1, -1), (1, 1), (-1, 1)] if not chamfer else \
+          [(s * (1 - 2 * chamfer / w), t) for s in (-1, 1) for t in (-1, 1)] + [(s, t * (1 - 2 * chamfer / th)) for s in (-1, 1) for t in (-1, 1)]
+    for p in (a, b):
+        for s, t in sec:
+            pts.append(p + wd * (s * w / 2) + n * (t * th / 2) + V((r.uniform(-jitter, jitter), r.uniform(-jitter, jitter), r.uniform(-jitter, jitter))))
+    return hull(name, pts, mat, tuple(b - a))
+
+def stone(name, centre, size, seed, mat=STONE, yaw=None, extra=3, round_=0.18):
+    # a hand-sized to knee-high field stone, flat-faced: a box with its corners knocked off (pulled in), a few bulges, turned its own way
+    r = random.Random(seed); c = V(centre); sx, sy, sz = size
+    pts = []
+    for X in (-1, 1):
+        for Y in (-1, 1):
+            for Z in (-1, 1):
+                k = 1 - r.uniform(0.3 * round_, round_)
+                pts.append(V((X * sx / 2 * k * r.uniform(0.9, 1.0), Y * sy / 2 * k * r.uniform(0.9, 1.0), Z * sz / 2 * k)))
+    for _ in range(extra):
+        d = V((r.gauss(0, 1), r.gauss(0, 1), r.gauss(0, 0.6))).normalized()
+        pts.append(V((d.x * sx / 2, d.y * sy / 2, d.z * sz / 2)) * r.uniform(0.92, 1.02))
+    m = Matrix.Rotation(r.uniform(0, 2 * math.pi) if yaw is None else yaw + r.uniform(-0.06, 0.06), 3, 'Z') @ Matrix.Rotation(r.uniform(-0.05, 0.05), 3, 'X')
+    return hull(name, [c + m @ p for p in pts], mat)
+
+def cobble(name, centre, size, seed, mat=STONE, yaw=None, n=16):
+    # a rounded field stone, flat-faced: the hull of points spread over an egg, a little uneven
+    r = random.Random(seed); c = V(centre); sx, sy, sz = size; pts = []
+    for k in range(n):
+        zz = 1 - 2 * (k + 0.5) / n; rr = math.sqrt(1 - zz * zz); a = k * 2.39996 + r.uniform(-0.3, 0.3)
+        f = r.uniform(0.85, 1.0)
+        pts.append(V((math.cos(a) * rr * sx / 2 * f, math.sin(a) * rr * sy / 2 * f, zz * sz / 2 * (0.85 if abs(zz) > 0.8 else 1.0))))
+    m = Matrix.Rotation(r.uniform(0, 2 * math.pi) if yaw is None else yaw + r.uniform(-0.15, 0.15), 3, 'Z') @ Matrix.Rotation(r.uniform(-0.08, 0.08), 3, 'X')
+    return hull(name, [c + m @ p for p in pts], mat)
+
+def patch(name, centre, normal, rx, ry, mat, seed=0, up=(0, 0, 1), lift=0.004, n=9, boxy=1.0):
+    # a mark lying flat on a surface (soot, salt flecks): an uneven blot rx by ry, lifted a hair off it. Name it 'decal...': the bake
+    # takes it into the texture only
+    r = random.Random(seed); c = V(centre); nr = V(normal).normalized(); u = V(up); u = (u - nr * u.dot(nr)).normalized(); s = u.cross(nr)
+    pts = []
+    for k in range(n):
+        a = 2 * math.pi * (k + 0.5) / n; k_ = r.uniform(0.7, 1.05) if boxy == 1.0 else r.uniform(0.85, 1.0)
+        ca, sa = math.cos(a), math.sin(a); ca, sa = math.copysign(abs(ca) ** boxy, ca), math.copysign(abs(sa) ** boxy, sa)   # (boxy < 1: squarer)
+        for t in (0.0, 0.002):
+            pts.append(c + nr * (lift + t) + s * ca * rx * k_ + u * sa * ry * k_)
+    return hull(name, pts, mat)
+
+def roofline(x, eave_x, eave_z, ridge_x, ridge_z):
+    # the underside of a roof slope at x (a straight pitch from the eave up to the ridge)
+    return eave_z + (eave_x - abs(x)) * (ridge_z - eave_z) / (eave_x - ridge_x)
+
+# ---------------- the smokehouse ----------------
+# A dry-stone firebox (x, y -0.65..0.65, z 0..0.45; the mouth at the front, x -0.2..0.2 to z 0.30 under a lintel stone) under a stone slab;
+# on it a plank hut (corner posts, sills, wall plates; walls at |x|, |y| 0.6) with a small batten hatch in the front wall
+# (x -0.19..0.19, z 0.92..1.26). A plank roof pitched to the ridge along y (eaves z 1.34 at x +-0.74, front and back overhang to y +-0.74),
+# left open 0.16 along the ridge for the smoke under a raised ridge cap (top z 1.9). Soot round the mouth and along the ridge gap.
+SH = dict(W=0.65, IN=0.47, TOPZ=0.45, EX=0.74, EZ=1.34, RX=0.08, RZ=1.80, OV=0.74)
+def smokehouse():
+    fresh(); r = random.Random(61); W, IN = SH['W'], SH['IN']
+    # (the firebox: three courses of stones, the joints staggered; the front left open for the mouth, a long lintel over it)
+    courses = [(-0.03, 0.15), (0.15, 0.30), (0.30, 0.45)]
+    k = 0
+    def course_side(ci, z0, z1, axis, sgn, a0, a1, soot=()):
+        nonlocal k
+        L = a1 - a0; n = max(1, round(L / 0.36)); cuts = [a0] + sorted(a0 + L * (i + r.uniform(-0.22, 0.22)) / n for i in range(1, n)) + [a1]
+        for s0, s1 in zip(cuts, cuts[1:]):
+            mid, ln = (s0 + s1) / 2, s1 - s0 + 0.04
+            th = W - IN + 0.02; off = sgn * ((W + IN) / 2 + r.uniform(-0.012, 0.012))
+            hz = z1 - z0 + 0.03 + r.uniform(-0.015, 0.02); zc = (z0 + z1) / 2 + r.uniform(-0.008, 0.008)
+            c = (mid, off, zc) if axis == 'x' else (off, mid, zc)
+            size = (ln, th, hz) if axis == 'x' else (th, ln, hz)
+            sootish = any(lo <= mid <= hi for lo, hi in soot)
+            stone(f'stone_{k}', c, size, seed=100 + k, mat=SOOTSTONE if sootish else STONE, yaw=(0.0 if axis == 'x' else 0.0), extra=4, round_=0.3); k += 1
+    for ci, (z0, z1) in enumerate(courses):
+        long_x = ci % 2 == 0   # (alternate courses: the front/back stones or the side stones run past the corners)
+        ax0, ax1 = (-W, W) if long_x else (-IN, IN)
+        ay0, ay1 = (-IN, IN) if long_x else (-W, W)
+        course_side(ci, z0, z1, 'x', -1, ax0, ax1)                                      # back
+        for sg in (-1, 1): course_side(ci, z0, z1, 'y', sg, ay0, ay1)                   # sides
+        if ci < 2:                                                                       # front, round the mouth
+            course_side(ci, z0, z1, 'x', 1, ax0, -0.21, soot=((-0.4, -0.2),) if ci == 1 else ())
+            course_side(ci, z0, z1, 'x', 1, 0.21, ax1, soot=((0.2, 0.4),) if ci == 1 else ())
+        else:
+            course_side(ci, z0, z1, 'x', 1, ax0, -0.33); course_side(ci, z0, z1, 'x', 1, 0.33, ax1)
+    stone('lintel', (0, (W + IN) / 2 + 0.004, 0.375), (0.74, W - IN + 0.02, 0.13), seed=90, mat=SOOTSTONE, yaw=0.0, extra=3, round_=0.2)
+    box('slab', (-W + 0.02, -W + 0.02, 0.43), (W - 0.02, W - 0.02, 0.49), STONE, jitter=0.006, seed=91)
+    # (inside the mouth: the ash bed and two charred logs)
+    blob('ash', (0, 0.1, 0.0), (0.3, 0.3, 0.035), SOOT, seed=92, subdiv=1, lumps=0.15)
+    pole('log_0', (-0.2, 0.42, 0.05), (0.08, -0.15, 0.04), 0.045, SOOT, seed=93, bend=0.01)
+    pole('log_1', (0.22, 0.38, 0.05), (-0.06, -0.2, 0.08), 0.04, SOOT, seed=94, bend=0.01)
+    # (the hut: sills on the slab, corner posts, wall plates, plank walls)
+    P, T = 0.6, 0.09   # (the walls' outer face; the posts' size)
+    for s in (-1, 1):
+        box(f'sill_x{s}', (-P, s * P - (T if s > 0 else 0), 0.49), (P, s * P + (0 if s > 0 else T), 0.57), WOOD, (1, 0, 0), jitter=0.004, seed=95 + s)
+        box(f'sill_y{s}', (s * P - (T if s > 0 else 0), -P + T, 0.49), (s * P + (0 if s > 0 else T), P - T, 0.57), WOOD, (0, 1, 0), jitter=0.004, seed=97 + s)
+        box(f'plate_{s}', (s * P - (T if s > 0 else 0) - 0.01, -P - 0.01, 1.36), (s * P + (0 if s > 0 else T) + 0.01, P + 0.01, 1.44), WOOD, (0, 1, 0), jitter=0.004, seed=99 + s)
+        box(f'plate_y{s}', (-P + T, s * P - (T if s > 0 else 0), 1.36), (P - T, s * P + (0 if s > 0 else T), 1.43), WOOD, (1, 0, 0), jitter=0.003, seed=103 + s)
+    for i, (sx, sy) in enumerate(((-1, -1), (1, -1), (1, 1), (-1, 1))):
+        x0, y0 = (sx * P - T, sy * P - T) if sx > 0 or sy > 0 else (0, 0)
+        lo = (sx * P - (T if sx > 0 else 0), sy * P - (T if sy > 0 else 0), 0.49)
+        box(f'post_{i}', lo, (lo[0] + T, lo[1] + T, 1.44), WOOD, (0, 0, 1), bevel=0.01, jitter=0.004, seed=110 + i)
+    wall = P - T / 2 + 0.005   # (the planks' middle plane, between the posts' faces)
+    def wall_planks(tag, axis, sgn, z0=0.57, z1=1.36):
+        n = 4; span = 2 * (P - T)
+        for j in range(n):
+            a0 = -(P - T) + span * j / n - (0.012 if j else 0.0); a1 = -(P - T) + span * (j + 1) / n + (0.012 if j < n - 1 else 0.0)
+            o_ = sgn * (0.007 if j % 2 else -0.004); hw = 0.014 if j % 2 else 0.016
+            if axis == 'x': lo, hi = (a0, sgn * wall + o_ - hw, z0), (a1, sgn * wall + o_ + hw, z1)
+            else: lo, hi = (sgn * wall + o_ - hw, a0, z0), (sgn * wall + o_ + hw, a1, z1)
+            box(f'wall_{tag}{j}', lo, hi, WOOD, (0, 0, 1), jitter=0.003, seed=120 + hash(tag) % 50 + j)
+    wall_planks('b', 'x', -1); wall_planks('f', 'x', 1); wall_planks('l', 'y', -1); wall_planks('r', 'y', 1)
+    # (the hatch: two boards and two battens, a frame round it, a turn-button latch; iron strap hinges laid on it)
+    fy = wall + 0.024
+    for k_, (x0, x1, z0, z1) in enumerate(((-0.24, 0.24, 0.87, 0.92), (-0.24, 0.24, 1.26, 1.31), (-0.24, -0.19, 0.92, 1.26), (0.19, 0.24, 0.92, 1.26))):
+        box(f'frame_{k_}', (x0, fy, z0), (x1, fy + 0.02, z1), WOOD, (1, 0, 0) if k_ < 2 else (0, 0, 1), jitter=0.002, seed=140 + k_)
+    for k_, (x0, x1) in enumerate(((-0.185, 0.0), (0.004, 0.185))):
+        box(f'hatch_{k_}', (x0, fy + 0.002, 0.925), (x1, fy + 0.026, 1.255), WOOD, (0, 0, 1), jitter=0.002, seed=145 + k_)
+    for k_, z in enumerate((0.97, 1.21)):
+        box(f'batten_{k_}', (-0.17, fy + 0.026, z - 0.022), (0.17, fy + 0.046, z + 0.022), WOOD, (1, 0, 0), jitter=0.002, seed=148 + k_)
+    box('latch', (0.2, fy + 0.02, 1.07), (0.235, fy + 0.04, 1.13), WOOD, (0, 0, 1), jitter=0.002, seed=150)
+    for k_, z in enumerate((0.97, 1.21)):
+        box(f'decal_hinge_{k_}', (-0.185, fy + 0.0465, z - 0.012), (-0.06, fy + 0.0485, z + 0.012), IRON)
+    # (soot up the front from the mouth, on the sill (the lintel stone is sooty too))
+    patch('decal_smudge_sill', (0, P + 0.007, 0.53), (0, 1, 0), 0.3, 0.036, SMUDGE, seed=151, lift=0.0, n=12, boxy=0.5)
+    patch('decal_soot_sill', (0, P + 0.009, 0.52), (0, 1, 0), 0.17, 0.026, SOOT, seed=152, lift=0.0, n=12, boxy=0.5)
+    # (the roof: two slopes of planks running down the pitch, open along the ridge; gables of planks clipped to the pitch)
+    EX, EZ, RX, RZ, OV = SH['EX'], SH['EZ'], SH['RX'], SH['RZ'], SH['OV']
+    slope = math.atan2(RZ - EZ, EX - RX); th = 0.03
+    nr = 6
+    for s in (-1, 1):
+        nrm = V((s * math.sin(slope), 0, math.cos(slope)))
+        for j in range(nr):
+            y0 = -OV + 2 * OV * j / nr - (0.012 if j else 0); y1 = -OV + 2 * OV * (j + 1) / nr + (0.012 if j < nr - 1 else 0); yc = (y0 + y1) / 2
+            dz = 0.012 if j % 2 else 0.0
+            a = V((s * EX, yc, EZ)) + nrm * (th / 2 + dz); b = V((s * RX, yc, RZ)) + nrm * (th / 2 + dz)
+            plank(f'roof_{s}{j}', a + (a - b).normalized() * 0.02 * r.random(), b, (0, 1, 0), y1 - y0, th, seed=160 + j + (10 if s > 0 else 0), chamfer=0.006, nrm=nrm)
+            # (soot along the ridge gap, on the plank's top: a dark edge and a fainter smudge below it)
+            up_ = (b - a).normalized(); top_ = b + nrm * (th / 2 + 0.004)
+            hw = (y1 - y0) / 2 + 0.01
+            patch(f'decal_smudge_ridge{s}{j}', top_ - up_ * 0.07, nrm, 0.07, hw, SMUDGE, seed=170 + j + (10 if s > 0 else 0), up=(0, 1, 0), lift=0.0, n=12, boxy=0.25)
+            patch(f'decal_soot_ridge{s}{j}', top_ - up_ * 0.025, nrm, 0.03, hw, SOOT, seed=185 + j + (10 if s > 0 else 0), up=(0, 1, 0), lift=0.0, n=12, boxy=0.25)
+    for gs in (-1, 1):   # (the gables: vertical boards clipped to the pitch, in the walls' plane)
+        n = 5; gy = gs * wall
+        for j in range(n):
+            x0 = -(P - 0.005) + 2 * (P - 0.005) * j / n + 0.003; x1 = -(P - 0.005) + 2 * (P - 0.005) * (j + 1) / n - 0.003
+            top = lambda x: roofline(max(abs(x), RX), EX, EZ, RX, RZ) - 0.004
+            pts = [(x, gy + t, z) for x in (x0, x1) for t in (-0.016, 0.016) for z in (1.425, top(x))]
+            if x0 < 0 < x1: pts += [(0, gy + t, top(0.0)) for t in (-0.016, 0.016)]
+            hull(f'gable_{gs}{j}', pts, WOOD, (0, 0, 1))
+        # (barge boards along the gable's edges, a hair outside the roof planks' ends)
+        for s in (-1, 1):
+            nrm = V((s * math.sin(slope), 0, math.cos(slope)))
+            a = V((s * (EX + 0.01), gs * (OV + 0.012), EZ - 0.02)) + nrm * 0.02; b = V((s * RX, gs * (OV + 0.012), RZ)) + nrm * 0.02
+            plank(f'barge_{gs}{s}', a, b, nrm, 0.11, 0.022, seed=180 + s + gs * 3, nrm=(0, 1, 0))
+    # (the ridge cap over the gap, on three blocks each side)
+    for s in (-1, 1):
+        cs = math.atan2(0.05, 0.17); cn = V((s * math.sin(cs), 0, math.cos(cs)))
+        plank(f'cap_{s}', V((s * 0.18, 0, 1.825)) + cn * 0.012, V((0, 0, 1.875)) + cn * 0.012, (0, 1, 0), 2 * OV + 0.08, 0.024, seed=190 + s, chamfer=0.005, nrm=cn)
+        for q, y in enumerate((-0.66, 0.0, 0.66)):
+            top_roof = roofline(0.115, EX, EZ, RX, RZ) + th / math.cos(slope)
+            box(f'capblock_{s}{q}', (s * 0.115 - 0.03, y - 0.04, top_roof - 0.02), (s * 0.115 + 0.03, y + 0.04, 1.855 - (0.115 * 0.05 / 0.17)), WOOD, (0, 1, 0), jitter=0.002, seed=195 + q)
+    finish('smokehouse', [(0, 4.2, 1.6, 0.95), (35, 4.0, 2.4, 0.9), (90, 4.0, 1.4, 0.95), (-140, 4.2, 2.2, 0.9), (10, 2.2, 0.7, 0.3), (60, 3.6, 3.6, 1.2)])
+
+# ---------------- the salt pan ----------------
+# A shallow iron pan (outer rim 1.0 x 0.7 at z 0.5, its floor 0.94 x 0.64 at z 0.38, a rolled lip, a ring handle at each end) on a ring
+# of hearth stones (two layers, sunk 0.06 into the ground for standing in water), the front left open for the fire: charred sticks on a
+# bed of ash, their ends out of the gap. A white-grey salt crust in the pan, raked up at its -x end.
+SP = dict(X=0.5, Y=0.35, BX=0.47, BY=0.32, Z0=0.38, Z1=0.5, T=0.012)
+def saltpan():
+    fresh(); r = random.Random(71); X, Y, BX, BY, Z0, Z1, T = (SP[k] for k in ('X', 'Y', 'BX', 'BY', 'Z0', 'Z1', 'T'))
+    # (the hearth: stones round an oval, a gap at the front (+y))
+    k = 0
+    for layer, (z0, z1, ax, by, n, ph) in enumerate(((-0.06, 0.2, 0.44, 0.30, 11, 0.0), (0.18, Z0 + 0.004, 0.42, 0.28, 11, 0.5))):
+        for i in range(n):
+            a = 2 * math.pi * (i + ph) / n + r.uniform(-0.05, 0.05)
+            if abs(math.atan2(math.sin(a - math.pi / 2), math.cos(a - math.pi / 2))) < 0.5: continue   # (the fire's gap)
+            c = V((math.cos(a) * ax, math.sin(a) * by, (z0 + z1) / 2))
+            tang = math.atan2(math.cos(a) * by, -math.sin(a) * ax)
+            sz = (r.uniform(0.3, 0.36), r.uniform(0.22, 0.27), z1 - z0 + 0.05)
+            cobble(f'stone_{k}', c, sz, seed=200 + k, mat=SOOTSTONE if (layer == 1 and math.sin(a) > 0.3) else STONE, yaw=tang); k += 1
+    # (the pan: a tray of plate, its walls flared; four rings of corners, outside and in)
+    bm = bmesh.new()
+    def rect(hx, hy, z, cut=0.05):
+        return [bm.verts.new((sx * (hx - (cut if j else 0)), sy * (hy - (0 if j else cut)), z)) for sx, sy in ((1, 1), (-1, 1), (-1, -1), (1, -1)) for j in ((0, 1) if sx * sy > 0 else (1, 0))]
+    ob_, ot_ = rect(BX, BY, Z0), rect(X, Y, Z1)
+    it_, ib_ = rect(X - T, Y - T, Z1, 0.045), rect(BX - T, BY - T, Z0 + T, 0.045)
+    rings_ = [ib_, ob_, ot_, it_, ib_]
+    n = len(ob_)
+    for A, B in zip(rings_[:-1], rings_[1:]):
+        if A is ib_ and B is ob_: continue
+        for j in range(n): bm.faces.new((A[j], A[(j + 1) % n], B[(j + 1) % n], B[j]))
+    bm.faces.new(list(reversed(ob_))); bm.faces.new(ib_)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    link('pan', bm, IRON)
+    pts = [V((sx * (X - (0.05 if j else 0)), sy * (Y - (0 if j else 0.05)), Z1)) for sx, sy in ((1, 1), (-1, 1), (-1, -1), (1, -1)) for j in ((0, 1) if sx * sy > 0 else (1, 0))]
+    tube('lip', pts, 0.011, IRON, cyclic=True, res=1)
+    for s in (-1, 1):
+        ring(f'handle_ring{s}', (s * (X + 0.045), 0, Z1 - 0.03), 0.045, 0.008, (0, 1, 0), IRON, segs=8, rsegs=4)
+        box(f'handle_strap{s}', (s * X - 0.012 - (0 if s > 0 else 0.01), -0.03, Z1 - 0.075), (s * X + 0.012 + (0.01 if s > 0 else 0), 0.03, Z1 - 0.01), IRON)
+    # (the salt crust: a lumpy sheet over the pan's floor, raked up to the -x end, climbing the walls a little)
+    bm = bmesh.new(); nx, ny = 9, 6; top, bot = [], []
+    zf = Z0 + T
+    for i in range(nx + 1):
+        for j in range(ny + 1):
+            u, v = i / nx * 2 - 1, j / ny * 2 - 1
+            edge = max(abs(u), abs(v))
+            h = 0.022 + 0.035 * max(0.0, -u - 0.2) ** 1.5 + r.uniform(-0.005, 0.006) + 0.01 * edge ** 4
+            zt = zf + h
+            f = (zt - Z0) / (Z1 - Z0); hx = BX - T + (X - BX) * f - 0.004; hy = BY - T + (Y - BY) * f - 0.004
+            def clip(x, y, hx, hy, cut=0.055):
+                ex = abs(x) + abs(y) - (hx + hy - cut)
+                return (x - math.copysign(ex / 2, x), y - math.copysign(ex / 2, y)) if ex > 0 else (x, y)
+            top.append(bm.verts.new((*clip(u * hx, v * hy, hx, hy), zt)))
+            bot.append(bm.verts.new((*clip(u * (BX - T - 0.004), v * (BY - T - 0.004), BX - T - 0.004, BY - T - 0.004), zf - 0.002)))
+    idx = lambda i, j: i * (ny + 1) + j
+    for i in range(nx):
+        for j in range(ny):
+            bm.faces.new((top[idx(i, j)], top[idx(i + 1, j)], top[idx(i + 1, j + 1)], top[idx(i, j + 1)]))
+            bm.faces.new((bot[idx(i, j)], bot[idx(i, j + 1)], bot[idx(i + 1, j + 1)], bot[idx(i + 1, j)]))
+    border = [idx(i, 0) for i in range(nx)] + [idx(nx, j) for j in range(ny)] + [idx(i, ny) for i in range(nx, 0, -1)] + [idx(0, j) for j in range(ny, 0, -1)]
+    for a, b in zip(border, border[1:] + border[:1]): bm.faces.new((top[a], top[b], bot[b], bot[a]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    link('crust', bm, SALT)
+    # (the fire: an ash bed under the pan, charred sticks from under it out through the gap)
+    blob('ash', (0, 0.05, -0.01), (0.3, 0.22, 0.04), SOOT, seed=210, subdiv=1, lumps=0.15)
+    for k_, (a, b, rr) in enumerate((((-0.12, -0.05, 0.05), (0.05, 0.5, 0.06), 0.03), ((0.1, -0.02, 0.05), (-0.02, 0.52, 0.09), 0.028),
+                                    ((0.02, 0.0, 0.08), (0.14, 0.46, 0.05), 0.025), ((-0.05, 0.1, 0.11), (-0.13, 0.44, 0.06), 0.022))):
+        pole(f'stick_{k_}', a, b, rr, SOOT, seed=220 + k_, bend=0.01)
+    finish('saltpan', [(0, 2.6, 1.2, 0.3), (35, 2.4, 1.6, 0.3), (90, 2.4, 0.9, 0.3), (-140, 2.6, 1.4, 0.3), (5, 1.4, 0.5, 0.15)])
+
+# ---------------- the salt barrel ----------------
+# A stout oak barrel (16 staves, radius 0.25 at the heads to 0.275 at the belly, z 0..0.8; four iron hoops) without its head: coarse salt
+# heaped inside to about z 0.76, a wooden scoop stood in it; the lid (three boards and two battens, radius 0.24) leans on its front right.
+BA = dict(R0=0.25, R1=0.275, H=0.8, TH=0.024)
+def saltbarrel():
+    fresh(); r = random.Random(81); R0, R1, H, TH = (BA[k] for k in ('R0', 'R1', 'H', 'TH')); n = 16
+    Rl = lambda z: R0 + (R1 - R0) * (1 - abs(z - H / 2) / (H / 2))
+    def band(name, z, ri, ro, h, n, ph):
+        # an iron hoop: a band of n flats on the staves' corners, open on the inside (that face is in the staves)
+        bm = bmesh.new(); rows = []
+        for rr, zz in ((ri, z - h / 2), (ro, z - h / 2), (ro, z + h / 2), (ri, z + h / 2)):
+            rows.append([bm.verts.new((math.cos(ph + 2 * math.pi * j / n) * rr, math.sin(ph + 2 * math.pi * j / n) * rr, zz)) for j in range(n)])
+        for A, B in zip(rows, rows[1:]):
+            for j in range(n): bm.faces.new((A[j], A[(j + 1) % n], B[(j + 1) % n], B[j]))
+        bm.normal_update()
+        for f in bm.faces:   # (facing out of the barrel, up or down)
+            c = f.calc_center_median(); out = V((c.x, c.y, 0)).normalized() * 0.5 + V((0, 0, c.z - z)) * 40
+            if f.normal.dot(out) < 0: f.normal_flip()
+        return link(name, bm, IRON)
+    ph = math.pi / 2 - math.pi / n
+    for k in range(n):
+        a0, a1 = ph + 2 * math.pi * (k + 0.01) / n, ph + 2 * math.pi * (k + 0.99) / n
+        top = H + r.uniform(-0.008, 0.004); pts = []
+        for z in (0.0, H / 2, top):
+            for rr in (Rl(z), Rl(z) - TH):
+                for a in (a0, a1): pts.append(V((math.cos(a) * rr, math.sin(a) * rr, z)))
+        hull(f'stave_{k}', pts, WOOD, (0, 0, 1))
+    for k, z in enumerate((0.06, 0.24, 0.56, 0.74)):
+        band(f'hoop_{k}', z, Rl(z) - 0.002, Rl(z) + 0.006, 0.022, n, ph)
+    # (the salt: a heap inside, its foot hidden down in the barrel; the scoop stood in it, leaning on the back-left rim)
+    Ri = (R0 - TH) * 0.975
+    revolve('heap', (0, 0, 0), [(0, H - 0.2), (Ri, H - 0.2), (Ri, H - 0.05), (Ri * 0.7, H - 0.035), (Ri * 0.35, H - 0.02), (0, H - 0.015)], SALT, segs=12, wobble=0.0, seed=82)
+    for k in range(4):
+        a = r.uniform(0, 2 * math.pi); d = r.uniform(0.04, 0.16)
+        stone(f'heap_lump{k}', (math.cos(a) * d, math.sin(a) * d, H - 0.03), (0.035, 0.03, 0.022), seed=300 + k, mat=SALT, extra=1, round_=0.3)
+    foot = V((-0.06, -0.05, H - 0.04)); tip = V((-0.2, -0.17, H + 0.17)); d = (tip - foot).normalized()
+    revolve('scoop', (0, 0, 0), [(0, -0.04), (0.042, -0.026), (0.048, 0.0), (0.038, 0.0), (0, -0.028)], WOOD, segs=8, wobble=0.02, seed=83, grain=(1, 0, 0))
+    sc = bpy.data.objects['scoop']; turned(sc, Matrix.Rotation(math.radians(-35), 3, 'X') @ Matrix.Rotation(math.radians(20), 3, 'Y'))
+    sc.data.transform(Matrix.Translation(foot)); sc['grain'] = tuple(sc['grain'])
+    pole('scoop_handle', foot + d * 0.035, tip, 0.012, seed=84, bend=0.003)
+    # (the lid leaning on the barrel: built lying in x/z (its face +y), turned up about its foot)
+    lid_r, lid_t = 0.24, 0.024; parts_ = []
+    for j, (x0, x1) in enumerate(((-lid_r, -0.083), (-0.079, 0.079), (0.083, lid_r))):
+        pts = []
+        for q in range(6):
+            x = x0 + (x1 - x0) * q / 5; zh = math.sqrt(max(0.0, lid_r ** 2 - x * x)) * 0.995
+            for z in (-zh, zh):
+                for y in (-lid_t / 2, lid_t / 2): pts.append(V((x, y + r.uniform(-0.002, 0.002), z)))
+        parts_.append(hull(f'lid_{j}', pts, WOOD, (0, 0, 1)))
+    for j, z in enumerate((-0.11, 0.11)):
+        w = math.sqrt(lid_r ** 2 - z * z) - 0.03
+        parts_.append(box(f'lidbatten_{j}', (-w, -lid_t / 2 - 0.022, z - 0.03), (w, -lid_t / 2 + 0.001, z + 0.03), WOOD, (1, 0, 0), jitter=0.002, seed=85 + j))
+    yaw = math.radians(35); lean = math.radians(18)
+    out = V((math.sin(yaw), math.cos(yaw), 0))
+    # (the face toward the barrel is the batten side (-y); its foot on the ground, its top edge against the staves)
+    hb = Rl(lid_r * 2 * math.cos(lean) - 0.02) + 0.008
+    A = hb + 2 * lid_r * math.sin(lean) + lid_t / 2 + 0.022 * math.cos(lean)
+    m = Matrix.Rotation(-yaw, 3, 'Z') @ Matrix.Rotation(lean, 3, 'X')
+    for o in parts_:
+        o.data.transform(Matrix.Translation(V((0, 0, lid_r))))   # (its foot at the origin)
+        turned(o, m)
+        o.data.transform(Matrix.Translation(out * A + V((0, 0, 0.004))))
+    finish('saltbarrel', [(0, 2.2, 1.3, 0.45), (35, 2.0, 1.5, 0.45), (90, 2.0, 1.0, 0.4), (-140, 2.2, 1.4, 0.45), (20, 1.1, 1.4, 0.6)])
+
+# ---------------- the stockfish rack (hjell) ----------------
+# Two A-frame trestles of rough poles at x -1.1 and 1.1, their legs from feet at y +-0.52 crossing at y 0, z 1.65, up to z 1.92; a tie across
+# each at z 1.22 under the lower bar. Two long bars along x: the lower at z 1.30 resting on the ties, the upper at z 1.75 in the crotches. A
+# diagonal brace on the back. Rope lashings at the crossings. The fish are the game's stockfish, hung by the C# side (README).
+RK = dict(X=1.1, FOOT=0.52, CROSS=1.65, TOP=1.92, LOW=1.30, HIGH=1.75, BAR_R=0.042, LEG_R=0.048, BAR_X=1.32)
+def dryingrack():
+    fresh(); X, FOOT, CROSS, TOP, LOW, HIGH, BR, LR, BX = (RK[k] for k in ('X', 'FOOT', 'CROSS', 'TOP', 'LOW', 'HIGH', 'BAR_R', 'LEG_R', 'BAR_X'))
+    for i, s in enumerate((-1, 1)):
+        x = s * X
+        # (each leg goes from its foot through the crossing at y 0 on up; the two side by side in x so they cross without meeting)
+        zt = LOW - BR - 0.035
+        for j, (fy, dx) in enumerate(((FOOT, -LR * 0.9), (-FOOT, LR * 0.9))):
+            top_y = -fy * (TOP - CROSS) / CROSS
+            a, b = V((x + dx + s * 0.02, fy, -0.03)), V((x + dx, top_y, TOP))
+            pole(f'leg_{i}{j}', a, b, LR, seed=400 + 2 * i + j, bend=0.01)
+            # (a lashing round the leg where the tie crosses it)
+            at = a.lerp(b, (zt - a.z) / (b.z - a.z))
+            ring(f'rope_tie{i}{j}', at, LR + 0.006, 0.008, b - a, ROPE, segs=8, rsegs=3)
+        yl = FOOT * (1 - (LOW - 0.08) / CROSS) + 0.07
+        pole(f'tie_{i}', (x, -yl, zt), (x, yl, zt), 0.035, seed=410 + i, bend=0.004)
+        # (the lashing round both legs where they cross: an oval, tight on them)
+        o = ring(f'rope_cross{i}', (x, 0, CROSS + 0.02), 0.098, 0.009, (0, 0, 1), ROPE, segs=8, rsegs=3, squash=1.4)
+        o.data.transform(Matrix.Translation(V((x, 0, 0))) @ Matrix.Diagonal((1, 0.6, 1, 1)) @ Matrix.Translation(V((-x, 0, 0))))
+    pole('bar_low', (-BX, 0, LOW), (BX, 0.0, LOW + 0.01), BR, seed=420, bend=0.012)
+    pole('bar_high', (-BX, 0, HIGH), (BX, 0.0, HIGH - 0.008), BR, seed=421, bend=0.012)
+    # (the brace: from low on one trestle's back leg up to the other's, lying on their backs)
+    def back_leg(s, z):
+        x = s * X; a, b = V((x + LR * 0.9 + s * 0.02, -FOOT, -0.03)), V((x + LR * 0.9, FOOT * (TOP - CROSS) / CROSS, TOP))
+        return a.lerp(b, (z - a.z) / (b.z - a.z)) + V((0, -(LR + 0.032 - 0.012), 0))
+    lo_, hi_ = back_leg(-1, 0.2), back_leg(1, 1.12)
+    d_ = (hi_ - lo_).normalized()
+    pole('brace', lo_ - d_ * 0.06, hi_ + d_ * 0.06, 0.032, seed=422, bend=0.006)
+    finish('dryingrack', [(0, 5.0, 1.6, 1.0), (35, 4.6, 2.2, 1.0), (90, 4.0, 1.4, 1.0), (-140, 4.8, 2.0, 1.0)])
+
+# ---------------- preserved foods (items: lie about the origin) ----------------
+def smokedmeat():
+    # a smoked haunch, 0.22 long along x: the thick end at -x, the shank and a knuckle of bone at +x; tied twice with string, and a loop
+    fresh()
+    prof = lambda t: 0.012 + 0.052 * math.sin(math.pi * min(1.0, 0.18 + t * 0.95)) ** 0.7 * (1 - 0.55 * t)
+    o = lathe('haunch', (-0.105, 0, 0), (0.08, 0, 0), prof, SMOKED, segs=8, flute=0.05, lobes=3, seed=1, step=0.026)
+    for v in o.data.vertices: v.co.z *= 0.72; v.co.y *= 1.05
+    cyl('bone', (0.07, 0, 0.004), (0.112, 0, 0.006), 0.012, 0.011, HORN, segs=6)
+    blob('bone_knob', (0.115, 0, 0.006), (0.016, 0.018, 0.015), HORN, seed=2, subdiv=1, lumps=0.05)
+    for k, x in enumerate((0.0, 0.05)):
+        rr = prof((x + 0.105) / 0.185)
+        ring(f'decal_string_{k}', (x, 0, 0), rr * 1.0 + 0.002, 0.0035, (1, 0, 0), ROPE, segs=10, rsegs=3, squash=1.0)
+        bpy.data.objects[f'decal_string_{k}'].data.transform(Matrix.Diagonal((1, 1.05, 0.72, 1)))
+    finish('smokedmeat', [(30, 0.55, 0.32, 0), (-60, 0.5, 0.3, 0)])
+
+def saltmeat():
+    # a slab of salted meat (0.2 x 0.12, 0.045 thick), a rind of fat along its back edge, coarse salt crystals on top and flecks between
+    fresh(); r = random.Random(5)
+    stone('meat', (0, -0.012, 0), (0.2, 0.1, 0.046), seed=1, mat=MEAT, yaw=0.0, extra=6, round_=0.28)
+    stone('fat', (0, 0.04, -0.004), (0.188, 0.022, 0.036), seed=2, mat=FAT, yaw=0.0, extra=3, round_=0.3)
+    for k in range(4):
+        x, y = r.uniform(-0.075, 0.075), r.uniform(-0.045, 0.02)
+        stone(f'crystal_{k}', (x, y, 0.024), (0.013, 0.012, 0.01), seed=10 + k, mat=SALT, extra=0, round_=0.05)
+    for k in range(10):
+        x, y = r.uniform(-0.085, 0.085), r.uniform(-0.05, 0.05)
+        patch(f'decal_salt{k}', (x, y, 0.0225 + (0.002 if y > 0.033 else 0)), (0, 0, 1), r.uniform(0.006, 0.012), r.uniform(0.005, 0.01), SALT, seed=20 + k, up=(1, 0, 0), lift=0.0, n=6)
+    finish('saltmeat', [(30, 0.5, 0.3, 0), (-60, 0.45, 0.28, 0)])
+
+SF = dict(L=0.35, W=0.12)
+def stockfish():
+    # a split, dried fish lying flat (back up): 0.35 long along x, 0.12 wide; the cut neck at -x (its cut face pale), the tail fin at +x.
+    # Stiff and a little warped. Very cheap: up to eight hang on a rack
+    fresh(); L, W = SF['L'], SF['W']
+    # (stations along x: half-width, thickness)
+    st = [(-0.175, 0.052, 0.016), (-0.12, 0.06, 0.017), (-0.04, 0.056, 0.015), (0.04, 0.042, 0.012), (0.1, 0.024, 0.009), (0.13, 0.013, 0.006)]
+    bm = bmesh.new(); rows = []
+    for x, hw, t in st:
+        bend = 0.012 * math.sin((x + 0.175) / 0.35 * math.pi)
+        sec = [(-hw, 0.0), (0.0, t * 0.6), (hw, 0.0), (0.0, -t * 0.4)]
+        rows.append([bm.verts.new((x, y, z + bend)) for y, z in sec])
+    for A, B in zip(rows, rows[1:]):
+        for k in range(4): bm.faces.new((A[k], A[(k + 1) % 4], B[(k + 1) % 4], B[k]))
+    cut = bm.faces.new(list(reversed(rows[0]))); bm.faces.new(rows[-1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    cut.material_index = 1
+    link_m('fish', bm, [FISH, FAT])
+    for k, s in enumerate((-1, 1)):
+        hull(f'fish_tail{k}', [(0.122, s * 0.001, 0.005), (0.122, s * 0.014, 0.005), (0.122, s * 0.001, 0.0), (0.122, s * 0.014, 0.0),
+                               (0.18, s * 0.062, 0.006), (0.163, s * 0.006, 0.006), (0.18, s * 0.062, 0.003), (0.163, s * 0.006, 0.003)], FISH, (1, s * 0.6, 0))
+    finish('stockfish', [(30, 0.7, 0.35, 0), (-60, 0.6, 0.3, 0)])
+
+def salt():
+    # a small wooden bowl (0.13 across) heaped with coarse white sea salt
+    fresh(); r = random.Random(9); z0, H, Rr, t = -0.03, 0.04, 0.065, 0.008
+    revolve('bowl', (0, 0, 0), [(0, z0), (0.034, z0), (0.04, z0 + 0.006), (0.058, z0 + 0.018), (Rr, z0 + H), (Rr - t, z0 + H + 0.002),
+                                (0.05, z0 + 0.02), (0.03, z0 + t), (0, z0 + t)], WOOD, segs=12, wobble=0.012, seed=5, grain=(1, 0, 0))
+    zs = z0 + H - 0.004
+    revolve('heap', (0, 0, 0), [(0, z0 + t + 0.002), (0.03, z0 + t + 0.002), (0.05, z0 + 0.022), (Rr - t + 0.002, zs), (0.042, zs + 0.016), (0.02, zs + 0.028), (0, zs + 0.032)],
+            SALT, segs=10, wobble=0.06, seed=6)
+    for k in range(5):
+        a = r.uniform(0, 2 * math.pi); d = r.uniform(0.0, 0.035)
+        zz = zs + 0.032 * (1 - (d / 0.06) ** 1.5)
+        stone(f'heap_lump{k}', (math.cos(a) * d, math.sin(a) * d, zz), (0.012, 0.011, 0.008), seed=30 + k, mat=SALT, extra=0, round_=0.1)
+    finish('salt', [(30, 0.5, 0.32, 0), (-60, 0.45, 0.3, 0)])
+
 # ---------------- out ----------------
 def finish(base, views):
     export(base)
@@ -402,7 +803,8 @@ def export(base):
     print(base, 'verts', len(verts) // 3, 'tris', sum(len(t) for t in tris) // 3, 'x', round(min(xs), 3), round(max(xs), 3), 'y', round(min(ys), 3), round(max(ys), 3), 'z', round(min(zs), 3), round(max(zs), 3))
 
 SRGB = [(0.55, 0.42, 0.3), (0.62, 0.6, 0.57), (0.17, 0.17, 0.18), (0.93, 0.82, 0.42), (0.82, 0.66, 0.35), (0.95, 0.86, 0.55),
-        (0.94, 0.93, 0.88), (0.2, 0.22, 0.45), (0.55, 0.45, 0.3), (0.75, 0.68, 0.55), (0.85, 0.86, 0.7)]
+        (0.94, 0.93, 0.88), (0.2, 0.22, 0.45), (0.55, 0.45, 0.3), (0.75, 0.68, 0.55), (0.85, 0.86, 0.7),
+        (0.11, 0.1, 0.09), (0.3, 0.28, 0.26), (0.9, 0.9, 0.87), (0.3, 0.17, 0.09), (0.72, 0.33, 0.3), (0.86, 0.78, 0.68), (0.74, 0.68, 0.56), (0.3, 0.24, 0.19)]
 COLS = [tuple(((x / 12.92) if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4) for x in c) + (1,) for c in SRGB]
 def preview(base, views):
     # yaw 0 looks at the piece's front (from +y)
@@ -435,6 +837,6 @@ def preview(base, views):
 # made of convex pieces (a horse is a body, a neck, a head, legs), each piece cut fine and laid onto the cloth's folds.
 TH = 0.008   # (the cloth's thickness: solidified about its middle)
 
-KINDS = ('churn', 'press', 'butter', 'cheese', 'skyr')
+KINDS = ('churn', 'press', 'butter', 'cheese', 'skyr', 'smokehouse', 'saltpan', 'saltbarrel', 'dryingrack', 'smokedmeat', 'saltmeat', 'stockfish', 'salt')
 which = [a for a in sys.argv if a in KINDS] or list(KINDS)
 for w in which: globals()[w]()
