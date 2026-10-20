@@ -98,6 +98,9 @@ namespace Gary
             }
             return false;
         }
+        // (ClosestPoint takes only boxes, spheres, capsules and convex meshes, and logs a warning for anything else: a piece's concave
+        // mesh gets the nearest point of its bounds instead)
+        private static Vector3 Closest(Collider c,Vector3 at)=>c is BoxCollider||c is SphereCollider||c is CapsuleCollider||c is MeshCollider m&&m.convex?c.ClosestPoint(at):c.ClosestPointOnBounds(at);
         private static bool Valid(MonsterAI ai,Player master,Vector3 bed,float radius,Vector3 candidate,int stumpKind,int[] seeds,out Vector3 spot,out int kind)
         {
             kind=-1;
@@ -108,7 +111,7 @@ namespace Gary
             if(!Physics.Raycast(spot+Vector3.up*2,Vector3.down,out RaycastHit hit,4,LayerMask.GetMask("terrain"),QueryTriggerInteraction.Ignore)||hit.normal.y<0.8f)return false; // only gentle slopes
             float nearest=float.MaxValue;
             foreach(Collider c in Physics.OverlapSphere(spot,(float)ReforestPolicy.MinFromBuilding,Pieces,QueryTriggerInteraction.Ignore))
-                if(c.GetComponentInParent<Piece>() is Piece piece&&piece.GetCreator()!=0)nearest=Mathf.Min(nearest,Vector3.Distance(c.ClosestPoint(spot),spot));
+                if(c.GetComponentInParent<Piece>() is Piece piece&&piece.GetCreator()!=0)nearest=Mathf.Min(nearest,Vector3.Distance(Closest(c,spot),spot));
             int biome=(int)WorldGenerator.instance.GetBiome(spot);
             var grows=ReforestPolicy.Saplings.Select(name=>ZNetScene.instance.GetPrefab(name)?.GetComponent<global::Plant>() is global::Plant p&&((int)p.m_biome&biome)!=0).ToArray();
             kind=seeds!=null?ReforestPolicy.ChooseSeeded(stumpKind,grows,seeds,UnityEngine.Random.value):ReforestPolicy.Choose(stumpKind,grows,UnityEngine.Random.value);
