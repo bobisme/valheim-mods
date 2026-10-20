@@ -1,3 +1,5 @@
+0.3.1: a test command for Claude Tools, kit test [all|<piece>] [x z]. It sets each kit piece and the game piece it's made from side by side on a pad, one at a time: on the ground, stacked on it, hung beside that, and in the air. It reports their snap points, support and cover, and checks the pieces against a golden list. Then it takes everything down and picks up what fell. Nothing changes in play.
+
 0.3.0: the shingle roofs, the dragon ridge ends and the stave wall, post and portal are gone: the game has its own (the darkwood roofs, the dragon and raven carvings, the Deep North's stave set). Any of them standing in a world disappear. The wattle and daub wall no longer shows the sky in thin cracks round its clay: the panels now run into the timbers.
 
 0.2.3: a hot reload (for mod makers) no longer leaves the old copy's pieces, meshes, materials and icons behind: a few seconds after the new copy is in the hammer it puts its own looks on the roofs and walls standing and frees the rest.

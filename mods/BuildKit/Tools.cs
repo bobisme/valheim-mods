@@ -30,7 +30,8 @@ namespace BuildKit
                 found.GetType().GetMethod("RegisterCommand", BindingFlags.Public | BindingFlags.Static)?.Invoke(null, new object[]{Plugin.Name, "kit",
                     "kit list: the kit's pieces. kit mats <filter>: game materials whose name or texture has the filter (prefab, material, shader, texture). " +
                     "kit look <sod|earth|bark> <prefab/material prefix> [scale]: try another texture (pieces made again). " +
-                    "kit place <piece> <x> <y> <z> [yaw]: build one there (as if by the player). kit clear [radius]: take down the kit's pieces near the player.",
+                    "kit place <piece> <x> <y> <z> [yaw]: build one there (as if by the player). kit clear [radius]: take down the kit's pieces near the player. " +
+                    "kit test [all|<piece>] [x z]: each piece and its game donor set out on a pad, one at a time (on the ground, stacked by their snap points, and in the air), their snaps, support and cover reported, all taken away after.",
                     (Func<string[], Action<JObject>, Action<string>, IEnumerator>)Run});
             }
             catch (Exception e) { Plugin.Warn("Could not add the kit command: " + e.Message); }
@@ -225,7 +226,18 @@ namespace BuildKit
                         output(new JObject { ["hits"] = new JArray(hits.Select(h => $"{h.name} on {(h.GetComponentInParent<Piece>() is Piece pc ? Utils.GetPrefabName(pc.gameObject) + " at " + pc.transform.position : "?")} layer {LayerMask.LayerToName(h.gameObject.layer)}")) });
                     }
                     break;
-                default: error("kit list|mats|look|place|clear|probe"); break;
+                case "test": // (kit test [all|<piece>] [x z]: every kit piece beside its game donor on a test pad by the player, or at x z; see Test)
+                    {
+                        var pick = Kit.All.Where(d => a.Length < 3 || a[2] == "all" || d.Name.Equals(a[2], StringComparison.OrdinalIgnoreCase)).ToList();
+                        if (pick.Count == 0) { error("no kit piece " + a[2]); yield break; }
+                        Player me = Player.m_localPlayer; if (me == null && a.Length < 5) { error("no player: give x z"); yield break; }
+                        Vector3 pad = a.Length > 4 ? new Vector3(F(a[3]), 0, F(a[4])) : me.transform.position + me.transform.forward * 10f;
+                        var report = new JObject();
+                        yield return Test.Run(pick, pad, report);
+                        output(report);
+                    }
+                    break;
+                default: error("kit list|mats|look|place|clear|probe|test"); break;
             }
         }
     }
