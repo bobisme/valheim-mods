@@ -294,7 +294,7 @@ namespace Homespun
                         inv.AddItem(p, (int)F(a, 4, 1));
                     }
                     yield return new WaitForSeconds(0.2f);
-                    output(new JObject { ["at"] = V(v.transform.position), ["status"] = v.Status(), ["holds"] = string.Join(", ", DyeVat.Contents(inv).Select(c => $"{c.stack} {c.prefab}")) });
+                    output(new JObject { ["at"] = V(v.transform.position), ["status"] = v.Status(), ["hover"] = Localization.instance.Localize(v.GetComponent<Container>().GetHoverText()), ["holds"] = string.Join(", ", DyeVat.Contents(inv).Select(c => $"{c.stack} {c.prefab}")) });
                     break;
                 }
                 case "drops":
@@ -350,7 +350,9 @@ namespace Homespun
                 {
                     var o = new JArray(ObjectDB.instance.m_recipes.Where(r => r != null && r.name.StartsWith("Recipe_Homespun_"))
                         .Select(r => $"{r.name}: {r.m_amount} {r.m_item?.name} at {r.m_craftingStation?.m_name ?? "hand"} <- {string.Join(", ", r.m_resources.Select(q => $"{q.m_amount} {q.m_resItem?.name}"))}"));
-                    output(new JObject { ["recipes"] = o, ["count"] = o.Count });
+                    // (and which of ours the crafting window offers the player now, at the station they're at: known as the game knows them)
+                    var shown = new System.Collections.Generic.List<Recipe>(); me.GetAvailableRecipes(ref shown);
+                    output(new JObject { ["recipes"] = o, ["count"] = o.Count, ["shownHere"] = new JArray(shown.Where(r => r.name.StartsWith("Recipe_Homespun_")).Select(r => r.m_item.name)) });
                     break;
                 }
                 default: error("spun status | give <item|fibre|cloth|garments|hildir|all> [n] | finish [radius] | chain [item] | recipes"); break;

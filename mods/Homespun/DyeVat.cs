@@ -102,6 +102,8 @@ namespace Homespun
             string what = $"Dyes {b.dyed.Sum(x => x.n)} {b.dye.Title}";
             if (since == 0) return what;
             double left = Dye.SteepSeconds - TimeSpan.FromTicks(ZNet.instance.GetTime().Ticks - since).TotalSeconds;
+            // (done but open: it comes out dyed when the lid's shut, not while someone's looking in)
+            if (left <= 0 && _box.IsInUse()) return $"{what}: ready, close the vat";
             return $"{what}: steeping, {Chain.Span((float)Math.Max(0, left))}";
         }
 
