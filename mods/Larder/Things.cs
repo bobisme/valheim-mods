@@ -44,7 +44,7 @@ namespace Larder
             try
             {
                 var items = new List<GameObject>();
-                foreach (Food f in Dairy.Foods.Concat(Preserves.Foods).Append(Preserves.Salt))
+                foreach (Food f in Dairy.Foods.Concat(Preserves.Foods).Append(Preserves.Salt).Concat(Baking.Items).Append(Spoilage.Rot))
                 {
                     try { if (Make(scene, f) is GameObject go) items.Add(go); }
                     catch (Exception e) { Plugin.Warn($"Could not make the {f.Title}: {e}"); }
@@ -76,7 +76,7 @@ namespace Larder
             ItemDrop drop = go.GetComponent<ItemDrop>();
             var s = (ItemDrop.ItemData.SharedData)CloneShared.Invoke(sourceDrop.m_itemData.m_shared, null); // (its own copy: never write into the honey's)
             s.m_name = f.Title; s.m_description = f.Description; s.m_weight = f.Weight; s.m_maxStackSize = f.Stack; s.m_autoStack = true; s.m_value = 0;
-            bool eaten = f.Health > 0 || f.Stamina > 0; // (salt isn't: a material, as the game's resin is)
+            bool eaten = f.Health > 0 || f.Stamina > 0; // (salt, dough and spoiled food aren't: materials, as the game's resin is)
             s.m_itemType = eaten ? ItemDrop.ItemData.ItemType.Consumable : ItemDrop.ItemData.ItemType.Material;
             s.m_maxQuality = 1; s.m_variants = 0; s.m_dlc = ""; s.m_questItem = false; s.m_teleportable = true; s.m_useDurability = false;
             s.m_food = f.Health; s.m_foodStamina = f.Stamina; s.m_foodRegen = f.Regen; s.m_foodBurnTime = eaten ? f.Seconds : 0; s.m_foodEitr = 0; s.m_consumeStatusEffect = null;
@@ -89,12 +89,14 @@ namespace Larder
             return go;
         }
 
-        // The churn's recipes, for the milk there is. Called again once a second by the kit until they're all in (Byre may come
-        // after us), and at every world load (the database's lists are new then).
+        // The dough's recipe at the game's cauldron, and the churn's recipes for the milk there is. Called again once a second by the kit
+        // until they're all in (Byre may come after us), and at every world load (the database's lists are new then).
         internal static void AddRecipes(ObjectDB db)
         {
             if (db == null) return;
             db.m_recipes.RemoveAll(r => r == null || r.name.StartsWith("Recipe_Larder_") && !Recipes.ContainsValue(r));
+            CraftingStation cauldron = ZNetScene.instance?.GetPrefab(Baking.Mixed.Station)?.GetComponent<CraftingStation>();
+            if (cauldron != null) Add(db, "Recipe_" + Baking.Mixed.Item, Baking.Mixed.Item, Baking.Mixed.Amount, cauldron, Baking.Mixed.Needs);
             CraftingStation churn = Kit.Station(Names.Churn);
             if (churn == null) return;
             foreach (Make m in Dairy.Churned())
@@ -104,7 +106,10 @@ namespace Larder
                 Add(db, "Recipe_" + m.Item, m.Item, m.Amount, churn, m.Needs);
             }
         }
-        internal static bool RecipesIn(ObjectDB db) => db != null && Recipes.Count > 0 && Recipes.Values.All(r => r != null && db.m_recipes.Contains(r));
+        // (all in: the dough's, and with milk the churn's for each milk there is)
+        internal static bool RecipesIn(ObjectDB db, bool milk) => db != null && Recipes.ContainsKey("Recipe_" + Baking.Mixed.Item)
+            && (!milk || Dairy.Churned().Where(m => Milk(m.Needs[0].item) != null).All(m => Recipes.ContainsKey("Recipe_" + m.Item)))
+            && Recipes.Values.All(r => r != null && db.m_recipes.Contains(r));
         private static void Add(ObjectDB db, string name, string item, int amount, CraftingStation station, (string item, int n)[] needs)
         {
             if (!Recipes.TryGetValue(name, out Recipe r) || r == null)

@@ -1353,9 +1353,9 @@ Playtest checklist (nothing has been in the game yet):
 
 ## Larder
 
-Food that keeps (`cx.bob.larder`): preserved foods for long voyages (L1) and the dairy (L2) from Byre's goat's and cow's milk; spoilage
-(L3, a server toggle, off by default) comes later. Stations are built at a workbench, hammer → **Crafting**; each is a smelter's queue
-(E to put in, E to take out; it works while you're away, up to an hour).
+Food that keeps (`cx.bob.larder`): preserved foods for long voyages (L1), the dairy from Byre's goat's and cow's milk and a bake oven
+(L2), and spoilage (L3, a server setting, off by default). Stations are built at a workbench, hammer → **Crafting**; most are a
+smelter's queue (E to put in, E to take out; it works while you're away, up to an hour), the oven is a cooking station like the game's.
 
 - **Smokehouse** (12 stone, 20 wood, 4 resin): boar, deer or neck tail → smoked meat, 5 minutes and a wood each, holds 10.
 - **Salt pan** (12 stone, 2 bronze): wood → salt, a minute each, holds 20; only standing in the sea's shallows.
@@ -1363,13 +1363,21 @@ Food that keeps (`cx.bob.larder`): preserved foods for long voyages (L1) and the
 - **Drying rack** (12 wood): raw fish → stockfish, 20 minutes each, holds 8 (shown hanging); only under the open sky.
 - **Butter churn** (12 wood, 2 resin; with Byre): butter (3 cow's milk), 2 skyr (2 goat's milk, 1 blueberries).
 - **Cheese press** (16 wood, 8 stone, 2 leather scraps; with Byre): either milk → cheese, 4 minutes each, holds 20.
-- Foods: smoked meat 36 hp / 14 stamina / 50 min, salt meat 40 / 12 / 60 min, stockfish 28 / 26 / 60 min; butter 14 / 48 / 30 min,
-  skyr 25 / 25 / 25 min, cheese 32 / 12 / 40 min.
+- **Bake oven** (20 stone, 6 wood): flatbread dough (4 barley flour → 2, at the cauldron) → flatbread, 50 s, four at a time, wood for
+  fuel; left in twice as long it burns to coal (the game's oven). Rye bread waits for the Fields mod's rye.
+- Foods: smoked meat 36 hp / 14 stamina / 50 min, salt meat 40 / 12 / 60 min, stockfish 28 / 26 / 60 min, flatbread 20 / 55 / 40 min;
+  butter 14 / 48 / 30 min, skyr 25 / 25 / 25 min, cheese 32 / 12 / 40 min.
+- **Spoilage** (settings `Spoilage`, off, and `SpoilSpeed`, both the server's): food goes off in game days, raw fish 1, milk 1.5, raw
+  meat 2, cooked 3, dishes 4, bread 5, butter and cheese 6, roots 10 (another mod's food: 4). A roof ×0.75, a root cellar ×0.35 (roofed,
+  the ground three metres out a metre above its floor on six of eight sides), the Mountains or Deep North ×0.4 more. Never: the preserved
+  foods, flatbread, jerky, honey, jam, eggs, and nothing eaten for a status effect. Worked out lazily (a chest when opened, on its
+  owner's game; the bag once a minute), kept on each item's custom data; spoiled stacks become as many `Larder_SpoiledFood`. Known
+  simplification: a stack moved onto another takes that one's age.
 
 Without Byre the dairy's stations are still registered (any standing stay) but not in the menu, and no recipes are added. What each
-station takes and gives is pure code in `Core/Preserves.cs` and `Core/Dairy.cs`, checked by `dotnet run --project tests/Larder.Tests -c Release`.
-`Larder.Api` (version 1): `IsPreserved(prefab | item)`, `Preserved`, `Foods`, `Stations`, `Takes(station)`, `Burns(station)`.
-`larder status|give|finish|place|remove|use` (Claude Tools) checks it in a world. Adds items and recipes: restart to update. Models:
+station takes and gives, and the spoilage rules, are pure code in `Core/` (Preserves, Dairy, Baking, Spoilage), checked by `dotnet run --project tests/Larder.Tests -c Release`.
+`Larder.Api` (version 2): `IsPreserved(prefab | item)`, `Preserved`, `Foods`, `Stations`, `Takes(station)`, `Burns(station)`; spoilage: `SpoilageOn`, `DaysLeft(item)`, `SpoiledFood`.
+`larder status|give|finish|place|remove|use|spoil` (Claude Tools) checks it in a world. Adds items and recipes: restart to update. Models:
 `Models/larder.py`, baked.
 
 ## Build with mise

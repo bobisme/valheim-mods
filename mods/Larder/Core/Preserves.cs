@@ -89,8 +89,8 @@ namespace Larder
                 Cost = new[] { ("Wood", 12) } },
         };
 
-        // Preserved: never spoils (Larder's spoilage, when that's switched on, passes it by).
-        public static bool IsPreserved(string prefab) => Foods.Any(f => f.Prefab == prefab);
+        // Preserved: never spoils (Larder's spoilage, when that's switched on, passes it by): these, and the bread that keeps (Baking).
+        public static bool IsPreserved(string prefab) => Foods.Any(f => f.Prefab == prefab) || Baking.Keeps(prefab);
 
         public static IEnumerable<string> Items => Foods.Select(f => f.Prefab).Concat(new[] { Salt.Prefab });
         public static IEnumerable<string> Pieces => Stations.Select(s => s.Name);

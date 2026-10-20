@@ -57,6 +57,52 @@ Check(rack.Holds*rack.Seconds>=2*1800,"A full rack dries over days (a game day i
 Check(Preserves.Stations.SelectMany(w=>w.Makes).Select(m=>m.to).Distinct().OrderBy(x=>x).SequenceEqual(Preserves.Items.OrderBy(x=>x)),"Every preserved food and the salt is made somewhere, and nothing else");
 Check(Preserves.Pieces.Concat(Preserves.Items).All(PrefabNames.Shipped.Contains),"Every preserving piece and item is in the shipped list");
 
+// ---- the bake oven (L2): flatbread, the keeping bread, against the game's oven bread (23/70, 25 minutes, 0.5 kg; a dvergr oven) ----
+{
+    Food bread=Baking.Flatbread,dough=Baking.Dough;
+    Check(bread.Health>0&&bread.Stamina>0&&bread.Regen>0&&bread.Model!=null&&bread.Stack>=20,"Flatbread: eats as a food, stacks, has a look");
+    Check(bread.Health<23&&bread.Stamina<70,"Flatbread: weaker than the game's oven bread");
+    Check(bread.Seconds>1500&&bread.Weight<0.5f,"Flatbread: lasts longer and weighs less than it (what you take on a voyage)");
+    Check(Preserves.IsPreserved(bread.Prefab)&&Baking.Keeps(bread.Prefab),"Flatbread keeps");
+    Check(!Preserves.IsPreserved(dough.Prefab)&&dough.Health==0&&dough.Stamina==0,"Dough isn't eaten, and doesn't keep");
+    Check(Baking.Mixed.Item==dough.Prefab&&Baking.Mixed.Station==Baked.Cauldron&&Baking.Mixed.Needs.Single()==(Baked.Flour,4)&&Baking.Mixed.Amount==2,"Dough is mixed at the cauldron, two flour a loaf");
+    Check(Baking.Bakes().Single()==(dough.Prefab,bread.Prefab)&&Baking.BakeSeconds>=30&&Baking.Slots>=1,"The oven bakes the dough into flatbread");
+    Check(Baking.OvenCost.All(c=>c.item=="Stone"||c.item=="Wood"),"The oven is only stone and wood (no iron, no surtling cores)");
+    Check(Baking.Pieces.Concat(Baking.ItemNames).All(PrefabNames.Shipped.Contains),"The oven, the bread and the dough are in the shipped list");
+}
+
+// ---- spoilage (L3, a server setting, off by default): how long food keeps, and where it keeps longer ----
+{
+    Check(Spoilage.KindOf("RawMeat",false)==Kind.RawMeat&&Spoilage.KindOf("DeerMeat",false)==Kind.RawMeat&&Spoilage.KindOf("NeckTail",false)==Kind.RawMeat&&Spoilage.KindOf("FishRaw",false)==Kind.RawFish,"Raw meat and fish spoil, though the game's aren't eaten (materials)");
+    Check(Spoilage.KindOf("CookedMeat",false)==Kind.Never&&Spoilage.KindOf("Wood",false)==Kind.Never,"Other things that aren't eaten never spoil");
+    Check(Spoilage.KindOf("CookedMeat",true)==Kind.Cooked&&Spoilage.KindOf("NeckTailGrilled",true)==Kind.Cooked&&Spoilage.KindOf("FishCooked",true)==Kind.Cooked,"Cooked is cooked");
+    Check(Spoilage.KindOf("DeerStew",true)==Kind.Dish&&Spoilage.KindOf("CarrotSoup",true)==Kind.Dish&&Spoilage.KindOf("LoxPie",true)==Kind.Dish&&Spoilage.KindOf("BloodPudding",true)==Kind.Dish,"Stews, soups, pies and puddings are dishes");
+    Check(Spoilage.KindOf("LoxPieUncooked",true)!=Kind.Cooked,"An uncooked pie isn't cooked");
+    Check(Spoilage.KindOf("Carrot",true)==Kind.Vegetable&&Spoilage.KindOf("Raspberry",true)==Kind.Berries&&Spoilage.KindOf("Bread",true)==Kind.Baked,"Vegetables, berries, bread");
+    Check(Spoilage.KindOf(Names.GoatMilk,false)==Kind.Milk&&Spoilage.KindOf(Names.GoatMilk,true)==Kind.Milk&&Spoilage.KindOf(Names.Cheese,true)==Kind.Dairy&&Spoilage.KindOf(Names.Butter,true)==Kind.Dairy,"Byre's milk and Larder's dairy");
+    foreach (string keeps in Preserves.Foods.Select(f=>f.Prefab).Append(Baked.Flatbread).Concat(new[]{"BoarJerky","WolfJerky","Honey","QueensJam","ChickenEgg",Spoilage.Spoiled,Preserved.Salt}))
+        Check(Spoilage.KindOf(keeps,true)==Kind.Never&&!Spoilage.IsSpoiled(Spoilage.KindOf(keeps,true),1e12f),keeps+": never spoils");
+    Check(Spoilage.KindOf("Wood",false)==Kind.Never&&Spoilage.KindOf("MeadHealthMinor",false)==Kind.Never,"What isn't food (or is drunk for what it does) never spoils");
+    Check(Spoilage.KindOf("SomeModdedFood",true)==Kind.Other&&Spoilage.Days(Kind.Other)>0&&!float.IsInfinity(Spoilage.Days(Kind.Other)),"Another mod's food spoils at a middling rate");
+    Check(Spoilage.Days(Kind.RawFish)<Spoilage.Days(Kind.RawMeat)&&Spoilage.Days(Kind.RawMeat)<Spoilage.Days(Kind.Cooked)&&Spoilage.Days(Kind.Cooked)<Spoilage.Days(Kind.Vegetable),"Fish goes first, then meat; cooked keeps longer; roots longest");
+    Check(Spoilage.Days(Kind.Milk)<Spoilage.Days(Kind.Dairy),"Butter and cheese keep longer than the milk they're made from");
+    foreach (Kind k in Enum.GetValues<Kind>().Where(k=>k!=Kind.Never)) Check(Spoilage.Days(k)>=1,k+": keeps at least a day (no food lost overnight)");
+    Check(Spoilage.Rate(Kept.Open,false)==1&&Spoilage.Rate(Kept.Bag,false)==1,"Warm in the open or carried: the full rate");
+    Check(Spoilage.Rate(Kept.Roofed,false)<1&&Spoilage.Rate(Kept.Cellar,false)<Spoilage.Rate(Kept.Roofed,false),"A roof slows it, a cellar more");
+    foreach (Kept w in Enum.GetValues<Kept>()) Check(Spoilage.Rate(w,true)<Spoilage.Rate(w,false)&&Spoilage.Rate(w,true)>0,w+": cold slows it, never stops it");
+    float meat=Spoilage.Life(Kind.RawMeat);
+    Check(!Spoilage.IsSpoiled(Kind.RawMeat,Spoilage.Age(0,meat-1,1))&&Spoilage.IsSpoiled(Kind.RawMeat,Spoilage.Age(0,meat,1)),"Raw meat in a warm chest spoils after two days, not before");
+    Check(!Spoilage.IsSpoiled(Kind.RawMeat,Spoilage.Age(0,meat*2,Spoilage.Rate(Kept.Cellar,false))),"In a cellar it lasts more than twice as long");
+    Check(Spoilage.Age(100,-500,1)==100,"Time going back (a world's clock set back) counts as none");
+    Check(Spoilage.Age(Spoilage.Age(0,600,1),600,0.5f)==900,"Its life adds up where it lay, a stretch at a time");
+    Check(Spoilage.DaysLeft(Kind.RawMeat,0)==2&&Spoilage.DaysLeft(Kind.RawMeat,meat*2)==0,"Days left, down to none");
+    float[] dug={2,2,2,2,2,2,0.2f,0.1f}, open={0,0,0,0.5f,0,0,0,0}, half={2,2,2,2,0,0,0,0};
+    Check(Spoilage.IsCellar(0,dug,true),"A roofed room dug two metres into the ground, open on the stair side, is a cellar");
+    Check(!Spoilage.IsCellar(0,dug,false),"Not without a roof");
+    Check(!Spoilage.IsCellar(0,open,true)&&!Spoilage.IsCellar(0,half,true),"Not a house on the ground, nor a room dug into a slope on one side");
+    Check(Spoilage.Freshness(Kind.RawMeat,0).StartsWith("Fresh")&&Spoilage.Freshness(Kind.RawMeat,meat*0.9f).StartsWith("Going off")&&Spoilage.Freshness(Kind.Never,0)=="Keeps","The tooltip says how fresh it is");
+}
+
 // ---- Prefab names: a save finds a thing again by its prefab's name; none shipped may go ----
 {
     var golden=File.ReadAllLines(Path.Combine(AppContext.BaseDirectory,"prefabs.txt")).Select(l=>l.Trim()).Where(l=>l!="").ToList();

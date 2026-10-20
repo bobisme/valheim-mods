@@ -11,29 +11,36 @@ namespace Larder
     // Larder: food that keeps. The dairy: a butter churn (butter, and skyr with blueberries) and a cheese press (cheese, set a milk at a
     // time), from Byre's goat's and cow's milk; without Byre there's no milk and they stay out of the hammer's menu. Preserving: a
     // smokehouse (smoked meat), a salt pan in the shallows (salt), a salting barrel (salt meat) and a drying rack under the open sky
-    // (stockfish), for long voyages. What each takes and gives is Core/Dairy.cs and Core/Preserves.cs; Things.cs makes the foods and the
-    // churn's recipes, Kit.cs the stations, Preserving.cs what the rack and the pan need where they stand.
+    // (stockfish), for long voyages. A bake oven for flatbread, the keeping bread. Spoilage, if the server turns it on (off by default).
+    // What each takes and gives, and the spoilage rules, are Core/ (Dairy, Preserves, Baking, Spoilage); Things.cs makes the foods and
+    // the recipes, Kit.cs the stations, Preserving.cs what the rack and the pan need where they stand, Spoiling.cs the spoilage in play.
     [BepInPlugin(Guid, Name, Version)]
     public sealed class Plugin : BaseUnityPlugin
     {
         public const string Guid = "cx.bob.larder";
         public const string Name = "Larder";
-        public const string Version = "0.2.0";
+        public const string Version = "0.3.0";
         internal static Plugin Instance;
-        internal ConfigEntry<bool> Enabled;
+        internal ConfigEntry<bool> Enabled, Spoilage;
+        internal ConfigEntry<float> SpoilSpeed;
+        internal ServerSettings Synced;
         private Harmony _harmony;
 
         private void Awake()
         {
             Instance = this;
-            Enabled = Config.Bind("General", "Enabled", true, "Put Larder's stations in the hammer's Crafting tab: the smokehouse, salt pan, salting barrel and drying rack, and the butter churn and cheese press (with Byre's milk to use in them).");
+            Enabled = Config.Bind("General", "Enabled", true, "Put Larder's stations in the hammer's Crafting tab: the smokehouse, salt pan, salting barrel, drying rack and bake oven, and the butter churn and cheese press (with Byre's milk to use in them).");
+            Synced = new ServerSettings(Guid, Config, Logger);
+            Spoilage = Synced.Bind("Spoilage", "Spoilage", false, "Food spoils over days unless preserved: raw fish in a day, meat in two, cooked food and dishes in three or four, roots in ten; slower under a roof, much slower in a root cellar (a roofed room dug a metre or more into the ground) or in the cold. Smoked meat, salt meat, stockfish, flatbread, jerky and honey never do. Spoiled food becomes spoiled food, never lost. Off: nothing spoils.");
+            SpoilSpeed = Synced.Bind("Spoilage", "SpoilSpeed", 1f, "How fast food spoils, while spoilage is on (2: twice as fast; 0.5: half as fast).", new AcceptableValueRange<float>(0.1f, 10f));
             _harmony = new Harmony(Guid); _harmony.PatchAll(typeof(Plugin).Assembly);
             Safe("register", Things.Register);
             Safe("repoint", Things.Repoint); // (a hot reload: items already in the world get this copy's prefabs)
-            Logger.LogInfo($"{Name} {Version} loaded: a smokehouse, salt pan, salting barrel and drying rack in the hammer's Crafting tab, and a butter churn and cheese press for Byre's milk.");
+            Logger.LogInfo($"{Name} {Version} loaded: a smokehouse, salt pan, salting barrel, drying rack and bake oven in the hammer's Crafting tab, a butter churn and cheese press for Byre's milk; spoilage {(Spoilage.Value ? "on" : "off")}.");
         }
         private void OnDestroy()
         {
+            Synced?.Dispose();
             Kit.Unload();
             Tools.Stop();
             _harmony?.UnpatchSelf();
@@ -42,9 +49,11 @@ namespace Larder
         }
         private void Update()
         {
+            Synced?.Update();
             try { Kit.Ensure(); } catch (Exception e) { Logger.LogError(e); Kit.Broken(); }
             Guard(Tools.Tick);
             Guard(Icon.Tick);
+            Guard(Spoiling.Tick);
         }
         private static float _quietUntil;
         internal static void Guard(Action a)

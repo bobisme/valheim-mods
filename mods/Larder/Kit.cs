@@ -17,14 +17,15 @@ namespace Larder
     // kiln's queues made over the same way, and need nothing of another mod's.
     internal static class Kit
     {
-        internal sealed class Def { public string Name, From, Title, Model, Description; public (string item, int n)[] Cost; public bool Milk; public Works Works; }
+        internal sealed class Def { public string Name, From, Title, Model, Description; public (string item, int n)[] Cost; public bool Milk, Oven; public Works Works; }
         internal static readonly Def[] All = new[]
         {
             new Def { Name = Names.Churn, From = Names.Workbench, Title = "Butter churn", Model = "churn", Cost = Dairy.ChurnCost, Milk = true,
                 Description = "A tall stave churn with a dasher. Churns milk into butter, and sours and strains it into skyr." },
             new Def { Name = Names.Press, From = Names.Wheel, Title = "Cheese press", Model = "press", Cost = Dairy.PressCost, Milk = true,
                 Description = "A cheese hoop under a weighted lever. Pour in milk and leave it: the whey runs off, and the curd is pressed and set into cheese, a milk at a time." },
-        }.Concat(Preserves.Stations.Select(w => new Def { Name = w.Name, From = w.From, Title = w.Title, Model = w.Model, Cost = w.Cost, Description = w.Description, Works = w })).ToArray();
+        }.Concat(Preserves.Stations.Select(w => new Def { Name = w.Name, From = w.From, Title = w.Title, Model = w.Model, Cost = w.Cost, Description = w.Description, Works = w }))
+        .Append(new Def { Name = Baked.Oven, From = Baked.GameOven, Title = Baking.OvenTitle, Model = "bakeoven", Cost = Baking.OvenCost, Description = Baking.OvenDescription, Oven = true }).ToArray();
         internal static Works WorksOf(string prefab) => All.FirstOrDefault(d => d.Name == prefab)?.Works;
 
         private static readonly MethodInfo UpdateKnownRecipes = AccessTools.Method(typeof(Player), "UpdateKnownRecipesList"), UpdateAvailablePieces = AccessTools.Method(typeof(Player), "UpdateAvailablePiecesList");
@@ -43,7 +44,7 @@ namespace Larder
             ZNetScene scene = ZNetScene.instance; PieceTable table = Hammer(scene);
             if (scene == null || table == null || Plugin.Instance == null || !Plugin.Instance.Enabled.Value) return;
             if (scene != _scene) { Forget(); _scene = scene; }
-            if (Dairy.Items.Concat(Preserves.Items).Any(i => Things.Get(i) == null)) return; // (the stations' queues name our items: they come first)
+            if (Dairy.Items.Concat(Preserves.Items).Concat(Baking.ItemNames).Append(Spoilage.Spoiled).Any(i => Things.Get(i) == null)) return; // (the stations' queues name our items: they come first)
             bool milk = Things.HaveMilk;
             table.m_pieces.RemoveAll(p => p == null);
             bool changed = false, every = true;
@@ -67,15 +68,16 @@ namespace Larder
             {
                 if (Made.TryGetValue(Names.Press, out GameObject press) && press != null && press.GetComponent<Smelter>() is Smelter s && s.m_conversion.Count < Names.Milks.Count(m => Things.Milk(m) != null))
                     s.m_conversion = Conversions();
-                ObjectDB db = ObjectDB.instance;
-                if (db != null && db.GetItemPrefab("Wood") != null && !Things.RecipesIn(db)) { Things.AddRecipes(db); changed = true; }
             }
+            // (the dough's recipe at the cauldron, milk or none; the churn's once there's milk)
+            ObjectDB db = ObjectDB.instance;
+            if (db != null && db.GetItemPrefab("Wood") != null && !Things.RecipesIn(db, milk)) { Things.AddRecipes(db); changed = true; }
             if (changed && Player.m_localPlayer is Player p) { UpdateKnownRecipes?.Invoke(p, null); UpdateAvailablePieces?.Invoke(p, null); }
             if (every && !_named)
             {
                 // (what's made against what's been shipped: a shipped name no longer made is lost from saves)
                 _named = true;
-                var made = new HashSet<string>(Dairy.Pieces.Concat(Dairy.Items).Concat(Preserves.Pieces).Concat(Preserves.Items));
+                var made = new HashSet<string>(Dairy.Pieces.Concat(Dairy.Items).Concat(Preserves.Pieces).Concat(Preserves.Items).Concat(Baking.Pieces).Concat(Baking.ItemNames).Append(Spoilage.Spoiled));
                 foreach (string n in PrefabNames.Shipped.Where(n => !made.Contains(n))) Plugin.Warn($"ERROR: {n} was shipped but isn't made any more: it's gone from every save.");
                 foreach (string n in made.Where(n => !PrefabNames.Shipped.Contains(n))) Plugin.Warn($"{n} isn't in Core/PrefabNames.cs yet.");
             }
@@ -112,6 +114,7 @@ namespace Larder
             if (wear != null) { wear.m_new = look; wear.m_worn = look; wear.m_broken = look; wear.m_fragmentRoots = new GameObject[0]; wear.m_materialType = WearNTear.MaterialType.Wood; }
             int layer = LayerMask.NameToLayer("piece");
             if (d.Works != null) { if (!MakeWorks(go, layer, scene, d.Works)) { Object.DestroyImmediate(go); return null; } }
+            else if (d.Oven) { if (!MakeOven(go, layer, scene)) { Object.DestroyImmediate(go); return null; } }
             else if (d.Name == Names.Churn) MakeChurn(go, layer, d); else MakePress(go, layer);
             var piece = go.GetComponent<Piece>();
             piece.m_name = d.Title; piece.m_description = d.Description;
@@ -182,6 +185,7 @@ namespace Larder
             public (Vector3 at, Vector3 size)[] Boxes;
             public Vector3 Add, Fuel, Empty, Output, Fire, Smoke;
             public Vector3[] Hang = new Vector3[0]; public Vector3 HangTurn;
+            public Vector3[] Slots = new Vector3[0]; // (the oven's: where a loaf lies on its floor)
         }
         private static readonly Dictionary<string, Shape> Shapes = new Dictionary<string, Shape>
         {
@@ -208,6 +212,18 @@ namespace Larder
                 Output = new Vector3(-0.3f, 0, 0.55f),
             },
             // (the two trestles and the bars; fish hung and taken down at the lower bar's middle; 8 stockfish hung by the tail)
+            // (the stone plinth with the fire chamber in it, the clay dome low and high, the ledge before the mouth, the firewood at its left;
+            // dough in and bread out at the mouth, wood in at the fire hole under the ledge, the fire on the ash under the floor, the smoke
+            // from the pot-chimney at the back; four loaves on the floor inside, the one by the mouth the most seen)
+            [Baked.Oven] = new Shape
+            {
+                Boxes = new[] { (new Vector3(0, 0.23f, 0), new Vector3(1.48f, 0.46f, 1.48f)), (new Vector3(0, 0.63f, 0), new Vector3(1.24f, 0.34f, 1.24f)),
+                    (new Vector3(0, 0.93f, 0), new Vector3(0.84f, 0.26f, 0.84f)), (new Vector3(0, 0.435f, 0.765f), new Vector3(0.66f, 0.07f, 0.31f)),
+                    (new Vector3(-0.925f, 0.095f, 0.035f), new Vector3(0.25f, 0.19f, 0.53f)) },
+                Add = new Vector3(0, 0.6f, 0.62f), Fuel = new Vector3(0, 0.15f, 0.75f),
+                Output = new Vector3(-0.45f, 0, 1.15f), Fire = new Vector3(0, 0.08f, 0.15f), Smoke = new Vector3(0, 1.08f, -0.35f),
+                Slots = new[] { new Vector3(0, 0.478f, 0.22f), new Vector3(-0.22f, 0.478f, -0.02f), new Vector3(0.22f, 0.478f, -0.02f), new Vector3(0, 0.478f, -0.26f) },
+            },
             [Preserved.DryingRack] = new Shape
             {
                 Boxes = new[] { (new Vector3(-1.1f, 0.97f, 0), new Vector3(0.22f, 1.94f, 1.14f)), (new Vector3(1.1f, 0.97f, 0), new Vector3(0.22f, 1.94f, 1.14f)),
@@ -288,6 +304,66 @@ namespace Larder
             return true;
         }
 
+        // The bake oven: the game's oven (a cooking station: four slots, wood for fuel, a bread taken out when done or left to burn to coal)
+        // on our model. Its front was +x, ours is +z: everything it uses is moved onto ours, and its hatch doors and their animation go.
+        private static bool MakeOven(GameObject go, int layer, ZNetScene scene)
+        {
+            CookingStation c = go.GetComponent<CookingStation>();
+            if (c == null || !Shapes.TryGetValue(Baked.Oven, out Shape at)) { Plugin.Warn($"The {Baking.OvenTitle}: no cooking station in {Baked.GameOven}"); return false; }
+            c.m_name = Baking.OvenTitle; c.m_addItemTooltip = "Put in dough";
+            c.m_conversion = Baking.Bakes().Select(b => new CookingStation.ItemConversion { m_from = Things.Get(b.from)?.GetComponent<ItemDrop>(), m_to = Things.Get(b.to)?.GetComponent<ItemDrop>(), m_cookTime = Baking.BakeSeconds })
+                .Where(b => b.m_from != null && b.m_to != null).ToList();
+            if (c.m_conversion.Count == 0) { Plugin.Warn($"The {Baking.OvenTitle}: nothing it can bake"); return false; }
+            c.m_incompatibleItems = new List<CookingStation.ItemMessage>(); // (the game's oven turns away what's for the cooking station: none of ours)
+            c.m_useFuel = true; c.m_requireFire = false; c.m_fuelItem = scene.GetPrefab(Baking.Fuel)?.GetComponent<ItemDrop>(); c.m_maxFuel = Baking.MaxFuel;
+            if (c.m_fuelItem == null) { Plugin.Warn($"The {Baking.OvenTitle}: no {Baking.Fuel} to burn"); return false; }
+            foreach (Transform t in go.transform.Cast<Transform>().Where(t => t.name == "HatchProxy").ToList()) Object.DestroyImmediate(t.gameObject);
+            // (its fire, light, warmth and crackle in our firebox, small; its sparks go; the smoke from our vent)
+            if (c.m_haveFireObject != null)
+            {
+                Transform fire = c.m_haveFireObject.transform;
+                SmokeSpawner smoke = fire.GetComponentInChildren<SmokeSpawner>(true);
+                fire.localPosition = at.Fire; fire.localRotation = Quaternion.Euler(0, -90, 0); // (the game's faced +x: its flames blew out that way)
+                if (smoke != null) { Place(smoke.transform, go, at.Smoke); smoke.transform.SetParent(fire, true); } // (under the fire still: it smokes while it burns)
+                foreach (Transform t in fire.GetComponentsInChildren<Transform>(true).Where(t => t != fire && (smoke == null || t != smoke.transform)).ToList())
+                {
+                    if (t == null) continue;
+                    if (t.name.StartsWith("flare") || t.name.StartsWith("sparc")) { Object.DestroyImmediate(t.gameObject); continue; }
+                    t.localPosition = Vector3.zero;
+                    if (t.GetComponent<ParticleSystem>() is ParticleSystem ps)
+                    {
+                        var shape = ps.shape; shape.position = Vector3.zero; shape.rotation = Vector3.zero;
+                        shape.shapeType = ParticleSystemShapeType.Box; shape.scale = new Vector3(0.45f, 0.05f, 0.3f);
+                    }
+                }
+            }
+            // (the loaves on its floor, each with its done and burnt puffs; out in front of the ledge when taken)
+            int n = Mathf.Min(c.m_slots.Length, at.Slots.Length);
+            if (n == 0) { Plugin.Warn($"The {Baking.OvenTitle}: no slots"); return false; }
+            for (int i = 0; i < c.m_slots.Length; i++) if (i >= n) Object.DestroyImmediate(c.m_slots[i].gameObject);
+            c.m_slots = c.m_slots.Take(n).ToArray();
+            for (int i = 0; i < n; i++)
+            {
+                Place(c.m_slots[i], go, at.Slots[i]);
+                if (i < c.m_donePS.Length && c.m_donePS[i] != null) Place(c.m_donePS[i].transform, go, at.Slots[i]);
+                if (i < c.m_burntPS.Length && c.m_burntPS[i] != null) Place(c.m_burntPS[i].transform, go, at.Slots[i]);
+            }
+            foreach (ParticleSystem extra in c.m_donePS.Skip(n).Concat(c.m_burntPS.Skip(n)).Where(p => p != null).ToList()) Object.DestroyImmediate(extra.gameObject);
+            c.m_donePS = c.m_donePS.Take(n).ToArray(); c.m_burntPS = c.m_burntPS.Take(n).ToArray();
+            if (c.m_spawnPoint == null) { var o = new GameObject("SpawnPoint"); c.m_spawnPoint = o.transform; }
+            Place(c.m_spawnPoint, go, at.Output);
+            c.m_addFoodSwitch = Switch(go, c.m_addFoodSwitch, "add_food");
+            c.m_addFuelSwitch = Switch(go, c.m_addFuelSwitch, "add_fuel");
+            foreach (Switch old in go.GetComponentsInChildren<Switch>(true).Where(x => x != c.m_addFoodSwitch && x != c.m_addFuelSwitch).ToList()) Object.DestroyImmediate(old.gameObject);
+            foreach (MeshFilter f in c.m_addFuelSwitch.GetComponents<MeshFilter>()) Object.DestroyImmediate(f); // (its wood ball's mesh: nothing draws it now)
+            foreach (var (centre, size) in at.Boxes) Box(go, layer, centre, size);
+            Vector3 hand = new Vector3(0.3f, 0.26f, 0.24f);
+            Reach(c.m_addFoodSwitch, layer, at.Add, hand, Baking.OvenTitle);
+            Reach(c.m_addFuelSwitch, layer, at.Fuel, hand, Baking.OvenTitle);
+            return true;
+        }
+        private static void Place(Transform t, GameObject go, Vector3 at) { t.SetParent(go.transform, false); t.localPosition = at; t.localRotation = Quaternion.identity; }
+
         private static List<Smelter.ItemConversion> Conversions() => Dairy.Pressed()
             .Select(c => new Smelter.ItemConversion { m_from = Things.Milk(c.from)?.GetComponent<ItemDrop>(), m_to = Things.Get(c.to)?.GetComponent<ItemDrop>() })
             .Where(c => c.m_from != null && c.m_to != null).ToList();
@@ -302,6 +378,7 @@ namespace Larder
         {
             s.transform.SetParent(s.GetComponentInParent<Piece>(true).transform, false); // (wherever the wheel had it: on our model now; true: the prefab sits under an inactive holder)
             s.gameObject.layer = layer; s.transform.localPosition = at; s.transform.localRotation = Quaternion.identity; s.transform.localScale = Vector3.one;
+            foreach (Collider c in s.GetComponents<Collider>()) Object.DestroyImmediate(c); // (the game's, sized and set off for its own model)
             var box = s.gameObject.AddComponent<BoxCollider>(); box.size = size; box.isTrigger = true;
             s.m_name = name; s.m_hoverText = name;
         }

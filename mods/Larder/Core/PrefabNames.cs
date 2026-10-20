@@ -21,6 +21,10 @@ namespace Larder
             "Larder_SaltPan",
             "Larder_SaltBarrel",
             "Larder_DryingRack",
+            "Larder_BakeOven",
+            "Larder_FlatbreadDough",
+            "Larder_Flatbread",
+            "Larder_SpoiledFood",
         };
     }
 }
