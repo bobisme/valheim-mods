@@ -16,4 +16,6 @@ Repairs: the hammer mends a ship within 30 m of a slipway, as it does near a wor
 
 Jarldom: with Jarldom, a colony's shipwright builds slipway hulls at the boatyard, fetching each stage's makings from the stores, and launches them. Other mods can do the same through Shipyard.Api.
 
+With Homespun: the knarr's mast stage takes one of its wool sails in place of the deer hide, and she sails under its colour (the stripes in the dye's colour, brown for undyed wool), on the stocks and at sea.
+
 Removing Shipyard: as with any mod that adds things, its slipways and boats are gone once a place is loaded without it (what was put into a slipway with them).

@@ -62,6 +62,35 @@ for(float w=0;w<1;w+=0.05f)Check(Sailing.WindFactor(k,w+0.05f)>=Sailing.WindFact
 // the longship's below a fresh breeze, and over it in a strong one
 Check(Sailing.WindFactor(k,0.3f)<0.8f&&Sailing.WindFactor(k,0.8f)>1.1f,"Below the longship at 0.3 wind, above it at 0.8");
 
+// ---- Sailcloth: Homespun's sails on a rigged stage ----
+{
+    var kh=Hulls.Of(Hulls.Knarr)!; var mast=kh.Stages.Single(x=>x.Rigged);
+    Check(kh.Stages.Count(x=>x.Rigged)==1&&mast.Name=="mast","The knarr's mast stage is the rigged one");
+    Check(Sailcloth.CostOf(mast).Contains(("DeerHide",15))&&Sailcloth.Colour("Homespun_Sail_Red")==null,"Without Homespun: hides, and nothing is a sail");
+    Sailcloth.Sail="Homespun_Sail"; Sailcloth.Variants=new[]{"Homespun_Sail","Homespun_Sail_Red","Homespun_Sail_Blue"};
+    Sailcloth.ColourOf=p=>p=="Homespun_Sail"?"":p.StartsWith("Homespun_Sail_")?p.Substring(14):null;
+    try
+    {
+        Check(Sailcloth.CostOf(mast).Contains(("Homespun_Sail",1))&&!Sailcloth.CostOf(mast).Any(c=>c.item=="DeerHide"),"With Homespun: one wool sail for the hides");
+        Check(Sailcloth.CostOf(kh.Stages[0]).SequenceEqual(kh.Stages[0].Cost),"Other stages as ever");
+        Check(Hulls.Total(kh).ContainsKey("Homespun_Sail")&&!Hulls.Total(kh).ContainsKey("DeerHide"),"The knarr's total names the sail");
+        var sb=new Build{Hull=kh,Stage=kh.Stages.Length-1};
+        var took=sb.Take(new[]{("Homespun_Sail_Red",1),("FineWood",4)});
+        Check(took.Contains(("Homespun_Sail_Red",1))&&sb.Had("Homespun_Sail")==1&&sb.Sail=="Red","A red sail is the sail, and she's to sail under red");
+        sb.Take(new[]{("LeatherScraps",10)});
+        Check(sb.Finished&&sb.Sail=="Red","Finished, the colour kept");
+        var sl=Build.Load(sb.Save());
+        Check(sl.Sail=="Red"&&sl.Finished,"Saved and loaded with her sail's colour: "+sb.Save());
+        Check(Build.Load("knarr|2|FineWood:3").Sail==null,"An old save has no sail colour");
+        var su=new Build{Hull=kh,Stage=kh.Stages.Length-1}; su.Take(new[]{("Homespun_Sail",1)});
+        Check(su.Sail==""&&Build.Load(su.Save()).Sail=="","An undyed sail: \"\"");
+        var rb=new Build{Hull=kh,Stage=kh.Stages.Length-1}; rb.Take(new[]{("Homespun_Sail_Blue",1)});
+        Check(rb.Refund().ContainsKey("Homespun_Sail_Blue")&&!rb.Refund().ContainsKey("Homespun_Sail"),"Taken down, the sail comes back blue");
+        Check(Sailcloth.Stripe("",null)==Sailcloth.Undyed&&Sailcloth.Stripe(null,null)==null&&Sailcloth.Stripe("Red",c=>(1f,0f,0f))==(1f,0f,0f),"Stripes: undyed brown, dyed the dye's, none as baked");
+    }
+    finally { Sailcloth.Sail=null; Sailcloth.ColourOf=null; Sailcloth.Variants=new string[0]; }
+}
+
 // ---- Prefab names ----
 {
     var golden=File.ReadAllLines(Path.Combine(AppContext.BaseDirectory,"prefabs.txt")).Select(l=>l.Trim()).Where(l=>l!="").ToList();

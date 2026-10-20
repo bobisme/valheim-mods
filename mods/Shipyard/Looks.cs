@@ -66,6 +66,6 @@ namespace Shipyard
         }
 
         internal static Material PieceMat(ZNetScene scene, string prefab) => scene?.GetPrefab(prefab)?.GetComponentsInChildren<Renderer>(true).SelectMany(r => r.sharedMaterials).FirstOrDefault(m => m != null && m.shader != null && m.shader.name == "Custom/Piece");
-        internal static void Forget() { foreach (Object o in Owned) if (o != null) Object.Destroy(o); Owned.Clear(); Meshes.Clear(); Mats.Clear(); }
+        internal static void Forget() { foreach (Object o in Owned) if (o != null) Object.Destroy(o); Owned.Clear(); Meshes.Clear(); Mats.Clear(); Sails.Forget(); }
     }
 }

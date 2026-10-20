@@ -7,7 +7,7 @@ namespace Shipyard
     // What can be built on a slipway, as data: each hull in its stages (keel, ribs, strakes, fittings...), each stage with what it
     // costs. A stage is paid IN FULL before the next is begun; what's put in is kept on the slipway (never lost: taken down, it all
     // comes back), and any number of players can put in.
-    public sealed class Stage { public string Name, Model, Title; public (string item, int n)[] Cost; }
+    public sealed class Stage { public string Name, Model, Title; public (string item, int n)[] Cost; public bool Rigged; } // (Rigged: its sail; Sailcloth)
     public sealed class Hull
     {
         public string Name, Title, Prefab; public Stage[] Stages;
@@ -47,7 +47,7 @@ namespace Shipyard
                     new Stage { Name = "ribs", Title = "Ribs and beams", Model = "knarr_ribs", Cost = new[] { ("FineWood", 12), ("BronzeNails", 20) } },
                     new Stage { Name = "strakes", Title = "Strakes", Model = "knarr_strakes", Cost = new[] { ("FineWood", 14), ("BronzeNails", 80), ("Resin", 16) } },
                     new Stage { Name = "deck", Title = "Decks and hold", Model = "knarr_deck", Cost = new[] { ("Wood", 30), ("BronzeNails", 20) } },
-                    new Stage { Name = "mast", Title = "Mast, sail and rigging", Model = "knarr_mast", Cost = new[] { ("FineWood", 4), ("DeerHide", 15), ("LeatherScraps", 10) } },
+                    new Stage { Name = "mast", Title = "Mast, sail and rigging", Model = "knarr_mast", Cost = new[] { ("FineWood", 4), ("DeerHide", 15), ("LeatherScraps", 10) }, Rigged = true },
                 },
             },
         };
@@ -56,9 +56,27 @@ namespace Shipyard
         public static Dictionary<string, int> Total(Hull h)
         {
             var t = new Dictionary<string, int>();
-            foreach (Stage s in h.Stages) foreach (var (item, n) in s.Cost) t[item] = (t.TryGetValue(item, out int had) ? had : 0) + n;
+            foreach (Stage s in h.Stages) foreach (var (item, n) in Sailcloth.CostOf(s)) t[item] = (t.TryGetValue(item, out int had) ? had : 0) + n;
             return t;
         }
+    }
+
+    // A sail of cloth: with Homespun in, a rigged stage takes one of its wool sails (of any colour) in place of the hides stitched into
+    // one, and the boat sails under that sail's colour. Without it, hides as ever. (Set from Homespun.Api at load: Sails.cs.)
+    public static class Sailcloth
+    {
+        public const string Hide = "DeerHide";
+        public static string Sail;                    // (Homespun's undyed sail; null: Homespun isn't in)
+        public static Func<string, string> ColourOf;  // (a sail's colour: "" undyed, "Red"...; null: not a sail)
+        public static string[] Variants = new string[0]; // (the undyed sail and every colour of it)
+        public static string Colour(string prefab) => Sail == null || ColourOf == null || prefab == null ? null : ColourOf(prefab);
+        public static string Canon(string prefab) => Colour(prefab) != null ? Sail : prefab;
+        public static string Of(string colour) => colour == null ? null : Variants.FirstOrDefault(v => Colour(v) == colour) ?? Sail;
+        public static (string item, int n)[] CostOf(Stage s) => Sail != null && s.Rigged ? s.Cost.Select(c => c.item == Hide ? (Sail, 1) : c).ToArray() : s.Cost;
+        // The colour a sail's stripes take (the baked sail's are madder red, on white): undyed wool, brown; dyed, the dye's (rgb gives it);
+        // null: as baked.
+        public static readonly (float r, float g, float b) Undyed = (0.45f, 0.38f, 0.3f);
+        public static (float r, float g, float b)? Stripe(string colour, Func<string, (float r, float g, float b)?> rgb) => colour == null ? null : colour == "" ? Undyed : rgb?.Invoke(colour);
     }
 
     // A slipway's build, as it's kept in its ZDO: the hull (null: nothing laid down), the stages done, and what's been put in towards the
@@ -66,6 +84,7 @@ namespace Shipyard
     public sealed class Build
     {
         public Hull Hull; public int Stage; public Dictionary<string, int> Paid = new Dictionary<string, int>();
+        public string Sail; // (the colour of the sail put in: "" undyed; null: none, or hides)
         public bool Empty => Hull == null;
         public bool Finished => Hull != null && Stage >= Hull.Stages.Length;
         public Stage Current => Hull != null && Stage < Hull.Stages.Length ? Hull.Stages[Stage] : null;
@@ -74,7 +93,7 @@ namespace Shipyard
         public List<(string item, int n)> Needs()
         {
             if (Current == null) return new List<(string, int)>();
-            return Current.Cost.Select(c => (c.item, c.n - Had(c.item))).Where(c => c.Item2 > 0).ToList();
+            return Sailcloth.CostOf(Current).Select(c => (c.item, c.n - Had(c.item))).Where(c => c.Item2 > 0).ToList();
         }
         public int Had(string item) => Paid.TryGetValue(item, out int n) ? n : 0;
 
@@ -86,9 +105,11 @@ namespace Shipyard
             if (Current == null) return taken;
             foreach (var (item, have) in offered)
             {
-                int want = Needs().Where(x => x.item == item).Sum(x => x.n), n = Math.Min(want, Math.Max(0, have));
+                string canon = Sailcloth.Canon(item); // (a sail of any colour is the sail)
+                int want = Needs().Where(x => x.item == canon).Sum(x => x.n), n = Math.Min(want, Math.Max(0, have));
                 if (n <= 0) continue;
-                Paid[item] = Had(item) + n; taken.Add((item, n));
+                Paid[canon] = Had(canon) + n; taken.Add((item, n));
+                if (Sailcloth.Colour(item) is string colour) Sail = colour;
             }
             if (Needs().Count == 0) { Stage++; Paid.Clear(); }
             return taken;
@@ -99,13 +120,15 @@ namespace Shipyard
         {
             var r = new Dictionary<string, int>();
             if (Hull == null) return r;
-            for (int i = 0; i < Math.Min(Stage, Hull.Stages.Length); i++) foreach (var (item, n) in Hull.Stages[i].Cost) r[item] = (r.TryGetValue(item, out int had) ? had : 0) + n;
+            for (int i = 0; i < Math.Min(Stage, Hull.Stages.Length); i++) foreach (var (item, n) in Sailcloth.CostOf(Hull.Stages[i])) r[item] = (r.TryGetValue(item, out int had) ? had : 0) + n;
             foreach (var kv in Paid) r[kv.Key] = (r.TryGetValue(kv.Key, out int had) ? had : 0) + kv.Value;
+            // (the sail comes back the colour it went in)
+            if (Sail != null && Sailcloth.Sail != null && r.TryGetValue(Sailcloth.Sail, out int sails) && Sailcloth.Of(Sail) is string dyed && dyed != Sailcloth.Sail) { r.Remove(Sailcloth.Sail); r[dyed] = sails; }
             return r;
         }
 
-        // As the ZDO keeps it: "hull|stage|item:n,item:n" ("" for nothing laid down).
-        public string Save() => Hull == null ? "" : $"{Hull.Name}|{Stage}|{string.Join(",", Paid.Where(kv => kv.Value > 0).OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}:{kv.Value}"))}";
+        // As the ZDO keeps it: "hull|stage|item:n,item:n[|sail colour]" ("" for nothing laid down).
+        public string Save() => Hull == null ? "" : $"{Hull.Name}|{Stage}|{string.Join(",", Paid.Where(kv => kv.Value > 0).OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}:{kv.Value}"))}" + (Sail != null ? "|" + Sail : "");
         public static Build Load(string s)
         {
             var b = new Build();
@@ -120,6 +143,7 @@ namespace Shipyard
                     int c = kv.LastIndexOf(':');
                     if (c > 0 && int.TryParse(kv.Substring(c + 1), out int n) && n > 0) b.Paid[kv.Substring(0, c)] = n;
                 }
+            if (f.Length > 3) b.Sail = f[3];
             return b;
         }
     }

@@ -27,7 +27,7 @@ namespace Shipyard
             try
             {
                 found.GetType().GetMethod("RegisterCommand", BindingFlags.Public | BindingFlags.Static)?.Invoke(null, new object[]{Plugin.Name, "yard",
-                    "yard [at x z] status | lay [hull] | pay [stages] | launch | use | api [hull] | down | bump | mend | ships | row [forward|backward|leave] [n] | sink: check Shipyard (at x z first: as if standing there, for the slipway and boats nearest that spot). status shows the slipways within 150 m (the build, the stage, what it needs) and the boats; lay lays a keel on the nearest slipway; pay puts in the stage under way (or that many stages) from nothing (cheats only); launch launches the finished boat on the nearest slipway as E does; use is E on it, as the player (cheats only); api builds a whole boat on it through Shipyard.Api and launches it (cheats only); mend is the hammer's repair on the nearest boat, as the player (a slipway near her stands for a workbench); bump knocks the nearest boat as the shore does and says if a naust kept it off (cheats only); down takes the nearest slipway down as the hammer does and lists what lies around it after (cheats only); ships lists the boats loaded (where, how high the hull rides over the sea, speed, owner); row works the helm of the boat the player stands on (any kind, to compare) or else the nearest of ours, taking the helm first, a step forward or backward per n (forward 0: just how she goes), and leave lets go of it (cheats only; the game rows and sails only with someone at the helm); sink removes the boats loaded within 150 m (test boats; cheats only).",
+                    "yard [at x z] status | lay [hull] | pay [stages] [colour] | launch | clear | use | api [hull] | down | bump | mend | ships | row [forward|backward|leave] [n] | sink: check Shipyard (at x z first: as if standing there, for the slipway and boats nearest that spot). status shows the slipways within 150 m (the build, the stage, what it needs) and the boats; lay lays a keel on the nearest slipway; pay puts in the stage under way (or that many stages) from nothing, a sail in it in the colour given (cheats only); launch launches the finished boat on the nearest slipway as E does; clear forgets its build, giving nothing back (cheats only); use is E on it, as the player (cheats only); api builds a whole boat on it through Shipyard.Api and launches it (cheats only); mend is the hammer's repair on the nearest boat, as the player (a slipway near her stands for a workbench); bump knocks the nearest boat as the shore does and says if a naust kept it off (cheats only); down takes the nearest slipway down as the hammer does and lists what lies around it after (cheats only); ships lists the boats loaded (where, how high the hull rides over the sea, speed, owner); row works the helm of the boat the player stands on (any kind, to compare) or else the nearest of ours, taking the helm first, a step forward or backward per n (forward 0: just how she goes), and leave lets go of it (cheats only; the game rows and sails only with someone at the helm); sink removes the boats loaded within 150 m (test boats; cheats only).",
                     (Func<string[], Action<JObject>, Action<string>, IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: yard command added");
             }
@@ -106,9 +106,21 @@ namespace Shipyard
                         if (!view.IsOwner()) view.ClaimOwnership();
                         int stages = (int)F(a, 2, 1);
                         Build b = s.Now();
-                        for (int i = 0; i < stages && b.Current != null; i++) b.Take(b.Needs().Select(n => (n.item, n.n)).ToList());
+                        string colour = a.Length > 3 ? (a[3] == "undyed" ? "" : a[3]) : null; // (pay [stages] [colour]: the sail in that colour)
+                        for (int i = 0; i < stages && b.Current != null; i++) b.Take(b.Needs().Select(n => (n.item == Sailcloth.Sail && colour != null ? Sailcloth.Of(colour) : n.item, n.n)).ToList());
                         view.GetZDO().Set(Slipway.Key, b.Save());
                     }
+                    yield return new WaitForSeconds(1f);
+                    output(Describe(s, at));
+                    break;
+                }
+                case "clear":
+                {
+                    // the nearest slipway's build forgotten, nothing given back (cheats only: undoes a pay)
+                    if (s == null || view == null || !view.IsValid()) { error("no slipway within 150 m"); yield break; }
+                    if (!Cheats()) { error("yard clear changes the world: only where cheats are allowed"); yield break; }
+                    if (!view.IsOwner()) view.ClaimOwnership();
+                    view.GetZDO().Set(Slipway.Key, "");
                     yield return new WaitForSeconds(1f);
                     output(Describe(s, at));
                     break;
@@ -218,7 +230,7 @@ namespace Shipyard
                     output(new JObject { ["removed"] = n });
                     break;
                 }
-                default: error("yard status | lay [hull] | pay [stages] | launch | use | api [hull] | down | bump | mend | ships | row [forward|backward|leave] [n] | sink"); break;
+                default: error("yard status | lay [hull] | pay [stages] [colour] | launch | clear | use | api [hull] | down | bump | mend | ships | row [forward|backward|leave] [n] | sink"); break;
             }
         }
     }

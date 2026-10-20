@@ -49,6 +49,7 @@ namespace Shipyard
         {
             if (Time.time < _next || _view == null || !_view.IsValid()) return;
             _next = Time.time + 0.5f;
+            Sails.Bind(); // (Homespun's sails, if it's in: looked for every few seconds)
             string s = _view.GetZDO().GetString(Key);
             if (s != _shown) { _shown = s; Show(Build.Load(s)); }
         }
@@ -69,6 +70,7 @@ namespace Shipyard
                 if (Looks.Add(_hull, ZNetScene.instance, model, name) is GameObject part)
                 {
                     part.transform.localPosition = at;
+                    if (name == "yard") Sails.Paint(part, model, b.Sail); // (furled, in the colour of the sail put in)
                     foreach (Transform t in part.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = gameObject.layer;
                 }
         }
@@ -90,10 +92,10 @@ namespace Shipyard
             return Localization.instance.Localize(text + "\n[<color=yellow><b>$KEY_Use</b></color>] " + (Player.m_localPlayer is Player p && Free(p) ? "Build it" : "Put in from your bag"));
         }
         private static string Costs(Hull h) => string.Join(", ", Hulls.Total(h).Select(kv => $"{kv.Value} {ItemName(kv.Key)}")) + $" in {h.Stages.Length} stages";
-        internal static string ItemName(string prefab)
+        internal static string ItemName(string prefab, bool raw = false)
         {
             string n = ObjectDB.instance?.GetItemPrefab(prefab)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name;
-            return n == null ? prefab : Localization.instance.Localize(n).ToLower();
+            return raw ? n ?? "" : n == null ? prefab : Localization.instance.Localize(n).ToLower();
         }
 
         public bool Interact(Humanoid user, bool hold, bool alt)
@@ -103,7 +105,13 @@ namespace Shipyard
             if (b.Empty && alt) { _choice++; return true; }
             if (b.Empty) { _view.InvokeRPC("Shipyard_Lay", Chosen.Name); return true; }
             if (b.Finished) { _view.InvokeRPC("Shipyard_Launch"); return true; }
-            if (Free(p)) { foreach (var (item, n) in b.Needs()) _view.InvokeRPC("Shipyard_Pay", item, n); return true; } // (as the hammer builds there: for nothing)
+            if (Free(p))
+            {
+                // (as the hammer builds there: for nothing; a sail in the bag gives its colour, and stays in the bag)
+                foreach (var (item, n) in b.Needs())
+                    _view.InvokeRPC("Shipyard_Pay", item == Sailcloth.Sail ? Sailcloth.Variants.FirstOrDefault(v => p.GetInventory().CountItems(ItemName(v, raw: true)) > 0) ?? item : item, n);
+                return true;
+            }
             int gave = Give(p, b);
             if (gave == 0) p.Message(MessageHud.MessageType.Center, "You have none of what it needs: " + string.Join(", ", b.Needs().Select(n => $"{n.n} {ItemName(n.item)}")));
             return true;
@@ -118,15 +126,20 @@ namespace Shipyard
         internal int Give(Player p, Build b)
         {
             Inventory inv = p.GetInventory(); int gave = 0;
-            foreach (var (item, n) in b.Needs())
+            foreach (var (need, count) in b.Needs())
             {
-                string name = ObjectDB.instance?.GetItemPrefab(item)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name;
-                if (name == null) continue;
-                int k = Math.Min(n, inv.CountItems(name));
-                if (k <= 0) continue;
-                inv.RemoveItem(name, k);
-                _view.InvokeRPC("Shipyard_Pay", item, k);
-                gave += k;
+                int n = count;
+                // (the sail: one of any colour; the first in the bag)
+                foreach (string item in need == Sailcloth.Sail ? Sailcloth.Variants.Prepend(need).Distinct() : new[] { need })
+                {
+                    string name = ObjectDB.instance?.GetItemPrefab(item)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name;
+                    if (name == null || n <= 0) continue;
+                    int k = Math.Min(n, inv.CountItems(name));
+                    if (k <= 0) continue;
+                    inv.RemoveItem(name, k);
+                    _view.InvokeRPC("Shipyard_Pay", item, k);
+                    gave += k; n -= k;
+                }
             }
             return gave;
         }
@@ -190,7 +203,8 @@ namespace Shipyard
             if (!(Where(b.Hull) is Vector3 at)) { Tell(sender, $"No water deep enough for her within {Launching.Reach(b.Hull):0} m ahead of the bow end"); return; }
             GameObject boat = ZNetScene.instance.GetPrefab(b.Hull.Prefab);
             if (boat == null) { Tell(sender, "The game doesn't know the " + b.Hull.Title.ToLower()); return; }
-            Object.Instantiate(boat, at, transform.rotation);
+            GameObject launched = Object.Instantiate(boat, at, transform.rotation);
+            if (b.Sail != null) launched.GetComponent<ZNetView>()?.GetZDO()?.Set(Sails.Key, b.Sail); // (she sails under the sail put in)
             Keep(new Build());
             Tell(sender, $"The {b.Hull.Title.ToLower()} is launched");
         }

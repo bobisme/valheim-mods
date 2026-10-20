@@ -405,10 +405,24 @@ namespace Shipyard
     {
         internal const float SailTop = 10.9f;
         private Ship _ship; private Transform _sail; private float _set;
-        private void Awake() { _ship = GetComponent<Ship>(); _sail = transform.Find("ship/mast/sail"); }
+        private ZNetView _view; private string _painted = "?"; private float _look;
+        private void Awake() { _ship = GetComponent<Ship>(); _sail = transform.Find("ship/mast/sail"); _view = GetComponent<ZNetView>(); }
         private void Update()
         {
             if (_ship == null || _sail == null) return;
+            // (her sail's colour, as the slipway set it: yard and cloth both)
+            if (Time.time > _look && _view != null && _view.IsValid())
+            {
+                _look = Time.time + 2f; Sails.Bind();
+                string colour = _view.GetZDO().GetString(Sails.Key, null);
+                if (colour != _painted)
+                {
+                    _painted = colour;
+                    Hull h = Hulls.Of(Hulls.Knarr);
+                    Sails.Paint(transform.Find("ship/mast/yard")?.gameObject, h.Yard, colour);
+                    Sails.Paint(transform.Find("ship/mast/sail/cloth")?.gameObject, h.Sail, colour);
+                }
+            }
             Ship.Speed speed = _ship.GetSpeedSetting();
             float want = speed == Ship.Speed.Full ? 1f : speed == Ship.Speed.Half ? 0.5f : 0f;
             _set = Mathf.MoveTowards(_set, want, Time.deltaTime * 0.6f);
