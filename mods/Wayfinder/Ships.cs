@@ -187,6 +187,7 @@ namespace Wayfinder
             view.Unregister(Ships.RenameRpc);view.Unregister(Ships.HelmRpc); // (a reloaded copy registers again)
             view.Register<string>(Ships.RenameRpc,(sender,name)=>{if(view.IsOwner())view.GetZDO().Set(Ships.NameKey,Policy.Clean(name));});
             view.Register<string,string>(Ships.HelmRpc,(sender,text,by)=>{if(view.IsOwner()){view.GetZDO().Set(Ships.HelmKey,text??"");view.GetZDO().Set(Ships.HelmByKey,Policy.Clean(by));}});
+            Rigging.Register(view); // (a sail of Homespun's rigged on her)
         }
     }
 

@@ -28,7 +28,7 @@ namespace Wayfinder
             try
             {
                 found.GetType().GetMethod("RegisterCommand",BindingFlags.Public|BindingFlags.Static)?.Invoke(null,new object[]{Plugin.Name,"wayfinder",
-                    "wayfinder info | course [add x z [name] | here [name] | clear | reverse | skip] | weather | give <compass|sunstone|line|stave|raven|all> | take | place <vane|beacon|mark> [ahead=6] | remove | fleet [set <saved text>] | boat [prefab] [x z yaw] | name <text> | map [large|small] [zoom] | raven | climb | ship: check Wayfinder. give/take put test items in the player's inventory and take them back; place/remove put test pieces ahead of the player and take them away.",
+                    "wayfinder info | course [add x z [name] | here [name] | clear | reverse | skip] | weather | give <compass|sunstone|line|stave|raven|all> | take | place <vane|beacon|mark> [ahead=6] | remove | fleet [set <saved text>] | boat [prefab] [x z yaw] | rig <colour or undyed or -> [x z] | name <text> | map [large|small] [zoom] | raven | climb | ship: check Wayfinder. give/take put test items in the player's inventory and take them back; place/remove put test pieces ahead of the player and take them away.",
                     (Func<string[],Action<JObject>,Action<string>,IEnumerator>)Run});
                 Plugin.Log("Claude Tools found: wayfinder command added");
             }
@@ -177,6 +177,18 @@ namespace Wayfinder
                     GameObject go=Object.Instantiate(p,at,Quaternion.Euler(0,Arg(args,5,0),0));
                     go.GetComponent<ZNetView>()?.GetZDO()?.Set(TestKey,true);
                     output(new JObject{["boat"]=prefab,["at"]=V(at),["depth"]=Math.Round(ZoneSystem.instance.m_waterLevel-Sounding.Ground(at),1)});
+                    break;
+                }
+                case "rig":
+                {
+                    // wayfinder rig <colour|undyed|-> [x z]: the nearest test ship (to the spot) rigged with a wool sail of that colour, as a sail used on her helm does ("-": the game's own)
+                    Vector3 near=new Vector3(Arg(args,3,me.transform.position.x),0,Arg(args,4,me.transform.position.z));
+                    ZNetView view=Object.FindObjectsByType<Ship>(FindObjectsSortMode.None).Select(sh=>sh.GetComponent<ZNetView>()).Where(v=>v!=null&&v.IsValid()&&v.GetZDO().GetBool(TestKey))
+                        .OrderBy(v=>Vector2.Distance(new Vector2(v.transform.position.x,v.transform.position.z),new Vector2(near.x,near.z))).FirstOrDefault();
+                    if(view==null){error("wayfinder rig: no test ship loaded (wayfinder boat makes one)");break;}
+                    string colour=args.Length>2?args[2]:"-";
+                    view.InvokeRPC(Rigging.Rpc,colour=="undyed"?"":colour);
+                    output(new JObject{["ship"]=Utils.GetPrefabName(view.gameObject),["at"]=V(view.transform.position),["sail"]=colour,["homespun"]=Rigging.On});
                     break;
                 }
                 case "name":
