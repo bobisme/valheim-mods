@@ -184,13 +184,20 @@ namespace BuildKit
                 cap.AddComponent<BoxCollider>().size = new Vector3(reach * 2, 0.04f, len);
             }
         }
-        // A ridge vent's: the ridge's own boxes go; one on each slope from the slot's edge down to the eave, and the hood's cap, the
-        // piece's whole length.
+        // A ridge vent's: the ridge's sloped boxes go; one on each slope from the slot's edge down to the eave, and the hood's cap, the
+        // piece's whole length. The ridge's beam (the box along its apex) stays, for the support it passes on to its neighbours (without
+        // it a vent along a ridge got half the game's), and smoke goes through it (SmokeThrough).
         private static void RidgeColliders(GameObject go, Def d)
         {
             var old = go.GetComponentsInChildren<Collider>(true).Where(c => !c.isTrigger && c.gameObject.layer == LayerMask.NameToLayer("piece")).ToList();
             int layer = old.Count > 0 ? old[0].gameObject.layer : LayerMask.NameToLayer("piece");
-            foreach (Collider c in old) Object.DestroyImmediate(c);
+            foreach (Collider c in old)
+            {
+                // (the beam: the one box lying level, the slopes' are tilted)
+                float tilt = Mathf.DeltaAngle(0, c.transform.localEulerAngles.x);
+                if (c is BoxCollider && Mathf.Abs(tilt) < 1f) { c.gameObject.name = SmokeThrough.BeamName; continue; }
+                Object.DestroyImmediate(c);
+            }
             float k = d.Steep ? 1f : 0.5f, half = BuildKit.TurfMesh.HoleHalf, angle = Mathf.Atan(k) * Mathf.Rad2Deg;
             foreach (int side in new[] { -1, 1 })
             {

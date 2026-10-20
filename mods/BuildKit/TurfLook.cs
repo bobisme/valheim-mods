@@ -14,8 +14,8 @@ namespace BuildKit
         private static readonly Collider[] Hits = new Collider[16];
         private static int _layers;
         internal static readonly HashSet<TurfLook> All = new HashSet<TurfLook>();
-        private void OnEnable() => All.Add(this);
-        private void OnDisable() => All.Remove(this);
+        private void OnEnable() { All.Add(this); SmokeThrough.Add(gameObject); }
+        private void OnDisable() { All.Remove(this); SmokeThrough.Remove(gameObject); }
 
         private void Awake()
         {
