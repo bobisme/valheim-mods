@@ -389,6 +389,19 @@
         "Shipyard.dll",
         "Shipyard.pdb"
       ]
+    },
+    {
+      "guid": "cx.bob.larder",
+      "name": "Larder",
+      "version": "0.1.0",
+      "description": "Larder: food that keeps. First, the dairy: butter, skyr and cheese from the milk of Byre's goats and cows, at stations you build at a workbench (Crafting tab).\n\nButter churn: a tall stave churn with a dasher. Churn 3 cow's milk into a pat of butter (14 health, 48 stamina, 30 minutes), or 2 goat's milk and a handful of blueberries into 2 bowls of skyr (25 health, 25 stamina, 25 minutes). 12 wood, 2 resin.\n\nCheese press: a cheese hoop under a weighted lever. Pour in milk, a goat's or a cow's (E), and leave it: each milk is pressed and set into a cheese in 4 minutes, and the press holds 20. Take the cheese out at the bench's end. Cheese is the keeping food: 32 health, 12 stamina, and it lasts 40 minutes, for a long voyage. It works while you're away, as the game's smelters do (up to an hour). 16 wood, 8 stone, 2 leather scraps.\n\nNeeds Byre for the milk. Without it the churn and the press don't show in the hammer's menu (any already built stay standing), and nothing is lost.\n\nRemoving Larder: as with any mod that adds things, its foods and stations are gone for good once a character or a place is loaded without it (the game drops what it doesn't know from bags, chests and the ground, and takes down the pieces), and so is the milk waiting in a press.",
+      "notes": "0.1.0: the dairy: a butter churn (butter from cow's milk, skyr from goat's milk and blueberries) and a cheese press (cheese from either), for Byre's milk.",
+      "restart": "Adds saved items, recipes and pieces. Install Larder on the host and every player, then restart Valheim before loading the world.",
+      "cover": "",
+      "files": [
+        "Larder.dll",
+        "Larder.pdb"
+      ]
     }
   ]
 }

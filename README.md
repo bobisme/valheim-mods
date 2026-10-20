@@ -1351,6 +1351,19 @@ Playtest checklist (nothing has been in the game yet):
 - [ ] With Byre: fleece spins straight to yarn.
 - [ ] Remove the mod: what's lost (items in bags, fibre queued in a wheel) is what we said.
 
+## Larder
+
+Food that keeps (`cx.bob.larder`). The dairy first (L2 of the plan; preserved foods, smokehouse and spoilage come later), from Byre's
+goat's and cow's milk. Stations are built at a workbench, hammer → **Crafting**, and only show with Byre installed:
+
+- **Butter churn** (12 wood, 2 resin): butter (3 cow's milk), 2 skyr (2 goat's milk, 1 blueberries).
+- **Cheese press** (16 wood, 8 stone, 2 leather scraps): either milk → cheese, 4 minutes each, holds 20 (a smelter's queue: E to pour, E to take).
+- Foods: butter 14 hp / 48 stamina / 30 min, skyr 25 / 25 / 25 min, cheese 32 / 12 / 40 min.
+
+Without Byre the stations are still registered (any standing stay) but not in the menu, and no recipes are added. The dairy is pure
+code in `Core/Dairy.cs`, checked by `dotnet run --project tests/Larder.Tests -c Release`. `larder status|give|finish` (Claude Tools)
+checks it in a world. Adds items and recipes: restart to update. Models: `Models/larder.py`, baked.
+
 ## Build with mise
 
 Install [mise](https://mise.jdx.dev/) and run:
