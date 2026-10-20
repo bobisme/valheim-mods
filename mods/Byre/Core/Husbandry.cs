@@ -30,7 +30,7 @@ namespace Byre
             return s.YieldMin + Math.Min(span - 1, Math.Max(0, (int)(roll * span)));
         }
 
-        // Only a grown, tamed animal can be shorn or milked.
+        // Only a grown, tamed animal can be shorn, milked or plucked.
         public static bool CanHarvest(bool tamed, bool young) => tamed && !young;
 
         // A wild animal runs from a player this near (half as near for one crouching); a tame one never does.
@@ -38,6 +38,27 @@ namespace Byre
 
         // A tame, hungry animal not already eating from the ground walks to a trough within reach.
         public static bool SeeksTrough(bool tamed, bool hungry, float distance) => tamed && hungry && distance <= TroughReach;
+
+        // ---- S2: the goose's guard, the pig's truffles ----
+        public const float GuardRange = 8f;     // (a tame goose goes for a stranger this near)
+        public const float ChaseStop = 1.6f;    // (and stops this far short of it: a honk in its face, no harm)
+        public const float ChaseGiveUp = 12f;   // (one that gets this far off is let go)
+        public const float ChaseSeconds = 5f, ChaseRest = 10f;
+
+        // A stranger to a tame grown goose: a player who has never petted it, or a wild creature (not a tame one, nothing of the players').
+        public static bool Stranger(bool isPlayer, bool knownPlayer, bool tamed, bool playersSide) => isPlayer ? !knownPlayer : !tamed && !playersSide;
+        // Does it go for one this near? Only a tame grown goose, only within the guard range, never while resting after a chase.
+        public static bool Chases(Species s, bool tamed, bool young, bool stranger, float distance, bool resting) =>
+            s != null && s.Guards && tamed && !young && stranger && !resting && distance <= GuardRange && distance > ChaseStop;
+        // Still after it? Not once it's close enough, far enough or the chase has gone on long enough.
+        public static bool KeepsChasing(float distance, float seconds) => distance > ChaseStop && distance < ChaseGiveUp && seconds < ChaseSeconds;
+
+        public const float RootCheckSeconds = 60f;  // (a following pig in the forest noses about once a minute of game time)
+        public const float RootGapSeconds = 180f;   // (and never finds two within three minutes)
+        // A truffle this check? A tame grown pig, led (following someone), in the Black Forest, past the gap since its last; then a roll
+        // (0 to 1) under one in minutes: on average one truffle each that many minutes in the forest.
+        public static bool Roots(Species s, bool tamed, bool young, bool following, bool inForest, double sinceLast, double roll, float minutes) =>
+            s != null && s.Roots && tamed && !young && following && inForest && sinceLast >= RootGapSeconds && minutes > 0 && roll < RootCheckSeconds / 60.0 / minutes;
 
         // Game hours (a day is 24 of them) for the hover: "5 h", "1 d 4 h".
         public static string Hours(double seconds, float dayLength)

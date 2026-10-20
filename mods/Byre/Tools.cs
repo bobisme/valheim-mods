@@ -13,7 +13,7 @@ namespace Byre
     internal static class Tools
     {
         private const string ClaudeToolsGuid = "com.quad.claudetools";
-        private const string Help = "byre herds [r] | spawn <sheep|goat|lamb|kid> [tame] [n] | ready [r] | age <hours> [r] | feed [r] | bait [item] [n] | use | troughs [r] | troughs fill <item> [n] | clear [r] | grip <ByreShears|ByreMilkPail> ex ey ez: check Byre. herds lists the animals within r m (40) with their kind, tameness, hunger and wool or milk; spawn puts n (1) tagged test animals 3 m ahead (tame: already tamed); ready makes the wool and milk of tame ones within r (10) ready now; age moves their clocks (last shorn or milked, and a lamb's or kid's birth) back that many game hours; feed fills them as a meal would; bait drops n (4) of an item (Raspberry) at the feet of the nearest wild one within 80 m; use is E with the tool on the nearest tame one in 5 m; troughs lists the troughs within r (30) and what's in them, troughs fill puts n (10) of an item in the nearest one; clear removes the tagged test animals within r (30), nothing else; grip turns how the hand holds the shears or the pail (the equipoffset's euler angles, the grip point kept in the fist) for the next equip and the one in hand now: put the numbers found in Items.cs's Hand.";
+        private const string Help = "byre herds [r] | spawn <sheep|goat|cow|pig|goose|lamb|kid|calf|piglet|gosling|boar> [tame] [n] | ready [r] | age <hours> [r] | feed [r] | bait [item] [n] | use [kind] | breed [r] | hatch [r] | roots | guard [r] | troughs [r] | troughs fill <item> [n] | tag <prefab> [r] | clear [r] [items] | grip <ByreShears|ByreMilkPail> ex ey ez: check Byre. herds lists the animals within r m (40) with their kind, tameness, hunger and wool or milk; spawn puts n (1) tagged test animals 3 m ahead (tame: already tamed; boar: the game's, for breeding pigs); ready makes the wool and milk of tame ones within r (10) ready now; age moves their clocks (last shorn or milked, and a lamb's or kid's birth) back that many game hours; feed fills them as a meal would; bait drops n (4) of an item (Raspberry) at the feet of the nearest wild one within 80 m; use is E with the tool on the nearest tame one (of that kind) in 5 m (a goose: plucked, or petted, by hand); breed makes every tame breeder within r (10, the game's boars too) due and has it give birth now (or lay); hatch has the eggs within r (10) that are growing hatch now (they grow only under a roof by a fire); roots has the nearest tame pig within 10 m nose about now, the roll and the gap skipped (it must still be following someone in the Black Forest); guard lists the tame geese within r (20), who they know and whom they're chasing; troughs lists the troughs within r (30) and what's in them, troughs fill puts n (10) of an item in the nearest one; tag marks every creature of a prefab within r (10) as a test animal; clear removes the tagged test animals within r (30) (and tagged boars), nothing else; with items, goose eggs, cow's milk and truffles on the ground there too; grip turns how the hand holds the shears or the pail (the equipoffset's euler angles, the grip point kept in the fist) for the next equip and the one in hand now: put the numbers found in Items.cs's Hand.";
         private static BaseUnityPlugin _tools;
         private static float _nextCheck;
 
@@ -50,6 +50,14 @@ namespace Byre
             ["tamingLeft"] = !l.Tamed && l.Tame != null && l.View != null && l.View.IsValid() ? Math.Round(l.View.GetZDO().GetFloat(ZDOVars.s_tameTimeLeft, l.Tame.m_tamingTime)) : (double?)null,
         };
 
+        private static readonly string[] TestGoods = { "ByreGooseEgg", "ByreCowMilk", "ByreTruffle" };
+        private static readonly int Floors = LayerMask.GetMask("Default", "static_solid", "Default_small", "piece", "terrain");
+        private static readonly MethodInfo Procreate = HarmonyLib.AccessTools.Method(typeof(Procreation), "Procreate"), CanGrow = HarmonyLib.AccessTools.Method(typeof(EggGrow), "CanGrow");
+        // What's near by prefab: creatures and items on the ground (to see what a birth or a hatching made).
+        private static System.Collections.Generic.Dictionary<string, int> Counts(Vector3 at, float r) =>
+            UnityEngine.Object.FindObjectsByType<ZNetView>(FindObjectsSortMode.None).Where(v => v != null && v.IsValid() && (v.GetComponent<Character>() != null || v.GetComponent<ItemDrop>() != null) && Vector3.Distance(v.transform.position, at) <= r)
+                .GroupBy(v => Utils.GetPrefabName(v.gameObject)).ToDictionary(g => g.Key, g => g.Count());
+
         private static IEnumerator Run(string[] a, Action<JObject> output, Action<string> error)
         {
             Player me = Player.m_localPlayer;
@@ -68,16 +76,19 @@ namespace Byre
                 {
                     string kind = a.Length > 2 ? a[2].ToLowerInvariant() : "sheep";
                     Species s = Species.ByKey(kind) ?? Species.All.FirstOrDefault(x => x.YoungTitle.Equals(kind, StringComparison.OrdinalIgnoreCase));
-                    if (s == null) { error("spawn <sheep|goat|lamb|kid> [tame] [n]"); yield break; }
-                    bool young = !s.Key.Equals(kind, StringComparison.OrdinalIgnoreCase), tame = a.Skip(3).Any(x => x == "tame");
+                    if (s == null && kind != "boar") { error("spawn <sheep|goat|cow|pig|goose|lamb|kid|calf|piglet|gosling|boar> [tame] [n]"); yield break; }
+                    bool young = s != null && !s.Key.Equals(kind, StringComparison.OrdinalIgnoreCase), tame = a.Skip(3).Any(x => x == "tame");
                     int n = Math.Max(1, Math.Min(10, (int)F(a, a.Length > 3 && a[3] == "tame" ? 4 : 3, 1)));
-                    GameObject prefab = ZNetScene.instance.GetPrefab(young ? s.Young : s.Prefab);
-                    if (prefab == null) { error("not made: " + (young ? s.Young : s.Prefab)); yield break; }
+                    string name = s == null ? "Boar" : young ? s.Young : s.Prefab;
+                    GameObject prefab = ZNetScene.instance.GetPrefab(name);
+                    if (prefab == null) { error("not made: " + name); yield break; }
                     var made = new JArray();
                     for (int i = 0; i < n; i++)
                     {
                         Vector3 at = here + me.transform.forward * 3f + me.transform.right * (i - (n - 1) / 2f) * 1.5f;
-                        if (ZoneSystem.instance != null) at.y = ZoneSystem.instance.GetSolidHeight(at) + 0.2f;
+                        // (the floor under the spot, from about the player's height: indoors, not the roof over it)
+                        if (Physics.Raycast(new Vector3(at.x, here.y + 1.5f, at.z), Vector3.down, out RaycastHit hit, 8f, Floors)) at.y = hit.point.y + 0.2f;
+                        else if (ZoneSystem.instance != null) at.y = ZoneSystem.instance.GetSolidHeight(at) + 0.2f;
                         GameObject go = UnityEngine.Object.Instantiate(prefab, at, Quaternion.LookRotation(-me.transform.forward));
                         ZNetView view = go.GetComponent<ZNetView>();
                         view.GetZDO().Set(Livestock.TestKey, true);
@@ -111,6 +122,78 @@ namespace Byre
                     yield return new WaitForSeconds(2.1f); // (the fleece looks again every 2 s)
                     output(new JObject { ["verb"] = verb, ["animals"] = done }); break;
                 }
+                case "breed":
+                {
+                    float r = F(a, 2, 10);
+                    var before = Counts(here, r + 3);
+                    var had = new System.Collections.Generic.HashSet<ZDOID>(Character.GetAllCharacters().Where(c => c != null && c.GetComponent<ZNetView>()?.GetZDO() != null).Select(c => c.GetComponent<ZNetView>().GetZDO().m_uid));
+                    var done = new JArray();
+                    foreach (Procreation p in UnityEngine.Object.FindObjectsByType<Procreation>(FindObjectsSortMode.None).Where(p => Vector3.Distance(p.transform.position, here) <= r))
+                    {
+                        Character ch = p.GetComponent<Character>(); ZNetView view = p.GetComponent<ZNetView>();
+                        if (ch == null || !ch.IsTamed() || view == null || !view.IsValid()) continue;
+                        view.ClaimOwnership();
+                        view.GetZDO().Set(ZDOVars.s_pregnant, ZNet.instance.GetTime().Ticks - Husbandry.Ticks(p.m_pregnancyDuration + 5));
+                        Procreate.Invoke(p, null);
+                        done.Add(Utils.GetPrefabName(p.gameObject) + " at " + V(p.transform.position).ToString(Newtonsoft.Json.Formatting.None));
+                    }
+                    yield return new WaitForSeconds(1f);
+                    // (the young born here tagged as test animals, as their parents: clear removes them)
+                    foreach (Character c in Character.GetAllCharacters().Where(c => c != null && Vector3.Distance(c.transform.position, here) <= r + 3))
+                        if (c.GetComponent<ZNetView>() is ZNetView v && v.GetZDO() != null && !had.Contains(v.GetZDO().m_uid)) { v.ClaimOwnership(); v.GetZDO().Set(Livestock.TestKey, true); }
+                    var after = Counts(here, r + 3);
+                    output(new JObject { ["due"] = done, ["born"] = new JObject(after.Where(kv => kv.Value > (before.TryGetValue(kv.Key, out int b) ? b : 0)).Select(kv => new JProperty(kv.Key, kv.Value - (before.TryGetValue(kv.Key, out int b2) ? b2 : 0)))) });
+                    break;
+                }
+                case "hatch":
+                {
+                    float r = F(a, 2, 10);
+                    var eggs = new JArray();
+                    foreach (EggGrow egg in UnityEngine.Object.FindObjectsByType<EggGrow>(FindObjectsSortMode.None).Where(e => Vector3.Distance(e.transform.position, here) <= r))
+                    {
+                        ZNetView view = egg.GetComponent<ZNetView>();
+                        if (view == null || !view.IsValid()) continue;
+                        view.ClaimOwnership();
+                        float start = view.GetZDO().GetFloat(ZDOVars.s_growStart, 0f);
+                        bool grows = (bool)CanGrow.Invoke(egg, null);
+                        if (start > 0f) view.GetZDO().Set(ZDOVars.s_growStart, (float)(ZNet.instance.GetTimeSeconds() - egg.m_growTime - 1));
+                        eggs.Add(new JObject { ["egg"] = Utils.GetPrefabName(egg.gameObject), ["at"] = V(egg.transform.position), ["growing"] = start > 0f, ["canGrow"] = grows, ["hatches"] = egg.m_grownPrefab != null ? egg.m_grownPrefab.name : null });
+                    }
+                    yield return new WaitForSeconds(6f); // (an egg looks every 5 s)
+                    output(new JObject { ["eggs"] = eggs, ["near"] = new JObject(Counts(here, r + 2).Select(kv => new JProperty(kv.Key, kv.Value))) });
+                    break;
+                }
+                case "roots":
+                {
+                    Livestock l = Near(here, 10).FirstOrDefault(x => x.Kind != null && x.Kind.Roots && x.Tamed && !x.Young);
+                    if (l == null) { error("no tame grown pig within 10 m"); yield break; }
+                    l.View.ClaimOwnership();
+                    string rolled = l.Root(false), forced = l.Root(true);
+                    yield return new WaitForSeconds(1f);
+                    output(new JObject { ["pig"] = Facts(l, here), ["rolled"] = rolled, ["forced"] = forced, ["biome"] = Heightmap.FindBiome(l.transform.position).ToString(),
+                        ["following"] = l.AI?.GetFollowTarget()?.name, ["truffles"] = UnityEngine.Object.FindObjectsByType<ItemDrop>(FindObjectsSortMode.None).Count(d => d.m_itemData.m_dropPrefab?.name == "ByreTruffle" && Vector3.Distance(d.transform.position, l.transform.position) < 4) });
+                    break;
+                }
+                case "guard":
+                {
+                    float r = F(a, 2, 20);
+                    output(new JObject { ["geese"] = new JArray(Near(here, r).Where(l => l.Kind != null && l.Kind.Guards).Select(l =>
+                    {
+                        JObject f = Facts(l, here);
+                        f["knowsMe"] = l.Knows(me.GetPlayerID()); f["known"] = l.View.GetZDO().GetString(Livestock.KnownKey, "");
+                        f["chasing"] = l.Chasing != null ? l.Chasing.GetHoverName() + " at " + Math.Round(Vector3.Distance(l.Chasing.transform.position, l.transform.position), 1) + " m" : null;
+                        return f;
+                    })) });
+                    break;
+                }
+                case "tag":
+                {
+                    // (test animals born untagged: tag every one of that prefab within r (10), so clear removes them)
+                    string name = a.Length > 2 ? a[2] : ""; float r = F(a, 3, 10); int n = 0;
+                    foreach (Character c in Character.GetAllCharacters().Where(c => c != null && Utils.GetPrefabName(c.gameObject) == name && Vector3.Distance(c.transform.position, here) <= r))
+                        if (c.GetComponent<ZNetView>() is ZNetView v && v.IsValid()) { v.ClaimOwnership(); v.GetZDO().Set(Livestock.TestKey, true); n++; }
+                    output(new JObject { ["tagged"] = n, ["prefab"] = name, ["radius"] = r }); break;
+                }
                 case "bait":
                 {
                     // (test: food at the feet of the nearest wild one within 80 m, without walking up and scaring it off)
@@ -123,10 +206,11 @@ namespace Byre
                 }
                 case "use":
                 {
-                    Livestock l = Near(here, 5).FirstOrDefault(x => x.Tamed && !x.Young);
-                    if (l == null) { error("no tame grown animal within 5 m"); yield break; }
+                    string only = a.Length > 2 ? a[2] : null;
+                    Livestock l = Near(here, 5).FirstOrDefault(x => x.Tamed && !x.Young && (only == null || string.Equals(x.Kind?.Key, only, StringComparison.OrdinalIgnoreCase)));
+                    if (l == null) { error("no tame grown " + (only ?? "animal") + " within 5 m"); yield break; }
                     int before = me.GetInventory().NrOfItems();
-                    bool used = l.Use(me);
+                    bool used = l.Use(me); l.Know(me); // (as E does: petted or plucked, a goose knows you)
                     yield return new WaitForSeconds(1f);
                     output(new JObject { ["used"] = used, ["hasTool"] = Livestock.HasTool(me, l.Kind), ["after"] = Facts(l, here), ["dropped"] = new JArray(UnityEngine.Object.FindObjectsByType<ItemDrop>(FindObjectsSortMode.None)
                         .Where(d => d.m_itemData.m_dropPrefab != null && d.m_itemData.m_dropPrefab.name == l.Kind.Product && Vector3.Distance(d.transform.position, l.transform.position) < 4).Select(d => d.m_itemData.m_stack)) });
@@ -159,7 +243,19 @@ namespace Byre
                     {
                         l.View.ClaimOwnership(); l.View.Destroy(); n++;
                     }
-                    output(new JObject { ["removed"] = n, ["radius"] = r }); break;
+                    // (the game's boars spawned for breeding pigs: tagged the same)
+                    foreach (Character ch in Character.GetAllCharacters().Where(c => c != null && c.GetComponent<Livestock>() == null && Vector3.Distance(c.transform.position, here) <= r).ToList())
+                    {
+                        ZNetView v = ch.GetComponent<ZNetView>();
+                        if (v == null || !v.IsValid() || !v.GetZDO().GetBool(Livestock.TestKey, false)) continue;
+                        v.ClaimOwnership(); v.Destroy(); n++;
+                    }
+                    // (items: Byre 0.3.0's new goods lying within r too, laid, milked or rooted up in a test: only those, nothing older)
+                    int items = 0;
+                    if (a.Skip(2).Contains("items"))
+                        foreach (ItemDrop d in UnityEngine.Object.FindObjectsByType<ItemDrop>(FindObjectsSortMode.None).Where(d => d != null && TestGoods.Contains(Utils.GetPrefabName(d.gameObject)) && Vector3.Distance(d.transform.position, here) <= r).ToList())
+                            if (d.GetComponent<ZNetView>() is ZNetView v && v.IsValid()) { v.ClaimOwnership(); v.Destroy(); items++; }
+                    output(new JObject { ["removed"] = n, ["items"] = items, ["radius"] = r }); break;
                 }
                 case "grip":
                 {

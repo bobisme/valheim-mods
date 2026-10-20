@@ -42,7 +42,9 @@ namespace Byre
                     GameObject body = Keep(Animals.Ragdoll(scene, h, s));
                     GameObject adult = Keep(Animals.Make(scene, h, s, false, null, body));
                     GameObject young = Keep(Animals.Make(scene, h, s, true, adult, null));
-                    Animals.Breed(adult, young);
+                    GameObject egg = s.Egg != null && Made.TryGetValue(s.Egg, out GameObject e) ? e : null;
+                    Animals.Breed(adult, young, egg);
+                    Items.Hatches(egg, young);
                 }
                 GameObject trough = Keep(Trough.Make(scene, h)), rack = Keep(Trough.MakeRack(scene, h)), stall = Keep(Barn.MakeStall(scene, h));
                 TroughPiece = trough?.GetComponent<Piece>(); RackPiece = rack?.GetComponent<Piece>(); StallPiece = stall?.GetComponent<Piece>();

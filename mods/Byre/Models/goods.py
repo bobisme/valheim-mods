@@ -1,17 +1,17 @@
 # Byre's goods (Byre 0.1.1), made from scratch in place of props.py's placeholders: the bow-spring shears, the stave milk pail, the jug of
-# goat's milk, a rolled shorn fleece (the wool) and the feeding trough.
+# goat's milk, a rolled shorn fleece (the wool) and the feeding trough; Byre 0.3.0's truffle, as a pig roots it up.
 # Run: blender -b --python ~/.cache/byre-goods/goods.py -- [render] [shears|pail|milk|wool|trough]
 # (writes ~/.cache/byre-goods/<name>.json.gz; previews with "render"). What ships is the bake of these (bake_conf.py, docs/model-baking.md).
 # Blender frame: z up, front +y. The trough stands on z 0 (1.8 m along x, its rim at 0.45); the shears stand on their bow, blades up
 # along z, the fist round the leather grips at z 0.078; the pail stands on z 0, its handle bar along x at z 0.29; the jug stands on
 # z 0; the fleece lies about the origin. (Where the hand holds them: Items.cs's Grip.) Written in the game's frame (x, z, y): per corner position/normal/uv (uvs in metres; wood's grain runs along v),
-# triangles per material: 0 wood, 1 iron, 2 leather, 3 milk, 4 wool, 5 clay, 6 hay, 7 rope.
+# triangles per material: 0 wood, 1 iron, 2 leather, 3 milk, 4 wool, 5 clay, 6 hay, 7 rope, 8 truffle.
 import bpy, bmesh, json, math, random, sys, gzip
 from mathutils import Vector, Matrix
 
 OUT = '/home/bob/.cache/byre-goods/'
-WOOD, IRON, LEATHER, MILK, WOOL, CLAY, HAY, ROPE = range(8)
-NAMES = ('wood', 'iron', 'leather', 'milk', 'wool', 'clay', 'hay', 'rope')
+WOOD, IRON, LEATHER, MILK, WOOL, CLAY, HAY, ROPE, TRUFFLE = range(9)
+NAMES = ('wood', 'iron', 'leather', 'milk', 'wool', 'clay', 'hay', 'rope', 'truffle')
 SMOOTH = ('fleece', 'band', 'tail', 'grip', 'jug', 'lip', 'loop', 'cord', 'hay', 'straw', 'bar')
 mats = []
 V = Vector
@@ -511,7 +511,7 @@ def export(base):
     print(base, 'verts', len(verts) // 3, 'tris', sum(len(t) for t in tris) // 3, 'x', round(min(xs), 3), round(max(xs), 3), 'y', round(min(ys), 3), round(max(ys), 3), 'z', round(min(zs), 3), round(max(zs), 3))
 
 COLS = [(0.36, 0.24, 0.14, 1), (0.12, 0.12, 0.13, 1), (0.22, 0.12, 0.06, 1), (0.85, 0.83, 0.75, 1), (0.68, 0.62, 0.5, 1),
-        (0.42, 0.24, 0.15, 1), (0.62, 0.52, 0.28, 1), (0.42, 0.34, 0.22, 1)]
+        (0.42, 0.24, 0.15, 1), (0.62, 0.52, 0.28, 1), (0.42, 0.34, 0.22, 1), (0.06, 0.05, 0.045, 1)]
 def preview(base, views):
     # yaw 0 looks at the front (from +y); the ground under the lowest point
     for m, c in zip(mats, COLS):
@@ -536,6 +536,28 @@ def preview(base, views):
         cam.rotation_euler = (V((0, 0, look)) - cam.location).to_track_quat('-Z', 'Y').to_euler()
         sc.render.filepath = OUT + f'{base}_{yaw}_{d}.png'; bpy.ops.render.render(write_still=True)
 
-KINDS = ('shears', 'pail', 'milk', 'wool', 'trough', 'rack', 'stall')
+# ---------------- the truffle ----------------
+# A black truffle as the pig roots it up: a lumpy ball the size of a walnut and more (4.5 cm), its skin all small pyramidal warts,
+# a little flattened, one side pinched in where it grew against a root. It lies on z 0.
+def truffle():
+    fresh()
+    bm = bmesh.new(); bmesh.ops.create_icosphere(bm, subdivisions=5, radius=0.022)
+    r = random.Random(11)
+    lumps = [(V((r.uniform(-1, 1), r.uniform(-1, 1), r.uniform(-1, 1))).normalized(), r.uniform(0.08, 0.2), r.uniform(0.5, 0.9)) for _ in range(7)]
+    warts = [V((r.uniform(-1, 1), r.uniform(-1, 1), r.uniform(-1, 1))).normalized() for _ in range(420)]
+    for v in bm.verts:
+        d = v.co.normalized()
+        k = 1 + sum(a * math.exp(-((1 - d.dot(c)) / (0.35 * w)) ** 2) for c, a, w in lumps)
+        k -= 0.16 * math.exp(-((1 - d.dot(V((0.6, -0.5, 0.2)).normalized())) / 0.12) ** 2)     # the pinch
+        near = max(d.dot(c) for c in warts)
+        k += 0.055 * max(0.0, 1 - (1 - near) / 0.006)                                          # a wart: a little pyramid
+        v.co = d * 0.022 * k
+        v.co.z *= 0.82
+    low = min(v.co.z for v in bm.verts)
+    for v in bm.verts: v.co.z -= low
+    link('truffle', bm, TRUFFLE)
+    finish('truffle', [(0, 0.2, 0.08, 0.02), (90, 0.18, 0.12, 0.02), (200, 0.15, 0.06, 0.02)])
+
+KINDS = ('shears', 'pail', 'milk', 'wool', 'trough', 'rack', 'stall', 'truffle')
 which = [a for a in sys.argv if a in KINDS] or list(KINDS)
 for w in which: globals()[w]()

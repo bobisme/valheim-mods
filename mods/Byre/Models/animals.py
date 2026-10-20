@@ -158,6 +158,79 @@ def goat():
         horns.append(curve_tube('horn', pts, 0.026, 0.006))
     return body, None, horns
 
+def pig():
+    """A farm pig (bred from tamed boars): a long pink barrel on short legs, a heavy head with a flat snout, ears flopping forward,
+    a curled tail; a darker bristly ridge down the back."""
+    sh = Shape('pig')
+    sh.ell(V(0, -0.08, 0.555), 0.23, 0.45, 0.29)                         # the barrel, deep: the belly at 0.27 m
+    sh.ell(V(0, 0.15, 0.55), 0.215, 0.21, 0.265)                          # shoulders and jowl
+    sh.cap(V(0, 0.22, 0.63), V(0, 0.45, 0.645), 0.165, 0.125)             # the short thick neck
+    sh.ell(V(0, 0.555, 0.635), 0.118, 0.13, 0.118)                        # head
+    sh.cap(V(0, 0.62, 0.615), V(0, 0.755, 0.575), 0.078, 0.064)           # snout
+    sh.ell(V(0, 0.762, 0.575), 0.066, 0.022, 0.058)                       # the snout's flat disc
+    for k in (-1, 1):
+        # (ears flop forward over the eyes)
+        sh.cap(V(k*0.075, 0.585, 0.745), V(k*0.125, 0.70, 0.665), 0.048, 0.008)   # pointed, flopping forward and out
+    legs(sh, 0.11, 0.066, 0.06)
+    body = sh.mesh()
+    tail = curve_tube('tail', [V(0, -0.50, 0.70), V(0, -0.56, 0.72), V(0.03, -0.585, 0.69), V(0.0, -0.575, 0.66), V(-0.025, -0.555, 0.685), V(0, -0.555, 0.715)], 0.014, 0.008)
+    return body, None, [tail]
+
+def cow():
+    """A Norse cow, small and red-brown with white splashes: a deep body on the boar's legs (the game scales her up), a long face
+    with a pale muzzle, ears out sideways, short horns curving up, an udder, a long tail with a tuft."""
+    sh = Shape('cow')
+    sh.ell(V(0, -0.07, 0.635), 0.205, 0.45, 0.225)                        # body, belly at 0.41 m
+    sh.ell(V(0, 0.16, 0.615), 0.19, 0.19, 0.235)                          # chest and dewlap
+    sh.ell(V(0, -0.32, 0.66), 0.20, 0.16, 0.20)                           # the hips' squareness
+    sh.cap(V(0, 0.22, 0.71), V(0, 0.45, 0.76), 0.135, 0.085)              # neck
+    sh.ell(V(0, 0.545, 0.785), 0.078, 0.095, 0.08)                        # skull
+    sh.cap(V(0, 0.585, 0.765), V(0, 0.735, 0.66), 0.066, 0.058)           # the long face
+    sh.ell(V(0, 0.745, 0.645), 0.062, 0.045, 0.05)                        # muzzle
+    for k in (-1, 1):
+        sh.ell(V(k*0.112, 0.53, 0.80), 0.065, 0.022, 0.03, rot=Euler((0, 0, math.radians(k*-12))).to_quaternion())  # ears, out sideways
+        for f in (0.06, -0.05):
+            sh.cap(V(k*0.04, -0.30 + f, 0.43), V(k*0.04, -0.30 + f, 0.37), 0.014, 0.011)   # teats
+    sh.ell(V(0, -0.30, 0.44), 0.085, 0.10, 0.065)                         # udder
+    legs(sh, 0.09, 0.046, 0.05)
+    body = sh.mesh()
+    tail = curve_tube('tail', [V(0, -0.50, 0.80), V(0, -0.535, 0.74), V(0, -0.545, 0.62), V(0, -0.545, 0.50)], 0.018, 0.012)
+    tuft = Shape('tuft', voxel=0.008); tuft.ell(V(0, -0.545, 0.46), 0.024, 0.024, 0.05); tuft = tuft.mesh(smooth=0.2)
+    horns = []
+    for k in (-1, 1):
+        horns.append(curve_tube('horn', [V(k*0.045, 0.55, 0.85), V(k*0.095, 0.545, 0.87), V(k*0.13, 0.555, 0.905), V(k*0.14, 0.57, 0.95)], 0.02, 0.006))
+    return body, None, [tail, tuft] + horns
+
+# The goose and gosling are made on the game's hen (hen-rig.json: spine1-3, head, wings, legs with toes), which is 0.41 m tall here
+# (its Visual is scaled 2): a greylag goose stands a little taller, its neck up through spine3 to a head above the hen's.
+def goose(young=False):
+    """A greylag-type goose: a heavy grey-brown body carried level, a long neck held up, an orange bill and orange webbed feet, white
+    under the tail. Young: a downy gosling, round, short-necked, big-headed."""
+    sh = Shape('gosling' if young else 'goose', voxel=0.0055)
+    if young:
+        sh.ell(V(0, -0.01, 0.20), 0.085, 0.12, 0.085)
+        sh.cap(V(0, 0.07, 0.24), V(0, 0.11, 0.33), 0.042, 0.035)
+        sh.ell(V(0, 0.12, 0.355), 0.042, 0.05, 0.042)
+        sh.cap(V(0, 0.155, 0.35), V(0, 0.195, 0.342), 0.016, 0.011)
+        for k in (-1, 1): sh.ell(V(k*0.07, -0.02, 0.215), 0.025, 0.06, 0.04)
+    else:
+        sh.ell(V(0, -0.02, 0.21), 0.092, 0.155, 0.088)                    # body, carried level
+        sh.ell(V(0, -0.14, 0.235), 0.06, 0.07, 0.055)                     # the rump and tail
+        sh.cap(V(0, -0.175, 0.24), V(0, -0.215, 0.26), 0.035, 0.012)
+        sh.ell(V(0, 0.07, 0.205), 0.075, 0.07, 0.075)                     # breast
+        # the neck, in an S as a goose holds it: forward from the breast, up, a little back under the head
+        sh.cap(V(0, 0.085, 0.25), V(0, 0.115, 0.32), 0.034, 0.024)
+        sh.cap(V(0, 0.115, 0.32), V(0, 0.12, 0.39), 0.024, 0.021)
+        sh.ell(V(0, 0.135, 0.41), 0.027, 0.045, 0.028)                    # head
+        sh.cap(V(0, 0.17, 0.405), V(0, 0.228, 0.392), 0.016, 0.0095)      # bill
+        for k in (-1, 1): sh.ell(V(k*0.078, -0.03, 0.235), 0.03, 0.13, 0.058, rot=Euler((math.radians(-6), 0, 0)).to_quaternion())  # folded wings
+    # legs and webbed feet on the hen's leg bones: thigh (in the body), shank, foot
+    for k in (-1, 1):
+        sh.cap(V(k*0.058, -0.02, 0.15), V(k*0.048, -0.025, 0.07), 0.016, 0.011)
+        sh.cap(V(k*0.048, -0.025, 0.07), V(k*0.043, -0.004, 0.016), 0.010, 0.009)
+        sh.ell(V(k*0.045, 0.022, 0.008), 0.036 if not young else 0.026, 0.045 if not young else 0.032, 0.007)
+    return sh.mesh(smooth=0.4), None, []
+
 # ---- colour, by region -------------------------------------------------------------------------------------------------
 def srgb(c): return tuple((x / 12.92) if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4 for x in c)
 PALETTE = {
@@ -166,13 +239,63 @@ PALETTE = {
     'goat': dict(body=(0.45, 0.32, 0.21), belly=(0.62, 0.52, 0.40), stripe=(0.16, 0.12, 0.10), face=(0.40, 0.29, 0.20),
                  muzzle=(0.22, 0.17, 0.14), leg=(0.15, 0.12, 0.10), hoof=(0.07, 0.06, 0.05), eye=(0.55, 0.42, 0.10),
                  pupil=(0.04, 0.04, 0.04), horn=(0.48, 0.43, 0.36), beard=(0.14, 0.11, 0.09)),
+    'pig': dict(body=(0.86, 0.64, 0.58), ridge=(0.62, 0.45, 0.40), snout=(0.80, 0.50, 0.48), nose=(0.45, 0.28, 0.27),
+                ear=(0.82, 0.56, 0.52), hoof=(0.25, 0.20, 0.18), eye=(0.06, 0.05, 0.05)),
+    'cow': dict(body=(0.52, 0.27, 0.15), white=(0.90, 0.87, 0.80), muzzle=(0.72, 0.60, 0.55), nose=(0.25, 0.18, 0.17),
+                udder=(0.86, 0.66, 0.62), hoof=(0.10, 0.08, 0.07), eye=(0.05, 0.04, 0.04), horn=(0.86, 0.80, 0.66),
+                horn_tip=(0.25, 0.22, 0.20), tuft=(0.25, 0.14, 0.09), leg=(0.42, 0.22, 0.13)),
+    'goose': dict(body=(0.52, 0.48, 0.42), wing=(0.42, 0.38, 0.33), wing_bar=(0.62, 0.58, 0.52), belly=(0.74, 0.72, 0.68),
+                  neck=(0.46, 0.42, 0.37), white=(0.93, 0.92, 0.89), bill=(0.93, 0.52, 0.20), feet=(0.95, 0.55, 0.30),
+                  eye=(0.05, 0.04, 0.04)),
+    'gosling': dict(body=(0.78, 0.72, 0.38), back=(0.55, 0.52, 0.30), belly=(0.86, 0.82, 0.55), bill=(0.25, 0.24, 0.22),
+                    feet=(0.40, 0.38, 0.32), eye=(0.05, 0.04, 0.04)),
 }
+# (a cow's white splashes: the left side has one more than the right, as no two cows are alike)
+COW_WHITE = [(V(0.20, -0.05, 0.58), 0.11), (V(-0.21, 0.02, 0.62), 0.09), (V(-0.19, -0.30, 0.66), 0.08), (V(0.0, -0.40, 0.80), 0.07)]
 def region(kind, part, p, n):
     P = PALETTE[kind]
     if part == 'fleece':
         return P['fleece']
-    if part == 'horn': return P['horn']
+    if part == 'horn':
+        return P['horn_tip'] if kind == 'cow' and abs(p[0]) > 0.125 else P['horn']
+    if part == 'tuft': return P['tuft']
+    if part == 'tail': return P['body'] if kind != 'cow' else P['body']
     x, y, z = p
+    if kind == 'pig':
+        if any((p - V(s*0.082, 0.645, 0.68)).length < 0.016 for s in (-1, 1)): return P['eye']
+        if y > 0.76: return P['nose'] if abs(x) < 0.04 and abs(z - 0.575) < 0.03 and ((abs(x) > 0.012) or y > 0.78) else P['snout']
+        if y > 0.70 and z < 0.66: return P['snout']
+        if y > 0.57 and z > 0.64 and abs(x) > 0.06: return P['ear']
+        if z < 0.045: return P['hoof']
+        if z > 0.80 and abs(x) < 0.05 and y < 0.40: return P['ridge']
+        return P['body']
+    if kind == 'cow':
+        if any((p - V(s*0.07, 0.60, 0.79)).length < 0.016 for s in (-1, 1)): return P['eye']
+        if y > 0.765 and z < 0.68: return P['nose']
+        if y > 0.70 and z < 0.70: return P['muzzle']
+        if y > 0.56 and abs(x) < 0.03 and z > 0.66: return P['white']                       # the blaze
+        if (p - V(0, -0.30, 0.42)).length < 0.115 and z < 0.48: return P['udder']
+        if z < 0.045: return P['hoof']
+        if z < 0.48 and abs(x) < 0.13 and -0.20 < y < 0.25: return P['white']                # the belly
+        if any((p - c).length < r for c, r in COW_WHITE): return P['white']
+        if z < 0.30: return P['leg']
+        return P['body']
+    if kind == 'gosling':
+        if any((p - V(s*0.03, 0.15, 0.365)).length < 0.007 for s in (-1, 1)): return P['eye']
+        if y > 0.163 and abs(x) < 0.02 and abs(z - 0.346) < 0.02: return P['bill']          # (the bill only, not the face)
+        if z < 0.12: return P['feet']
+        if z > 0.24 and y < 0.09: return P['back']
+        if z < 0.16: return P['belly']
+        return P['body']
+    if kind == 'goose':
+        if any((p - V(s*0.022, 0.158, 0.418)).length < 0.0075 for s in (-1, 1)): return P['eye']
+        if y > 0.168 and z > 0.37: return P['bill']
+        if z < 0.125: return P['feet']
+        if y < -0.12 and z < 0.245: return P['white']                                         # under the tail
+        if z > 0.27: return P['neck']
+        if abs(x) > 0.06 and z > 0.19: return P['wing_bar'] if int((y + 1) * 34) % 3 == 0 else P['wing']
+        if z < 0.165: return P['belly']
+        return P['body']
     eyes = [V(s*0.07, 0.65, 0.80) for s in (-1, 1)] if kind == 'sheep' else [V(s*0.058, 0.60, 0.875) for s in (-1, 1)]
     if any((p - e).length < (0.020 if kind == 'sheep' else 0.014) for e in eyes):
         if kind == 'goat' and any((p - e).length < 0.007 for e in eyes): return P['pupil']
@@ -225,12 +348,14 @@ def sides():
     R = L.rest(); return {L.bone_name(k): (1 if R[k].to_translation().x > 0.02 else -1 if R[k].to_translation().x < -0.02 else 0) for k in R}
 def tidy(ob):
     side = sides(); names = {g.index: g.name for g in ob.vertex_groups}
-    hy = L.joint('Head').y
+    boar = 'Head' in names.values()   # (the hen's skeleton has no low-slung head bone to make up for)
+    hy = L.joint('Head').y if boar else 0
     for v in ob.data.vertices:
-        s = 1 if v.co.x > 0.05 else -1 if v.co.x < -0.05 else 0
+        mid = 0.05 if boar else 0.02   # (off the middle: a goose's legs are 4 cm out)
+        s = 1 if v.co.x > mid else -1 if v.co.x < -mid else 0
         ws = {names[g.group]: g.weight for g in v.groups if g.weight > 0}
         if s: ws = {n: w for n, w in ws.items() if side.get(n, 0) != -s} or ws
-        if v.co.y > hy - 0.03 and v.co.z > 0.55:   # (the skull, ears, muzzle)
+        if boar and v.co.y > hy - 0.03 and v.co.z > 0.55:   # (the skull, ears, muzzle)
             fam = ('Head', 'Jaw', 'L Ear', 'R Ear', 'Eye L', 'Eye R')   # (the head's own bones and its children: all ride Head fully)
             head = sum(w for n, w in ws.items() if n in fam)
             if head > 0:
@@ -360,6 +485,13 @@ def pose(arm, which):
     elif which == 'graze':
         for n, a in (('Spine2', -8), ('Neck', -40), ('Head', -25)):
             bend(n, a)
+    # (the hen's bones, for the goose: a stride, and a peck)
+    if which == 'walk':
+        for n, a in (('l.uleg', 22), ('r.uleg', -18), ('spine3', 8)):
+            bend(n, a)
+    elif which == 'graze':
+        for n, a in (('spine2', -10), ('spine3', -45), ('head', -30)):
+            bend(n, a)
 
 def render(path, objs, yaw=35, h=0.55, dist=2.4, size=640, target=None):
     sc = bpy.context.scene; sc.render.engine = 'CYCLES'; sc.cycles.samples = 32
@@ -380,25 +512,31 @@ def render(path, objs, yaw=35, h=0.55, dist=2.4, size=640, target=None):
 def main():
     argv = sys.argv[sys.argv.index('--') + 1:]
     kind, out = argv[0], argv[1]; os.makedirs(out, exist_ok=True)
-    L.load(os.environ.get('BYRE_RIG', os.path.expanduser('~/.cache/byre-rig/boar-rig.json'))); L.clear()
+    # (the goose and gosling are made on the hen's skeleton; the rest on the boar's)
+    rig = 'hen-rig.json' if kind in ('goose', 'gosling') else 'boar-rig.json'
+    L.load(os.environ.get('BYRE_RIG', os.path.expanduser('~/.cache/byre-rig/' + rig))); L.clear()
     arm = L.armature()
-    body, fleece, extra = sheep() if kind == 'sheep' else goat()
-    budget = {'sheep': (1500, 900), 'goat': (1700, 0)}[kind]
+    body, fleece, extra = {'sheep': sheep, 'goat': goat, 'pig': pig, 'cow': cow, 'goose': goose, 'gosling': lambda: goose(True)}[kind]()
+    budget = {'sheep': (1500, 900), 'goat': (1700, 0), 'pig': (1700, 0), 'cow': (1900, 0), 'goose': (950, 0), 'gosling': (700, 0)}[kind]
     tb = lighten(body, budget[0]); colour(body, kind, 'body')
     parts = [body]
     if fleece is not None:
         tf = lighten(fleece, budget[1]); colour(fleece, kind, 'fleece'); parts.append(fleece)
+    # (extras: horns ride the head; a tail, and its tuft, are skinned with the body by heat)
+    horns = [h for h in extra if h.name.startswith('horn')]; rest = [h for h in extra if not h.name.startswith('horn')]
     for h in extra:
-        lighten(h, 160); colour(h, kind, 'horn')
-    if extra:
-        horns = join(extra, 'horns'); parts.append(horns)
+        lighten(h, 160); colour(h, kind, 'horn' if h in horns else h.name.split('.')[0])
+    if rest:
+        body = join([body] + rest, kind); parts[0] = body
+    if horns:
+        horns = join(horns, 'horns'); parts.append(horns)
     for o in parts:
         for p in o.data.polygons: p.use_smooth = False   # (flat, as the game's Poly Art animals)
-    img = bake(parts, 256, os.path.join(out, f'{kind}_albedo.png'))   # (the body and fleece share one atlas)
+    img = bake(parts, 256 if kind not in ('goose', 'gosling') else 128, os.path.join(out, f'{kind}_albedo.png'))   # (the body and fleece share one atlas)
     # the rest by heat; horns ride the head
     skin(body, arm)
     if fleece is not None: skin(fleece, arm)
-    if extra:
+    if horns:
         rigid(horns, arm, 'Head')
         body = join([body, horns], kind); parts = [body] + ([fleece] if fleece else [])
     nb = export(body, os.path.join(out, f'{kind}.json.gz'))
@@ -408,14 +546,16 @@ def main():
     vm = preview_material(img)
     for o in parts: o.data.materials.clear(); o.data.materials.append(vm)
     ref = L.reference(arm); ref.location.x = 1.1; ref.hide_render = True
+    small = kind in ('goose', 'gosling')
+    near = dict(dist=1.05, h=0.25, target=Vector((0, 0.0, 0.22))) if small else {}
     for which in ('rest', 'walk', 'graze'):
         pose(arm, which); bpy.context.view_layer.update()
-        render(os.path.join(out, f'{kind}_{which}.png'), parts)
+        render(os.path.join(out, f'{kind}_{which}.png'), parts, **near)
     if fleece is not None:
         fleece.hide_render = True; pose(arm, 'rest'); render(os.path.join(out, f'{kind}_shorn.png'), parts)
         fleece.hide_render = False
-    pose(arm, 'rest'); render(os.path.join(out, f'{kind}_side.png'), parts, yaw=90, h=0.2)
-    render(os.path.join(out, f'{kind}_front.png'), parts, yaw=170, h=0.35)
+    pose(arm, 'rest'); render(os.path.join(out, f'{kind}_side.png'), parts, yaw=90, **(dict(near, h=0.08) if small else dict(h=0.2)))
+    render(os.path.join(out, f'{kind}_front.png'), parts, yaw=170, **(dict(near, h=0.12) if small else dict(h=0.35)))
 
 if __name__ == '__main__':
     main()

@@ -20,6 +20,17 @@ namespace Byre
             "ByreTrough",
             "ByreHayRack",
             "ByreStall",
+            "ByreCow",
+            "ByreCalf",
+            "ByreCow_ragdoll",
+            "ByrePig",
+            "ByrePiglet",
+            "ByrePig_ragdoll",
+            "ByreGoose",
+            "ByreGosling",
+            "ByreCowMilk",
+            "ByreGooseEgg",
+            "ByreTruffle",
         };
     }
 }

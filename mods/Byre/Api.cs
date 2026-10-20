@@ -8,15 +8,15 @@ namespace Byre
     // prefab names; they never change (Core/PrefabNames.cs).
     public static class Api
     {
-        public const int Version = 2;
-        // Is this one of Byre's animals (a sheep, goat, lamb or kid; a prefab name, or a live animal)?
+        public const int Version = 3;
+        // Is this one of Byre's animals (a sheep, goat, cow, pig or goose, or one's young; a prefab name, or a live animal)?
         public static bool IsLivestock(string prefab) => Species.Of(prefab) != null;
         public static bool IsLivestock(GameObject go) => go != null && IsLivestock(Utils.GetPrefabName(go));
         // Is this item prefab Byre's wool (what a spinner spins)?
         public static bool IsWool(string prefab) => prefab == Species.Sheep.Product;
-        // What the animals give, by item prefab name (wool, goat's milk).
-        public static string[] Products => Species.All.Select(s => s.Product).ToArray();
-        // The kinds of animal ("sheep", "goat") and each one's grown and young prefab names.
+        // What the animals give, by item prefab name (wool, goat's and cow's milk, the game's feathers), each once.
+        public static string[] Products => Species.All.Where(s => s.Product != null).Select(s => s.Product).Distinct().ToArray();
+        // The kinds of animal ("sheep", "goat", "cow", "pig", "goose") and each one's grown and young prefab names.
         public static string[] Kinds => Species.All.Select(s => s.Key).ToArray();
         public static string Grown(string kind) => Species.ByKey(kind)?.Prefab;
         public static string Young(string kind) => Species.ByKey(kind)?.Young;
@@ -25,10 +25,11 @@ namespace Byre
         public static bool IsReady(GameObject go) => go != null && go.GetComponent<Livestock>() is Livestock l && !l.Young && l.Ready();
 
         // ---- Version 2: for villagers (Jarldom's herders) ----
-        // What a kind gives and what in the bag takes it (ByreWool with ByreShears; ByreGoatMilk with ByreMilkPail); null for an unknown kind.
+        // What a kind gives and what in the bag takes it (ByreWool with ByreShears; ByreGoatMilk and ByreCowMilk with ByreMilkPail); null for
+        // an unknown kind. Version 3: a goose's Feathers with no tool (Tool null: plucked by hand); a pig's nothing (Product null too).
         public static string Product(string kind) => Species.ByKey(kind)?.Product;
         public static string Tool(string kind) => Species.ByKey(kind)?.Tool;
-        // A live animal's kind ("sheep", "goat"), grown or young; null for one that isn't ours.
+        // A live animal's kind ("sheep", "goat", ...), grown or young; null for one that isn't ours.
         public static string KindOf(GameObject go) => go != null && go.GetComponent<Livestock>() is Livestock l ? l.Kind?.Key : null;
         public static bool IsYoung(GameObject go) => go != null && go.GetComponent<Livestock>() is Livestock l && l.Young;
         // Game seconds until its wool or milk is ready (0: ready now).
@@ -47,8 +48,8 @@ namespace Byre
             l.View.InvokeRPC("Byre_Harvest");
             return true;
         }
-        // Can it pull a plow or a cart (cattle, when they come: none of the kinds yet)?
-        public static bool CanPull(GameObject go) => false;
+        // Can it pull a plow or a cart? A tame grown cow (version 3; false before for every animal).
+        public static bool CanPull(GameObject go) => go != null && go.GetComponent<Livestock>() is Livestock l && l.Kind == Species.Cow && l.Tamed && !l.Young;
         // The feeders within radius (troughs and hay racks), as their containers: fill one and hungry tame animals near come to eat.
         public static List<Container> FeedersNear(Vector3 at, float radius)
         {
