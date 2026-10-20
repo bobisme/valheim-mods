@@ -8,7 +8,7 @@ using Object = UnityEngine.Object;
 namespace Larder
 {
     // Larder's foods, each a copy of the game's honey (a food that stacks, eaten from the bag) with a model of its own and its own
-    // numbers (Core/Dairy.cs). Then the churn's recipes, once Byre's milk is there to make them from: without Byre there is none, and
+    // numbers (Core/Dairy.cs, Core/Preserves.cs), and salt (the same, not eaten). Then the churn's recipes, once Byre's milk is there to make them from: without Byre there is none, and
     // no recipe is added (the foods stay registered, so any already made are kept).
     internal static class Things
     {
@@ -44,7 +44,7 @@ namespace Larder
             try
             {
                 var items = new List<GameObject>();
-                foreach (Food f in Dairy.Foods)
+                foreach (Food f in Dairy.Foods.Concat(Preserves.Foods).Append(Preserves.Salt))
                 {
                     try { if (Make(scene, f) is GameObject go) items.Add(go); }
                     catch (Exception e) { Plugin.Warn($"Could not make the {f.Title}: {e}"); }
@@ -76,9 +76,10 @@ namespace Larder
             ItemDrop drop = go.GetComponent<ItemDrop>();
             var s = (ItemDrop.ItemData.SharedData)CloneShared.Invoke(sourceDrop.m_itemData.m_shared, null); // (its own copy: never write into the honey's)
             s.m_name = f.Title; s.m_description = f.Description; s.m_weight = f.Weight; s.m_maxStackSize = f.Stack; s.m_autoStack = true; s.m_value = 0;
-            s.m_itemType = ItemDrop.ItemData.ItemType.Consumable;
+            bool eaten = f.Health > 0 || f.Stamina > 0; // (salt isn't: a material, as the game's resin is)
+            s.m_itemType = eaten ? ItemDrop.ItemData.ItemType.Consumable : ItemDrop.ItemData.ItemType.Material;
             s.m_maxQuality = 1; s.m_variants = 0; s.m_dlc = ""; s.m_questItem = false; s.m_teleportable = true; s.m_useDurability = false;
-            s.m_food = f.Health; s.m_foodStamina = f.Stamina; s.m_foodRegen = f.Regen; s.m_foodBurnTime = f.Seconds; s.m_foodEitr = 0; s.m_consumeStatusEffect = null;
+            s.m_food = f.Health; s.m_foodStamina = f.Stamina; s.m_foodRegen = f.Regen; s.m_foodBurnTime = eaten ? f.Seconds : 0; s.m_foodEitr = 0; s.m_consumeStatusEffect = null;
             drop.m_itemData.m_shared = s;
             drop.m_itemData.m_dropPrefab = go; // (without it the item is saved with no name and lost)
             drop.m_itemData.m_stack = 1; drop.m_itemData.m_quality = 1;

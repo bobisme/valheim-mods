@@ -13,6 +13,14 @@ namespace Larder
             "Larder_Butter",
             "Larder_Cheese",
             "Larder_Skyr",
+            "Larder_SmokedMeat",
+            "Larder_SaltMeat",
+            "Larder_Stockfish",
+            "Larder_Salt",
+            "Larder_Smokehouse",
+            "Larder_SaltPan",
+            "Larder_SaltBarrel",
+            "Larder_DryingRack",
         };
     }
 }

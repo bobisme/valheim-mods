@@ -8,15 +8,17 @@ using HarmonyLib;
 
 namespace Larder
 {
-    // Larder: food that keeps. The dairy first: a butter churn (butter, and skyr with blueberries) and a cheese press (cheese, set a milk at
-    // a time), from Byre's goat's and cow's milk; without Byre there's no milk and they stay out of the hammer's menu. What each takes and
-    // gives is Core/Dairy.cs; Things.cs makes the foods and the churn's recipes, Kit.cs the stations.
+    // Larder: food that keeps. The dairy: a butter churn (butter, and skyr with blueberries) and a cheese press (cheese, set a milk at a
+    // time), from Byre's goat's and cow's milk; without Byre there's no milk and they stay out of the hammer's menu. Preserving: a
+    // smokehouse (smoked meat), a salt pan in the shallows (salt), a salting barrel (salt meat) and a drying rack under the open sky
+    // (stockfish), for long voyages. What each takes and gives is Core/Dairy.cs and Core/Preserves.cs; Things.cs makes the foods and the
+    // churn's recipes, Kit.cs the stations, Preserving.cs what the rack and the pan need where they stand.
     [BepInPlugin(Guid, Name, Version)]
     public sealed class Plugin : BaseUnityPlugin
     {
         public const string Guid = "cx.bob.larder";
         public const string Name = "Larder";
-        public const string Version = "0.1.1";
+        public const string Version = "0.2.0";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled;
         private Harmony _harmony;
@@ -24,11 +26,11 @@ namespace Larder
         private void Awake()
         {
             Instance = this;
-            Enabled = Config.Bind("General", "Enabled", true, "Put the butter churn and the cheese press in the hammer's Crafting tab (with Byre's milk to use in them).");
+            Enabled = Config.Bind("General", "Enabled", true, "Put Larder's stations in the hammer's Crafting tab: the smokehouse, salt pan, salting barrel and drying rack, and the butter churn and cheese press (with Byre's milk to use in them).");
             _harmony = new Harmony(Guid); _harmony.PatchAll(typeof(Plugin).Assembly);
             Safe("register", Things.Register);
             Safe("repoint", Things.Repoint); // (a hot reload: items already in the world get this copy's prefabs)
-            Logger.LogInfo($"{Name} {Version} loaded: a butter churn and a cheese press in the hammer's Crafting tab, for Byre's milk.");
+            Logger.LogInfo($"{Name} {Version} loaded: a smokehouse, salt pan, salting barrel and drying rack in the hammer's Crafting tab, and a butter churn and cheese press for Byre's milk.");
         }
         private void OnDestroy()
         {

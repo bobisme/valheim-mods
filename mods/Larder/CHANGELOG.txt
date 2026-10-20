@@ -1,3 +1,5 @@
+0.2.0: preserved foods for long voyages: a smokehouse (smoked meat, over a wood fire), a salt pan standing in the sea (salt, from firewood), a salting barrel (salt meat, a salt each) and a drying rack under the open sky (stockfish, shown hanging). For other mods, Larder.Api: which foods are preserved, and what each station takes and burns.
+
 0.1.1: each world load no longer keeps another pair of the churn's and the press's icons (they piled up until the game restarted).
 
 0.1.0: the dairy: a butter churn (butter from cow's milk, skyr from goat's milk and blueberries) and a cheese press (cheese from either), for Byre's milk.

@@ -1353,16 +1353,24 @@ Playtest checklist (nothing has been in the game yet):
 
 ## Larder
 
-Food that keeps (`cx.bob.larder`). The dairy first (L2 of the plan; preserved foods, smokehouse and spoilage come later), from Byre's
-goat's and cow's milk. Stations are built at a workbench, hammer → **Crafting**, and only show with Byre installed:
+Food that keeps (`cx.bob.larder`): preserved foods for long voyages (L1) and the dairy (L2) from Byre's goat's and cow's milk; spoilage
+(L3, a server toggle, off by default) comes later. Stations are built at a workbench, hammer → **Crafting**; each is a smelter's queue
+(E to put in, E to take out; it works while you're away, up to an hour).
 
-- **Butter churn** (12 wood, 2 resin): butter (3 cow's milk), 2 skyr (2 goat's milk, 1 blueberries).
-- **Cheese press** (16 wood, 8 stone, 2 leather scraps): either milk → cheese, 4 minutes each, holds 20 (a smelter's queue: E to pour, E to take).
-- Foods: butter 14 hp / 48 stamina / 30 min, skyr 25 / 25 / 25 min, cheese 32 / 12 / 40 min.
+- **Smokehouse** (12 stone, 20 wood, 4 resin): boar, deer or neck tail → smoked meat, 5 minutes and a wood each, holds 10.
+- **Salt pan** (12 stone, 2 bronze): wood → salt, a minute each, holds 20; only standing in the sea's shallows.
+- **Salting barrel** (12 wood, 6 bronze nails): the same meats → salt meat, 10 minutes and a salt each (salt is its fuel), holds 10.
+- **Drying rack** (12 wood): raw fish → stockfish, 20 minutes each, holds 8 (shown hanging); only under the open sky.
+- **Butter churn** (12 wood, 2 resin; with Byre): butter (3 cow's milk), 2 skyr (2 goat's milk, 1 blueberries).
+- **Cheese press** (16 wood, 8 stone, 2 leather scraps; with Byre): either milk → cheese, 4 minutes each, holds 20.
+- Foods: smoked meat 36 hp / 14 stamina / 50 min, salt meat 40 / 12 / 60 min, stockfish 28 / 26 / 60 min; butter 14 / 48 / 30 min,
+  skyr 25 / 25 / 25 min, cheese 32 / 12 / 40 min.
 
-Without Byre the stations are still registered (any standing stay) but not in the menu, and no recipes are added. The dairy is pure
-code in `Core/Dairy.cs`, checked by `dotnet run --project tests/Larder.Tests -c Release`. `larder status|give|finish` (Claude Tools)
-checks it in a world. Adds items and recipes: restart to update. Models: `Models/larder.py`, baked.
+Without Byre the dairy's stations are still registered (any standing stay) but not in the menu, and no recipes are added. What each
+station takes and gives is pure code in `Core/Preserves.cs` and `Core/Dairy.cs`, checked by `dotnet run --project tests/Larder.Tests -c Release`.
+`Larder.Api` (version 1): `IsPreserved(prefab | item)`, `Preserved`, `Foods`, `Stations`, `Takes(station)`, `Burns(station)`.
+`larder status|give|finish|place|remove|use` (Claude Tools) checks it in a world. Adds items and recipes: restart to update. Models:
+`Models/larder.py`, baked.
 
 ## Build with mise
 
