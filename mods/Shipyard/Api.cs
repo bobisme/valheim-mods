@@ -16,7 +16,7 @@ namespace Shipyard
         public static int CargoSlots(string hull) => Shipyard.Hulls.Of(hull) is Hull h ? h.CargoWidth * h.CargoHeight : 0;
         // The boat prefab a hull launches as, and every stage's cost ("Wood:10,Resin:2" per stage).
         public static string Prefab(string hull) => Shipyard.Hulls.Of(hull)?.Prefab;
-        public static string[] StageCosts(string hull) => Shipyard.Hulls.Of(hull)?.Stages.Select(s => string.Join(",", s.Cost.Select(c => $"{c.item}:{c.n}"))).ToArray() ?? new string[0];
+        public static string[] StageCosts(string hull) => Shipyard.Hulls.Of(hull)?.Stages.Select(s => string.Join(",", Sailcloth.CostOf(s).Select(c => $"{c.item}:{c.n}"))).ToArray() ?? new string[0];
         // The slipways loaded within r of a point, nearest first.
         public static Vector3[] SlipwaysNear(Vector3 at, float r) =>
             Slipway.All.Where(s => s != null && Vector3.Distance(s.transform.position, at) <= r).OrderBy(s => Vector3.Distance(s.transform.position, at)).Select(s => s.transform.position).ToArray();
