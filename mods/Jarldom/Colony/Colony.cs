@@ -92,7 +92,7 @@ namespace Jarldom
             Flush();
         }
         public static void DetachAll() { foreach (Colony c in ById.Values.ToList()) c.Flush(); ById.Clear(); }
-        public static void ForgetWorld() => ById.Clear();
+        public static void ForgetWorld() { ById.Clear(); _names.Clear(); Comps.Clear(); } // (names and components by instance id: a past world's are no use)
         public static void AttachAll() => HighSeat.AttachAll();
 
         private void Found()

@@ -14,7 +14,7 @@ namespace Jarldom
     {
         public const string Guid = "com.bobisme.jarldom";
         public const string Name = "Jarldom";
-        public const string Version = "0.1.227";
+        public const string Version = "0.1.228";
         public const int DataVersion = 1; // raised whenever what's saved changes shape: games of different data versions mustn't write each other's colonies
         internal static Plugin Instance;
         internal ServerSettings Synced;
@@ -208,5 +208,5 @@ namespace Jarldom
     [HarmonyPatch(typeof(ObjectDB), "CopyOtherDB")]
     internal static class RegisterItemsMenu { private static void Postfix(ObjectDB __instance) => Assets.RegisterDB(__instance); }
     [HarmonyPatch(typeof(ZNet), "Shutdown")]
-    internal static class ForgetWorld { private static void Prefix() { Plugin.Guard(Colony.ForgetWorld); Plugin.Guard(Villagers.ForgetWorld); } }
+    internal static class ForgetWorld { private static void Prefix() { Plugin.Guard(Colony.ForgetWorld); Plugin.Guard(Villagers.ForgetWorld); Plugin.Guard(Classes.ForgetWorld); Plugin.Guard(Work.Forget); Plugin.Guard(Passing.Clear); } }
 }

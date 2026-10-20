@@ -1,3 +1,5 @@
+0.1.228: a world's piece caches (names, components, seats, tables, the work it has seen, who walks through whom) are let go when you leave it, instead of piling up with each world you load. Meadow Golf's caddie is listed among the mods it works with.
+
 0.1.227: with Meadow Golf 0.2.4 or later, "Caddie for me" on a villager's panel takes them onto the golf course with you. They follow, keep off to one side, and hand you the club at your ball with a word on the shot (drive, chip or putt, by the distance to the cup). When the ball comes to rest they have their say: a heckle for a shot that came no nearer or went in the water, praise for one that went close, a cheer for the cup. Go home sends them back. Without Golf the button doesn't show.
 
 0.1.226: with Byre, a shieling summers its sheep, goats and cattle as it does the game's beasts. Two of a kind have a lamb, kid or calf up there, and the young taken up come down grown. The herder carries down the summer's wool and feathers (six a beast) and the last milking (two a beast), and they go to the stores. Without Byre, nothing changes.

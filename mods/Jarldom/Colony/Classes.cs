@@ -41,6 +41,8 @@ namespace Jarldom
         public static bool IsHighSeat(GameObject go) { string n = Utils.GetPrefabName(go).ToLowerInvariant(); return n.Contains("throne") || n == Pieces.GildedSeatName.ToLowerInvariant(); }
         // A table to eat at: not a crafting table, a map table or the food preparation table.
         private static readonly Dictionary<int, bool> _isTable = new Dictionary<int, bool>();
+        // A world going: its pieces' answers go with it (the seats held its chairs).
+        public static void ForgetWorld() { _seats.Clear(); _isTable.Clear(); }
         public static bool IsTable(Piece p) { int id = p.GetInstanceID(); if (_isTable.TryGetValue(id, out bool t)) return t; if (_isTable.Count > 100000) _isTable.Clear(); return _isTable[id] = TableNow(p); }
         private static bool TableNow(Piece p) { string n = Colony.NameOf(p).ToLowerInvariant(); return n.Contains("table") && p.GetComponent<CraftingStation>() == null && p.GetComponent<StationExtension>() == null && p.GetComponent<MapTable>() == null && !n.Contains("prep"); } // (not a butcher's or a mage's table: a station's own part)
         public static bool IsRug(string n) => n.Contains("rug") || n.Contains("carpet");
