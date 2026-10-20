@@ -16,7 +16,7 @@ namespace Larder
     {
         public const string Guid = "cx.bob.larder";
         public const string Name = "Larder";
-        public const string Version = "0.1.0";
+        public const string Version = "0.1.1";
         internal static Plugin Instance;
         internal ConfigEntry<bool> Enabled;
         private Harmony _harmony;

@@ -1,1 +1,3 @@
+0.1.1: each world load no longer keeps another pair of the churn's and the press's icons (they piled up until the game restarted).
+
 0.1.0: the dairy: a butter churn (butter from cow's milk, skyr from goat's milk and blueberries) and a cheese press (cheese from either), for Byre's milk.
