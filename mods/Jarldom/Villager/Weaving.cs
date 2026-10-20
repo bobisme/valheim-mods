@@ -155,24 +155,25 @@ namespace Jarldom
             int ragged = people.Count(InRags), hatless = people.Count(Hatless);
             string make = null;
             var rng = new System.Random((int)(now / 60) ^ c.Id.GetStableHashCode());
-            bool forShip = false;
+            bool forShip = false; int priority = 2;
             if (SailNext(c, thread) is string sail)
-            { make = sail; forShip = true; } // (first: a wool sail for the knarr the jarl ordered, when her mast stage waits on one; one sail, and she sails)
+            { make = sail; forShip = true; priority = 4; } // (first: a wool sail for the knarr the jarl ordered, when her mast stage waits on one; one sail, and she sails)
             else if (ragged > spare.chest && Compat.HomespunOn)
             {
                 // With Homespun: a garment sewn at its table from cloth woven at its loom, the next step of it that can be made now.
                 bool women = people.Where(InRags).Count(b => b.S.Female) * 2 >= ragged;
-                make = HomespunNext(c, women, rng, thread);
+                make = HomespunNext(c, women, rng, thread); priority = 4;
             }
             else if (ragged > spare.chest)
             {
                 // Something to wear: colours when there's dye, plain undyed when not; a dress or a tunic as the ragged are women or men.
                 bool women = people.Where(InRags).Count(b => b.S.Female) * 2 >= ragged;
                 var fits = Table.Where(t => t.item.StartsWith("ArmorTunic") || t.item.StartsWith("ArmorDress")).Select(t => RecipeFor(t.item)).Where(r => r != null && Afford(r)).ToList();
+                priority = 4;
                 if (fits.Count > 0) make = fits.OrderBy(r => r.m_item.name.StartsWith(women ? "ArmorDress" : "ArmorTunic") ? 0 : 1).ThenBy(r => r.m_item.name.EndsWith("10") ? 1 : 0).ThenBy(_ => rng.Next()).First().m_item.name;
             }
             else if (Compat.HomespunOn && Chill.ToSew(Year.Today().Season, people.Count(b => !Cold.Has(b)), SpareWarm(c)) > 0 && WarmNext(c, thread) is string toward)
-                make = toward; // (wool trousers or a hooded cloak for each of them with nothing warm, in autumn and winter)
+            { make = toward; priority = 3; } // (wool trousers or a hooded cloak for each of them with nothing warm, in autumn and winter)
             else if (hatless > spare.hat + people.Count / 2 && c.R.Flag("weave:hatday") != c.Day) // (a cap now and then, not one each at once)
             {
                 var hats = Table.Where(t => t.item.StartsWith("HelmetHat")).Select(t => RecipeFor(t.item)).Where(r => r != null && Afford(r)).ToList();
@@ -181,11 +182,13 @@ namespace Jarldom
             // No thread to weave with: spin some from the flax in the stores, by hand if there's no spinning wheel (one feeds itself).
             if (make == null && !Compat.HomespunOn && (ragged > spare.chest || hatless > 0) && thread < 6 && Crafts.InStock(c, Flax) - SeedKept(c) >= 2
                 && !c.PiecesIn(c.Radius).Any(p => p.GetComponent<Smelter>() is Smelter s && s.m_conversion.Any(cv => cv.m_from != null && cv.m_from.name == Flax)))
-                make = Thread;
+            { make = Thread; priority = 3; }
             if (make == null) return;
             Vector3 at = (Crafts.StationFor(c, Crafts.RecipeFor(make), bench.transform.position) ?? bench).transform.position;
-            // (the ship's sail before the stations' tending, which would otherwise always come first: the knarr waits on it)
-            c.Board.Post("craft", Prefix + make, Prof.Weaver, forShip ? 4 : 2, at.x, at.y, at.z, now, "", forShip ? "ship" : "clothes");
+            // (the stations' tending is priority 3 and always waiting, so a craft below it never got made: the ship's sail and clothes for
+            // the ragged come first (4); warm clothes in the cold and thread for the ragged take turns with the tending, nearest first (3);
+            // caps can wait (2))
+            c.Board.Post("craft", Prefix + make, Prof.Weaver, priority, at.x, at.y, at.z, now, "", forShip ? "ship" : "clothes");
         }
         // The garments in the order tried: Homespun's own in wool, Hildir's (linen, dyed), the plain linen undertunic.
         private static readonly string[] Women = { "Homespun_WoolDress" }, Men = { "Homespun_WoolTunic" };
