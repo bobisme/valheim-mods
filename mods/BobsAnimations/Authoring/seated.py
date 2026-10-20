@@ -118,9 +118,11 @@ def cheer(c):
 
 def fold_arms(c):
     """Arms folded across the chest, settled back, breathing. Loops."""
+    # (the elbows out to the sides and a little forward of the ribs, the forearms crossed at the chest, each hand by the other's upper arm)
+    c.elbow('Right', (1, 0.3, -0.6)); c.elbow('Left', (-1, 0.3, -0.6))
     for f, dz in ((1, 0), (45, 0.008), (90, 0)):
-        c.pose(f, 'Right', (-0.15, 0.25, 0.98 + dz), (-0.7, -0.5, 0.1), (0.1, -0.5, -0.8))
-        c.pose(f, 'Left', (0.15, 0.22, 0.94 + dz), (0.7, -0.5, 0.15), (-0.1, -0.5, 0.8))
+        c.pose(f, 'Right', (-0.07, 0.22, 1.0 + dz), (-0.8, -0.5, 0.0), (0.3, -0.9, -0.2))
+        c.pose(f, 'Left', (0.07, 0.26, 0.97 + dz), (0.8, -0.5, 0.0), (-0.3, -0.9, -0.2))
     for h in ('RightHand', 'LeftHand'): c.curl(1, h, 0.45); c.curl(90, h, 0.45)
     for f, b in ((1, 0), (45, 1.5), (90, 0)):
         c.turn(f, {'Spine1': [(X, 2)], 'Spine2': [(X, 3 + b)], 'Head': [(X, -2 + b * 0.5)]})

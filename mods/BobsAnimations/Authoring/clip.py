@@ -30,6 +30,7 @@ class Clip:
         self.hip_moves, self.pinned = {}, False
         self.turn_keys, self.curl_keys, self.hand_keys = [], [], {}
         self.props, self.last = [], 1
+        self.elbows = {}
 
     # ---- mirroring: positions and directions across the character's middle, left for right, turns about Y and Z the other way ----
     def m(self, v):
@@ -57,6 +58,10 @@ class Clip:
     def hand(self, frame, side, rotation=None, wrist=None):
         """The hand's place: as captured (both None), or its wrist at a point with a rotation (a 3x3, already mirrored)."""
         self.hand_keys.setdefault(self.side(side), []).append((frame, rotation, wrist)); self.last = max(self.last, frame)
+    def elbow(self, side, toward):
+        """The elbow bent out toward a direction (the character's axes, written for the right) for the whole clip, not as captured
+        (seated, hands on the knees: down and back, which tucks it into the side when the hands come up in front)."""
+        self.elbows[self.side(side)] = self.m(toward)
     def pose(self, frame, side, wrist, fingers, palm):
         """The wrist at a point, the fingers pointing one way, the palm facing another (the character's axes, written for the right)."""
         z = self.m(fingers).normalized(); y = self.m(palm); y = (y - y.dot(z) * z).normalized(); x = y.cross(z)
@@ -147,7 +152,7 @@ class Clip:
         A0 = carry @ B[up_b.name]
         d = max(abs(L1 - L2) + 1e-3, min(L1 + L2 - 1e-3, (wrist - S).length))
         line = (wrist - S).normalized()
-        out = carry.to_3x3() @ (E0 - S0); out = out - out.dot(line) * line
+        out = self.elbows[side].copy() if side in self.elbows else carry.to_3x3() @ (E0 - S0); out = out - out.dot(line) * line
         if out.length < 1e-4: out = Vector((1 if side == 'Right' else -1, -0.3, -0.3)); out = out - out.dot(line) * line
         out.normalize()
         a = (L1 * L1 - L2 * L2 + d * d) / (2 * d); h = math.sqrt(max(0.0, L1 * L1 - a * a))

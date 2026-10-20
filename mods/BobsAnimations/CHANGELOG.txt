@@ -1,3 +1,5 @@
+0.3.8: folded arms while seated (sit_fold_arms) read as folded arms: the elbows sit out by the ribs instead of jammed into the belly, the forearms cross at the chest, and each hand tucks against the other arm.
+
 0.3.7: A clip made for walking (walk_carry) ends by itself once its character has stood still for a second and a half: an armful could stay in the arms of a villager called away mid-carry (the gothi at the altar for a rite), when the mod that started it lost track.
 
 0.3.6: Hair and dresses follow a clip: the game's cloth (Magica Cloth: braids, pigtails, dresses, capes) read the skeleton before a clip posed it, so a villager crouching to sow left her pigtails hanging, stretched, where her head would have been standing. Clips now pose the body in the cloth's own hook, just before it reads the bones (the game's LateUpdate is the fallback). Claude Tools: anim skins (each skin's bones and cloth), and anim shot shows characters out of the player's view as they are.
