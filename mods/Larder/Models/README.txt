@@ -130,3 +130,50 @@ Items (lie about the origin; game frame):
   saltmeat   x -0.095..0.097, y -0.021..0.029, z -0.059..0.052 (a slab 0.19 x 0.11, the fat along its +z edge, salt crystals on top)
   stockfish  x -0.175..0.180, y -0.006..0.020, z -0.062..0.062 (0.355 long, 0.12 wide, its back up: the cut neck at -x, the tail fin at +x)
   salt       x -0.064..0.065, y -0.030..0.041, z -0.065..0.066 (a bowl 0.13 across, the salt heaped 0.03 over its rim)
+
+Larder's looks (baking): made the same way by larder.py, and baked the same way. Piece: bakeoven. Items: flatbread, flatbreaddough,
+spoiled. Remake with `... larder.py -- render <kind>` as above (yaw 0 = the front).
+
+Baked triangles (budget) and texture size:
+bakeoven 1,430 (1,500) 256 px, flatbread 104 (150) 128 px, flatbreaddough 116 (150) 128 px, spoiled 162 (150) 128 px.
+
+Material slots added after the preserves ones (sRGB as the game draws them; bake_conf.look):
+19 clay (0.56,0.48,0.4), 20 bread (0.8,0.62,0.36), 21 toast (0.6,0.4,0.2), 22 dough (0.9,0.84,0.7), 23 flour (0.95,0.92,0.84),
+24 rot (0.4,0.34,0.27), 25 mould (0.55,0.62,0.45). The oven also uses stone, sootstone, soot, smudge and wood (the peel, the logs).
+Decals (texture only): the soot over the oven's mouth and in its vent's throat, the toasted spots on the flatbread, the flour on the
+dough, the mould on the spoiled food. The dome's inside is soot; the mouth is a real opening, so what sits on the floor shows through it.
+
+Numbers for the C# side. Game frame, metres, y up, +z = the front where the player stands. The piece origin is on the ground at its centre.
+
+bakeoven (a cooking station with wood fuel, like the game's oven: wood in the fire hole, dough through the mouth):
+  plinth (dry-stone, 3 courses on a ring)  x -0.76..0.77, y -0.05..0.43, z -0.74..0.70 (ring radius 0.53..0.73; hollow: the fire chamber)
+  fire hole in the plinth's front (open)   x -0.16..0.16, y 0..0.28, at the front face z 0.73 (lintel stone over it, y 0.28..0.41)
+  hearth slab on the plinth                radius 0.73, y 0.40..0.462 (x -0.73..0.75, z -0.73..0.74)
+  dome (clay, walls 0.1 thick)             radius 0.64 at its foot (y 0.455), crown y 1.06; x -0.63..0.65, z -0.63..0.60
+  stones round the dome's foot             radius 0.62..0.72, y 0.445..0.57 (none in front, by the mouth)
+  mouth (arched, open)                     x -0.20..0.20, floor y 0.462, springs at y 0.60, crown y 0.80; its outer face at z 0.64
+  arch + jamb stones round the mouth       x -0.32..0.33, y 0.46..0.90, z 0.42..0.63
+  floor inside the dome (soot-stone)       radius 0.51, top y 0.468 (the dome's inside is radius 0.54 at the floor, 0.43 at y 0.80)
+  ledge in front of the mouth              x -0.33..0.33, y 0.40..0.47, z 0.61..0.92 (on the lintel, out over the fire hole)
+  smoke vent (clay pot-chimney, back)      x -0.08..0.08, y 0.88..1.07, z -0.43..-0.27 (top centre (0, 1.065, -0.35))
+  peel leaning at the right front          x 0.36..0.99, y 0..1.09, z 0.18..0.60 (its blade on the ground at about (0.93, 0, 0.50))
+  firewood on the ground at the left       x -1.05..-0.80, y 0..0.19, z -0.23..0.30
+  whole footprint                          x -1.05..0.99, z -0.74..0.92, top y 1.09 (the peel's handle; the vent is 1.07)
+  colliders: plinth box x/z +-0.74, y 0..0.46 (or a cylinder radius 0.74); dome lower box x/z +-0.62, y 0.46..0.80; dome upper box
+    x/z +-0.42, y 0.80..1.06; ledge box x +-0.33, y 0.40..0.47, z 0.61..0.92; firewood box x -1.05..-0.80, y 0..0.19, z -0.23..0.30
+    (the peel is too thin to need one)
+  hand to put dough in / take bread out: the mouth, (0, 0.60, 0.62)
+  hand to add fuel: the fire hole, (0, 0.15, 0.75) (under the ledge's front edge at z 0.92)
+  fire: in the fire chamber in the plinth, on the ash under the floor, (0, 0.08, 0.15) (it shows through the fire hole); if the glow
+    should show in the mouth too, a second point inside the dome at (0, 0.56, -0.05)
+  smoke: out of the vent's top, (0, 1.08, -0.35); a wisp from the top of the mouth at (0, 0.79, 0.64)
+  4 cooking slots on the floor inside the dome (the item's ORIGIN: floor y 0.468 + 0.010, the dough's half-thickness; flatbread also
+    reaches y -0.010 below its origin):
+    (0, 0.478, 0.22) (by the mouth, the one most seen), (-0.22, 0.478, -0.02), (0.22, 0.478, -0.02), (0, 0.478, -0.26)
+    (0.18 across each, kept 0.05 clear of the wall and each other; a random turn about y per loaf is fine)
+  output point on the ground in front: (-0.45, 0, 1.15) (clear of the ledge at z 0.92 and the peel at x 0.36..0.99)
+
+Items (lie about the origin; game frame):
+  flatbread      x -0.112..0.123, y -0.010..0.009, z -0.117..0.107 (two rounds 0.22 across, 1 cm thick, the top one a touch askew)
+  flatbreaddough x -0.089..0.090, y -0.010..0.010, z -0.090..0.091 (a round 0.18 across, 2 cm thick)
+  spoiled        x -0.065..0.095, y -0.026..0.034, z -0.053..0.058 (a lump 0.13 across, 0.06 high; the bone end sticks out to x 0.095)
