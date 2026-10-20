@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net48</TargetFramework><AssemblyName>StaticProbe</AssemblyName><GenerateAssemblyInfo>false</GenerateAssemblyInfo><DebugType>none</DebugType><LangVersion>latest</LangVersion></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <Reference Include="BepInEx"><HintPath>/home/bob/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Valheim/BepInEx/core/BepInEx.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="0Harmony"><HintPath>/home/bob/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Valheim/BepInEx/core/0Harmony.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine"><HintPath>/home/bob/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Valheim/valheim_Data/Managed/UnityEngine.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>/home/bob/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Valheim/valheim_Data/Managed/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="assembly_valheim"><HintPath>/home/bob/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Valheim/valheim_Data/Managed/assembly_valheim.dll</HintPath><Private>false</Private></Reference><Reference Include="UnityEngine.PhysicsModule"><HintPath>/home/bob/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Valheim/valheim_Data/Managed/UnityEngine.PhysicsModule.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>
