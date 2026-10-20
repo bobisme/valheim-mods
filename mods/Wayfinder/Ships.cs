@@ -14,6 +14,19 @@ namespace Wayfinder
         internal const string NameKey="bob_wayfinder_ship_name",HelmKey="bob_wayfinder_helm_course",HelmByKey="bob_wayfinder_helm_by";
         internal const string RenameRpc="bob_wayfinder_rename",HelmRpc="bob_wayfinder_helm";
         private const string FleetPrefix="bob_wayfinder_ships:";
+        // Her own mark, kept on her ZDO: the game gives every ZDO a new id each time the world loads (an id kept from an earlier session
+        // finds nothing, or something else), so the fleet knows her by this and finds her by where she lay. Given by her owner.
+        internal const string MarkKey="bob_wayfinder_mark",MarkRpc="bob_wayfinder_mark";
+        internal static long MarkOf(ZDO zdo)=>zdo!=null?zdo.GetLong(MarkKey,0L):0L;
+        internal static long Mark(ZNetView view)
+        {
+            if(view==null||!view.IsValid())return 0;
+            long mark=MarkOf(view.GetZDO());
+            if(mark!=0)return mark;
+            long fresh=((long)UnityEngine.Random.Range(1,int.MaxValue)<<31)^UnityEngine.Random.Range(1,int.MaxValue);
+            if(view.IsOwner())view.GetZDO().Set(MarkKey,fresh);else view.InvokeRPC(MarkRpc,fresh);
+            return MarkOf(view.GetZDO()); // (0 until the owner has given it)
+        }
 
         // The ship you are on: the game's (its deck trigger), or the one whose masthead you sit at, above that trigger.
         internal static Ship Aboard()=>Ship.GetLocalShip()??Masthead.Ship;
@@ -21,13 +34,14 @@ namespace Wayfinder
         {
             ZNetView view=ship!=null?ship.GetComponent<ZNetView>():null;
             if(view==null||!view.IsValid())return "";
-            string name=view.GetZDO().GetString(NameKey);
-            return string.IsNullOrEmpty(name)?Policy.ShipName(view.GetZDO().m_uid.ID+view.GetZDO().m_uid.UserID):name;
+            return NameOf(view.GetZDO());
         }
         internal static string NameOf(ZDO zdo)
         {
             string name=zdo.GetString(NameKey);
-            return string.IsNullOrEmpty(name)?Policy.ShipName(zdo.m_uid.ID+zdo.m_uid.UserID):name;
+            if(!string.IsNullOrEmpty(name))return name;
+            long mark=MarkOf(zdo); // (unnamed: a name from her mark, the same every session; from the id only until she has one)
+            return Policy.ShipName(mark!=0?mark:zdo.m_uid.ID+zdo.m_uid.UserID);
         }
 
         // ---- the helmsman's course
@@ -81,7 +95,7 @@ namespace Wayfinder
         }
 
         // ---- the fleet: ships you have sailed in, pinned on your map
-        private sealed class Known{internal ZDOID Id;internal Vector3 At;internal string Name;internal Minimap.PinData Pin;}
+        private sealed class Known{internal ZDOID Id;internal long Mark;internal Vector3 At;internal string Name;internal Minimap.PinData Pin;}
         private static readonly List<Known> Fleet_=new List<Known>();
         private static string _fleetFor;
         internal static int FleetCount=>Fleet_.Count;
@@ -90,12 +104,21 @@ namespace Wayfinder
         {
             string key=FleetKey();
             if(key==null)return;
-            if(_fleetFor!=key+me.GetPlayerID()){ClearPins();Fleet_.Clear();_fleetFor=key+me.GetPlayerID();LoadFleet(me,key);}
+            // (this Player too: after a logout the same world and character come back with a new map, and pins kept from the old one
+            // read as taken off by hand, which forgot the whole fleet)
+            string fleetFor=key+me.GetPlayerID()+"#"+me.GetInstanceID();
+            if(_fleetFor!=fleetFor){ClearPins();Fleet_.Clear();_fleetFor=fleetFor;LoadFleet(me,key);}
             bool changed=false;
             ZNetView view=aboard!=null?aboard.GetComponent<ZNetView>():null;
-            if(view!=null&&view.IsValid()&&!Fleet_.Any(k=>k.Id==view.GetZDO().m_uid))
+            long aboardMark=Mark(view);
+            if(view!=null&&view.IsValid()&&Fleet_.FirstOrDefault(k=>aboardMark!=0&&k.Mark==aboardMark||k.Mark==0&&k.Id==view.GetZDO().m_uid) is Known known)
             {
-                Fleet_.Insert(0,new Known{Id=view.GetZDO().m_uid,At=aboard.transform.position,Name=NameOf(aboard)});
+                // (known already: her id this session and her mark, once she has one)
+                if(known.Id!=view.GetZDO().m_uid||known.Mark!=aboardMark&&aboardMark!=0){known.Id=view.GetZDO().m_uid;if(aboardMark!=0)known.Mark=aboardMark;changed=true;}
+            }
+            else if(view!=null&&view.IsValid())
+            {
+                Fleet_.Insert(0,new Known{Id=view.GetZDO().m_uid,Mark=aboardMark,At=aboard.transform.position,Name=NameOf(aboard)});
                 while(Fleet_.Count>Plugin.FleetSize.Value){RemovePin(Fleet_[Fleet_.Count-1]);Fleet_.RemoveAt(Fleet_.Count-1);}
                 changed=true;
             }
@@ -104,10 +127,13 @@ namespace Wayfinder
             for(int i=Fleet_.Count-1;i>=0;i--)
             {
                 Known k=Fleet_[i];
-                ZDO zdo=ZDOMan.instance.GetZDO(k.Id);
+                ZDO zdo=Find(k);
                 if(zdo!=null)
                 {
-                    Vector3 at=zdo.GetPosition();string name=NameOf(zdo);
+                    // (unnamed, her name came from her id, which the game changes every session: the name the fleet knows her by goes on her)
+                    string own=zdo.GetString(NameKey);
+                    if(string.IsNullOrEmpty(own)&&!string.IsNullOrEmpty(k.Name))Christen(zdo,k.Name);
+                    Vector3 at=zdo.GetPosition();string name=string.IsNullOrEmpty(own)&&!string.IsNullOrEmpty(k.Name)?k.Name:NameOf(zdo);
                     if((at-k.At).sqrMagnitude>4||name!=k.Name){k.At=at;k.Name=name;changed=true;}
                 }
                 else if(ZoneSystem.instance.IsZoneLoaded(k.At)&&(me.transform.position-k.At).sqrMagnitude<40*40)
@@ -118,7 +144,7 @@ namespace Wayfinder
                     continue;
                 }
                 if(map==null||!Plugin.ShipPins.Value){RemovePin(k);continue;}
-                bool aboardHer=view!=null&&view.IsValid()&&view.GetZDO().m_uid==k.Id;
+                bool aboardHer=view!=null&&view.IsValid()&&(view.GetZDO().m_uid==k.Id||k.Mark!=0&&k.Mark==aboardMark);
                 if(k.Pin!=null&&!MapPinList(map).Contains(k.Pin))
                 {
                     // the pin was taken off the map by hand: forget her
@@ -136,6 +162,33 @@ namespace Wayfinder
             }
             if(changed)SaveFleet(me,key);
         }
+        // Her ZDO this session: by the id last seen if it still leads to her, else looked for where she lay (the sectors round her last
+        // spot, which the game keeps for loaded and unloaded zones alike): by her mark, or (a fleet saved before marks) the nearest ship
+        // within a few metres. The id found is kept for the rest of the session.
+        private static readonly List<ZDO> Near=new List<ZDO>();
+        private static ZDO Find(Known k)
+        {
+            ZDO zdo=ZDOMan.instance.GetZDO(k.Id);
+            if(zdo!=null&&(k.Mark!=0?MarkOf(zdo)==k.Mark:IsShip(zdo)&&Utils.DistanceXZ(zdo.GetPosition(),k.At)<6))return zdo;
+            Near.Clear();
+            ZDOMan.instance.FindSectorObjects(ZoneSystem.GetZone(k.At),new SimulationDistance(1,0,classic:true),Near); // (the 3x3 zones round her spot)
+            ZDO found=null;float best=6;
+            foreach(ZDO z in Near)
+            {
+                if(z==null||!z.IsValid())continue;
+                if(k.Mark!=0){if(MarkOf(z)==k.Mark){found=z;break;}continue;}
+                float d=Utils.DistanceXZ(z.GetPosition(),k.At);
+                if(d<best&&IsShip(z)){best=d;found=z;}
+            }
+            if(found!=null){k.Id=found.m_uid;if(k.Mark==0)k.Mark=MarkOf(found);}
+            return found;
+        }
+        private static void Christen(ZDO zdo,string name)
+        {
+            if(zdo.IsOwner())zdo.Set(NameKey,Policy.Clean(name));
+            else if(zdo.HasOwner())ZRoutedRpc.instance.InvokeRoutedRPC(zdo.GetOwner(),zdo.m_uid,RenameRpc,name); // (her owner's rename call; none while she lies unloaded)
+        }
+        private static bool IsShip(ZDO zdo)=>ZNetScene.instance!=null&&ZNetScene.instance.GetPrefab(zdo.GetPrefab()) is GameObject p&&p.GetComponent<Ship>()!=null;
         private static readonly AccessTools.FieldRef<Minimap,List<Minimap.PinData>> MapPinList=AccessTools.FieldRefAccess<Minimap,List<Minimap.PinData>>("m_pins");
         private static void RemovePin(Known k){if(k.Pin!=null&&Minimap.instance!=null)Minimap.instance.RemovePin(k.Pin);k.Pin=null;}
         private static void ClearPins(){foreach(Known k in Fleet_)RemovePin(k);}
@@ -147,12 +200,13 @@ namespace Wayfinder
                 string[] f=s.Split('|');
                 if(f.Length<5||!long.TryParse(f[0],out long user)||!uint.TryParse(f[1],out uint id))continue;
                 if(!float.TryParse(f[2],NumberStyles.Float,CultureInfo.InvariantCulture,out float x)||!float.TryParse(f[3],NumberStyles.Float,CultureInfo.InvariantCulture,out float z))continue;
-                Fleet_.Add(new Known{Id=new ZDOID(user,id),At=new Vector3(x,ZoneSystem.instance!=null?ZoneSystem.instance.m_waterLevel:30,z),Name=f[4]});
+                long mark=f.Length>5&&long.TryParse(f[5],out long m)?m:0; // (her mark: none in a fleet saved before 0.1.15)
+                Fleet_.Add(new Known{Id=new ZDOID(user,id),Mark=mark,At=new Vector3(x,ZoneSystem.instance!=null?ZoneSystem.instance.m_waterLevel:30,z),Name=f[4]});
             }
         }
         private static void SaveFleet(Player me,string key)
         {
-            me.m_customData[key]=string.Join(";",Fleet_.Select(k=>$"{k.Id.UserID}|{k.Id.ID}|{k.At.x.ToString("0.0",CultureInfo.InvariantCulture)}|{k.At.z.ToString("0.0",CultureInfo.InvariantCulture)}|{Policy.Clean(k.Name)}"));
+            me.m_customData[key]=string.Join(";",Fleet_.Select(k=>$"{k.Id.UserID}|{k.Id.ID}|{k.At.x.ToString("0.0",CultureInfo.InvariantCulture)}|{k.At.z.ToString("0.0",CultureInfo.InvariantCulture)}|{Policy.Clean(k.Name)}|{k.Mark}"));
         }
 
         // Ships taken out of the fleet (test boats removed): their pins off the map. How many were in it.
@@ -184,7 +238,8 @@ namespace Wayfinder
             Fittings.Add(ship);
             ZNetView view=ship.GetComponent<ZNetView>();
             if(view==null||view.GetZDO()==null)return;
-            view.Unregister(Ships.RenameRpc);view.Unregister(Ships.HelmRpc); // (a reloaded copy registers again)
+            view.Unregister(Ships.RenameRpc);view.Unregister(Ships.HelmRpc);view.Unregister(Ships.MarkRpc); // (a reloaded copy registers again)
+            view.Register<long>(Ships.MarkRpc,(sender,mark)=>{if(view.IsOwner()&&Ships.MarkOf(view.GetZDO())==0&&mark!=0)view.GetZDO().Set(Ships.MarkKey,mark);});
             view.Register<string>(Ships.RenameRpc,(sender,name)=>{if(view.IsOwner())view.GetZDO().Set(Ships.NameKey,Policy.Clean(name));});
             view.Register<string,string>(Ships.HelmRpc,(sender,text,by)=>{if(view.IsOwner()){view.GetZDO().Set(Ships.HelmKey,text??"");view.GetZDO().Set(Ships.HelmByKey,Policy.Clean(by));}});
             Rigging.Register(view); // (a sail of Homespun's rigged on her)
