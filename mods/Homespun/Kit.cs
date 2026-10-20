@@ -77,7 +77,7 @@ namespace Homespun
                 foreach (string n in PrefabNames.Shipped.Where(n => !made.Contains(n))) Plugin.Warn($"ERROR: {n} was shipped but isn't made any more: it's gone from every save.");
                 foreach (string n in made.Where(n => !PrefabNames.Shipped.Contains(n))) Plugin.Warn($"{n} isn't in Core/PrefabNames.cs yet.");
             }
-            if (every) { if (_settleAt < 0) _settleAt = Time.unscaledTime + 3; else if (Time.unscaledTime >= _settleAt) Leftovers.TakeOver(Looks.Owned); }
+            if (every) { if (_settleAt < 0) _settleAt = Time.unscaledTime + 3; else if (Time.unscaledTime >= _settleAt) Leftovers.TakeOver(Looks.AllOwned()); }
         }
         internal static void Broken() => _broken = true;
         internal static void Unload()
@@ -85,9 +85,9 @@ namespace Homespun
             PieceTable table = Hammer(ZNetScene.instance);
             foreach (GameObject prefab in Made.Values) PieceReload.UnloadPiece(prefab, table);
             // (the meshes and materials stay: what's standing, and the items, still draw with them till the next copy puts its own in their place)
-            Leftovers.HandOver(Looks.Owned.Concat(new Object[] { _holder }));
+            Leftovers.HandOver(Looks.AllOwned().Concat(new Object[] { _holder }));
         }
-        private static void Forget() { Made.Clear(); if (_holder != null) Object.Destroy(_holder); _holder = null; _named = false; }
+        private static void Forget() { Made.Clear(); if (_holder != null) Object.Destroy(_holder); Looks.ForgetWorld(); _holder = null; _named = false; }
 
         private static GameObject Make(ZNetScene scene, Def d)
         {
@@ -126,13 +126,13 @@ namespace Homespun
             piece.m_groundPiece = false; piece.m_groundOnly = false; piece.m_clipEverything = false; piece.m_comfort = d.Hung ? Tapestry.Comfort : 0; piece.m_comfortGroup = d.Hung ? Piece.ComfortGroup.Banner : Piece.ComfortGroup.None;
             piece.m_resources = d.Cost.Select(c => Req(scene, c.item, c.n)).Where(r => r != null).ToArray();
             piece.m_enabled = true;
-            try { if (Icon.Make(go) is Sprite icon) { piece.m_icon = icon; Looks.Owned.Add(icon); Looks.Owned.Add(icon.texture); } }
+            try { if (Icon.Make(go) is Sprite icon) { piece.m_icon = icon; Looks.WorldOwned.Add(icon); Looks.WorldOwned.Add(icon.texture); } }
             catch (Exception e) { Plugin.Warn($"No icon for the {d.Title}: {e.Message}"); }
             if (go.GetComponent<CraftingStation>() is CraftingStation station) station.m_icon = piece.m_icon; // (the crafting window's picture of where you are)
             Icon.Later(() =>
             {
                 if (go == null || !(Icon.Make(go) is Sprite again)) return;
-                piece.m_icon = again; Looks.Owned.Add(again); Looks.Owned.Add(again.texture);
+                piece.m_icon = again; Looks.WorldOwned.Add(again); Looks.WorldOwned.Add(again.texture);
                 if (go.GetComponent<CraftingStation>() is CraftingStation st) st.m_icon = again;
             });
             return go;

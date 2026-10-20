@@ -136,14 +136,14 @@ namespace Homespun
                 t[3 * i] = 0; t[3 * i + 1] = 1 + (i + 1) % segs; t[3 * i + 2] = 1 + i;
             }
             var mesh = new Mesh { name = "Homespun dye", vertices = v, normals = n, uv = uv, triangles = t, colors = Enumerable.Repeat(Color.white, segs + 1).ToArray() };
-            mesh.RecalculateBounds(); Looks.Owned.Add(mesh);
+            mesh.RecalculateBounds(); Looks.WorldOwned.Add(mesh);
             Material basis = Looks.PieceMat(scene, "wood_pole");
             if (basis == null) return;
             var m = new Material(basis) { name = "Homespun dye", color = new Color(0.2f, 0.22f, 0.18f) };
             if (m.HasProperty("_MainTex")) m.SetTexture("_MainTex", null);
             if (m.HasProperty("_BumpMap")) m.SetTexture("_BumpMap", null);
             foreach (string k in new[] { "_Glossiness", "_Smoothness" }) if (m.HasProperty(k)) m.SetFloat(k, 0.8f);
-            Looks.Owned.Add(m);
+            Looks.WorldOwned.Add(m);
             var o = new GameObject(DyeVat.DyeChild) { layer = vat.layer }; o.transform.SetParent(vat.transform, false);
             o.AddComponent<MeshFilter>().sharedMesh = mesh;
             o.AddComponent<MeshRenderer>().sharedMaterial = m;

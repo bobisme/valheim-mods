@@ -1,3 +1,5 @@
+0.3.3: each world load no longer keeps another set of the piece icons and the dye vat's dye (they piled up until the game restarted).
+
 0.3.2: test tool: spun drop <item> drops one from the bag ahead of you (used for the multiplayer dye check).
 
 0.3.1: the dye vat's hover says 'ready, close the vat' when the dye has taken but someone has it open (it read 'steeping, 0s': the batch comes out dyed when the lid is shut, not while someone looks in). Test tools: spun vat shows the vat's hover; spun recipes shows which of ours the crafting window offers the player now. Live-checked by hand on a player: the vat opens as a chest (DYE VAT), its hover while steeping ('Dyes 2 blue: steeping, 54s'), 2 wool bolts dyed blue with 10 blueberries once closed; with the blue bolts known, the sewing table offers blue wool trousers and a blue wool sail.
