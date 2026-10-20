@@ -1,3 +1,5 @@
+0.1.16: with Godforged, aboard Skíðblaðnir the HUD's wind line says her fair wind fills the sail, instead of telling you to row into a headwind she doesn't feel.
+
 0.1.15: your fleet keeps its ships. The game gives every ship a new id each time the world loads, so a ship saved in your fleet could be lost, or swapped for another. Each ship now carries her own mark, and the fleet finds her by it, or by where she lay. An unnamed ship also keeps the name the fleet knows her by, instead of getting a new one each session. And logging out and back in no longer forgets the whole fleet (its map pins read as removed by hand).
 
 0.1.14: the notes really do slide out from under the status-effect icons now (0.1.13's test of whether they sat beside the icons was upside down, so they never moved).

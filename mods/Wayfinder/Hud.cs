@@ -159,9 +159,9 @@ namespace Wayfinder
                 Vector3 h=ship!=null&&!Course.Active&&!helmNext.HasValue?ship.transform.forward:(legDir??me.transform.forward);
                 double off=Policy.OffStern(w.x,w.z,h.x,h.z);
                 double power=Policy.SailPower(w.x,w.z,EnvMan.instance.GetWindIntensity(),h.x,h.z);
-                bool moder=ship!=null&&ship.IsWindControllActive();
+                bool moder=ship!=null&&ship.IsWindControllActive(),fair=ship!=null&&Godforged.FairWind(ship);
                 string forWhat=legDir.HasValue?"for this leg":"for her heading";
-                sb.Append(moder?"<color=#c8e0ff>Moder's wind fills the sail.</color>\n":
+                sb.Append(moder?"<color=#c8e0ff>Moder's wind fills the sail.</color>\n":fair?"<color=#c8e0ff>Skíðblaðnir's fair wind fills the sail.</color>\n":
                     $"<color=#c0d8c8>Wind</color> {Weather.WindNow()}<size=85%><color=#b0a690> · {Policy.WindWord(off)} {forWhat}, sail {Mathf.RoundToInt((float)power*100)}%</color></size>\n");
             }
             if(ship!=null&&Items.Has(me,Items.SoundingLine)&&Sounding.Line!="")
