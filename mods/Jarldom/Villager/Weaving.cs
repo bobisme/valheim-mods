@@ -155,7 +155,10 @@ namespace Jarldom
             int ragged = people.Count(InRags), hatless = people.Count(Hatless);
             string make = null;
             var rng = new System.Random((int)(now / 60) ^ c.Id.GetStableHashCode());
-            if (ragged > spare.chest && Compat.HomespunOn)
+            bool forShip = false;
+            if (SailNext(c, thread) is string sail)
+            { make = sail; forShip = true; } // (first: a wool sail for the knarr the jarl ordered, when her mast stage waits on one; one sail, and she sails)
+            else if (ragged > spare.chest && Compat.HomespunOn)
             {
                 // With Homespun: a garment sewn at its table from cloth woven at its loom, the next step of it that can be made now.
                 bool women = people.Where(InRags).Count(b => b.S.Female) * 2 >= ragged;
@@ -181,7 +184,8 @@ namespace Jarldom
                 make = Thread;
             if (make == null) return;
             Vector3 at = (Crafts.StationFor(c, Crafts.RecipeFor(make), bench.transform.position) ?? bench).transform.position;
-            c.Board.Post("craft", Prefix + make, Prof.Weaver, 2, at.x, at.y, at.z, now, "", "clothes");
+            // (the ship's sail before the stations' tending, which would otherwise always come first: the knarr waits on it)
+            c.Board.Post("craft", Prefix + make, Prof.Weaver, forShip ? 4 : 2, at.x, at.y, at.z, now, "", forShip ? "ship" : "clothes");
         }
         // The garments in the order tried: Homespun's own in wool, Hildir's (linen, dyed), the plain linen undertunic.
         private static readonly string[] Women = { "Homespun_WoolDress" }, Men = { "Homespun_WoolTunic" };
@@ -207,6 +211,31 @@ namespace Jarldom
                 foreach (string g in new[] { Chill.Trousers, Chill.Cloak })
                     if (Step(c, g, x => x == Thread ? thread : Crafts.InStock(c, x), 0) is string step && (step == g) == now) return step;
             return null;
+        }
+        // A sail, or the next step towards one, while the knarr on the colony's slipway needs one the stores don't hold: in the colony's
+        // colour when its dyed bolts are in the stores, else undyed.
+        private static string SailNext(Colony c, int thread) => SailNext(c, thread, out _);
+        // (jarldom ship: what the weaver would do about a sail, and why)
+        internal static string SailWhy(Colony c) => (SailNext(c, Crafts.InStock(c, Thread), out string why) ?? "nothing") + ": " + why;
+        private static string SailNext(Colony c, int thread, out string why)
+        {
+            string sail = Compat.HomespunOn ? Compat.HomespunSail : null;
+            why = sail == null ? "no Homespun sails" : "no knarr on a slipway";
+            if (sail == null || !(Shipyard.Building(c) is var on) || on == null || on.Value.id != Shipyard.SlipwayId) return null;
+            int need = Compat.SlipwayNeeds(on.Value.at).Where(n => n.item == sail).Sum(n => n.n);
+            why = "her stage under way needs no sail";
+            if (need == 0) return null;
+            int held = Stock.Chests(c).Where(x => x.category != "treasury").SelectMany(x => x.chest.GetInventory().GetAllItems())
+                .Concat(Villagers.All.Where(b => b.S.Colony == c.Id && b.Body != null).SelectMany(b => b.Body.GetInventory().GetAllItems()))
+                .Where(i => i.m_dropPrefab != null && Compat.HomespunIsSail(i.m_dropPrefab.name)).Sum(i => i.m_stack);
+            why = held + " held of " + need;
+            if (held >= need) return null;
+            Func<string, int> has = x => x == Thread ? thread : Crafts.InStock(c, x);
+            foreach (string colour in Dyeing.Of(c))
+                if (Compat.HomespunDyedAs(sail, colour) is string dyed && Step(c, dyed, has, 0) == dyed) return dyed;
+            string step = Step(c, sail, has, 0);
+            why += step == null ? ", and nothing towards it can be made (" + (Crafts.RecipeFor(sail) == null ? "no recipe" : Crafts.StationFor(c, Crafts.RecipeFor(sail), c.Position) == null ? "no sewing table" : "short of " + string.Join(", ", Crafts.Needs(Crafts.RecipeFor(sail)).Select(n => n.item + " " + has(n.item) + "/" + n.amount))) + ")" : "";
+            return step;
         }
         internal static int SpareWarm(Colony c) => Stock.Chests(c).Where(x => x.category != "treasury").SelectMany(x => x.chest.GetInventory().GetAllItems()).Count(Cold.Warm);
         // The next thing to make towards an item: itself if the stores hold what it takes, else (for cloth, a band, thread) what it lacks.

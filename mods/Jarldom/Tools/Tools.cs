@@ -677,7 +677,7 @@ namespace Jarldom
                     }
                     break;
                 case "board":
-                    output(new JObject { ["completed"] = c.Board.CompletedCount, ["orders"] = new JArray(c.Board.All.Where(o => o.State != OrderState.Done && o.State != OrderState.Cancelled).OrderByDescending(o => o.Priority).Take(60).Select(o => new JObject { ["id"] = o.Id, ["kind"] = o.Kind, ["prof"] = o.Prof.ToString(), ["state"] = o.State.ToString(), ["by"] = o.By, ["who"] = o.Vid, ["blocked"] = o.Blocked, ["prio"] = o.Priority, ["at"] = new JArray(Math.Round(o.X), Math.Round(o.Y), Math.Round(o.Z)) })) });
+                    output(new JObject { ["completed"] = c.Board.CompletedCount, ["orders"] = new JArray(c.Board.All.Where(o => o.State != OrderState.Done && o.State != OrderState.Cancelled).OrderByDescending(o => o.Priority).Take(60).Select(o => new JObject { ["id"] = o.Id, ["kind"] = o.Kind, ["prof"] = o.Prof.ToString(), ["state"] = o.State.ToString(), ["by"] = o.By, ["target"] = o.Target, ["who"] = o.Vid, ["blocked"] = o.Blocked, ["prio"] = o.Priority, ["at"] = new JArray(Math.Round(o.X), Math.Round(o.Y), Math.Round(o.Z)) })) });
                     break;
                 case "log": { int n = a.Length > 2 ? int.Parse(a[2]) : 20; output(new JObject { ["log"] = new JArray(c.R.Log.Skip(Math.Max(0, c.R.Log.Count - n)).Select(e => $"d{e.Day} {e.Kind} {e.A} {e.B} {e.Text}".Trim())) }); } break;
                 case "saga": output(new JObject { ["saga"] = new JArray(Stories.Chronicle(c.R.Log)) }); break;
@@ -1851,7 +1851,7 @@ namespace Jarldom
                         var bk = Shipyard.Building(c);
                         if (a.Length > 3 && a[2] == "work") { Brain w = Who(a[3]); if (w == null) { error("who?"); return; } w.Task?.Stop(w); w.Task = bk.HasValue && bk.Value.id == Shipyard.SlipwayId ? new SlipwayTask() : (Task)BuildTask.Ships(); w.Task.Start(w); output(new JObject { ["doing"] = w.Task.Doing, ["done"] = w.Task.Done }); break; } // (test: that one to the ship now, whatever the hour)
                         if (a.Length > 2) { Shipyard.Kind k = Shipyard.Kinds.FirstOrDefault(x => x.Name == a[2]); if (k == null) { error("raft, karve or longship (or a Shipyard hull: " + string.Join(", ", Shipyard.Kinds.Where(x => x.Hull != null).Select(x => x.Name)) + ")"); return; } output(new JObject { ["why"] = Shipyard.WhyNot(c, k), ["ordered"] = Shipyard.Order(c, k) }); break; }
-                        output(new JObject { ["yards"] = Shipyard.Yards(c).Count, ["building"] = bk.HasValue ? $"{bk.Value.prefab} at {bk.Value.at.x:0.0},{bk.Value.at.y:0.0},{bk.Value.at.z:0.0}" : null,
+                        output(new JObject { ["yards"] = Shipyard.Yards(c).Count, ["sail"] = Weaving.SailWhy(c), ["building"] = bk.HasValue ? $"{bk.Value.prefab} at {bk.Value.at.x:0.0},{bk.Value.at.y:0.0},{bk.Value.at.z:0.0}" : null,
                             ["why"] = new JArray(Shipyard.Kinds.Select(k => $"{k.Name}: {(Shipyard.WhyNot(c, k) is string w && w != "" ? w : "ok")} ({Shipyard.Cost(k)})")),
                             ["launch"] = new JArray(Shipyard.Kinds.Select(k => Shipyard.Yards(c).Count > 0 && Shipyard.Launch(c, Shipyard.Yards(c)[0], k, out Vector3 la, out Quaternion lr) ? $"{k.Name} {la.x:0.0},{la.z:0.0} yaw {lr.eulerAngles.y:0}" : $"{k.Name}: none")) });
                     }

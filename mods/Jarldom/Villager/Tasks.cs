@@ -508,7 +508,14 @@ namespace Jarldom
         private Vector3 _at; private Shipyard.Kind _kind; private List<(string item, int amount)> _needs; private int _blows; private float _next;
         private bool _launch;
         public override bool Interruptible => _blows == 0;
-        private static int Have(Brain b, string item) => b.Body.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == item && !i.m_equipped).Sum(i => i.m_stack);
+        private static int Have(Brain b, string item) => b.Body.GetInventory().GetAllItems().Where(i => Fits(item, i) && !i.m_equipped).Sum(i => i.m_stack);
+        // (what a stage needs, as the stores hold it: Homespun's wool sail in any colour is the sail; the colony's colours first)
+        private static bool Fits(string need, ItemDrop.ItemData i) => i.m_dropPrefab != null && (i.m_dropPrefab.name == need || need == Compat.HomespunSail && Compat.HomespunIsSail(i.m_dropPrefab.name));
+        private IEnumerable<ItemDrop.ItemData> Finest(IEnumerable<ItemDrop.ItemData> items, Colony c)
+        {
+            var colours = Dyeing.Of(c);
+            return items.OrderByDescending(i => Finery.Of(Compat.HomespunDye(i.m_dropPrefab.name), colours));
+        }
         public override void Start(Brain b)
         {
             var on = Shipyard.Building(b.Colony);
@@ -527,7 +534,7 @@ namespace Jarldom
             {
                 var chests = Stock.ChestsFor(b).Where(x => x.category != "treasury" && !ContainerAccess.InUse(x.chest)).ToList();
                 foreach (var (item, amount) in missing)
-                    if (chests.Sum(x => x.chest.GetInventory().GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == item).Sum(i => i.m_stack)) + Have(b, item) < amount)
+                    if (chests.Sum(x => x.chest.GetInventory().GetAllItems().Where(i => Fits(item, i)).Sum(i => i.m_stack)) + Have(b, item) < amount)
                     {
                         Done = true; b.NoBuildUntil = Time.time + 60;
                         string lacking = Localization.instance.Localize(Assets.Find(item)?.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name ?? item).ToLower(), ship = _kind?.Name ?? "ship";
@@ -535,11 +542,12 @@ namespace Jarldom
                         b.ShipShort = lacking; return;
                     }
                 var (want, count) = missing[0];
-                Container from = chests.Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Any(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want));
+                ItemDrop.ItemData best = Finest(chests.SelectMany(x => x.chest.GetInventory().GetAllItems()).Where(i => Fits(want, i)), b.Colony).FirstOrDefault();
+                Container from = best == null ? null : chests.Select(x => x.chest).FirstOrDefault(ch => ch.GetInventory().GetAllItems().Contains(best));
                 if (from == null) { Done = true; b.NoBuildUntil = Time.time + 20; return; }
                 Stock.Walk walk = Stock.WalkTo(b, from, 2.4f);
                 if (walk != Stock.Walk.Reached) return;
-                ItemDrop.ItemData stack = from.GetInventory().GetAllItems().First(i => i.m_dropPrefab != null && i.m_dropPrefab.name == want);
+                ItemDrop.ItemData stack = Finest(from.GetInventory().GetAllItems().Where(i => Fits(want, i)), b.Colony).First();
                 if (Stock.Take(from, b.Body.GetInventory(), stack, count - Have(b, want)) == 0) { Done = true; b.NoBuildUntil = Time.time + 30; }
                 return;
             }
@@ -569,15 +577,18 @@ namespace Jarldom
             Inventory bag = b.Body.GetInventory();
             int stage = Compat.SlipwayStage(_at);
             foreach (var (item, amount) in _needs)
-            {
-                int took = Compat.SlipwayPut(_at, item, Math.Min(amount, Have(b, item)));
-                for (int left = took; left > 0;)
+                // (put in as the bag holds it: a dyed sail goes in as itself, and the knarr sails under its colour)
+                foreach (string held in Finest(bag.GetAllItems().Where(i => Fits(item, i) && !i.m_equipped), b.Colony).Select(i => i.m_dropPrefab.name).Distinct().ToList())
                 {
-                    ItemDrop.ItemData st = bag.GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == item && !i.m_equipped);
-                    if (st == null) break;
-                    int n = Math.Min(left, st.m_stack); bag.RemoveItem(st, n); left -= n;
+                    int took = Compat.SlipwayPut(_at, held, Math.Min(amount, bag.GetAllItems().Where(i => i.m_dropPrefab != null && i.m_dropPrefab.name == held && !i.m_equipped).Sum(i => i.m_stack)));
+                    for (int left = took; left > 0;)
+                    {
+                        ItemDrop.ItemData st = bag.GetAllItems().FirstOrDefault(i => i.m_dropPrefab != null && i.m_dropPrefab.name == held && !i.m_equipped);
+                        if (st == null) break;
+                        int n = Math.Min(left, st.m_stack); bag.RemoveItem(st, n); left -= n;
+                    }
+                    if (took > 0) break;
                 }
-            }
             b.Dirty();
             if (Compat.SlipwayStage(_at) > stage) { b.Body.RaiseSkill(Skills.SkillType.Crafting, 0.5f); b.S.Bump("built"); b.Say(new[] { "That's that stage done.", "On to the next part of her.", "Good work, that." }[UnityEngine.Random.Range(0, 3)], 4); }
             Done = true;

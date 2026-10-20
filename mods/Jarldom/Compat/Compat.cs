@@ -191,6 +191,9 @@ namespace Jarldom
             string dye; try { dye = f(prefab)?.Item2; } catch { dye = null; }
             return _hsDyeOf[prefab] = dye;
         }
+        // Its wool sails (Api version 3): the undyed one's name, and whether a thing is one of them in any colour. Shipyard's knarr takes one.
+        public static string HomespunSail { get { var f = Homespun.Bind<Func<string>>("get_Sail", 3); try { return f?.Invoke(); } catch { return null; } } }
+        public static bool HomespunIsSail(string prefab) { var f = Homespun.Bind<Func<string, bool>>("IsSail", 3); try { return f != null && f(prefab); } catch { return false; } }
         public static bool HomespunDyeable(string prefab) { var f = Homespun.Bind<Func<string, (string, string)?>>("Dyed", 2); try { return f?.Invoke(prefab) != null; } catch { return false; } }
         public static string HomespunDyedAs(string prefab, string dye) { var f = Homespun.Bind<Func<string, string, string>>("DyedAs", 2); try { return f?.Invoke(prefab, dye); } catch { return null; } }
         public static (string stuff, int perMeasure)? HomespunDyestuff(string dye) { var f = Homespun.Bind<Func<string, (string, int)?>>("Dyestuff", 2); try { return f?.Invoke(dye); } catch { return null; } }
