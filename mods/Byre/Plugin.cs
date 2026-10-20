@@ -17,7 +17,7 @@ namespace Byre
     {
         public const string Guid = "cx.bob.byre";
         public const string Name = "Byre";
-        public const string Version = "0.3.0";
+        public const string Version = "0.3.1";
         internal static Plugin Instance;
         internal ServerSettings Synced;
         internal ConfigEntry<bool> Spawning;

@@ -94,6 +94,7 @@ namespace Byre
                     db.m_items.Add(prefab);
                     changed = true;
                 }
+                OurItems.RemoveAll(o => o == null);   // (a past world's copies, destroyed with it)
                 if (!OurItems.Contains(prefab)) OurItems.Add(prefab);
             }
             ItemExtras(prefabs, db);
