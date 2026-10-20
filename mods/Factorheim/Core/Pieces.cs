@@ -56,7 +56,7 @@ namespace Factorheim
         internal static void Register(ZNetScene scene)
         {
             if(scene==null)return;
-            if(scene!=_scene){foreach(PieceDef d in All)d.Built=null;_scene=scene;}
+            _scene=scene; // (a new world's scene: the pieces built for the last one are kept and registered again, as the items are; rebuilt they'd pile up, a set a world load)
             foreach(PieceDef d in All)
             {
                 if(d.Built==null)

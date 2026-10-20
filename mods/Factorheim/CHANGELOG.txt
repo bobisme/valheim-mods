@@ -1,3 +1,5 @@
+0.1.3: each world load no longer builds the machines again and keeps the old set (about 470 objects and their icons a load, until the game restarted).
+
 0.1.2: Machines placed before an update can be taken down too (the old version's leftover hook threw and stopped the removal; the hammer only flashed them red).
 
 0.1.1: Machines can be taken down with the hammer again (dropping what they held threw an error, which stopped the removal); what they held falls on the ground.
